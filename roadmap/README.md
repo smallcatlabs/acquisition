@@ -261,17 +261,11 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. #146, a declared shell for printed commands and `argv` beside them
-   in JSON, at the owner's word of 2026-10-31 (the rulings list): the
-   amendment to C156 is his, brought first with a recommendation; the
-   Windows PowerShell 5.1 and cmd.exe cases are run on the Windows gate
-   before code relies on them. Before the league seat, which then
-   checks the words in their final shape.
-2. 4-0, the time seam, after #146 (the same ruling): a design session
+1. 4-0, the time seam, after #146 (the ruling of 2026-10-31): a design session
    with Fable over `TIME-SEAM.md` §4 and §6 and `TEST-SHAPE.md` §4,
    ruled by the owner, then the build; t5 (#141) rides inside it. The
    machine is the owner's during a league sitting.
-3. The test-shape group's first tranche, between league sittings
+2. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
    waits (#138), t4 the compile cost (#140), in that order, each on
@@ -342,7 +336,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
-tranche ("Pull-forward", item 3), the orchestrator proceeding on its
+tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
 on 2026-10-30, and t4 (#140, the compile cost) the same day
@@ -358,13 +352,9 @@ seat: step `words` (#20, #11, #101, #16) closed on 2026-10-31
 PowerShell 7.3 or newer on Windows outside Git Bash). Next, Phase 3,
 the owner's league run, at his word; its first seat checks the words.
 Before the seat, at the owner's word of 2026-10-31: #146, then 4-0,
-the time seam ("Pull-forward", items 1 and 2). #146 is under way
-(`briefs/146-declared-shell.md`): C156 amended at the owner's word
-(`84d46ca9`); Do 2 done, the four shells' quoting held by one table,
-every word of it carried whole through `pwsh`, Windows PowerShell 5.1
-and cmd.exe on the Windows gate (run 41205233903 on `6f20c616`), no
-rule of the brief overturned; Do 3 to Do 7 built (`c45b4c19`,
-`0f6515da`), the gate green here; the Windows gate has not yet run the
-policy undo through 5.1 and cmd.exe (Do 6), and the review of the
-build, `ec67e7ed^..0f6515da`, is pending. 4-0 is not started.
+the time seam. #146 closed on 2026-10-31 (`LEDGER.md`), with C156
+amended: `ACQ_SHELL` declares `posix`, `pwsh`, `powershell5` or `cmd`
+over detection. Next, 4-0, the time seam ("Pull-forward", item 1): a
+design session with Fable, not started; then Phase 3, the owner's
+league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
