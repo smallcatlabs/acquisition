@@ -14,6 +14,7 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::life::{Effect, Life, Timer};
 use super::*;
 
 impl Daemon {
@@ -188,7 +189,10 @@ impl Daemon {
                         // reconnects to a draining daemon.
                         Some(Bootstrap::DaemonStop) => {
                             let _ = write_line(&mut write, &BootstrapReply::Stopping).await;
-                            self.exit("stop requested; exiting").await;
+                            self.request_stop();
+                            let never: std::convert::Infallible =
+                                std::future::pending().await;
+                            match never {}
                         }
                         None => {}
                     }
@@ -522,25 +526,15 @@ impl Daemon {
         Ok(())
     }
 
-    /// C133, the one exit every cause runs: begin, drain, leave. A cause
-    /// that finds the exit already begun waits for the process to end
-    /// with it (a second stop's connection stays open, as the first's).
-    pub(super) async fn exit(&self, why: &str) -> ! {
-        if !self.begin_exit(why) {
-            std::future::pending::<()>().await;
-        }
-        self.drain().await;
-        self.leave()
-    }
-
-    /// C133: the exit for a cause that armed it itself, taking no lock (a
-    /// signal, on its own thread): the rest of the begin, the drain, the
-    /// leave. The signal watcher is its one caller, so it is Unix's alone.
-    #[cfg(unix)]
-    pub(super) async fn exit_armed(&self, why: &str) -> ! {
-        self.stop_admitting(why);
-        self.drain().await;
-        self.leave()
+    /// C133, `daemon stop`'s ingress: the exit begun here, its swap and,
+    /// when won, its admission stop in this task, before the lifecycle's
+    /// driver hears of it (C157); `true` when this stop began it. The
+    /// stop's connection then pends until the process ends, so a second
+    /// stop's connection stays open, as the first's.
+    pub(super) fn request_stop(&self) -> bool {
+        let won = self.begin_exit("stop requested; exiting");
+        self.exit.hand(life::Event::StopRequested { won });
+        won
     }
 
     /// C133: begin the exit, once; `false` if it had begun already. The
@@ -566,44 +560,6 @@ impl Daemon {
         self.work.notify_one();
     }
 
-    /// C133: wait until no job task is past admission, no session's
-    /// refresh is in flight and no login's code exchange is, or until the
-    /// bound. Returns what the bound cut, `None` when nothing was. Never
-    /// blocks on `shared`: a look that finds it held looks again, so the
-    /// bound ends the wait whatever holds the lock. What is cut is left
-    /// running on disk for the persisted queue to replay (C6).
-    pub(super) async fn drain(&self) -> Option<InFlight> {
-        let deadline = self
-            .exit
-            .deadline
-            .get()
-            .copied()
-            .unwrap_or_else(tokio::time::Instant::now);
-        let mut seen = None;
-        loop {
-            if let Ok(s) = self.shared.try_lock() {
-                let left = InFlight::of(&s);
-                drop(s);
-                if left.is_empty() {
-                    self.log("exit: nothing in flight");
-                    return None;
-                }
-                seen = Some(left);
-            }
-            let now = tokio::time::Instant::now();
-            if now >= deadline {
-                let cut = seen.unwrap_or_default();
-                self.log(&format!(
-                    "exit: the bound of {}s cut {}",
-                    self.exit.bound.as_secs_f64(),
-                    cut.describe()
-                ));
-                return Some(cut);
-            }
-            tokio::time::sleep_until(deadline.min(now + DRAIN_POLL)).await;
-        }
-    }
-
     /// C133, the last of the exit. The daemon leaves by `process::exit`,
     /// so nothing is dropped: the store's and the queue's write-ahead logs
     /// are checkpointed here first (`Store::checkpoint`: an exit without
@@ -613,7 +569,7 @@ impl Daemon {
     /// checkpoint a reader keeps from finishing is logged, never waited
     /// on. Tests never call it. Pinned by `tests/daemon_stop_checkpoint.rs`
     /// (acquisition-cli).
-    fn leave(&self) -> ! {
+    pub(super) fn leave(&self) -> ! {
         // Each checkpoint's result is bound before it is reported, so its
         // guard is dropped first: `note_error` takes `shared`, which comes
         // before `jobs_db` in the lock order (`struct Daemon`), and a
@@ -667,40 +623,310 @@ impl Daemon {
     /// inside a policy window, which a daemon respawned a minute later
     /// would otherwise have to assume the worst about. Every clause reads
     /// the daemon's clock, so a test advances a manual clock past the
-    /// knob instead of waiting. Pinned: `tests/idle.rs`'s `idle_verdict_*`.
+    /// knob instead of waiting. Pinned: `tests/idle.rs`'s `idle_verdict_*`,
+    /// through this boolean; the lifecycle's driver reads [`Self::judge`].
+    #[cfg(test)]
     pub(super) fn is_idle(&self, idle_shutdown: Duration) -> bool {
+        self.judge(idle_shutdown).idle
+    }
+
+    /// The idle verdict (`is_idle`'s clauses), and whether a clause
+    /// other than time held the daemon, which the lifecycle's driver
+    /// re-judges at [`IDLE_REJUDGE`] (C157). Takes `shared`.
+    fn judge(&self, idle_shutdown: Duration) -> Judged {
         let now = self.choke.now();
-        let idle = {
+        let (held, timed) = {
             let s = self.shared.lock().unwrap();
             let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
             let live_jobs = Self::has_live_jobs(&s, parked);
             // A login holds the daemon (C133): its browser step and code
             // exchange belong to no connection and no job. The count and
             // the stamp are read beside this hold, not under it (C148).
-            self.connections.load(Ordering::SeqCst) == 0
-                && !live_jobs
-                && s.auth.pending.is_none()
+            let held = self.connections.load(Ordering::SeqCst) != 0
+                || live_jobs
+                || s.auth.pending.is_some()
                 // C148: a keyring or index write in flight, the start's
                 // restore among them, holds the daemon.
-                && s.landings == 0
-                && now.saturating_duration_since(self.last_activity()) >= idle_shutdown
+                || s.landings != 0;
+            let timed = now.saturating_duration_since(self.last_activity()) >= idle_shutdown;
+            (held, timed)
         };
-        idle && !self.choke.is_live()
+        let live = self.choke.is_live();
+        Judged {
+            idle: !held && timed && !live,
+            held: held || live,
+        }
     }
 
-    /// Polls the verdict on tokio time, deliberately not on the daemon's
-    /// `Clock`: the test `ManualClock` advances on every `sleep`, so a
-    /// poller on it would drive the clock forward `IDLE_POLL` per yield.
-    /// The verdict is the tested part; this loop is never spawned under a
-    /// manual clock (the harness constructors spawn nothing).
-    pub(super) async fn idle_watchdog(self: Arc<Self>) {
-        let idle_shutdown = idle_shutdown_from_env();
+    /// C157, the lifecycle's driver: one loop over [`Life`]'s `step`, the
+    /// only place the lifecycle's instants, handles and durations live.
+    /// It performs each effect with the functions that exist and turns
+    /// what it saw into the next event, from its sources: the causes'
+    /// events (`daemon stop`'s connection and the signal watcher, which
+    /// each swapped the exit at their ingress, [`Exit::hand`]), the
+    /// verdict's answer, the quiet wait's looks and the two timers. On
+    /// tokio time, deliberately not on the daemon's `Clock`: the test
+    /// `ManualClock` advances on every `sleep`, so a timer on it would
+    /// fire at once. `knob` is the idle exit's, read once by the caller
+    /// at the loop's start. The loop ends by `leave`, the effect `Leave`
+    /// performed, given what the bound cut (`None` when the drain was
+    /// clean): `run` installs [`Self::leave`], which ends the process; a
+    /// test installs a recorder. Before that last act it never blocks on
+    /// `shared`: the verdict is judged on a thread of its own and the
+    /// drain looks through `try_lock`, so a signal's admission stop is
+    /// never behind a held lock (C133).
+    pub(super) async fn life(self: Arc<Self>, knob: Duration, leave: Leave) {
+        let Some(mut ingress) = self.exit.take_ingress() else {
+            // One driver per daemon: a second has nothing to drive.
+            return;
+        };
+        let mut driver = Driver {
+            daemon: self.clone(),
+            knob,
+            held: false,
+            idle: None,
+            drain: None,
+            judging: None,
+            looking: None,
+            seen: None,
+            cut: None,
+        };
+        let mut machine = Life::new();
+        let mut effects: VecDeque<Effect> = machine.start().into();
+        let mut events: VecDeque<life::Event> = VecDeque::new();
         loop {
-            tokio::time::sleep(IDLE_POLL).await;
-            if self.is_idle(idle_shutdown) {
-                self.exit("idle timeout; exiting").await;
+            while let Some(effect) = effects.pop_front() {
+                if effect == Effect::Leave {
+                    leave(&self, driver.cut.take());
+                    return;
+                }
+                events.extend(driver.perform(effect));
+            }
+            let event = match events.pop_front() {
+                Some(event) => event,
+                None => driver.next(&mut ingress).await,
+            };
+            // A signal that finds the exit begun is only logged, as the
+            // watcher's line always was (C133).
+            if let life::Event::Signal { won: false, why } = &event {
+                self.log(why);
+            }
+            effects.extend(machine.step(event));
+        }
+    }
+}
+
+/// C157: what the lifecycle's driver does at `Leave`, given what the
+/// bound cut: [`Daemon::leave`] in `run`; a recorder in a test, which
+/// reads the effect, never the process's end.
+pub(super) type Leave = Box<dyn FnOnce(&Daemon, Option<InFlight>) + Send>;
+
+/// The verdict as the driver reads it.
+struct Judged {
+    idle: bool,
+    /// A clause other than time held the daemon.
+    held: bool,
+}
+
+/// The lifecycle's driver's own state: the armed timers, the verdict in
+/// flight, the drain's looks.
+struct Driver {
+    daemon: Arc<Daemon>,
+    knob: Duration,
+    /// The last verdict was held by a clause other than time.
+    held: bool,
+    idle: Option<tokio::time::Instant>,
+    drain: Option<tokio::time::Instant>,
+    judging: Option<tokio::task::JoinHandle<Judged>>,
+    /// When the quiet wait looks again.
+    looking: Option<tokio::time::Instant>,
+    /// The last snapshot the drain's looks saw.
+    seen: Option<InFlight>,
+    /// What the bound cut, for `Leave`.
+    cut: Option<InFlight>,
+}
+
+impl Driver {
+    /// C157, the timers as the driver runs them: how long each is given.
+    /// `Drain` is the exit's bound, which its absolute deadline was set
+    /// from at the swap. `Idle` is the knob's remainder after the last
+    /// activity, floored at the re-judge interval while a clause other
+    /// than time held the last verdict, and capped at a day.
+    fn duration(&self, timer: Timer) -> Duration {
+        match timer {
+            Timer::Drain => self.daemon.exit.bound,
+            Timer::Idle => {
+                let daemon = &self.daemon;
+                let since = daemon
+                    .choke
+                    .now()
+                    .saturating_duration_since(daemon.last_activity());
+                let left = self.knob.saturating_sub(since);
+                let left = if self.held {
+                    left.max(IDLE_REJUDGE)
+                } else {
+                    left
+                };
+                left.min(IDLE_CAP)
             }
         }
+    }
+
+    /// One effect performed; the event it answers at once, if any.
+    fn perform(&mut self, effect: Effect) -> Option<life::Event> {
+        match effect {
+            Effect::Arm(Timer::Idle) => {
+                let now = tokio::time::Instant::now();
+                self.idle = Some(
+                    now.checked_add(self.duration(Timer::Idle))
+                        .unwrap_or_else(|| now + IDLE_CAP),
+                );
+                None
+            }
+            // The exit's own deadline, set by the swap at the ingress,
+            // never read again from now.
+            Effect::Arm(Timer::Drain) => {
+                self.drain =
+                    Some(self.daemon.exit.deadline.get().copied().unwrap_or_else(|| {
+                        tokio::time::Instant::now() + self.duration(Timer::Drain)
+                    }));
+                None
+            }
+            Effect::Cancel(Timer::Idle) => {
+                self.idle = None;
+                None
+            }
+            Effect::Cancel(Timer::Drain) => {
+                self.drain = None;
+                self.looking = None;
+                None
+            }
+            // The verdict takes `shared`: judged on a thread of its own,
+            // answered when it returns, the loop's sources live meanwhile.
+            Effect::Judge => {
+                let daemon = self.daemon.clone();
+                let knob = self.knob;
+                self.judging = Some(tokio::task::spawn_blocking(move || daemon.judge(knob)));
+                None
+            }
+            Effect::Begin => Some(life::Event::ExitArmed {
+                won: self.daemon.begin_exit("idle timeout; exiting"),
+            }),
+            Effect::StopAdmitting(why) => {
+                self.daemon.stop_admitting(&why);
+                None
+            }
+            // The first look at once, as the drain always looked before
+            // it paused.
+            Effect::AwaitQuiet => self.look(),
+            Effect::Cut => {
+                let cut = self.seen.take().unwrap_or_default();
+                self.daemon.log(&format!(
+                    "exit: the bound of {}s cut {}",
+                    self.daemon.exit.bound.as_secs_f64(),
+                    cut.describe()
+                ));
+                self.cut = Some(cut);
+                None
+            }
+            Effect::Leave => unreachable!("the driver's loop performs the leave"),
+        }
+    }
+
+    /// One look at what is in flight, never blocking on `shared`: quiet
+    /// is [`life::Event::Quiet`]; otherwise the snapshot is kept (a held
+    /// lock keeps the last one seen) and the next look is armed.
+    fn look(&mut self) -> Option<life::Event> {
+        if let Ok(s) = self.daemon.shared.try_lock() {
+            let left = InFlight::of(&s);
+            drop(s);
+            if left.is_empty() {
+                self.daemon.log("exit: nothing in flight");
+                self.looking = None;
+                return Some(life::Event::Quiet);
+            }
+            self.seen = Some(left);
+        }
+        self.looking = Some(tokio::time::Instant::now() + DRAIN_POLL);
+        None
+    }
+
+    /// The next event from the loop's sources, in one biased select: a
+    /// cause first (a deadline is never a cause, so a stop or a signal
+    /// ready beside one is delivered before it), then the verdict's
+    /// answer, then the quiet wait's next look, then the drain's
+    /// deadline, then the idle deadline. The drain's deadline abandons
+    /// the quiet wait after one more look: quiet is `Quiet`, not quiet
+    /// is the deadline, its snapshot kept for the cut.
+    async fn next(
+        &mut self,
+        ingress: &mut tokio::sync::mpsc::UnboundedReceiver<life::Event>,
+    ) -> life::Event {
+        loop {
+            let looking = until(self.looking);
+            let drain = until(self.drain);
+            let idle = until(self.idle);
+            let judging = self.judging.as_mut();
+            let judging = async move {
+                match judging {
+                    Some(judging) => judging.await,
+                    None => std::future::pending().await,
+                }
+            };
+            enum Turn {
+                Cause(life::Event),
+                Judged(Result<Judged, tokio::task::JoinError>),
+                Look,
+                Drain,
+                Idle,
+            }
+            let turn = tokio::select! {
+                biased;
+                Some(event) = ingress.recv() => Turn::Cause(event),
+                judged = judging => Turn::Judged(judged),
+                () = looking => Turn::Look,
+                () = drain => Turn::Drain,
+                () = idle => Turn::Idle,
+            };
+            match turn {
+                Turn::Cause(event) => return event,
+                Turn::Judged(judged) => {
+                    self.judging = None;
+                    let judged = judged.expect("the idle verdict's judge ran to its end");
+                    self.held = judged.held;
+                    return if judged.idle {
+                        life::Event::Idle
+                    } else {
+                        life::Event::Busy
+                    };
+                }
+                Turn::Look => {
+                    if let Some(quiet) = self.look() {
+                        return quiet;
+                    }
+                }
+                Turn::Drain => {
+                    self.drain = None;
+                    if let Some(quiet) = self.look() {
+                        return quiet;
+                    }
+                    self.looking = None;
+                    return life::Event::Deadline(Timer::Drain);
+                }
+                Turn::Idle => {
+                    self.idle = None;
+                    return life::Event::Deadline(Timer::Idle);
+                }
+            }
+        }
+    }
+}
+
+/// An armed instant's end; never, when nothing is armed.
+async fn until(at: Option<tokio::time::Instant>) {
+    match at {
+        Some(at) => tokio::time::sleep_until(at).await,
+        None => std::future::pending().await,
     }
 }
 

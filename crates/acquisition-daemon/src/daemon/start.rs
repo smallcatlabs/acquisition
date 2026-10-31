@@ -12,7 +12,10 @@
 use super::*;
 
 /// `ACQ_IDLE_SHUTDOWN=<secs>` overrides the idle exit (L0 rail 8) so a
-/// live-test rung or soak runs on one daemon instead of a respawn cycle.
+/// live-test rung or soak runs on one daemon instead of a respawn cycle;
+/// a test forces its expiry at zero (C137, the deadline's contract is its
+/// expiry behaviour): nothing holding it, the daemon exits at once. A
+/// value that is not a whole number of seconds keeps the default.
 pub(super) fn idle_shutdown_from_env() -> Duration {
     std::env::var("ACQ_IDLE_SHUTDOWN")
         .ok()
@@ -121,8 +124,8 @@ fn retention_from_env() -> (Retention, Vec<String>) {
 /// takes no daemon lock: a worker blocked on a lock (a keyring prompt
 /// under `shared`, before C148) can block every worker of the daemon's
 /// runtime, and a watcher there would never run.
-/// It arms the exit itself, without a lock, and hands the rest to the
-/// daemon's runtime. The daemon is attached when it is built, before
+/// It arms the exit itself, without a lock, and hands the lifecycle's
+/// driver the event (C157), which stops admission and drains. The daemon is attached when it is built, before
 /// restore; a signal before that ends the process at once, as it did
 /// before the handlers, since nothing has run that a drain would wait
 /// for. Registering replaces a disposition the parent set to ignored: a
@@ -141,7 +144,6 @@ impl Signals {
     #[cfg(unix)]
     pub(super) fn arm() -> Result<Signals> {
         use tokio::signal::unix::{SignalKind, signal};
-        let main = tokio::runtime::Handle::current();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
@@ -159,7 +161,7 @@ impl Signals {
         let watched = attached.clone();
         std::thread::Builder::new()
             .name("acqd-signals".into())
-            .spawn(move || runtime.block_on(watch(streams, watched, main)))?;
+            .spawn(move || runtime.block_on(watch(streams, watched)))?;
         Ok(Signals { attached })
     }
 
@@ -197,15 +199,11 @@ impl Streams {
     }
 }
 
-/// C133: the first signal arms the exit, without a lock, and runs the
-/// rest of it on the daemon's runtime; the second ends the process at
-/// once.
+/// C133: the first signal arms the exit, without a lock, and hands the
+/// lifecycle's driver the event, the swap's result and the words (C157);
+/// the second ends the process at once.
 #[cfg(unix)]
-async fn watch(
-    mut streams: Streams,
-    attached: Arc<OnceLock<Arc<Daemon>>>,
-    main: tokio::runtime::Handle,
-) {
+async fn watch(mut streams: Streams, attached: Arc<OnceLock<Arc<Daemon>>>) {
     let (first, number) = streams.next().await;
     let Some(daemon) = attached.get() else {
         // A write whose failure is ignored: `eprintln!` panics on a broken
@@ -217,16 +215,14 @@ async fn watch(
         std::process::exit(128 + number);
     };
     let why = format!("{first} received; exiting");
-    let exiting = daemon.clone();
-    if daemon.exit.arm(&why) {
-        main.spawn(async move {
-            exiting.exit_armed(&why).await;
-        });
+    let won = daemon.exit.arm(&why);
+    // A signal that finds the exit begun is only logged, by the driver.
+    let why = if won {
+        why
     } else {
-        main.spawn(async move {
-            exiting.log(&format!("{first} received; the exit is already under way"));
-        });
-    }
+        format!("{first} received; the exit is already under way")
+    };
+    daemon.exit.hand(life::Event::Signal { won, why });
     let (second, number) = streams.next().await;
     daemon.exit.end_at_once(
         &format!(
@@ -609,7 +605,12 @@ async fn run_with_log(
     // idle verdict and the exit's drain hold for it.
     daemon.begin_restore(auth::keyring_disabled());
     tokio::spawn(daemon.clone().dispatcher());
-    tokio::spawn(daemon.clone().idle_watchdog());
+    // C157: the lifecycle's driver, the knob read once at its start; its
+    // leave ends the process.
+    tokio::spawn(daemon.clone().life(
+        idle_shutdown_from_env(),
+        Box::new(|daemon, _cut| daemon.leave()),
+    ));
 
     daemon.serve(listener, ACCEPT_PAUSE_CAP).await
 }

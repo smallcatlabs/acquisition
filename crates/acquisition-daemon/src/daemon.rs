@@ -21,7 +21,9 @@
 //! - `held.rs`: the credentials lock as a type.
 //! - `refresh.rs`: the single-flight refresh and the dead bearer.
 //! - `quote.rs`: the quote.
-//! - `server.rs`: the connection, the requests, the idle watchdog and the exit.
+//! - `life.rs`: the lifecycle as a machine (C157): serving, the drain, the leave.
+//! - `server.rs`: the connection, the requests, the idle verdict and the
+//!   lifecycle's driver, and the exit.
 //! - `start.rs`: `run`, the locks, the log and the knobs read at start.
 //!
 //! The tests are `tests.rs` and the files under `tests/`.
@@ -140,6 +142,7 @@ mod dispatch;
 mod endpoint;
 mod held;
 mod kinds;
+mod life;
 mod login;
 mod queue;
 mod quote;
@@ -168,7 +171,17 @@ use start::idle_shutdown_from_env;
 /// while ago. A live job holds the daemon however long it waits.
 const IDLE_SHUTDOWN: Duration = Duration::from_secs(3600);
 
-const IDLE_POLL: Duration = Duration::from_secs(5);
+/// C157: how soon the idle verdict is judged again while a clause other
+/// than time holds the daemon (a connection, a live job, a pending login,
+/// a landing, the limiter live), none of which wakes the lifecycle when it
+/// lets go. When only time holds it, the verdict is judged at the knob's
+/// own deadline.
+const IDLE_REJUDGE: Duration = Duration::from_secs(5);
+
+/// C157: the longest the idle deadline is armed for. The knob's parser
+/// takes any whole number of seconds, which no instant can carry; a
+/// remainder past this re-judges at it.
+const IDLE_CAP: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// C133: how long the exit waits, on wall-clock (tokio) time, for the
 /// jobs past admission, the token refreshes and a login's code exchange
@@ -176,7 +189,7 @@ const IDLE_POLL: Duration = Duration::from_secs(5);
 /// five seconds.
 const EXIT_BOUND: Duration = Duration::from_secs(15);
 
-/// How often the exit's drain looks again at what is still in flight.
+/// The pause between two of the drain's looks at what is still in flight.
 const DRAIN_POLL: Duration = Duration::from_millis(10);
 
 /// C133: how long past the bound the exit may take to leave (the
@@ -199,23 +212,44 @@ pub(super) type EndAtOnce = Arc<dyn Fn(&str, i32) + Send + Sync>;
 /// on a plain OS thread of its own: a worker blocked on a lock (a keyring
 /// prompt under `shared`, before C148) can block every tokio worker, and
 /// then no tokio timer runs.
+/// C157: the causes' events reach the lifecycle's driver through the
+/// exit's own channel, made with it, so an event a cause hands before the
+/// driver starts waits for it; a send takes no lock. The receiver is
+/// taken once, by the driver at its start.
 struct Exit {
     begun: AtomicBool,
     deadline: OnceLock<tokio::time::Instant>,
     bound: Duration,
     grace: Duration,
     end: OnceLock<EndAtOnce>,
+    ingress: tokio::sync::mpsc::UnboundedSender<life::Event>,
+    driver: Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<life::Event>>>,
 }
 
 impl Exit {
     fn with_bound(bound: Duration) -> Exit {
+        let (ingress, driver) = tokio::sync::mpsc::unbounded_channel();
         Exit {
             begun: AtomicBool::new(false),
             deadline: OnceLock::new(),
             bound,
             grace: LEAVE_GRACE,
             end: OnceLock::new(),
+            ingress,
+            driver: Mutex::new(Some(driver)),
         }
+    }
+
+    /// C157: hand the lifecycle's driver a cause's event, taking no lock.
+    fn hand(&self, event: life::Event) {
+        // The receiver lives as long as the exit, so the send fails only
+        // once the driver has left, when no event matters.
+        let _ = self.ingress.send(event);
+    }
+
+    /// C157: the causes' events, for the one driver; `None` once taken.
+    fn take_ingress(&self) -> Option<tokio::sync::mpsc::UnboundedReceiver<life::Event>> {
+        self.driver.lock().unwrap().take()
     }
 
     fn begun(&self) -> bool {

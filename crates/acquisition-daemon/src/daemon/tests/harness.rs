@@ -4,6 +4,8 @@
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use crate::daemon::life::{Effect, Event as LifeEvent, Life};
+use crate::daemon::server::{InFlight, Leave};
 use crate::daemon::*;
 /// The check of a send no test cancels (C25).
 pub(super) use crate::ratelimit::ALWAYS_WANTED;
@@ -610,7 +612,7 @@ pub(super) fn state_of(daemon: &Daemon, id: JobId) -> JobState {
 }
 
 pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outcome) {
-    tokio::time::timeout(Duration::from_secs(3), async {
+    tokio::time::timeout(HANG, async {
         loop {
             if let Some((info, Some(outcome))) = held(daemon, id)
                 && info.state.is_terminal()
@@ -622,6 +624,63 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
     })
     .await
     .expect("dispatcher completed the scripted job")
+}
+
+/// The hang ceiling: how long a test waits before it calls a wait hung,
+/// never a measure of the wait (C137, the deadline's contract is its
+/// expiry behaviour); the process harness's ceiling.
+pub(super) const HANG: Duration = Duration::from_secs(120);
+
+/// C157, the runner: a lifecycle, a script of events, every effect asked
+/// for, from its start.
+pub(super) fn drive(machine: &mut Life, script: &[LifeEvent]) -> Vec<Effect> {
+    let mut effects = machine.start();
+    for event in script {
+        effects.extend(machine.step(event.clone()));
+    }
+    effects
+}
+
+/// C157: the lifecycle's driver on `daemon`, the idle knob at `knob`,
+/// spawned, its leave recorded instead of performed: the receiver gets
+/// what the bound cut (`None` when the drain was clean) when the driver
+/// reaches `Leave`. The exit's bound is the daemon's (`Exit::with_bound`,
+/// where a test sets it), since a bound replaced here would replace an
+/// exit a cause may have armed already.
+pub(super) fn spawn_life(
+    daemon: &Arc<Daemon>,
+    knob: Duration,
+) -> (
+    tokio::task::JoinHandle<()>,
+    oneshot::Receiver<Option<InFlight>>,
+) {
+    let (left, leave) = recorded_leave();
+    (tokio::spawn(daemon.clone().life(knob, left)), leave)
+}
+
+/// C133, the drain of an exit a test began with `begin_exit`, as the stop's
+/// connection hands it: its event given to the lifecycle's driver, which
+/// runs in place to its leave, recorded; what the bound cut, `None` when
+/// nothing was. The idle knob is the default's, which never expires here.
+pub(super) fn drain(daemon: &Arc<Daemon>) -> impl Future<Output = Option<InFlight>> + use<> {
+    daemon.exit.hand(LifeEvent::StopRequested { won: true });
+    let daemon = daemon.clone();
+    async move {
+        let (left, leave) = recorded_leave();
+        daemon.life(IDLE_SHUTDOWN, left).await;
+        leave.await.expect("the driver reached its leave")
+    }
+}
+
+/// A leave that records what the bound cut, and its receiver.
+fn recorded_leave() -> (Leave, oneshot::Receiver<Option<InFlight>>) {
+    let (tx, rx) = oneshot::channel();
+    (
+        Box::new(move |_daemon, cut| {
+            let _ = tx.send(cut);
+        }),
+        rx,
+    )
 }
 
 /// The teardown of a harness daemon that faces a scripted server or no

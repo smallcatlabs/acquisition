@@ -10,12 +10,18 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
+use crate::daemon::life::{Cause, Effect, Event, Life, State, Timer};
 use crate::daemon::server::InFlight;
 use crate::daemon::*;
 
-/// Long enough for the drains that must finish, short beside the tests'
-/// own timeouts.
+/// Long enough for the drains that must finish, short beside a hold the
+/// drain must not wait out (the limiter's 30 s).
 const BOUND: Duration = Duration::from_secs(3);
+
+/// The bound of a drain a test holds open and releases: past the hang
+/// ceiling, so it cannot expire before the release, and safely added to
+/// an instant.
+const HELD: Duration = Duration::from_secs(60 * 60);
 
 /// A logged-in harness daemon on the manual clock, its queue on a
 /// file-backed `daemon.db`, its exit bounded by `bound`.
@@ -57,7 +63,7 @@ fn row_of(db: &std::path::Path, id: JobId) -> acquisition_store::jobs::JobRow {
 }
 
 async fn wait_state(daemon: &Daemon, id: JobId, state: JobState) {
-    tokio::time::timeout(Duration::from_secs(3), async {
+    tokio::time::timeout(HANG, async {
         while state_of(daemon, id) != state {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
@@ -66,10 +72,10 @@ async fn wait_state(daemon: &Daemon, id: JobId, state: JobState) {
     .unwrap_or_else(|_| panic!("job {id} reached {state}"));
 }
 
-/// The drain, on a task of its own, so a test can see it still waiting.
+/// The drain ([`drain`]), on a task of its own, so a test can see it
+/// still waiting.
 fn spawn_drain(daemon: &Arc<Daemon>) -> tokio::task::JoinHandle<Option<InFlight>> {
-    let daemon = daemon.clone();
-    tokio::spawn(async move { daemon.drain().await })
+    tokio::spawn(drain(daemon))
 }
 
 /// Long enough for a drain that does not wait to have returned.
@@ -84,7 +90,7 @@ async fn settle() {
 #[tokio::test]
 async fn exit_waits_for_a_landed_body_to_persist() {
     let (base, sent_log, arrived, release) = account_server(("GET", "/profile", 0)).await;
-    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let (daemon, log_path, db) = exit_daemon(&base, HELD);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = submit_for(&daemon, "profile", json!({}), Some("test-user"));
     arrived.await.unwrap();
@@ -115,7 +121,7 @@ async fn exit_waits_for_a_landed_body_to_persist() {
 #[tokio::test]
 async fn exit_waits_for_a_refresh_and_installs_the_token() {
     let (base, arrived, release, server) = delayed_token_server().await;
-    let (mut daemon, log_path, _db) = exit_daemon(&base, BOUND);
+    let (mut daemon, log_path, _db) = exit_daemon(&base, HELD);
     let store = Arc::new(RecordingCredentialStore::default());
     Arc::get_mut(&mut daemon).unwrap().credential_store = store.clone();
     let waiter = {
@@ -276,7 +282,9 @@ async fn a_turned_away_job_is_not_picked_again_while_exiting() {
 
 /// C133: a job whose task does not end is cut at the bound, on tokio
 /// time: the drain reports it, and its row is left running on disk for
-/// the next daemon (C6).
+/// the next daemon (C6). That the cut comes at the bound and not before
+/// is the table's row (the drain's deadline cuts) and
+/// `c137_the_drain_bound_at_zero_cuts_what_is_in_flight`'s wiring.
 #[tokio::test]
 async fn exit_cuts_a_stuck_job_at_the_bound() {
     let bound = Duration::from_millis(300);
@@ -287,7 +295,7 @@ async fn exit_cuts_a_stuck_job_at_the_bound() {
 
     let began = std::time::Instant::now();
     assert!(daemon.begin_exit("test: exit"));
-    let cut = tokio::time::timeout(Duration::from_secs(5), daemon.drain())
+    let cut = tokio::time::timeout(HANG, drain(&daemon))
         .await
         .expect("the bound ends the drain");
     let waited = began.elapsed();
@@ -298,10 +306,7 @@ async fn exit_cuts_a_stuck_job_at_the_bound() {
             ..InFlight::default()
         })
     );
-    assert!(
-        waited >= bound && waited < Duration::from_secs(3),
-        "the drain ran to its bound: {waited:?}"
-    );
+    assert!(waited >= bound, "the drain ran to its bound: {waited:?}");
     assert_eq!(row_of(&db, id).state, JobState::Running.to_string());
     let log = std::fs::read_to_string(&log_path).unwrap();
     assert!(
@@ -363,7 +368,6 @@ async fn a_second_begin_exit_returns_at_once() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
     assert!(daemon.begin_exit("test: the first cause"));
     let deadline = *daemon.exit.deadline.get().expect("the bound is armed");
-    tokio::time::sleep(Duration::from_millis(20)).await;
     assert!(!daemon.begin_exit("test: the second cause"));
     assert_eq!(daemon.exit.deadline.get(), Some(&deadline));
     let log = std::fs::read_to_string(&log_path).unwrap();
@@ -377,8 +381,9 @@ async fn a_second_begin_exit_returns_at_once() {
 /// C133: the bound is hard. A keyring prompt holds `shared`, and tasks
 /// that take it (here the idle verdict, twice) block both workers of the
 /// runtime, so no tokio timer runs and the drain cannot reach its bound.
-/// The bound's own thread still ends the exit at the bound and its grace,
-/// with the lock still held.
+/// The bound's own thread still ends the exit, not before the bound and
+/// its grace, with the lock still held until the test lets it go. The
+/// bound thread is real by design, and this is its one pin.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     let bound = Duration::from_millis(300);
@@ -396,12 +401,13 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     }
     // The prompt: `shared` held on a thread of its own.
     let (held_tx, held_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
     let holder = {
         let daemon = daemon.clone();
         std::thread::spawn(move || {
             let _shared = daemon.shared.lock().unwrap();
             held_tx.send(()).unwrap();
-            std::thread::sleep(Duration::from_millis(2500));
+            let _ = release_rx.recv();
         })
     };
     held_rx.recv().unwrap();
@@ -417,17 +423,18 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     let began = std::time::Instant::now();
     assert!(daemon.begin_exit("test: exit"));
     let (why, code) = ended_rx
-        .recv_timeout(Duration::from_secs(2))
+        .recv_timeout(HANG)
         .expect("the bound ended the exit with every worker blocked");
     let waited = began.elapsed();
     assert!(
-        waited >= bound + grace && waited < Duration::from_millis(1500),
+        waited >= bound + grace,
         "the end came at the bound and its grace: {waited:?}"
     );
     assert!(
         daemon.shared.try_lock().is_err(),
         "the prompt still held the lock"
     );
+    release_tx.send(()).unwrap();
     assert_eq!(code, 1);
     assert!(why.contains("had not left"), "{why}");
     assert!(why.contains("with no checkpoint"), "{why}");
@@ -443,8 +450,9 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
 /// C133 with C25: a job picked before the exit and held at the limiter
 /// before its send (here behind a 429's hold, on the system clock, where
 /// the dispatcher's pacing loop really waits) is turned away: the drain
-/// does not wait out the hold, cuts nothing, and the job is waiting in
-/// memory and on disk with only the 429's retry spent.
+/// does not wait out the hold, cuts nothing (it could not have finished
+/// clean under its `BOUND` had it waited the 30 s hold), and the job is
+/// waiting in memory and on disk with only the 429's retry spent.
 #[tokio::test]
 async fn exit_turns_away_a_job_held_at_the_limiter() {
     let responses = vec![
@@ -456,7 +464,7 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
         exit_daemon_on(&base, BOUND, Arc::new(crate::ratelimit::SystemClock));
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = submit_for(&daemon, "fetch", json!({}), None);
-    tokio::time::timeout(Duration::from_secs(5), async {
+    tokio::time::timeout(HANG, async {
         loop {
             {
                 let s = daemon.shared.lock().unwrap();
@@ -475,16 +483,13 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
     .expect("the job is held at the limiter after its 429");
     server.await.unwrap();
 
-    let began = std::time::Instant::now();
     assert!(daemon.begin_exit("test: exit"));
-    let cut = tokio::time::timeout(BOUND + Duration::from_secs(1), daemon.drain())
+    let cut = tokio::time::timeout(HANG, drain(&daemon))
         .await
         .expect("the drain ends");
-    let waited = began.elapsed();
-    assert_eq!(cut, None, "nothing was cut");
-    assert!(
-        waited < Duration::from_secs(2),
-        "the drain did not wait out the hold: {waited:?}"
+    assert_eq!(
+        cut, None,
+        "nothing was cut: the drain did not wait out the hold"
     );
     let info = daemon.shared.lock().unwrap().jobs[&id].info.clone();
     assert_eq!(info.state, JobState::Waiting);
@@ -530,7 +535,7 @@ async fn exit_waits_for_a_login_code_exchange() {
         );
         mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
     });
-    let (daemon, log_path, _db) = exit_daemon(&base, BOUND);
+    let (daemon, log_path, _db) = exit_daemon(&base, HELD);
 
     let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
     let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
@@ -565,7 +570,7 @@ async fn exit_waits_for_a_login_code_exchange() {
 #[tokio::test]
 async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (daemon, log_path, _db) = exit_daemon(&base, BOUND);
+    let (daemon, log_path, _db) = exit_daemon(&base, HELD);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let generation = daemon.begin_auth_flow();
     daemon
@@ -633,6 +638,401 @@ fn a_login_whose_profile_job_waits_is_not_held_by_the_drain() {
         .expect("current flow stages");
     daemon.submit_login_profile(generation, "newcomer").unwrap();
     assert!(!InFlight::of(&daemon.shared.lock().unwrap()).login);
+    finish_harness(None, &log_path);
+}
+
+// ---- C157: the lifecycle as a table of event scripts -------------------
+
+/// One transition's row: the script, the effects the rulings expect
+/// (written from C3, C133 and the code's comments, never from a run),
+/// and where the lifecycle stands after.
+struct Row {
+    name: &'static str,
+    script: Vec<Event>,
+    expect: Vec<Effect>,
+    state: State,
+    cause: Option<Cause>,
+}
+
+fn table() -> Vec<Row> {
+    use Effect::{Arm, AwaitQuiet, Begin, Cancel, Cut, Judge, Leave, StopAdmitting};
+    let signal = |won: bool| Event::Signal {
+        won,
+        why: "SIGTERM received; exiting".into(),
+    };
+    let stop = |won: bool| Event::StopRequested { won };
+    let armed = |won: bool| Event::ExitArmed { won };
+    let begun = || vec![Cancel(Timer::Idle), Arm(Timer::Drain), AwaitQuiet];
+    // From the start: the idle deadline armed.
+    let serving = |then: Vec<Effect>| {
+        let mut effects = vec![Arm(Timer::Idle)];
+        effects.extend(then);
+        effects
+    };
+    // The exit begun by a stop, then `script`, asking for `then`.
+    let stopped = |script: Vec<Event>, then: Vec<Effect>| {
+        let mut events = vec![stop(true)];
+        events.extend(script);
+        let mut effects = serving(begun());
+        effects.extend(then);
+        (events, effects)
+    };
+    // The exit begun by the idle verdict, then `script`, asking nothing.
+    let idled = |script: Vec<Event>| {
+        let mut events = vec![Event::Deadline(Timer::Idle), Event::Idle, armed(true)];
+        events.extend(script);
+        let mut effects = serving(vec![Judge, Begin]);
+        effects.extend(begun());
+        (events, effects)
+    };
+    let row = |name, (script, expect): (Vec<Event>, Vec<Effect>), state, cause| Row {
+        name,
+        script,
+        expect,
+        state,
+        cause,
+    };
+    let serving_row = |name, script: Vec<Event>, then: Vec<Effect>| Row {
+        name,
+        script,
+        expect: serving(then),
+        state: State::Serving,
+        cause: None,
+    };
+    let by_stop = Some(Cause::Stop);
+    let every_event = || {
+        vec![
+            Event::Deadline(Timer::Idle),
+            Event::Deadline(Timer::Drain),
+            Event::Idle,
+            Event::Busy,
+            armed(true),
+            armed(false),
+            stop(true),
+            stop(false),
+            signal(true),
+            signal(false),
+            Event::Quiet,
+        ]
+    };
+    vec![
+        // Serving: the idle deadline and the verdict (C3).
+        serving_row(
+            "serving: the idle deadline judged busy is armed again",
+            vec![Event::Deadline(Timer::Idle), Event::Busy],
+            vec![Judge, Arm(Timer::Idle)],
+        ),
+        row(
+            "serving: judged idle, the swap won, the exit is begun by idle",
+            idled(vec![]),
+            State::Draining,
+            Some(Cause::Idle),
+        ),
+        row(
+            "serving: judged idle, the swap lost, nothing until the winner's stop begins it",
+            (
+                vec![
+                    Event::Deadline(Timer::Idle),
+                    Event::Idle,
+                    armed(false),
+                    stop(true),
+                ],
+                serving(vec![
+                    Judge,
+                    Begin,
+                    Cancel(Timer::Idle),
+                    Arm(Timer::Drain),
+                    AwaitQuiet,
+                ]),
+            ),
+            State::Draining,
+            by_stop,
+        ),
+        // Serving: the first cause (C133), its swap made at its ingress.
+        row(
+            "serving: a stop begins the exit",
+            stopped(vec![], vec![]),
+            State::Draining,
+            by_stop,
+        ),
+        row(
+            "serving: a signal begins the exit, its admission stop first",
+            (
+                vec![signal(true)],
+                serving(vec![
+                    StopAdmitting("SIGTERM received; exiting".into()),
+                    Cancel(Timer::Idle),
+                    Arm(Timer::Drain),
+                    AwaitQuiet,
+                ]),
+            ),
+            State::Draining,
+            Some(Cause::Signal),
+        ),
+        serving_row(
+            "serving: a stop whose swap lost does nothing, its winner's event to come",
+            vec![stop(false)],
+            vec![],
+        ),
+        serving_row(
+            "serving: a signal whose swap lost does nothing, its winner's event to come",
+            vec![signal(false)],
+            vec![],
+        ),
+        serving_row(
+            "serving: a quiet or a drain deadline before the exit does nothing",
+            vec![Event::Quiet, Event::Deadline(Timer::Drain)],
+            vec![],
+        ),
+        // Draining: the second cause does nothing (C133, one exit), and
+        // nothing leaves until quiet or the drain's deadline.
+        row(
+            "draining: a stop after idle, its swap lost, does nothing",
+            idled(vec![stop(false)]),
+            State::Draining,
+            Some(Cause::Idle),
+        ),
+        row(
+            "draining: a stop after idle reported won does nothing",
+            idled(vec![stop(true)]),
+            State::Draining,
+            Some(Cause::Idle),
+        ),
+        row(
+            "draining: a stop after a stop, its swap lost, does nothing",
+            stopped(vec![stop(false)], vec![]),
+            State::Draining,
+            by_stop,
+        ),
+        row(
+            "draining: a stop after a stop reported won does nothing",
+            stopped(vec![stop(true)], vec![]),
+            State::Draining,
+            by_stop,
+        ),
+        row(
+            "draining: a signal after a stop, its swap lost, does nothing",
+            stopped(vec![signal(false)], vec![]),
+            State::Draining,
+            by_stop,
+        ),
+        row(
+            "draining: a signal after a stop reported won does nothing",
+            stopped(vec![signal(true)], vec![]),
+            State::Draining,
+            by_stop,
+        ),
+        row(
+            "draining: a late idle deadline, verdict or exit armed does nothing",
+            stopped(
+                vec![
+                    Event::Deadline(Timer::Idle),
+                    Event::Idle,
+                    Event::Busy,
+                    armed(true),
+                    armed(false),
+                ],
+                vec![],
+            ),
+            State::Draining,
+            by_stop,
+        ),
+        // Draining: the drain against its bound (C133), cut or clean.
+        row(
+            "draining: quiet before the drain's deadline leaves clean",
+            stopped(vec![Event::Quiet], vec![Cancel(Timer::Drain), Leave]),
+            State::Done,
+            by_stop,
+        ),
+        row(
+            "draining: the drain's deadline cuts then leaves",
+            stopped(vec![Event::Deadline(Timer::Drain)], vec![Cut, Leave]),
+            State::Done,
+            by_stop,
+        ),
+        // Done: the leave is the last act.
+        row(
+            "done: every event after a clean leave does nothing",
+            stopped(
+                [vec![Event::Quiet], every_event()].concat(),
+                vec![Cancel(Timer::Drain), Leave],
+            ),
+            State::Done,
+            by_stop,
+        ),
+        row(
+            "done: every event after a cut does nothing",
+            stopped(
+                [vec![Event::Deadline(Timer::Drain)], every_event()].concat(),
+                vec![Cut, Leave],
+            ),
+            State::Done,
+            by_stop,
+        ),
+    ]
+}
+
+/// C157: the daemon's lifecycle, one row per transition, with no clock:
+/// its run time is the runner's report, asserted by nothing (C137).
+#[test]
+fn c157_the_lifecycle_is_a_table_of_event_scripts() {
+    for row in table() {
+        let mut machine = Life::new();
+        assert_eq!(
+            drive(&mut machine, &row.script),
+            row.expect,
+            "the row {:?}",
+            row.name
+        );
+        assert_eq!(machine.state(), row.state, "the row {:?}", row.name);
+        assert_eq!(machine.cause(), row.cause, "the row {:?}", row.name);
+    }
+}
+
+/// Every row has a name of its own, so a failure names one transition.
+#[test]
+fn every_row_of_the_lifecycle_table_is_named_once() {
+    let rows = table();
+    let mut names: Vec<_> = rows.iter().map(|r| r.name).collect();
+    names.sort_unstable();
+    names.dedup();
+    assert_eq!(names.len(), rows.len());
+}
+
+// ---- C157: the lifecycle's driver, wired to a daemon --------------------
+
+/// C137 (the knob at zero forces the expiry) with C3: the driver at the
+/// idle knob zero leaves a quiet daemon (no connection, no job, no login,
+/// the restore landed), by the idle exit's words; with a connection open
+/// the same daemon is judged busy and does not leave until it closes.
+#[tokio::test]
+async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    daemon.connections.store(1, Ordering::SeqCst);
+    let (life, mut leave) = spawn_life(&daemon, Duration::ZERO);
+    settle().await;
+    assert!(
+        matches!(
+            leave.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        ),
+        "a connection holds the daemon"
+    );
+    assert!(!daemon.exit.begun(), "the exit has not begun");
+
+    daemon.connections.store(0, Ordering::SeqCst);
+    let cut = tokio::time::timeout(HANG, leave)
+        .await
+        .expect("the idle deadline at zero leaves")
+        .expect("the driver reached its leave");
+    assert_eq!(cut, None, "nothing was in flight");
+    life.await.unwrap();
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    let idle = log
+        .find("idle timeout; exiting")
+        .unwrap_or_else(|| panic!("the idle exit's words:\n{log}"));
+    let quiet = log
+        .find("exit: nothing in flight")
+        .unwrap_or_else(|| panic!("the drain's words:\n{log}"));
+    assert!(idle < quiet, "the idle exit, then the drain:\n{log}");
+    finish_harness(None, &log_path);
+}
+
+/// C137 (the bound at zero forces the expiry) with C133: a job running
+/// when a stop is requested, the bound zero: the driver logs the cut,
+/// naming the job, then leaves; the job's row is left running on disk
+/// (C6). The table's row holds the order; this test, the wiring.
+#[tokio::test]
+async fn c137_the_drain_bound_at_zero_cuts_what_is_in_flight() {
+    let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", Duration::ZERO);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = submit_for(&daemon, "sleep", json!({ "seconds": 60 }), None);
+    wait_state(&daemon, id, JobState::Running).await;
+
+    let (life, leave) = spawn_life(&daemon, IDLE_SHUTDOWN);
+    assert!(daemon.request_stop(), "the stop began the exit");
+    let cut = tokio::time::timeout(HANG, leave)
+        .await
+        .expect("the bound at zero ends the drain")
+        .expect("the driver reached its leave");
+    assert_eq!(
+        cut,
+        Some(InFlight {
+            jobs: vec![id],
+            ..InFlight::default()
+        })
+    );
+    life.await.unwrap();
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(
+        log.contains(&format!("cut job {id} (left running on disk")),
+        "the log names the cut job:\n{log}"
+    );
+    assert!(log.contains("stop requested; exiting"), "{log}");
+    assert_eq!(row_of(&db, id).state, JobState::Running.to_string());
+    finish_harness(dispatcher, &log_path);
+}
+
+/// C133 (every cause reaches the one exit, none behind a lock) with C157:
+/// a thread holds `shared` and keeps it while the driver, at the idle
+/// knob zero, judges the verdict behind it; a signal's event, its swap
+/// made as the watcher makes it, stops admission (the rails stopping, the
+/// words logged) before the lock is let go. The watcher itself is Unix's
+/// and not under test here: the event goes through the driver's own
+/// channel.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn c133_a_signal_stops_admission_while_shared_is_held() {
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (held_tx, held_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+    let holder = {
+        let daemon = daemon.clone();
+        std::thread::spawn(move || {
+            let _shared = daemon.shared.lock().unwrap();
+            held_tx.send(()).unwrap();
+            let _ = release_rx.recv();
+        })
+    };
+    held_rx.recv().unwrap();
+    let (life, leave) = spawn_life(&daemon, Duration::ZERO);
+    // Long enough for the driver's judge to be waiting on the lock.
+    settle().await;
+
+    let why = "SIGTERM received; exiting".to_string();
+    let won = daemon.exit.arm(&why);
+    daemon.exit.hand(Event::Signal {
+        won,
+        why: why.clone(),
+    });
+    let stopped = tokio::time::timeout(HANG, async {
+        while daemon.rails().halted().is_none()
+            || !std::fs::read_to_string(&log_path).unwrap().contains(&why)
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    let still_held = daemon.shared.try_lock().is_err();
+    release_tx.send(()).unwrap();
+    holder.join().unwrap();
+
+    assert!(won, "the signal began the exit");
+    assert!(
+        stopped.is_ok(),
+        "admission stopped, and the words logged, while the lock was held"
+    );
+    assert!(still_held, "the lock was held throughout");
+    let cut = tokio::time::timeout(HANG, leave)
+        .await
+        .expect("the drain ends once the lock is let go")
+        .expect("the driver reached its leave");
+    assert_eq!(cut, None, "nothing was in flight");
+    life.await.unwrap();
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(
+        !log.contains("idle timeout; exiting"),
+        "the late verdict began nothing:\n{log}"
+    );
     finish_harness(None, &log_path);
 }
 

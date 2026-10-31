@@ -6,7 +6,7 @@
 //! the mock provider (`mockggg.rs`), the daemon's own executable identified
 //! and hashed at startup (`artifact.rs`, C84), and the daemon itself
 //! (`daemon.rs` with its children under `daemon/`: queue, dispatcher, socket or
-//! named-pipe server, idle watchdog, and the sessions — `daemon.rs`'s
+//! named-pipe server, the lifecycle (`daemon/life.rs`), and the sessions — `daemon.rs`'s
 //! `Sessions`, logged in by `daemon/login.rs` and refreshed by
 //! `daemon/refresh.rs`). The only GGG
 //! sender. It links the protocol crate and the store, never the client

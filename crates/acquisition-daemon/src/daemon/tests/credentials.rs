@@ -354,10 +354,7 @@ async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
         .expect("the logout reached its clear");
 
     assert!(daemon.begin_exit("test: exit"));
-    let drain = {
-        let daemon = daemon.clone();
-        tokio::spawn(async move { daemon.drain().await })
-    };
+    let drain = tokio::spawn(drain(&daemon));
     tokio::time::sleep(Duration::from_millis(100)).await;
     let waited = !drain.is_finished();
     held.release.send(()).unwrap();
@@ -781,7 +778,7 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
     let idle_while_reading = daemon.is_idle(Duration::ZERO);
     assert!(daemon.begin_exit("test: exit"));
-    let mut drain = std::pin::pin!(daemon.drain());
+    let mut drain = std::pin::pin!(drain(&daemon));
     let drained_while_reading = polled_once(drain.as_mut()).is_ready();
     held.release.send(()).unwrap();
 
