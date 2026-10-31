@@ -4,75 +4,12 @@
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 use crate::ratelimit::Clock;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::sync::Semaphore;
-
-struct BlockingClock {
-    now: Mutex<Instant>,
-    origin: Mutex<Instant>,
-    sleepers: AtomicUsize,
-    releases: Semaphore,
-}
-
-impl BlockingClock {
-    fn new() -> Self {
-        let start = Instant::now();
-        BlockingClock {
-            now: Mutex::new(start),
-            origin: Mutex::new(start),
-            sleepers: AtomicUsize::new(0),
-            releases: Semaphore::new(0),
-        }
-    }
-
-    async fn wait_for_sleepers(&self, expected: usize) {
-        tokio::time::timeout(Duration::from_secs(1), async {
-            while self.sleepers.load(Ordering::SeqCst) < expected {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("dispatcher jobs reached their limiter waits");
-    }
-
-    fn release(&self, count: usize) {
-        self.releases.add_permits(count);
-    }
-}
-
-impl Clock for BlockingClock {
-    fn now(&self) -> Instant {
-        *self.now.lock().unwrap()
-    }
-
-    fn wall(&self) -> SystemTime {
-        SystemTime::UNIX_EPOCH
-            + MANUAL_WALL_ORIGIN
-            + self.now().duration_since(*self.origin.lock().unwrap())
-    }
-
-    fn kind(&self) -> &'static str {
-        "manual"
-    }
-
-    fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            self.sleepers.fetch_add(1, Ordering::SeqCst);
-            self.releases
-                .acquire()
-                .await
-                .expect("test clock remains open")
-                .forget();
-            let mut now = self.now.lock().unwrap();
-            *now = now.checked_add(duration).expect("bounded test deadline");
-        })
-    }
-}
 
 async fn saturated_probe_server() -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -188,10 +125,14 @@ async fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
     finish_harness(dispatcher, &log_path);
 }
 
+/// Two rate waits on two different keys stay parked on the clock while
+/// an independent job is picked and completes: a wait holds its own key,
+/// never the dispatcher. Then the clock moves, deadline by deadline,
+/// until both waits end.
 #[tokio::test]
 async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
     let (base, server) = saturated_probe_server().await;
-    let clock = Arc::new(BlockingClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon(&base, clock.clone());
     daemon
         .choke
@@ -230,7 +171,13 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
             None,
         )
         .unwrap();
-    clock.wait_for_sleepers(2).await;
+    tokio::time::timeout(HANG, async {
+        while clock.sleepers() < 2 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the two jobs reached their rate waits");
 
     let independent = daemon
         .submit(
@@ -243,9 +190,19 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
         .unwrap();
     let (info, _) = wait_terminal(&daemon, independent).await;
     assert_eq!(info.state, JobState::Done);
+    assert_eq!(clock.sleepers(), 2, "the two rate waits stayed parked");
 
-    // The dispatcher pre-waits in one-second cancellation slices.
-    clock.release(20);
+    // The dispatcher pre-waits in one-second cancellation slices: each
+    // deadline in turn, until both jobs end.
+    let terminal = |id| state_of(&daemon, id).is_terminal();
+    tokio::time::timeout(HANG, async {
+        while !(terminal(characters) && terminal(stashes)) {
+            clock.advance_to_next();
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("both rate waits ended");
     assert_eq!(
         wait_terminal(&daemon, characters).await.0.state,
         JobState::Failed
@@ -453,8 +410,8 @@ async fn malformed_listings_fail_the_job_not_just_the_store() {
 /// from the GET. Removing a declaration fails here, not live.
 #[tokio::test]
 async fn declared_route_knowledge_holds_against_the_mock() {
-    let base = mockggg::start().await.unwrap();
     let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
     let (daemon, log_path) = test_daemon(&base, clock);
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -2036,6 +1993,110 @@ async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_noth
         [sent("test-user", "POST"), sent("test-user", "GET")],
         "the server saw lifetime 1's sends and nothing more"
     );
+}
+
+// ---- C158: the wire table, through the door ----
+
+/// One row of the wire table: a script the server answers, the
+/// requests the scenario sends through the door in order (each submit's
+/// job awaited to its end before the next request), and what crosses
+/// the boundary: each job's end state and the journal's sends as
+/// [`journal_projection`] reads them.
+struct Row {
+    name: &'static str,
+    script: Vec<ScriptedResponse>,
+    requests: Vec<Request>,
+    /// The end state of each job the requests submitted, in order.
+    ends: Vec<JobState>,
+    journal: Vec<Value>,
+}
+
+/// A client's submit of `kind` with empty params, as a frontend sends it.
+fn submit(kind: &str) -> Request {
+    Request::Submit {
+        kind: kind.into(),
+        params: json!({}),
+        priority: 0,
+        submitted_by: "test".into(),
+        account: None,
+    }
+}
+
+/// Each send as a row compares it: method, path, status, counted,
+/// `wait_ms`.
+fn journal_projection(sends: &[Value]) -> Vec<Value> {
+    sends
+        .iter()
+        .map(|l| {
+            json!([
+                l["method"],
+                l["path"],
+                l["status"],
+                l["counted"],
+                l["wait_ms"]
+            ])
+        })
+        .collect()
+}
+
+/// The rows. The 429 hold: one fetch; its probe; its GET answered 429
+/// with GGG's headers and `Retry-After: 0`, held the bucket pad and the
+/// buffer (61 s); its GET again after the whole hold, landing.
+fn wire_rows() -> Vec<Row> {
+    vec![Row {
+        name: "the 429 hold",
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after the hold"]}"#),
+        ],
+        requests: vec![submit("fetch")],
+        ends: vec![JobState::Done],
+        journal: vec![
+            json!(["HEAD", "/fetch", 204, false, 0]),
+            json!(["GET", "/fetch", 429, true, 0]),
+            json!(["GET", "/fetch", 200, true, full_hold_ms()]),
+        ],
+    }]
+}
+
+/// C158: every row of the wire table through the door on a parking
+/// clock, the runtime's park hook moving virtual time whenever nothing
+/// the scenario started can run: each job ends as the row says and the
+/// journal is the row's, the 429 hold's whole 61 s in virtual time. What
+/// the hook did prints under `--no-capture`, asserted by nothing.
+#[test]
+fn c158_the_wire_table_through_the_door() {
+    for row in wire_rows() {
+        let Row {
+            name,
+            script,
+            requests,
+            ends,
+            journal,
+        } = row;
+        let hook = Door::open(
+            Server::Script(script),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|mut door| async move {
+            let mut ended = Vec::new();
+            for request in requests {
+                if let Response::Submitted { id } = door.request(request).await {
+                    ended.push(door.await_terminal(id).await.0.state);
+                }
+            }
+            assert_eq!(ended, ends, "{name}: the jobs' ends");
+            assert_eq!(
+                journal_projection(&door.journal()),
+                journal,
+                "{name}: the journal"
+            );
+            door.finish().await;
+        });
+        eprintln!("{name}: the park hook: {hook:?}");
+    }
 }
 
 // ---- C158: the clock a door scenario runs on ----

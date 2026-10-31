@@ -413,6 +413,9 @@ pub(super) fn harness_credentials(daemon: &Daemon) -> &RecordingCredentialStore 
         .expect("the harness daemon's credential store is the test's recorder")
 }
 
+/// One answer of a [`scripted_server`]. A response whose `status` is
+/// empty is written as its `body` gives it, the whole response as given
+/// ([`ScriptedResponse::raw`]).
 pub(super) struct ScriptedResponse {
     pub(super) method: &'static str,
     /// The request path this response answers; the server asserts it.
@@ -517,6 +520,21 @@ impl ScriptedResponse {
         }
     }
 
+    /// A response to a `GET /fetch` written exactly as given, status
+    /// line, headers and body: a body cut short of its `Content-Length`,
+    /// a body that is not JSON (`roadmap/briefs/t5-design.md` §3, the
+    /// wire twins of round 3).
+    #[allow(dead_code)] // the wire twins, round 3
+    pub(super) fn raw(response: &str) -> Self {
+        ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "",
+            headers: String::new(),
+            body: response.into(),
+        }
+    }
+
     pub(super) fn malformed_head_429() -> Self {
         ScriptedResponse {
             method: "HEAD",
@@ -542,6 +560,10 @@ pub(super) async fn scripted_server(
             assert_eq!(request.method, response.method);
             assert_eq!(request.path, response.path);
             captured.lock().unwrap().push(request.method);
+            if response.status.is_empty() {
+                let _ = stream.write_all(response.body.as_bytes()).await;
+                continue;
+            }
             mockggg::respond_with(
                 &mut stream,
                 response.status,

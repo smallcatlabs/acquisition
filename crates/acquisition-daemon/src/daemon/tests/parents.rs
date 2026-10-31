@@ -12,8 +12,8 @@ use crate::daemon::*;
 /// store like any other fetch.
 #[tokio::test]
 async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
-    let base = mockggg::start().await.unwrap();
     let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
     let (mut daemon, log_path) = test_daemon(&base, clock);
     let temp = tempfile::tempdir().unwrap();
     let store_dir = temp.path().to_path_buf();

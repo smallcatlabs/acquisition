@@ -29,7 +29,20 @@ fn login_daemon(
     TestPath,
     TestPath,
 ) {
-    let clock = Arc::new(ManualClock::new());
+    login_daemon_on(base, Arc::new(ManualClock::new()))
+}
+
+/// [`login_daemon`] on `clock`, the clock the mock it faces counts its
+/// windows on.
+fn login_daemon_on(
+    base: &str,
+    clock: Arc<ManualClock>,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    TestPath,
+    TestPath,
+) {
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig::default(),
         clock.clone(),
@@ -75,8 +88,9 @@ fn login_result(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
 /// uuid (deterministic per username on the mock).
 #[tokio::test]
 async fn login_registers_the_session_only_when_the_profile_uuid_lands() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, store_dir, _log_path) = login_daemon(&base);
+    let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (daemon, credentials, store_dir, _log_path) = login_daemon_on(&base, clock);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     let generation = daemon.begin_auth_flow();
@@ -187,8 +201,9 @@ async fn a_login_whose_profile_fetch_fails_fails_whole() {
 /// profile fetch which really fails reaches it is not driven.
 #[tokio::test]
 async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, _store_dir, _log_path) = login_daemon(&base);
+    let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (daemon, credentials, _store_dir, _log_path) = login_daemon_on(&base, clock);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
     assert_eq!(login_result(&daemon).1.as_deref(), Some("Alice#1234"));
@@ -229,8 +244,9 @@ async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
 /// then the keyring still held the rejected token.
 #[tokio::test]
 async fn a_completed_login_clears_the_dead_grant_mark() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, _credentials, _store_dir, _log_path) = login_daemon(&base);
+    let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (daemon, _credentials, _store_dir, _log_path) = login_daemon_on(&base, clock);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let rails = daemon.choke.rails().clone();
     assert!(rails.mark_refresh_failed("Alice#1234", "HTTP 400"));
@@ -249,8 +265,9 @@ async fn a_completed_login_clears_the_dead_grant_mark() {
 /// mapping could neither be restored nor find its annotation file.
 #[tokio::test]
 async fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, store_dir, _log_path) = login_daemon(&base);
+    let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (daemon, credentials, store_dir, _log_path) = login_daemon_on(&base, clock);
     // A directory where the index file should be: every index read and
     // write fails, while the profile's facts file opens and records (a
     // store that cannot record fails the profile job first, C144).
@@ -632,8 +649,9 @@ async fn a_denied_login_is_reported_in_the_browsers_words() {
 /// flow nor take the code.
 #[tokio::test]
 async fn a_callback_with_another_state_is_answered_and_the_login_waits() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, _credentials, _store_dir, log_path) = login_daemon(&base);
+    let clock = Arc::new(ManualClock::new());
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (daemon, _credentials, _store_dir, log_path) = login_daemon_on(&base, clock);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     let authorize = daemon.auth_start().await.unwrap();
