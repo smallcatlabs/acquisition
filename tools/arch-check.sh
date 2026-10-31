@@ -30,6 +30,11 @@
 #      `CARGO_BIN_EXE_` and every `Command::new(` names an allowed system
 #      tool (`kill`, `ps`); the daemon crate's tests excepted (#87).
 #
+#  10. Every blocking task the daemon spawns is counted (C158): under
+#      `crates/acquisition-daemon/src`, outside `tests/` and comment
+#      lines, `spawn_blocking` is written once, in `Daemon::blocking`,
+#      the helper that counts it for a door scenario's park hook.
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -447,5 +452,57 @@ sys.exit(1 if bad else 0)
 PY
 ); then fail=1; fi
 printf '%s\n' "$spawns"
+
+
+# ---- 10. every blocking task the daemon spawns is counted ---------------
+# A door scenario's park hook (C158) moves virtual time only when nothing
+# the scenario started can run: no send in flight (the gate's occupancy)
+# and no blocking task in flight, the count `Daemon::blocking` keeps from
+# before its spawn until its closure returns. A `spawn_blocking` written
+# anywhere else in the daemon runs uncounted, the runtime parks beside
+# it, and time moves under it: a scenario that was deterministic stops
+# being so, silently. So under `crates/acquisition-daemon/src`, outside
+# its `tests/` directories (whose tests may spawn their own), the word
+# appears on one non-comment line, inside `fn blocking`. Comment lines
+# are not read.
+if ! blocking=$(python3 -I - <<'PY'
+import glob, re, sys
+HELPER = "crates/acquisition-daemon/src/daemon.rs"
+sites = []; n = 0; span = None
+for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=True)):
+    if "/tests/" in path:
+        continue
+    n += 1
+    lines = open(path, encoding="utf-8").read().splitlines()
+    code = ["" if l.lstrip().startswith("//") else l for l in lines]
+    for at, line in enumerate(code, 1):
+        if "spawn_blocking" in line:
+            sites.append((path, at))
+    if path == HELPER:
+        # The helper's body: from its `fn blocking` to the brace closing it.
+        for at, line in enumerate(code, 1):
+            if re.match(r"\s*(?:pub(?:\([^)]*\))?\s+)?fn blocking\b", line):
+                depth = 0; opened = False
+                for end, body in enumerate(code[at - 1:], at):
+                    depth += body.count("{") - body.count("}")
+                    opened = opened or "{" in body
+                    if opened and depth == 0:
+                        span = (at, end)
+                        break
+                break
+inside = [s for s in sites if span and s[0] == HELPER and span[0] <= s[1] <= span[1]]
+bad = [f"BLOCKING {path}:{at} spawns a blocking task outside Daemon::blocking: the door's park hook cannot count it, and virtual time would move under it; spawn it through Daemon::blocking (C158)" for path, at in sites if (path, at) not in inside]
+if span is None:
+    bad.append(f"BLOCKING {HELPER} has no fn blocking, the helper that counts every blocking task (C158)")
+elif len(inside) != 1:
+    bad.append(f"BLOCKING {HELPER}:{span[0]} fn blocking writes spawn_blocking {len(inside)} times, where the helper is the one site (C158)")
+if bad:
+    print("\n".join(bad))
+    sys.exit(1)
+path, at = inside[0]
+print(f"ok      {'blocking':<13} {n} daemon source files outside tests/: the one spawn_blocking is {path}:{at}, in Daemon::blocking, which counts it for the door's park hook (C158)")
+PY
+); then fail=1; fi
+printf '%s\n' "$blocking"
 
 exit $fail

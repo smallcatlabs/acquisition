@@ -113,20 +113,25 @@ impl Daemon {
     /// is refused instead, `refused`, as a stopping daemon refuses a
     /// submit (C133), in the same hold that would have begun the flow.
     pub(super) fn start_auth_flow(&self) -> Result<u64, Refusal> {
-        let mut s = self.shared.lock().unwrap();
-        if s.auth.landing.is_some() {
-            return Err(Refusal::new(
-                ErrorKind::Refused,
-                "a login is being recorded; try again in a moment",
-            ));
-        }
-        s.auth.next_flow = s.auth.next_flow.wrapping_add(1);
-        let generation = s.auth.next_flow;
-        s.auth.pending = Some(generation);
-        // A fresh flow owns the login state: an older flow's staged tokens
-        // and result must not leak into it.
-        s.auth.staging = None;
-        s.auth.flow_result = None;
+        let generation = {
+            let mut s = self.shared.lock().unwrap();
+            if s.auth.landing.is_some() {
+                return Err(Refusal::new(
+                    ErrorKind::Refused,
+                    "a login is being recorded; try again in a moment",
+                ));
+            }
+            s.auth.next_flow = s.auth.next_flow.wrapping_add(1);
+            let generation = s.auth.next_flow;
+            s.auth.pending = Some(generation);
+            // A fresh flow owns the login state: an older flow's staged
+            // tokens and result must not leak into it.
+            s.auth.staging = None;
+            s.auth.flow_result = None;
+            generation
+        };
+        // C158: `pending` set and the last result cleared.
+        self.auth_changed.notify_one();
         Ok(generation)
     }
 
@@ -368,6 +373,10 @@ impl Daemon {
             }
         };
         drop(credentials);
+        // C158: the flow closed, failed or with its session registered.
+        if !matches!(done, Done::Stale) {
+            self.auth_changed.notify_one();
+        }
         match done {
             Done::Stale => {
                 self.log("stale login completion ignored");
@@ -416,6 +425,8 @@ impl Daemon {
             }
         };
         if current {
+            // C158: the flow closed with its error.
+            self.auth_changed.notify_one();
             self.note_error(&format!("login failed for {username}: {error}"));
         }
     }
@@ -481,6 +492,8 @@ impl Daemon {
             }
         };
         if current {
+            // C158: the flow closed with its error.
+            self.auth_changed.notify_one();
             self.note_error(error);
         }
     }
@@ -574,6 +587,8 @@ impl Daemon {
         });
         drop(credentials);
         if dropped {
+            // C158: the live session dropped (a forget changes no session).
+            self.auth_changed.notify_one();
             self.rails().clear_refresh_failed(&username);
             self.announce_trip();
         }

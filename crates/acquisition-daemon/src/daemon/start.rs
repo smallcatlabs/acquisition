@@ -598,6 +598,8 @@ impl Daemon {
     /// (`auth::keyring_disabled`).
     pub(super) fn begin_restore(self: &Arc<Self>, disabled: Option<&'static str>) {
         self.restore.send_replace(false);
+        // C158: the keyring word is `restoring`.
+        self.auth_changed.notify_one();
         let _restoring = self.start_landing(move |daemon| daemon.land_restore(disabled));
     }
 
@@ -630,6 +632,8 @@ impl Daemon {
         }
         drop(credentials);
         self.restore.send_replace(true);
+        // C158: the restored sessions published, `restoring` ended.
+        self.auth_changed.notify_one();
         self.mark_activity(self.choke.now());
         self.work.notify_one();
         for line in &lines {

@@ -101,7 +101,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -1032,6 +1032,19 @@ pub struct Daemon {
     /// C148: the last activity, in nanoseconds after `started` on the
     /// daemon's clock, outside every lock as `connections` is.
     last_activity: AtomicU64,
+    /// C158: the blocking tasks [`Daemon::blocking`] has spawned whose
+    /// closures have not returned, outside every lock. Nothing in the
+    /// daemon reads it; a door scenario's park hook does.
+    blocking_in_flight: AtomicUsize,
+    /// C158: notified after every publication that changes what
+    /// `AuthStatus` answers (the login flow's start and end, a login's
+    /// session, a logout, the restore, a refresh's install and landing, a
+    /// rename, a bearer's rejection and its failed save), outside the
+    /// `shared` hold that published it. One permit is kept for a waiter
+    /// not yet waiting, which a broadcast would drop. Nothing in the
+    /// daemon reads it; a door scenario's `await_auth` does, a hint
+    /// whose truth is the `AuthStatus` it then reads.
+    auth_changed: Notify,
     /// On `Daemon`, not `Shared`, so `log`'s uptime prefix needs no lock:
     /// `persist` logs failures while holding `shared`.
     started: Instant,
@@ -1255,6 +1268,8 @@ impl Builder {
             }),
             connections: Connections::default(),
             last_activity: AtomicU64::new(0),
+            blocking_in_flight: AtomicUsize::new(0),
+            auth_changed: Notify::new(),
             started: choke.now(),
             events: broadcast::channel(self.events_capacity).0,
             work: Notify::new(),
@@ -1413,9 +1428,39 @@ impl Daemon {
         self.shared.lock().unwrap().landings += 1;
         let counted = Counted(self.clone());
         let job = RUNNING_JOB.try_with(|id| *id).ok();
-        tokio::task::spawn_blocking(move || match job {
+        self.blocking(move || match job {
             Some(id) => RUNNING_JOB.sync_scope(id, || landing(&counted.0)),
             None => landing(&counted.0),
+        })
+    }
+
+    /// C158 — the daemon's one `spawn_blocking`: `f` on a blocking
+    /// thread, counted in `blocking_in_flight` from before the spawn until
+    /// the closure returns (or is dropped unrun). A door scenario's park
+    /// hook moves virtual time only while this count and the gate's
+    /// occupancy are zero, since a runtime parked beside a blocking
+    /// thread is not idle: time moved under a landing or the idle
+    /// verdict would change what it reads. `tools/arch-check.sh` (check
+    /// 10) refuses any other `spawn_blocking` in the daemon's sources, so
+    /// a new blocking task cannot silently break the door's determinism.
+    /// C148's `landings` stays its own count, what the idle verdict and
+    /// the drain read; this one only the hook reads.
+    fn blocking<T: Send + 'static>(
+        self: &Arc<Self>,
+        f: impl FnOnce() -> T + Send + 'static,
+    ) -> tokio::task::JoinHandle<T> {
+        /// Lowers the count when the closure returns or is dropped.
+        struct Counted(Arc<Daemon>);
+        impl Drop for Counted {
+            fn drop(&mut self) {
+                self.0.blocking_in_flight.fetch_sub(1, Ordering::SeqCst);
+            }
+        }
+        self.blocking_in_flight.fetch_add(1, Ordering::SeqCst);
+        let counted = Counted(self.clone());
+        tokio::task::spawn_blocking(move || {
+            let _counted = counted;
+            f()
         })
     }
 

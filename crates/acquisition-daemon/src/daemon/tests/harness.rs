@@ -69,6 +69,186 @@ impl Clock for ManualClock {
     }
 }
 
+/// C158, the clock a door scenario runs on (found by the 4-0 spike,
+/// `roadmap/briefs/4-0-spike.md`): a clock whose sleeps park. `sleep`
+/// and `sleep_until` park in a map ordered by deadline (then by arrival,
+/// so equal deadlines wake first-come); `advance_to(t)` wakes
+/// every sleeper due by `t`, in deadline order; `advance_to_next()` moves
+/// to the earliest parked deadline and wakes the sleepers due there, so
+/// each sleeper wakes at its own deadline, never a summed overshoot;
+/// `sleepers()` is how many are parked now (a woken or dropped sleep is
+/// not). `now` and `wall` are `ManualClock`'s two faces. Tokio's paused
+/// clock behind the project's own trait, without `test-util` (C84).
+pub(super) struct ParkingClock {
+    inner: Mutex<Parked>,
+}
+
+struct Parked {
+    now: Instant,
+    wall: SystemTime,
+    next_id: u64,
+    parked: std::collections::BTreeMap<(Instant, u64), std::task::Waker>,
+    woken: HashSet<u64>,
+}
+
+impl ParkingClock {
+    pub(super) fn new() -> Self {
+        ParkingClock {
+            inner: Mutex::new(Parked {
+                now: Instant::now(),
+                wall: SystemTime::UNIX_EPOCH + MANUAL_WALL_ORIGIN,
+                next_id: 0,
+                parked: Default::default(),
+                woken: HashSet::new(),
+            }),
+        }
+    }
+
+    /// Time passes normally by `duration`: both faces move, and every
+    /// sleeper due by then wakes ([`Self::advance_to`]).
+    pub(super) fn advance(&self, duration: Duration) {
+        let to = self
+            .now()
+            .checked_add(duration)
+            .expect("bounded test deadline");
+        self.advance_to(to);
+    }
+
+    /// Move both faces to `t` (never back) and wake, in deadline order,
+    /// every sleeper due by `t`. Waking only schedules: a woken task runs
+    /// when the test yields, and reads `now` as `t`.
+    pub(super) fn advance_to(&self, t: Instant) {
+        let wakers = {
+            let mut p = self.inner.lock().unwrap();
+            if t > p.now {
+                let by = t - p.now;
+                p.now = t;
+                p.wall += by;
+            }
+            let now = p.now;
+            let mut wakers = Vec::new();
+            while let Some(entry) = p.parked.first_entry() {
+                if entry.key().0 > now {
+                    break;
+                }
+                let ((_, id), waker) = entry.remove_entry();
+                p.woken.insert(id);
+                wakers.push(waker);
+            }
+            wakers
+        };
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+
+    /// Move to the earliest parked deadline and wake what is due there;
+    /// the deadline moved to, or `None` when nothing is parked.
+    pub(super) fn advance_to_next(&self) -> Option<Instant> {
+        let next = self.next_deadline()?;
+        self.advance_to(next);
+        Some(next)
+    }
+
+    /// How many sleeps are parked now.
+    pub(super) fn sleepers(&self) -> usize {
+        self.inner.lock().unwrap().parked.len()
+    }
+
+    /// The earliest parked deadline, if any.
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        self.inner.lock().unwrap().parked.keys().next().map(|k| k.0)
+    }
+
+    /// The lid closes: the wall clock moves, the monotonic clock does not.
+    #[allow(dead_code)]
+    pub(super) fn laptop_sleep(&self, duration: Duration) {
+        self.inner.lock().unwrap().wall += duration;
+    }
+
+    fn park(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(ParkedSleep {
+            clock: self,
+            deadline,
+            id: None,
+        })
+    }
+}
+
+/// One parked sleep: registered on its first poll, ready once woken,
+/// unregistered when dropped (a cancelled sleep is never counted).
+struct ParkedSleep<'a> {
+    clock: &'a ParkingClock,
+    deadline: Instant,
+    id: Option<u64>,
+}
+
+impl Future for ParkedSleep<'_> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
+        let mut p = self.clock.inner.lock().unwrap();
+        match self.id {
+            Some(id) => {
+                if p.woken.remove(&id) {
+                    drop(p);
+                    self.id = None;
+                    return std::task::Poll::Ready(());
+                }
+                p.parked.insert((self.deadline, id), cx.waker().clone());
+                std::task::Poll::Pending
+            }
+            None => {
+                if self.deadline <= p.now {
+                    return std::task::Poll::Ready(());
+                }
+                let id = p.next_id;
+                p.next_id += 1;
+                p.parked.insert((self.deadline, id), cx.waker().clone());
+                drop(p);
+                self.id = Some(id);
+                std::task::Poll::Pending
+            }
+        }
+    }
+}
+
+impl Drop for ParkedSleep<'_> {
+    fn drop(&mut self) {
+        if let Some(id) = self.id {
+            let mut p = self.clock.inner.lock().unwrap();
+            p.parked.remove(&(self.deadline, id));
+            p.woken.remove(&id);
+        }
+    }
+}
+
+impl Clock for ParkingClock {
+    fn now(&self) -> Instant {
+        self.inner.lock().unwrap().now
+    }
+
+    fn wall(&self) -> SystemTime {
+        self.inner.lock().unwrap().wall
+    }
+
+    fn kind(&self) -> &'static str {
+        "manual"
+    }
+
+    fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        let deadline = self
+            .now()
+            .checked_add(duration)
+            .expect("bounded test deadline");
+        self.park(deadline)
+    }
+
+    fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        self.park(deadline)
+    }
+}
+
 pub(super) struct NoopCredentialStore;
 
 impl CredentialStore for NoopCredentialStore {

@@ -879,7 +879,7 @@ impl Driver {
             Effect::Judge => {
                 let daemon = self.daemon.clone();
                 let knob = self.knob;
-                self.judging = Some(tokio::task::spawn_blocking(move || {
+                self.judging = Some(self.daemon.blocking(move || {
                     #[cfg(test)]
                     if let Some(probe) = daemon.life_probe.get() {
                         probe.judging.notify_one();

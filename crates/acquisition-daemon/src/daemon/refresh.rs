@@ -250,6 +250,8 @@ impl Daemon {
             let generations = s.auth.find(&username)?.generations;
             (username, generations)
         };
+        // C158: the session's expiry cleared.
+        self.auth_changed.notify_one();
         self.log(&format!(
             "access token for {username} rejected (401); forgotten — the next send refreshes first"
         ));
@@ -324,6 +326,8 @@ impl Daemon {
         }
         drop(credentials);
         if let Err(e) = saved {
+            // C158: the session's keyring word changed.
+            self.auth_changed.notify_one();
             self.note_error(&format!(
                 "keyring save failed: {e}: the entry for {username} still holds the access token GGG rejected, so a restart before the next refresh sends it once more"
             ));
@@ -604,6 +608,11 @@ impl Daemon {
             }
         };
         sender.send_replace(Some(outcome.clone()));
+        if installed.is_some() {
+            // C158: the installed expiry, the `saving` keyring word and a
+            // rename published.
+            self.auth_changed.notify_one();
+        }
         let mut warning = None;
         if let (Some(landing), Some(credentials)) = (landing, credentials.as_ref()) {
             let persisted = self.persist_credentials(
@@ -629,6 +638,9 @@ impl Daemon {
             {
                 session.keyring = persisted.keyring;
             }
+            drop(s);
+            // C158: the save's keyring word published.
+            self.auth_changed.notify_one();
         }
         drop(credentials);
         #[cfg(test)]

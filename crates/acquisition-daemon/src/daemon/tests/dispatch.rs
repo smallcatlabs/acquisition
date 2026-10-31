@@ -2037,3 +2037,60 @@ async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_noth
         "the server saw lifetime 1's sends and nothing more"
     );
 }
+
+// ---- C158: the clock a door scenario runs on ----
+
+/// C158, the parking clock: each sleeper wakes at its own deadline, in
+/// deadline order, never a summed overshoot; `advance` keeps
+/// `ManualClock`'s meaning (both faces move); a dropped sleep is not
+/// counted among the sleepers.
+#[tokio::test]
+async fn the_parking_clock_wakes_each_sleeper_at_its_own_deadline() {
+    let clock = Arc::new(ParkingClock::new());
+    let origin = clock.now();
+    let order = Arc::new(Mutex::new(Vec::new()));
+    let mut tasks = Vec::new();
+    for secs in [3u64, 1, 2] {
+        let (clock, order) = (clock.clone(), order.clone());
+        tasks.push(tokio::spawn(async move {
+            clock.sleep(Duration::from_secs(secs)).await;
+            order.lock().unwrap().push((secs, clock.now() - origin));
+        }));
+    }
+    while clock.sleepers() < 3 {
+        tokio::task::yield_now().await;
+    }
+    {
+        let mut cancelled = clock.sleep_until(origin + Duration::from_secs(10));
+        assert!(futures_poll_once(cancelled.as_mut()).is_pending());
+        assert_eq!(clock.sleepers(), 4);
+    }
+    assert_eq!(clock.sleepers(), 3, "a dropped sleep is not counted");
+    while clock.advance_to_next().is_some() {
+        while clock.sleepers() + order.lock().unwrap().len() < 3 {
+            tokio::task::yield_now().await;
+        }
+        tokio::task::yield_now().await;
+    }
+    for task in tasks {
+        task.await.unwrap();
+    }
+    assert_eq!(
+        order.lock().unwrap().as_slice(),
+        [
+            (1, Duration::from_secs(1)),
+            (2, Duration::from_secs(2)),
+            (3, Duration::from_secs(3))
+        ]
+    );
+    let wall = clock.wall();
+    clock.advance(Duration::from_secs(5));
+    assert_eq!(clock.now() - origin, Duration::from_secs(8));
+    assert_eq!(clock.wall(), wall + Duration::from_secs(5));
+}
+
+/// Poll `future` once with a waker that does nothing.
+fn futures_poll_once<F: Future + ?Sized>(future: Pin<&mut F>) -> std::task::Poll<F::Output> {
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    future.poll(&mut cx)
+}
