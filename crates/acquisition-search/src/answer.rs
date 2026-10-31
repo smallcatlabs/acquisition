@@ -3233,15 +3233,33 @@ impl Shell {
 
     /// The shell this process's environment says: `ACQ_SHELL` where it
     /// declares one, else [`Shell::detected`]. A frontend refuses a
-    /// value `ACQ_SHELL` does not take before it prints anything; read
-    /// here, such a value falls back to detection.
+    /// value `ACQ_SHELL` does not take before it prints anything
+    /// ([`Shell::declared`]); read here, such a value falls back to
+    /// detection.
     pub fn of_environment() -> Shell {
-        std::env::var("ACQ_SHELL")
-            .ok()
-            .and_then(|word| Shell::named(&word))
-            .unwrap_or_else(|| {
-                Shell::detected(cfg!(windows), std::env::var_os("MSYSTEM").is_some())
-            })
+        Shell::declared().ok().flatten().unwrap_or_else(|| {
+            Shell::detected(cfg!(windows), std::env::var_os("MSYSTEM").is_some())
+        })
+    }
+
+    /// The shell `ACQ_SHELL` declares: none where it is unset or empty,
+    /// and a refusal in words for a value it does not take, naming the
+    /// ones it does.
+    pub fn declared() -> Result<Option<Shell>, String> {
+        let Some(value) = std::env::var_os("ACQ_SHELL") else {
+            return Ok(None);
+        };
+        let word = value.to_string_lossy();
+        if word.is_empty() {
+            return Ok(None);
+        }
+        Shell::named(&word).map(Some).ok_or_else(|| {
+            format!(
+                "ACQ_SHELL is {word:?}, which names no shell the commands acq prints are quoted for: \
+                 it takes posix, pwsh (PowerShell 7.3 or newer), powershell5 (Windows PowerShell 5.1) \
+                 or cmd (cmd.exe), and unset the shell is read from the environment"
+            )
+        })
     }
 
     /// Undeclared: PowerShell 7.3 or newer on Windows outside Git Bash,
@@ -3264,12 +3282,6 @@ impl Shell {
             Shell::Cmd => cmd_quoted(text),
         }
     }
-}
-
-/// C156: whether a printed command is for PowerShell 7.3 or newer by
-/// detection alone — on Windows, outside Git Bash ([`Shell::detected`]).
-pub fn powershell(windows: bool, msystem: bool) -> bool {
-    Shell::detected(windows, msystem) == Shell::Pwsh
 }
 
 /// One POSIX shell word, in single quotes when it needs them; an
@@ -3373,13 +3385,7 @@ pub fn powershell5_quoted(text: &str) -> String {
     if text.is_empty() {
         return "'\"\"'".to_string();
     }
-    let wrapped = text.contains([' ', '\t']);
-    let escaped = crt_escaped(text, wrapped);
-    if escaped == text {
-        powershell_quoted(text)
-    } else {
-        powershell_quoted(&escaped)
-    }
+    powershell_quoted(&crt_escaped(text, text.contains([' ', '\t'])))
 }
 
 /// One cmd.exe word (C156). cmd reads no single quote, and the program

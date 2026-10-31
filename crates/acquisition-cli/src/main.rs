@@ -187,7 +187,9 @@ struct Cli {
     /// Emit structured JSON instead of human-readable output: one
     /// document on stdout, a failure included: `{"error", "kind"}`, and
     /// where it has them `offers` (each `{request, says}`, a command line
-    /// to run as printed or a request `acq search --request` reads),
+    /// to run as printed, its words unquoted beside it as `argv` for a
+    /// program to run with no shell, or a request `acq search --request`
+    /// reads),
     /// `readings`, `next` (a person's act) and the kind's own fields. A
     /// job verb's is `{"outcome", "payload", "job_id", "account"}`, and a
     /// failed job's carries `error` in place of `payload`; without the
@@ -1147,51 +1149,75 @@ impl acquisition_verbs::refusal::Surface for Terminal {
         way: &acquisition_verbs::refusal::Way,
     ) -> Option<(serde_json::Value, Option<&'static str>)> {
         use acquisition_verbs::refusal::Way;
-        let quote = |w: &str| acquisition_search::answer::shell_quoted(w);
+        match (way, &self.repeat) {
+            (Way::Again { account }, Repeat::Request(envelope)) => {
+                let (envelope, _) = acquisition_verbs::refusal::again(envelope, account)?;
+                return Some((envelope, None));
+            }
+            (Way::Search(request), _) => {
+                return Some((serde_json::to_value(request).ok()?, None));
+            }
+            _ => {}
+        }
+        let words = self.argv(way)?;
+        let line = words
+            .iter()
+            .map(|w| acquisition_search::answer::shell_quoted(w))
+            .collect::<Vec<_>>()
+            .join(" ");
+        Some((json!(line), None))
+    }
+
+    /// The command line a way is sent back as, word by word and unquoted
+    /// (C156: beside the line, what a program runs with no shell); the
+    /// line is these words, each quoted for the declared shell. None for
+    /// a way this surface sends as a request object, or not at all.
+    fn argv(&self, way: &acquisition_verbs::refusal::Way) -> Option<Vec<String>> {
+        use acquisition_verbs::refusal::Way;
+        let words = |line: &[&str]| line.iter().map(|w| w.to_string()).collect::<Vec<_>>();
         let scope = |account: &str, realm: &acquisition_protocol::realm::Realm, league: &str| {
-            format!(
-                "--account {} --realm {} --league {}",
-                quote(account),
+            words(&[
+                "--account",
+                account,
+                "--realm",
                 realm.as_str(),
-                quote(league)
-            )
+                "--league",
+                league,
+            ])
         };
-        let line = match way {
+        Some(match way {
             Way::Again { account } => match &self.repeat {
-                Repeat::Line(words) => std::iter::once(format!("acq --account {}", quote(account)))
-                    .chain(words.iter().map(|w| quote(w)))
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                Repeat::Request(envelope) => {
-                    let (envelope, _) = acquisition_verbs::refusal::again(envelope, account)?;
-                    return Some((envelope, None));
-                }
-                Repeat::None => return None,
+                Repeat::Line(line) => words(&["acq", "--account", account])
+                    .into_iter()
+                    .chain(line.iter().cloned())
+                    .collect(),
+                Repeat::Request(_) | Repeat::None => return None,
             },
-            Way::Search(request) => return Some((serde_json::to_value(request).ok()?, None)),
+            Way::Search(_) => return None,
             Way::Tabs {
                 account,
                 realm,
                 league,
-            } => format!("acq tabs {}", scope(account, realm, league)),
+            } => [words(&["acq", "tabs"]), scope(account, realm, league)].concat(),
             Way::PriceShow {
                 target,
                 account,
                 realm,
                 league,
-            } => format!(
-                "acq price show {} {}",
-                quote(target),
-                scope(account, realm, league)
-            ),
+            } => [
+                words(&["acq", "price", "show", target]),
+                scope(account, realm, league),
+            ]
+            .concat(),
             Way::PriceStatus {
                 account,
                 realm,
                 league,
-            } => format!(
-                "acq price status --expand {}",
-                scope(account, realm, league)
-            ),
+            } => [
+                words(&["acq", "price", "status", "--expand"]),
+                scope(account, realm, league),
+            ]
+            .concat(),
             // a receipt's undo, as its text receipt prints it: the price
             // words after the target, the revision last
             Way::PriceSet {
@@ -1202,43 +1228,46 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 currency,
                 if_revision,
             } => {
-                let mut line = format!(
-                    "acq price set --account {} {} {}",
-                    quote(account),
-                    quote(target),
-                    quote(kind)
-                );
-                for word in [amount, currency].into_iter().flatten() {
-                    line.push(' ');
-                    line.push_str(&quote(word));
-                }
+                let mut line = words(&["acq", "price", "set", "--account", account, target, kind]);
+                line.extend([amount, currency].into_iter().flatten().cloned());
                 // a create is 0 here, since naming none at a terminal
                 // replaces whatever stands
-                line.push_str(&format!(" --if-revision {}", if_revision.unwrap_or(0)));
+                line.extend(words(&[
+                    "--if-revision",
+                    &if_revision.unwrap_or(0).to_string(),
+                ]));
                 line
             }
             Way::PriceClear {
                 target,
                 account,
                 if_revision,
-            } => format!(
-                "acq price clear --account {} {} --if-revision {if_revision}",
-                quote(account),
-                quote(target)
-            ),
+            } => words(&[
+                "acq",
+                "price",
+                "clear",
+                "--account",
+                account,
+                target,
+                "--if-revision",
+                &if_revision.to_string(),
+            ]),
             Way::PolicySet {
                 account,
                 value,
                 if_revision,
-            } => plan_cmd::policy_set_line(
-                &format!(
-                    " --account {} --replace --if-revision {if_revision}",
-                    quote(account)
-                ),
+            } => words(&[
+                "acq",
+                "policy",
+                "set",
+                "--account",
+                account,
+                "--replace",
+                "--if-revision",
+                &if_revision.to_string(),
                 &value.to_string(),
-            ),
-        };
-        Some((json!(line), None))
+            ]),
+        })
     }
 
     fn reading(&self, offered: &acquisition_search::error::Offered) -> String {
@@ -1385,19 +1414,20 @@ async fn main() {
 /// [`shell_hint`] over this command's own words, under the shell the
 /// environment says the printed commands are for.
 fn pasted_shell_hint() -> Option<&'static str> {
-    let powershell = acquisition_search::answer::powershell(
-        cfg!(windows),
-        std::env::var_os("MSYSTEM").is_some(),
-    );
-    shell_hint(std::env::args().skip(1), powershell)
+    use acquisition_search::answer::Shell;
+    shell_hint(
+        std::env::args().skip(1),
+        Shell::of_environment() == Shell::Pwsh,
+    )
 }
 
-/// C156: where the commands acq prints are for PowerShell 7.3 or newer, a
-/// failed command whose words carry what another Windows shell leaves of
-/// a printed one says so after its refusal: a word still in single
-/// quotes, which cmd.exe reads as no quote, or JSON with no double quote
-/// left, which Windows PowerShell 5.1 strips from an argument. Elsewhere,
-/// and on any other failure, nothing.
+/// C156: where the commands acq prints are for PowerShell 7.3 or newer,
+/// declared or detected, a failed command whose words carry what another
+/// Windows shell leaves of a printed one says so after its refusal, and
+/// names the declaration that quotes them for that shell, in its own
+/// syntax: a word still in single quotes, which cmd.exe reads as no
+/// quote, or JSON with no double quote left, which Windows PowerShell 5.1
+/// strips from an argument. Elsewhere, and on any other failure, nothing.
 fn shell_hint(args: impl Iterator<Item = String>, powershell: bool) -> Option<&'static str> {
     if !powershell {
         return None;
@@ -1407,13 +1437,15 @@ fn shell_hint(args: impl Iterator<Item = String>, powershell: bool) -> Option<&'
         if arg.starts_with('\'') {
             return Some(
                 "a word still holds its single quotes, as cmd.exe passes them: \
-                 the commands acq prints are for PowerShell 7.3 or newer",
+                 the commands acq prints are for PowerShell 7.3 or newer; \
+                 in cmd.exe, `set ACQ_SHELL=cmd` quotes them for it",
             );
         }
         if arg.starts_with('{') && arg.contains(':') && !arg.contains('"') {
             hint = Some(
                 "the JSON reached acq with no double quotes, as Windows PowerShell 5.1 \
-                 passes them: the commands acq prints are for PowerShell 7.3 or newer",
+                 passes them: the commands acq prints are for PowerShell 7.3 or newer; \
+                 in Windows PowerShell 5.1, `$env:ACQ_SHELL = 'powershell5'` quotes them for it",
             );
         }
     }
@@ -2969,9 +3001,10 @@ async fn watch_table_until_done(client: &mut Client, ids: &[u64]) -> Result<()> 
 
 #[cfg(test)]
 mod tests {
-    /// C156: a refusal under the declared PowerShell names the shell a
-    /// pasted command met, from what that shell left of its words; under
-    /// any other shell, and for words no shell mangled, nothing.
+    /// C156: a refusal under PowerShell 7.3, declared or detected, names
+    /// the shell a pasted command met, from what that shell left of its
+    /// words, and the declaration for that shell; under any other shell,
+    /// and for words no shell mangled, nothing.
     #[test]
     fn c156_a_refusal_names_the_windows_shell_a_pasted_command_met() {
         let words = |w: &[&str]| {
@@ -2982,12 +3015,16 @@ mod tests {
         };
         let cmd = shell_hint(words(&["search", "--account", "'Alice#1234'"]), true).unwrap();
         assert!(
-            cmd.contains("cmd.exe") && cmd.contains("PowerShell 7.3"),
+            cmd.contains("cmd.exe")
+                && cmd.contains("PowerShell 7.3")
+                && cmd.contains("`set ACQ_SHELL=cmd`"),
             "{cmd}"
         );
         let ps5 = shell_hint(words(&["policy", "set", "{version:3,realms:{}}"]), true).unwrap();
         assert!(
-            ps5.contains("Windows PowerShell 5.1") && ps5.contains("PowerShell 7.3"),
+            ps5.contains("Windows PowerShell 5.1")
+                && ps5.contains("PowerShell 7.3")
+                && ps5.contains("`$env:ACQ_SHELL = 'powershell5'`"),
             "{ps5}"
         );
         assert_eq!(

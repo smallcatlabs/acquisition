@@ -35,6 +35,8 @@ fn c88_the_real_provider_is_the_default_and_the_retired_knob_is_refused() {
         (("ACQ_GGG", "1"), "ACQ_GGG is no longer read"),
         (("ACQ_GGG", "0"), "ACQ_GGG is no longer read"),
         (("ACQ_PROVIDER", "Mock"), "names no provider"),
+        // C156: a shell ACQ_SHELL does not take, with the same refusal
+        (("ACQ_SHELL", "bash"), "names no shell"),
     ] {
         let out = command(base, &["version"])
             .env(env.0, env.1)

@@ -42,7 +42,7 @@ Commands:
   help          Print this message or the help of the given subcommand(s)
 
 Options:
-      --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included: `{"error", "kind"}`, and where it has them `offers` (each `{request, says}`, a command line to run as printed or a request `acq search --request` reads), `readings`, `next` (a person's act) and the kind's own fields. A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
+      --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included: `{"error", "kind"}`, and where it has them `offers` (each `{request, says}`, a command line to run as printed, its words unquoted beside it as `argv` for a program to run with no shell, or a request `acq search --request` reads), `readings`, `next` (a person's act) and the kind's own fields. A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
       --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as [env: ACQ_ACCOUNT=]
   -h, --help               Print help
   -V, --version            Print version

@@ -14,6 +14,8 @@ fn c88_the_server_refuses_the_retired_knob_and_an_unknown_provider_at_start() {
     for (env, said) in [
         (("ACQ_GGG", "1"), "ACQ_GGG is no longer read"),
         (("ACQ_PROVIDER", "real"), "names no provider"),
+        // C156: a shell ACQ_SHELL does not take, with the same refusal
+        (("ACQ_SHELL", "bash"), "names no shell"),
     ] {
         let out = harness::command(&scratch.0, &[])
             .env(env.0, env.1)

@@ -113,14 +113,32 @@ fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
 #[test]
 fn c156_a_refused_cmd_paste_names_the_shell_the_commands_are_for() {
     let scratch = harness::scratch("cmd-paste");
-    let out = harness::offline_acq(&scratch.0, &["search", "'rarity=rare", "is:corrupted'"]);
+    let pasted = ["search", "'rarity=rare", "is:corrupted'"];
+    let out = harness::offline_acq(&scratch.0, &pasted);
     assert_eq!(out.status.code(), Some(2), "{out:?}");
     let said = String::from_utf8_lossy(&out.stderr);
     assert_eq!(
-        said.contains("cmd.exe") && said.contains("PowerShell 7.3 or newer"),
+        said.contains("cmd.exe")
+            && said.contains("PowerShell 7.3 or newer")
+            && said.contains("`set ACQ_SHELL=cmd`"),
         cfg!(windows),
         "{said}"
     );
+    // declared, on any platform: PowerShell 7.3 names the remedy, and a
+    // shell that is cmd.exe already has nothing to say
+    for (shell, named) in [("pwsh", true), ("cmd", false), ("posix", false)] {
+        let out = harness::offline_command(&scratch.0, &pasted)
+            .env("ACQ_SHELL", shell)
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(2), "{shell}: {out:?}");
+        let said = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(
+            said.contains("`set ACQ_SHELL=cmd`"),
+            named,
+            "{shell}: {said}"
+        );
+    }
 }
 
 /// C144's retry command runs as printed, the review of h1, its seventh

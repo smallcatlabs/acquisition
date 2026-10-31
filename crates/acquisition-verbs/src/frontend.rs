@@ -169,6 +169,9 @@ impl Frontend {
 
     fn from_environment(via: &'static str, door: Door) -> Result<Frontend, Fault> {
         acquisition_protocol::provider::check_environment().map_err(Fault::Environment)?;
+        // C156: the declared shell, checked once with the provider, so a
+        // mistyped value is refused before any command is printed
+        acquisition_search::answer::Shell::declared().map_err(Fault::Environment)?;
         let provider = acquisition_protocol::provider::wanted();
         Ok(Frontend {
             via,

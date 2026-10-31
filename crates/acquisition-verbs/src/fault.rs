@@ -28,7 +28,8 @@ use serde_json::{Map, Value, json};
 /// `Other` is the escape hatch for what it does not name yet.
 #[derive(Debug)]
 pub enum Fault {
-    /// `ACQ_PROVIDER` names no provider, or a retired knob is set (C88).
+    /// `ACQ_PROVIDER` names no provider, or a retired knob is set (C88);
+    /// or `ACQ_SHELL` names no shell (C156).
     /// Kind `refused`.
     Environment(String),
     /// The index under `dir` knows no account at all. Kind

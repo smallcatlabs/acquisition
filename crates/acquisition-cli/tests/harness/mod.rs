@@ -88,6 +88,15 @@ pub fn offline_printed(world: &Path, command: &str) -> Command {
     cmd
 }
 
+/// [`offline_printed`] through `shell`, as a person who declared it
+/// pastes the line.
+pub fn offline_printed_in(shell: Shell, world: &Path, command: &str) -> Command {
+    let mut cmd = in_shell(shell, acq_exe(), acq_rest(command), world);
+    isolate_at(&mut cmd, world, world);
+    cmd.env("ACQ_NO_SPAWN", "1");
+    cmd
+}
+
 /// [`offline_printed`] through `sh` on every platform, as Git Bash runs
 /// it on Windows (C156: it sets `MSYSTEM`, which the child keeps, and a
 /// printed command is quoted for it).
@@ -190,6 +199,59 @@ fn cmd_line(program: &Path, rest: &str) -> Command {
 #[cfg(not(windows))]
 fn cmd_line(_program: &Path, _rest: &str) -> Command {
     panic!("cmd.exe runs only on Windows")
+}
+
+/// An offer's or an undo's printed line, checked against the words
+/// beside it (C156): `argv` is the command unquoted, `acq` first, and the
+/// line is exactly those words quoted for the shell the child `acq` ran
+/// under, the platform's by detection (the isolation list removes
+/// `ACQ_SHELL` and `MSYSTEM`). The string and the array cannot disagree.
+pub fn offered_line(offer: &serde_json::Value) -> String {
+    offered_line_in(offer, Shell::detected(cfg!(windows), false))
+}
+
+/// [`offered_line`] for a child that ran with `ACQ_SHELL` declaring
+/// `shell`.
+pub fn offered_line_in(offer: &serde_json::Value, shell: Shell) -> String {
+    let line = offer["request"]
+        .as_str()
+        .unwrap_or_else(|| panic!("no printed line: {offer}"));
+    let argv: Vec<&str> = offer["argv"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no argv beside the line: {offer}"))
+        .iter()
+        .map(|w| w.as_str().unwrap())
+        .collect();
+    assert_eq!(argv.first(), Some(&"acq"), "{offer}");
+    let quoted: Vec<String> = argv.iter().map(|w| shell.quoted(w)).collect();
+    assert_eq!(
+        line,
+        quoted.join(" "),
+        "the line is its words quoted: {offer}"
+    );
+    line.to_string()
+}
+
+/// An offer's `argv` run with no shell, `extra` after it, as a program
+/// runs it, over a world seeded by hand at `world` ([`offline_acq`]):
+/// the JSON it answers.
+pub fn run_argv(world: &Path, offer: &serde_json::Value, extra: &[&str]) -> serde_json::Value {
+    let argv: Vec<&str> = offer["argv"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no argv: {offer}"))
+        .iter()
+        .map(|w| w.as_str().unwrap())
+        .collect();
+    let mut args = argv[1..].to_vec();
+    args.extend(extra);
+    let out = offline_acq(world, &args);
+    assert!(
+        out.status.success(),
+        "{argv:?} does not run with no shell: {}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    sole_json(&out)
 }
 
 /// The shells this machine runs a printed command through: `sh` off

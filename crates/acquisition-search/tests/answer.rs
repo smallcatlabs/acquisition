@@ -860,12 +860,11 @@ fn shell_words() -> Vec<(String, [(acquisition_search::answer::Shell, String); 4
 /// outside Git Bash and a POSIX shell elsewhere.
 #[test]
 fn a_printed_word_is_quoted_for_the_declared_shell() {
-    use acquisition_search::answer::{Shell, powershell, shell_quoted};
+    use acquisition_search::answer::{Shell, shell_quoted};
     assert_eq!(Shell::detected(true, false), Shell::Pwsh);
     assert_eq!(Shell::detected(true, true), Shell::Posix);
     assert_eq!(Shell::detected(false, false), Shell::Posix);
     assert_eq!(Shell::detected(false, true), Shell::Posix);
-    assert!(powershell(true, false) && !powershell(true, true));
     for (name, shell) in Shell::DECLARED {
         assert_eq!(Shell::named(name), Some(shell));
     }

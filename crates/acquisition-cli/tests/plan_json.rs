@@ -459,16 +459,19 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
         merged["prior"]["value"],
         serde_json::from_str::<Value>(pc).unwrap()
     );
-    let line = merged["undo"]["request"]
-        .as_str()
-        .unwrap_or_else(|| panic!("{merged}"));
+    let line = harness::offered_line(&merged["undo"]);
     // the JSON is one quoted word on every platform (C156)
     assert!(
         line.starts_with("acq policy set --account 'Alice#1234' --replace --if-revision 2 '{"),
         "{line}"
     );
     // run as printed through the shell it is printed for, `sh` or on
-    // Windows PowerShell 7, `--json` added as a refusal's offers are run
+    // Windows PowerShell 7, `--json` added as a refusal's offers are run;
+    // then, C156: on every shell this machine has, the receipt written with
+    // ACQ_SHELL declaring it prints an undo that runs as printed through
+    // it, `--json` added as a refusal's offers are run, and puts the
+    // policy beyond ASCII back whole: `sh`, and on Windows PowerShell 7,
+    // Windows PowerShell 5.1 and cmd.exe
     let out = harness::offline_printed(&base, &line.replacen("acq ", "acq --json ", 1))
         .output()
         .expect("running the printed undo");
@@ -477,4 +480,33 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     assert_eq!(back["revision"], json!(3));
     assert_eq!(back["value"], serde_json::from_str::<Value>(pc).unwrap());
     assert_eq!(back["prior"], merged["written"]);
+    use acquisition_search::answer::Shell;
+    let mut revision = 3;
+    for shell in harness::shells_here() {
+        let name = Shell::DECLARED.iter().find(|(_, s)| *s == shell).unwrap().0;
+        let out =
+            harness::offline_command(&base, &["policy", "set", "--account", USER, poe2, "--json"])
+                .env("ACQ_SHELL", name)
+                .output()
+                .unwrap();
+        assert!(out.status.success(), "{shell:?}: {out:?}");
+        let merged = sole_json(&out);
+        revision += 1;
+        assert_eq!(merged["revision"], json!(revision), "{merged}");
+        let line = harness::offered_line_in(&merged["undo"], shell);
+        let out =
+            harness::offline_printed_in(shell, &base, &line.replacen("acq ", "acq --json ", 1))
+                .output()
+                .expect("running the printed undo");
+        assert!(out.status.success(), "{shell:?}: `{line}`: {out:?}");
+        let back = sole_json(&out);
+        revision += 1;
+        assert_eq!(back["revision"], json!(revision), "{shell:?}: {back}");
+        assert_eq!(
+            back["value"],
+            serde_json::from_str::<Value>(pc).unwrap(),
+            "{shell:?}"
+        );
+        assert_eq!(back["prior"], merged["written"], "{shell:?}");
+    }
 }

@@ -109,6 +109,14 @@ pub trait Surface {
     /// command line to repeat).
     fn request(&self, way: &Way) -> Option<(Value, Option<&'static str>)>;
 
+    /// `way` as the words of the command line this surface prints for
+    /// it, unquoted, where it prints one (C156): what a program runs with
+    /// no shell, beside the printed line. None by default, and for a way
+    /// sent as a request object or a tool's arguments.
+    fn argv(&self, _way: &Way) -> Option<Vec<String>> {
+        None
+    }
+
     /// A search's way on as this surface reads it: the shared reading,
     /// and this surface's spelling after it.
     fn reading(&self, offered: &Offered) -> String {
@@ -212,13 +220,17 @@ fn offered(
     Value::Object(doc)
 }
 
-/// One offer as `surface` sends it: `{request, says}`, `tool` where it
-/// is another tool's; none where the surface holds no request to send.
+/// One offer as `surface` sends it: `{request, says}`, `argv` beside a
+/// request that is a printed command line, `tool` where it is another
+/// tool's; none where the surface holds no request to send.
 /// A refusal's `offers` and a receipt's `undo` alike ([`crate::receipt`]).
 pub(crate) fn offer(way: &Way, says: &str, surface: &dyn Surface) -> Option<Value> {
     let (request, tool) = surface.request(way)?;
     let mut offer = Map::new();
     offer.insert("request".into(), request);
+    if let Some(argv) = surface.argv(way) {
+        offer.insert("argv".into(), json!(argv));
+    }
     offer.insert("says".into(), json!(says));
     if let Some(tool) = tool {
         offer.insert("tool".into(), json!(tool));

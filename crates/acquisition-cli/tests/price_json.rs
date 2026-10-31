@@ -1759,7 +1759,10 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         "acq --account 'Alice#1234' --json tabs --league=Allflame --realm=xbox"
     );
     for offer in offers {
-        run_offered(&base, offer["request"].as_str().unwrap());
+        let line = harness::offered_line(offer);
+        let printed = run_offered(&base, &line);
+        // C156: the words beside the line answer the same with no shell
+        assert_eq!(harness::run_argv(&base, offer, &[]), printed, "{offer}");
     }
 
     // a target held nowhere: the search of the realm, a request, and the
@@ -1792,6 +1795,11 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         offers[1]["request"],
         "acq tabs --account 'Alice#1234' --realm xbox --league Allflame"
     );
+    let line = harness::offered_line(&offers[1]);
+    assert_eq!(
+        harness::run_argv(&base, &offers[1], &["--json"]),
+        run_offered(&base, &format!("{line} --json"))
+    );
     let words = doc["error"].as_str().unwrap();
     let printed: Vec<&str> = words.split('`').filter(|w| w.starts_with("acq ")).collect();
     assert_eq!(printed.len(), 2, "{words}");
@@ -1813,8 +1821,9 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         );
         let shown = run_offered(
             &base,
-            &format!("{} --json", offers[0]["request"].as_str().unwrap()),
+            &format!("{} --json", harness::offered_line(&offers[0])),
         );
+        assert_eq!(harness::run_argv(&base, &offers[0], &["--json"]), shown);
         assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
     }
 }
@@ -2262,9 +2271,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     let undone = |doc: &Value| -> Value {
         let undo = &doc["undo"];
         assert_eq!(undo.get("tool"), None, "a terminal names no tool: {doc}");
-        let line = undo["request"]
-            .as_str()
-            .unwrap_or_else(|| panic!("no undo: {doc}"));
+        let line = harness::offered_line(undo);
         assert!(line.contains("--account 'Alice#1234'"), "{line}");
         // run as printed, `--json` added as a refusal's offers are run
         // (the text receipt's line is run bare by `seat_faults.rs`)
