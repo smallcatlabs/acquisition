@@ -224,8 +224,7 @@ time automatically only when nothing the scenario started can run.**
      (a real protocol connection), the login's callback tests on
      `wait_callback` (`login.rs` 531, 561); `exit.rs:1618` serves a
      real listener, 1662 a fabricated one (a component test);
-   - component tests of a function or a table: `responses.rs` until
-     its holders land, `idle.rs`'s verdict reads, the `Life` and
+   - component tests of a function or a table: `responses.rs`, `idle.rs`'s verdict reads, the `Life` and
      `Door` tables, `queue.rs`'s internal-input tests that submit as
      the `daemon` submitter what the protocol refuses (427, 491; the
      admission rules at `queue.rs` 1183 and 1204), fabricated queue
@@ -252,7 +251,7 @@ the door until one is asked for (§5's line).
 | the 401, the laptop sleep, the refresh families (`bearer.rs`, `refresh.rs`) | rows with a clock-move column (`advance`, `laptop_sleep`) | nothing until round 5 |
 | `responses.rs` | kept as the classification's component table (`classify_api_body`, `may_requeue_429`); the boundary gains three wire twins through the script's raw form (a truncated 200 a transport failure with its cause; a truncated body under a non-2xx status; a 200 whose body is not JSON), so every classification the table names is seen once at the boundary | nothing |
 | `sessions.rs` | journaling scenarios through `Own` servers: "one owner" is "one token POST on the wire", read from the journal, not from `auth` | its own `test_daemon`, `SystemClock`, `Rails::disabled()`, its `shared.lock()`s, the generation counters |
-| `login.rs` | the login's scenarios through the door where they cross the frontend boundary, their `shared.lock()`s and `auth` reads replaced by the journal, the protocol's answers and `await_state`; the callback tests off the door | the two unbounded polls (346, 404) |
+| `login.rs` | the login's scenarios through the door where they cross the frontend boundary, their `shared.lock()`s and `auth` reads replaced by the journal, the protocol's answers and `await_auth`; the callback tests off the door | the two unbounded polls (346, 404) |
 | the exit and the drain (`exit.rs`, `credentials.rs:318`) | virtual time through the door; the `Life` table and its wiring tests as they are | `settle`; `HELD` and `BOUND` as real durations |
 | the exempt-route list | the two oracles' lists are `NO_PROBE_ROUTES` composed with the token rule, stated as such; the daemon's harness reads the constant, the client's keeps its copy under a check (§5) | one copy; plus one new oracle, a HEAD absent on an exempt API route's first send |
 | the idle verdict (`idle.rs`) | as it is, on the parking clock's `advance` | nothing |
@@ -302,7 +301,7 @@ retirement waits for its last user.
 4. **The sessions and the login as scenarios.** `sessions.rs` and
    `login.rs` through the door where they cross the boundary; the
    private-state reads out of the top five files where a journal, an
-   answer or `await_state` holds the property; the rest named as
+   answer or `await_auth` holds the property; the rest named as
    component tests.
 5. **The sweep.** The refresh and bearer families onto `advance`;
    `ManualClock` retired, its last user moved; the exempt-route
@@ -338,7 +337,7 @@ Each is his; nothing below is entered until he rules.
   script answers every connection, a late answer is staged by the
   delayed server, and a silent one waits its real timeout.
 - **A question, not a draft: a classification field in `Outcome`.**
-  The design reads a failure's kind from a daemon-internal enum; a
+  Classification stays in component tests; a
   field in `Outcome` would be the frontends' to read and a user's
   JSON to change (serialized, persisted, read back by older
   answers). The owner says whether it is wanted now, as an issue
@@ -374,7 +373,7 @@ review judged them:
 
 1. The door's submit could not carry a refusal, an auth reply or a
    non-terminal wait, and the internal-input tests cannot enter
-   through the protocol: `request -> Response`, `await_state`, and
+   through the protocol: `request -> Response`, `await_auth`, and
    the component partition (§2.1, §2.6).
 2. `ManualClock` retired before its users moved: the retirement
    waits for the last user, in round 5 (§2.4, §4).
