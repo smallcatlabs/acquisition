@@ -772,9 +772,8 @@ struct Driver {
     held: bool,
     /// The connections' word the last verdict judged.
     judged: Option<u64>,
-    // 4-0 spike scratch: the two timers on the daemon's clock.
-    idle: Option<Instant>,
-    drain: Option<Instant>,
+    idle: Option<tokio::time::Instant>,
+    drain: Option<tokio::time::Instant>,
     judging: Option<tokio::task::JoinHandle<Judged>>,
     /// When the quiet wait looks again.
     looking: Option<tokio::time::Instant>,
@@ -850,26 +849,20 @@ impl Driver {
     fn perform(&mut self, effect: Effect) -> Option<life::Event> {
         match effect {
             Effect::Arm(Timer::Idle) => {
-                let now = self.daemon.choke.now();
+                let now = tokio::time::Instant::now();
                 self.idle = Some(
                     now.checked_add(self.duration(Timer::Idle))
                         .unwrap_or_else(|| now + IDLE_CAP),
                 );
                 None
             }
-            // 4-0 spike scratch: the exit's own deadline is set on tokio
-            // time by the swap (`Exit::arm`, which has no clock); its
-            // remainder is carried onto the daemon's clock here, a read
-            // of two clocks.
+            // The exit's own deadline, set by the swap at the ingress,
+            // never read again from now.
             Effect::Arm(Timer::Drain) => {
-                let left = self
-                    .daemon
-                    .exit
-                    .deadline
-                    .get()
-                    .map(|at| at.saturating_duration_since(tokio::time::Instant::now()))
-                    .unwrap_or_else(|| self.duration(Timer::Drain));
-                self.drain = Some(self.daemon.choke.now() + left);
+                self.drain =
+                    Some(self.daemon.exit.deadline.get().copied().unwrap_or_else(|| {
+                        tokio::time::Instant::now() + self.duration(Timer::Drain)
+                    }));
                 None
             }
             Effect::Cancel(Timer::Idle) => {
@@ -948,8 +941,8 @@ impl Driver {
     ) -> life::Event {
         loop {
             let looking = until(self.looking);
-            let drain = clock_until(&self.daemon, self.drain);
-            let idle = clock_until(&self.daemon, self.idle);
+            let drain = until(self.drain);
+            let idle = until(self.idle);
             let judging = self.judging.as_mut();
             let judging = async move {
                 match judging {
@@ -1010,15 +1003,6 @@ impl Driver {
                 }
             }
         }
-    }
-}
-
-/// 4-0 spike scratch: an armed instant's end on the daemon's clock;
-/// never, when nothing is armed.
-async fn clock_until(daemon: &Daemon, at: Option<Instant>) {
-    match at {
-        Some(at) => daemon.choke.sleep_until(at).await,
-        None => std::future::pending().await,
     }
 }
 
