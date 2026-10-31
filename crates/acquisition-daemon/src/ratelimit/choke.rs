@@ -325,6 +325,11 @@ impl ChokePoint {
         self.clock.sleep(duration).await;
     }
 
+    /// Sleep until `deadline` on the clock's `now` face (`Clock::sleep_until`).
+    pub(crate) async fn sleep_until(&self, deadline: Instant) {
+        self.clock.sleep_until(deadline).await;
+    }
+
     /// See `Limiter::declare_policyless`.
     pub fn declare_policyless(&self, route: &str) {
         self.limiter.lock().unwrap().declare_policyless(route);

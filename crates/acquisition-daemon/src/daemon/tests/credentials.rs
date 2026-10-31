@@ -313,10 +313,15 @@ async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands()
 /// holds across its I/O, so a stop asked while a clear stood found
 /// nothing in flight and exited before the mark was written, and the
 /// next lifetime restored the account the user had logged out of. Every
-/// landing is now counted from before its spawn until it returns.
+/// landing is now counted from before its spawn until it returns. A
+/// component test (C158): several workers and the keyring's own boundary,
+/// the clear held at the credential store; the drain is polled pending
+/// while the clear stands, then driven by hand on its parking clock once
+/// the logout has landed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let clock = Arc::new(ParkingClock::new());
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", clock.clone());
     logged_in(&mut daemon);
     let store = Arc::new(RecordingCredentialStore::default());
     store
@@ -354,16 +359,19 @@ async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
         .expect("the logout reached its clear");
 
     assert!(daemon.begin_exit("test: exit"));
-    let drain = tokio::spawn(drain(&daemon));
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    let waited = !drain.is_finished();
+    let mut drain = std::pin::pin!(drain(&daemon));
+    let waited = polled_once(drain.as_mut()).is_pending();
     held.release.send(()).unwrap();
 
     assert!(waited, "the drain waits for the logout's clear");
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
     assert!(
         matches!(logout.await.unwrap(), Response::Ack { .. }),
         "the logout landed"
+    );
+    assert_eq!(
+        drive_drain(&clock, &daemon, drain).await,
+        None,
+        "nothing was cut"
     );
     assert!(
         !Index::load(&dir)
@@ -561,7 +569,13 @@ fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
 /// restore is begun as `run_with_log` begins it. Returns once the load is
 /// under way, the daemon not yet holding any session.
 async fn restoring_daemon() -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
-    let clock = Arc::new(ManualClock::new());
+    restoring_daemon_on(Arc::new(ParkingClock::new())).await
+}
+
+/// [`restoring_daemon`] on `clock`, a parking clock the test drives.
+async fn restoring_daemon_on(
+    clock: Arc<ParkingClock>,
+) -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
     let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", clock.clone());
     let dir = TestPath::dir();
     Index::load(&dir)
@@ -749,7 +763,13 @@ fn held_job(daemon: &Daemon, id: JobId) -> (JobInfo, Option<Outcome>) {
 /// nothing (a job the queue restored would read no session and fail as
 /// not logged in), the daemon is not idle, and an exit's drain waits for
 /// the restore; released, the job is picked, the daemon is idle with no
-/// connection, and the drain returns with nothing cut.
+/// connection, and the drain returns with nothing cut. A component test
+/// (C158): several workers and the keyring's own boundary, the restore's
+/// load held at the credential store, the pick and the verdict read
+/// directly. The pin of "the drain waits for a landing" with the drain
+/// polled pending before the release: the drain is driven in this test's
+/// task, and its look is advanced by hand only once the restore has
+/// landed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore() {
     // The dispatcher.
@@ -775,7 +795,8 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
     finish_harness(None, &log_path);
 
     // The idle verdict and the drain.
-    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    let clock = Arc::new(ParkingClock::new());
+    let (daemon, held, _dir, log_path) = restoring_daemon_on(clock.clone()).await;
     let idle_while_reading = daemon.is_idle(Duration::ZERO);
     assert!(daemon.begin_exit("test: exit"));
     let mut drain = std::pin::pin!(drain(&daemon));
@@ -784,9 +805,7 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
 
     assert!(!idle_while_reading, "the restore holds the daemon");
     assert!(!drained_while_reading, "the drain waits for the restore");
-    let cut = tokio::time::timeout(ANSWERED_WITHIN, drain)
-        .await
-        .expect("the drain returns");
+    let cut = drive_drain(&clock, &daemon, drain).await;
     assert_eq!(cut, None, "nothing was cut");
     assert!(
         daemon.is_idle(Duration::ZERO),

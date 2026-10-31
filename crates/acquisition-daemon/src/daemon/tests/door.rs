@@ -55,10 +55,8 @@ pub(super) enum Server {
     Script(Vec<ScriptedResponse>),
     /// [`account_server`], answering by account, holding the request
     /// `hold` names.
-    #[allow(dead_code)] // the sessions' and login's scenarios, round 4
     Account((&'static str, &'static str, usize)),
     /// One of the two token servers.
-    #[allow(dead_code)] // the refresh families, round 5
     Token(Token),
     /// The stateful mock ([`mockggg::start_with_clock`]) on the door's
     /// clock.
@@ -67,15 +65,13 @@ pub(super) enum Server {
     /// A server the scenario built itself: its base URL. Its listener is
     /// bound before the runtime exists (a `std::net::TcpListener`, taken
     /// into the runtime with `TcpListener::from_std` inside the scenario).
-    #[allow(dead_code)] // `sessions.rs`'s servers, round 4
     Own(String),
     /// No server: a base nothing listens on.
-    #[allow(dead_code)] // the scenarios that send nothing, round 3
     None,
 }
 
 /// The two token servers.
-#[allow(dead_code)] // the refresh families, round 5
+#[allow(dead_code)] // `Answering`: the refresh families, round 5
 pub(super) enum Token {
     /// [`token_server_answering`]: one `POST /token` per status, in order.
     Answering(Vec<&'static str>),
@@ -460,13 +456,20 @@ impl Door {
         self.daemon.handle_request(req, &mut self.events).await
     }
 
+    /// A protocol request on a connection of its own, spawned: a second
+    /// frontend's, which pends while the daemon holds its answer (a
+    /// refresh on the wire) and is answered whenever the daemon answers.
+    pub(super) fn spawn_request(&self, req: Request) -> tokio::task::JoinHandle<Response> {
+        let daemon = self.daemon.clone();
+        tokio::spawn(async move { daemon.handle_request(req, &mut None).await })
+    }
+
     /// C133, what a frontend's `acq daemon stop` asks on the bootstrap
     /// plane, which `Request` does not carry: the exit begun as the stop's
     /// connection begins it (`request_stop`), its event handed to the
     /// lifecycle's driver. The stop's connection then pends until the
     /// process ends; the scenario reads that end through
     /// [`Self::await_leave`].
-    #[allow(dead_code)] // the exit's scenarios, this round's second commit
     pub(super) fn stop(&self) {
         self.daemon.request_stop();
     }
@@ -476,7 +479,6 @@ impl Door {
     /// process. Nothing comes back: what the drain cut is read through
     /// the protocol (a cut job is still Running, a clean one is Done) and
     /// the journal. Needs [`DoorBuilder::life`].
-    #[allow(dead_code)] // the exit's scenarios, this round's second commit
     pub(super) async fn await_leave(&mut self) {
         let leave = self
             .leave
@@ -494,7 +496,6 @@ impl Door {
     /// a hint and the snapshot the truth. For a state that is not
     /// terminal (Running, a Waiting job with its retry spent); a job's
     /// end is [`Self::await_terminal`]'s.
-    #[allow(dead_code)] // the exit's scenarios, this round's second commit
     pub(super) async fn await_job(
         &mut self,
         id: JobId,
@@ -555,7 +556,6 @@ impl Door {
     /// it already does, else re-read after each auth-change notification
     /// (subscribed before the read), the notification a hint and the
     /// answer the truth. A login's end is `|s| !s.pending`.
-    #[allow(dead_code)] // the login's scenarios, round 4
     pub(super) async fn await_auth(
         &mut self,
         predicate: impl Fn(&AuthAnswer) -> bool,
@@ -608,7 +608,7 @@ impl Door {
 
     /// Time passes by the scenario's hand: both faces move, every sleeper
     /// due wakes.
-    #[allow(dead_code)] // a verdict read at a moment, rounds 2 and 5
+    #[allow(dead_code)] // a verdict read at a moment, round 5
     pub(super) fn advance(&self, duration: Duration) {
         self.clock.advance(duration);
     }
@@ -621,7 +621,6 @@ impl Door {
 
     /// The fixture as constructed, for what a scenario reads from it or
     /// drives it with (a hold's release, a recorder).
-    #[allow(dead_code)] // the later rounds' scenarios
     pub(super) fn fixture(&mut self) -> &mut Fixture {
         &mut self.fixture
     }

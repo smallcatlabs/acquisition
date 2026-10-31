@@ -842,6 +842,61 @@ pub(super) fn drain(daemon: &Arc<Daemon>) -> impl Future<Output = Option<InFligh
     }
 }
 
+/// C158, coordinated driving: a drain on a parking clock a component
+/// test drives by hand, awaited to its end. `drain` is the harness's
+/// [`drain`] awaited in place, a spawned drain's handle or a spawned
+/// driver's recorded leave. The clock moves only after the test has seen
+/// the state the driver waits for, nothing in flight (`InFlight` empty,
+/// read through `try_lock`, so the test never waits on `shared`), and
+/// only to a deadline the driver has registered before the drain's own
+/// (its next look, `DRAIN_POLL` on): never to the drain's deadline, so
+/// work still landing is never cut, and never a wait for a sleeper the
+/// driver may not register (a driver that found quiet on its first look
+/// has left, and `drain` answers at once). A look that finds the lock
+/// held again re-arms, and is advanced in turn.
+pub(super) async fn drive_drain<T>(
+    clock: &ParkingClock,
+    daemon: &Daemon,
+    drain: impl Future<Output = T>,
+) -> T {
+    let mut drain = std::pin::pin!(drain);
+    tokio::time::timeout(HANG, async {
+        loop {
+            tokio::select! {
+                biased;
+                out = &mut drain => return out,
+                () = tokio::time::sleep(Duration::from_millis(1)) => {}
+            }
+            let quiet = daemon
+                .shared
+                .try_lock()
+                .is_ok_and(|s| InFlight::of(&s) == InFlight::default());
+            if quiet
+                && let (Some(look), Some(&bound)) =
+                    (clock.next_deadline(), daemon.exit.deadline.get())
+                && look < bound
+            {
+                clock.advance_to(look);
+            }
+        }
+    })
+    .await
+    .expect("the drain ended")
+}
+
+/// C158: wait, under the hang ceiling, until the drain's driver has
+/// registered a sleep on `clock` (its first look, parked because what it
+/// waits for is still in flight or `shared` is held).
+pub(super) async fn await_a_look(clock: &ParkingClock) {
+    tokio::time::timeout(HANG, async {
+        while clock.sleepers() == 0 {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .expect("the driver registered its first look");
+}
+
 /// A leave that records what the bound cut, and its receiver.
 fn recorded_leave() -> (Leave, oneshot::Receiver<Option<InFlight>>) {
     let (tx, rx) = oneshot::channel();

@@ -73,10 +73,11 @@ pub(crate) trait Clock: Send + Sync {
     fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 
     /// Sleep until `deadline` on this clock's `now` face. The default
-    /// reads `now` once and sleeps the remainder, so a clock that parks
-    /// by deadline (the tests' `ParkingClock`, C158) overrides it with
-    /// its own.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// reads `now` once and sleeps the remainder; a clock whose own
+    /// sleep reads its now later overrides it, so the deadline stays
+    /// absolute (the system clock, through tokio's `sleep_until`), and so
+    /// does a clock that parks by deadline (the tests' `ParkingClock`,
+    /// C158).
     fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         self.sleep(deadline.saturating_duration_since(self.now()))
     }
@@ -103,5 +104,12 @@ impl Clock for SystemClock {
 
     fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(tokio::time::sleep(duration))
+    }
+
+    /// The absolute deadline as armed: tokio's relative `sleep` reads its
+    /// own now when it is built, which the default's remainder would
+    /// carry past the instant the caller meant.
+    fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(tokio::time::sleep_until(deadline.into()))
     }
 }

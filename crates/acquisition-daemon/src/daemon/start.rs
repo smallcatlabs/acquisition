@@ -215,7 +215,7 @@ async fn watch(mut streams: Streams, attached: Arc<OnceLock<Arc<Daemon>>>) {
         std::process::exit(128 + number);
     };
     let why = format!("{first} received; exiting");
-    let won = daemon.exit.arm(&why);
+    let won = daemon.exit.arm(&why, daemon.choke.now());
     // A signal that finds the exit begun is only logged, by the driver.
     let why = if won {
         why

@@ -1,7 +1,12 @@
 //! C133, the one exit: what the drain waits for, what it turns away, what
-//! the bound cuts, and the refusal and the idle verdict around it. Each
-//! test runs a harness daemon with a short bound on tokio time and never
-//! calls `leave`, which ends the process. C134, the panic's end: the hook
+//! the bound cuts, and the refusal and the idle verdict around it. The
+//! scenarios whose inputs and outputs are the frontend boundary's run
+//! through the door (C158, a daemon scenario crosses the daemon's
+//! frontend boundary only), in virtual time on a parking clock the
+//! runtime moves; the rest are component tests, each saying which other
+//! boundary it needs, on a parking clock they drive by hand
+//! ([`drive_drain`]). None calls `leave`, which ends the process: the
+//! leave is recorded. C134, the panic's end: the hook
 //! that writes the log line and the fault marker, and the restore that
 //! fails the marker's job once, or closes its probe's route for the
 //! cooldown. C134, the listener: an accept error is
@@ -9,24 +14,80 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::life::{Cause, Effect, Event, Life, State, Timer};
 use crate::daemon::server::{InFlight, LifeProbe};
 use crate::daemon::*;
 
 /// Long enough for the drains that must finish, short beside a hold the
-/// drain must not wait out (the limiter's 30 s).
+/// drain must not wait out (the limiter's 30 s). Virtual: on the
+/// daemon's clock.
 const BOUND: Duration = Duration::from_secs(3);
 
-/// The bound of a drain a test holds open and releases: past the hang
-/// ceiling, so it cannot expire before the release, and safely added to
-/// an instant.
+/// The bound of a drain a test holds open and releases: far past
+/// anything the drain waits for, so it cannot expire before the release,
+/// and safely added to an instant. Virtual: on the daemon's clock.
 const HELD: Duration = Duration::from_secs(60 * 60);
 
-/// A logged-in harness daemon on the manual clock, its queue on a
-/// file-backed `daemon.db`, its exit bounded by `bound`.
+/// A logged-in harness daemon on a parking clock nothing drives (a
+/// deadline already due is ready at once; any other parks until the test
+/// moves the clock), its queue on a file-backed `daemon.db`, its exit
+/// bounded by `bound`.
 fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, TestPath, TestPath) {
-    exit_daemon_on(base, bound, Arc::new(ManualClock::new()))
+    exit_daemon_on(base, bound, Arc::new(ParkingClock::new()))
+}
+
+/// The sessions [`logged_in`] leaves a harness daemon with, for a door:
+/// `test-user`, its refresh token `rt-old`, the keyring `ok`.
+fn logged_in_sessions() -> Sessions {
+    let mut sessions = Sessions::with(AuthSession {
+        refresh_token: Some("rt-old".into()),
+        ..AuthSession::default()
+    });
+    sessions.rename("", "test-user");
+    sessions.keyring = "ok".into();
+    sessions
+}
+
+/// A client's submit, as `Request::Submit` carries it.
+fn submit_request(kind: &str, params: Value, account: Option<&str>) -> Request {
+    Request::Submit {
+        kind: kind.into(),
+        params,
+        priority: 0,
+        submitted_by: "test".into(),
+        account: account.map(str::to_string),
+    }
+}
+
+/// The job a submit answered with.
+fn submitted(response: Response) -> JobId {
+    match response {
+        Response::Submitted { id } => id,
+        other => panic!("expected a submitted job, got {other:?}"),
+    }
+}
+
+/// Job `id` as the protocol's `Status` reads it.
+async fn status_of(door: &mut Door, id: JobId) -> JobInfo {
+    match door.request(Request::Status { id }).await {
+        Response::Status { job } => job,
+        other => panic!("job {id}'s status reads {other:?}"),
+    }
+}
+
+/// The journal's methods, in order.
+fn journal_methods(door: &Door) -> Vec<String> {
+    door.journal()
+        .iter()
+        .map(|send| {
+            send["method"]
+                .as_str()
+                .expect("a journal method")
+                .to_string()
+        })
+        .collect()
 }
 
 /// [`exit_daemon`] on `clock`.
@@ -84,80 +145,124 @@ async fn settle() {
 }
 
 /// C133: a job whose GET is on the wire when the exit begins is waited
-/// for. The server answers only after the drain has begun; the drain
-/// returns with nothing cut, the journal equals the wire, and the job's
-/// row is terminal on disk.
-#[tokio::test]
-async fn exit_waits_for_a_landed_body_to_persist() {
-    let (base, sent_log, arrived, release) = account_server(("GET", "/profile", 0)).await;
-    let (daemon, log_path, db) = exit_daemon(&base, HELD);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = submit_for(&daemon, "profile", json!({}), Some("test-user"));
-    arrived.await.unwrap();
+/// for. Through the door: the account server holds the GET; the stop
+/// comes while it is held, so the send in flight keeps the clock still
+/// while the drain parks its look; released, the body lands, the exit
+/// leaves, and the job is Done by the protocol with its POST and GET in
+/// the journal, the journal equal to the wire.
+#[test]
+fn exit_waits_for_a_landed_body_to_persist() {
+    let hook = Door::open(
+        Server::Account(("GET", "/profile", 0)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .exit_bound(HELD)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let Fixture::Account {
+            sent: wire,
+            arrived,
+            release,
+        } = door.fixture()
+        else {
+            unreachable!("the door faces the account server")
+        };
+        let (wire, arrived, release) = (wire.clone(), arrived.take(), release.take());
+        let id = submitted(
+            door.request(submit_request("profile", json!({}), Some("test-user")))
+                .await,
+        );
+        tokio::time::timeout(HANG, arrived.unwrap())
+            .await
+            .expect("the GET reached the server")
+            .unwrap();
 
-    assert!(daemon.begin_exit("test: exit"));
-    let drain = spawn_drain(&daemon);
-    settle().await;
-    assert!(
-        !drain.is_finished(),
-        "the drain waits for the job on the wire"
-    );
-    release.send(()).unwrap();
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+        door.stop();
+        release.unwrap().send(()).unwrap();
+        door.await_leave().await;
 
-    assert_eq!(row_of(&db, id).state, JobState::Done.to_string());
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")]
-    );
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(dispatcher, &log_path);
+        assert_eq!(status_of(&mut door, id).await.state, JobState::Done);
+        assert_eq!(
+            wire.lock().unwrap().as_slice(),
+            [sent("test-user", "POST"), sent("test-user", "GET")]
+        );
+        assert_eq!(journal_methods(&door), wire_methods(&wire));
+        door.finish().await;
+    });
+    eprintln!("a held drain: the park hook: {hook:?}");
 }
 
 /// C133: a token refresh on the wire when the exit begins is waited for.
-/// The token server answers only after the drain has begun; the rotated
-/// refresh token is saved, the journal holds the one POST, and the
-/// caller waiting on the refresh gets its token.
-#[tokio::test]
-async fn exit_waits_for_a_refresh_and_installs_the_token() {
-    let (base, arrived, release, server) = delayed_token_server().await;
-    let (mut daemon, log_path, _db) = exit_daemon(&base, HELD);
-    let store = Arc::new(RecordingCredentialStore::default());
-    Arc::get_mut(&mut daemon).unwrap().credential_store = store.clone();
-    let waiter = {
-        let daemon = daemon.clone();
-        tokio::spawn(async move {
-            daemon
-                .valid_access_token(Some("test-user"), true, None)
-                .await
-        })
-    };
-    arrived.await.unwrap();
+/// Through the door: a client's `auth check` asks the refresh, which the
+/// delayed token server holds; the stop comes while it is held;
+/// released, the token lands and the exit leaves. `auth status`, read
+/// at the leave, has the access token's expiry moved (none before the
+/// refresh), the check is answered, and the journal holds the one POST.
+#[test]
+fn exit_waits_for_a_refresh_and_installs_the_token() {
+    Door::open(
+        Server::Token(Token::Delayed),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .exit_bound(HELD)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let before = door.await_auth(|_| true).await;
+        let Fixture::Delayed {
+            arrived, release, ..
+        } = door.fixture()
+        else {
+            unreachable!("the door faces the delayed token server")
+        };
+        let (arrived, release) = (arrived.take(), release.take());
+        let check = door.spawn_request(Request::AuthCheck { account: None });
+        tokio::time::timeout(HANG, arrived.unwrap())
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
 
-    assert!(daemon.begin_exit("test: exit"));
-    let drain = spawn_drain(&daemon);
-    settle().await;
-    assert!(!drain.is_finished(), "the drain waits for the refresh");
-    release.send(()).unwrap();
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+        door.stop();
+        release.unwrap().send(()).unwrap();
+        door.await_leave().await;
 
-    let (token, _) = waiter.await.unwrap().expect("the waiter got its token");
-    assert_eq!(token, "at-new");
-    let saves = saved_refresh_tokens(&store.saves.lock().unwrap());
-    assert!(
-        saves.iter().any(|(_, token, _)| token == "rt-rotated"),
-        "the rotated refresh token was saved: {saves:?}"
-    );
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &["POST".to_string()]);
-    finish_harness(None, &log_path);
+        let after = door.await_auth(|_| true).await;
+        assert_eq!(before.access_expires_in_seconds, None, "{before:?}");
+        assert!(
+            after
+                .access_expires_in_seconds
+                .is_some_and(|left| left > 3500),
+            "the refreshed token's hour, installed by the leave: {after:?}"
+        );
+        let checked = tokio::time::timeout(HANG, check)
+            .await
+            .expect("the check is answered")
+            .unwrap();
+        assert!(
+            matches!(
+                checked,
+                Response::Auth {
+                    logged_in: true,
+                    ..
+                }
+            ),
+            "{checked:?}"
+        );
+        assert_eq!(journal_methods(&door), ["POST"]);
+        door.finish().await;
+    });
 }
 
 /// Two accounts, with `other`'s refresh held on the wire and
 /// `test-user`'s profile job parked Running behind it at the token
 /// route's gate. Returns the parked job, `other`'s job whose POST is held,
-/// and what was sent before the park.
+/// and what was sent before the park, with the parking clock the drain is
+/// driven on.
 struct Parked {
+    clock: Arc<ParkingClock>,
     daemon: Arc<Daemon>,
     log_path: TestPath,
     db: TestPath,
@@ -171,7 +276,8 @@ struct Parked {
 
 async fn park_a_job_at_the_token_route() -> Parked {
     let (base, sent_log, arrived, release) = account_server(("POST", "/token", 1)).await;
-    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let clock = Arc::new(ParkingClock::new());
+    let (daemon, log_path, db) = exit_daemon_on(&base, BOUND, clock.clone());
     daemon.shared.lock().unwrap().auth.by_account.insert(
         "other".into(),
         AuthSession {
@@ -208,6 +314,7 @@ async fn park_a_job_at_the_token_route() -> Parked {
         "the parked refresh has sent nothing"
     );
     Parked {
+        clock,
         daemon,
         log_path,
         db,
@@ -224,14 +331,17 @@ async fn park_a_job_at_the_token_route() -> Parked {
 /// another account's refresh at the token route's gate, is turned away
 /// by the exit and returns to waiting with no retry spent, in memory and
 /// on disk. The held POST, already on the wire, lands; the job it was
-/// for is turned away before its GET. Nothing more is sent.
+/// for is turned away before its GET. Nothing more is sent. A component
+/// test (C158): it stages the park through the daemon's internals and
+/// reads `active_jobs`' outcome in memory and the rows on disk.
 #[tokio::test]
 async fn exit_turns_away_a_job_parked_past_running() {
     let p = park_a_job_at_the_token_route().await;
     assert!(p.daemon.begin_exit("test: exit"));
     let drain = spawn_drain(&p.daemon);
     p.release.send(()).unwrap();
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+    let cut = drive_drain(&p.clock, &p.daemon, drain).await.unwrap();
+    assert_eq!(cut, None, "nothing was cut");
 
     for id in [p.parked, p.first] {
         let info = p.daemon.shared.lock().unwrap().jobs[&id].info.clone();
@@ -254,14 +364,16 @@ async fn exit_turns_away_a_job_parked_past_running() {
 /// C133: the dispatcher starts nothing while the daemon exits. A job the
 /// exit turned away is not picked again (the drain would spin, a queue
 /// write per pass), and a job queued afterwards, even one of a kind that
-/// never sends, is not started.
+/// never sends, is not started. A component test (C158): the job queued
+/// after the stop is an internal submit, which the protocol refuses, and
+/// the pick is read directly.
 #[tokio::test]
 async fn a_turned_away_job_is_not_picked_again_while_exiting() {
     let p = park_a_job_at_the_token_route().await;
     assert!(p.daemon.begin_exit("test: exit"));
     let drain = spawn_drain(&p.daemon);
     p.release.send(()).unwrap();
-    assert_eq!(drain.await.unwrap(), None);
+    assert_eq!(drive_drain(&p.clock, &p.daemon, drain).await.unwrap(), None);
     assert_eq!(state_of(&p.daemon, p.parked), JobState::Waiting);
 
     let local = submit_for(&p.daemon, "sleep", json!({ "seconds": 0 }), None);
@@ -280,68 +392,79 @@ async fn a_turned_away_job_is_not_picked_again_while_exiting() {
     finish_harness(p.dispatcher, &p.log_path);
 }
 
-/// C133: a job whose task does not end is cut at the bound, on tokio
-/// time: the drain reports it, and its row is left running on disk for
-/// the next daemon (C6). That the cut comes at the bound and not before
-/// is the table's row (the drain's deadline cuts) and
+/// C133: a job whose task does not end is cut at the bound. Through the
+/// door: a `sleep` job of a minute, real time by its kind and counted by
+/// nothing the hook reads, is Running when the stop comes; the drain's
+/// looks find it each time, virtual time reaches the bound, and the exit
+/// leaves with the job still Running by the protocol (left on disk for
+/// the next daemon, C6), the bound reached on the daemon's clock. That
+/// the cut comes at the bound and not before is the table's row (the
+/// drain's deadline cuts) and
 /// `c137_the_drain_bound_at_zero_cuts_what_is_in_flight`'s wiring.
-#[tokio::test]
-async fn exit_cuts_a_stuck_job_at_the_bound() {
+#[test]
+fn exit_cuts_a_stuck_job_at_the_bound() {
     let bound = Duration::from_millis(300);
-    let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", bound);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = submit_for(&daemon, "sleep", json!({ "seconds": 60 }), None);
-    wait_state(&daemon, id, JobState::Running).await;
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
+    let hook = Door::open(
+        Server::None,
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .exit_bound(bound)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let clock = parking;
+        let id = submitted(
+            door.request(submit_request("sleep", json!({ "seconds": 60 }), None))
+                .await,
+        );
+        door.await_job(id, |job| job.state == JobState::Running)
+            .await;
 
-    let began = std::time::Instant::now();
-    assert!(daemon.begin_exit("test: exit"));
-    let cut = tokio::time::timeout(HANG, drain(&daemon))
-        .await
-        .expect("the bound ends the drain");
-    let waited = began.elapsed();
-    assert_eq!(
-        cut,
-        Some(InFlight {
-            jobs: vec![id],
-            ..InFlight::default()
-        })
-    );
-    assert!(waited >= bound, "the drain ran to its bound: {waited:?}");
-    assert_eq!(row_of(&db, id).state, JobState::Running.to_string());
-    let log = std::fs::read_to_string(&log_path).unwrap();
-    assert!(
-        log.contains(&format!("cut job {id} (left running on disk")),
-        "the log names the cut job:\n{log}"
-    );
-    finish_harness(dispatcher, &log_path);
+        let began = clock.now();
+        door.stop();
+        door.await_leave().await;
+
+        assert_eq!(status_of(&mut door, id).await.state, JobState::Running);
+        let waited = clock.now() - began;
+        assert!(waited >= bound, "the drain ran to its bound: {waited:?}");
+        assert_eq!(journal_methods(&door), Vec::<String>::new());
+        door.finish().await;
+    });
+    eprintln!("the cut: the park hook: {hook:?}");
 }
 
 /// C133: once the exit has begun a client's submit is refused, as
 /// `refused`, in words that say to try again; the same submit was
-/// accepted before.
-#[tokio::test]
-async fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
-    let submit = || Request::Submit {
-        kind: "sleep".into(),
-        params: json!({ "seconds": 0 }),
-        priority: 0,
-        submitted_by: "test".into(),
-        account: None,
-    };
-    assert!(matches!(
-        daemon.handle_request(submit(), &mut None).await,
-        Response::Submitted { .. }
-    ));
-    assert!(daemon.begin_exit("test: exit"));
-    match daemon.handle_request(submit(), &mut None).await {
-        Response::Error { kind, message } => {
-            assert_eq!(kind, ErrorKind::Refused);
-            assert_eq!(message, "the daemon is stopping; try again in a moment");
+/// accepted before. Through the door: the submit, the stop, the submit
+/// again, the exit's leave.
+#[test]
+fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
+    Door::open(
+        Server::None,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .exit_bound(BOUND)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let submit = || submit_request("sleep", json!({ "seconds": 0 }), None);
+        assert!(matches!(
+            door.request(submit()).await,
+            Response::Submitted { .. }
+        ));
+        door.stop();
+        match door.request(submit()).await {
+            Response::Error { kind, message } => {
+                assert_eq!(kind, ErrorKind::Refused);
+                assert_eq!(message, "the daemon is stopping; try again in a moment");
+            }
+            other => panic!("expected the stopping refusal, got {other:?}"),
         }
-        other => panic!("expected the stopping refusal, got {other:?}"),
-    }
-    finish_harness(None, &log_path);
+        door.await_leave().await;
+        door.finish().await;
+    });
 }
 
 /// C133: a login in progress holds the idle verdict. Its browser step and
@@ -362,7 +485,8 @@ fn the_idle_verdict_holds_while_a_login_is_pending() {
 }
 
 /// C133: the exit begins once. A second cause returns at once and leaves
-/// the first's bound where it was.
+/// the first's bound where it was. A component test (C158): it reads the
+/// exit's private deadline, an instant on the daemon's clock.
 #[tokio::test]
 async fn a_second_begin_exit_returns_at_once() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
@@ -383,12 +507,17 @@ async fn a_second_begin_exit_returns_at_once() {
 /// runtime, so no tokio timer runs and the drain cannot reach its bound.
 /// The bound's own thread still ends the exit, not before the bound and
 /// its grace, with the lock still held until the test lets it go. The
-/// bound thread is real by design, and this is its one pin.
+/// bound thread is real by design, and this is its one pin. A component
+/// test (C158): several workers, and the bound's own OS thread on the
+/// wall's time. The drain's first look is registered while the lock is
+/// held, before the blocking tasks saturate the workers; the drain is
+/// driven by hand once the holder lets go ([`drive_drain`]).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     let bound = Duration::from_millis(300);
     let grace = Duration::from_millis(200);
-    let (mut daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", bound);
+    let clock = Arc::new(ParkingClock::new());
+    let (mut daemon, log_path, _db) = exit_daemon_on("http://127.0.0.1:1", bound, clock.clone());
     let (ended_tx, ended_rx) = std::sync::mpsc::channel();
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
@@ -411,13 +540,15 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
         })
     };
     held_rx.recv().unwrap();
+    let drain = spawn_drain(&daemon);
+    // The first look parks, `shared` being held, before the workers do.
+    await_a_look(&clock).await;
     let blocked: Vec<_> = (0..2)
         .map(|_| {
             let daemon = daemon.clone();
             tokio::spawn(async move { daemon.is_idle(Duration::from_secs(60)) })
         })
         .collect();
-    let drain = spawn_drain(&daemon);
     std::thread::sleep(Duration::from_millis(100));
 
     let began = std::time::Instant::now();
@@ -443,122 +574,150 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     for task in blocked {
         task.await.unwrap();
     }
-    let _ = drain.await;
+    let _ = drive_drain(&clock, &daemon, drain).await;
     finish_harness(None, &log_path);
 }
 
 /// C133 with C25: a job picked before the exit and held at the limiter
-/// before its send (here behind a 429's hold, on the system clock, where
-/// the dispatcher's pacing loop really waits) is turned away: the drain
-/// does not wait out the hold, cuts nothing (it could not have finished
-/// clean under its `BOUND` had it waited the 30 s hold), and the job is
-/// waiting in memory and on disk with only the 429's retry spent.
-#[tokio::test]
-async fn exit_turns_away_a_job_held_at_the_limiter() {
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(30), "{}"),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let (daemon, log_path, db) =
-        exit_daemon_on(&base, BOUND, Arc::new(crate::ratelimit::SystemClock));
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = submit_for(&daemon, "fetch", json!({}), None);
-    tokio::time::timeout(HANG, async {
-        loop {
-            {
-                let s = daemon.shared.lock().unwrap();
-                let info = &s.jobs[&id].info;
-                if info.retries == 1
-                    && info.state == JobState::Waiting
-                    && s.active_jobs.contains_key(&id)
-                {
-                    break;
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-    })
-    .await
-    .expect("the job is held at the limiter after its 429");
-    server.await.unwrap();
+/// before its send (here behind a 429's hold, whose pacing slices park on
+/// the daemon's clock) is turned away: the drain does not wait out the
+/// hold, and the exit leaves before its `BOUND` on the daemon's clock (a
+/// drain that waited out the 30 s hold would be cut at it), with the job
+/// Waiting by the protocol with only the 429's retry spent and the probe
+/// and the one GET in the journal, equal to the wire. Through the door:
+/// the stop comes once the protocol reads the job Waiting with its retry
+/// spent.
+#[test]
+fn exit_turns_away_a_job_held_at_the_limiter() {
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
+    let hook = Door::open(
+        Server::Script(vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "429 Too Many Requests", Some(30), "{}"),
+        ]),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .exit_bound(BOUND)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let clock = parking;
+        let id = submitted(door.request(submit_request("fetch", json!({}), None)).await);
+        door.await_job(id, |job| job.state == JobState::Waiting && job.retries == 1)
+            .await;
 
-    assert!(daemon.begin_exit("test: exit"));
-    let cut = tokio::time::timeout(HANG, drain(&daemon))
-        .await
-        .expect("the drain ends");
-    assert_eq!(
-        cut, None,
-        "nothing was cut: the drain did not wait out the hold"
-    );
-    let info = daemon.shared.lock().unwrap().jobs[&id].info.clone();
-    assert_eq!(info.state, JobState::Waiting);
-    assert_eq!(info.retries, 1, "the exit spent no retry");
-    let row = row_of(&db, id);
-    assert_eq!(row.state, JobState::Waiting.to_string());
-    assert_eq!(row.retries, 1);
-    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
-    finish_harness(dispatcher, &log_path);
+        let stopped = clock.now();
+        door.stop();
+        door.await_leave().await;
+
+        let drained = clock.now() - stopped;
+        assert!(
+            drained < BOUND,
+            "the drain did not wait out the hold: it left after {drained:?}"
+        );
+
+        let job = status_of(&mut door, id).await;
+        assert_eq!(job.state, JobState::Waiting);
+        assert_eq!(job.retries, 1, "the exit spent no retry");
+        assert_eq!(journal_methods(&door), ["HEAD", "GET"]);
+        door.finish().await;
+    });
+    eprintln!("a turned-away hold: the park hook: {hook:?}");
 }
 
 /// C133: a login's code exchange on the wire when the exit begins is
-/// waited for: the token server answers only after the drain has begun,
-/// and the drain returns, with nothing cut, once the exchange has landed.
-#[tokio::test]
-async fn exit_waits_for_a_login_code_exchange() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+/// waited for. Through the door: the login is asked through the
+/// protocol, the browser's callback reaches the daemon's own listener,
+/// and the scenario's own token server holds the exchange; the stop
+/// comes while it is held; released, the exchange lands and the exit
+/// leaves. The journal holds the exchange's POST, and the profile job
+/// the login queued after the stop is left Waiting by the protocol (a
+/// stopping daemon starts nothing, and a waiting profile does not hold
+/// the drain). That the login then registers is the staged login's
+/// component test,
+/// `c133_a_stop_between_the_profile_and_the_login_waits_for_the_login`.
+#[test]
+fn exit_waits_for_a_login_code_exchange() {
+    // The scenario's own server, bound before the door's runtime exists.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
-    let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut stream).await.unwrap();
+    Door::open(
+        Server::Own(base),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .exit_bound(HELD)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let listener = TcpListener::from_std(listener).unwrap();
+        let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
+        let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let request = mockggg::read_request(&mut stream).await.unwrap();
+            assert_eq!(
+                (request.method.as_str(), request.path.as_str()),
+                ("POST", "/token")
+            );
+            assert!(request.body.contains("grant_type=authorization_code"));
+            arrived_tx.send(()).unwrap();
+            release_rx.await.unwrap();
+            let body = json!({
+                "access_token": "at-new",
+                "refresh_token": "rt-new",
+                "expires_in": 3600,
+                "username": "test-user",
+            })
+            .to_string();
+            let headers = concat!(
+                "X-Rate-Limit-Policy: token-request-limit\r\n",
+                "X-Rate-Limit-Rules: Ip\r\n",
+                "X-Rate-Limit-Ip: 60:30:30\r\n",
+                "X-Rate-Limit-Ip-State: 1:30:0\r\n",
+            );
+            mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
+        });
+
+        let url = match door.request(Request::AuthStart).await {
+            Response::AuthUrl { authorize_url } => authorize_url,
+            other => panic!("expected the authorize URL, got {other:?}"),
+        };
+        let authorize = url::Url::parse(&url).unwrap();
+        let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+        let callback = format!(
+            "{}?code=code-x&state={}",
+            query["redirect_uri"], query["state"]
+        );
+        assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the exchange reached the server")
+            .unwrap();
+
+        door.stop();
+        release.send(()).unwrap();
+        door.await_leave().await;
+
+        let jobs = match door.request(Request::List).await {
+            Response::Jobs { jobs } => jobs,
+            other => panic!("expected the job list, got {other:?}"),
+        };
+        let profiles: Vec<_> = jobs.iter().filter(|job| job.kind == "profile").collect();
         assert_eq!(
-            (request.method.as_str(), request.path.as_str()),
-            ("POST", "/token")
+            profiles.len(),
+            1,
+            "the login queued its profile job: {jobs:?}"
         );
-        assert!(request.body.contains("grant_type=authorization_code"));
-        arrived_tx.send(()).unwrap();
-        release_rx.await.unwrap();
-        let body = json!({
-            "access_token": "at-new",
-            "refresh_token": "rt-new",
-            "expires_in": 3600,
-            "username": "test-user",
-        })
-        .to_string();
-        let headers = concat!(
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-        );
-        mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
+        assert_eq!(profiles[0].state, JobState::Waiting, "{jobs:?}");
+        tokio::time::timeout(HANG, server)
+            .await
+            .expect("the token server was answered")
+            .unwrap();
+        assert_eq!(journal_methods(&door), ["POST"]);
+        door.finish().await;
     });
-    let (daemon, log_path, _db) = exit_daemon(&base, HELD);
-
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
-    );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    arrived.await.unwrap();
-
-    assert!(daemon.begin_exit("test: exit"));
-    let drain = spawn_drain(&daemon);
-    settle().await;
-    assert!(
-        !drain.is_finished(),
-        "the drain waits for the code exchange"
-    );
-    release.send(()).unwrap();
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
-    assert_eq!(daemon.shared.lock().unwrap().auth.exchanges, 0);
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &["POST".to_string()]);
-    finish_harness(None, &log_path);
 }
 
 /// C133 (a pending login has the bound to land), issue #59: a stop that
@@ -566,11 +725,13 @@ async fn exit_waits_for_a_login_code_exchange() {
 /// registered waits for the login. The gap is forced: the profile job
 /// runs to done, and `complete_login` is not called until the drain has
 /// been seen waiting on the login; then the drain returns, with nothing
-/// cut, and the session is registered.
+/// cut, and the session is registered. A component test (C158): the
+/// login is staged and completed by hand, through the daemon's internals.
 #[tokio::test]
 async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (daemon, log_path, _db) = exit_daemon(&base, HELD);
+    let clock = Arc::new(ParkingClock::new());
+    let (daemon, log_path, _db) = exit_daemon_on(&base, HELD, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let generation = daemon.begin_auth_flow();
     daemon
@@ -600,7 +761,11 @@ async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
     );
     assert!(InFlight::of(&daemon.shared.lock().unwrap()).login);
     assert!(daemon.complete_login(generation, "newcomer", "uuid-newcomer"));
-    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+    assert_eq!(
+        drive_drain(&clock, &daemon, drain).await.unwrap(),
+        None,
+        "nothing was cut"
+    );
     assert!(
         daemon
             .shared
@@ -900,11 +1065,18 @@ fn every_row_of_the_lifecycle_table_is_named_once() {
 }
 
 // ---- C157: the lifecycle's driver, wired to a daemon --------------------
+//
+// Component tests (C158): each drives the driver through the test's
+// probe (`LifeProbe`) or its recorded leave, on a parking clock nobody
+// moves. A knob or a bound at zero is a deadline already due, ready on
+// the sleep's first poll, so none advances the clock.
 
 /// C137 (the knob at zero forces the expiry) with C3: the driver at the
 /// idle knob zero leaves a quiet daemon (no connection, no job, no login,
 /// the restore landed), by the idle exit's words, then the drain's. That
-/// a busy verdict arms the deadline again is the table's row.
+/// a busy verdict arms the deadline again is the table's row. A
+/// component test (C158): the driver on its own, read through its leave
+/// and the log.
 #[tokio::test]
 async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
@@ -928,7 +1100,9 @@ async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
 
 /// C3 with C157: at the idle knob zero, a daemon with a connection open is
 /// judged busy, the driver has stepped that verdict, and the exit has not
-/// begun.
+/// begun. A component test (C158): the connection is a count set by
+/// hand, the verdict read through the driver's probe; the test stops
+/// after the first busy verdict, before any re-judge.
 #[tokio::test]
 async fn c3_a_connection_holds_a_daemon_under_the_idle_knob_at_zero() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
@@ -964,7 +1138,9 @@ fn connect(daemon: &Daemon, closes: bool) {
 /// C157 with C3, the idle commit claims the connections' word its verdict
 /// judged: the judge answers idle; before the driver commits, a client is
 /// admitted (and, when `closes`, closes again); the claim fails, the
-/// driver steps the verdict as busy, and the exit does not begin.
+/// driver steps the verdict as busy, and the exit does not begin. A
+/// component test (C158): the admission is forced between the verdict and
+/// the claim through the driver's probe.
 async fn an_admission_before_the_claim_begins_no_exit(closes: bool) {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
     let _ = daemon.life_probe.set(LifeProbe {
@@ -1008,7 +1184,9 @@ async fn c157_an_idle_verdict_overtaken_by_a_connection_that_closed_begins_no_ex
 /// C157 with C133, the other side of the claim: a client admitted after
 /// the idle commit's claim and before its swap meets a daemon whose exit
 /// stands. Its submit is refused as stopping before the swap and after
-/// it; the driver, released, begins the exit and leaves.
+/// it; the driver, released, begins the exit and leaves. A component
+/// test (C158): the admission is forced between the claim and the swap
+/// through the driver's probe.
 #[tokio::test]
 async fn c157_a_connection_admitted_after_the_idle_claim_meets_the_exit() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
@@ -1056,7 +1234,9 @@ async fn c157_a_connection_admitted_after_the_idle_claim_meets_the_exit() {
 /// C137 (the bound at zero forces the expiry) with C133: a job running
 /// when a stop is requested, the bound zero: the driver logs the cut,
 /// naming the job, then leaves; the job's row is left running on disk
-/// (C6). The table's row holds the order; this test, the wiring.
+/// (C6). The table's row holds the order; this test, the wiring. A
+/// component test (C158): the driver's leave read as what it cut, the
+/// row on disk.
 #[tokio::test]
 async fn c137_the_drain_bound_at_zero_cuts_what_is_in_flight() {
     let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", Duration::ZERO);
@@ -1094,10 +1274,14 @@ async fn c137_the_drain_bound_at_zero_cuts_what_is_in_flight() {
 /// made as the watcher makes it, stops admission (the rails stopping, the
 /// words logged) before the lock is let go. The watcher itself is Unix's
 /// and not under test here: the event goes through the driver's own
-/// channel.
+/// channel. A component test (C158): several workers, one of them held
+/// behind `shared`. The drain's first look is registered while the lock
+/// is held; the drain is driven by hand once the lock is let go
+/// ([`drive_drain`]).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn c133_a_signal_stops_admission_while_shared_is_held() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let clock = Arc::new(ParkingClock::new());
+    let (daemon, log_path, _db) = exit_daemon_on("http://127.0.0.1:1", BOUND, clock.clone());
     let (held_tx, held_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
     let holder = {
@@ -1119,7 +1303,7 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
         .expect("the driver's judge started");
 
     let why = "SIGTERM received; exiting".to_string();
-    let won = daemon.exit.arm(&why);
+    let won = daemon.exit.arm(&why, daemon.choke.now());
     daemon.exit.hand(Event::Signal {
         won,
         why: why.clone(),
@@ -1132,6 +1316,8 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
         }
     })
     .await;
+    // The drain's first look parks behind the held lock.
+    await_a_look(&clock).await;
     let still_held = daemon.shared.try_lock().is_err();
     release_tx.send(()).unwrap();
     holder.join().unwrap();
@@ -1142,9 +1328,8 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
         "admission stopped, and the words logged, while the lock was held"
     );
     assert!(still_held, "the lock was held throughout");
-    let cut = tokio::time::timeout(HANG, leave)
+    let cut = drive_drain(&clock, &daemon, leave)
         .await
-        .expect("the drain ends once the lock is let go")
         .expect("the driver reached its leave");
     assert_eq!(cut, None, "nothing was in flight");
     life.await.unwrap();

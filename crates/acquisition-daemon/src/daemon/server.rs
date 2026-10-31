@@ -544,7 +544,7 @@ impl Daemon {
     /// a cause can never wait behind one (a keyring save holds
     /// `credentials` and may be a prompt no one answers).
     pub(super) fn begin_exit(&self, why: &str) -> bool {
-        if !self.exit.arm(why) {
+        if !self.exit.arm(why, self.choke.now()) {
             return false;
         }
         self.stop_admitting(why);
@@ -670,14 +670,16 @@ impl Daemon {
     /// what it saw into the next event, from its sources: the causes'
     /// events (`daemon stop`'s connection and the signal watcher, which
     /// each swapped the exit at their ingress, [`Exit::hand`]), the
-    /// verdict's answer, the quiet wait's looks and the two timers. On
-    /// tokio time, deliberately not on the daemon's `Clock`: the test
-    /// `ManualClock` advances on every `sleep`, so a timer on it would
-    /// fire at once. `knob` is the idle exit's, read once by the caller
-    /// at the loop's start. The loop ends by `leave`, the effect `Leave`
-    /// performed, given what the bound cut (`None` when the drain was
-    /// clean): `run` installs [`Self::leave`], which ends the process; a
-    /// test installs a recorder. Before that last act it never blocks on
+    /// verdict's answer, the quiet wait's looks and the two timers. Every
+    /// instant is on the daemon's `Clock` and every wait sleeps through
+    /// it, to an absolute deadline: the system clock runs them as tokio's
+    /// timers, and a test's parking clock parks them (C158). A test's
+    /// `ManualClock`, which advances on every sleep, would fire them at
+    /// once, so no driver runs on it. `knob` is the idle exit's, read once
+    /// by the caller at the loop's start. The loop ends by `leave`, the
+    /// effect `Leave` performed, given what the bound cut (`None` when the
+    /// drain was clean): `run` installs [`Self::leave`], which ends the
+    /// process; a test installs a recorder. Before that last act it never blocks on
     /// `shared`: the verdict is judged on a thread of its own and the
     /// drain looks through `try_lock`, so a signal's admission stop is
     /// never behind a held lock (C133).
@@ -772,11 +774,11 @@ struct Driver {
     held: bool,
     /// The connections' word the last verdict judged.
     judged: Option<u64>,
-    idle: Option<tokio::time::Instant>,
-    drain: Option<tokio::time::Instant>,
+    idle: Option<Instant>,
+    drain: Option<Instant>,
     judging: Option<tokio::task::JoinHandle<Judged>>,
     /// When the quiet wait looks again.
-    looking: Option<tokio::time::Instant>,
+    looking: Option<Instant>,
     /// The last snapshot the drain's looks saw.
     seen: Option<InFlight>,
     /// What the bound cut, for `Leave`.
@@ -849,7 +851,7 @@ impl Driver {
     fn perform(&mut self, effect: Effect) -> Option<life::Event> {
         match effect {
             Effect::Arm(Timer::Idle) => {
-                let now = tokio::time::Instant::now();
+                let now = self.daemon.choke.now();
                 self.idle = Some(
                     now.checked_add(self.duration(Timer::Idle))
                         .unwrap_or_else(|| now + IDLE_CAP),
@@ -860,9 +862,11 @@ impl Driver {
             // never read again from now.
             Effect::Arm(Timer::Drain) => {
                 self.drain =
-                    Some(self.daemon.exit.deadline.get().copied().unwrap_or_else(|| {
-                        tokio::time::Instant::now() + self.duration(Timer::Drain)
-                    }));
+                    Some(
+                        self.daemon.exit.deadline.get().copied().unwrap_or_else(|| {
+                            self.daemon.choke.now() + self.duration(Timer::Drain)
+                        }),
+                    );
                 None
             }
             Effect::Cancel(Timer::Idle) => {
@@ -924,7 +928,7 @@ impl Driver {
             }
             self.seen = Some(left);
         }
-        self.looking = Some(tokio::time::Instant::now() + DRAIN_POLL);
+        self.looking = Some(self.daemon.choke.now() + DRAIN_POLL);
         None
     }
 
@@ -939,10 +943,11 @@ impl Driver {
         &mut self,
         ingress: &mut tokio::sync::mpsc::UnboundedReceiver<life::Event>,
     ) -> life::Event {
+        let daemon = self.daemon.clone();
         loop {
-            let looking = until(self.looking);
-            let drain = until(self.drain);
-            let idle = until(self.idle);
+            let looking = until(&daemon, self.looking);
+            let drain = until(&daemon, self.drain);
+            let idle = until(&daemon, self.idle);
             let judging = self.judging.as_mut();
             let judging = async move {
                 match judging {
@@ -1006,10 +1011,11 @@ impl Driver {
     }
 }
 
-/// An armed instant's end; never, when nothing is armed.
-async fn until(at: Option<tokio::time::Instant>) {
+/// An armed instant's end on the daemon's clock; never, when nothing is
+/// armed.
+async fn until(daemon: &Daemon, at: Option<Instant>) {
     match at {
-        Some(at) => tokio::time::sleep_until(at).await,
+        Some(at) => daemon.choke.sleep_until(at).await,
         None => std::future::pending().await,
     }
 }

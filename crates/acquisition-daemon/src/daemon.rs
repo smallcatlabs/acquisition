@@ -183,10 +183,11 @@ const IDLE_REJUDGE: Duration = Duration::from_secs(5);
 /// remainder past this re-judges at it.
 const IDLE_CAP: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// C133: how long the exit waits, on wall-clock (tokio) time, for the
-/// jobs past admission, the token refreshes and a login's code exchange
-/// to land and be recorded. The client's `STOPPED_WITHIN` is this plus
-/// five seconds.
+/// C133: how long the exit waits, on the daemon's clock, for the jobs
+/// past admission, the token refreshes and a login's code exchange to
+/// land and be recorded; the bound's own thread, which ends the process
+/// if the exit has not left by this and its grace, sleeps on the wall's
+/// (the OS's). The client's `STOPPED_WITHIN` is this plus five seconds.
 const EXIT_BOUND: Duration = Duration::from_secs(15);
 
 /// The pause between two of the drain's looks at what is still in flight.
@@ -206,19 +207,20 @@ pub(super) type EndAtOnce = Arc<dyn Fn(&str, i32) + Send + Sync>;
 
 /// C133: the exit's own state, outside every lock, so a cause that
 /// begins the exit (a stop, the idle verdict, a signal) arms its bound
-/// before it can wait on one. The drain's bound runs on tokio time, never
-/// the daemon's `Clock`: the harness's `ManualClock` advances on every
-/// sleep, and a drain bounded on it would cut at once. The bound is hard
-/// on a plain OS thread of its own: a worker blocked on a lock (a keyring
-/// prompt under `shared`, before C148) can block every tokio worker, and
-/// then no tokio timer runs.
+/// before it can wait on one. The drain's deadline is an instant on the
+/// daemon's `Clock`, set from the `now` the arming cause read, so the
+/// lifecycle's driver reads one clock (C158: a test's parking clock parks
+/// it; the system clock runs it as tokio's). The bound is hard on a plain
+/// OS thread of its own, on the OS's time: a worker blocked on a lock (a
+/// keyring prompt under `shared`, before C148) can block every tokio
+/// worker, and then no timer on the runtime runs.
 /// C157: the causes' events reach the lifecycle's driver through the
 /// exit's own channel, made with it, so an event a cause hands before the
 /// driver starts waits for it; a send takes no lock. The receiver is
 /// taken once, by the driver at its start.
 struct Exit {
     begun: AtomicBool,
-    deadline: OnceLock<tokio::time::Instant>,
+    deadline: OnceLock<Instant>,
     bound: Duration,
     grace: Duration,
     end: OnceLock<EndAtOnce>,
@@ -257,14 +259,15 @@ impl Exit {
     }
 
     /// Begin the exit, once, taking no lock; `false` if it had begun
-    /// already. Arms the drain's deadline and, when an end is installed,
+    /// already. Arms the drain's deadline, `now` (the daemon's clock, as
+    /// the cause read it) plus the bound, and, when an end is installed,
     /// the thread that ends the process at once if the exit has not left
     /// by the bound and its grace, whatever holds a lock or a worker.
-    fn arm(&self, why: &str) -> bool {
+    fn arm(&self, why: &str, now: Instant) -> bool {
         if self.begun.swap(true, Ordering::SeqCst) {
             return false;
         }
-        let _ = self.deadline.set(tokio::time::Instant::now() + self.bound);
+        let _ = self.deadline.set(now + self.bound);
         if let Some(end) = self.end.get() {
             let end = end.clone();
             let at = std::time::Instant::now() + self.bound + self.grace;
