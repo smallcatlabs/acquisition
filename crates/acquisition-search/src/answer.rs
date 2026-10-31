@@ -3367,7 +3367,7 @@ fn canonical_number(text: &str) -> bool {
 /// the string it read, wrapped in double quotes when it holds
 /// whitespace, an inner double quote unescaped; the program splits its
 /// command line by the C runtime's rules. So the string is written for
-/// those rules ([`crt_escaped`]) and then quoted as PowerShell 7.3's
+/// those rules and then quoted as PowerShell 7.3's
 /// word is. An empty word, which 5.1 drops, is two double quotes.
 pub fn powershell5_quoted(text: &str) -> String {
     if text.is_empty() {

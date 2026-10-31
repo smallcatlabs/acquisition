@@ -151,8 +151,14 @@ pub fn in_shell(shell: Shell, program: &Path, rest: &str, dir: &Path) -> Command
             } else {
                 "powershell.exe"
             });
-            cmd.args(["-NoProfile", "-NonInteractive", "-File"])
-                .arg(script);
+            cmd.args(["-NoProfile", "-NonInteractive"]);
+            // Windows PowerShell 5.1's default policy refuses a script
+            // file; a person's paste is typed, which no policy governs,
+            // so this child alone runs its script unrestricted
+            if shell == Shell::PowerShell5 {
+                cmd.args(["-ExecutionPolicy", "Bypass"]);
+            }
+            cmd.arg("-File").arg(script);
             cmd
         }
         Shell::Cmd => cmd_line(program, rest),
