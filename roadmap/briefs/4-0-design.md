@@ -235,8 +235,10 @@ with these changes. The verdict `is_idle` stays the driver's pure
 function, consulted on the idle deadline's event (it is pinned by
 `idle.rs` on the manual clock, asserting no time); the machine holds
 the lifecycle's decisions: the idle deadline's expiry, the first cause
-winning, the drain's cut-or-clean against its deadline, the second
-signal. The quiet wait (`InFlight` empty) is a driver effect with its
+winning (its swap at each ingress, as today, the machine told the
+winner), the drain's cut-or-clean against its deadline; the second
+signal's forced end stays the watcher's own backstop, no transition
+(the brief's reviews). The quiet wait (`InFlight` empty) is a driver effect with its
 poll inside; `DRAIN_POLL` stays as that pause and `IDLE_POLL` as the
 re-judge interval while a clause other than time holds the daemon,
 the idle deadline exact when only time holds. The driver sleeps on

@@ -1,9 +1,10 @@
 # 4-0-life — the daemon's lifecycle as a machine (#147, step 2)
 
-Re-cut from the cold review of the first draft (`5a2c1725`, saved
-verbatim at `roadmap/reviews/4-0-life-brief-5a2c1725.md` with its
-prompt beside): the eight findings and what each changed are at the
-foot, "Taken from the review". Written from three read-only reads of
+Cut three times: the first draft (`5a2c1725`) and the re-cut
+(`09a777e4`), each reviewed cold (`roadmap/reviews/4-0-life-brief-
+<sha>.md`, the prompt beside); this cut answers the second review's
+four findings. What each finding changed is at the foot, "Taken from
+the reviews". Written from three read-only reads of
 the tree at `5c9cd487` (the lifecycle code, its tests, the clock),
 after step 1 closed
 (`4-0-door.md`, `LEDGER.md`'s row of 2026-10-31). Where this brief
@@ -205,10 +206,10 @@ this step's first concern or is filed.
    Effect, one per operation the driver performs: `Arm(Timer)`,
    `Cancel(Timer)`, `Judge` (the driver's `is_idle` with the knob,
    `server.rs:671`, answered `Idle` or `Busy`), `Begin` (the idle
-   cause's `Exit::arm` with its words, "idle timeout; exiting",
-   lock-free, answered `ExitArmed`), `StopAdmitting(Cause)` (the
-   rails' `begin_stopping`, the cause's log line, the dispatcher
-   woken, `server.rs:563–567`), `AwaitQuiet` (the driver's wait for
+   cause's `begin_exit` whole, `server.rs:550–556`: the swap with its
+   words, "idle timeout; exiting", and, when won, `stop_admitting` at
+   once in the same task, the rails' `begin_stopping`, the log line,
+   the dispatcher woken, 563–567; answered `ExitArmed`), `AwaitQuiet` (the driver's wait for
    `InFlight` empty: `try_lock` and look, a pause of `DRAIN_POLL`
    between looks, `server.rs:584–603`), `Cut` (the log line from the
    last snapshot the driver saw, `server.rs:593–601`), `Leave` (the
@@ -225,8 +226,7 @@ this step's first concern or is filed.
    decides today: in `Serving`, `Deadline(Idle)` is `Judge`; `Busy`
    is `Arm(Idle)`; `Idle` is `Begin`; `ExitArmed { won: true }`,
    `StopRequested { won: true }` and `Signal { won: true }` each set
-   the cause and are `Cancel(Idle)`, `StopAdmitting(cause)`,
-   `Arm(Drain)`, `AwaitQuiet`, the state `Draining`; any of the three
+   the cause and are `Cancel(Idle)`, `Arm(Drain)`, `AwaitQuiet`, the state `Draining`; any of the three
    with `won: false` is nothing (the swap's winner's own event comes,
    or came). In `Draining`: `StopRequested` and `Signal` with any
    `won` are nothing (the stop's connection pends, `server.rs:529–531`;
@@ -260,32 +260,44 @@ this step's first concern or is filed.
    stop path's call rewritten as one loop over `step` in
    `server.rs`, the loop awaiting its sources (the armed timers, the
    stop requests, the signals, the quiet wait) and performing each
-   effect with the functions that exist (`is_idle`, `Exit::arm`,
-   `stop_admitting`, `InFlight::of`, `leave`). What stays at the
-   ingress, outside the loop, as today: every cause's swap of
-   `Exit::arm` (the stop's connection task at `server.rs:550`, the
-   watcher at `start.rs:221`, the loop itself for idle), so
-   `refuse_while_stopping` (`server.rs:515`) refuses the moment the
-   first cause arms, before any loop turn, and the machine's `cause`
-   is the swap's winner; the signal watcher whole, on its own thread
+   effect with the functions that exist (`is_idle`, `begin_exit`,
+   `InFlight::of`, `leave`). What stays at the ingress, outside the
+   loop, as today: every cause's `begin_exit` whole, the swap of
+   `Exit::arm` and, when won, `stop_admitting` in the same task
+   before it hands control away (the stop's connection task at
+   `server.rs:550`; the watcher, which today swaps at `start.rs:221`
+   and leaves `stop_admitting` to `exit_armed`, `server.rs:540–544`,
+   now does both before sending its event; the loop itself for idle,
+   through `Begin`), so `refuse_while_stopping` (`server.rs:515`)
+   refuses and the choke point's admission, which reads the rails'
+   halt (`choke.rs:393`), fences the moment the first cause arms,
+   before any loop turn, as `exit_turns_away_a_job_parked_past_running`
+   pins (`exit.rs:223–240`: the exit begun, the held send released at
+   once, nothing more sent, both jobs waiting), and the machine's
+   `cause` is the swap's winner; the signal watcher whole, on its own thread
    and runtime (`start.rs:120–123`): a signal before the daemon is
    built exits at 217, the first signal swaps and hands `Signal {
    won, why }` to the loop, the second signal calls `end_at_once`
    itself (`start.rs:230–236`: no lock, no checkpoint, the socket
    removed, 128 + n), available while the loop is inside `Judge`,
-   `stop_admitting` or `leave`'s checkpoints; the stop's connection
+   `Begin` or `leave`'s checkpoints; the stop's connection
    task, which hands `StopRequested { won }` to the loop and then
    pends until the process ends (`server.rs:186–191`). The driver
    owns:
 
    - **The durations**, one table `fn duration(timer) -> Duration`:
      `Drain` from `EXIT_BOUND` or the `Exit`'s bound (the tests'
-     `with_bound`); `Idle` the knob's remainder, `knob − (now −
-     last_activity)`, floored at `IDLE_POLL` when the verdict was
-     `Busy` by a clause other than time (a connection, a live job, a
-     pending login, a landing, the limiter live: `server.rs:680–688`),
-     so an idle daemon wakes at its deadline, once, and a busy one
-     re-judges as often as it polls today. `IDLE_POLL` is renamed to
+     `with_bound`); `Idle` the knob's remainder,
+     `knob.saturating_sub(now − last_activity)`, floored at
+     `IDLE_POLL` when the verdict was `Busy` by a clause other than
+     time (a connection, a live job, a pending login, a landing, the
+     limiter live: `server.rs:680–688`) and capped at one day: the
+     knob's parser accepts any `u64` of seconds (`start.rs:19`),
+     which no instant can carry, so a remainder past the cap
+     re-judges at the cap, and the deadline is `now.checked_add(d)`
+     with the cap's deadline where that fails. So an idle daemon
+     wakes at its deadline, once, and a busy one re-judges as often
+     as it polls today. `IDLE_POLL` is renamed to
      say what it now is, the re-judge interval, its value kept.
      The knob is read once at the loop's start, as the watchdog reads
      it (`server.rs:697`); `daemon status` and the start line keep
@@ -338,8 +350,7 @@ this step's first concern or is filed.
    - In-process, the driver at the knob and the bound forced to zero
      (C137): `c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon`
      (the loop with knob zero on a daemon with no connection, no job,
-     no login, the restore landed: the hook sees `Leave { checkpoint:
-     true, code: 0 }`, the log has "idle timeout; exiting"; the same
+     no login, the restore landed: the hook sees `Leave`, the log has "idle timeout; exiting"; the same
      daemon with a connection open is judged busy and does not
      leave); `c137_the_drain_bound_at_zero_cuts_what_is_in_flight`
      (a job running, a stop requested, the bound zero: the hook sees
@@ -492,9 +503,10 @@ wake, which would need notifications at five sites and the limiter's
 quiet instant; and whether `daemon status` should name the exit
 moment.
 
-## Taken from the review
+## Taken from the reviews
 
-The eight findings of `roadmap/reviews/4-0-life-brief-5a2c1725.md`:
+The first review's eight (`4-0-life-brief-5a2c1725.md`), all found
+answered or soundly narrowed by the second:
 
 1. The signal watcher's independence: it stays whole on its own
    thread, the pre-construction exit, the first signal's swap and the
@@ -518,3 +530,16 @@ The eight findings of `roadmap/reviews/4-0-life-brief-5a2c1725.md`:
 8. The login profile deadline's pin: named for what it is, the login
    lifecycle out of scope by scope, the gap #131's (Goal, Not in
    scope).
+
+The second review's four (`4-0-life-brief-09a777e4.md`):
+
+1. The rails' stop behind the loop's turn let a parked sender through
+   the choke point: `begin_exit` stays whole at every ingress, the
+   swap and `stop_admitting` in one task, an admission fence before
+   the event is sent; the loop performs no `StopAdmitting` (Do 1,
+   Do 3).
+2. The idle knob's unbounded value: saturating remainder, a one-day
+   cap, checked addition (Do 3).
+3. A stale `Leave` shape in Do 4: the unit `Leave` (Do 4).
+4. The design's dated paragraph gave the second signal to the
+   machine: amended to the watcher's backstop (`4-0-design.md` §4).
