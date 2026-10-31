@@ -226,6 +226,32 @@ brief answers it per poll of the daemon's, since an idle poll has no
 competing future today and the criterion must not hide the lifecycle
 step 2 exposes.
 
+Narrowed 2026-10-31, step 2, by the orchestrating session under the
+owner's grant of autonomy of that day ("act autonomously for the good
+of the developing agents and the agent and human users"), from three
+read-only reads of the tree at 5c9cd487 (`briefs/4-0-life.md`, Read);
+the owner reads this at the step's close. The `Life` row above is read
+with these changes. The verdict `is_idle` stays the driver's pure
+function, consulted on the idle deadline's event (it is pinned by
+`idle.rs` on the manual clock, asserting no time); the machine holds
+the lifecycle's decisions: the idle deadline's expiry, the first cause
+winning, the drain's cut-or-clean against its deadline, the second
+signal. The quiet wait (`InFlight` empty) is a driver effect with its
+poll inside; `DRAIN_POLL` stays as that pause and `IDLE_POLL` as the
+re-judge interval while a clause other than time holds the daemon,
+the idle deadline exact when only time holds. The driver sleeps on
+tokio time, as the watchdog and the drain do today and for the reason
+their comments give: the manual test clock advances on every sleep
+(`harness.rs:62–66`), the blocking one orders nothing, so a driver on
+the `Clock` would have no test clock to drive it; `Clock` gains no
+`sleep_until` in step 2, and step 3's spike decides whether a parking
+clock takes the driver. `Restoring` is not a state: the socket serves
+during the restore and the restore is a landing the verdict and the
+quiet wait both count (C148). The `settle` the row names is a test
+helper, not a production wait; the elapsed upper bounds #131 names go
+in this step, the sleeps that prove a wait stay for #131's own close.
+The one constructor lands as the step's second commit.
+
 The one constructor (t5's "construct with a base URL, a clock and a
 credential store") is the daemon driver's constructor, and the
 `Life` extraction is where it is built: a builder over `provider`,
