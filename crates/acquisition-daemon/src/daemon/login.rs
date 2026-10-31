@@ -692,7 +692,7 @@ impl Daemon {
                 "the account index could not mark it not persisted ({e}), so a start may still try to restore it"
             ));
         }
-        let retry = format!("`acq auth logout --account {}`", posix_word(username));
+        let retry = format!("`acq auth logout --account {}`", shell_word(username));
         match &cleared {
             Ok(()) => {}
             Err(auth::NotCleared::Off(why)) => but.push(format!(
@@ -754,12 +754,24 @@ impl Daemon {
     }
 }
 
-/// One argument of a printed command, quoted for a POSIX shell (issue
-/// #16's first instance): bare when every character is one no shell
-/// reads specially, otherwise single-quoted, a quote inside written
-/// `'\''`. `#` is quoted: a word that starts with it is a comment, and
-/// zsh's extended globbing reads it anywhere.
-fn posix_word(word: &str) -> String {
+/// One argument of a printed command, quoted for the shell the platform
+/// gives its user (#16): PowerShell's on Windows, a POSIX shell's
+/// elsewhere. The search crate's `shell_quoted` is the twin every other
+/// printed command uses; C1 (the daemon never links the search) keeps
+/// this one apart, the same rules held by the same cases.
+pub(super) fn shell_word(word: &str) -> String {
+    if cfg!(windows) {
+        powershell_word(word)
+    } else {
+        posix_word(word)
+    }
+}
+
+/// A POSIX shell's word: bare when every character is one no shell reads
+/// specially, otherwise single-quoted, a quote inside written `'\''`.
+/// `#` is quoted: a word that starts with it is a comment, and zsh's
+/// extended globbing reads it anywhere.
+pub(super) fn posix_word(word: &str) -> String {
     let plain = !word.is_empty()
         && word
             .chars()
@@ -769,6 +781,80 @@ fn posix_word(word: &str) -> String {
     } else {
         format!("'{}'", word.replace('\'', "'\\''"))
     }
+}
+
+/// A PowerShell word: bare when every character is one PowerShell's
+/// argument mode passes through and the word is no number it would print
+/// another way (`0123`, `1e3`), otherwise single-quoted, a quote inside
+/// doubled, the typographic single quotes PowerShell also reads as
+/// quotes included. `@` (a splat) and `,` (an array) are quoted.
+pub(super) fn powershell_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_./:=".contains(c))
+        && !(powershell_number(word) && !canonical_number(word));
+    if plain {
+        return word.to_string();
+    }
+    let mut out = String::from("'");
+    for c in word.chars() {
+        if matches!(c, '\'' | '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}') {
+            out.push(c);
+        }
+        out.push(c);
+    }
+    out.push('\'');
+    out
+}
+
+/// Whether PowerShell's argument mode reads a bare word as a number: a
+/// sign, then a hexadecimal (`0x`), binary (`0b`) or decimal literal
+/// with its exponent, then a type suffix and a multiplier, each optional.
+fn powershell_number(word: &str) -> bool {
+    let word = word.to_ascii_lowercase();
+    let word = word.trim_start_matches(['+', '-']);
+    let bodies = ["kb", "mb", "gb", "tb", "pb", ""]
+        .iter()
+        .filter_map(|m| word.strip_suffix(m))
+        .flat_map(|w| {
+            ["ul", "us", "uy", "u", "l", "y", "s", "d", "n", ""]
+                .iter()
+                .filter_map(move |t| w.strip_suffix(t))
+        });
+    let digits = |s: &str, of: fn(char) -> bool| !s.is_empty() && s.chars().all(of);
+    bodies.into_iter().any(|body| {
+        if let Some(hex) = body.strip_prefix("0x") {
+            return digits(hex, |c| c.is_ascii_hexdigit());
+        }
+        if let Some(bin) = body.strip_prefix("0b") {
+            return digits(bin, |c| c == '0' || c == '1');
+        }
+        let (mantissa, exponent) = match body.split_once('e') {
+            Some((m, e)) => (m, Some(e.trim_start_matches(['+', '-']))),
+            None => (body, None),
+        };
+        let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+        let decimal = |s: &str| s.chars().all(|c| c.is_ascii_digit());
+        (!whole.is_empty() || !fraction.is_empty())
+            && decimal(whole)
+            && decimal(fraction)
+            && exponent.is_none_or(|e| digits(e, |c| c.is_ascii_digit()))
+    })
+}
+
+/// A number PowerShell prints back as written: no sign, no leading zero
+/// but a lone one, a fraction that ends in a digit other than zero.
+fn canonical_number(word: &str) -> bool {
+    let (whole, fraction) = word.split_once('.').unwrap_or((word, ""));
+    let whole_ok = whole == "0"
+        || (whole.starts_with(|c: char| ('1'..='9').contains(&c))
+            && whole.chars().all(|c| c.is_ascii_digit()));
+    let fraction_ok = !word.contains('.')
+        || (!fraction.is_empty()
+            && fraction.chars().all(|c| c.is_ascii_digit())
+            && !fraction.ends_with('0'));
+    whole_ok && fraction_ok
 }
 
 /// The bound on one callback connection's request read. A browser's

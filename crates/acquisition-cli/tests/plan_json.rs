@@ -459,15 +459,23 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     let line = merged["undo"]["request"]
         .as_str()
         .unwrap_or_else(|| panic!("{merged}"));
-    assert!(
-        line.starts_with("acq policy set --account 'Alice#1234' --replace --if-revision 2 '"),
-        "{line}"
-    );
-    // run as printed, `--json` added as a refusal's offers are run
-    let words = harness::shell_words(line);
-    let mut args: Vec<&str> = words[1..].iter().map(String::as_str).collect();
-    args.push("--json");
-    let out = acq(&base, &args);
+    // #16: a POSIX shell's line carries the JSON as one quoted word; on
+    // Windows it is piped to the verb's `-`, since Windows PowerShell 5.1
+    // strips an argument's double quotes and 7.3 keeps them
+    let flags = "acq policy set --account 'Alice#1234' --replace --if-revision 2";
+    if cfg!(windows) {
+        assert!(
+            line.starts_with("'{\"version\":3,") && line.ends_with(&format!(" | {flags} -")),
+            "{line}"
+        );
+    } else {
+        assert!(line.starts_with(&format!("{flags} '{{")), "{line}");
+    }
+    // run as printed through the platform's shell, `sh` or PowerShell,
+    // `--json` added as a refusal's offers are run
+    let out = harness::offline_printed(&base, &format!("{line} --json"))
+        .output()
+        .expect("running the printed undo");
     assert!(out.status.success(), "`{line}`: {out:?}");
     let back = sole_json(&out);
     assert_eq!(back["revision"], json!(3));

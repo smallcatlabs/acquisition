@@ -1111,8 +1111,13 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
             .unwrap();
         text(&child.wait_with_output().unwrap())
     };
+    // a quote inside is the platform shell's (#16): POSIX `'\''`, or
+    // PowerShell's doubled quote on Windows
+    let quote = if cfg!(windows) { "''" } else { r"'\''" };
     assert!(
-        shown.contains(r#"acq search --account 'Alice#1234' --realm pc 'name="Kaom'\''s Heart"'"#),
+        shown.contains(&format!(
+            r#"acq search --account 'Alice#1234' --realm pc 'name="Kaom{quote}s Heart"'"#
+        )),
         "{shown}"
     );
 }
@@ -2663,8 +2668,11 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
         (
             &by_json,
             "json",
-            r#"--realm pc --trade '{"query":{"name":"Kaom'\''s Heart"},"sort":{"price":"asc"}}'"#
-                .to_string(),
+            // a quote inside is the platform shell's (#16)
+            format!(
+                r#"--realm pc --trade '{{"query":{{"name":"Kaom{}s Heart"}},"sort":{{"price":"asc"}}}}'"#,
+                if cfg!(windows) { "''" } else { r"'\''" }
+            ),
         ),
     ] {
         let out = acq(&base, &["search", "--next", token]);

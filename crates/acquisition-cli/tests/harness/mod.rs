@@ -67,11 +67,12 @@ pub fn offline_command(world: &Path, args: &[&str]) -> Command {
     cmd
 }
 
-/// A command a text prints, run as a person pastes it: through `sh`, its
-/// leading `acq` the binary under test, under the isolation of `base`
-/// (the world at `base/store`).
+/// A command a text prints, run as a person pastes it: through the shell
+/// the platform gives its user (#16), `sh` or on Windows PowerShell
+/// ([`shell_printed`]), its `acq` the binary under test, under the
+/// isolation of `base` (the world at `base/store`).
 pub fn printed(base: &Path, command: &str) -> Command {
-    let mut cmd = sh_printed(command);
+    let mut cmd = shell_printed(command, base);
     isolate(&mut cmd, base);
     cmd
 }
@@ -79,13 +80,16 @@ pub fn printed(base: &Path, command: &str) -> Command {
 /// [`printed`] over a world seeded by hand, as [`offline_command`]: the
 /// world is `world` itself, and no daemon is spawned.
 pub fn offline_printed(world: &Path, command: &str) -> Command {
-    let mut cmd = sh_printed(command);
+    let mut cmd = shell_printed(command, world);
     isolate_at(&mut cmd, world, world);
     cmd.env("ACQ_NO_SPAWN", "1");
     cmd
 }
 
-fn sh_printed(command: &str) -> Command {
+/// The printed command through `sh -c`, its leading `acq` the binary
+/// under test.
+#[cfg(not(windows))]
+fn shell_printed(command: &str, _dir: &Path) -> Command {
     let rest = command
         .strip_prefix("acq ")
         .unwrap_or_else(|| panic!("not an acq command: {command}"));
@@ -93,6 +97,50 @@ fn sh_printed(command: &str) -> Command {
     cmd.arg("-c")
         .arg(format!("\"$ACQ\" {rest}"))
         .env("ACQ", acq_exe());
+    cmd
+}
+
+/// The printed command through Windows PowerShell (`powershell.exe`, the
+/// shell Windows gives its user), as a script file under `dir`, so no
+/// second quoting stands between the line and the shell: its `acq` (at
+/// the start, or after a pipe) the binary under test, and the exit the
+/// program's. The script reads and writes UTF-8, as the test reads it;
+/// a person's console needs no such line.
+#[cfg(windows)]
+fn shell_printed(command: &str, dir: &Path) -> Command {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SCRIPTS: AtomicUsize = AtomicUsize::new(0);
+    let line = match command.strip_prefix("acq ") {
+        Some(rest) => format!("& $env:ACQ {rest}"),
+        None => match command.split_once(" | acq ") {
+            Some((input, rest)) => format!("{input} | & $env:ACQ {rest}"),
+            None => panic!("not an acq command: {command}"),
+        },
+    };
+    let script = dir.join(format!(
+        "printed-{}.ps1",
+        SCRIPTS.fetch_add(1, Ordering::Relaxed)
+    ));
+    let text = format!(
+        "$utf8 = New-Object System.Text.UTF8Encoding $false\r\n\
+         [Console]::OutputEncoding = $utf8\r\n\
+         $OutputEncoding = $utf8\r\n\
+         {line}\r\n\
+         exit $LASTEXITCODE\r\n"
+    );
+    // a BOM, so Windows PowerShell 5.1 reads the script as UTF-8
+    std::fs::write(&script, [&b"\xEF\xBB\xBF"[..], text.as_bytes()].concat())
+        .expect("writing the printed command's script");
+    let mut cmd = Command::new("powershell.exe");
+    cmd.args([
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+    ])
+    .arg(script)
+    .env("ACQ", acq_exe());
     cmd
 }
 

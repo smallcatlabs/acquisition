@@ -90,6 +90,21 @@ pub(crate) const WRITTEN_VIA: &str = "cli";
 /// A shape hint for humans; the planner's strict parse is the authority.
 pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
 
+/// A printed `acq policy set` that runs as printed in the shell the
+/// platform gives its user (#16): `flags` after the verb, then the JSON
+/// as one word where a POSIX shell reads it; on Windows the JSON piped
+/// to the verb's `-`, since Windows PowerShell 5.1 strips the double
+/// quotes of an argument it hands a program and PowerShell 7.3 keeps
+/// them, and a pipe carries them under both.
+pub(crate) fn policy_set_line(flags: &str, json: &str) -> String {
+    let quoted = acquisition_search::answer::shell_quoted(json);
+    if cfg!(windows) {
+        format!("{quoted} | acq policy set{flags} -")
+    } else {
+        format!("acq policy set{flags} {quoted}")
+    }
+}
+
 /// Groups of this many entities or fewer are listed one per line; larger
 /// groups are counted (the ruling's threshold; `--expand` lists every one).
 const LIST_UP_TO: usize = 10;
@@ -105,7 +120,10 @@ pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
     }
     match shown.policy {
         None => {
-            println!("no sync policy is set — write one with `acq policy set '{POLICY_EXAMPLE}'`")
+            println!(
+                "no sync policy is set — write one with `{}`",
+                policy_set_line("", POLICY_EXAMPLE)
+            )
         }
         Some(shown) => {
             println!("{}", serde_json::to_string_pretty(&shown.row.value)?);

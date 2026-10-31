@@ -830,3 +830,45 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
         "{next}"
     );
 }
+
+/// #16 — a printed command's words are quoted for the shell the
+/// platform gives its user: a POSIX shell's single quotes, `'\''` for a
+/// quote inside, or on Windows PowerShell's, a quote inside doubled (the
+/// typographic ones too), `@` and `,` quoted, and a bare word PowerShell
+/// would read as a number it prints another way quoted.
+#[test]
+fn a_printed_word_is_quoted_for_the_platforms_shell() {
+    use acquisition_search::answer::{posix_quoted, powershell_quoted, shell_quoted};
+    for (word, posix, powershell) in [
+        ("item/i-1", "item/i-1", "item/i-1"),
+        ("Alice#1234", "'Alice#1234'", "'Alice#1234'"),
+        ("Alice Smith", "'Alice Smith'", "'Alice Smith'"),
+        ("Kaom's Heart", r"'Kaom'\''s Heart'", "'Kaom''s Heart'"),
+        (
+            "Kaom\u{2019}s",
+            "'Kaom\u{2019}s'",
+            "'Kaom\u{2019}\u{2019}s'",
+        ),
+        ("@plan.json", "@plan.json", "'@plan.json'"),
+        ("a,b", "'a,b'", "'a,b'"),
+        (r#"name="x""#, r#"'name="x"'"#, r#"'name="x"'"#),
+        ("", "''", "''"),
+        // numbers PowerShell prints back as written stay bare
+        ("5", "5", "5"),
+        ("12.5", "12.5", "12.5"),
+        ("1/5", "1/5", "1/5"),
+        ("51e6c1055b", "51e6c1055b", "51e6c1055b"),
+        // and those it would print another way are quoted
+        ("0123", "0123", "'0123'"),
+        ("1.50", "1.50", "'1.50'"),
+        ("1e3", "1e3", "'1e3'"),
+        ("5d", "5d", "'5d'"),
+        ("0x10", "0x10", "'0x10'"),
+        ("3kb", "3kb", "'3kb'"),
+    ] {
+        assert_eq!(posix_quoted(word), posix, "{word}");
+        assert_eq!(powershell_quoted(word), powershell, "{word}");
+        let platform = if cfg!(windows) { powershell } else { posix };
+        assert_eq!(shell_quoted(word), platform, "{word}");
+    }
+}

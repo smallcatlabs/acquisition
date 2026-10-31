@@ -1019,8 +1019,8 @@ fn fault_words(fault: &Fault) -> String {
         }
         Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
         Fault::NoSyncPolicy { .. } => format!(
-            "{fault} — declare one first, e.g. `acq policy set '{}'`",
-            plan_cmd::POLICY_EXAMPLE
+            "{fault} — declare one first, e.g. `{}`",
+            plan_cmd::policy_set_line("", plan_cmd::POLICY_EXAMPLE)
         ),
         Fault::Spend(
             acquisition_plan::SpendError::PolicyGone { .. }
@@ -1221,10 +1221,12 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 account,
                 value,
                 if_revision,
-            } => format!(
-                "acq policy set --account {} --replace --if-revision {if_revision} {}",
-                quote(account),
-                quote(&value.to_string())
+            } => plan_cmd::policy_set_line(
+                &format!(
+                    " --account {} --replace --if-revision {if_revision}",
+                    quote(account)
+                ),
+                &value.to_string(),
             ),
         };
         Some((json!(line), None))

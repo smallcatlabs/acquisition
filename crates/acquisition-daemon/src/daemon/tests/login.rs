@@ -1545,3 +1545,36 @@ async fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
     );
     assert_eq!(entry.refresh_token, "rt-Alice#1");
 }
+
+/// #16 — the logout's retry word is quoted for the shell the platform
+/// gives its user, by the same rules and cases as the search crate's
+/// `shell_quoted`, whose twin this is (C1 keeps them two): a POSIX
+/// shell's `'\''`, or on Windows PowerShell's doubled quote, `@` and `,`
+/// quoted, and a number PowerShell would print another way quoted.
+#[test]
+fn the_retry_word_is_quoted_for_the_platforms_shell() {
+    use crate::daemon::login::{posix_word, powershell_word, shell_word};
+    for (word, posix, powershell) in [
+        ("Alice", "Alice", "Alice"),
+        ("Alice#1234", "'Alice#1234'", "'Alice#1234'"),
+        ("Alice Smith", "'Alice Smith'", "'Alice Smith'"),
+        ("O'Neil", r"'O'\''Neil'", "'O''Neil'"),
+        (
+            "O\u{2019}Neil",
+            "'O\u{2019}Neil'",
+            "'O\u{2019}\u{2019}Neil'",
+        ),
+        ("@alice", "@alice", "'@alice'"),
+        ("a,b", "a,b", "'a,b'"),
+        ("", "''", "''"),
+        ("12", "12", "12"),
+        ("0123", "0123", "'0123'"),
+        ("1e3", "1e3", "'1e3'"),
+        ("0x10", "0x10", "'0x10'"),
+    ] {
+        assert_eq!(posix_word(word), posix, "{word}");
+        assert_eq!(powershell_word(word), powershell, "{word}");
+        let platform = if cfg!(windows) { powershell } else { posix };
+        assert_eq!(shell_word(word), platform, "{word}");
+    }
+}
