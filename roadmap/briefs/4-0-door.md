@@ -22,8 +22,9 @@ zero (extended) and a wording test. No word a user meets changes.
 The criterion that draws the machine's edge, the owner's ruling of
 2026-10-31 (`4-0-design.md` §4, the dated line): **a wait enters the
 machine when its ordering against another event is a decision of the
-door, or when its only pin costs real time; a wait whose
-interleavings are already forced without real time, and whose
+door, or when its only pin asserts elapsed time; a wait whose
+interleavings are already forced without relying on elapsed time,
+and whose
 outcome the door takes as one value, stays a driver effect with its
 bound inside.** The hello's deadline orders against the reply (the
 loser is the verdict) and its one pin cost five seconds; the startup
@@ -32,7 +33,9 @@ bind poll and the settle are pauses the machine orders. The stop's
 wait for the daemon to go (gone or acknowledged, its tie forced by
 injected futures) and the look for a winner (found, not found or
 failed, its late connect forced on an injected instant) are effects:
-their pins cost no real time and the door takes each as one value.
+their pins force expiry and interleaving without relying on elapsed
+time (one waits through a real poll sleep, asserting nothing of it)
+and the door takes each as one value.
 This is C157's first machine (a lifecycle that waits is a value, time
 an event) and proves the shape step 2, the daemon's `Life`, copies.
 The criterion is the door's; step 2's brief answers for each of the
@@ -415,7 +418,7 @@ first concern or is filed.
   (1844–1875): a lifecycle of an open connection after the door, with
   its own pin (`c137_…_an_observe_request_…`, 484). Untouched.
 - The stop's wait and the winner look as machine timers: not by the
-  Goal's criterion, not until a pin of theirs costs real time; their
+  Goal's criterion, not until a pin of theirs asserts elapsed time; their
   tie and lateness rules stay in `stop_until` and `look_until` with
   the tests that force them.
 - The daemon's `Life`, its constructor and `Clock::sleep_until`:
@@ -496,7 +499,7 @@ The third review's five (`4-0-door-brief-19f771d4.md`):
 1. The narrowing changed the ruled design before the owner recorded
    it, and prescribed the criterion to step 2: recorded as his ruling
    of 2026-10-31 in `4-0-design.md` §4, reworded by evidence (a pin
-   that costs real time) rather than "one value"; step 2 answers it
+   that asserts elapsed time) rather than "one value"; step 2 answers it
    per poll (Goal, Read).
 2. The look's transport error was a third outcome: `LookFailed`, with
    its row (Do 1, Do 2).

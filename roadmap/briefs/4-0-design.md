@@ -210,10 +210,12 @@ timers (`Hello`, `Startup`, `BindPoll`, `Settle`) and the driver holds
 their durations, read where the knobs are read today. The stop's wait
 (`stop_until`, its biased tie) and the winner look (`look_until`, its
 late connect) stay driver effects with the seams and in-crate pins
-they have, which force every interleaving with no real time: a wait
+they have, which force every interleaving without relying on elapsed
+time: a wait
 enters the machine when its ordering against another event is a
-decision of the lifecycle, or when its only pin costs real time; one
-whose interleavings are already forced without real time, and whose
+decision of the lifecycle, or when its only pin asserts elapsed time;
+one whose interleavings are already forced without relying on elapsed
+time, and whose
 outcome the lifecycle takes as one value, stays an effect with its
 bound inside. The startup deadline is consulted at the loop's one
 check point, answered expired or pending, never raced or delivered
