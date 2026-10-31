@@ -1,0 +1,26 @@
+# Agentic development: the Acquisition case study
+
+A series of reports on how Acquisition, a Path of Exile inventory
+tool with a twelve-year history, was rewritten from C++ to Rust by one
+owner working with AI agents, and what that taught about agentic
+software development. Written for an experienced engineer coming from
+large organisations, with a frontend focus, who has not worked this
+way before.
+
+Read the reader's guide first. The rest can be read in any order.
+
+| # | Report | Question it answers | Status |
+| --- | --- | --- | --- |
+| 1 | `01-readers-guide.md` | What is this series, what is its thesis, what do the words mean? | first pass |
+| 2 | `02-the-project.md` | What is Acquisition, what constraint governs it, how is it built? | first pass |
+| 3 | `03-history.md` | What happened, in what order, with what evidence? | first pass |
+| 4 | `04-turning-points.md` | Which decisions changed the course, and why? | first pass |
+| 5 | `05-operating-model.md` | How do the owner and the agents actually work together, and how did that evolve? | first pass |
+| 6 | `06-concepts.md` | Which ideas are new here, and which old ideas changed shape? | first pass |
+| 7 | `07-retrospective.md` | What worked, what it cost, what the owner would do differently? | first pass, with the owner's first-generation interview answers |
+| 8 | `08-playbook.md` | What would an engineer do on Monday to work this way? | first pass |
+| 9 | `09-primary-sources.md` | What do the real documents look like, annotated? | first pass |
+
+`METHOD.md` says how this series was produced, which is itself part
+of the subject. `INTERVIEW.md` holds the questions only the owner can
+answer; his answers feed the retrospective.
