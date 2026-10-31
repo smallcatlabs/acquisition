@@ -315,9 +315,14 @@ retirement waits for its last user.
 
 ## 5. Drafts for the owner
 
-Each is his; nothing below is entered until he rules.
+Each is his; nothing below is entered until he rules. (Ruled
+2026-10-31, "Accept as drafted with your recommendations. The
+reasoning makes sense.": C158 entered in `decisions/daemon.md` with
+the two "Not doing" lines, the `Outcome` field declined until a
+frontend asks, the exempt-route list kept in the client's harness
+under a check.)
 
-- **C<next> — A daemon scenario crosses the daemon's frontend
+- **C<next>, now C158 — A daemon scenario crosses the daemon's frontend
   boundary only, and its time moves by its own hand or when nothing
   it started can run.** It enters through the protocol and reads the
   journal and the protocol's answers; it moves its clock explicitly
