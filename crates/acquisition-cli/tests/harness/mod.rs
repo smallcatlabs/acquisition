@@ -626,12 +626,23 @@ pub fn fetch_place_rule(text: &str) -> String {
                 return line.to_string();
             }
             let mut line = line.to_string();
-            for (open, close) in [("fetch <age> ago, ", "; "), ("newest <age> ago, ", ")")] {
-                if let Some(at) = line.find(open).map(|at| at + open.len())
-                    && let Some(len) = line[at..].find(close)
-                {
-                    line.replace_range(at..at + len, "<place>");
-                }
+            // The oldest place ends at the "; " before the newest; the
+            // newest at the clause's own ")", the line's last, since a
+            // character's place carries a ")" of its own ("(character)")
+            // and which location is newest hangs on a second (the gate,
+            // 2026-10-31, on the launch-morning transcript).
+            let oldest = ("fetch <age> ago, ", "; ");
+            if let Some(at) = line.find(oldest.0).map(|at| at + oldest.0.len())
+                && let Some(len) = line[at..].find(oldest.1)
+            {
+                line.replace_range(at..at + len, "<place>");
+            }
+            let newest = "newest <age> ago, ";
+            if let Some(at) = line.find(newest).map(|at| at + newest.len())
+                && let Some(end) = line.rfind(')')
+                && end > at
+            {
+                line.replace_range(at..end, "<place>");
             }
             line
         })

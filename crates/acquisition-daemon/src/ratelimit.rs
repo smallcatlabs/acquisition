@@ -41,6 +41,8 @@ use crate::gate::{SendGate, SendPermit};
 use crate::rails::{Rails, SendReport, Verdict};
 
 mod choke;
+#[cfg(test)]
+pub(crate) use choke::PACING_FLOOR;
 mod limiter;
 mod policy;
 #[cfg(test)]

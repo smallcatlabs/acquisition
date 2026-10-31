@@ -686,15 +686,21 @@ pub(super) fn finish_harness_mock(
 fn finish_with(
     dispatcher: impl Into<Option<tokio::task::JoinHandle<()>>>,
     log_path: &std::path::Path,
-    pacing: fn(&[Value]),
+    pacing: fn(&[Value], bool),
 ) {
     if let Some(dispatcher) = dispatcher.into() {
         dispatcher.abort();
     }
     if journal_of(log_path).exists() {
         let sends = journal_sends(log_path);
+        // A manual clock journals an exact wait; a real one journals
+        // the scheduler's too (Gate (Windows) run 41243257231: 2 ms on
+        // a send nothing held), so the pacing oracle is told which.
+        let exact = read_journal(&journal_of(log_path))
+            .first()
+            .is_some_and(|header| header["clock"] == "manual");
         assert_wire_contract(&sends);
-        pacing(&sends);
+        pacing(&sends, exact);
     }
 }
 
@@ -815,7 +821,7 @@ fn assert_wire_contract(sends: &[Value]) {
 /// Runs over every journal a scripted server's or a serverless daemon
 /// writes (`finish_harness`), so a rewrite that paces slower (or stops
 /// pacing) fails here without any test naming the numbers.
-fn assert_pacing_follows_responses(sends: &[Value]) {
+fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
     let pad = full_hold_ms();
     let mut last_on_route: HashMap<String, &Value> = HashMap::new();
     let mut longest_period_ms: HashMap<String, u64> = HashMap::new();
@@ -853,9 +859,17 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
                          waited {wait} ms; allowed at most {ceiling}: {send}"
                 );
             }
-            _ => assert_eq!(
+            // Exact on a manual clock; on a real one, under the pacing
+            // floor (C137: no wall-clock bound a slow machine can miss,
+            // and a wait the limiter asked for is never shorter).
+            _ if exact => assert_eq!(
                 wait, 0,
                 "nothing demanded a hold on {route}, yet the send waited: {send}"
+            ),
+            _ => assert!(
+                wait < crate::ratelimit::PACING_FLOOR.as_millis() as u64,
+                "nothing demanded a hold on {route}, yet the send waited past the \
+                 pacing floor: {send}"
             ),
         }
         // Window periods from every `X-Rate-Limit-<rule>` header seen on
@@ -903,7 +917,7 @@ fn c19_retry_secs(raw: Option<&str>) -> u64 {
 /// the mock's own count, so a limiter that sends one too many fails
 /// here. Runs in `finish_harness_mock`, over every daemon facing it. Rule names come from `X-Rate-Limit-Rules`, so this reads any
 /// rule set, not only `Account`.
-fn assert_never_over_the_limit(sends: &[Value]) {
+fn assert_never_over_the_limit(sends: &[Value], _exact: bool) {
     for send in sends {
         assert_ne!(send["status"], 429, "a send was answered 429: {send}");
         let rate = &send["rate"];

@@ -221,6 +221,12 @@ pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 /// about this long rather than at the end of the hold.
 const HALT_POLL: Duration = Duration::from_secs(1);
 
+/// The shortest wait an admission loop parks for when the limiter asks
+/// for any wait at all: a pacing wait is never shorter, so a journaled
+/// `wait_ms` under it on a real clock is scheduling, not pacing (the
+/// harness's pacing oracle reads it so).
+pub(crate) const PACING_FLOOR: Duration = Duration::from_millis(50);
+
 fn build_client() -> reqwest::Client {
     // The user-agent goes on the client itself so no request — token
     // exchange included — can be sent without it (`AGENTS.md` invariant 4).
@@ -383,8 +389,7 @@ impl ChokePoint {
                 return Err(SendError::Cancelled);
             }
             if let Err(wait) = self.check(route) {
-                self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
-                    .await;
+                self.sleep(wait.clamp(PACING_FLOOR, HALT_POLL)).await;
                 continue;
             }
 
@@ -404,8 +409,7 @@ impl ChokePoint {
                 (_, pacing) => {
                     drop(permit);
                     if let Err(wait) = pacing {
-                        self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
-                            .await;
+                        self.sleep(wait.clamp(PACING_FLOOR, HALT_POLL)).await;
                     }
                 }
             }
@@ -424,8 +428,7 @@ impl ChokePoint {
                 return Err(SendError::Cancelled);
             }
             if let Err(wait) = self.check(route) {
-                self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
-                    .await;
+                self.sleep(wait.clamp(PACING_FLOOR, HALT_POLL)).await;
                 continue;
             }
 
@@ -442,8 +445,7 @@ impl ChokePoint {
                 Ok(()) => return Ok(permit),
                 Err(wait) => {
                     drop(permit);
-                    self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
-                        .await;
+                    self.sleep(wait.clamp(PACING_FLOOR, HALT_POLL)).await;
                 }
             }
         }
