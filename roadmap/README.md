@@ -144,6 +144,12 @@ Each in his words, with the commit that landed it.
   on the league build's first seat and run now as step `words`, in that
   order; the seat then checks the fixes, and what it finds new is new
   rows (the commit carrying this line).
+- 2026-10-30, #101's `--if-revision 0`, delegated: "I'd prefer an
+  agentic ruling", since it bears on agents more than on humans. Fable
+  recommends, the `words` step takes and builds it, and the report
+  lists it for his later read; a registry bullet, if one is needed,
+  comes to him first (`briefs/words.md`, Do 1; the commit carrying this
+  line).
 
 ## Roles
 

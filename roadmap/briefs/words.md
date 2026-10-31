@@ -113,15 +113,24 @@ double quotes to a native program, which Windows PowerShell 5.1 strips
 and PowerShell 7.3 or newer keeps.
 
 ## Do
-1. **The owner's ruling first, on #101's `--if-revision 0`**, before any
-   of #101's code. The writer's recommendation, to bring with your own
-   reading: a stated difference, since a human at the CLI may overwrite
-   and an agent must read first, with `set_sync_policy` taking
-   `if_revision: 0` as it takes an omission, so a command printed for
-   one surface reads on the other; both references say so in a
-   sentence. Whatever he rules is a dated bullet in
-   `decisions/frontends.md` only if it is a property another area must
-   know; otherwise it is recorded in the commit that builds it.
+1. **#101's `--if-revision 0`, decided by Fable, before any of #101's
+   code.** The owner delegated it on 2026-10-30, since it bears on
+   agents more than on humans: "I'd prefer an agentic ruling" (the
+   rulings list in `roadmap/README.md`). Ask Fable (`model: "fable"` on
+   the Agent tool) for a practical, simple recommendation, giving it the
+   facts under Input, #101, both references' revision text for `policy
+   set`/`set_sync_policy` and `price set`/`price_set`, and this brief's
+   writer's own leaning, as one reading among others: a stated
+   difference, since a human at the CLI may overwrite and an agent must
+   read first, with `set_sync_policy` taking `if_revision: 0` as it
+   takes an omission, so a command printed for one surface reads on the
+   other. Take Fable's recommendation and build it. Record it in the
+   commit that builds it, quoting Fable's reason and naming the
+   delegation; add a bullet to `decisions/frontends.md` only if it is a
+   property another area must know, and then bring that bullet to the
+   owner before committing it. List the decision in the report for his
+   later read. If Fable finds two answers it cannot choose between,
+   stop and bring both to the owner.
 2. **#20.** The macOS and Linux steps fetch `SHA256SUMS` beside the
    archive and check with `shasum -a 256 -c --ignore-missing
    SHA256SUMS` (this Mac's `shasum` takes `--ignore-missing`; a Linux
@@ -144,7 +153,7 @@ and PowerShell 7.3 or newer keeps.
 4. **#101.** Items 1 and 3 are the step's own: one stream for a failed
    job's report on both verbs, or a stated difference with its reason;
    sizes that say they are of compact JSON, or a measure that matches
-   what `acq --json` prints. Item 2 as the owner ruled in Do 1.
+   what `acq --json` prints. Item 2 as Do 1 decides it.
 5. **#16.** The quoting follows the platform the binary is built for:
    PowerShell's on Windows (single quotes, a quote inside doubled), a
    POSIX shell's elsewhere, in `shell_quoted` and in `posix_word` alike,
@@ -174,8 +183,8 @@ and PowerShell 7.3 or newer keeps.
   sentence where a reader of the tool that returns them meets it, in
   `MCP-REFERENCE.md`.
 - Each of #101's three items is one behaviour on both surfaces or a
-  difference stated in both references, pinned; item 2 as the owner
-  ruled, his words quoted in the commit.
+  difference stated in both references, pinned; item 2 as Fable
+  decided it at Do 1, the delegation and its reason in the commit.
 - On Windows, a printed command quotes for PowerShell, and a test runs
   one through `powershell.exe`; on Unix, the POSIX tests stand.
 - `tools/gate.sh` green on the step's tree.
