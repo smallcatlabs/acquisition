@@ -1691,3 +1691,160 @@ async fn a_run_of_listener_errors_logs_a_bounded_number_of_lines() {
     assert!(!daemon.exit.begun(), "nothing exited");
     finish_harness(None, &log_path);
 }
+
+// ---- 4-0 spike (#147), scratch: the `Life` driver on the parking clock ----
+
+/// A harness exit daemon on a parking clock, the runtime's park hook
+/// installed over it.
+fn parked_exit_daemon(
+    slot: &IdleSlot,
+    base: &str,
+    bound: Duration,
+) -> (Arc<Daemon>, Arc<ParkingClock>, TestPath, TestPath) {
+    let clock = Arc::new(ParkingClock::new());
+    let (daemon, log_path, db) = exit_daemon_on(base, bound, clock.clone());
+    *slot.lock().unwrap() = Some(IdleHook::new(clock.clone(), daemon.clone()));
+    (daemon, clock, log_path, db)
+}
+
+/// The hook's counts, for the measurements: advances, parks held by a
+/// send, by a landing, parks with nothing parked.
+fn hook_counts(slot: &IdleSlot) -> (usize, usize, usize, usize) {
+    let hook = slot.lock().unwrap();
+    let hook = hook.as_ref().unwrap();
+    (
+        hook.advances,
+        hook.held_by_send,
+        hook.held_by_landing,
+        hook.nothing_parked,
+    )
+}
+
+/// `c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon` with the
+/// driver's timers on the parking clock.
+#[test]
+fn spike_life_on_the_clock_idle_at_zero_leaves() {
+    let (runtime, slot) = idle_runtime();
+    runtime.block_on(async {
+        let real = std::time::Instant::now();
+        let (daemon, clock, log_path, _db) = parked_exit_daemon(&slot, "http://127.0.0.1:1", BOUND);
+        let origin = clock.now();
+        let (life, leave) = spawn_life(&daemon, Duration::ZERO);
+        let cut = tokio::time::timeout(HANG, leave)
+            .await
+            .expect("the idle deadline at zero leaves")
+            .expect("the driver reached its leave");
+        assert_eq!(cut, None, "nothing was in flight");
+        life.await.unwrap();
+        let log = std::fs::read_to_string(&log_path).unwrap();
+        let idle = log.find("idle timeout; exiting").unwrap();
+        let quiet = log.find("exit: nothing in flight").unwrap();
+        assert!(idle < quiet, "{log}");
+        eprintln!(
+            "spike: life on the clock, idle at zero: {:?} real, {:?} virtual, hook (advances, held by a send, nothing parked) {:?}",
+            real.elapsed(),
+            clock.now() - origin,
+            hook_counts(&slot)
+        );
+        slot.lock().unwrap().take();
+        finish_harness(None, &log_path);
+    });
+}
+
+/// The busy hold with the driver's timers on the parking clock: at the
+/// idle knob zero a connection holds the daemon; the driver re-judges at
+/// `IDLE_REJUDGE` in virtual time, each verdict on a blocking thread;
+/// past a virtual minute the exit has not begun. The connection closes;
+/// the next verdict is idle and the driver leaves, nothing cut.
+#[test]
+fn spike_life_on_the_clock_a_connection_holds_then_lets_go() {
+    let (runtime, slot) = idle_runtime();
+    runtime.block_on(async {
+        let real = std::time::Instant::now();
+        let (daemon, clock, log_path, _db) = parked_exit_daemon(&slot, "http://127.0.0.1:1", BOUND);
+        let origin = clock.now();
+        daemon.connections.store(1, Ordering::SeqCst);
+        let _ = daemon.life_probe.set(LifeProbe::default());
+        let probe = daemon.life_probe.get().unwrap();
+        let (life, mut leave) = spawn_life(&daemon, Duration::ZERO);
+        let mut busy = 0;
+        while clock.now() - origin < Duration::from_secs(60) {
+            tokio::time::timeout(HANG, probe.busy.notified())
+                .await
+                .expect("the driver stepped a busy verdict");
+            busy += 1;
+        }
+        assert!(!daemon.exit.begun(), "a connection holds the daemon");
+        assert!(matches!(
+            leave.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        ));
+        let held_for = clock.now() - origin;
+        let held_counts = hook_counts(&slot);
+        daemon.connections.store(0, Ordering::SeqCst);
+        let cut = tokio::time::timeout(HANG, leave)
+            .await
+            .expect("the daemon let go leaves")
+            .expect("the driver reached its leave");
+        assert_eq!(cut, None);
+        life.await.unwrap();
+        eprintln!(
+            "spike: life on the clock, busy hold: {:?} real, held {held_for:?} virtual over {busy} busy notices, \
+             hook while held {held_counts:?}, left at {:?} virtual, hook at leave {:?}",
+            real.elapsed(),
+            clock.now() - origin,
+            hook_counts(&slot)
+        );
+        slot.lock().unwrap().take();
+        finish_harness(None, &log_path);
+    });
+}
+
+/// `exit_waits_for_a_landed_body_to_persist` with the drain's deadline on
+/// the parking clock and the short bound: time does not move under the
+/// send on the wire nor under its landing, so the bound never cuts it;
+/// the release lands it. The control (time moved under a landing) prints
+/// what it cut, asserting nothing.
+#[test]
+fn spike_life_on_the_clock_the_drain_waits_for_the_wire() {
+    for run in 0..5 {
+        eprintln!(
+            "spike: life on the clock, drain on the wire, ignoring landings, run {run}: cut {:?}",
+            drain_on_the_wire(true)
+        );
+    }
+    assert_eq!(drain_on_the_wire(false), None, "nothing was cut");
+}
+
+fn drain_on_the_wire(ignore_landings: bool) -> Option<InFlight> {
+    let (runtime, slot) = idle_runtime();
+    runtime.block_on(async {
+        let (base, sent_log, arrived, release) = account_server(("GET", "/profile", 0)).await;
+        let (daemon, clock, log_path, db) = parked_exit_daemon(&slot, &base, BOUND);
+        slot.lock().unwrap().as_mut().unwrap().ignore_landings = ignore_landings;
+        let origin = clock.now();
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let id = submit_for(&daemon, "profile", json!({}), Some("test-user"));
+        arrived.await.unwrap();
+        assert!(daemon.begin_exit("test: exit"));
+        let drain = spawn_drain(&daemon);
+        settle().await;
+        assert!(
+            !drain.is_finished(),
+            "the drain waits for the job on the wire"
+        );
+        release.send(()).unwrap();
+        let cut = drain.await.unwrap();
+        eprintln!(
+            "spike: life on the clock, drain on the wire (ignore landings {ignore_landings}): \
+             {:?} virtual, hook {:?}, row {}",
+            clock.now() - origin,
+            hook_counts(&slot),
+            row_of(&db, id).state,
+        );
+        slot.lock().unwrap().take();
+        assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+        finish_harness(dispatcher, &log_path);
+        cut
+    })
+}
