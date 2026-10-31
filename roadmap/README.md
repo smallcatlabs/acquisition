@@ -377,8 +377,11 @@ on 2026-10-31 (`LEDGER.md`), its review clean. Step 2, the daemon's lifecycle as
 (`briefs/4-0-life.md`, cut five times under cold reviews, its narrowing
 recorded in the design's §4 under the owner's grant of autonomy),
 closed on 2026-10-31 (`LEDGER.md`): its build reviewed, two fix
-rounds, the second read by the orchestrating session. Next, step 3,
-the parking-clock spike (#147), then t5 (#141) and #148; and Phase 3,
+rounds, the second read by the orchestrating session. Step 3, the
+parking-clock spike (`briefs/4-0-spike.md`), closed the same day on
+its branch (`LEDGER.md`): the clock works, the design's door count
+does not, and the runtime's park hook is the exact signal. Next, t5's
+design brief (#141, Fable's), then its build, then #148; and Phase 3,
 the owner's league run, at his word, its first seat checking the
 words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.

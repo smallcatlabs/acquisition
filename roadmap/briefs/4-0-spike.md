@@ -182,18 +182,18 @@ poll. Moving it alone breaks 8 tests.
 
 **The runs.** Each number below comes from one of these.
 (a) `cargo nextest run -p acquisition-daemon -E 'test(/spike_/)'
---no-capture` at `c6272386`, whose code the branch head keeps (only
+--no-capture` at `acquisition@c6272386`, whose code the branch head keeps (only
 this section came after). It runs the scenario and
 clock tests in `tests/dispatch.rs`.
-(b) The same command at `b62b2f6c`, the scratch commit that puts the
+(b) The same command at `acquisition@b62b2f6c`, the scratch commit that puts the
 `Life` driver's timers on the clock. It adds the three `spike_life_*`
 tests in `tests/exit.rs`.
 (c) `cargo nextest run -p acquisition-daemon
 spike_the_429_hold_on_the_system_clock --run-ignored only
---no-capture`, with `tests/dispatch.rs` as committed at `64a117a4`.
+--no-capture`, with `tests/dispatch.rs` as committed at `acquisition@64a117a4`.
 (d) `cargo nextest run -p acquisition-daemon --no-fail-fast -E
-'test(/daemon::tests::(exit|idle)::/)'` at `b62b2f6c`.
-(e) `cargo nextest run -p acquisition-daemon` at `c6272386`: 338
+'test(/daemon::tests::(exit|idle)::/)'` at `acquisition@b62b2f6c`.
+(e) `cargo nextest run -p acquisition-daemon` at `acquisition@c6272386`: 338
 passed, 1 skipped (the system-clock run).
 
 **Measured.**
@@ -228,10 +228,10 @@ passed, 1 skipped (the system-clock run).
     invocation; 377 advances, about 13 ms per run (a). Its journal
     equals the confirmation window's, read side by side in one earlier
     invocation, `cargo nextest run -p acquisition-daemon spike_
-    --no-capture`, before `64a117a4`.
+    --no-capture`, before `acquisition@64a117a4`.
   - Control, the hook advancing even while a send is in flight: 3, 3
     and 1 distinct journals in 5 runs, over three invocations: one
-    before `64a117a4`, then (b), then (a).
+    before `acquisition@64a117a4`, then (b), then (a).
 
 **What the approximation got wrong.**
 
@@ -289,8 +289,8 @@ conditions carry load:
 **Whether `Life` should move onto the clock.** Yes, in t5, and not on
 `main` before the parking clock replaces `ManualClock` in `exit.rs`.
 `Clock::sleep_until` is kept on the branch, with a default over `sleep`
-and the parking clock's own. The scratch driver move (`b62b2f6c`,
-reverted by `c6272386`) was discarded.
+and the parking clock's own. The scratch driver move (`acquisition@b62b2f6c`,
+reverted by `acquisition@c6272386`) was discarded.
 
 - **On the parking clock under the hook (b):**
   - `c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon`'s twin left

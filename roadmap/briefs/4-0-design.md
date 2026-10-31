@@ -193,6 +193,20 @@ after a yield), which is what `BlockingClock` does today by hand. This
 is the one piece of the design with a mechanism risk, and §6 puts a
 spike before it.
 
+(Answered 2026-10-31 by the spike, `briefs/4-0-spike.md` "Answer":
+the clock works and the count does not. The door's count is right
+while one task parks and wrong once two do, because it counts only
+the tasks already waiting, never one runnable and not yet parked:
+three distinct journals in five runs of a two-key scenario. The
+exact signal is the runtime's own word that nothing can run: a
+current-thread runtime's `on_thread_park` hook, stable tokio with no
+feature split (C84 holds), advancing the clock only while the
+daemon's two counts of work off the runtime are zero, the gate's
+occupancy and C148's `landings`, with the verdict's `spawn_blocking`
+counted too. `Life` moves onto the clock in t5, together with the
+exit's deadline and the quiet wait's look, never alone; multi-thread
+tests stay off the door. t5's brief is written from that section.)
+
 ## 4. What each candidate becomes
 
 | Candidate | Machine | Driver keeps real | Retires |
