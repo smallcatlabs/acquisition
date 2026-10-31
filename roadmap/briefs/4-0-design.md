@@ -274,9 +274,11 @@ its knob).
 
 ## 7. Drafts for the owner
 
-Each is his; nothing below is entered until he rules.
+Each is his; nothing below is entered until he rules. (Ruled 2026-10-31,
+"Accept as drafted": C157 entered, C137 amended, the store's line
+added, the knob as shape (a) on #148, the machines on #147.)
 
-- **C<next> (draft) — A lifecycle that waits is a value: its state is
+- **C<next>, now C157 — A lifecycle that waits is a value: its state is
   data, its step a pure function of the state and one event returning
   the next state and its effects; time enters only as a named
   deadline's event and leaves only as a request to arm one; the
@@ -292,7 +294,7 @@ Each is his; nothing below is entered until he rules.
 - **C137 amended, its last sentence:** "A new lifecycle that waits
   across processes is designed as a state machine over an injected
   clock" becomes "A new lifecycle that waits is designed as a machine
-  whose time is an event (C<next>)".
+  whose time is an event (C157)".
 - **`decisions/store.md`, "Not doing":** An injected clock in the
   store: refused. The annotation wait's seam is its knob and SQLite is
   its clock (`busy_timeout` runs inside SQLite); the project pins the

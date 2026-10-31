@@ -27,3 +27,9 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the ruling
 - **C61 — A listed `deleted` or `expired` character is skipped with a named reason, not fetched, and a character with no `league` is reported as uncovered, never a failure.** *Why:* the invalid-request threshold (N27, the 4xx budget) makes a 404 hunt a real cost, and `expired` does not mean the league ended. *Pinned:* `acquisition-plan/src/lib.rs`, `deleted_expired_and_league_less_characters_are_skipped_never_fetched`.
 - **C62 — A character changed when a listing newer than our fetch reports a different `experience` or `league`.** This is the sibling of a tab's count arm. The planner is facet-symmetric: one `Selection` serves tabs and characters, and the store's liveness rule is consumed, not restated. *Why:* the listing's experience is the cheapest evidence of play, as a tab's count is of change. *Pinned:* `acquisition-plan/src/lib.rs`, `character_freshness_reads_experience_forward_from_a_newer_listing`.
 - **C63 — `acq characters` and the MCP's `characters` tool print the full id beside the name.** A name is not resolved to an id at `policy set`, so the stored policy is what the human typed. *Why:* a policy names a character by id (C55, the id is identity), and the human needs the id to write it. *Pinned:* nothing yet.
+
+## Not doing
+
+What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
+
+- An injected clock in the store: refused. The annotation wait's seam is its knob and SQLite is its clock (`busy_timeout` runs inside SQLite); the project pins the knob's parse, the expiry verdict at zero and that two writers never clobber, in process and across processes (C35, C137). Not until the store times a wait of its own (the owner, 2026-10-31, 4-0's design).

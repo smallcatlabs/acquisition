@@ -167,6 +167,18 @@ Each in his words, with the commit that landed it.
   declaration. The variable is the one knob, no `--shell`; the daemon
   quotes for the `ACQ_SHELL` it was started with (the commit carrying
   this line).
+- 2026-10-31, 4-0's design (`briefs/4-0-design.md` §7): "Accept as
+  drafted." C157 (a lifecycle that waits is a value: time enters as a
+  named deadline's event and leaves as a request to arm one, the
+  socket, the process, the file system and the clock in a driver; a
+  machine pinned by event scripts, a driver by real-wiring tests
+  asserting no duration); C137's last sentence amended to name it;
+  `decisions/store.md` gains "Not doing", the injected store clock
+  refused (SQLite is its clock, the knob its seam); the store's fixed
+  waits under one knob, `ACQ_STORE_WAIT`, beside `ACQ_ANNOTATION_WAIT`
+  (#148); the machines on #147, then t5 (#141) after a spike; step 1
+  during sittings, step 2 between them, the spike and t5 at his word
+  (the commit carrying this line).
 
 ## Roles
 
@@ -264,7 +276,9 @@ leaves the list when its step closes or the owner strikes it.
 1. 4-0, the time seam, after #146 (the ruling of 2026-10-31): a design session
    with Fable over `TIME-SEAM.md` §4 and §6 and `TEST-SHAPE.md` §4,
    ruled by the owner, then the build; t5 (#141) rides inside it. The
-   machine is the owner's during a league sitting.
+   machine is the owner's during a league sitting. The design is
+   `briefs/4-0-design.md`, ruled 2026-10-31; the build is #147 (its
+   three steps), then #141, then #148.
 2. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
@@ -354,7 +368,9 @@ the owner's league run, at his word; its first seat checks the words.
 Before the seat, at the owner's word of 2026-10-31: #146, then 4-0,
 the time seam. #146 closed on 2026-10-31 (`LEDGER.md`), with C156
 amended: `ACQ_SHELL` declares `posix`, `pwsh`, `powershell5` or `cmd`
-over detection. Next, 4-0, the time seam ("Pull-forward", item 1): a
-design session with Fable, not started; then Phase 3, the owner's
-league run, at his word, its first seat checking the words.
+over detection. 4-0's design closed on 2026-10-31
+(`briefs/4-0-design.md`, the rulings list), its rulings entered and
+its steps on #147, #148 and #141. Next, 4-0's build, step 1 the
+client's door (`briefs/4-0-door.md`), at his word; then Phase 3, the
+owner's league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
