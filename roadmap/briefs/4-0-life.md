@@ -1,9 +1,9 @@
 # 4-0-life — the daemon's lifecycle as a machine (#147, step 2)
 
-Cut four times: the first draft (`5a2c1725`), the re-cut (`09a777e4`)
-and the third cut (`0d3c16dc`), each reviewed cold
-(`roadmap/reviews/4-0-life-brief-<sha>.md`, the prompt beside); this
-cut answers the third review's one finding. What each finding changed is at the foot, "Taken from
+Cut five times: the first draft (`5a2c1725`), the re-cut (`09a777e4`),
+the third cut (`0d3c16dc`) and the fourth (`10472714`), each reviewed
+cold (`roadmap/reviews/4-0-life-brief-<sha>.md`, the prompt beside);
+this cut answers the fourth review's one finding. What each finding changed is at the foot, "Taken from
 the reviews". Written from three read-only reads of
 the tree at `5c9cd487` (the lifecycle code, its tests, the clock),
 after step 1 closed
@@ -282,7 +282,8 @@ this step's first concern or is filed.
    is `StopAdmitting(why)` (the rails' `begin_stopping`, the line,
    the dispatcher woken), as `exit_armed` is today one runtime turn
    after the swap (`server.rs:540–544`): the same gap as today, no
-   wider, and the watcher takes no lock (the rails' at `rails.rs:551`,
+   wider, because the loop never waits on a lock (below), and the
+   watcher takes no lock (the rails' at `rails.rs:551`,
    the log's at `daemon.rs:1161`), so its second receive
    (`start.rs:230`) is never behind one; and the machine's `cause`
    is the swap's winner; the signal watcher whole, on its own thread
@@ -320,6 +321,15 @@ this step's first concern or is filed.
      the manual clock advances on every sleep. `Clock` gains no
      `sleep_until` in this step (the dated paragraph; step 3's
      spike decides whether a parking clock takes the driver).
+   - **The loop waits on no lock**: `Judge` takes `shared`
+     (`is_idle`, `server.rs:674`), so the driver performs it on a
+     task of its own and receives `Idle` or `Busy` as an event when
+     it returns, the loop's select live meanwhile: a signal's
+     `StopAdmitting` proceeds while a judge waits behind a held
+     `shared`, as `exit_armed` on another worker does today. No other
+     effect the loop performs takes `shared`: `stop_admitting` does
+     not, `AwaitQuiet` looks through `try_lock`, `Begin` is the swap
+     and `stop_admitting`, and `leave` is the loop's last act.
    - **The one race**: `Drain` abandons `AwaitQuiet` (the drain's
      `deadline.min(now + DRAIN_POLL)` today, `server.rs:603`); the
      quiet wait's looks are the driver's, `DRAIN_POLL` kept as the
@@ -367,7 +377,15 @@ this step's first concern or is filed.
      (a job running, a stop requested, the bound zero: the hook sees
      the cut line then `Leave`; the row holds the order, this test
      the wiring). These are the holders of `exit.rs:302`'s upper
-     bound.
+     bound. And `c133_a_signal_stops_admission_while_shared_is_held`:
+     a thread holds `shared` and keeps it; the loop, judging (its
+     judge blocked on that lock), is handed `Signal { won: true,
+     why }` through the driver's own channel (no OS signal: the
+     watcher is Unix-only and not under test here); the test asserts
+     the rails are stopping (`rails().halted()` is `Some`) and the
+     line is logged before it releases the lock, under the 120 s
+     ceiling, asserting no duration. Its row is the signal's winner
+     in `Serving`.
    - Cross-process, one new test beside `daemon_signal_exit.rs`'s
      two: `c137_a_daemon_under_the_idle_knob_at_zero_exits_on_its_own`
      (the client harness starts a daemon with `ACQ_IDLE_SHUTDOWN=0`
@@ -564,3 +582,11 @@ The third review's one (`4-0-life-brief-0d3c16dc.md`):
    `exit_armed` is today one runtime turn after the swap; the stop's
    and idle's ingresses, on the main runtime, keep `begin_exit` whole
    (Do 1, Do 3).
+
+The fourth review's one (`4-0-life-brief-10472714.md`):
+
+1. A loop that judges inline waits on `shared`, so a signal's admission
+   stop could wait behind a held lock where today it does not: `Judge`
+   runs on a task of its own and answers as an event, the loop waiting
+   on no lock, pinned by a test that holds `shared` and sees the rails
+   stop on a signal before releasing it (Do 3, Do 4).
