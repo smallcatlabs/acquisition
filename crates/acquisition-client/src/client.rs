@@ -199,6 +199,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::artifact::{ArtifactVerdict, SiblingError, sibling};
+use crate::door::{Door, Effect, Ended, Event, Machine, Outcome, Timer};
 use crate::frame::{Frame, read_frame};
 use crate::locator;
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
@@ -208,7 +209,7 @@ use acquisition_protocol::protocol::{
 };
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
 use acquisition_store::world::{Lock, World, WorldError, intended_root};
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use serde::Serialize;
 use serde_json::json;
 use tokio::io::{AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
@@ -511,18 +512,6 @@ enum Handshake {
     /// No answer in time: where, and the deadline it ran under.
     Unresponsive(Endpoint, Duration),
     Failed(anyhow::Error),
-}
-
-impl Handshake {
-    /// As one error, for a door whose failures are all errors (`stop_any`).
-    fn into_error(self, holder: Option<u32>) -> anyhow::Error {
-        match self {
-            Handshake::Unresponsive(at, within) => {
-                anyhow::Error::new(Unresponsive { at, within, holder })
-            }
-            Handshake::Failed(e) => e,
-        }
-    }
 }
 
 /// The pid the world lock's file records, for an unresponsive report:
@@ -1235,27 +1224,365 @@ fn startup_within() -> Duration {
         .map_or(STARTUP_WITHIN, |v| parse_within(&v, STARTUP_WITHIN))
 }
 
-/// C137: the startup deadline of a daemon a door spawned — how long it
-/// was given, and the instant that ends. Polling past `until` finds
-/// nothing in time.
+/// C157, the door's timers as the driver runs them: how long each is
+/// given, read when it is armed, where the knobs were always read
+/// (C137): the handshake's at each hello, the startup's at each spawn.
+/// The machine names the timer; the stop's wait and the look keep their
+/// bounds inside their effects.
+fn duration(timer: Timer) -> Duration {
+    match timer {
+        Timer::Hello => hello_within(),
+        Timer::Startup => startup_within(),
+        Timer::BindPoll => Duration::from_millis(50),
+        Timer::Settle => Duration::from_millis(200),
+    }
+}
+
+/// A timer the driver armed: how long it was given, kept for the words
+/// that name it ("within Ns"), and the instant it ends.
 #[derive(Clone, Copy)]
-struct Startup {
+struct Armed {
     within: Duration,
     until: tokio::time::Instant,
 }
 
-impl Startup {
-    /// A deadline of `within`, from now.
-    fn begin(within: Duration) -> Startup {
-        Startup {
+impl Armed {
+    /// A timer of `within`, from now.
+    fn after(within: Duration) -> Armed {
+        Armed {
             within,
             until: tokio::time::Instant::now() + within,
         }
     }
 
-    /// Whether the deadline has passed: at zero, at once.
-    fn expired(&self) -> bool {
+    /// Whether it has passed, as a consult answers: at zero, at once.
+    fn passed(&self) -> bool {
         tokio::time::Instant::now() >= self.until
+    }
+}
+
+/// C86 and C137, the hello's race normalised: what completed (`None`
+/// when the deadline won) is in time only if `now` is still before the
+/// deadline, so a reply the timer had not yet fired over is late all the
+/// same, and a deadline of zero admits nothing.
+fn in_time<T>(
+    completed: Option<T>,
+    deadline: tokio::time::Instant,
+    now: tokio::time::Instant,
+) -> Option<T> {
+    completed.filter(|_| now < deadline)
+}
+
+/// C157, the door's driver: everything the machine ([`Machine`]) is
+/// not — the world, the connection in hand, the child, the clock and
+/// every timer's length and end, the typed errors and the lock holder —
+/// performing each effect with the functions the door always used and
+/// returning what it saw as one event.
+struct Driver {
+    door: Door,
+    own: Result<World, AbsentWorld>,
+    own_name: Result<String, AbsentWorld>,
+    /// The connection in hand: reached, or found by the look (C147).
+    stream: Option<(PathBuf, Stream)>,
+    /// The peer the last handshake identified.
+    client: Option<Client>,
+    /// The daemon this door spawned (C147: dropped, it is reaped), and
+    /// its exit status once a poll saw it exit.
+    child: Option<Spawned>,
+    exited: Option<std::process::ExitStatus>,
+    hello: Option<Armed>,
+    startup: Option<Armed>,
+    /// The look's bound, for the words of a lost race.
+    looked: Duration,
+    /// The unanswered hello: where, and the deadline it ran under.
+    unanswered: Option<(Endpoint, Duration)>,
+    /// The world lock's holder, read by the stop door before its
+    /// handshake.
+    holder: Option<u32>,
+    /// The failure an event carries as words, typed.
+    failure: Option<ConnectError>,
+}
+
+impl Driver {
+    /// The driver of `door` over the world it resolved, with the seam's
+    /// child and its deadline when one was given.
+    fn new(door: Door, own: Result<World, AbsentWorld>, seam: Option<(Spawned, Armed)>) -> Driver {
+        let own_name = world_name(&own);
+        let (child, startup) = seam.map_or((None, None), |(c, s)| (Some(c), Some(s)));
+        Driver {
+            door,
+            own,
+            own_name,
+            stream: None,
+            client: None,
+            child,
+            exited: None,
+            hello: None,
+            startup,
+            looked: Duration::ZERO,
+            unanswered: None,
+            holder: None,
+            failure: None,
+        }
+    }
+
+    /// Perform effects and feed back events until the machine reports.
+    async fn run(mut self, mut machine: Machine) -> (Outcome, Driver) {
+        let mut effects = machine.start();
+        loop {
+            let mut next = None;
+            for effect in effects {
+                if let Effect::Report(outcome) = effect {
+                    return (outcome, self);
+                }
+                if let Some(event) = self.perform(effect).await {
+                    next = Some(event);
+                }
+            }
+            effects = machine.step(
+                next.expect("every step of the door's machine short of its report asks to observe"),
+            );
+        }
+    }
+
+    /// Keep `error` typed and hand the machine its words.
+    fn failed(&mut self, error: ConnectError, event: fn(String) -> Event) -> Event {
+        let words = error.to_string();
+        self.failure = Some(error);
+        event(words)
+    }
+
+    /// One effect performed; the event it observed, if it observes.
+    async fn perform(&mut self, effect: Effect) -> Option<Event> {
+        match effect {
+            Effect::Connect => {
+                self.client = None;
+                let socket = match world_socket(&self.own) {
+                    Ok(socket) => socket,
+                    Err(e) => {
+                        return Some(self.failed(ConnectError::Transport(e), Event::ConnectFailed));
+                    }
+                };
+                Some(match reach(socket).await {
+                    Ok(Reached::Listening { socket, stream }) => {
+                        self.stream = Some((socket, stream));
+                        Event::Reached
+                    }
+                    Ok(Reached::Nothing) => Event::Nothing,
+                    Err((socket, e)) => self.failed(
+                        ConnectError::Transport(
+                            anyhow::Error::from(e)
+                                .context(format!("connecting to {}", socket.display())),
+                        ),
+                        Event::ConnectFailed,
+                    ),
+                })
+            }
+            Effect::SendHello => {
+                let (socket, stream) = self
+                    .stream
+                    .take()
+                    .expect("the door's machine sends hello over a connection in hand");
+                let hello = self
+                    .hello
+                    .take()
+                    .expect("the door's machine arms the hello before it sends it");
+                if self.door == Door::Stop {
+                    self.holder = lock_holder(&self.own);
+                }
+                let at = match Endpoint::world(&socket) {
+                    Ok(at) => at,
+                    Err(e) => {
+                        return Some(self.failed(ConnectError::Transport(e), Event::HelloFailed));
+                    }
+                };
+                Some(
+                    match Client::handshake(stream, at, self.own_name.clone(), hello).await {
+                        Ok(client) => {
+                            let event = Event::Identified {
+                                ours: client.daemon.is_ours(),
+                                same_world: client.daemon.world_matches(),
+                                pid: client.daemon.pid,
+                            };
+                            self.client = Some(client);
+                            event
+                        }
+                        Err(Handshake::Unresponsive(at, within)) => {
+                            self.unanswered = Some((at, within));
+                            Event::Unresponsive
+                        }
+                        Err(Handshake::Failed(e)) => {
+                            self.failed(ConnectError::Transport(e), Event::HelloFailed)
+                        }
+                    },
+                )
+            }
+            Effect::Spawn => {
+                let spawned = match &self.own {
+                    Ok(world) => spawn_daemon(world),
+                    Err(_) => Err(ConnectError::SpawnFailed {
+                        acqd: None,
+                        log: "no world to start a daemon in".into(),
+                    }),
+                };
+                Some(match spawned {
+                    Ok(spawned) => {
+                        let pid = spawned.pid;
+                        self.child = Some(spawned);
+                        Event::Spawned { pid }
+                    }
+                    Err(e) => self.failed(e, Event::SpawnFailed),
+                })
+            }
+            Effect::PollChild => Some(match self.child.as_mut().and_then(Spawned::exited) {
+                Some(status) => {
+                    self.exited = Some(status);
+                    Event::ChildExited {
+                        holder: lock_holder(&self.own),
+                    }
+                }
+                None => Event::ChildRunning,
+            }),
+            Effect::Consult(timer) => {
+                let armed = match timer {
+                    Timer::Hello => self.hello,
+                    Timer::Startup => self.startup,
+                    Timer::BindPoll | Timer::Settle => None,
+                };
+                Some(if armed.is_none_or(|a| a.passed()) {
+                    Event::Deadline(timer)
+                } else {
+                    Event::Pending(timer)
+                })
+            }
+            Effect::DropChild => {
+                self.child = None;
+                self.exited = None;
+                self.startup = None;
+                None
+            }
+            Effect::LookForWinner => {
+                self.looked = hello_within();
+                Some(match winner_listens(&self.own, self.looked).await {
+                    Ok(Some(found)) => {
+                        self.stream = Some(found);
+                        Event::Found
+                    }
+                    Ok(None) => Event::NotFound,
+                    Err(e) => self.failed(e, Event::LookFailed),
+                })
+            }
+            Effect::Stop => {
+                let stopped = self
+                    .client
+                    .as_mut()
+                    .expect("the door's machine stops the peer it identified")
+                    .stop()
+                    .await;
+                Some(match stopped {
+                    Ok(stopped) => Event::Stopped(stopped),
+                    Err(e) => self.failed(ConnectError::Transport(e), Event::StopFailed),
+                })
+            }
+            Effect::Arm(timer) => {
+                let armed = Armed::after(duration(timer));
+                match timer {
+                    Timer::Hello => self.hello = Some(armed),
+                    Timer::Startup => self.startup = Some(armed),
+                    // A pause is the operation: its deadline is its end.
+                    Timer::BindPoll | Timer::Settle => {
+                        tokio::time::sleep_until(armed.until).await;
+                        return Some(Event::Deadline(timer));
+                    }
+                }
+                None
+            }
+            Effect::Cancel(timer) => {
+                match timer {
+                    Timer::Hello => self.hello = None,
+                    Timer::Startup => self.startup = None,
+                    Timer::BindPoll | Timer::Settle => {}
+                }
+                None
+            }
+            Effect::Report(_) => unreachable!("the driver's loop answers a report"),
+        }
+    }
+
+    /// The peer the last handshake identified, for the report.
+    fn take_client(&mut self) -> Client {
+        self.client
+            .take()
+            .expect("the door's machine reports on a peer it identified")
+    }
+
+    /// The unanswered hello, naming `holder`.
+    fn unresponsive(&mut self, holder: Option<u32>) -> Unresponsive {
+        let (at, within) = self
+            .unanswered
+            .take()
+            .expect("the door's machine reports the hello it did not get answered");
+        Unresponsive { at, within, holder }
+    }
+
+    /// The typed failure behind `words`.
+    fn failure(&mut self, words: String) -> ConnectError {
+        self.failure
+            .take()
+            .unwrap_or_else(|| ConnectError::Transport(anyhow::anyhow!(words)))
+    }
+
+    /// The failure behind `words`, for a door whose failures are errors.
+    fn error(&mut self, words: String) -> anyhow::Error {
+        match self.failure(words) {
+            ConnectError::Transport(e) => e,
+            other => anyhow::Error::new(other),
+        }
+    }
+
+    /// A spawn that came to nothing, in the words the door always used.
+    fn spawn_ended(&mut self, ended: Ended) -> ConnectError {
+        let socket = || {
+            world_socket(&self.own)
+                .ok()
+                .flatten()
+                .map_or_else(|| "its socket".to_string(), |p| p.display().to_string())
+        };
+        let within = self.startup.map_or(STARTUP_WITHIN, |s| s.within).as_secs();
+        let Some(spawned) = self.child.take() else {
+            return ConnectError::Transport(anyhow::anyhow!(
+                "could not reach daemon at {} after {within}s",
+                socket()
+            ));
+        };
+        let log = match ended {
+            Ended::NotBound => format!(
+                "it did not bind {} within {within}s{}",
+                socket(),
+                startup_log_excerpt(&spawned)
+            ),
+            Ended::Exited | Ended::Lost { .. } => {
+                let status = self
+                    .exited
+                    .expect("the door's machine reports an exit a poll saw");
+                let lost = match ended {
+                    Ended::Lost { holder } => format!(
+                        "; the world's lock names pid {holder}, and no daemon \
+                         answered on its socket within {}s",
+                        self.looked.as_secs()
+                    ),
+                    Ended::Exited | Ended::NotBound => String::new(),
+                };
+                format!(
+                    "the daemon exited during startup ({status}){lost}{}",
+                    startup_log_excerpt(&spawned)
+                )
+            }
+        };
+        ConnectError::SpawnFailed {
+            acqd: Some(spawned.acqd.clone()),
+            log,
+        }
     }
 }
 
@@ -1304,245 +1631,61 @@ impl Client {
     /// this door already spawned, with its startup deadline. The door
     /// passes none; the pins of the last poll and of the replacement
     /// pass a child that has exited and a deadline already past.
+    ///
+    /// C157: the door is the machine ([`Machine`], `door.rs`), driven
+    /// here. The policy is read once, at the start: `ACQ_NO_SPAWN=1`
+    /// never starts or replaces a daemon from this process (a daemon
+    /// spawned from a non-interactive parent, cron or launchd, has no
+    /// keychain access on macOS and comes up with no session: re-soak,
+    /// 2026-08-25, caught by rail 7; the live drivers set it so their
+    /// scripts can only talk to a daemon they started themselves), and a
+    /// real-mode daemon is started by a human (C88): without a terminal on
+    /// stderr the door observes and names the remedy; the mock spawns
+    /// freely.
     async fn open_door(
         root: &Path,
         opts: ConnectOptions,
-        child: Option<(Spawned, Startup)>,
+        child: Option<(Spawned, Armed)>,
     ) -> Result<Client, ConnectError> {
-        // C137: the startup deadline of the child this door waits on,
-        // from `ACQ_STARTUP_WITHIN` read at its spawn: each child's own.
-        let (mut child, mut startup) = match child {
-            Some((spawned, startup)) => (Some(spawned), Some(startup)),
-            None => (None, None),
+        let door = Door::Use {
+            spawn: opts.spawn,
+            replace: opts.replace,
         };
-        // `ACQ_NO_SPAWN=1`: never start or replace a daemon from this
-        // process. A daemon spawned from a non-interactive parent (cron,
-        // launchd) has no keychain access on macOS — it comes up with no
-        // session and every job fails "not logged in" (re-soak, 2026-08-25,
-        // caught by rail 7). The live drivers set this so their scripts can
-        // only talk to a daemon they started themselves.
-        // C88: a real-mode daemon is started by a human. Without a
-        // terminal on stderr — an agent's shell, cron, ssh without a tty —
-        // the door observes and names the remedy; the mock spawns freely.
-        let human = human_present();
-        let spawn = opts.spawn && !no_spawn() && human;
-        let replace = opts.replace && !no_spawn() && human;
+        let machine = Machine::new(
+            door,
+            no_spawn(),
+            human_present(),
+            child.as_ref().map(|(spawned, _)| spawned.pid),
+        );
         // The world first (C83): created if this door may spawn, else
         // observed; the socket derives from it, and the same look names
         // `wanted.world` in every report this door makes.
-        let own = world_at_door(root, spawn)?;
-        let own_name = world_name(&own);
-        let mut respawned = false;
-        // C147: the error of a stop sent to replace a mismatch, reported
-        // if the next look finds that daemon still there.
-        let mut stop_failed: Option<String> = None;
-        // C147: whether this door has already given a child that exited
-        // on the world lock its one more look for the winner.
-        let mut looked_for_winner = false;
-        // The spawned daemon, with where its log ended at spawn time: if it
-        // exits instead of binding the socket, the lines after that offset
-        // are its refusal (its stderr goes to null — the log is all there is).
-        // Dropped, it is reaped (C147, `Spawned`'s drop).
-        // C147: a winner the look found, carried straight into the
-        // handshake on the next turn, never judged against the startup
-        // deadline: a found winner is identified whatever that deadline
-        // has left.
-        let mut found: Option<(PathBuf, Stream)> = None;
-        loop {
-            let reached = match found.take() {
-                Some((socket, stream)) => Ok(Reached::Listening { socket, stream }),
-                None => reach(world_socket(&own).map_err(ConnectError::Transport)?).await,
-            };
-            match reached {
-                Ok(Reached::Listening { socket, stream }) => {
-                    let at = Endpoint::world(&socket).map_err(ConnectError::Transport)?;
-                    let mut client = match Client::handshake(stream, at, own_name.clone()).await {
-                        Ok(client) => client,
-                        // Unresponsive is never absence (C86): no spawn,
-                        // no replacement — the report is the door's answer.
-                        Err(Handshake::Unresponsive(at, within)) => {
-                            return Err(ConnectError::Unresponsive(Unresponsive {
-                                at,
-                                within,
-                                holder: lock_holder(&own),
-                            }));
-                        }
-                        Err(Handshake::Failed(e)) => return Err(ConnectError::Transport(e)),
-                    };
-                    if client.daemon.is_ours() {
-                        let mut client = client;
-                        // Started here only if the daemon answering is the
-                        // child this door spawned (C147): a spawn that lost
-                        // the world reaches the winner, started elsewhere.
-                        client.spawned = child.as_ref().is_some_and(|c| c.pid == client.daemon.pid);
-                        return Ok(client);
-                    }
-                    // Another world is judged before anything else and
-                    // is never replaced (C83): the daemon is serving its
-                    // own world; only the socket collided.
-                    if !client.daemon.world_matches() {
-                        return Err(ConnectError::OtherWorld {
-                            found: Box::new(client.daemon),
-                        });
-                    }
-                    if respawned {
-                        let because = match stop_failed.take() {
-                            Some(error) => NotReplaced::StopFailed(error),
-                            None => {
-                                // #116: a daemon this door spawned and
-                                // still judged another build is stopped
-                                // before the refusal: this door started
-                                // it and nothing else uses it, and left
-                                // standing it would hold the world for
-                                // the idle hour (C3). A daemon another
-                                // process started is left as it is.
-                                let started_here =
-                                    child.as_ref().is_some_and(|c| c.pid == client.daemon.pid);
-                                let stopped = if started_here {
-                                    Some(client.stop().await.map_err(|e| format!("{e:#}")))
-                                } else {
-                                    None
-                                };
-                                NotReplaced::StillAfterRespawn { stopped }
-                            }
-                        };
-                        return Err(ConnectError::Incompatible {
-                            found: Box::new(client.daemon),
-                            because,
-                        });
-                    }
-                    if !replace {
-                        let because = if !opts.replace {
-                            NotReplaced::NeverReplaces
-                        } else if no_spawn() {
-                            NotReplaced::NoSpawn
-                        } else {
-                            NotReplaced::NoTerminal
-                        };
-                        return Err(ConnectError::Incompatible {
-                            found: Box::new(client.daemon),
-                            because,
-                        });
-                    }
-                    // Stale daemon (older build, or wrong mode): kill and
-                    // respawn — over the bootstrap plane, which works across
-                    // the mismatch (C85). A stop that fails is kept, not
-                    // dropped (C147): if the next look finds the daemon
-                    // still there, the report is the stop's error; if it
-                    // went all the same, the respawn goes ahead. A child
-                    // this door spawned is reaped after the stop.
-                    // An acknowledged stop is no failure here: the next
-                    // look decides, as before (#116's review).
-                    stop_failed = client.stop().await.err().map(|e| format!("{e:#}"));
-                    respawned = true;
-                    child = None;
-                    tokio::time::sleep(Duration::from_millis(200)).await;
-                }
-                // Once we've killed a mismatched daemon we must respawn it
-                // even for a `spawn: false` caller — leaving nothing running
-                // would turn a read into a stop.
-                Ok(Reached::Nothing) if spawn || respawned => {
-                    // The stopped daemon is gone: its stop's error, if
-                    // any, is not the answer.
-                    stop_failed = None;
-                    match child.as_mut() {
-                        None => {
-                            let Ok(world) = &own else {
-                                return Err(ConnectError::SpawnFailed {
-                                    acqd: None,
-                                    log: "no world to start a daemon in".into(),
-                                });
-                            };
-                            child = Some(spawn_daemon(world)?);
-                            // A spawn begins fresh: a replacement is
-                            // given the whole deadline, whatever the
-                            // child before it spent.
-                            startup = Some(Startup::begin(startup_within()));
-                        }
-                        Some(spawned) => {
-                            // An exited daemon will never bind the socket:
-                            // report its refusal now, not after the timeout
-                            // — unless it exited on a world lock another
-                            // daemon holds (C147): that one won a spawn
-                            // race and may be between the lock and the
-                            // bind, so it gets one more look first.
-                            if let Some(status) = spawned.exited() {
-                                let holder = lock_holder(&own).filter(|pid| *pid != spawned.pid);
-                                let mut lost = String::new();
-                                if let Some(pid) = holder
-                                    && !looked_for_winner
-                                {
-                                    looked_for_winner = true;
-                                    let within = hello_within();
-                                    if let Some(winner) = winner_listens(&own, within).await? {
-                                        // Not this door's daemon: the one
-                                        // it finds is handshaken next
-                                        // turn and reported as found.
-                                        found = Some(winner);
-                                        child = None;
-                                        continue;
-                                    }
-                                    lost = format!(
-                                        "; the world's lock names pid {pid}, and no daemon \
-                                         answered on its socket within {}s",
-                                        within.as_secs()
-                                    );
-                                }
-                                return Err(ConnectError::SpawnFailed {
-                                    acqd: Some(spawned.acqd.clone()),
-                                    log: format!(
-                                        "the daemon exited during startup ({status}){lost}{}",
-                                        startup_log_excerpt(spawned)
-                                    ),
-                                });
-                            }
-                        }
-                    }
-                    // Only a turn that found nothing listening reads
-                    // the deadline; a handshake turn returns or
-                    // replaces once.
-                    if startup.is_none_or(|s| s.expired()) {
-                        break;
-                    }
-                    tokio::time::sleep(Duration::from_millis(50)).await;
-                }
-                Ok(Reached::Nothing) => {
-                    // The caller's policy first: a door that never spawns
-                    // is absent by policy whatever the knob says.
-                    let because = if !opts.spawn {
-                        NotSpawned::Policy
-                    } else if no_spawn() {
-                        NotSpawned::NoSpawnEnv
-                    } else {
-                        NotSpawned::NoTerminal
-                    };
-                    return Err(ConnectError::Absent { because });
-                }
-                Err((socket, e)) => {
-                    return Err(ConnectError::Transport(
-                        anyhow::Error::from(e)
-                            .context(format!("connecting to {}", socket.display())),
-                    ));
-                }
+        let own = world_at_door(root, machine.may_spawn())?;
+        let (outcome, mut driver) = Driver::new(door, own, child).run(machine).await;
+        match outcome {
+            Outcome::Opened { started_here } => {
+                let mut client = driver.take_client();
+                client.spawned = started_here;
+                Ok(client)
             }
+            // Unresponsive is never absence (C86): no spawn, no
+            // replacement — the report is the door's answer.
+            Outcome::Unresponsive => {
+                let holder = lock_holder(&driver.own);
+                Err(ConnectError::Unresponsive(driver.unresponsive(holder)))
+            }
+            Outcome::Transport(words) | Outcome::SpawnFailed(words) => Err(driver.failure(words)),
+            Outcome::NotSpawned(because) => Err(ConnectError::Absent { because }),
+            Outcome::NotReplaced(because) => Err(ConnectError::Incompatible {
+                found: Box::new(driver.take_client().daemon),
+                because,
+            }),
+            Outcome::OtherWorld => Err(ConnectError::OtherWorld {
+                found: Box::new(driver.take_client().daemon),
+            }),
+            Outcome::SpawnEnded(ended) => Err(driver.spawn_ended(ended)),
+            other => unreachable!("a use door answered {other:?}"),
         }
-        let socket = world_socket(&own)
-            .ok()
-            .flatten()
-            .map_or_else(|| "its socket".to_string(), |p| p.display().to_string());
-        let within = startup.map_or(STARTUP_WITHIN, |s| s.within).as_secs();
-        Err(match child {
-            Some(spawned) => ConnectError::SpawnFailed {
-                log: format!(
-                    "it did not bind {socket} within {within}s{}",
-                    startup_log_excerpt(&spawned)
-                ),
-                acqd: Some(spawned.acqd.clone()),
-            },
-            None => ConnectError::Transport(anyhow::anyhow!(
-                "could not reach daemon at {socket} after {within}s"
-            )),
-        })
     }
 
     /// Observe this world's socket (C10): never spawns or replaces, and
@@ -1558,29 +1701,21 @@ impl Client {
     /// the world at `root` rather than the environment's. Creates
     /// nothing.
     pub async fn observe_at(root: &Path) -> Result<Observed> {
+        // An observer reads no spawn policy: it never spawns or replaces.
+        let machine = Machine::new(Door::Observe, false, false, None);
         let own = World::observe_at(root).map_err(absent_world);
-        let own_name = world_name(&own);
-        match reach(world_socket(&own)?).await {
-            Ok(Reached::Listening { socket, stream }) => {
-                let at = Endpoint::world(&socket)?;
-                Ok(match Client::handshake(stream, at, own_name).await {
-                    Ok(client) if client.daemon.is_ours() => Observed::Compatible(client),
-                    Ok(client) => Observed::Incompatible(client.daemon),
-                    Err(Handshake::Unresponsive(at, within)) => {
-                        Observed::Unresponsive(Unresponsive {
-                            at,
-                            within,
-                            holder: lock_holder(&own),
-                        })
-                    }
-                    Err(Handshake::Failed(e)) => return Err(e),
-                })
+        let (outcome, mut driver) = Driver::new(Door::Observe, own, None).run(machine).await;
+        Ok(match outcome {
+            Outcome::Compatible => Observed::Compatible(driver.take_client()),
+            Outcome::Incompatible => Observed::Incompatible(driver.take_client().daemon),
+            Outcome::Absent => Observed::Absent,
+            Outcome::Unresponsive => {
+                let holder = lock_holder(&driver.own);
+                Observed::Unresponsive(driver.unresponsive(holder))
             }
-            Ok(Reached::Nothing) => Ok(Observed::Absent),
-            Err((socket, e)) => {
-                Err(e).with_context(|| format!("connecting to {}", socket.display()))
-            }
-        }
+            Outcome::Transport(words) => return Err(driver.error(words)),
+            other => unreachable!("an observing door answered {other:?}"),
+        })
     }
 
     /// `daemon stop`: ask whatever daemon is listening on this world's
@@ -1595,21 +1730,24 @@ impl Client {
     /// C147, a door takes the world it acts on: [`Client::stop_any`] on
     /// the world at `root` rather than the environment's.
     pub async fn stop_any_at(root: &Path) -> Result<Option<DaemonId>> {
+        // `daemon stop` reads no spawn policy: it never spawns.
+        let machine = Machine::new(Door::Stop, false, false, None);
         let own = World::observe_at(root).map_err(absent_world);
-        let own_name = world_name(&own);
-        match reach(world_socket(&own)?).await {
-            Ok(Reached::Listening { socket, stream }) => Client::stop_over(
-                stream,
-                Endpoint::world(&socket)?,
-                own_name,
-                lock_holder(&own),
-            )
-            .await
-            .map(Some),
-            Ok(Reached::Nothing) => Ok(None),
-            Err((socket, e)) => {
-                Err(e).with_context(|| format!("connecting to {}", socket.display()))
+        let (outcome, mut driver) = Driver::new(Door::Stop, own, None).run(machine).await;
+        match outcome {
+            Outcome::Absent => Ok(None),
+            // `daemon stop` keeps its words for an acknowledged stop: it
+            // reports the daemon it asked, as before (#116's review).
+            Outcome::Stopped(_) => Ok(Some(driver.take_client().daemon)),
+            // A peer that never answers `hello` cannot be asked (C86):
+            // the error names the world lock's holder, read before the
+            // handshake.
+            Outcome::Unresponsive => {
+                let holder = driver.holder;
+                Err(anyhow::Error::new(driver.unresponsive(holder)))
             }
+            Outcome::Transport(words) | Outcome::StopFailed(words) => Err(driver.error(words)),
+            other => unreachable!("a stopping door answered {other:?}"),
         }
     }
 
@@ -1704,39 +1842,23 @@ impl Client {
         }
     }
 
-    /// The stop conversation over an open connection: identify the peer,
-    /// ask it to stop, and count only its `Stopping` as a stop. A peer
-    /// that never answers `hello` cannot be asked (C86): the error names
-    /// `holder`, the world lock's recorded pid.
-    async fn stop_over(
-        stream: Stream,
-        at: Endpoint,
-        own_world: Result<String, AbsentWorld>,
-        holder: Option<u32>,
-    ) -> Result<DaemonId> {
-        let mut client = Client::handshake(stream, at, own_world)
-            .await
-            .map_err(|e| e.into_error(holder))?;
-        // `daemon stop` keeps its words for an acknowledged stop: it
-        // reports the daemon it asked, as before (#116's review).
-        client.stop().await?;
-        Ok(client.daemon)
-    }
-
     /// The handshake over a fresh connection at `at`: who is at the other
     /// end, over the bootstrap plane (C85) so any revision answers,
     /// judged once against `own_world` — the world the door resolved.
     /// Decides nothing — the caller reads `daemon` and applies its
-    /// policy. The one exchange runs under [`hello_within`] (C86): a peer
-    /// that accepts and never answers is [`Handshake::Unresponsive`],
-    /// which every door reports as its own verdict. A reply is in time
-    /// only if it arrives before the deadline (C137): one the timer had
-    /// not yet fired over is late all the same, so a deadline of zero
-    /// expires whatever the peer does.
+    /// policy. The one exchange races `hello`, the deadline the driver
+    /// armed from [`hello_within`] (C86; C157, the one race): a peer that
+    /// accepts and never answers is [`Handshake::Unresponsive`], which
+    /// every door reports as its own verdict, and the race abandons the
+    /// exchange and its connection. A reply is in time only if it arrives
+    /// before the deadline (C137, [`in_time`]): one the timer had not yet
+    /// fired over is late all the same, so a deadline of zero expires
+    /// whatever the peer does.
     async fn handshake(
         stream: Stream,
         at: Endpoint,
         own_world: Result<String, AbsentWorld>,
+        hello_by: Armed,
     ) -> Result<Client, Handshake> {
         let (read, write) = tokio::io::split(stream);
         let mut reader = BufReader::new(read);
@@ -1752,17 +1874,18 @@ impl Client {
             contract: CONTRACT_REVISION.to_string(),
             world,
         };
-        let within = hello_within();
-        let deadline = tokio::time::Instant::now() + within;
-        let bytes = match tokio::time::timeout_at(
-            deadline,
+        let completed = match tokio::time::timeout_at(
+            hello_by.until,
             exchange(&mut reader, &mut write, &hello),
         )
         .await
         {
             Ok(Err(e)) => return Err(Handshake::Failed(e)),
-            Ok(Ok(bytes)) if tokio::time::Instant::now() < deadline => bytes,
-            Ok(Ok(_)) | Err(_) => return Err(Handshake::Unresponsive(at, within)),
+            Ok(Ok(bytes)) => Some(bytes),
+            Err(_) => None,
+        };
+        let Some(bytes) = in_time(completed, hello_by.until, tokio::time::Instant::now()) else {
+            return Err(Handshake::Unresponsive(at, hello_by.within));
         };
         let Some(BootstrapReply::Hello {
             version,
@@ -2176,6 +2299,52 @@ mod tests {
 
     use super::*;
 
+    impl Handshake {
+        /// As one error, for a door whose failures are all errors.
+        fn into_error(self, holder: Option<u32>) -> anyhow::Error {
+            match self {
+                Handshake::Unresponsive(at, within) => {
+                    anyhow::Error::new(Unresponsive { at, within, holder })
+                }
+                Handshake::Failed(e) => e,
+            }
+        }
+    }
+
+    impl Client {
+        /// The stop conversation over an open connection, as `daemon
+        /// stop` holds it: identify the peer, ask it to stop, and count
+        /// only its `Stopping` as a stop. A peer that never answers
+        /// `hello` cannot be asked (C86): the error names `holder`, the
+        /// world lock's recorded pid.
+        async fn stop_over(
+            stream: Stream,
+            at: Endpoint,
+            own_world: Result<String, AbsentWorld>,
+            holder: Option<u32>,
+        ) -> Result<DaemonId> {
+            let hello = Armed::after(duration(Timer::Hello));
+            let mut client = Client::handshake(stream, at, own_world, hello)
+                .await
+                .map_err(|e| e.into_error(holder))?;
+            client.stop().await?;
+            Ok(client.daemon)
+        }
+    }
+
+    /// C86 and C137, the hello's normalisation over values: a reply in
+    /// time only before the deadline, at it late, and none when the
+    /// deadline won. Nothing sleeps; an instant is a value here.
+    #[test]
+    fn c137_a_hello_reply_is_in_time_only_before_its_deadline() {
+        let now = tokio::time::Instant::now();
+        let later = now + Duration::from_secs(1);
+        assert_eq!(in_time(Some("hello"), later, now), Some("hello"));
+        assert_eq!(in_time(Some("hello"), now, now), None, "at the deadline");
+        assert_eq!(in_time(Some("hello"), now, later), None, "after it");
+        assert_eq!(in_time(None::<&str>, later, now), None, "the deadline won");
+    }
+
     /// A client handshaken over one end of a socket pair whose other end
     /// answers `hello` and then a stop with `stopping`, as the daemon at
     /// `at`; `linger` keeps that end open afterwards, as a daemon that
@@ -2206,7 +2375,14 @@ mod tests {
             }
         });
         let at = Endpoint::world(at).unwrap();
-        let Ok(client) = Client::handshake(ours, at, Ok("w".into())).await else {
+        let Ok(client) = Client::handshake(
+            ours,
+            at,
+            Ok("w".into()),
+            Armed::after(duration(Timer::Hello)),
+        )
+        .await
+        else {
             panic!("the handshake failed");
         };
         (client, peer)
@@ -2419,7 +2595,7 @@ mod tests {
             Client::open_door(
                 &root,
                 ConnectOptions::autonomous(true),
-                Some((spawned, Startup::begin(Duration::ZERO)))
+                Some((spawned, Armed::after(Duration::ZERO)))
             ),
             winner
         );
@@ -2532,7 +2708,7 @@ mod tests {
             Client::open_door(
                 &root,
                 ConnectOptions::interactive(true),
-                Some((spawned, Startup::begin(Duration::ZERO)))
+                Some((spawned, Armed::after(Duration::ZERO)))
             ),
             winner
         );

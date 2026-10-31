@@ -35,10 +35,11 @@
 mod harness;
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use acquisition_client::client::{
-    Client, ConnectError, ConnectOptions, NotReplaced, Observed, Signal, Subscription,
+    Client, ConnectError, ConnectOptions, Endpoint, HELLO_WITHIN, NotReplaced, Observed, Signal,
+    Subscription, Unresponsive, hello_within,
 };
 use acquisition_client::endpoint::{self, Listener, Stream};
 use acquisition_client::frame::{Frame, read_frame};
@@ -296,69 +297,24 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
     })
 }
 
-/// A peer that accepts on the session's socket and never answers: the
-/// shape of a wedged daemon. Every connection is held open until the
-/// task is aborted.
-fn silent_peer() -> tokio::task::JoinHandle<()> {
-    let socket = session_socket();
-    let mut listener =
-        Listener::bind(&socket).unwrap_or_else(|e| panic!("bind {}: {e:?}", socket.display()));
-    tokio::spawn(async move {
-        let mut held = Vec::new();
-        loop {
-            let stream = listener.accept().await.expect("accept");
-            held.push(stream);
-        }
-    })
-}
-
-/// C86: a peer that accepts and never answers `hello` is reported as
-/// unresponsive at the deadline, as its own verdict on every door —
-/// observation, the use door (which neither spawns nor replaces over it:
-/// the peer still holds the socket afterwards) and stop — naming the
-/// pid the world lock's file records. The three doors run together, so
-/// the test costs one deadline, not three. The deadline is the default
-/// (the isolation list's wider one removed), so the words are the
-/// default's; the doors are held to no upper bound, which a starved
-/// runner can miss (C137, the deadline's contract is its expiry
-/// behaviour).
-#[tokio::test]
-async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_never_replaced() {
-    let s = session("silent");
-    s.set_knob("ACQ_HELLO_WITHIN", None);
-    let peer = silent_peer();
-    // The lock a wedged daemon would still hold, with its pid in it.
-    let world = World::observe().expect("the session's world");
-    std::fs::write(world.lock_path(), "424242\n").expect("the lock file");
-    // Windows reads the holder beside the lock (a mandatory lock's file
-    // cannot be read by another process).
-    std::fs::write(Lock::pid_path(&world.lock_path()), "424242\n").expect("the pid file");
-    let socket = session_socket().to_str().expect("utf-8").to_string();
-
-    let started = Instant::now();
-    let (observed, connected, stopped) = tokio::join!(
-        Client::observe(),
-        Client::connect(ConnectOptions::interactive(true)),
-        Client::stop_any(),
-    );
-    let elapsed = started.elapsed();
-    assert!(
-        elapsed >= Duration::from_secs(5),
-        "the deadline is 5s; the doors gave up after {elapsed:?}"
-    );
-
-    let found = match observed {
-        Ok(Observed::Unresponsive(found)) => found,
-        Ok(Observed::Absent) => panic!("observed absence over a listening peer"),
-        Ok(Observed::Compatible(_)) => panic!("observed a compatible daemon over a silent peer"),
-        Ok(Observed::Incompatible(found)) => panic!("observed {found} over a silent peer"),
-        Err(e) => panic!("observation failed instead of reporting: {e:#}"),
+/// C86's words, as values: the default deadline, the holder the world
+/// lock records, the platform's kill line, and on macOS the Keychain
+/// clause before it (a healthy daemon misses the deadline at Keychain's
+/// prompts too, so the sentence says to answer them before it says to
+/// kill).
+#[test]
+fn c86_an_unresponsive_report_names_the_deadline_the_holder_and_the_hand_that_stops_it() {
+    let found = Unresponsive {
+        at: Endpoint {
+            socket: "/run/acq/silent.sock".into(),
+        },
+        within: HELLO_WITHIN,
+        holder: Some(424242),
     };
-    assert_eq!(found.at.socket, socket);
-    assert_eq!(found.holder, Some(424242));
     let sentence = found.to_string();
     assert!(
-        sentence.contains("did not answer hello within 5s")
+        sentence.contains("a daemon is listening at /run/acq/silent.sock")
+            && sentence.contains("did not answer hello within 5s")
             && sentence.contains(if cfg!(windows) {
                 "taskkill /F /PID 424242"
             } else {
@@ -366,43 +322,25 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
             }),
         "{sentence}"
     );
-    // On macOS a healthy daemon misses the deadline at Keychain's prompts
-    // too: the sentence says to answer them before it says to kill.
     assert_eq!(
         sentence.contains("if Keychain is asking"),
         cfg!(target_os = "macos"),
         "{sentence}"
     );
-
-    match connected {
-        Err(ConnectError::Unresponsive(found)) => assert_eq!(found.holder, Some(424242)),
-        Err(other) => panic!("the use door reported {other} instead"),
-        Ok(_) => panic!("the use door opened over a silent peer"),
-    }
-
-    let err = stopped.expect_err("a stop the peer never acknowledged is an error");
-    assert!(
-        format!("{err:#}").contains("did not answer hello within 5s"),
-        "{err:#}"
-    );
-
-    // Nothing spawned or replaced: the peer still holds the socket and
-    // still accepts.
-    assert!(!peer.is_finished(), "the peer is gone");
-    endpoint::connect(&session_socket())
-        .await
-        .expect("the peer still listens on the session's socket");
-    peer.abort();
-    let _ = peer.await;
-    drop(s);
 }
 
 /// C137: the handshake's deadline at zero (`ACQ_HELLO_WITHIN=0`) expires
 /// at once against a peer that answers `hello` as a healthy daemon does:
 /// every door gives the unresponsive verdict naming zero seconds, with
 /// no real waiting, because a reply is in time only before the deadline.
-/// The same peer under a deadline is identified, so the verdict was the
-/// deadline's and not the peer's. No wall-clock bound is asserted.
+/// C86, the handshake deadline: the verdict is its own on every door —
+/// observation, the use door (which neither spawns nor replaces over it)
+/// and stop — at the session's socket, naming the pid the world lock's
+/// file records. The same peer under a deadline is identified, so the
+/// verdict was the deadline's and not the peer's, and the peer still
+/// listens: nothing replaced it. The default deadline is five seconds,
+/// asserted as the arming's value (C137: the contract is the arming and
+/// the expiry, not the wait). No wall-clock bound is asserted.
 #[tokio::test]
 async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that_answers() {
     let s = session("hello-zero");
@@ -416,7 +354,17 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
         "world": World::observe().expect("the session's world").name(),
     });
     let peer = foreign_daemon(hello, json!({ "resp": "stopping" })).await;
+    // The lock a wedged daemon would still hold, with its pid in it.
+    let world = World::observe().expect("the session's world");
+    std::fs::write(world.lock_path(), "424242\n").expect("the lock file");
+    // Windows reads the holder beside the lock (a mandatory lock's file
+    // cannot be read by another process).
+    std::fs::write(Lock::pid_path(&world.lock_path()), "424242\n").expect("the pid file");
+    let socket = session_socket().to_str().expect("utf-8").to_string();
 
+    s.set_knob("ACQ_HELLO_WITHIN", None);
+    assert_eq!(hello_within(), HELLO_WITHIN);
+    assert_eq!(HELLO_WITHIN, Duration::from_secs(5));
     s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
     let (observed, connected, stopped) = tokio::join!(
         Client::observe(),
@@ -431,13 +379,19 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
         Err(e) => panic!("observation failed instead of reporting: {e:#}"),
     };
     assert_eq!(found.within, Duration::ZERO);
+    assert_eq!(found.at.socket, socket);
+    assert_eq!(found.holder, Some(424242));
     let sentence = found.to_string();
     assert!(
         sentence.contains("did not answer hello within 0s"),
         "the effective deadline, not the default: {sentence}"
     );
     match connected {
-        Err(ConnectError::Unresponsive(found)) => assert_eq!(found.within, Duration::ZERO),
+        Err(ConnectError::Unresponsive(found)) => {
+            assert_eq!(found.within, Duration::ZERO);
+            assert_eq!(found.at.socket, socket);
+            assert_eq!(found.holder, Some(424242));
+        }
         Err(other) => panic!("the use door reported {other} instead"),
         Ok(_) => panic!("the use door opened under a deadline of zero"),
     }
@@ -446,6 +400,11 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
         format!("{err:#}").contains("did not answer hello within 0s"),
         "{err:#}"
     );
+    let found = err
+        .downcast_ref::<Unresponsive>()
+        .expect("the stop's error is the unresponsive verdict");
+    assert_eq!(found.at.socket, socket);
+    assert_eq!(found.holder, Some(424242));
 
     // The same peer, the deadline the isolation list sets: identified.
     s.set_knob("ACQ_HELLO_WITHIN", Some("60"));
@@ -895,8 +854,8 @@ fn unreaped_daemons() -> Vec<String> {
 /// the winner starts: the world lock is held (here by the test, standing
 /// in for a daemon between its lock and its bind), so the daemon the use
 /// door spawns exits on it. The winner is started only once the door has
-/// reaped that child — the door has seen it exit, and is looking — and
-/// then only after a hold, so its start comes late. The door's answer is
+/// reaped that child — the door has seen it exit, and is looking — so
+/// its start comes after the look began. The door's answer is
 /// the look's: it opens on the winner, a daemon it did not start, rather
 /// than reporting a failed spawn.
 ///
@@ -904,9 +863,11 @@ fn unreaped_daemons() -> Vec<String> {
 /// behaviour at expiry). The loser's exit is the lock's doing, seen in
 /// its refusal in the log; the reaper's wait is seen in the process
 /// table, the child gone from it; the winner's start is the test's own
-/// act after both. The look's bound is the handshake's knob at its
-/// largest, not the isolation list's sixty seconds, so however long a
-/// starved runner takes to start the winner, the look outlasts it; and
+/// act after both. How late a winner may come is the look's own
+/// property (`look_until`, pinned in `client.rs`), not this test's: the
+/// look's bound is the handshake's knob at its largest, not the
+/// isolation list's sixty seconds, so however long a starved runner
+/// takes to start the winner, the look outlasts it; and
 /// the startup deadline is its knob at its largest too, so however long
 /// the loser takes to reach the lock and exit, the door is still
 /// waiting on it. A door that never answers is ended by the runner's
@@ -932,8 +893,6 @@ async fn c147_a_spawn_race_is_won_however_late_the_winner_starts() {
         {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        // The winner's start, held: late, as a starved runner's is.
-        tokio::time::sleep(Duration::from_secs(2)).await;
         drop(held);
         let (winner, _said) = harness::spawn_drained(
             harness::daemon_command(&acqd_built(), &s.base),

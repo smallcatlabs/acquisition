@@ -22,6 +22,7 @@
 
 pub mod artifact;
 pub mod client;
+mod door;
 pub mod endpoint;
 pub mod frame;
 #[cfg(test)]
