@@ -21,7 +21,9 @@
 //! The install lines download, so no test runs them; what a test can
 //! hold of them is held here: every archive the README names is one the
 //! release workflow makes, for this version, and every target it makes is
-//! named.
+//! named; a download fetches one of those archives or `SHA256SUMS`, the
+//! one other file the release makes, which the steps check the archive
+//! against.
 
 use crate::harness;
 use harness::{StopOnDrop, acq, login_with, scratch, scratch_tmp, sockets_under, sole_json};
@@ -238,18 +240,21 @@ fn the_install_lines_name_the_archives_the_release_makes() {
     }
     let tag = format!("v{version}");
     let mut urls = 0;
+    let mut sums = 0;
     for (i, _) in text.match_indices("/releases/download/") {
         let rest = &text[i + "/releases/download/".len()..];
         let url = &rest[..rest.find(char::is_whitespace).unwrap_or(rest.len())];
         let (at, file) = url.split_once('/').unwrap_or((url, ""));
         assert_eq!(at, tag, "a download URL names another tag: {url}");
         assert!(
-            made.iter().any(|m| m == file),
-            "a download URL names no archive the release makes: {url}"
+            file == "SHA256SUMS" || made.iter().any(|m| m == file),
+            "a download URL names neither an archive the release makes nor SHA256SUMS: {url}"
         );
         urls += 1;
+        sums += usize::from(file == "SHA256SUMS");
     }
     assert!(urls > 0, "the README downloads nothing");
+    assert!(sums > 0, "the README fetches no SHA256SUMS to check against");
 }
 
 #[test]

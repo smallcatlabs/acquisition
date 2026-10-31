@@ -43,13 +43,24 @@ this page names is in the repository, not the archive.
 | Linux ARM64 | `acquisition-1.0.0-alpha.1-aarch64-unknown-linux-gnu.tar.gz` |
 | Windows x86_64 (and Windows on ARM, emulated) | `acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip` |
 
-On macOS and Linux, fetch it with your platform's name, check it and
-unpack it:
+On macOS and Linux, fetch it with your platform's name and
+`SHA256SUMS` beside it, check it and unpack it:
 
 ```sh
 curl -LO https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-alpha.1/acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz
-shasum -a 256 acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz   # the digest SHA256SUMS lists for it
+curl -LO https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-alpha.1/SHA256SUMS
+shasum -a 256 -c --ignore-missing SHA256SUMS   # prints OK for the archive; on Linux, sha256sum -c --ignore-missing SHA256SUMS
 tar -xzf acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz
+```
+
+On Windows, in PowerShell, fetch the `.zip` and `SHA256SUMS`, check it
+and extract it:
+
+```powershell
+Invoke-WebRequest -OutFile acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-alpha.1/acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip
+Invoke-WebRequest -OutFile SHA256SUMS https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-alpha.1/SHA256SUMS
+(Get-FileHash acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip).Hash -eq (Select-String -SimpleMatch acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip SHA256SUMS).Line.Split(' ')[0]   # True
+Expand-Archive acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip
 ```
 
 Keep the three binaries together: `acq` starts the `acqd` beside it.
@@ -63,9 +74,8 @@ is; the link is followed.
 - **Linux**: built on Ubuntu 22.04, so glibc 2.35 or newer. The login
   is kept in the Secret Service (GNOME Keyring, or KWallet), unlocked
   in your desktop session.
-- **Windows**: download the `.zip` from the release page, check
-  `Get-FileHash` on it against `SHA256SUMS`, and extract it. The
-  binaries are not signed, so Windows may show a SmartScreen prompt.
+- **Windows**: the binaries are not signed, so Windows may show a
+  SmartScreen prompt.
   Add the directory to your `PATH`; do not symlink `acq`.
 
 On every platform, run `acq` at your desktop, not over ssh: over ssh
