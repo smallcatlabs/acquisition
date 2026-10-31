@@ -1,7 +1,11 @@
 # 4-0-life — the daemon's lifecycle as a machine (#147, step 2)
 
-Written from three read-only reads of the tree at `5c9cd487` (the
-lifecycle code, its tests, the clock), after step 1 closed
+Re-cut from the cold review of the first draft (`5a2c1725`, saved
+verbatim at `roadmap/reviews/4-0-life-brief-5a2c1725.md` with its
+prompt beside): the eight findings and what each changed are at the
+foot, "Taken from the review". Written from three read-only reads of
+the tree at `5c9cd487` (the lifecycle code, its tests, the clock),
+after step 1 closed
 (`4-0-door.md`, `LEDGER.md`'s row of 2026-10-31). Where this brief
 is narrower than the design, the dated paragraph under
 `4-0-design.md` §4 records it, with the owner's grant of autonomy of
@@ -27,12 +31,20 @@ per wait, as the third brief review asked: the idle deadline enters
 the machine because its expiry is the lifecycle's decision (exit) and
 it had no pin at all; the drain's deadline enters because it orders
 against the quiet (cut or clean), and its only pin asserted elapsed
-time (`exit.rs:302`); the second signal orders against the drain and
-enters. The quiet wait (`InFlight` empty), the verdict itself
+time (`exit.rs:302`). The first cause's race to arm the exit is
+decided where it is decided today, at each ingress by one atomic
+swap (`daemon.rs:230`), and the machine learns the winner as data.
+The second signal is the watcher's own forced end, a driver backstop
+that must stay available while the loop checkpoints (C133), so it is
+no transition. The quiet wait (`InFlight` empty), the verdict itself
 (`is_idle`, pure and pinned by `idle.rs` on a manual clock), the exit
-bound's OS thread (C133, real by design), the accept backoff and the
-login's three bounds stay driver effects with their bounds inside:
-each is one value to the lifecycle, and each has its pin.
+bound's OS thread (C133, real by design) and the accept backoff stay
+driver effects with their bounds inside, each one value to the
+lifecycle with its pin; the login's three bounds are the login
+lifecycle's, out of scope (the browser wait pinned at zero,
+`tests/login.rs:680`; the profile wait's pin is `queue.rs:1668`'s
+broken-queue answer, not its expiry: a gap for #131 to file, not this
+step's).
 
 ## Read
 
@@ -169,91 +181,102 @@ this step's first concern or is filed.
    boundary: the machine holds data only; every handle (the daemon,
    `Exit`, the stop connection, the signal streams, the `InFlight`
    snapshot, the log), every instant and every duration is the
-   driver's.
+   driver's. The module holds the machine alone; the driver is
+   `server.rs`'s (Do 3).
 
-   Construction inputs: none but the machine's own initial state (the
-   knob and the bound are the driver's durations).
+   Construction inputs: none (the knob and the bound are the
+   driver's durations).
 
-   State: `enum State { Serving, Draining, Done }` and the fields
-   `cause: Option<Cause>` (`enum Cause { Idle, Stop, Signal }`, the
-   first cause, which wins: `arm`'s swap at `daemon.rs:230`) and
-   `signals: u8` (how many signals the watcher has delivered: the
-   first begins or is only logged, the second ends at once,
-   `start.rs` 209–236).
+   State: `enum State { Serving, Draining, Done }` and one field,
+   `cause: Option<Cause>` (`enum Cause { Idle, Stop, Signal }`), set
+   from the event that reports the swap won.
 
    Event, one per observation the driver returns: `Deadline(Timer)`;
-   `Idle`, `Busy` (the verdict's answers to `Judge`); `StopRequested`
-   (`daemon_stop` read, `server.rs:189`); `Signal` (one signal, the
-   driver keeping its name and number); `Quiet` (nothing in flight:
-   `InFlight::is_empty`, `server.rs:789`).
+   `Idle`, `Busy` (the verdict's answers to `Judge`); `ExitArmed {
+   won: bool }` (the answer to `Begin`, the idle cause's own swap);
+   `StopRequested { won: bool }` (`daemon_stop` read and the
+   connection's task having swapped `Exit::arm` itself, as
+   `begin_exit` does today, `server.rs:189–191`, `550–556`; `won` is
+   the swap's result); `Signal { won: bool, why: String }` (a first
+   signal, the watcher having swapped on its own thread as today,
+   `start.rs:221`, `why` the words it built at 219); `Quiet` (nothing
+   in flight: `InFlight::is_empty`, `server.rs:789`).
 
    Effect, one per operation the driver performs: `Arm(Timer)`,
    `Cancel(Timer)`, `Judge` (the driver's `is_idle` with the knob,
-   `server.rs:671`, answered `Idle` or `Busy`), `Begin(Cause)` (the
-   driver's `Exit::arm` with the cause's words, lock-free, then
-   `stop_admitting`: the rails' `begin_stopping`, the log line, the
-   dispatcher woken, `server.rs:563–567`; the bound's OS thread is
-   armed inside it as today, `daemon.rs:236–246`), `AwaitQuiet` (the
-   driver's wait for `InFlight` empty: `try_lock` and look, a pause
-   of `DRAIN_POLL` between looks, `server.rs:584–603`), `Cut` (the
-   log line from the last snapshot the driver saw, `server.rs:593–601`),
-   `Leave { checkpoint: bool, code: i32 }` (the driver's `leave` at
-   `server.rs:616` when `checkpoint`, else `end_at_once` at
-   `daemon.rs:255`, 128 + n for a second signal, `start.rs:230–236`).
+   `server.rs:671`, answered `Idle` or `Busy`), `Begin` (the idle
+   cause's `Exit::arm` with its words, "idle timeout; exiting",
+   lock-free, answered `ExitArmed`), `StopAdmitting(Cause)` (the
+   rails' `begin_stopping`, the cause's log line, the dispatcher
+   woken, `server.rs:563–567`), `AwaitQuiet` (the driver's wait for
+   `InFlight` empty: `try_lock` and look, a pause of `DRAIN_POLL`
+   between looks, `server.rs:584–603`), `Cut` (the log line from the
+   last snapshot the driver saw, `server.rs:593–601`), `Leave` (the
+   driver's `leave`, `server.rs:616`: the checkpoints, the socket,
+   exit 0). The second signal's forced end and the bound thread's are
+   the driver's backstops, never effects (Do 3).
 
    `enum Timer { Idle, Drain }`: the machine names a timer; its
-   duration is the driver's (Do 3). The bound thread's deadline
-   (bound plus grace) is not a machine timer: it is the driver's
-   backstop, real by design (C133, `4-0-design.md` §3).
+   duration and its end are the driver's (Do 3).
 
    `step(&mut self, event) -> Vec<Effect>`, pure: no `async`, no
    `tokio`, no `Instant`, no `Duration`, no I/O type, no `Arc`, no
    lock in the module. The transitions, turn for turn as the code
-   decides today: in `Serving`, `Deadline(Idle)` judges; `Busy` arms
-   `Idle` again; `Idle` begins with cause `Idle`; `StopRequested`
-   begins with cause `Stop`; the first `Signal` begins with cause
-   `Signal`; a begin is `Begin(cause)`, `Cancel(Idle)`, `Arm(Drain)`,
-   `AwaitQuiet`, and the state is `Draining`. In `Draining`:
-   `StopRequested` and a first `Signal` do nothing (the stop's
-   connection pends, `server.rs:529–531`; the signal is only logged,
-   `start.rs:225–229`, the driver's line); a second `Signal` is
-   `Leave { checkpoint: false, code: 128 + n }` (the driver holds n);
-   `Quiet` is `Cancel(Drain)`, `Leave { checkpoint: true, code: 0 }`;
-   `Deadline(Drain)` is `Cut`, `Leave { checkpoint: true, code: 0 }`
-   (the drain's return is discarded today, `server.rs:532`: cut or
-   clean differ only in the log); `Deadline(Idle)`, `Idle` and `Busy`
-   do nothing. In `Done`, every event does nothing. An event a state
-   cannot receive is not a panic here: the driver's sources (the
-   timers, the stop channel, the signals, the quiet wait) race, and a
-   late one is dropped by the row that does nothing.
+   decides today: in `Serving`, `Deadline(Idle)` is `Judge`; `Busy`
+   is `Arm(Idle)`; `Idle` is `Begin`; `ExitArmed { won: true }`,
+   `StopRequested { won: true }` and `Signal { won: true }` each set
+   the cause and are `Cancel(Idle)`, `StopAdmitting(cause)`,
+   `Arm(Drain)`, `AwaitQuiet`, the state `Draining`; any of the three
+   with `won: false` is nothing (the swap's winner's own event comes,
+   or came). In `Draining`: `StopRequested` and `Signal` with any
+   `won` are nothing (the stop's connection pends, `server.rs:529–531`;
+   the signal is only logged, `start.rs:225–229`, the driver's line);
+   `Quiet` is `Cancel(Drain)`, `Leave`; `Deadline(Drain)` is `Cut`,
+   `Leave` (the drain's return is discarded today, `server.rs:532`:
+   cut or clean differ only in the log); `Deadline(Idle)`, `Idle`,
+   `Busy` and `ExitArmed` are nothing. `Leave` moves the state to
+   `Done`, where every event is nothing: the driver performs `Leave`
+   last and the process ends in it. An event a state cannot use is
+   dropped by a row that does nothing, never a panic: the driver's
+   sources race.
 
 2. **The runner and the table**: `drive(machine, script)` as
    `door.rs`'s, in the daemon's test support, and a table of rows,
    each a name, a script and the expected effects, written from the
    rulings and the code's comments, never from running the driver.
    Rows cover at least: the idle deadline judged busy then armed
-   again; judged idle, the exit begun by idle; a stop begins the exit
-   (C133's refusal: `Begin` before anything else); a signal begins
-   it; the second cause does nothing (stop after idle, stop after
-   stop, signal after stop); the second signal leaves at once without
-   a checkpoint; quiet before the drain's deadline leaves clean;
-   the drain's deadline cuts then leaves; a late idle deadline during
-   the drain does nothing; every event in `Done` does nothing. The
+   again; judged idle, `Begin`, the swap won, the exit begun by idle;
+   judged idle, the swap lost, nothing, then the winner's own event
+   (a stop with `won`) begins it; a stop begins the exit; a signal
+   begins it; the second cause does nothing (a stop after idle, a
+   stop after a stop, a signal after a stop, each with `won: false`
+   and, in `Draining`, with `won: true` too); quiet before the
+   drain's deadline leaves clean; the drain's deadline cuts then
+   leaves; a late idle deadline, verdict or `ExitArmed` during the
+   drain does nothing; every event in `Done` does nothing. The
    table's run time goes in the report, asserted by nothing (C137).
 
-3. **The driver**: `idle_watchdog`, `exit`, `exit_armed`, the stop
-   path's call and the signal watcher's two arms rewritten as one
-   loop over `step` in `server.rs` (or `life.rs`'s driver half; the
-   worker chooses and says), the loop awaiting its sources (the armed
-   timers, the stop requests, the signals, the quiet wait) and
-   performing each effect with the functions that exist (`is_idle`,
-   `Exit::arm`, `stop_admitting`, `InFlight::of`, `leave`,
-   `end_at_once`). The signal watcher keeps its own thread and
-   runtime (`start.rs:120–123`) and hands each signal to the loop as
-   an event; `Exit::arm` keeps its lock-free swap, and `begun` stays
-   the atomic `refuse_while_stopping` reads (`server.rs:515`), so a
-   request is refused the moment the exit begins, before the loop's
-   next turn. The driver owns:
+3. **The driver**: `idle_watchdog`, `exit`, `exit_armed` and the
+   stop path's call rewritten as one loop over `step` in
+   `server.rs`, the loop awaiting its sources (the armed timers, the
+   stop requests, the signals, the quiet wait) and performing each
+   effect with the functions that exist (`is_idle`, `Exit::arm`,
+   `stop_admitting`, `InFlight::of`, `leave`). What stays at the
+   ingress, outside the loop, as today: every cause's swap of
+   `Exit::arm` (the stop's connection task at `server.rs:550`, the
+   watcher at `start.rs:221`, the loop itself for idle), so
+   `refuse_while_stopping` (`server.rs:515`) refuses the moment the
+   first cause arms, before any loop turn, and the machine's `cause`
+   is the swap's winner; the signal watcher whole, on its own thread
+   and runtime (`start.rs:120–123`): a signal before the daemon is
+   built exits at 217, the first signal swaps and hands `Signal {
+   won, why }` to the loop, the second signal calls `end_at_once`
+   itself (`start.rs:230–236`: no lock, no checkpoint, the socket
+   removed, 128 + n), available while the loop is inside `Judge`,
+   `stop_admitting` or `leave`'s checkpoints; the stop's connection
+   task, which hands `StopRequested { won }` to the loop and then
+   pends until the process ends (`server.rs:186–191`). The driver
+   owns:
 
    - **The durations**, one table `fn duration(timer) -> Duration`:
      `Drain` from `EXIT_BOUND` or the `Exit`'s bound (the tests'
@@ -279,16 +302,23 @@ this step's first concern or is filed.
      quiet wait's looks are the driver's, `DRAIN_POLL` kept as the
      pause between them. `Idle` abandons nothing: its deadline is a
      source the loop awaits beside the others.
-   - **The sources' order on a tie**: a `Quiet` ready at the poll the
-     drain's deadline passes is delivered first (today's loop looks
-     before it reads the clock, `server.rs:584–593`); a stop or a
-     signal ready with a deadline is delivered before it (the cause
-     that reached `arm` first wins today, and a deadline is never a
-     cause). One `biased` select, its order stated in a comment.
+   - **The drain's end, normalised**: `Arm(Drain)` sleeps until the
+     exit's own absolute deadline, set by the swap at the ingress
+     (`daemon.rs:233`), never `now + bound` read again at the loop's
+     turn; and before `Deadline(Drain)` is delivered the driver takes
+     one more non-blocking look (`try_lock`, `InFlight::of`): quiet
+     is `Quiet`, not quiet is `Deadline(Drain)` with that snapshot
+     for `Cut`, the lock held keeps the last snapshot seen (today's
+     loop looks before it reads the clock, `server.rs:584–593`, and
+     reports the last it saw, 595). A stop or a signal ready with a
+     deadline is delivered before it (a deadline is never a cause).
+     One `biased` select, its order stated in a comment.
    - **Timer lifetimes**: `Idle` armed at the loop's start and after
-     each `Busy`, cancelled at `Begin`; `Drain` armed at `Begin`,
-     ended by `Quiet` or its own expiry; the bound thread armed inside
-     `Begin`, never cancelled (a leave ends the process first).
+     each `Busy`, cancelled when the winner's event begins the exit;
+     `Drain` armed then, at the exit's deadline, ended by `Quiet` or
+     its own expiry; the bound thread armed inside `Exit::arm` at the
+     ingress, as today (`daemon.rs:236–246`), never cancelled (a
+     leave ends the process first).
    - **The words**: every log line as today (`"idle timeout;
      exiting"`, `"{first} received; exiting"`, `"stop requested;
      exiting"`, `"exit: nothing in flight"`, the cut line, the second
@@ -338,16 +368,23 @@ this step's first concern or is filed.
      hold).
    - `exit.rs:424`: the upper bound goes; the lower bound (`waited >=
      bound + grace`, which slowness cannot miss) and the code stay;
-     the bound thread is real by design and this test is its one
-     pin.
+     the holder thread holds `shared` until the test releases it
+     after the end is received (today it lets go after 2500 ms, 404,
+     a second margin), and the end is received under the 120 s hang
+     ceiling (today `recv_timeout(2s)`, 420, a third); the bound
+     thread is real by design and this test is its one pin.
    - `exit.rs:60` and `harness.rs:613`: the 3 s ceilings over the
      5 ms polls become the 120 s hang ceiling (#131's "small each").
    - `exit.rs:366`: the 20 ms sleep goes; the row "the second cause
      does nothing" holds the property, the test keeps its assertion
      that the deadline is unchanged.
    - The four `settle`-then-not-finished tests (85, 116, 503, 566)
-     keep their wiring (what `InFlight` counts) with `BOUND` raised to
-     the knob's largest so it cannot expire before the release; their
+     keep their wiring (what `InFlight` counts) under a bound of
+     their own, `HELD`, one hour (past the 120 s ceiling, safely
+     added to an instant), so it cannot expire before the release;
+     `BOUND` stays 3 s where it is the budget that tells a prompt
+     release from a waited-out hold (449, 456, 480) and elsewhere
+     (168, 319, 363); their
      ordering (Draining stays until Quiet) is a row. The `settle`
      sleeps stay: a sleep that proves a wait false-passes and never
      flakes (#131's second list), and their replacement by a state
@@ -383,8 +420,11 @@ this step's first concern or is filed.
   duration constant or its knob's parser; the driver's `duration`
   table; the driver's arming and the one race; the bound thread
   (`daemon.rs` 236–245, unchanged); the accept backoff (`start.rs:720`,
-  unchanged); the panic hook's uptime (`start.rs:297`); `mod tests`.
-  A line that fits no class fails the step. `IDLE_POLL`'s
+  unchanged); the panic hook's uptime (`start.rs:297`); `mod tests`;
+  not a wait (a definition, an `impl`, a comment, a string literal,
+  an unrelated identifier such as `check_sleep` at `daemon.rs:160`),
+  named as such. The grep is an inventory; the classification is the
+  check, and a line that fits no class fails the step. `IDLE_POLL`'s
   `sleep` (`server.rs:699`) and the drain's own `sleep_until`
   (`server.rs:603`) are gone as written, their lines in the table
   and the driver.
@@ -397,8 +437,9 @@ this step's first concern or is filed.
   `daemon_signal_exit.rs` tests are present by name and unchanged in
   what they assert.
 - `grep -rn "Daemon {" crates/acquisition-daemon/src --include=*.rs`
-  shows one construction (the builder's), the rest patterns or
-  doc, each classified in the builder commit's message.
+  shows one construction (the builder's); the type's declaration
+  (`daemon.rs:900`), every `impl Daemon`, patterns and doc are
+  classified as such in the builder commit's message.
 - Every golden under `crates/*/tests/goldens` byte-identical to the
   step's parent commit; `CLI-REFERENCE.md` and `MCP-REFERENCE.md`
   unchanged.
@@ -416,8 +457,12 @@ this step's first concern or is filed.
   (C3).
 - `InFlight`'s six parts: what the drain waits for is C133's; the
   wait is an effect.
-- The accept backoff, the login's three bounds, the mock kinds'
-  sleeps: effects, one value each, untouched.
+- The accept backoff and the mock kinds' sleeps: effects, one
+  value each, untouched. The login's three bounds: the login
+  lifecycle's, untouched; the profile wait's missing expiry pin is
+  #131's to file.
+- The second signal's forced end and a signal before the daemon is
+  built: the watcher's own, as today (`start.rs:217`, `230–236`).
 - The `settle` sleeps and the 50 ms sleep of `exit.rs:193`: #131's,
   by its own rule, after this step.
 - The `Arc::get_mut` patches in the daemon's tests.
@@ -446,3 +491,30 @@ interval while a non-timed clause holds) against an activity-driven
 wake, which would need notifications at five sites and the limiter's
 quiet instant; and whether `daemon status` should name the exit
 moment.
+
+## Taken from the review
+
+The eight findings of `roadmap/reviews/4-0-life-brief-5a2c1725.md`:
+
+1. The signal watcher's independence: it stays whole on its own
+   thread, the pre-construction exit, the first signal's swap and the
+   second signal's forced end its own; the loop sees the first signal
+   as data (Goal, Do 1, Do 3).
+2. The first cause's swap at the ingress: every cause arms where it
+   arms today and its event carries `won`; the idle cause's swap is
+   the `Begin` effect answered by `ExitArmed` (Do 1, Do 2, Do 3).
+3. The drain's boundary: `Drain` armed at the exit's absolute
+   deadline, a final look before its expiry is delivered, the last
+   snapshot kept (Do 3).
+4. The signal's payload: the second signal is no longer a transition,
+   so no code crosses into the machine; the first carries `won` and
+   its words (Do 1).
+5. `exit.rs:424`'s other margins: the holder released by the test,
+   reception under the hang ceiling (Do 5).
+6. The raised bound: `HELD`, one hour, for the four held tests only;
+   `BOUND` kept where it is a budget (Do 5).
+7. The inventories: the driver in `server.rs`; definitions, impls,
+   comments and literals a named class (done-when 3 and 6).
+8. The login profile deadline's pin: named for what it is, the login
+   lifecycle out of scope by scope, the gap #131's (Goal, Not in
+   scope).
