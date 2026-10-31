@@ -20,7 +20,14 @@ a count wider than true, and each cost a review finding. Where a brief
 changes the words or shape of a document a frontend prints, it names
 every test that asserts on that document, found by grepping the test
 trees for the old words: 2a's design named eleven, and three more
-broke.
+broke. A brief that relays an issue's text or comment re-reads each
+claim against the tree: map-before-seam relayed #65's comment naming
+`needs_account` (it is `kind_needs_account`) and an unknown kind
+recorded silently (C144 already failed it). A brief that changes a
+protocol exchange names the test fakes that answer it, found by
+grepping them: stop-means-gone's Read list missed the contract test's
+foreign daemon, which then waited out the stop's 20 s bound in two
+tests that still passed.
 
 ## Input
 What is fixed before the work starts: a measurement, a capture, a
@@ -29,7 +36,10 @@ named concretely. A step with no fixed input says so. A step whose
 work includes a sweep for a class runs the sweep before the brief is
 committed, and its Input lists the instances found, so the reviewer
 holds the commits against a fixed list (clock-tests' Do 4 ran after
-its brief). A brief that drafts a registry line (a ruling, a "Not
+its brief), and names how it measures the class, as a command:
+map-before-seam's "the sentences the step rewrote" had no definition,
+and its worker's sentence diff counted rewraps as rewrites. A brief
+that drafts a registry line (a ruling, a "Not
 doing" line) runs `python3 -I tools/bothy.py check` on it before the
 brief is committed (league-buildables' two Not-doing drafts failed
 its form). A claim about a file's history also searches
@@ -99,6 +109,15 @@ instead.
 - Each concern may commit after its own targeted tests; the one full
   gate runs on the step's tree before the "built" commit, and that
   commit waits on its exit status.
+- A step that cuts or moves prose names the committed home of each
+  reason it removes, and says what to do where the tree has moved
+  since the reason was written: map-before-seam left about 120
+  sentences in a report, its review found rationale held nowhere, and
+  of the three restored, one was a rejected alternative since built.
+- Paused tokio time (`start_paused`) needs tokio's `test-util`, which
+  changes the test build's feature graph that the gate's `features`
+  and `artifacts` stages compare; a forced interleaving uses injected
+  futures instead (stop-means-gone's pin).
 - A draft the brief names is taken verbatim unless the tree disproves
   a sentence of it; each correction is named in the report. A brief
   sentence a fix round corrects in place is marked "Settled in the
