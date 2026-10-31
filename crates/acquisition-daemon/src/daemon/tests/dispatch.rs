@@ -2099,6 +2099,103 @@ fn c158_the_wire_table_through_the_door() {
     }
 }
 
+/// C158, the blocking count's handoff (the cold review of t5 round 1,
+/// `roadmap/reviews/t5-r1-5c75e380.md`): a blocking task stays counted
+/// until a runtime task has observed its completion, so the park hook
+/// leaves the clock while that completion is in hand and not yet
+/// observed through. The test holds the observing task after it has seen
+/// the closure's end (the daemon's `blocking_probe`), with a sleeper
+/// parked on the clock, and waits for the runtime to park: the hook
+/// counts the park as held by a blocking task and moves nothing. Released,
+/// the count drops on the runtime, the handle answers the closure's
+/// value, and the next park moves the clock to the sleeper. A component
+/// test of the hook's rule (`door.daemon()`), on the door's runtime.
+#[test]
+fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
+    let clock = Arc::new(ParkingClock::new());
+    let origin = clock.now();
+    let parking = clock.clone();
+    Door::open(
+        Server::None,
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .run(|door| async move {
+        let clock = parking;
+        let daemon = door.daemon().clone();
+        let (observed_tx, observed) = tokio::sync::oneshot::channel();
+        let (go, go_rx) = tokio::sync::oneshot::channel();
+        *daemon.blocking_probe.lock().unwrap() = Some((observed_tx, go_rx));
+        let sleeper = {
+            let clock = clock.clone();
+            tokio::spawn(async move { clock.sleep(Duration::from_secs(10)).await })
+        };
+        let (release, released) = std::sync::mpsc::channel::<()>();
+        let handle = daemon.blocking(move || {
+            released.recv().unwrap();
+            7
+        });
+        release.send(()).unwrap();
+        tokio::time::timeout(HANG, observed)
+            .await
+            .expect("the completion was observed on the runtime")
+            .unwrap();
+        assert_eq!(
+            daemon
+                .blocking_in_flight
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "the closure has returned and the count is still held"
+        );
+
+        // Wait, off the runtime, for the runtime's next park.
+        let counters = door.counters();
+        let before = *counters.lock().unwrap();
+        let (parked_tx, parked) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let ceiling = std::time::Instant::now() + HANG;
+            while counters.lock().unwrap().held_by_blocking == before.held_by_blocking {
+                assert!(
+                    std::time::Instant::now() < ceiling,
+                    "the runtime never parked"
+                );
+                std::thread::yield_now();
+            }
+            let _ = parked_tx.send(());
+        });
+        tokio::time::timeout(HANG, parked)
+            .await
+            .expect("the runtime parked")
+            .unwrap();
+        let held = *door.counters().lock().unwrap();
+        assert_eq!(
+            held.advances, before.advances,
+            "no advance while the count is held: {held:?}"
+        );
+        assert_eq!(clock.now(), origin, "the clock stayed");
+        assert_eq!(clock.sleepers(), 1, "the sleeper is still parked");
+
+        go.send(()).unwrap();
+        let value = tokio::time::timeout(HANG, handle)
+            .await
+            .expect("the handle answered")
+            .unwrap();
+        assert_eq!(value, 7);
+        assert_eq!(
+            daemon
+                .blocking_in_flight
+                .load(std::sync::atomic::Ordering::SeqCst),
+            0
+        );
+        tokio::time::timeout(HANG, sleeper)
+            .await
+            .expect("the sleeper woke")
+            .unwrap();
+        assert_eq!(clock.now() - origin, Duration::from_secs(10));
+        door.finish().await;
+    });
+}
+
 // ---- C158: the clock a door scenario runs on ----
 
 /// C158, the parking clock: each sleeper wakes at its own deadline, in
@@ -2118,24 +2215,36 @@ async fn the_parking_clock_wakes_each_sleeper_at_its_own_deadline() {
             order.lock().unwrap().push((secs, clock.now() - origin));
         }));
     }
-    while clock.sleepers() < 3 {
-        tokio::task::yield_now().await;
-    }
+    tokio::time::timeout(HANG, async {
+        while clock.sleepers() < 3 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the three sleepers parked");
     {
         let mut cancelled = clock.sleep_until(origin + Duration::from_secs(10));
         assert!(futures_poll_once(cancelled.as_mut()).is_pending());
         assert_eq!(clock.sleepers(), 4);
     }
     assert_eq!(clock.sleepers(), 3, "a dropped sleep is not counted");
-    while clock.advance_to_next().is_some() {
-        while clock.sleepers() + order.lock().unwrap().len() < 3 {
+    tokio::time::timeout(HANG, async {
+        while clock.advance_to_next().is_some() {
+            while clock.sleepers() + order.lock().unwrap().len() < 3 {
+                tokio::task::yield_now().await;
+            }
             tokio::task::yield_now().await;
         }
-        tokio::task::yield_now().await;
-    }
-    for task in tasks {
-        task.await.unwrap();
-    }
+    })
+    .await
+    .expect("every sleeper woke");
+    tokio::time::timeout(HANG, async {
+        for task in tasks {
+            task.await.unwrap();
+        }
+    })
+    .await
+    .expect("every sleeper's task ended");
     assert_eq!(
         order.lock().unwrap().as_slice(),
         [

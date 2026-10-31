@@ -134,19 +134,21 @@ pub(super) struct Counters {
 struct IdleHook {
     clock: Arc<ParkingClock>,
     daemon: Arc<Daemon>,
-    counters: Counters,
+    /// Shared with the door, which reads them ([`Door::counters`]).
+    counters: Arc<Mutex<Counters>>,
 }
 
 impl IdleHook {
     fn on_idle(&mut self) {
+        let mut counters = self.counters.lock().unwrap();
         if self.daemon.choke.actual_send_occupancy().0 > 0 {
-            self.counters.held_by_send += 1;
+            counters.held_by_send += 1;
         } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
-            self.counters.held_by_blocking += 1;
+            counters.held_by_blocking += 1;
         } else if self.clock.advance_to_next().is_some() {
-            self.counters.advances += 1;
+            counters.advances += 1;
         } else {
-            self.counters.nothing_parked += 1;
+            counters.nothing_parked += 1;
         }
     }
 }
@@ -198,6 +200,8 @@ pub(super) struct Door {
     log_path: TestPath,
     fixture: Fixture,
     dispatcher: Option<tokio::task::JoinHandle<()>>,
+    /// The park hook's counters, which the hook writes.
+    counters: Arc<Mutex<Counters>>,
     finished: bool,
 }
 
@@ -300,17 +304,15 @@ impl DoorBuilder {
         let (runtime, slot) = idle_runtime();
         runtime.block_on(async {
             let door = self.build().await;
+            let counters = door.counters.clone();
             *slot.lock().unwrap() = Some(IdleHook {
                 clock: door.clock.clone(),
                 daemon: door.daemon.clone(),
-                counters: Counters::default(),
+                counters: counters.clone(),
             });
             scenario(door).await;
-            slot.lock()
-                .unwrap()
-                .take()
-                .expect("the hook stays installed for the scenario")
-                .counters
+            slot.lock().unwrap().take();
+            *counters.lock().unwrap()
         })
     }
 
@@ -401,6 +403,7 @@ impl DoorBuilder {
             log_path,
             fixture,
             dispatcher: Some(dispatcher),
+            counters: Arc::default(),
             finished: false,
         }
     }
@@ -519,10 +522,16 @@ impl Door {
         &mut self.fixture
     }
 
+    /// The park hook's counters as they stand, shared: for a component
+    /// test of the hook's rule, read from another thread while the
+    /// runtime parks. A scenario asserts nothing of them.
+    pub(super) fn counters(&self) -> Arc<Mutex<Counters>> {
+        self.counters.clone()
+    }
+
     /// The daemon itself, for the component tests that share a door. Not
     /// for a scenario's assertions: a scenario reads the protocol's
     /// answers and the journal (C158).
-    #[allow(dead_code)] // the component tests that share a door
     pub(super) fn daemon(&self) -> &Arc<Daemon> {
         &self.daemon
     }

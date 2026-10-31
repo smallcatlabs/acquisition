@@ -1118,6 +1118,17 @@ pub struct Daemon {
     /// driver is spawned.
     #[cfg(test)]
     life_probe: OnceLock<server::LifeProbe>,
+    /// A test's hold in [`Daemon::blocking`]'s observing task, taken by
+    /// the next completion: `observed` fires once the blocking task's
+    /// completion has been seen on the runtime, and the count is lowered
+    /// only when `go` fires (C158).
+    #[cfg(test)]
+    blocking_probe: Mutex<
+        Option<(
+            tokio::sync::oneshot::Sender<()>,
+            tokio::sync::oneshot::Receiver<()>,
+        )>,
+    >,
 }
 
 /// The one constructor of a [`Daemon`] (t5's "construct with a base URL, a
@@ -1292,6 +1303,8 @@ impl Builder {
             refresh_landed_hook: Mutex::new(None),
             #[cfg(test)]
             life_probe: OnceLock::new(),
+            #[cfg(test)]
+            blocking_probe: Mutex::new(None),
         })
     }
 }
@@ -1436,7 +1449,16 @@ impl Daemon {
 
     /// C158 — the daemon's one `spawn_blocking`: `f` on a blocking
     /// thread, counted in `blocking_in_flight` from before the spawn until
-    /// the closure returns (or is dropped unrun). A door scenario's park
+    /// a runtime task has observed its completion. The count is lowered
+    /// by a task of its own on the runtime, which awaits the blocking
+    /// task's raw handle and lowers it after that await returns: lowered
+    /// on the blocking thread as the closure returned, it would read zero
+    /// before tokio woke the awaiter, and a park in that handoff would
+    /// move time ahead of the continuation (the cold review of t5 round 1,
+    /// `roadmap/reviews/t5-r1-5c75e380.md`). That task runs whether the
+    /// caller awaits the handle returned or drops it (the start's restore
+    /// drops it); the handle returned is that task's, carrying `f`'s
+    /// value or its panic, and no caller aborts it. A door scenario's park
     /// hook moves virtual time only while this count and the gate's
     /// occupancy are zero, since a runtime parked beside a blocking
     /// thread is not idle: time moved under a landing or the idle
@@ -1449,7 +1471,8 @@ impl Daemon {
         self: &Arc<Self>,
         f: impl FnOnce() -> T + Send + 'static,
     ) -> tokio::task::JoinHandle<T> {
-        /// Lowers the count when the closure returns or is dropped.
+        /// Lowers the count when the runtime task that observed the
+        /// completion drops it (or the runtime drops that task).
         struct Counted(Arc<Daemon>);
         impl Drop for Counted {
             fn drop(&mut self) {
@@ -1458,9 +1481,25 @@ impl Daemon {
         }
         self.blocking_in_flight.fetch_add(1, Ordering::SeqCst);
         let counted = Counted(self.clone());
-        tokio::task::spawn_blocking(move || {
-            let _counted = counted;
-            f()
+        let raw = tokio::task::spawn_blocking(f);
+        tokio::spawn(async move {
+            let done = raw.await;
+            // A test's hold after the completion is observed and before the
+            // count drops, run once.
+            #[cfg(test)]
+            {
+                let probe = counted.0.blocking_probe.lock().unwrap().take();
+                if let Some((observed, go)) = probe {
+                    let _ = observed.send(());
+                    let _ = go.await;
+                }
+            }
+            drop(counted);
+            match done {
+                Ok(value) => value,
+                Err(e) if e.is_panic() => std::panic::resume_unwind(e.into_panic()),
+                Err(e) => panic!("a blocking task did not run to its end: {e}"),
+            }
         })
     }
 
