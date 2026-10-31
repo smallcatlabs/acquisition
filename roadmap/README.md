@@ -330,5 +330,5 @@ issues closed #64, #136, #133 and #6 and took two groups ahead of the
 time seam ("Closures, then A and B"): map-before-seam (#65, #134) and
 stop-means-gone (#130, #144), both closed the same day (`LEDGER.md`).
 The same day the owner pulled the words forward ("Pull-forward", item
-1): step `words` (`briefs/words.md`) is next, in a fresh session at his
-word. `AGENTS.md` governs; the gate is `tools/gate.sh`.
+1): step `words` (#20, #11, #101, #16; `briefs/words.md`) is built,
+its review pending: `bbd3023e` to the commit carrying this line. `AGENTS.md` governs; the gate is `tools/gate.sh`.
