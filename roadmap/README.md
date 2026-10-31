@@ -330,5 +330,9 @@ issues closed #64, #136, #133 and #6 and took two groups ahead of the
 time seam ("Closures, then A and B"): map-before-seam (#65, #134) and
 stop-means-gone (#130, #144), both closed the same day (`LEDGER.md`).
 The same day the owner pulled the words forward ("Pull-forward", item
-1): step `words` (#20, #11, #101, #16; `briefs/words.md`) is built,
-its review pending: `bbd3023e` to the commit carrying this line. `AGENTS.md` governs; the gate is `tools/gate.sh`.
+1): step `words` (#20, #11, #101, #16; `briefs/words.md`) is built
+and reviewed (`reviews/words-fd5f3d1f.md`), its fix round answered by
+C156 (printed commands are for POSIX, or PowerShell 7.3+ on Windows
+outside Git Bash) and reviewed (`reviews/words-fixes-ee0b6397.md`), and
+that review answered in `b1c09668`, both gates green there; the close
+waits for the owner's read. `AGENTS.md` governs; the gate is `tools/gate.sh`.
