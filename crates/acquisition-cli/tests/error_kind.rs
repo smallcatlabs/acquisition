@@ -292,3 +292,44 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     eprintln!("ran through: {shells:?}");
 }
+
+/// C156, the review of #146's build, its first finding: a printed
+/// command that sets variables before `acq` sets them in the declared
+/// shell's own syntax, so the no-daemon remedy's line runs as printed in
+/// each: run through every shell this machine has, with a store root
+/// holding a space, an apostrophe and `%`, `acq` reads the provider and
+/// the root the line set, and its refusal for a world with no account
+/// names that root back.
+#[test]
+fn c156_a_line_that_sets_variables_runs_as_printed_through_each_shell() {
+    let scratch = harness::scratch("shell-env");
+    let root = scratch.0.join("o'k 100% dir");
+    std::fs::create_dir_all(&root).unwrap();
+    let root_text = root.display().to_string();
+    let mut wrong = Vec::new();
+    for shell in harness::shells_here() {
+        let line = shell.with_environment(
+            &[("ACQ_PROVIDER", "mock"), ("ACQ_STORE_DIR", &root_text)],
+            "acq --json tabs",
+        );
+        let mut cmd = harness::line_in_shell(shell, &line, &scratch.0);
+        harness::isolate(&mut cmd, &scratch.0);
+        // the line sets these; the isolation's own values must not stand
+        cmd.env_remove("ACQ_PROVIDER").env_remove("ACQ_STORE_DIR");
+        cmd.env("ACQ_NO_SPAWN", "1");
+        let out = cmd.output().unwrap();
+        let said = serde_json::from_slice::<serde_json::Value>(&out.stdout)
+            .ok()
+            .and_then(|doc| doc["error"].as_str().map(str::to_string))
+            .unwrap_or_default();
+        let named = root.join("mock").display().to_string();
+        if !(said.contains(&named) && said.contains("(provider mock)")) {
+            wrong.push(format!(
+                "{shell:?}: `{line}`: {}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ));
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}

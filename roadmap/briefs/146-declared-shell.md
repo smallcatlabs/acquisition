@@ -252,7 +252,10 @@ correct for a POSIX shell. The two tables are copies.
   the four values named, pinned through the binary.
 - Every field of the census's list A carries its words beside it in
   JSON, pinned by a test that runs the array with no shell and the
-  string through the declared shell and finds the same result.
+  string through the declared shell and finds the same result; A5 and
+  A6 may instead stand on the request object beside them, as Do 4
+  allows. Settled in the round: the review of the build
+  (`reviews/146-0f6515da.md`) found the line narrower than Do 4.
 - The refusal names the declaration for the shell it saw; its golden
   holds the words.
 - On Windows the harness runs a printed non-ASCII policy undo through

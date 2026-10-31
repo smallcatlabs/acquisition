@@ -3273,6 +3273,34 @@ impl Shell {
         }
     }
 
+    /// `command`, already quoted for this shell, run with each of `env`
+    /// set, in this shell's own syntax: a POSIX shell's `NAME=value
+    /// command`; PowerShell's `$env:NAME = 'value'; command`, the value a
+    /// string expression, always single-quoted; cmd.exe's `set
+    /// NAME=value&& command`, the value caret-escaped and no space before
+    /// `&&`, which `set` would keep. PowerShell and cmd.exe have no
+    /// one-command form: the variables stay set in that window.
+    pub fn with_environment(self, env: &[(&str, &str)], command: &str) -> String {
+        let mut out = String::new();
+        for (name, value) in env {
+            match self {
+                Shell::Posix => out.push_str(&format!("{name}={} ", posix_quoted(value))),
+                Shell::Pwsh | Shell::PowerShell5 => {
+                    out.push_str(&format!("$env:{name} = {}; ", powershell_string(value)))
+                }
+                Shell::Cmd => out.push_str(&format!("set {name}={}&& ", cmd_escaped(value))),
+            }
+        }
+        out.push_str(command);
+        out
+    }
+
+    /// Whether a variable [`Shell::with_environment`] sets outlives the
+    /// command, as in PowerShell and cmd.exe.
+    pub fn keeps_environment(self) -> bool {
+        self != Shell::Posix
+    }
+
     /// One word quoted for this shell.
     pub fn quoted(self, text: &str) -> String {
         match self {
@@ -3315,15 +3343,7 @@ pub fn powershell_quoted(text: &str) -> String {
     if plain {
         return text.to_string();
     }
-    let mut out = String::from("'");
-    for c in text.chars() {
-        if matches!(c, '\'' | '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}') {
-            out.push(c);
-        }
-        out.push(c);
-    }
-    out.push('\'');
-    out
+    powershell_string(text)
 }
 
 /// Whether PowerShell's argument mode reads a bare word as a number: a
@@ -3404,10 +3424,29 @@ pub fn cmd_quoted(text: &str) -> String {
     if plain {
         return text.to_string();
     }
-    let quoted = format!("\"{}\"", crt_escaped(text, true));
+    cmd_escaped(&format!("\"{}\"", crt_escaped(text, true)))
+}
+
+/// A PowerShell string expression: always single-quoted, a quote inside
+/// doubled, the typographic single quotes included.
+fn powershell_string(text: &str) -> String {
+    let mut out = String::from("'");
+    for c in text.chars() {
+        if matches!(c, '\'' | '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}') {
+            out.push(c);
+        }
+        out.push(c);
+    }
+    out.push('\'');
+    out
+}
+
+/// `text` with every character cmd.exe reads specially escaped by a
+/// caret, `%` included, so cmd reads it outside any quote as written.
+fn cmd_escaped(text: &str) -> String {
     let mut out = String::new();
-    for c in quoted.chars() {
-        if SPECIAL.contains(c) {
+    for c in text.chars() {
+        if "()%!^\"<>&|".contains(c) {
             out.push('^');
         }
         out.push(c);

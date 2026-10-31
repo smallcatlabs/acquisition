@@ -185,6 +185,70 @@ pub fn in_shell(shell: Shell, program: &Path, rest: &str, dir: &Path) -> Command
     cmd
 }
 
+/// A whole printed line through `shell`, as a person pastes it, with
+/// this build's `acq` first on the path: the line may set variables
+/// before `acq` in the shell's own syntax (C156). The same runners as
+/// [`in_shell`], the line written as is.
+pub fn line_in_shell(shell: Shell, line: &str, dir: &Path) -> Command {
+    let bin = acq_exe().parent().expect("acq has a directory");
+    let path = std::env::join_paths(std::iter::once(bin.to_path_buf()).chain(
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+    ))
+    .expect("joining PATH");
+    let mut cmd = match shell {
+        Shell::Posix => {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg(line);
+            cmd
+        }
+        Shell::Pwsh | Shell::PowerShell5 => {
+            let script = dir.join(format!("line-{shell:?}.ps1"));
+            let bom = if shell == Shell::PowerShell5 {
+                "\u{feff}"
+            } else {
+                ""
+            };
+            std::fs::write(
+                &script,
+                format!(
+                    "{bom}[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\r\n\
+                     {line}\r\nexit $LASTEXITCODE\r\n"
+                ),
+            )
+            .expect("writing the line's script");
+            let mut cmd = Command::new(if shell == Shell::Pwsh {
+                "pwsh"
+            } else {
+                "powershell.exe"
+            });
+            cmd.args(["-NoProfile", "-NonInteractive"]);
+            if shell == Shell::PowerShell5 {
+                cmd.args(["-ExecutionPolicy", "Bypass"]);
+            }
+            cmd.arg("-File").arg(script);
+            cmd
+        }
+        Shell::Cmd => cmd_raw(line),
+    };
+    cmd.env("PATH", path);
+    cmd
+}
+
+/// `cmd.exe /d /s /c "line"`, passed raw.
+#[cfg(windows)]
+fn cmd_raw(line: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new("cmd.exe");
+    cmd.raw_arg(format!("/d /s /c \"{line}\""));
+    cmd
+}
+
+/// cmd.exe is Windows' alone.
+#[cfg(not(windows))]
+fn cmd_raw(_line: &str) -> Command {
+    panic!("cmd.exe runs only on Windows")
+}
+
 /// `cmd.exe /d /s /c ""program" rest"`, passed raw: cmd strips the outer
 /// quotes and runs the line as typed.
 #[cfg(windows)]

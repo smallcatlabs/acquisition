@@ -630,8 +630,11 @@ fn c147_the_printed_start_command_names_the_default_world_too() {
         root: default_root(),
         journal: acquisition_verbs::frontend::JournalKnob::Default,
     };
-    let command = frontend.start_command();
-    let root = acquisition_search::answer::shell_quoted(&default_root().display().to_string());
+    // the world the line names, in a POSIX shell's spelling (C156's
+    // other shells are pinned through themselves, the CLI's `c156_`)
+    use acquisition_search::answer::Shell;
+    let command = frontend.start_command_in(Shell::Posix);
+    let root = Shell::Posix.quoted(&default_root().display().to_string());
     assert!(
         command.starts_with(&format!("ACQ_PROVIDER=mock ACQ_STORE_DIR={root} ")),
         "the command does not name the frontend's world: {command}"

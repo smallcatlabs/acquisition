@@ -2345,6 +2345,29 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&restored)));
 
+    // C156, the review of #146's build, its third finding: the undo's
+    // words run with no shell from the same state put back the same row
+    // as its printed line did. The same replace again, its undo by
+    // `argv`: the prior value back, at the revision the receipt named
+    // plus one, as the line's run above.
+    let rev = at(&restored).to_string();
+    let again = write(&[
+        "price",
+        "set",
+        "item/i-map",
+        "b/o",
+        "1/5",
+        "divine",
+        "--if-revision",
+        &rev,
+    ]);
+    harness::offered_line(&again["undo"]);
+    let by_words = harness::run_argv(&base, &again["undo"], &["--json"]);
+    assert_eq!(by_words["prior"], again["written"]);
+    assert_eq!(by_words["revision"], json!(at(&again) + 1), "{by_words}");
+    assert_eq!(manual()["value"], created["written"]["value"]);
+    assert_eq!(manual()["revision"], json!(at(&by_words)));
+
     // A prior naming a retired currency: nothing puts it back, and why.
     Annotations::open_for(&base.join("mock"), UUID)
         .unwrap()

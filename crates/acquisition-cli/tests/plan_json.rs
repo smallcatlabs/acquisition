@@ -482,7 +482,13 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     assert_eq!(back["prior"], merged["written"]);
     use acquisition_search::answer::Shell;
     let mut revision = 3;
-    for shell in harness::shells_here() {
+    // Git Bash's `sh` too on Windows (the review of #146's build, its
+    // second finding): the four shells the brief names
+    let mut shells = harness::shells_here();
+    if cfg!(windows) {
+        shells.push(Shell::Posix);
+    }
+    for shell in shells {
         let name = Shell::DECLARED.iter().find(|(_, s)| *s == shell).unwrap().0;
         let out =
             harness::offline_command(&base, &["policy", "set", "--account", USER, poe2, "--json"])
@@ -509,4 +515,17 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
         );
         assert_eq!(back["prior"], merged["written"], "{shell:?}");
     }
+    // the review's third finding: from the same state, the undo's words
+    // run with no shell put the same policy back as its printed line did
+    let out =
+        harness::offline_command(&base, &["policy", "set", "--account", USER, poe2, "--json"])
+            .output()
+            .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    let merged = sole_json(&out);
+    harness::offered_line(&merged["undo"]);
+    let back = harness::run_argv(&base, &merged["undo"], &["--json"]);
+    assert_eq!(back["revision"], json!(revision + 2), "{back}");
+    assert_eq!(back["value"], serde_json::from_str::<Value>(pc).unwrap());
+    assert_eq!(back["prior"], merged["written"]);
 }

@@ -17,6 +17,7 @@
 //! than one — reads its facts, intent, ledger and daemon there, whatever
 //! the environment names.
 
+use acquisition_search::answer::Shell;
 use std::path::PathBuf;
 
 use acquisition_client::client::{Client, ConnectError, ConnectOptions, Observed};
@@ -286,33 +287,38 @@ impl Frontend {
     /// C13 (a real-mode daemon is a human's act): the shell line that
     /// starts a daemon in this world, as printed — the provider when it
     /// is not the default, and always this frontend's store root (C147,
-    /// the world it acts on), quoted for a shell, so it runs as printed
-    /// beside this frontend whatever the shell's own `ACQ_STORE_DIR`
-    /// names (the README, "Your agent"). The default root is named too:
-    /// left out, the command would start a daemon in the world the
-    /// shell's environment names.
+    /// the world it acts on), set in the declared shell's own syntax
+    /// (C156), so it runs as printed beside this frontend whatever the
+    /// shell's own `ACQ_STORE_DIR` names (the README, "Your agent"). The
+    /// default root is named too: left out, the command would start a
+    /// daemon in the world the shell's environment names.
     pub fn start_command(&self) -> String {
-        let mut world = String::new();
+        self.start_command_in(Shell::of_environment())
+    }
+
+    /// [`Frontend::start_command`] for `shell`.
+    pub fn start_command_in(&self, shell: Shell) -> String {
+        let root = self.root.display().to_string();
+        let mut env = Vec::new();
         if self.provider != GGG {
-            world.push_str(&format!(
-                "{}={} ",
-                acquisition_protocol::provider::KNOB,
-                self.provider
-            ));
+            env.push((acquisition_protocol::provider::KNOB, self.provider));
         }
-        world.push_str(&format!(
-            "ACQ_STORE_DIR={} ",
-            acquisition_search::answer::shell_quoted(&self.root.display().to_string())
-        ));
-        format!("{world}acq auth check")
+        env.push(("ACQ_STORE_DIR", root.as_str()));
+        shell.with_environment(&env, "acq auth check")
     }
 
     /// What a no-daemon refusal's `next` says: a person's act, the
-    /// command that does it.
+    /// command that does it, and where the shell keeps what it set.
     pub(crate) fn next(&self) -> String {
+        let shell = Shell::of_environment();
+        let kept = if shell.keeps_environment() {
+            ", which leaves the variables it sets in that window"
+        } else {
+            ""
+        };
         format!(
-            "a person starts one from a terminal: `{}` (the README, \"Your agent\")",
-            self.start_command()
+            "a person starts one from a terminal: `{}`{kept} (the README, \"Your agent\")",
+            self.start_command_in(shell)
         )
     }
 }
