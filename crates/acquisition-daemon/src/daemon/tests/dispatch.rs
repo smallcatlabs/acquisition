@@ -2077,6 +2077,7 @@ where
     Fut: Future<Output = (JobInfo, Outcome)>,
 {
     let (base, requests, server) = scripted_server(hold_scenario()).await;
+    let kind = clock.kind();
     let (daemon, log_path) = test_daemon(&base, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = daemon
@@ -2088,7 +2089,14 @@ where
     assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET", "GET"]);
     server.await.unwrap();
     let projection = journal_projection(&log_path);
-    finish_harness_wire(dispatcher, &log_path, &requests);
+    if kind == "system" {
+        // The wire oracle holds a harness journal to the test clock's
+        // header; the one comparison run on the system clock keeps the
+        // contract and pacing oracles and the method order asserted above.
+        finish_harness(dispatcher, &log_path);
+    } else {
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
     (projection, info.retries)
 }
 
@@ -2295,11 +2303,12 @@ fn spike_the_park_hook_drives_a_429_hold() {
                 let hook = slot.lock().unwrap().take().unwrap();
                 eprintln!(
                     "spike: park hook, 429 hold: {:?} real, {} advances, {:?} virtual, \
-                     {} parks held by a send, {} with nothing parked",
+                     {} parks held by a send, {} by a landing, {} with nothing parked",
                     real.elapsed(),
                     hook.advances,
                     hook.clock.now() - origin,
                     hook.held_by_send,
+                    hook.held_by_landing,
                     hook.nothing_parked,
                 );
                 done
@@ -2346,11 +2355,13 @@ fn park_hook_two_keys(run: usize, ignore_sends: bool) -> Vec<(String, u64)> {
                 let hook = slot.lock().unwrap().take().unwrap();
                 eprintln!(
                     "spike: park hook (ignore sends {ignore_sends}), two keys, run {run}: {:?} real, \
-                     {} advances, {:?} virtual, {} parks held by a send, {} with nothing parked",
+                     {} advances, {:?} virtual, {} parks held by a send, {} by a landing, \
+                     {} with nothing parked",
                     real.elapsed(),
                     hook.advances,
                     hook_clock.now() - origin,
                     hook.held_by_send,
+                    hook.held_by_landing,
                     hook.nothing_parked,
                 );
                 done

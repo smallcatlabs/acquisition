@@ -903,9 +903,12 @@ pub(super) async fn run_until_all_terminal(
 /// (`on_thread_park`, stable tokio) only when no task is runnable; the
 /// installed hook then advances the parking clock to its next deadline,
 /// unless a send is in flight (the gate's occupancy, C21's span from just
-/// before dispatch until the body completes), when the park is the wire's
-/// and time must not move under it. Tokio's own paused clock advances at
-/// the same point; this is that, behind the daemon's `Clock`.
+/// before dispatch until the body completes) or a landing is (C148's
+/// `landings`, each a `spawn_blocking` the runtime parks beside), when
+/// the park is the wire's or a blocking thread's and time must not move
+/// under it. Tokio's own paused clock advances at the same point; this
+/// is that, behind the daemon's `Clock`. The driver's verdict, also on a
+/// blocking thread, is counted nowhere: see the spike's Answer.
 pub(super) struct IdleHook {
     pub(super) clock: Arc<ParkingClock>,
     pub(super) daemon: Arc<Daemon>,
@@ -913,10 +916,15 @@ pub(super) struct IdleHook {
     pub(super) advances: usize,
     /// Parks that found a send in flight and left the clock.
     pub(super) held_by_send: usize,
+    /// Parks that found a landing in flight (or `shared` held) and left
+    /// the clock.
+    pub(super) held_by_landing: usize,
     /// Parks that found nothing parked on the clock.
     pub(super) nothing_parked: usize,
     /// The measurement's control: advance even with a send in flight.
     pub(super) ignore_sends: bool,
+    /// The measurement's control: advance even with a landing in flight.
+    pub(super) ignore_landings: bool,
 }
 
 /// The slot a test installs its hook in, once its daemon exists.
@@ -929,14 +937,24 @@ impl IdleHook {
             daemon,
             advances: 0,
             held_by_send: 0,
+            held_by_landing: 0,
             nothing_parked: 0,
             ignore_sends: false,
+            ignore_landings: false,
         }
     }
 
     fn on_idle(&mut self) {
+        // Never blocks: a `shared` some blocking thread holds reads as a
+        // landing in flight.
+        let landing = || match self.daemon.shared.try_lock() {
+            Ok(s) => s.landings != 0,
+            Err(_) => true,
+        };
         if !self.ignore_sends && self.daemon.choke.actual_send_occupancy().0 > 0 {
             self.held_by_send += 1;
+        } else if !self.ignore_landings && landing() {
+            self.held_by_landing += 1;
         } else if self.clock.advance_to_next().is_some() {
             self.advances += 1;
         } else {
