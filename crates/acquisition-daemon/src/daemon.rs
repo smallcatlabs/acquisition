@@ -1141,7 +1141,7 @@ pub struct Daemon {
 /// harness's: the rails off on the given clock, an in-memory queue, no
 /// session, the restore landed, no world, the login's browser wait of
 /// [`LOGIN_WITHIN`]; the exit is C133's, its bound and grace the
-/// constants', which a test replaces on the built daemon as before. The choke point
+/// constants' unless a test passes its own ([`Builder::exit`]). The choke point
 /// is built from the clock, the rails and the provider's base, and
 /// learns what the real one knows about routes. The exit's at-once end
 /// holds the daemon itself, so `run` installs it on the built daemon.
@@ -1162,6 +1162,7 @@ struct Builder {
     socket_path: Option<BoundSocket>,
     store_dir: Option<PathBuf>,
     events_capacity: usize,
+    exit: Exit,
 }
 
 impl Daemon {
@@ -1189,6 +1190,7 @@ impl Daemon {
             socket_path: None,
             store_dir: None,
             events_capacity: 256,
+            exit: Exit::default(),
         }
     }
 }
@@ -1253,6 +1255,15 @@ impl Builder {
         self
     }
 
+    /// C133: the exit, its bound and grace; the constants' by default.
+    /// A test that varies the bound passes [`Exit::with_bound`] here,
+    /// before any cause can arm it.
+    #[cfg_attr(not(test), allow(dead_code))] // `run` keeps the default
+    fn exit(mut self, exit: Exit) -> Builder {
+        self.exit = exit;
+        self
+    }
+
     /// The daemon.
     fn build(self) -> Arc<Daemon> {
         let rails = self.rails.unwrap_or_else(|| {
@@ -1298,7 +1309,7 @@ impl Builder {
             store: Mutex::new(None),
             jobs_db: Mutex::new(jobs_db),
             queue_failure: Mutex::new(None),
-            exit: Exit::default(),
+            exit: self.exit,
             restore: watch::channel(self.restore_landed).0,
             login_within: self.login_within,
             #[cfg(test)]

@@ -4,11 +4,15 @@
 //! a [`ParkingClock`] facing one fixture ([`Server`]) and runs through
 //! [`DoorBuilder::run`], which owns the runtime: it builds a
 //! current-thread runtime, constructs the fixture and the daemon inside
-//! it, spawns the dispatcher, installs the park hook ([`IdleHook`]) and
-//! awaits the scenario. Inside, the scenario sends protocol requests
-//! ([`Door::request`], the path every frontend takes), awaits a job's end
-//! or an auth answer on the daemon's events ([`Door::await_terminal`],
-//! [`Door::await_auth`]), reads the journal ([`Door::journal`]), moves
+//! it, spawns the dispatcher (and, when the scenario asks, the
+//! lifecycle's driver, [`DoorBuilder::life`]), installs the park hook
+//! ([`IdleHook`]) and awaits the scenario. Inside, the scenario sends
+//! protocol requests ([`Door::request`], the path every frontend takes)
+//! and the stop a frontend's `acq daemon stop` sends ([`Door::stop`]),
+//! awaits a job's state, its end or an auth answer on the daemon's events
+//! ([`Door::await_job`], [`Door::await_terminal`], [`Door::await_auth`])
+//! and the exit's leave ([`Door::await_leave`]), reads the journal
+//! ([`Door::journal`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
 //! [`Door::laptop_sleep`]) and ends through the oracles
 //! ([`Door::finish`]). It never polls and never yields: the runtime parks
@@ -37,6 +41,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
+use crate::daemon::server::InFlight;
 use crate::daemon::*;
 use crate::ratelimit::Clock;
 use std::future::Future;
@@ -188,6 +193,10 @@ pub(super) struct DoorBuilder {
     login_within: Option<Duration>,
     world: Option<(String, BoundSocket, PathBuf)>,
     events_capacity: Option<usize>,
+    /// The lifecycle's driver's idle knob, when the scenario asks for
+    /// the driver.
+    life: Option<Duration>,
+    exit_bound: Option<Duration>,
 }
 
 /// The door a scenario holds: the daemon behind it, reached through the
@@ -200,6 +209,10 @@ pub(super) struct Door {
     log_path: TestPath,
     fixture: Fixture,
     dispatcher: Option<tokio::task::JoinHandle<()>>,
+    /// The lifecycle's driver, when the scenario asked for it, and its
+    /// recorded leave.
+    life: Option<tokio::task::JoinHandle<()>>,
+    leave: Option<oneshot::Receiver<Option<InFlight>>>,
     /// The park hook's counters, which the hook writes.
     counters: Arc<Mutex<Counters>>,
     finished: bool,
@@ -243,6 +256,8 @@ impl Door {
             login_within: None,
             world: None,
             events_capacity: None,
+            life: None,
+            exit_bound: None,
         }
     }
 }
@@ -289,6 +304,23 @@ impl DoorBuilder {
     /// How many events a subscriber may fall behind (C85).
     pub(super) fn events_capacity(mut self, capacity: usize) -> Self {
         self.events_capacity = Some(capacity);
+        self
+    }
+
+    /// C157: the lifecycle's driver, spawned beside the dispatcher with
+    /// the idle knob at `knob`, its leave recorded for
+    /// [`Door::await_leave`] instead of ending the process. Off by
+    /// default: a scenario that does not ask has no idle deadline on the
+    /// clock, so the hook never moves time to it.
+    pub(super) fn life(mut self, knob: Duration) -> Self {
+        self.life = Some(knob);
+        self
+    }
+
+    /// C133: the exit's bound, on the daemon's clock; the daemon's
+    /// constant by default.
+    pub(super) fn exit_bound(mut self, bound: Duration) -> Self {
+        self.exit_bound = Some(bound);
         self
     }
 
@@ -394,8 +426,18 @@ impl DoorBuilder {
         if let Some(capacity) = self.events_capacity {
             builder = builder.events_capacity(capacity);
         }
+        if let Some(bound) = self.exit_bound {
+            builder = builder.exit(Exit::with_bound(bound));
+        }
         let daemon = builder.build();
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let (life, leave) = match self.life {
+            Some(knob) => {
+                let (life, leave) = spawn_life(&daemon, knob);
+                (Some(life), Some(leave))
+            }
+            None => (None, None),
+        };
         Door {
             daemon,
             clock: self.clock,
@@ -403,6 +445,8 @@ impl DoorBuilder {
             log_path,
             fixture,
             dispatcher: Some(dispatcher),
+            life,
+            leave,
             counters: Arc::default(),
             finished: false,
         }
@@ -414,6 +458,66 @@ impl Door {
     /// frontend's frame takes, with the door's own events receiver.
     pub(super) async fn request(&mut self, req: Request) -> Response {
         self.daemon.handle_request(req, &mut self.events).await
+    }
+
+    /// C133, what a frontend's `acq daemon stop` asks on the bootstrap
+    /// plane, which `Request` does not carry: the exit begun as the stop's
+    /// connection begins it (`request_stop`), its event handed to the
+    /// lifecycle's driver. The stop's connection then pends until the
+    /// process ends; the scenario reads that end through
+    /// [`Self::await_leave`].
+    #[allow(dead_code)] // the exit's scenarios, this round's second commit
+    pub(super) fn stop(&self) {
+        self.daemon.request_stop();
+    }
+
+    /// C133: the exit's leave, observed: the lifecycle's driver reached
+    /// its last act, which a running daemon performs by ending the
+    /// process. Nothing comes back: what the drain cut is read through
+    /// the protocol (a cut job is still Running, a clean one is Done) and
+    /// the journal. Needs [`DoorBuilder::life`].
+    #[allow(dead_code)] // the exit's scenarios, this round's second commit
+    pub(super) async fn await_leave(&mut self) {
+        let leave = self
+            .leave
+            .take()
+            .expect("the door runs the lifecycle's driver (`DoorBuilder::life`), once");
+        tokio::time::timeout(HANG, leave)
+            .await
+            .expect("the exit left")
+            .expect("the driver reached its leave");
+    }
+
+    /// Job `id` as `Status` reads it, the first time `predicate` holds:
+    /// at once if it already does, else re-read after each of the
+    /// daemon's job events (subscribed before the first read), the event
+    /// a hint and the snapshot the truth. For a state that is not
+    /// terminal (Running, a Waiting job with its retry spent); a job's
+    /// end is [`Self::await_terminal`]'s.
+    #[allow(dead_code)] // the exit's scenarios, this round's second commit
+    pub(super) async fn await_job(
+        &mut self,
+        id: JobId,
+        predicate: impl Fn(&JobInfo) -> bool,
+    ) -> JobInfo {
+        let mut events = self.daemon.events.subscribe();
+        tokio::time::timeout(HANG, async {
+            loop {
+                match self.request(Request::Status { id }).await {
+                    Response::Status { job } if predicate(&job) => return job,
+                    Response::Status { .. } => {}
+                    other => panic!("job {id}'s status reads {other:?}"),
+                }
+                match events.recv().await {
+                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => {
+                        panic!("the daemon's events closed")
+                    }
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("job {id} reached the state awaited"))
     }
 
     /// Job `id`'s end and outcome, as a client reads them: on the
@@ -536,7 +640,9 @@ impl Door {
         &self.daemon
     }
 
-    /// The teardown, run always: a server that answers a script is
+    /// The teardown, run always: the lifecycle's driver, if it has not
+    /// left, is aborted (and the dispatcher, as always, by the oracles'
+    /// teardown); a server that answers a script is
     /// awaited to its end (its assertions are the scenario's), the
     /// journal must exist, and the oracles the server kind selects run:
     /// the contract oracle with "never over the limit" against the mock,
@@ -544,6 +650,9 @@ impl Door {
     /// clock is manual; a script's journal is held equal to its wire too.
     pub(super) async fn finish(mut self) {
         self.finished = true;
+        if let Some(life) = self.life.take() {
+            life.abort();
+        }
         let wire = match &mut self.fixture {
             Fixture::Script { wire, server } => {
                 tokio::time::timeout(HANG, server)
