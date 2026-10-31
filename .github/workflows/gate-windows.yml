@@ -24,7 +24,10 @@ concurrency:
 
 jobs:
   gate:
-    runs-on: windows-latest
+    # As the Linux gate (C155): a push to main runs on the owner's Windows
+    # runner VM when the repository variable SELF_HOSTED_WINDOWS is 'true';
+    # everything else, every pull request above all, stays hosted.
+    runs-on: ${{ (vars.SELF_HOSTED_WINDOWS == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') && fromJSON('["self-hosted", "windows", "x64", "acq"]') || 'windows-latest' }}
     defaults:
       run:
         shell: bash
@@ -42,7 +45,10 @@ jobs:
         with:
           tool: cargo-nextest@0.9.149
 
+      # The self-hosted VM keeps its own target directory (CARGO_TARGET_DIR,
+      # outside the checkout); only a hosted runner restores a cache.
       - uses: Swatinem/rust-cache@v2
+        if: runner.environment == 'github-hosted'
         with:
           workspaces: .
 
