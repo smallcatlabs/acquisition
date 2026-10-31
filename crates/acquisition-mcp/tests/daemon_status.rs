@@ -162,12 +162,23 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
 fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
     let scratch = harness::scratch("mcp-remedy-world");
     let base = scratch.0.clone();
-    let store = acquisition_search::answer::shell_quoted(&base.join("store").display().to_string());
+    // the world the remedy names, in a POSIX shell's spelling, declared
+    // (C156; the review of #146's fix round): the other shells' syntax
+    // is pinned through themselves, the CLI's `c156_` line test
+    use acquisition_search::answer::Shell;
+    let store = Shell::Posix.quoted(&base.join("store").display().to_string());
     for (provider, prefix) in [
         ("mock", format!("ACQ_PROVIDER=mock ACQ_STORE_DIR={store} ")),
         ("ggg", format!("ACQ_STORE_DIR={store} ")),
     ] {
-        let mut mcp = Mcp::start(&base, &[("ACQ_PROVIDER", provider), ("ACQ_NO_SPAWN", "1")]);
+        let mut mcp = Mcp::start(
+            &base,
+            &[
+                ("ACQ_PROVIDER", provider),
+                ("ACQ_NO_SPAWN", "1"),
+                ("ACQ_SHELL", "posix"),
+            ],
+        );
         let result = mcp.result("cancel_job", json!({ "id": 1 }));
         let doc = harness::document(&result);
         let next = doc["next"].as_str().unwrap_or_default();
