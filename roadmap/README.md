@@ -395,7 +395,10 @@ brief (`briefs/t5-design.md`, cut three times under cold reviews)
 was ruled on 2026-10-31 ("Accept as drafted with your
 recommendations"), C158 entered. Round 1, the clock and the door
 (`briefs/t5-r1.md`), closed on 2026-10-31 (`LEDGER.md`): its build
-reviewed, one fix round reviewed clean. Next round 2's brief, `Life`
-on the clock; then rounds 3 to 6; then #148; and Phase 3, the owner's
+reviewed, one fix round reviewed clean. Round 2, `Life` on the clock
+(`briefs/t5-r2.md`, cut three times under cold reviews), closed the
+same day (`LEDGER.md`): its build reviewed, one fix round reviewed
+clean. Next round 3's brief, the families as tables; then rounds 4
+to 6; then #148; and Phase 3, the owner's
 league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
