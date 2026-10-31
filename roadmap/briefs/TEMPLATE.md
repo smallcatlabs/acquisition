@@ -73,14 +73,16 @@ rhythm is `roadmap/README.md`, "A step". What a worker adds:
 - Your own worktree and your own scratch subdirectory, named in the
   brief's launch; never another worker's. Kill only the processes you
   started.
+- Touch nothing in the tree while the gate runs: its `tree` stage fails
+  on any edit, and an edit to a source it built fails `artifacts` too.
 - A commit message names this brief's file; a count in it, like a
   size, is measured after the last edit.
 - A test rides in the commit of the fix it pins, and a breaker case in
   the commit of the check it stages (1e).
 - Each concern may commit after its own targeted tests; the one full
   gate runs on the step's tree before the "built" commit.
-- Rewrite your own unpushed commits with `git commit-tree`, then `git
-  update-ref <ref> <new> <old>`, which refuses if the branch moved;
+- Rewrite your own unpushed commits with `git commit-tree -S` (signed,
+  as every commit here is), then `git update-ref <ref> <new> <old>`, which refuses if the branch moved;
   never a reset, the working tree untouched, and each rewritten commit
   checked to compile (t4).
 - A cut or a move of prose names the committed home of each reason it
