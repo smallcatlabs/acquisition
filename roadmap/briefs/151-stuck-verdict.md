@@ -5,8 +5,8 @@ The first cut, written by the orchestrating session on 2026-11-01 from
 and E4 of its §10) and a re-read of the tree at `4eb55bc7`, every line
 number below from that tree. To be reviewed cold before a worker reads
 it, as the 4-0 and t5 briefs were; what each review changes is listed
-at the foot. Its one ruling (Do 1) is the owner's and goes to the
-registry before the code; the brief waits on his word for it.
+at the foot. Its one ruling (Do 1) was the owner's and is in the
+registry ahead of the code ("yes to all", 2026-11-01).
 
 ## Goal
 
@@ -200,18 +200,18 @@ Fixed before the work starts:
 
 ## Do
 
-1. **The ruling**, the owner's, entered before any code: C<next> in
+1. **The ruling**, the owner's, entered before any code (ruled 2026-11-01, "yes to all": C160 entered in `decisions/daemon.md`, the "Not doing" line amended, the commit carrying this line): C160, now C160, in
    `decisions/daemon.md` after C158, in the form the registry holds,
    drafted here verbatim for his word:
 
-   > - **C<next> — Every wait in the daemon's sources sleeps through its one `Clock`, and a door scenario that can never proceed fails at the park where nothing it started can run.** The sleep kind's slices and the whoami pause, the accept backoff, the login's callback bound, its read bound and the profile wait sleep through the daemon's clock; reqwest's connect and request timeouts are the one wait outside it, and a request in flight holds the gate's occupancy for their whole span; the exit bound's OS thread is no wait of the runtime's (C133). Under the door, a park that finds nothing parked on the clock, no send and no blocking task in flight and no hold of the scenario's is the runtime's word that the daemon will do nothing more, and every door wait fails there naming what it waited for; the hang ceiling is the backstop a wait outside the daemon can still reach. *Why:* a wait on tokio's own timer parks beside the clock unseen, so the hook could not tell a daemon that was finished from one that was waiting, and 48 mutants the component tests failed at once ran a scenario to its ceiling (#151). *Pinned:* nothing yet (check 12 of `tools/arch-check.sh` with its breaker, and `a_wait_the_daemon_will_never_answer_fails_at_the_park` in `acquisition-daemon/src/daemon/tests/door.rs`, prefixed with this entry's id, when built).
+   > - **C160 — Every wait in the daemon's sources sleeps through its one `Clock`, and a door scenario that can never proceed fails at the park where nothing it started can run.** The sleep kind's slices and the whoami pause, the accept backoff, the login's callback bound, its read bound and the profile wait sleep through the daemon's clock; reqwest's connect and request timeouts are the one wait outside it, and a request in flight holds the gate's occupancy for their whole span; the exit bound's OS thread is no wait of the runtime's (C133). Under the door, a park that finds nothing parked on the clock, no send and no blocking task in flight and no hold of the scenario's is the runtime's word that the daemon will do nothing more, and every door wait fails there naming what it waited for; the hang ceiling is the backstop a wait outside the daemon can still reach. *Why:* a wait on tokio's own timer parks beside the clock unseen, so the hook could not tell a daemon that was finished from one that was waiting, and 48 mutants the component tests failed at once ran a scenario to its ceiling (#151). *Pinned:* nothing yet (check 12 of `tools/arch-check.sh` with its breaker, and `c160_a_wait_the_daemon_will_never_answer_fails_at_the_park` in `acquisition-daemon/src/daemon/tests/door.rs`, when built).
 
    And one amendment to the "Not doing" line of 2026-10-31
    (`decisions/daemon.md:61`), for his word with it: after "a silent
    one waits its real timeout", the sentence "reqwest's timers are the
    HTTP client's own, which no clock of the daemon's reaches; the line
-   is structural, not deferred (C<next>)". If he rules otherwise on the
-   second clause of C<next> (the verdict), Do 2 to Do 4 and Do 6 stand on
+   is structural, not deferred (C160)". If he rules otherwise on the
+   second clause of C160 (the verdict), Do 2 to Do 4 and Do 6 stand on
    the first clause alone and Do 5 is struck; the brief is re-cut to
    say so.
 
@@ -269,7 +269,7 @@ Fixed before the work starts:
    scenario still shows a `nothing_parked` park that is neither of
    those two, the step does not build Do 5. It names the site and what
    the runtime was waiting on in the report, under "What you left out",
-   and the orchestrating session brings C<next>'s second clause back to
+   and the orchestrating session brings C160's second clause back to
    the owner narrowed to what the evidence holds. The first clause and
    its check stand either way.
 
@@ -291,7 +291,7 @@ Fixed before the work starts:
      (a `beside` door's daemon, whose counts the hook does not read);
    - `settle` and `quiet` are untouched: each is woken by the hook at
      the parks its doc names, before the verdict's branch;
-   - the pin, `a_wait_the_daemon_will_never_answer_fails_at_the_park`
+   - the pin, `c160_a_wait_the_daemon_will_never_answer_fails_at_the_park`
      in `door.rs`'s own tests: the halted daemon and the parked job of
      Input, the scenario's `await_terminal` run under
      `std::panic::catch_unwind` (the door's `run` blocks on a runtime
@@ -305,12 +305,12 @@ Fixed before the work starts:
 
 6. **Check 12 and the breakers**, one commit: in `tools/arch-check.sh`,
    after check 11, "every wait in the daemon sleeps through its clock
-   (C<next>)": under `crates/acquisition-daemon/src`, outside `/tests/`
+   (C160)": under `crates/acquisition-daemon/src`, outside `/tests/`
    and comment lines, `tokio::time::` appears only inside `impl Clock
    for SystemClock` in `ratelimit.rs` (the span found as check 10 finds
    `fn blocking`'s), each other site refused by path and line in words
    that say what to do ("sleep through the daemon's Clock, `choke.sleep`
-   or `choke.sleep_until` (C<next>)"); `auth.rs`'s three lines are under
+   or `choke.sleep_until` (C160)"); `auth.rs`'s three lines are under
    `#[cfg(test)]` and the reader must blank a `#[cfg(test)]` item's or
    module's span as it blanks comments, or the check lists them: the
    worker picks the reader's rule and the message says which. The
@@ -333,7 +333,7 @@ Fixed before the work starts:
 
 ## Done when
 
-- `decisions/daemon.md` holds C<next> as Do 1 drafts it, or as the owner
+- `decisions/daemon.md` holds C160 as Do 1 drafts it, or as the owner
   reworded it, in the commit before the first production edit; the
   "Not doing" line reads as he ruled.
 - `grep -rn "tokio::time" crates/acquisition-daemon/src | grep -v "/tests/"`
@@ -349,7 +349,7 @@ Fixed before the work starts:
   the command each names; Do 4's shows `nothing_parked` zero in every
   passing scenario, or the step stopped before Do 5 and the report
   says at which scenario and why.
-- `a_wait_the_daemon_will_never_answer_fails_at_the_park` exists
+- `c160_a_wait_the_daemon_will_never_answer_fails_at_the_park` exists
   by name in `door.rs`, stages the halted daemon and the parked job,
   and asserts the verdict's words and `stuck == 1`, no duration.
 - Check 12 exists in `tools/arch-check.sh` with its header line, and
@@ -440,8 +440,8 @@ did not foresee.
 
 Each is his; nothing is entered until he rules.
 
-- **C<next>**, as Do 1 quotes it, with the "Not doing" amendment beside
-  it. Recommended as drafted: the first clause is invariant 1's shape
+- **C160**, as Do 1 quotes it, with the "Not doing" amendment beside
+  it (ruled 2026-11-01, entered). Recommended as drafted: the first clause is invariant 1's shape
   for time and costs six edits and a check; the second is what the
   spike's signal was always exact about, and the measurement in Do 2
   to Do 4 is where the brief stops being sure and starts checking.

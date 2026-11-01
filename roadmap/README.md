@@ -196,6 +196,23 @@ Each in his words, with the commit that landed it.
   the whole kept under `all`, one word away; C53 amended to carry it,
   the additive clause read as protecting shapes a program can use
   (the commit carrying this line).
+- 2026-11-01, the time-seam retrospective's questions
+  (`reviews/time-seam-retrospective.md` §11) and the stuck-verdict
+  brief's ruling (`briefs/151-stuck-verdict.md`, Do 1): "yes to all."
+  C160 entered (every wait in the daemon sleeps through its one
+  `Clock`, and a door scenario that can never proceed fails at the park
+  where nothing it started can run), the request-timeout "Not doing"
+  line amended to say it is structural; the criterion that draws a
+  machine's edge folded into C157 before the phase close deletes the
+  design brief; #70 closed on the class evidence with the VM caveat;
+  #147 closed with the re-judge floor's trigger named (4-full's first
+  long-lived subscriber); a `Boundary` value at the component
+  constructors meets #152's "names its boundary"; and the grant: the
+  orchestrating session re-cuts the stuck-verdict brief under cold
+  reviews, launches an Opus worker on the cut that reviews clean,
+  commits on main, answers the build's reviews by one rule each, every
+  narrowing dated and every agent-facing choice listed for his later
+  read, and pushes at the step's close (the commit carrying this line).
 
 ## Roles
 
@@ -468,3 +485,15 @@ reviewed cold, its two findings answered in `4e53584d`, the fix review
 clean; the derived groups the owner drew wait on #159 for a seat that
 types a group name. Next, Phase 3, the owner's league run, at his
 word.
+
+The time seam read whole on 2026-11-01 (`reviews/time-seam-retrospective.md`,
+`4eb55bc7`): the seam right as built, two ideas named, six questions for
+the owner, answered "yes to all" (the rulings list). The step it
+recommends first, the stuck verdict (`briefs/151-stuck-verdict.md`, #151:
+the daemon's waits on one clock under check 12, a door wait failing at
+the exact park), has its first cut committed at `e1a0dcb8` and under
+cold review; C160 entered ahead of its code. The orchestrating session
+runs it under the grant of 2026-11-01. Next after it: the residue step
+(the limiter spec's real clock, the client's ceilings, the mock's window
+on the isolation list, the `Boundary` value for #152); then Phase 3, the
+owner's league run, at his word.
