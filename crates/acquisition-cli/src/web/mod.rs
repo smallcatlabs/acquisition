@@ -746,6 +746,7 @@ async fn plan(
         now,
         false,
         None,
+        &web.account.entry.username,
     ));
     if !planned.plan.actions.is_empty() {
         match serde_json::to_string(&planned.plan) {

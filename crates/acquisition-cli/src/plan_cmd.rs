@@ -295,19 +295,33 @@ pub async fn refresh_plan(
     expand: bool,
 ) -> Result<()> {
     let now = acquisition_store::now();
-    let Planned {
-        plan,
-        quote_note,
-        notes,
-        ..
-    } = match source {
-        Some(source) => Planned {
-            plan: read_plan(source)?,
-            ages: acquisition_verbs::refresh::PlanAges::default(),
-            quote_note: None,
-            notes: PlanNotes::default(),
+    let (
+        Planned {
+            plan,
+            quote_note,
+            notes,
+            ..
         },
-        None => cx.account()?.open()?.plan(realm, league).await?,
+        account,
+    ) = match source {
+        Some(source) => {
+            let plan = read_plan(source)?;
+            let account = file_account(cx, &plan);
+            (
+                Planned {
+                    plan,
+                    ages: acquisition_verbs::refresh::PlanAges::default(),
+                    quote_note: None,
+                    notes: PlanNotes::default(),
+                },
+                account,
+            )
+        }
+        None => {
+            let account = cx.account()?;
+            let username = account.entry.username.clone();
+            (account.open()?.plan(realm, league).await?, username)
+        }
     };
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
@@ -322,9 +336,30 @@ pub async fn refresh_plan(
     }
     print!(
         "{}",
-        render_plan(&plan, quote_note.as_ref(), &notes, now, expand, source)
+        render_plan(
+            &plan,
+            quote_note.as_ref(),
+            &notes,
+            now,
+            expand,
+            source,
+            &account
+        )
     );
     Ok(())
+}
+
+/// The account a reviewed plan file's printed next step names, as the
+/// index spells it at this run: the entry its uuid resolves to, which an
+/// apply of that file must run as (C44), whatever name the plan was
+/// compiled under (a rename keeps the uuid: the review of the league
+/// seat's fix round, finding 1). The uuid itself where the index holds
+/// no such entry, which `--account` takes too.
+fn file_account(cx: &Ctx, plan: &RefreshPlan) -> String {
+    cx.frontend
+        .account(Some(&plan.account_uuid))
+        .map(|account| account.entry.username)
+        .unwrap_or_else(|_| plan.account_uuid.clone())
 }
 
 /// `acq refresh --apply`: execute a plan through the layer's apply — its
@@ -384,7 +419,8 @@ pub async fn refresh_selection(
                 &notes,
                 acquisition_store::now(),
                 false,
-                None
+                None,
+                &opened.account.entry.username
             )
         );
     }
@@ -401,6 +437,8 @@ async fn apply_plan(
     json: bool,
 ) -> Result<()> {
     let plan = plan.clone();
+    // every printed next step names the account this apply runs as
+    let account = opened.account.entry.username.clone();
     let mut slot = None;
     let applied = opened.apply(&plan, max_requests, &mut slot).await;
     if let Some(client) = &slot {
@@ -432,7 +470,7 @@ async fn apply_plan(
             } = &spent
             {
                 println!("{note}{}", wait_hint(spent));
-                if let Some(line) = remaining_line(*remaining_requests, &plan) {
+                if let Some(line) = remaining_line(*remaining_requests, &plan, &account) {
                     println!("{line}");
                 }
             }
@@ -483,7 +521,7 @@ async fn apply_plan(
         Outcome::Success { .. } => {
             print!("{report}");
             println!("{}", changes_line(&landed.store_changes));
-            if let Some(line) = remaining_line(landed.remaining_requests, &plan) {
+            if let Some(line) = remaining_line(landed.remaining_requests, &plan, &account) {
                 println!("{line}");
             }
             Ok(())
@@ -515,9 +553,9 @@ fn wait_hint(spent: &[Spent]) -> String {
 
 /// The apply's last line (C53: the next action): what a plan compiled
 /// now would still fetch, or that nothing is left. The command carries
-/// the plan's account, realm and league, so it plans the league just
-/// applied as printed whatever else is known.
-fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan) -> Option<String> {
+/// the account the apply ran as and the plan's realm and league, so it
+/// plans the league just applied as printed whatever else is known.
+fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan, account: &str) -> Option<String> {
     Some(match remaining? {
         0 => "left: nothing — every covered entry is fresh".into(),
         n => format!(
@@ -525,21 +563,13 @@ fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan) -> Option<String> 
              such as a map or unique tab's substashes, what it left undone, or what went stale \
              since); plan and apply until the plan says nothing to do",
             crate::printed_line(&crate::way_words(&Way::RefreshPlan {
-                account: plan_account(plan),
+                account: account.to_string(),
                 realm: plan.realm,
                 league: plan.league.clone(),
             })),
             requests(n)
         ),
     })
-}
-
-/// The account a plan was compiled for, as `--account` takes it: its
-/// name, or its uuid where the plan names none.
-fn plan_account(plan: &RefreshPlan) -> String {
-    plan.account_name
-        .clone()
-        .unwrap_or_else(|| plan.account_uuid.clone())
 }
 
 /// `changed: +98 items added, 3 changed at 5 locations; 112 responses
@@ -827,6 +857,7 @@ pub(crate) fn render_plan(
     now: i64,
     expand: bool,
     source: Option<&str>,
+    account: &str,
 ) -> String {
     if plan.actions.is_empty() && !expand {
         return render_nothing_to_do(plan, now) + &plan_note_lines(plan, notes, now);
@@ -879,7 +910,7 @@ pub(crate) fn render_plan(
     // printed with a second account known (the league seat, cli call 28)
     let apply = |plan_file: Option<&str>| {
         crate::printed_line(&crate::way_words(&Way::RefreshApply {
-            account: plan_account(plan),
+            account: account.to_string(),
             realm: plan.realm,
             league: plan.league.clone(),
             plan: plan_file.map(str::to_string),
@@ -2091,6 +2122,7 @@ mod tests {
             2_000,
             false,
             None,
+            "a",
         );
         let expanded = render_plan(
             &plan,
@@ -2099,6 +2131,7 @@ mod tests {
             2_000,
             true,
             None,
+            "a",
         );
         assert_eq!(
             expanded.matches("\n  fetch ").count(),
@@ -2135,6 +2168,7 @@ mod tests {
             2_000,
             false,
             Some("/tmp/p.json"),
+            "a",
         );
         assert!(
             from_file.contains("next: acq refresh --apply=/tmp/p.json"),
@@ -2147,6 +2181,7 @@ mod tests {
             9_200,
             false,
             Some("/tmp/p.json"),
+            "a",
         );
         assert!(old.contains("on mock as Alice#1234"), "{old}");
         assert!(old.contains("(plan 2h old)"), "{old}");
@@ -2211,6 +2246,7 @@ mod tests {
             2_000,
             false,
             None,
+            "a",
         );
         assert!(rendered.contains("nothing to do"), "{rendered}");
         assert!(!rendered.contains("next:"), "{rendered}");

@@ -2596,3 +2596,83 @@ fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
     ));
     assert_eq!(receipt.get("note"), None, "{receipt}");
 }
+
+/// The cold review of the league seat's fix round (finding 1): a command
+/// printed from a plan spelled the plan's `account_name`, the name it was
+/// compiled under, which a rename leaves stale while the uuid stands. A
+/// printed command names the account the verb ran as, as the index
+/// spells it at this run: a saved plan under an old name, applied by
+/// uuid, prints its next step as the index's name, and the line runs as
+/// printed; its render prints the apply the same way.
+#[test]
+fn a_saved_plans_next_step_names_the_account_as_the_index_spells_it_now() {
+    let scratch = harness::scratch("seat-plan-rename");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let _login = login(&base, "seat");
+    seed_one_account(&base, "Other#1", "u-other");
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+    let out = acq(
+        &base,
+        &[
+            "policy",
+            "set",
+            policy,
+            "--if-revision",
+            "0",
+            "--account",
+            "seat",
+        ],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    let out = acq(
+        &base,
+        &[
+            "refresh",
+            "--plan",
+            "--league",
+            "Rehearsal",
+            "--account",
+            "seat",
+            "--json",
+        ],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    let mut plan: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let uuid = plan["account_uuid"].as_str().unwrap().to_string();
+    // compiled under the old name, with no daemon to quote it (a quote
+    // projects the account it was asked for)
+    plan["account_name"] = json!("Old#1");
+    plan.as_object_mut().unwrap().remove("quote");
+    let file = base.join("renamed-plan.json");
+    std::fs::write(&file, plan.to_string()).unwrap();
+    let source = format!("--plan={}", file.display());
+    let apply = format!("--apply={}", file.display());
+
+    let out = acq(&base, &["refresh", &source]);
+    assert!(out.status.success(), "{}", text(&out));
+    // the header says the name the plan was compiled under; the command
+    // the render prints names the account as the index spells it now
+    let rendered = stdout(&out);
+    let next = rendered
+        .lines()
+        .find_map(|l| l.strip_prefix("next: "))
+        .unwrap_or_else(|| panic!("no next line: {rendered}"));
+    assert!(
+        next.contains("--account seat") && !next.contains("Old#1"),
+        "{next}"
+    );
+
+    let out = acq(&base, &["refresh", &apply, "--account", &uuid]);
+    let said = stdout(&out);
+    assert!(out.status.success(), "{}", text(&out));
+    let [next] = &printed_in_next(&said)[..] else {
+        panic!("one command in the apply's next line: {said}");
+    };
+    assert!(
+        next.contains("--account seat") && !next.contains("Old#1"),
+        "{next}"
+    );
+    let run = run_as_printed(&base, next);
+    assert!(run.status.success(), "`{next}`: {}", text(&run));
+}
