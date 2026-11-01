@@ -4,7 +4,10 @@ The second of round 5's three parts (`t5-design.md` §4 round 5 as
 split on 2026-10-31 and amended at this brief's commit: 5b is
 `queue.rs` and `rails.rs`, 37 door-able tests of 46; the nine
 door-able tests of the other files join 5c; ruled 2026-10-31, C158).
-First draft. Written from two read-only inventories at `c03a11c5`
+Cut twice: the first draft (`5c301c06`) was reviewed cold
+(`roadmap/reviews/t5-r5b-brief-5c301c06.md`, the prompt beside); this
+cut answers its twelve findings, each named at the foot, "Taken from
+the review". Written from two read-only inventories at `c03a11c5`
 (`queue.rs` and the admission, queue-file, restore and cancel paths;
 `rails.rs` and the rails), every line printed, neither file touched
 since; the door's lines at `72ca3330` (round 5a's close); and a read
@@ -28,8 +31,10 @@ persisted view. The rails' tripwire, ceiling and halts are scenarios
 through the door: a halt's bare cause through `DaemonStatus.rails`,
 its full words through a quote or the job's failure, a parked job
 through `Status`, "nothing picked" through `settle`, the disk through
-the store's read API. The door gains a provider option and the
-harness a live session; `Token::Answering`'s former callers take
+the store's observer read once the door has finished (C45: an observer
+reads the queue from the ledger with no daemon running). The door
+gains a real-named mode on the fixture's base and the harness a live
+session; `Token::Answering`'s former callers take
 scripted token answers. The tests that need a function, a fabricated
 state, a failed restore or three lifetimes in one test say so and stay
 component tests. No production file changes; no word a user meets
@@ -185,10 +190,13 @@ uploaded whatever the outcome): round 6's input, read then.
 
 1. **The door's and the harness's additions**, each with its rule in
    its doc:
-   - `DoorBuilder::provider(Provider)`: the mock provider on the
-     fixture's base by default; `Provider::ggg()` (`provider.rs:61`)
-     for the rows that need the real-named mode (689, 769), whose
-     scenarios send nothing.
+   - `DoorBuilder::real_named()`: the provider built on the fixture's
+     base as today, with the real provider's name (`Provider { name:
+     GGG, ..Provider::mock(&base) }`, as `queue.rs` 692–695 builds it,
+     `is_real()` true), for the rows that need the real-named mode
+     (689, 769). Never `Provider::ggg()` (`provider.rs` 61–69), which
+     carries the production URLs: a test daemon on it would send to
+     GGG, and the fixture's empty record would prove nothing.
    - `live_sessions(clock: &ParkingClock) -> Sessions` in the harness:
      one session with an access token expiring an hour past the
      clock's wall, as `live_daemon` wrote it privately (`queue.rs`
@@ -202,12 +210,17 @@ uploaded whatever the outcome): round 6's input, read then.
      None })`: `Response::Quote { quote }` with `quote.halted`, the
      halt's full words (`halted()`'s), on a daemon with one session.
      No new door call.
-   - A scenario's disk read is the store's: `read_job(dir, id)` or
-     `JobDb::open(&db).get(id)` (`jobs.rs`), on the `JobDb` the
-     scenario opened and gave the door through `.jobs_db`; the
-     scenario keeps the path for `break_queue` (which moves to the
-     harness, `rails.rs` needing it too if 647's write failure is
-     staged that way; else it stays in `queue.rs`).
+   - A scenario's disk read is C45's observer read, after the door
+     has finished: `acquisition_store::jobs::read_job(dir, id)` or
+     `read(dir)` on the directory whose daemon db the scenario opened
+     for `.jobs_db` (the path the store's observer reads,
+     `daemon_db_path`, `jobs.rs:113`), never while the daemon answers
+     and never through `shared`; a halted or parked daemon's rows are
+     the same after `finish` as before it. A row the scenario writes
+     before the door opens, or behind the daemon (1544's rows 40 and
+     41, which model a row the daemon never admitted), is a persisted
+     input the scenario stages, as `break_queue` stages a broken file:
+     a write, not a read. `break_queue` stays in `queue.rs`.
    - "Nothing picked" is `settle` resolving: a re-pick spin never
      parks, so the park at which nothing can run is the boundary's word
      that the dispatcher picked nothing; `pick_runnable`'s four reads
@@ -218,8 +231,11 @@ uploaded whatever the outcome): round 6's input, read then.
      `token_answer` (rails 244, 286, 332: `["200 OK"]`) or a fixture
      that records and answers nothing (rails 141, queue 467, 522, 552:
      `Server::Account` with a hold that never matches, whose `sent()`
-     stays empty, as round 4's 458 did); `token_server_answering`'s
-     one remaining caller is `dispatch.rs:428`.
+     stays empty, as round 4's 458 did; the account server records a
+     request before it parses a grant, `harness.rs` 1425–1447, so a
+     malformed request it never expects is recorded rather than
+     panicking the task); `token_server_answering`'s one remaining
+     caller is `dispatch.rs:428`.
    - A seeded queue: the scenario writes rows into the `JobDb` it
      opened (as `disk_row` and the restore tests seed today), gives it
      through `.jobs_db` with `.restore_jobs(Retention::default())`, and
@@ -241,10 +257,14 @@ uploaded whatever the outcome): round 6's input, read then.
    and what it is answered: the refusal's kind (`Refused`;
    `NotLoggedIn` for 872's selector row) and the words it must carry
    and must not; after every row's submits, `List` answers no job and
-   a sleep submit answers `Submitted { id: 1 }` (what
-   `assert_nothing_admitted` read privately), and the fixture's record
-   is empty (`Server::Account` with a never-matching hold, which records
-   any send and is never awaited; the old baits were aborted scripts).
+   the fixture's record is empty (`Server::Account` with a
+   never-matching hold, which records any well-formed send and is
+   never awaited; the old baits were aborted scripts); on the mock
+   rows a sleep submit then answers `Submitted { id: 1 }` (what
+   `assert_nothing_admitted` read privately: a refused submit spends
+   no id), which the real-named rows cannot (a `sleep` is mock-only,
+   `queue.rs` 1220–1223), so they assert the empty list and record
+   alone.
    The rows, written from the old tests' submits and words: 19 (a
    client `probe`), 129 (a path param that is not one segment, 11
    rows, and the apply tuple's "action 0", 4 rows), 285 (a dot segment
@@ -257,7 +277,12 @@ uploaded whatever the outcome): round 6's input, read then.
    986's two over-bound refusals, 1127's two, 1077's `daemon`
    submitter (C136). 285's and 313's `route_for` reads (304, 316, 350)
    are a function's: they join 250's table (a `#[test]`, component),
-   named in the commit.
+   named in the commit. 872's frame check (950–953: the request itself
+   fits a frame) stays in its rows as the old test measures it. The
+   positive twins the old tests carried become scenarios beside the
+   table: 1077's `cli:1` submit admitted as id 1, Done, exactly one
+   GET on the account server and the journal against it (1104–1116);
+   724's zero-second sleep admitted and Done (739–745).
 
 3. **The rows that never passed the door**, one `#[test]` over rows in
    `queue.rs`: a seeded waiting row (kind, params, the session seeded
@@ -267,8 +292,9 @@ uploaded whatever the outcome): round 6's input, read then.
    journal empty: 395's four rows, 467's three (on a refresh-due
    session, nothing reaching the token route), 552's one (its words
    equal to a client submit of the same params' refusal message), 844's
-   four, 724's tail (the `-1` row, a duplicate of 844's, retired held by
-   it).
+   four (each restored row's failure words equal to the client
+   refusal's message for the same params, 849–859, as 552's), 724's
+   tail (the `-1` row, a duplicate of 844's, retired held by it).
 
 4. **The queue file and the restore**, scenarios in `queue.rs`:
    - 1751 (a result read failure is not "no job"): `.jobs_db` on the
@@ -278,25 +304,31 @@ uploaded whatever the outcome): round 6's input, read then.
      `.restore_landed(false)`, a sleep submit, `break_queue`,
      `SetPriority` answering `QueueFailed` carrying "priority
      unchanged", `Cancel` answering `QueueFailed` carrying "may not
-     survive"; `Status` reading the priority as set and the state
-     Cancelled (held in memory, no eviction on a failed queue).
+     survive"; `Status` reading the priority as it was before the
+     failed change (3, the rollback at `queue.rs` 696–703) and the
+     state Cancelled (held in memory, no eviction on a failed queue).
    - 1544 (a waiting row on disk, not in memory, is never acted on):
      the rows 40 and 41 written to the db after the door opened (the
      neighbour rows as today), `Cancel { 40 }` answering `UnknownJob`
      "no job 40", `SetPriority { 40 }` likewise, `Cancel { 41 }` and
-     `SetPriority { 41 }` answering `WrongState`; row 40 still waiting
-     on disk through the store's read.
+     `SetPriority { 41 }` answering `WrongState`; after `finish`, row
+     40 still waiting through the store's observer read.
    - 1369 (the restore drops probes and finishes parents): the seeded
-     rows as today, `.restore_jobs`, `.restore_landed(false)`; `List`
-     for the restored states, `Result` for parent 6 (interrupted, its
-     tally) and parent 1 (success), the store's read for row 3 (the
-     leagues row not replayed) and the probe row gone, `Cancel { 7 }`
-     acknowledged, the next sleep submit `Submitted { id: 8 }`.
+     rows as today (1398–1409: probe 3, the cancelling running job 4,
+     the leagues job 5, parent 6 and its waiting child 7, parent 1),
+     `.restore_jobs`, `.restore_landed(false)`; `List` for the restored
+     states (job 4 Cancelled at the restore, `queue.rs` 265–267), the
+     leagues row 5 Failed "not replayed" through `Result`, `Result` for
+     parent 1 (success); `Cancel { 7 }` acknowledged, then `Result` for
+     parent 6 (interrupted, its tally: it concludes only once its last
+     child ends, 1432–1449); the next sleep submit `Submitted { id: 8
+     }`; after `finish`, the probe row 3 absent through the store's
+     observer read.
    - 1310 (C50): the seeded rows, `.restore_jobs`, `.sessions(logged_
      in_sessions())`, `Server::Account`; `await_terminal` on 1 (Failed,
      the words naming no id) and 2 (Done); `sent()` `[POST, GET]`; the
-     rows' states on disk through the store's read; the journal against
-     the wire.
+     journal against the wire; after `finish`, the rows' states through
+     the store's observer read.
    - 1465's refusal (a failed write refuses new jobs, "refuses new
      jobs") becomes a row of Do 4's shape beside 1751; its id rollback
      and "not picked" have no boundary read and stay in 1465 as a
@@ -338,10 +370,14 @@ uploaded whatever the outcome): round 6's input, read then.
    `DaemonStatus.rails.halted` (the bare cause, `rails.rs` 754–759) and
    its full words through a quote or the job's failure where the test
    asserted them (361's "this daemon lifetime", 474's "halted by
-   live-test rails:" prefix, 423's equality), parked jobs through
-   `Status` (Waiting, retries 0), the disk through the store's read,
-   "nothing picked" through `settle`, the nine sleeps and the two
-   polls through `settle` and `await_job`, the 3 s ceilings gone:
+   live-test rails:" prefix, 423's containment), parked jobs through
+   `Status` (Waiting, retries 0), the disk through the store's observer
+   read after `finish`, "nothing picked" through `settle` where no send
+   is held and `quiet` where one is (517), the nine sleeps and the two
+   polls through `settle` and `await_job`, the 3 s ceilings gone; a
+   local table's expected halt words are a row field (a ceiling of
+   none reads "ceiling: 0 sends allowed", `rails.rs` 560–561; of one,
+   "ceiling: 1 of 1"):
    - 26 (a trip leaves queued jobs waiting until the reset): `Script`
      HEAD, 429, 200, 200 under `tripwire_config()`; two submits;
      `await_job(first, retries == 1 && Waiting)`; `halted` carrying
@@ -362,8 +398,9 @@ uploaded whatever the outcome): round 6's input, read then.
      refreshing job; a ceiling of none): `max_sends` 1, 1, 0; the
      token answer `Script [token_answer("200 OK", ..)]` or none; the
      submits; `settle`; `Status` Waiting with retries 0 for each parked
-     job; the store's read of the rows; `halted` carrying "ceiling: 1
-     of 1"; the wire (`received()`) and the journal against it.
+     job; `halted` carrying the row's words; the wire (`received()`)
+     and the journal against it; after `finish`, the rows through the
+     store's observer read.
    - 361 (a HEAD 522 halts this lifetime): `Script` HEAD 522 (no body),
      HEAD 204, GET; `halted` carrying "522 on HEAD fetch at
      2000-01-01T"; the quote's `halted` carrying "this daemon
@@ -371,10 +408,11 @@ uploaded whatever the outcome): round 6's input, read then.
      (the route Unknown); `ResetTripwire`; Done with retries 0; the
      journal HEAD, HEAD, GET.
    - 423 (a token 522 refuses in the halt's words): `Script` POST
-     /token 522; `AuthCheck` twice, each `Error { Upstream }` carrying
-     the full halt words (equal to the quote's `halted`), no page
-     fragments, no "acq auth"; `DaemonStatus.rails.refresh_failed`
-     `None`; the journal one POST.
+     /token 522; `AuthCheck` twice, each `Error { Upstream }` whose
+     message contains the quote's `halted` whole (the refusal prefixes
+     it with "token refresh failed: ", `refresh.rs:512`; the old test's
+     containment at 447 and 461), no page fragments, no "acq auth";
+     `DaemonStatus.rails.refresh_failed` `None`; the journal one POST.
    - 474 (a Cloudflare 503 names the trip and quotes no page): the
      tripwire, `Script` HEAD, 503 with Cloudflare's page; `await_
      terminal` Failed, the error carrying "halted by live-test rails:
@@ -382,16 +420,21 @@ uploaded whatever the outcome): round 6's input, read then.
      journal HEAD, GET.
    - 517 (a cancel before the halt parks the job and concludes it
      cancelled): `max_sends` 1, `Server::Account` holding `("POST",
-     "/token", 0)`; the submit, `held()`'s arrival, `Cancel`, `settle`,
-     release; `await_terminal` Cancelled; the store's read Cancelled;
-     `sent()` one POST; the journal against it.
+     "/token", 0)`; the submit, `held()`'s arrival, `Cancel`, `quiet`
+     (a send is held, so `settle` would wait out `HANG`, door.rs
+     217–224), release; `await_terminal` Cancelled; `sent()` one POST;
+     the journal against it; after `finish`, the row Cancelled through
+     the store's observer read.
    - 552 (a blocked token POST leaves the job waiting): `Script` POST
      /token a 403 challenge; `settle`; `Status` Waiting; the journal
      one POST.
    - 586 (a parked whoami is not picked again while halted): two
      sessions, `max_sends` 1, `Server::Account` with no hold; two
-     `whoami` submits; `settle`; `Status` one Waiting, one Done; the
-     journal one POST; the wire.
+     `whoami` submits; `await_terminal` on the one that lands (Done:
+     `whoami` sleeps 300 ms of real time after its refresh,
+     `kinds.rs:621`, which the hook cannot see, so `settle` alone could
+     resolve with it Running), then `settle`; `Status` the other
+     Waiting; the journal one POST; the wire.
    - 647 (a rails write that fails is logged and its reset refused):
      `.rails` with `state_path` under a regular file; a dead grant
      staged by `Script` POST /token 400 through `AuthCheck` (the mark
@@ -431,13 +474,22 @@ uploaded whatever the outcome): round 6's input, read then.
   scenario listed in the commit with the test it replaced.
 - `grep -n "assert_nothing_admitted\|live_daemon\|client_submit\|yield_now\|from_millis(100)\|logged_in(" crates/acquisition-daemon/src/daemon/tests/queue.rs`
   finds nothing but 1696's awaited state if it polls, quoted;
-  `shared.lock()` and `Arc::get_mut` only inside the component tests.
-- `grep -n "tokio::test\|from_millis(100)\|from_secs(3)\|wait_until\|wait_halted_and_settled\|ceiling_daemon\|assert_parked\|yield_now\|rails()\|halted()\|pick_runnable\|endpoint_state\|valid_access_token\|mark_refresh_failed\|rails.record\|Arc::get_mut\|shared.lock()" crates/acquisition-daemon/src/daemon/tests/rails.rs`
-  finds nothing.
+  `shared.lock()` only inside the component tests, and `Arc::get_mut`
+  only in `persisting_daemon`, which they keep.
+- `grep -n "tokio::test\|from_millis(100)\|from_secs(3)\|wait_until\|wait_halted_and_settled\|ceiling_daemon\|assert_parked\|yield_now\|\.rails()\|\.halted()\|pick_runnable\|endpoint_state\|valid_access_token\|mark_refresh_failed\|rails.record\|Arc::get_mut\|shared.lock()" crates/acquisition-daemon/src/daemon/tests/rails.rs`
+  finds nothing (the patterns are calls, `.rails()` and `.halted()`,
+  not the identifiers a test name carries).
 - `grep -n "token_server_answering(" crates/acquisition-daemon/src/daemon/tests/*.rs`
   finds its definition and `dispatch.rs`'s one caller only.
-- `grep -n "fn provider" door.rs` finds one; `grep -n "fn live_sessions" harness.rs` finds one; the quote read is `request(Request::Quote ..)`, no door call added for it.
-- `grep -n "JobDb::open\|read_job\|Persisted" crates/acquisition-daemon/src/daemon/tests/{queue,rails}.rs` finds only the store's reads on the scenario's own path (quoted); no scenario reads `shared`.
+- `grep -n "fn real_named" door.rs` finds one and `Provider::ggg` is
+  absent from `daemon/tests/`; `grep -n "fn live_sessions" harness.rs`
+  finds one; the quote read is `request(Request::Quote ..)`, no door
+  call added for it.
+- `grep -n "JobDb::open\|read_job\|jobs::read\|Persisted" crates/acquisition-daemon/src/daemon/tests/{queue,rails}.rs`
+  finds the scenarios' seeding writes (before the door opens, or the
+  staged rows named in Do 4) and their observer reads after `finish`,
+  each quoted with the `finish` above it, and the component tests'
+  own; no scenario reads `shared`.
 - `git diff --stat <this brief's last cut> <head> -- crates/` lists
   files under `daemon/tests/` only; every golden, `CLI-REFERENCE.md`
   and `MCP-REFERENCE.md` byte-identical.
@@ -477,10 +529,14 @@ retired; the test stage's seconds beside 24 and the two files' wall
 time before and after; 986/1127's decision; every agent-facing design
 decision the brief left open (the admission table's row shape and the
 restored-rows table's, the submit's wider form, the two-account
-sessions' home, where `break_queue` lives) for the owner's review.
+sessions' home, `real_named`'s shape) for the owner's review.
 
 ## Raised for review
 
+- A scenario's disk read as C45's observer after `finish` (Do 1): the
+  first cut read the live file while the daemon answered, which C158
+  does not permit and C45 says "never while a daemon answers"; the
+  reviewer may hold the rule against every disk read.
 - "Nothing picked" as `settle` resolving generalises round 3's
   component precedent (`dispatch.rs:468`); the rule is stated in Do 1
   and the reviewer may hold it against the rails scenarios.
@@ -491,3 +547,28 @@ sessions' home, where `break_queue` lives) for the owner's review.
 - 647 stages its dead grant through a real rejected refresh, whose
   write also fails: the error ring then holds two "could not be
   written" lines where the old fabricated mark gave one.
+
+## Taken from the review
+
+The first review's twelve (`t5-r5b-brief-5c301c06.md`):
+
+1. `Provider::ggg()` carries the production URLs: a real-named mode on
+   the fixture's base, as the old test builds it (Do 1, done-when).
+2. The live queue file read while the daemon answers widens C158: the
+   disk is read as C45's observer after `finish`; a seeding write is a
+   staged input (Do 1, Do 4, Do 5, done-when, Raised).
+3. A sleep submit is refused in real mode: the id check on the mock
+   rows only (Do 2).
+4. 517's `settle` under a held send: `quiet` (Do 5).
+5. 586's `whoami` sleeps real time: its terminal awaited before
+   `settle` (Do 5).
+6. 1369's sequence and rows: the leagues row 5, probe 3 absent, the
+   cancel before parent 6's result (Do 4).
+7. 1728's priority is the one before the failed change (Do 4).
+8. 423's refusal contains the quote's halt, prefixed (Do 5).
+9. The ceiling table's halt words a row field (Do 5).
+10. The positive twins and the exact equalities named: 1077's `cli:1`,
+    724's zero-second sleep, 844's equality, 872's frame (Do 2, Do 3).
+11. The done-when greps as calls, the kept helper's `Arc::get_mut`
+    and the seeding writes allowed (Done when).
+12. The account bait records before it parses a grant (Do 1).
