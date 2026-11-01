@@ -28,3 +28,4 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the ruling
 What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
 - A wire-send budget beside the logical bound (C42): not until a consumer needs it.
+- A journal line written before a token POST leaves, so a refresh owner cut mid-send leaves a record (the line is written after the response, `choke.rs`'s `record` under the permit; only the process's end cuts an owner today, and the next response's headers correct the count): not until a live run shows an owner cut mid-send (the owner, 2026-10-31: "leave this alone until a live run shows it's relevant").
