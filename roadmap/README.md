@@ -424,7 +424,13 @@ C159 entered and narrowed to the owner's ruling), closed on 2026-11-01
 (`LEDGER.md`): the door serves a world, the last door-able tests
 through it, `ManualClock` retired, every ceiling `HANG`, the
 exempt-route set under one source, its oracle and check 11, its build
-reviewed, one fix round reviewed clean. Next round 6, the mutants
-against the baseline, its brief next; then #148; and Phase 3, the
+reviewed, one fix round reviewed clean. Round 6, the close
+(`briefs/t5-r6.md`, cut three times under cold reviews), closed on
+2026-11-01 (`LEDGER.md`): the after-run against the baseline, 18
+missed in both, the twelve listed exclusions moved to their lines, the
+six `policy.rs` survivors pinned, none introduced, the census 378 to
+416 in rows; its build reviewed, two fix rounds, the second read by
+the orchestrating session. #141 closed under C158's wording: t5 is
+done, its `HISTORY.md` row written. Next #148; and Phase 3, the
 owner's league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.

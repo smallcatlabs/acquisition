@@ -334,6 +334,9 @@ retirement waits for its last user.
    baseline: no new survivor in the configured scope; the scenario
    count before and after (rows, not occurrences); the gate's test
    time before and after.
+   (Closed 2026-11-01: 18 missed in both runs, none introduced; the
+   census in rows rose, 378 to 416, the tables outweighing the
+   retirements; the test stage 23 s. The ledger row has the figures.)
 
 ## 5. Drafts for the owner
 
