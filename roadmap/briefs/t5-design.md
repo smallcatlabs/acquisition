@@ -302,7 +302,10 @@ retirement waits for its last user.
    `login.rs` through the door where they cross the boundary; the
    private-state reads out of the top five files where a journal, an
    answer or `await_auth` holds the property; the rest named as
-   component tests.
+   component tests. Narrowed on 2026-10-31 by the orchestrating
+   session under the owner's grant of autonomy, for his re-read: the
+   round takes `login.rs`, `sessions.rs` and the cancel family
+   (`t5-r4.md`); the private reads of the other files join round 5.
 5. **The sweep.** The refresh and bearer families onto `advance`;
    `ManualClock` retired, its last user moved; the exempt-route
    source and its oracle; the 20 fixed sleeps to awaited states; the
