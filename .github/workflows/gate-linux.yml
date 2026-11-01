@@ -225,3 +225,7 @@ jobs:
       - name: The gate's breakers
         if: ${{ !cancelled() }}
         run: tools/gate-breakers.sh
+
+      - name: The mutants comparison's breakers
+        if: ${{ !cancelled() }}
+        run: tools/mutants-compare-breakers.sh
