@@ -1622,12 +1622,7 @@ mod tests {
             text.contains("effective: none — nothing applies: the price text in game is not where the index can see it\n"),
             "{text}"
         );
-        assert!(
-            text.contains(
-                "by hand: nothing (no row on it or above it: a first price names revision 0)\n"
-            ),
-            "{text}"
-        );
+        // the no-row line's words are golden price_json/list_show_and_refusals's
 
         // A character item: no stash to publish.
         let l = show(PriceTarget::Item {

@@ -2788,17 +2788,8 @@ fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
         "a create over a policy: {}",
         text(&again)
     );
-    // the create-only form doing its job, in its own words (cli-opus-2
-    // call 24: the compare-and-swap's "re-read and retry"), the conflict's
-    // fields as they were
-    let said = text(&again);
-    assert!(
-        said.contains(
-            "a sync policy stands at revision 1; 0 writes only where none is stored: \
-             name 1 to replace it"
-        ) && !said.contains("re-read and retry"),
-        "{said}"
-    );
+    // the create-only form doing its job (cli-opus-2 call 24: the
+    // compare-and-swap's words), the conflict's fields as they were
     let refused = sole_json(&run_as_printed(&base, &format!("{offered} --json")));
     assert_eq!(
         (&refused["kind"], &refused["revision"]),
@@ -2806,20 +2797,28 @@ fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
         "{refused}"
     );
     assert_eq!(refused["current"]["revision"], json!(1), "{refused}");
-    // a wrong nonzero revision keeps the compare-and-swap's words
-    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
-    let out = acq(
-        &base,
-        &[
-            "policy",
-            "set",
-            policy,
-            "--if-revision",
-            "7",
-            "--account",
-            "Alice#1234",
-        ],
-    );
-    assert!(!out.status.success());
-    assert!(!text(&out).contains("stands at revision"), "{}", text(&out));
+    // The two refusals' words, one golden (C122): the create over the
+    // policy that stands in the create-only form's, a wrong nonzero
+    // revision in the compare-and-swap's.
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+    let mut t = Transcript::new(&base);
+    for (revision, fact) in [
+        ("0", "a sync policy stands at revision 1"),
+        ("7", "the sync policy is at revision 1"),
+    ] {
+        let out = t.run(
+            &[
+                "policy",
+                "set",
+                policy,
+                "--if-revision",
+                revision,
+                "--account",
+                "Alice#1234",
+            ],
+            &[fact],
+        );
+        assert!(!out.status.success(), "{}", text(&out));
+    }
+    golden(file!(), "a_policy_write_refused_for_its_revision", &t);
 }

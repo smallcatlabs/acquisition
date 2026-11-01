@@ -87,17 +87,11 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     // a write refused for its revision is `conflict`, the stored row
     // beside its revision as `policy show` prints it (C11; round 4 of the
-    // 2g build), in the policy's words
+    // 2g build); its words are seat_faults' golden
+    // a_policy_write_refused_for_its_revision
     let refused = sole_json(&out);
     assert_eq!(refused["kind"], json!("conflict"), "{refused}");
     assert_eq!(refused["revision"], json!(1), "{refused}");
-    assert!(
-        refused["error"]
-            .as_str()
-            .unwrap()
-            .contains("a sync policy stands at revision 1; 0 writes only where none is stored"),
-        "{refused}"
-    );
     let shown = shown_row(sole_json(&acq(&base, &["policy", "show", "--json"])));
     assert_eq!(refused["current"], shown, "{refused}");
     assert_eq!(shown["revision"], json!(1));

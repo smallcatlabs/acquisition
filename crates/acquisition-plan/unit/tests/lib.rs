@@ -1178,11 +1178,12 @@ fn put_sync_policy_validates_before_it_stores_and_is_a_cas() {
     assert_eq!(first.revision, 1);
     assert_eq!(first.written_via, "test");
     let err = put_sync_policy(&mut a, &value, None, PolicyWrite::Replace, &via_test()).unwrap_err();
-    assert!(matches!(err, PutPolicyError::Standing(_)), "{err}");
-    assert_eq!(
-        err.to_string(),
-        "a sync policy stands at revision 1; 0 writes only where none is stored: name 1 to replace it"
-    );
+    // the create-only refusal, carrying the row that stands (its words
+    // are the CLI's golden, seat_faults/a_policy_write_refused_for_its_revision)
+    match &err {
+        PutPolicyError::Standing(row) => assert_eq!(**row, first),
+        other => panic!("not the create-only refusal: {other}"),
+    }
     // Naming the reviewed revision replaces it; naming a stale one
     // conflicts and the stored value is untouched.
     let second =

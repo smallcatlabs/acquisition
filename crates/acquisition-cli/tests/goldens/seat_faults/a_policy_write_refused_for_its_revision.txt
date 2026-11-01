@@ -1,0 +1,13 @@
+# golden seat_faults/a_policy_write_refused_for_its_revision: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}' --if-revision 0 --account 'Alice#1234'
+# holds "a sync policy stands at revision 1"
+--- stderr
+Error: a sync policy stands at revision 1; 0 writes only where none is stored: name 1 to replace it
+--- exit 1
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}' --if-revision 7 --account 'Alice#1234'
+# holds "the sync policy is at revision 1"
+--- stderr
+Error: the sync policy is at revision 1 (re-read and retry)
+--- exit 1
