@@ -132,11 +132,12 @@ price items and render the shop (`price_status`, `price_list`,
 
 The store and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one: it uses the daemon you
-started, which exits an hour after its last connection or job submitted
-once no login is under way, no job is sending or waiting to send, and
-the limiter's recent history is gone; a rails halt or a failed queue
-write parks the queue on disk, and nothing waiting then holds it. When
-none is running, start one:
+started, which exits an hour after its last connection or job
+submitted, or as long as the idle knob under "Knobs" sets (`acq daemon
+status` says which), once no login is under way, no job is sending or
+waiting to send, and the limiter's recent history is gone; a rails halt
+or a failed queue write parks the queue on disk, and nothing waiting
+then holds it. When none is running, start one:
 
 ```sh
 acq auth check   # a daemon with your login back from the keyring
@@ -202,7 +203,8 @@ acq diagnose [--lines N]   # what a bug report needs, account names, paths and t
 Every command takes `--json`, and it is total: a failure is
 `{"error":…,"kind":…}` on stdout with exit 1, its `offers` the commands
 that would get past it, a refused command line the same with
-`"kind":"usage"` and exit 2. Every command takes
+`"kind":"usage"` and exit 2; a job that fails is its outcome record,
+`outcome: "failure"` with `error`, not a refusal. Every command takes
 `--account <username|name|uuid>` (or `ACQ_ACCOUNT`) too. Without it, a
 verb that reads the store takes the one account known on disk and a job
 verb the one logged in; where there are several, it refuses and names
@@ -227,8 +229,10 @@ them.
   `--league` (a saved plan carries its own); `price show` reads the
   league the facts hold the target in, `store characters` every
   league. `acq leagues` lists yours.
-- **A new league.** `acq leagues` names it the day it opens; add it to
-  the policy by writing the realm back with every league it keeps (a
+- **A new league.** `acq leagues` names it the day it opens. The first
+  policy is written with `--if-revision 0` (the MCP's `if_revision: 0`
+  the same), which lands only where none is stored; add the league to a
+  policy by writing the realm back with every league it keeps (a
   policy naming only the new league drops Standard); then `acq refresh
   --plan --league <name>` and `--apply --league <name>` until the plan
   says nothing to do; the first plan is the listings, one or two (the
