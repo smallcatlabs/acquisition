@@ -78,6 +78,34 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     assert_eq!(row["written_via"], json!("mcp"), "{row}");
     let msg = mcp.expect_err("set_sync_policy", json!({ "value": policy }));
     assert!(msg.contains("revision 1"), "{msg}");
+    // the create-only form in its own words, not the compare-and-swap's
+    // (the league seat's rerun, cli-opus-2 call 24), with the conflict's
+    // fields; a stale nonzero revision keeps the compare-and-swap's
+    assert!(
+        msg.contains(
+            "a sync policy stands at revision 1; 0 writes only where none is stored: \
+             name 1 to replace it"
+        ) && !msg.contains("re-read and retry"),
+        "{msg}"
+    );
+    let refused = harness::document(&mcp.result(
+        "set_sync_policy",
+        json!({ "value": policy, "if_revision": 0 }),
+    ));
+    assert_eq!(
+        (
+            &refused["kind"],
+            &refused["revision"],
+            &refused["current"]["revision"]
+        ),
+        (&json!("conflict"), &json!(1), &json!(1)),
+        "{refused}"
+    );
+    let stale = mcp.expect_err(
+        "set_sync_policy",
+        json!({ "value": policy, "if_revision": 7 }),
+    );
+    assert!(!stale.contains("stands at revision"), "{stale}");
 
     // Derivation: the never-listed league plans the listing alone, and the
     // returned envelope is the planner's own validated plan — carrying the

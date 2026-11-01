@@ -319,12 +319,18 @@ fn faulted(
     doc: &mut Map<String, Value>,
     offers: &mut Vec<(Way, String)>,
 ) {
-    if let Fault::Policy(PutPolicyError::Store(AnnotationError::Conflict { current })) = fault {
+    // the compare-and-swap's conflict and the create-only refusal over a
+    // standing policy alike: `revision`, and `current` where a row stands
+    let current = match fault {
+        Fault::Policy(PutPolicyError::Store(AnnotationError::Conflict { current })) => {
+            Some(current.as_deref())
+        }
+        Fault::Policy(PutPolicyError::Standing(row)) => Some(Some(&**row)),
+        _ => None,
+    };
+    if let Some(current) = current {
         doc.insert("kind".into(), json!("conflict"));
-        doc.insert(
-            "revision".into(),
-            json!(current.as_ref().map(|row| row.revision)),
-        );
+        doc.insert("revision".into(), json!(current.map(|row| row.revision)));
         if let Some(row) = current {
             doc.insert("current".into(), json!(row));
         }

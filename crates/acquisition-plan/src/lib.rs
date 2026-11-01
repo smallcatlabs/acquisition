@@ -860,6 +860,13 @@ pub enum PutPolicyError {
     /// The stored policy is not one this build reads (a newer build's),
     /// so nothing can be merged into it; a whole replacement still can.
     StoredUnreadable(PlanError),
+    /// A create (no revision named: 0 at a terminal, an omitted
+    /// `if_revision` on the MCP) refused over the policy that stands,
+    /// carried whole: the create-only form doing its job, said in its own
+    /// words rather than the compare-and-swap's (the league seat's rerun,
+    /// cli-opus-2 call 24). The one refusal shape gives it the conflict's
+    /// kind, `revision` and `current`.
+    Standing(Box<AnnotationRow>),
     Store(AnnotationError),
 }
 
@@ -872,6 +879,12 @@ impl std::fmt::Display for PutPolicyError {
                 "the stored sync policy cannot be read by this build ({e}), so the realms \
                  written cannot be merged into it: write the whole policy instead (`--replace`; on the \
                  MCP, `replace: true`)"
+            ),
+            PutPolicyError::Standing(row) => write!(
+                f,
+                "a sync policy stands at revision {0}; 0 writes only where none is stored: \
+                 name {0} to replace it",
+                row.revision
             ),
             // the policy's words, never the store's (C116)
             PutPolicyError::Store(AnnotationError::Conflict { current: Some(row) }) => write!(
@@ -998,6 +1011,10 @@ pub fn put_sync_policy_over(
         )
         .map_err(|e| match e {
             AnnotationError::Invalid(v) => PutPolicyError::Invalid(v.into()),
+            // a create over a live row: the create-only refusal
+            AnnotationError::Conflict { current: Some(row) } if expected_revision.is_none() => {
+                PutPolicyError::Standing(row)
+            }
             other => PutPolicyError::Store(other),
         })
 }

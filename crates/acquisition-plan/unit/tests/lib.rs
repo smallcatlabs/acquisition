@@ -1178,8 +1178,11 @@ fn put_sync_policy_validates_before_it_stores_and_is_a_cas() {
     assert_eq!(first.revision, 1);
     assert_eq!(first.written_via, "test");
     let err = put_sync_policy(&mut a, &value, None, PolicyWrite::Replace, &via_test()).unwrap_err();
-    assert!(matches!(err, PutPolicyError::Store(_)), "{err}");
-    assert!(err.to_string().contains("revision 1"), "{err}");
+    assert!(matches!(err, PutPolicyError::Standing(_)), "{err}");
+    assert_eq!(
+        err.to_string(),
+        "a sync policy stands at revision 1; 0 writes only where none is stored: name 1 to replace it"
+    );
     // Naming the reviewed revision replaces it; naming a stale one
     // conflicts and the stored value is untouched.
     let second =
@@ -1258,7 +1261,10 @@ fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
     for stale in [None, Some(3), Some(5)] {
         let err =
             put_sync_policy(&mut a, &poe2, stale, PolicyWrite::Merge, &via_test()).unwrap_err();
-        assert!(matches!(err, PutPolicyError::Store(_)), "{err}");
+        match stale {
+            None => assert!(matches!(err, PutPolicyError::Standing(_)), "{err}"),
+            Some(_) => assert!(matches!(err, PutPolicyError::Store(_)), "{err}"),
+        }
         assert!(err.to_string().contains("revision 4"), "{err}");
     }
     // `Replace` writes the whole: the pc realm the value omits is gone.

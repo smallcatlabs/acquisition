@@ -95,7 +95,7 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
         refused["error"]
             .as_str()
             .unwrap()
-            .contains("the sync policy is at revision 1"),
+            .contains("a sync policy stands at revision 1; 0 writes only where none is stored"),
         "{refused}"
     );
     let shown = shown_row(sole_json(&acq(&base, &["policy", "show", "--json"])));
