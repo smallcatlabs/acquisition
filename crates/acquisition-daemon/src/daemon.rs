@@ -1014,8 +1014,12 @@ struct Expired;
 /// C160 — every tokio timer in the daemon sleeps through its one `Clock`:
 /// `future` raced against `bound` on `clock`, `biased` so the future is
 /// polled first and one ready at its bound's instant wins, as tokio's
-/// `timeout` has it. For a bound that holds no daemon (the login's
-/// callback reads); a daemon's own is [`Daemon::within`].
+/// `timeout` has it. The bound's sleep is polled outside the task's
+/// cooperative budget, as tokio's `timeout` polls its timer, so a future
+/// that spends the whole budget on every poll never holds an expired
+/// bound back (the system clock's sleep spends that budget). For a bound
+/// that holds no daemon (the login's callback reads); a daemon's own is
+/// [`Daemon::within`].
 async fn within_on<T>(
     clock: &dyn Clock,
     bound: Duration,
@@ -1024,7 +1028,7 @@ async fn within_on<T>(
     tokio::select! {
         biased;
         done = future => Ok(done),
-        () = clock.sleep(bound) => Err(Expired),
+        () = tokio::task::unconstrained(clock.sleep(bound)) => Err(Expired),
     }
 }
 

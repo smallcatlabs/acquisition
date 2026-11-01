@@ -42,8 +42,9 @@
 #
 #  12. Every tokio timer in the daemon sleeps through its clock (C160):
 #      under `crates/acquisition-daemon/src`, outside `tests/` and
-#      comment lines, `tokio::time::` is written only inside `impl Clock
-#      for SystemClock` and inside a file's tail test module.
+#      comment lines, tokio's timers are named, under any spelling (a
+#      path, an import, a `time::` path an import makes), only inside
+#      `impl Clock for SystemClock` and inside a file's tail test module.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -636,7 +637,7 @@ printf '%s\n' "$exempt"
 # them. A timer on tokio's own wheel parks beside that clock unseen, so
 # the hook would read a park as stuck that a real timer will end. So
 # under `crates/acquisition-daemon/src`, outside its `tests/` directories
-# and comment lines, `tokio::time::` appears only inside `impl Clock for
+# and comment lines, tokio's timers are named only inside `impl Clock for
 # SystemClock` in `ratelimit.rs` (the span found by brace depth, as
 # check 10 finds `fn blocking`'s) and inside a file's tail test module:
 # a line `#[cfg(test)]` at column zero whose next line is `mod <ident> {`
@@ -645,10 +646,20 @@ printf '%s\n' "$exempt"
 # the module, so a brace in a string cannot move its end; a file where
 # that line is not the last, or where two such modules open, is refused
 # as unrecognised. A `#[cfg(test)]` on any other item exempts nothing.
+# Every spelling is read, the import as well as the call: a line naming
+# `tokio::time` (a path, `use tokio::time;`, `use tokio::time::{…}`, `use
+# tokio::time as …`), a `use tokio::{…}` group whose members name `time`
+# (read whole to its `}`), and a bare `time::` path to a timer
+# (`time::sleep`, `timeout`, `interval` and their kin), which only such an
+# import makes.
 if ! timers=$(python3 -I - <<'PY'
 import glob, re, sys
 CLOCK = "crates/acquisition-daemon/src/ratelimit.rs"
-WORDS = "sleep through the daemon's Clock, `choke.sleep` or `choke.sleep_until`, or move the test into the file's tail test module (C160)"
+WORDS = "sleep through the daemon's Clock, `choke.sleep` or `choke.sleep_until`, removing any import of tokio's timers, or move the test into the file's tail test module (C160)"
+TOKIO_TIME = re.compile(r"\btokio::time\b")
+GROUP = re.compile(r"\buse\s+tokio::\{")
+BARE = re.compile(r"(?<![\w:])time::(?:sleep|sleep_until|timeout|timeout_at|interval|interval_at|Sleep|Interval|Timeout)\b")
+IMPORT = re.compile(r"\s*(?:pub(?:\([^)]*\))?\s+)?use\b")
 bad = []; n = 0; modules = 0; span = None
 for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=True)):
     if "/tests/" in path:
@@ -681,20 +692,32 @@ for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=
                         span = (at, end)
                         break
                 break
+    def allowed(at):
+        return (exempt and exempt[0] <= at <= exempt[1]) or (path == CLOCK and span and span[0] <= at <= span[1])
     for at, line in enumerate(code, 1):
-        if "tokio::time::" not in line:
+        if allowed(at):
             continue
-        if exempt and exempt[0] <= at <= exempt[1]:
-            continue
-        if path == CLOCK and span and span[0] <= at <= span[1]:
-            continue
-        bad.append(f"TIMER   {path}:{at} sleeps on tokio's own timer, which parks beside the daemon's clock where the door's park hook cannot see it: {WORDS}")
+        imports = bool(TOKIO_TIME.search(line)) and bool(IMPORT.match(line))
+        if GROUP.search(line):
+            # The group whole, to its closing brace, its members read for `time`.
+            group, depth = "", 0
+            for body in code[at - 1:]:
+                group += body + "\n"
+                depth += body.count("{") - body.count("}")
+                if depth <= 0 and "{" in group:
+                    break
+            members = group[GROUP.search(group).end():]
+            imports = imports or bool(re.search(r"(?<![\w:])time\b", members))
+        if imports:
+            bad.append(f"TIMER   {path}:{at} imports tokio's timers, which park beside the daemon's clock where the door's park hook cannot see them: {WORDS}")
+        elif TOKIO_TIME.search(line) or BARE.search(line):
+            bad.append(f"TIMER   {path}:{at} sleeps on tokio's own timer, which parks beside the daemon's clock where the door's park hook cannot see it: {WORDS}")
 if span is None:
     bad.append(f"TIMER   {CLOCK} has no impl Clock for SystemClock, the one place a tokio timer stands behind the daemon's clock (C160)")
 if bad:
     print("\n".join(bad))
     sys.exit(1)
-print(f"ok      {'timers':<13} {n} daemon source files outside tests/: tokio::time:: only in {CLOCK}:{span[0]}-{span[1]}, impl Clock for SystemClock, and {modules} tail test modules (C160)")
+print(f"ok      {'timers':<13} {n} daemon source files outside tests/: tokio's timers, under any spelling, only in {CLOCK}:{span[0]}-{span[1]}, impl Clock for SystemClock, and {modules} tail test modules (C160)")
 PY
 ); then fail=1; fi
 printf '%s\n' "$timers"

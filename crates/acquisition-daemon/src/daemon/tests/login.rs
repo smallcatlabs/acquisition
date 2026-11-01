@@ -605,6 +605,35 @@ fn a_superseded_login_flow_sends_no_code_exchange() {
 
 // ---- the callback listener (#68) --------------------------------------
 
+/// The login's bounds race their future against the daemon's clock
+/// (`within_on`, C160) as tokio's `timeout` races it: a bound's expiry
+/// never waits behind its future's cooperative budget. On the system
+/// clock, whose sleep spends that budget, a bound of zero (the expiry
+/// forced, C137) over a future that exhausts the budget on every poll and
+/// never completes (a receive loop on a channel kept full, as a callback
+/// body kept readable or job events kept coming would) expires. A
+/// component test of a function: the race itself, on a plain runtime.
+#[tokio::test]
+async fn a_bound_expires_though_its_future_spends_every_poll_budget() {
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<u32>();
+    for message in 0..1_000 {
+        sender.send(message).unwrap();
+    }
+    let busy = async move {
+        loop {
+            let message = receiver.recv().await.expect("the sender is held");
+            sender.send(message).expect("the receiver is held");
+        }
+    };
+    let bounded = tokio::time::timeout(
+        HANG,
+        crate::daemon::within_on(&SystemClock, Duration::ZERO, busy),
+    )
+    .await
+    .expect("the bound expired behind a future that spends its budget");
+    assert!(bounded.is_err(), "the busy future never completes");
+}
+
 /// A callback connection that sends nothing holds nothing up: with a
 /// read bound of an hour, a silent connection and then the browser's
 /// redirect on a second connection, `wait_callback` returns the code
