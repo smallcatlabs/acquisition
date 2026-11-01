@@ -1,183 +1,101 @@
-//! Parent jobs and apply: the fan-out and its admission, and a parent's end
-//! against its children's.
+//! Parent jobs and apply: the fan-out, and a parent's end against its
+//! children's. The fan-out runs through the door (C158, a daemon scenario
+//! crosses the daemon's frontend boundary only); apply's admission is
+//! rows of the admission table (`queue.rs`); the cancels and the finish
+//! are component tests, each forcing an interleaving through the
+//! daemon's internals that no request reaches.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 
-/// The apply parent (tracer step 7): a plan's action set executed
-/// exactly — one child per admitted tuple, no send of its own, no
-/// expansion — with the children's responses recorded through the
-/// store like any other fetch.
-#[tokio::test]
-async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (mut daemon, log_path) = test_daemon(&base, clock);
-    let temp = tempfile::tempdir().unwrap();
-    let store_dir = temp.path().to_path_buf();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "Alice#1234");
-        let session = s.auth.one_mut();
-        session.username = Some("Alice#1234".into());
-        session.access_token = Some("at-test.Alice#1234".into());
-        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
-    }
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit(
-            "apply".into(),
-            json!({ "jobs": [
+/// The apply parent (tracer step 7, C43: a plan's action set executed
+/// exactly): one child per admitted tuple, no send of its own, no
+/// expansion, with the children's responses recorded through the store
+/// like any other fetch. Through the door: the mock, a live session for
+/// Alice, the apply a client's `Submit` as her; its end and the children
+/// read through `Result` and `List`, and the account's store through the
+/// store's read API, as a frontend reads it while the daemon runs (C12).
+#[test]
+fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    Door::open(
+        Server::Mock,
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .store_dir(dir.clone())
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let apply = Request::Submit {
+            kind: "apply".into(),
+            params: json!({ "jobs": [
                 { "kind": "stashes", "params": { "league": "Standard" } },
                 { "kind": "stash", "params": { "league": "Standard", "id": "dump", "deep": false } },
             ] }),
-            0,
-            "test".into(),
-            Some("Alice#1234".into()),
-        )
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    let Outcome::Success { payload } = outcome else {
-        panic!("apply failed: {outcome:?}")
-    };
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(payload["requests"], json!(2));
-    assert_eq!(payload["child_jobs"].as_array().unwrap().len(), 2);
-    assert_eq!(payload["children"]["done"], json!(2));
-    // Exactly the tuples became children — same kinds, same params,
-    // same order (ids ascend in submission order), nothing more (the
-    // probes the routes needed are daemon jobs, not children of the
-    // apply) — and the payload's child_jobs echoes them in that order.
-    let children: Vec<(JobId, String, Value, Option<String>)> = daemon
-        .job_list()
-        .unwrap()
-        .into_iter()
-        .filter(|job| job.parent == Some(id))
-        .map(|job| (job.id, job.kind, job.params, job.account))
-        .collect();
-    let tuples: Vec<(&str, &Value)> = children
-        .iter()
-        .map(|(_, kind, params, _)| (kind.as_str(), params))
-        .collect();
-    assert_eq!(
-        tuples,
-        [
-            ("stashes", &json!({ "league": "Standard" })),
-            (
-                "stash",
-                &json!({ "league": "Standard", "id": "dump", "deep": false })
-            ),
-        ],
-        "children must be the admitted tuples verbatim, in order"
-    );
-    let child_ids: Vec<JobId> = children.iter().map(|(id, ..)| *id).collect();
-    assert_eq!(payload["child_jobs"], json!(child_ids));
-    // Children run as the parent's account, and their responses landed
-    // in that account's store file.
-    assert!(
-        children
+            priority: 0,
+            submitted_by: "test".into(),
+            account: Some("Alice#1234".into()),
+        };
+        let id = match door.request(apply).await {
+            Response::Submitted { id } => id,
+            other => panic!("the apply answered {other:?}"),
+        };
+        let (info, outcome) = door.await_terminal(id).await;
+        let Outcome::Success { payload } = outcome else {
+            panic!("apply failed: {outcome:?}")
+        };
+        assert_eq!(info.state, JobState::Done);
+        assert_eq!(payload["requests"], json!(2));
+        assert_eq!(payload["child_jobs"].as_array().unwrap().len(), 2);
+        assert_eq!(payload["children"]["done"], json!(2));
+        // Exactly the tuples became children — same kinds, same params,
+        // same order (ids ascend in submission order), nothing more (the
+        // probes the routes needed are daemon jobs, not children of the
+        // apply) — and the payload's child_jobs echoes them in that order.
+        let jobs = match door.request(Request::List).await {
+            Response::Jobs { jobs } => jobs,
+            other => panic!("the list answered {other:?}"),
+        };
+        let children: Vec<(JobId, String, Value, Option<String>)> = jobs
+            .into_iter()
+            .filter(|job| job.parent == Some(id))
+            .map(|job| (job.id, job.kind, job.params, job.account))
+            .collect();
+        let tuples: Vec<(&str, &Value)> = children
             .iter()
-            .all(|(_, _, _, a)| a.as_deref() == Some("Alice#1234"))
-    );
-    let store = Store::open(&account_path(&store_dir, "Alice#1234")).unwrap();
-    assert_eq!(store.status().unwrap().responses, 2);
-    drop(store);
-    finish_harness_mock(dispatcher, &log_path);
-}
-
-/// C43 — admission is vocabulary, not meaning, at submit before a job id exists; C42 — a logical bound over `max_requests` refuses whole, nothing submitted.
-/// Apply's admission (C43): vocabulary and
-/// budget are checked at submit, before a job id exists, so a refusal
-/// admits nothing — never a partial fan-out, and ids never advance.
-#[tokio::test]
-async fn apply_admission_refuses_bad_vocabulary_and_blown_budgets_whole() {
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:9", clock);
-    // The whole vocabulary (characters joined 2026-09-02): a character
-    // list under poe2 is a legal tuple — the character family takes it.
-    let ok_jobs = json!([
-        { "kind": "stashes", "params": { "league": "Standard" } },
-        { "kind": "stash", "params": { "league": "Standard", "id": "t1", "deep": false } },
-        { "kind": "characters", "params": { "realm": "poe2" } },
-        { "kind": "character", "params": { "realm": "pc", "name": "Exile" } },
-    ]);
-    let refusals: Vec<(Value, &str)> = vec![
-        // The tuple list itself is required and non-empty.
-        (json!({}), "needs a `jobs` array"),
-        (json!({ "jobs": [] }), "empty"),
-        // Only single-request kinds: a nested parent (apply), the retired
-        // ad-hoc refresh, or any other kind would expand or sidestep the
-        // reviewed set.
-        (
-            json!({ "jobs": [{ "kind": "refresh", "params": { "all": true } }] }),
-            "not in the plan vocabulary",
-        ),
-        (
-            json!({ "jobs": [{ "kind": "apply", "params": { "jobs": [] } }] }),
-            "not in the plan vocabulary",
-        ),
-        (
-            json!({ "jobs": [{ "kind": "sleep", "params": {} }] }),
-            "not in the plan vocabulary",
-        ),
-        // A stash fetch that fans out expands the set; one without an
-        // id could not have come from a plan.
-        (
-            json!({ "jobs": [{ "kind": "stash", "params": { "league": "Standard", "id": "m1", "deep": true } }] }),
-            "never fans out",
-        ),
-        (
-            json!({ "jobs": [{ "kind": "stash", "params": { "league": "Standard" } }] }),
-            "needs an id",
-        ),
-        // A character fetch without a name could not have come from a
-        // plan either.
-        (
-            json!({ "jobs": [{ "kind": "character", "params": { "realm": "pc" } }] }),
-            "needs a name",
-        ),
-        // The budget: a bound under the tuple count refuses; a misread
-        // bound refuses too, never "the limit was ignored".
-        (
-            json!({ "jobs": ok_jobs.clone(), "max_requests": 1 }),
-            "exceeds the budget",
-        ),
-        (
-            json!({ "jobs": ok_jobs.clone(), "max_requests": "ten" }),
-            "non-negative integer",
-        ),
-    ];
-    for (params, expected) in refusals {
-        let err = daemon
-            .submit("apply".into(), params.clone(), 0, "test".into(), None)
-            .unwrap_err();
-        assert!(err.message.contains(expected), "{params}: {err}");
-        assert!(
-            daemon.shared.lock().unwrap().jobs.is_empty(),
-            "{params}: a refused apply must admit nothing"
+            .map(|(_, kind, params, _)| (kind.as_str(), params))
+            .collect();
+        assert_eq!(
+            tuples,
+            [
+                ("stashes", &json!({ "league": "Standard" })),
+                (
+                    "stash",
+                    &json!({ "league": "Standard", "id": "dump", "deep": false })
+                ),
+            ],
+            "children must be the admitted tuples verbatim, in order"
         );
-    }
-    // A budget the plan fits inside admits (no dispatcher runs here,
-    // so the job just sits waiting) — and it gets the daemon's first
-    // id, proving the refusals above consumed none.
-    let id = daemon
-        .submit(
-            "apply".into(),
-            json!({ "jobs": ok_jobs, "max_requests": 4 }),
-            0,
-            "test".into(),
-            None,
-        )
-        .unwrap();
-    assert_eq!(id, 1, "refused applies must not advance job ids");
-    assert_eq!(
-        daemon.shared.lock().unwrap().jobs[&id].info.state,
-        JobState::Waiting
-    );
-    finish_harness(None, &log_path);
+        let child_ids: Vec<JobId> = children.iter().map(|(id, ..)| *id).collect();
+        assert_eq!(payload["child_jobs"], json!(child_ids));
+        // Children run as the parent's account, and their responses landed
+        // in that account's store file.
+        assert!(
+            children
+                .iter()
+                .all(|(_, _, _, a)| a.as_deref() == Some("Alice#1234"))
+        );
+        let store = Store::open(&account_path(&dir, "Alice#1234")).unwrap();
+        assert_eq!(store.status().unwrap().responses, 2);
+        drop(store);
+        door.finish().await;
+    });
 }
 
 #[tokio::test]

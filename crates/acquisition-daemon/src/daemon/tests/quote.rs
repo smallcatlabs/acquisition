@@ -2,6 +2,7 @@
 //!
 //! Rulings: `decisions/plans.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 
@@ -11,110 +12,114 @@ use crate::daemon::*;
 /// per-window headroom and a forward-simulated ETA; an unlearned
 /// route is unquotable and says so; probes, OAuth, 429s, and
 /// non-sending jobs are named as not covered instead of silently
-/// omitted. Nothing is sent, enqueued, or remembered.
-#[tokio::test]
-async fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, log_path) = test_daemon(&base, clock);
-    // Teach the mock's 5-per-10s fetch policy through the ordinary
-    // probe path; `character-list` stays unlearned.
-    daemon
-        .choke
-        .head(
-            "fetch",
-            &format!("{base}/fetch"),
-            None,
-            daemon.choke.now(),
-            ALWAYS_WANTED,
-        )
-        .await
-        .unwrap();
-    let sends_before = daemon.choke.recent_sends().len();
+/// omitted. Nothing is sent, enqueued, or remembered. Through the door:
+/// a client's `fetch` (open in mock mode) teaches the mock's
+/// 5-per-10 s policy through its probe and its one GET, which counts
+/// (N24: the HEAD does not); then the quote, with `List` and the journal
+/// read unchanged across it.
+#[test]
+fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
+    Door::open(
+        Server::Mock,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .run(|mut door| async move {
+        // Teach the fetch route; `character-list` stays unlearned.
+        let fetch = door.submit("fetch", None).await;
+        let (info, outcome) = door.await_terminal(fetch).await;
+        assert_eq!(info.state, JobState::Done, "{outcome:?}");
+        let list = |answer: Response| match answer {
+            Response::Jobs { jobs } => jobs
+                .into_iter()
+                .map(|job| (job.id, job.state))
+                .collect::<Vec<_>>(),
+            other => panic!("the list answered {other:?}"),
+        };
+        let jobs_before = list(door.request(Request::List).await);
+        let journal_before = door.journal();
 
-    let mut jobs: Vec<QuoteJob> = (0..8)
-        .map(|_| QuoteJob {
-            kind: "fetch".into(),
+        let mut jobs: Vec<QuoteJob> = (0..8)
+            .map(|_| QuoteJob {
+                kind: "fetch".into(),
+                params: json!({}),
+            })
+            .collect();
+        jobs.push(QuoteJob {
+            kind: "characters".into(),
             params: json!({}),
-        })
-        .collect();
-    jobs.push(QuoteJob {
-        kind: "characters".into(),
-        params: json!({}),
-    });
-    jobs.push(QuoteJob {
-        kind: "sleep".into(),
-        params: json!({ "seconds": 1.0 }),
-    });
-    let quote = match daemon
-        .handle_request(
-            Request::Quote {
+        });
+        jobs.push(QuoteJob {
+            kind: "sleep".into(),
+            params: json!({ "seconds": 1.0 }),
+        });
+        let quote = match door
+            .request(Request::Quote {
                 jobs,
                 account: None,
-            },
-            &mut None,
-        )
-        .await
-    {
-        Response::Quote { quote } => quote,
-        other => panic!("{other:?}"),
-    };
+            })
+            .await
+        {
+            Response::Quote { quote } => quote,
+            other => panic!("{other:?}"),
+        };
 
-    assert_eq!(quote.provider, "mock");
-    assert!(quote.halted.is_none());
-    // The work is echoed verbatim, in order — the quote's verifiable
-    // basis for any carrier (a plan checks it against its actions).
-    assert_eq!(quote.work.len(), 10);
-    assert_eq!(quote.work[0].kind, "fetch");
-    assert_eq!(quote.work[8].kind, "characters");
-    assert_eq!(quote.work[9].kind, "sleep");
-    let [unknown, learned] = quote.scopes.as_slice() else {
-        panic!("expected two scopes: {:?}", quote.scopes);
-    };
-    // The learned route is keyed by its policy and quotes per-window
-    // headroom; 8 sends through 5-per-10s cannot be immediate.
-    assert_eq!(learned.key, "mock-fetch-request-limit");
-    assert_eq!(learned.policy.as_deref(), Some("mock-fetch-request-limit"));
-    assert_eq!(learned.endpoints, ["fetch"]);
-    assert_eq!((learned.requests, learned.queued_ahead), (8, 0));
-    let windows: Vec<(u32, u32)> = learned
-        .rules
-        .iter()
-        .flat_map(|r| r.windows.iter().map(|w| (w.hits, w.max_hits)))
-        .collect();
-    assert!(
-        windows.contains(&(0, 5)),
-        "per-window headroom: {windows:?}"
-    );
-    assert!(
-        learned.eta_seconds.is_some_and(|eta| eta >= 10),
-        "{:?}",
-        learned.eta_seconds
-    );
-    // The rules carry their own observation basis — they are as old
-    // as the probe, not as fresh as the quote.
-    assert!(learned.observed_seconds_ago.is_some());
-    assert!(learned.notes.is_empty(), "{:?}", learned.notes);
-    // The unlearned route is unquotable and says so, never guessed.
-    assert_eq!(unknown.key, "character-list");
-    assert_eq!(unknown.policy, None);
-    assert_eq!(unknown.eta_seconds, None);
-    assert_eq!(unknown.observed_seconds_ago, None);
-    assert!(
-        unknown.notes[0].contains("HEAD probe"),
-        "{:?}",
-        unknown.notes
-    );
-    // What the quote does not cover is named.
-    let nc = quote.not_covered.join("\n");
-    assert!(nc.contains("character-list"), "{nc}");
-    assert!(nc.contains("OAuth token refresh"), "{nc}");
-    assert!(nc.contains("429 re-sends"), "{nc}");
-    assert!(nc.contains("`sleep` job(s) send nothing"), "{nc}");
-    // Read-only and non-reserving: no job exists, nothing was sent.
-    assert!(daemon.shared.lock().unwrap().jobs.is_empty());
-    assert_eq!(daemon.choke.recent_sends().len(), sends_before);
-    finish_harness_mock(None, &log_path);
+        assert_eq!(quote.provider, "mock");
+        assert!(quote.halted.is_none());
+        // The work is echoed verbatim, in order — the quote's verifiable
+        // basis for any carrier (a plan checks it against its actions).
+        assert_eq!(quote.work.len(), 10);
+        assert_eq!(quote.work[0].kind, "fetch");
+        assert_eq!(quote.work[8].kind, "characters");
+        assert_eq!(quote.work[9].kind, "sleep");
+        let [unknown, learned] = quote.scopes.as_slice() else {
+            panic!("expected two scopes: {:?}", quote.scopes);
+        };
+        // The learned route is keyed by its policy and quotes per-window
+        // headroom; 8 sends through 5-per-10s cannot be immediate.
+        assert_eq!(learned.key, "mock-fetch-request-limit");
+        assert_eq!(learned.policy.as_deref(), Some("mock-fetch-request-limit"));
+        assert_eq!(learned.endpoints, ["fetch"]);
+        assert_eq!((learned.requests, learned.queued_ahead), (8, 0));
+        let windows: Vec<(u32, u32)> = learned
+            .rules
+            .iter()
+            .flat_map(|r| r.windows.iter().map(|w| (w.hits, w.max_hits)))
+            .collect();
+        assert!(
+            windows.contains(&(1, 5)),
+            "per-window headroom, the GET counted and the HEAD not: {windows:?}"
+        );
+        assert!(
+            learned.eta_seconds.is_some_and(|eta| eta >= 10),
+            "{:?}",
+            learned.eta_seconds
+        );
+        // The rules carry their own observation basis — they are as old
+        // as the last send, not as fresh as the quote.
+        assert!(learned.observed_seconds_ago.is_some());
+        assert!(learned.notes.is_empty(), "{:?}", learned.notes);
+        // The unlearned route is unquotable and says so, never guessed.
+        assert_eq!(unknown.key, "character-list");
+        assert_eq!(unknown.policy, None);
+        assert_eq!(unknown.eta_seconds, None);
+        assert_eq!(unknown.observed_seconds_ago, None);
+        assert!(
+            unknown.notes[0].contains("HEAD probe"),
+            "{:?}",
+            unknown.notes
+        );
+        // What the quote does not cover is named.
+        let nc = quote.not_covered.join("\n");
+        assert!(nc.contains("character-list"), "{nc}");
+        assert!(nc.contains("OAuth token refresh"), "{nc}");
+        assert!(nc.contains("429 re-sends"), "{nc}");
+        assert!(nc.contains("`sleep` job(s) send nothing"), "{nc}");
+        // Read-only and non-reserving: no job was added, nothing was sent.
+        assert_eq!(list(door.request(Request::List).await), jobs_before);
+        assert_eq!(door.journal(), journal_before);
+        door.finish().await;
+    });
 }
 
 /// C40 — the projection counts the queue ahead and keys the same scopes a submit would.

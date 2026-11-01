@@ -594,6 +594,76 @@ fn admission_rows() -> Vec<Admission> {
         );
     }
 
+    // C43 (an apply's admission is vocabulary, not meaning, at submit
+    // before a job id exists) and C42 (a logical bound over
+    // `max_requests` refuses whole): an apply is refused whole, for a
+    // live session whose admitted children would send at once; nothing is
+    // admitted and no id is spent (the table's `List` and id-1 reads). The
+    // whole vocabulary (characters joined 2026-09-02): a character list
+    // under poe2 is a legal tuple, the character family takes it.
+    let name = "apply_admission_refuses_bad_vocabulary_and_blown_budgets_whole";
+    let ok_jobs = json!([
+        { "kind": "stashes", "params": { "league": "Standard" } },
+        { "kind": "stash", "params": { "league": "Standard", "id": "t1", "deep": false } },
+        { "kind": "characters", "params": { "realm": "poe2" } },
+        { "kind": "character", "params": { "realm": "pc", "name": "Exile" } },
+    ]);
+    for (params, said) in [
+        // The tuple list itself is required and non-empty.
+        (json!({}), "needs a `jobs` array"),
+        (json!({ "jobs": [] }), "empty"),
+        // Only single-request kinds: a nested parent (apply), the retired
+        // ad-hoc refresh, or any other kind would expand or sidestep the
+        // reviewed set.
+        (
+            json!({ "jobs": [{ "kind": "refresh", "params": { "all": true } }] }),
+            "not in the plan vocabulary",
+        ),
+        (
+            json!({ "jobs": [{ "kind": "apply", "params": { "jobs": [] } }] }),
+            "not in the plan vocabulary",
+        ),
+        (
+            json!({ "jobs": [{ "kind": "sleep", "params": {} }] }),
+            "not in the plan vocabulary",
+        ),
+        // A stash fetch that fans out expands the set; one without an id
+        // could not have come from a plan.
+        (
+            json!({ "jobs": [{ "kind": "stash", "params": { "league": "Standard", "id": "m1", "deep": true } }] }),
+            "never fans out",
+        ),
+        (
+            json!({ "jobs": [{ "kind": "stash", "params": { "league": "Standard" } }] }),
+            "needs an id",
+        ),
+        // A character fetch without a name could not have come from a
+        // plan either.
+        (
+            json!({ "jobs": [{ "kind": "character", "params": { "realm": "pc" } }] }),
+            "needs a name",
+        ),
+        // The budget: a bound under the tuple count refuses; a misread
+        // bound refuses too, never "the limit was ignored".
+        (
+            json!({ "jobs": ok_jobs.clone(), "max_requests": 1 }),
+            "exceeds the budget",
+        ),
+        (
+            json!({ "jobs": ok_jobs.clone(), "max_requests": "ten" }),
+            "non-negative integer",
+        ),
+    ] {
+        rows.push(
+            Admission::new(
+                format!("{name}: apply {params}"),
+                client("apply", params, None),
+                &[said],
+            )
+            .session(Session::Live),
+        );
+    }
+
     // C136 (the submitter `daemon` is the daemon's own): a client's
     // profile fetch for a live session, which, admitted, would send at
     // once.

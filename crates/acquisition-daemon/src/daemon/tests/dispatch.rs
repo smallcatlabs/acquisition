@@ -3,10 +3,12 @@
 //! blocks and 5xx, GGG's own 4xx and 5xx, a GET's 3xx, the HEAD 403) and
 //! the wire twins of `responses.rs`'s classification table are rows of
 //! the wire table through the door (C158, a scenario crosses the daemon's
-//! frontend boundary only), at the foot. The rest are component tests,
-//! each saying the boundary it needs: independent progress under waits,
-//! malformed listings (the store on disk), declared route knowledge, a
-//! probe's 429 under a private login, a blocked probe (the pick), the
+//! frontend boundary only), at the foot. Through the door too: progress
+//! beside an auth wait, malformed listings (the account's store read as
+//! a frontend reads it) and declared route knowledge. The rest are
+//! component tests, each saying the boundary it needs: progress beside
+//! rate waits, a probe's 429 under a private login, a blocked probe (the
+//! pick), the
 //! mark on disk and the log's redaction, real mode's whoami, the cancels
 //! at the choke point and the store that cannot record.
 //!
@@ -62,66 +64,65 @@ fn journal_waits(log_path: &std::path::Path) -> Vec<u64> {
         .collect()
 }
 
-#[tokio::test]
-async fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
-    let (base, arrived, release, server) =
-        delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) = test_daemon(&base, clock);
-    Arc::get_mut(&mut daemon).unwrap().credential_store = Arc::new(NoopCredentialStore);
-    {
-        let mut shared = daemon.shared.lock().unwrap();
-        shared.auth.one_mut().refresh_token = Some("rt-old".into());
-        shared.auth.rename("", "old-user");
-    }
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let first = daemon
-        .submit("whoami".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let second = daemon
-        .submit("whoami".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    // Both jobs are dispatched and held behind the one token request
-    // the server has not answered — read as any client reads it, from
-    // the job list (C21: an auth wait occupies no dispatcher slot).
-    arrived.await.unwrap();
-    tokio::time::timeout(Duration::from_secs(1), async {
-        loop {
-            let running = daemon
-                .shared
-                .lock()
-                .unwrap()
-                .list(&daemon)
-                .into_iter()
-                .filter(|job| job.state == JobState::Running)
-                .count();
-            if running == 2 {
-                break;
-            }
-            tokio::task::yield_now().await;
+/// C21 (an auth wait occupies no dispatcher slot): two jobs held behind
+/// the one token request the server has not answered are both Running,
+/// and an independent job is picked and completes beside them; released,
+/// both end Done on the one refresh. Through the door: the delayed token
+/// server holds the refresh of `old-user`'s `rt-old` (a refresh-due
+/// session of its own name, no keyring word), the jobs a client's
+/// `whoami`s; once the refresh has arrived and the runtime is quiet, both
+/// read Running through `Status`, a zero-second sleep runs to its end,
+/// and after the release the journal holds the one POST.
+#[test]
+fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
+    let mut sessions = Sessions::with(AuthSession {
+        refresh_token: Some("rt-old".into()),
+        ..AuthSession::default()
+    });
+    sessions.rename("", "old-user");
+    Door::open(
+        Server::Token(Token::Delayed(
+            "200 OK",
+            token_body("at-new", "rt-rotated", "test-user"),
+        )),
+        Arc::new(ParkingClock::new()),
+        Arc::new(NoopCredentialStore),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let first = door.submit("whoami", None).await;
+        let second = door.submit("whoami", None).await;
+        arrived.await.expect("the refresh reached the token server");
+        door.quiet().await;
+        for id in [first, second] {
+            door.await_job(id, |job| job.state == JobState::Running)
+                .await;
         }
-    })
-    .await
-    .expect("both jobs running behind the held refresh");
+        let sleep = Request::Submit {
+            kind: "sleep".into(),
+            params: json!({ "seconds": 0.0 }),
+            priority: 0,
+            submitted_by: "test".into(),
+            account: None,
+        };
+        let independent = match door.request(sleep).await {
+            Response::Submitted { id } => id,
+            other => panic!("the sleep answered {other:?}"),
+        };
+        let (info, _) = door.await_terminal(independent).await;
+        assert_eq!(info.state, JobState::Done);
 
-    let independent = daemon
-        .submit(
-            "sleep".into(),
-            json!({ "seconds": 0.0 }),
-            0,
-            "test".into(),
-            None,
-        )
-        .unwrap();
-    let (info, _) = wait_terminal(&daemon, independent).await;
-    assert_eq!(info.state, JobState::Done);
-
-    release.send(()).unwrap();
-    assert_eq!(wait_terminal(&daemon, first).await.0.state, JobState::Done);
-    assert_eq!(wait_terminal(&daemon, second).await.0.state, JobState::Done);
-    server.await.unwrap();
-    finish_harness(dispatcher, &log_path);
+        release
+            .send(())
+            .expect("the token server waits for the release");
+        for id in [first, second] {
+            let (info, outcome) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Done, "job {id}: {outcome:?}");
+        }
+        assert_eq!(door.journal_methods(), ["POST"], "the one refresh");
+        door.finish().await;
+    });
 }
 
 /// Two rate waits on two different keys stay parked on the clock while
@@ -217,11 +218,13 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
 /// no `stashes` array is refused by the job's own guard, and a listing
 /// whose entries lack ids is refused by the store (`MalformedBody`)
 /// and propagated through `record` — neither reports success, and
-/// neither leaves a response row a snapshot could cite as a basis. A
-/// component test (C158): it reads the account's store on disk, which no
-/// frontend reads through the protocol.
-#[tokio::test]
-async fn malformed_listings_fail_the_job_not_just_the_store() {
+/// neither leaves a response row a snapshot could cite as a basis.
+/// Through the door: a script of the probe and the two listings, a live
+/// session for Alice, two client submits; the account's store read
+/// through the store's read API, as a frontend reads it while the daemon
+/// runs (C12), the journal held equal to the script's wire at the finish.
+#[test]
+fn malformed_listings_fail_the_job_not_just_the_store() {
     let policy = "X-Rate-Limit-Policy: stash-list-test\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
     let responses = vec![
         ScriptedResponse {
@@ -246,120 +249,121 @@ async fn malformed_listings_fail_the_job_not_just_the_store() {
             body: r#"{"stashes":[{"name":"NoId","type":"PremiumStash"}]}"#.into(),
         },
     ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) = test_daemon(&base, clock);
-    let temp = tempfile::tempdir().unwrap();
-    let store_dir = temp.path().to_path_buf();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "Alice#1234");
-        let session = s.auth.one_mut();
-        session.username = Some("Alice#1234".into());
-        session.access_token = Some("at-test.Alice#1234".into());
-        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
-    }
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let account = Some("Alice#1234".to_string());
-    let first = daemon
-        .submit(
-            "stashes".into(),
-            json!({}),
-            0,
-            "test".into(),
-            account.clone(),
-        )
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, first).await;
-    assert_eq!(info.state, JobState::Failed);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("missing array did not fail the job")
-    };
-    assert!(error.contains("stashes"), "{error}");
-    let second = daemon
-        .submit("stashes".into(), json!({}), 0, "test".into(), account)
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, second).await;
-    assert_eq!(info.state, JobState::Failed);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("id-less entry did not fail the job")
-    };
-    assert!(error.contains("malformed stashes response"), "{error}");
-    // Nothing recorded either way: no tabs retired, no false basis.
-    let store = Store::open(&account_path(&store_dir, "Alice#1234")).unwrap();
-    assert_eq!(store.status().unwrap().responses, 0);
-    drop(store);
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    Door::open(
+        Server::Script(responses),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .store_dir(dir.clone())
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let first = door.submit("stashes", Some("Alice#1234")).await;
+        let (info, outcome) = door.await_terminal(first).await;
+        assert_eq!(info.state, JobState::Failed);
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("missing array did not fail the job")
+        };
+        assert!(error.contains("stashes"), "{error}");
+        let second = door.submit("stashes", Some("Alice#1234")).await;
+        let (info, outcome) = door.await_terminal(second).await;
+        assert_eq!(info.state, JobState::Failed);
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("id-less entry did not fail the job")
+        };
+        assert!(error.contains("malformed stashes response"), "{error}");
+        // Nothing recorded either way: no tabs retired, no false basis.
+        let store = Store::open(&account_path(&dir, "Alice#1234")).unwrap();
+        assert_eq!(store.status().unwrap().responses, 0);
+        drop(store);
+        door.finish().await;
+    });
 }
 
 /// The route knowledge declared for `/profile` and `/account/leagues`
-/// (first contact 2026-08-30), held against the mock that mirrors GGG:
-/// neither is probed; `/profile`'s headerless 200 is accepted and the
-/// endpoint becomes Policyless; `/account/leagues` teaches its policy
-/// from the GET. Removing a declaration fails here, not live.
-#[tokio::test]
-async fn declared_route_knowledge_holds_against_the_mock() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, log_path) = test_daemon(&base, clock);
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "Alice#1234");
-        let session = s.auth.one_mut();
-        session.username = Some("Alice#1234".into());
-        session.access_token = Some("at-test.Alice#1234".into());
-        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
-    }
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    // Resolution happens in the `Submit` handler; here the account is
-    // passed as that handler would after resolving the sole session.
-    let account = Some("Alice#1234".to_string());
-    let profile = daemon
-        .submit(
-            "profile".into(),
-            json!({}),
-            0,
-            "test".into(),
-            account.clone(),
-        )
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, profile).await;
-    assert_eq!(info.state, JobState::Done, "{outcome:?}");
-    let leagues = daemon
-        .submit("leagues".into(), json!({}), 0, "test".into(), account)
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, leagues).await;
-    assert_eq!(info.state, JobState::Done, "{outcome:?}");
-
-    let sends: Vec<(String, String)> = daemon
-        .choke
-        .recent_sends()
-        .into_iter()
-        .map(|send| (url_path(&send.url), send.method))
-        .collect();
-    assert!(
-        !sends.iter().any(|(_, method)| method == "HEAD"),
-        "no-probe routes must not be probed: {sends:?}"
-    );
-    assert!(
-        sends.contains(&("/profile".into(), "GET".into())),
-        "{sends:?}"
-    );
-    assert!(
-        sends.contains(&("/account/leagues".into(), "GET".into())),
-        "{sends:?}"
-    );
-    assert_eq!(
-        daemon.choke.endpoint_state("profile@Alice#1234"),
-        EndpointState::Policyless
-    );
-    assert!(matches!(
-        daemon.choke.endpoint_state("league@Alice#1234"),
-        EndpointState::Policy(ref name) if name.starts_with("league-request-limit")
-    ));
-    finish_harness_mock(dispatcher, &log_path);
+/// (first contact 2026-08-30), held against the mock that mirrors GGG
+/// (C32): neither is probed; `/profile`'s headerless 200 is accepted and
+/// the endpoint becomes Policyless; `/account/leagues` teaches its policy
+/// from the GET. Removing a declaration fails here, not live. Through
+/// the door: a live session for Alice, her `profile` and `leagues`
+/// submitted as a client submits them; the sends, the policyless
+/// endpoints and the learned policies read from `Dashboard`, and the
+/// journal.
+#[test]
+fn declared_route_knowledge_holds_against_the_mock() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    Door::open(
+        Server::Mock,
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        for kind in ["profile", "leagues"] {
+            let id = door.submit(kind, Some("Alice#1234")).await;
+            let (info, outcome) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Done, "{kind}: {outcome:?}");
+        }
+        let Response::Dashboard {
+            sends,
+            policyless_endpoints,
+            policies,
+            ..
+        } = door.request(Request::Dashboard).await
+        else {
+            panic!("the dashboard did not answer")
+        };
+        let sends: Vec<(String, String)> = sends
+            .into_iter()
+            .map(|send| (url_path(&send.url), send.method))
+            .collect();
+        assert!(
+            !sends.iter().any(|(_, method)| method == "HEAD"),
+            "no-probe routes must not be probed: {sends:?}"
+        );
+        assert!(
+            sends.contains(&("/profile".into(), "GET".into())),
+            "{sends:?}"
+        );
+        assert!(
+            sends.contains(&("/account/leagues".into(), "GET".into())),
+            "{sends:?}"
+        );
+        assert!(
+            policyless_endpoints.contains(&"profile@Alice#1234".to_string()),
+            "{policyless_endpoints:?}"
+        );
+        assert!(
+            policies.iter().any(|status| {
+                status.policy.starts_with("league-request-limit")
+                    && status.endpoints.contains(&"league@Alice#1234".to_string())
+            }),
+            "{policies:?}"
+        );
+        let journal: Vec<(String, String)> = door
+            .journal()
+            .iter()
+            .map(|send| {
+                (
+                    send["method"].as_str().expect("a method").to_string(),
+                    send["path"].as_str().expect("a path").to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            journal,
+            [
+                ("GET".to_string(), "/profile".to_string()),
+                ("GET".to_string(), "/account/leagues".to_string()),
+            ],
+            "each route's first send is its GET"
+        );
+        door.finish().await;
+    });
 }
 
 /// C19 for a probe: a HEAD's 429 that fails setup still holds its route

@@ -28,6 +28,18 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
     .expect("concurrent API callers joined the refresh flight");
 }
 
+/// N6, the integration stress: mixed policies, a refresh rotation and a
+/// cancellation under the limit, against the counting mock. A component
+/// test (C158): it needs the mock and a held token server at once, which
+/// the door's one `Server` cannot host (an `Own` relay holding the token
+/// POST in front of the mock is a twin not drawn), so it joins the two by
+/// the provider's token URL set by hand and seeds the session and its
+/// expiry under `shared`. Its private reads, by their twins at the
+/// boundary: the send counts (the journal, `Dashboard.sends`), the
+/// occupancy (`DaemonStatus.in_flight`), the policies (`Dashboard.
+/// policies`), the probes (`List`) and the refresh token (the credential
+/// store's save, read here too) have exact ones; the access token (the
+/// mock records no bearer) and the refresh flight have none.
 #[tokio::test]
 async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_the_limit() {
     let clock = Arc::new(ManualClock::new());
