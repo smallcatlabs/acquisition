@@ -15,7 +15,8 @@
 //! events as a frontend does ([`Door::subscribe`]), awaits the runtime
 //! settled where a state must hold once the daemon has done all it can
 //! ([`Door::settle`]), reads a second lifetime through a door opened
-//! beside it ([`DoorBuilder::beside`]), reads the
+//! beside it ([`DoorBuilder::beside`]) or a restart's through a door
+//! that restores as a start does ([`DoorBuilder::restore`]), reads the
 //! journal ([`Door::journal`]) and what a scripted server received
 //! ([`Door::received`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
@@ -262,6 +263,9 @@ pub(super) struct DoorBuilder {
     jobs_db: Option<JobDb>,
     sessions: Sessions,
     restore_landed: bool,
+    /// The start's restore begun at build and awaited before the scenario
+    /// ([`Self::restore`]).
+    restore: bool,
     restore_jobs: Option<Retention>,
     login_within: Option<Duration>,
     world: Option<(String, BoundSocket, PathBuf)>,
@@ -333,6 +337,7 @@ impl Door {
             jobs_db: None,
             sessions: Sessions::with(AuthSession::default()),
             restore_landed: true,
+            restore: false,
             restore_jobs: None,
             login_within: None,
             world: None,
@@ -368,6 +373,22 @@ impl DoorBuilder {
     /// C148: whether the start's restore has landed; landed by default.
     pub(super) fn restore_landed(mut self, landed: bool) -> Self {
         self.restore_landed = landed;
+        self
+    }
+
+    /// C148, the start's restore as a start runs it: the daemon built with
+    /// its restore not landed, then `begin_restore` (a counted landing on
+    /// a blocking thread, so the park hook holds the clock under it)
+    /// before the dispatcher starts, reading the door's credential store
+    /// and [`Self::store_dir`] on the door's clock's wall (no store
+    /// directory, no session). [`Self::run`] awaits the landing, the
+    /// keyring word no longer `restoring` (`AuthStatus`), before the
+    /// scenario runs, so the scenario meets a restored daemon as a
+    /// frontend does. The restore replaces the sessions [`Self::sessions`]
+    /// gave.
+    pub(super) fn restore(mut self) -> Self {
+        self.restore = true;
+        self.restore_landed = false;
         self
     }
 
@@ -433,9 +454,10 @@ impl DoorBuilder {
         F: FnOnce(Door) -> Fut,
         Fut: Future<Output = ()>,
     {
+        let restore = self.restore;
         let (runtime, slot) = idle_runtime();
         runtime.block_on(async {
-            let door = self.build().await;
+            let mut door = self.build().await;
             let counters = door.counters.clone();
             *slot.lock().unwrap() = Some(IdleHook {
                 clock: door.clock.clone(),
@@ -445,6 +467,9 @@ impl DoorBuilder {
                 settle: door.settle.clone(),
                 quiet: door.quiet.clone(),
             });
+            if restore {
+                door.await_restored().await;
+            }
             scenario(door).await;
             slot.lock().unwrap().take();
             *counters.lock().unwrap()
@@ -463,7 +488,12 @@ impl DoorBuilder {
     /// sends, which the hook would not see. [`Door::settle`] is the first
     /// door's.
     pub(super) async fn beside(self) -> Door {
-        self.build().await
+        let restore = self.restore;
+        let mut door = self.build().await;
+        if restore {
+            door.await_restored().await;
+        }
+        door
     }
 
     /// The fixture, then the daemon on the clock, journaling to a scratch
@@ -556,6 +586,9 @@ impl DoorBuilder {
             daemon
                 .restore_jobs(retention)
                 .expect("the door's daemon restores its queue");
+        }
+        if self.restore {
+            daemon.begin_restore(None);
         }
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         let (life, leave) = match self.life {
@@ -829,6 +862,13 @@ impl Door {
         })
         .await
         .expect("the auth answer came")
+    }
+
+    /// [`DoorBuilder::restore`]'s landing awaited: the keyring word
+    /// `AuthStatus` answers is no longer `restoring`.
+    async fn await_restored(&mut self) {
+        self.await_auth(|answer| answer.keyring != "restoring")
+            .await;
     }
 
     /// The journal's sends so far, header dropped, as the oracles read

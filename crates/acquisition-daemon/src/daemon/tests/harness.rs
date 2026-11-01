@@ -576,7 +576,6 @@ pub(super) const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit
 pub(super) struct Received {
     pub(super) method: String,
     pub(super) path: String,
-    #[allow(dead_code)] // read by the save family's scenarios, the next commit
     pub(super) bearer: Option<String>,
     pub(super) body: String,
 }
