@@ -270,6 +270,10 @@ run_case 'a live-run verifier drops a route'                     refuse 'EXEMPT 
 run_case 'the client harness skips a route the daemon probes'    refuse "EXEMPT  $CLIENT: the journal oracle" drift "$CLIENT" '"oauth-token" | "profile" | "league"' '"oauth-token" | "profile" | "league" | "stash"'
 run_case 'the daemon declares a route no copy names'             refuse 'EXEMPT  tools/tracer-verify.py: NO_PROBE is' drift crates/acquisition-daemon/src/daemon/routes.rs '&["profile", "league"]' '&["profile", "league", "character"]'
 run_case 'a copy renamed past the reader'                        refuse 'EXEMPT  tools/tracer-verify.py holds NO_PROBE 0 times' drift tools/tracer-verify.py 'NO_PROBE = {' 'NO_PROBES = {'
+PS='NO_PROBE = {"oauth-token", "profile", "league"}'
+run_case 'a verifier adds a single-quoted route'                 refuse "EXEMPT  tools/persist-verify.py: NO_PROBE is ['league', 'oauth-token', 'profile', 'stash']" drift tools/persist-verify.py "$PS" "NO_PROBE = {\"oauth-token\", \"profile\", \"league\", 'stash'}"
+run_case 'a verifier adds a member that is no string'            refuse "EXEMPT  tools/tracer-verify.py: NO_PROBE has the member 7, which is not a string" drift tools/tracer-verify.py "$PS" 'NO_PROBE = {"oauth-token", "profile", "league", 7}'
+run_case 'the client harness adds a raw-string route'            refuse "EXEMPT  $CLIENT: the journal oracle's matches! of the routes it does not probe has the element 'r\"stash\"'" drift "$CLIENT" '"oauth-token" | "profile" | "league"' '"oauth-token" | "profile" | "league" | r"stash"'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

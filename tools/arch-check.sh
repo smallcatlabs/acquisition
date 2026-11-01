@@ -517,47 +517,110 @@ printf '%s\n' "$blocking"
 # harness's wire oracle reads the two constants. Three copies of the set
 # live where the daemon crate cannot be linked or read: the client
 # harness's journal oracle (a `matches!` of the route names), and the
-# two live-run verifiers' `NO_PROBE` (Python). Each copy's literal set is
-# read here and held equal to the set the two constants compose; a copy
-# whose literal is not found once, or a constant not found once, fails,
-# never passes as a set that matched nothing.
+# two live-run verifiers' `NO_PROBE` (Python). Each copy's set is read
+# whole and held equal to the set the two constants compose: a Python
+# copy through `ast.literal_eval` of its whole right-hand side, every
+# member a string; a Rust literal (the declaration's array, the client's
+# `matches!` from its paren to the one closing it) element by element,
+# each a plain string literal. A copy or a constant not found once, or
+# holding a member the reader cannot name, fails, never passes as the
+# part of the set it could read.
 if ! exempt=$(python3 -I - <<'PY'
-import re, sys
+import ast, re, sys
+# Each set is read whole, never a shape of it (REVIEW-CHECKLIST.md, "A
+# reader whose partial answer satisfies every rule"): a Python copy is
+# the value `ast.literal_eval` makes of its whole right-hand side, a set
+# of strings and nothing else; a Rust literal is every element between
+# its delimiters, each required to be a plain string literal, so a
+# member the reader cannot name refuses rather than drops out.
+bad = []
 def read(path):
     return open(path, encoding="utf-8").read()
+def refuse(path, what, why):
+    bad.append(f"EXEMPT  {path}: {what} {why}, so the copy cannot be compared whole and is refused (C159)")
+    return None
 def once(path, pattern, what):
     found = re.findall(pattern, read(path), re.S | re.M)
     if len(found) != 1:
         bad.append(f"EXEMPT  {path} holds {what} {len(found)} times, where the check reads it once: the copy cannot be compared, so it is refused (C159)")
         return None
     return found[0]
-def names(text):
-    return set(re.findall(r'"([^"]*)"', text))
-bad = []
+RUST_STR = re.compile(r'\s*"([^"\\]*)"\s*')
+def rust_strings(path, what, text, sep):
+    # Every element between the delimiters, a trailing separator allowed.
+    parts = text.split(sep)
+    if parts and not parts[-1].strip():
+        parts = parts[:-1]
+    out = []
+    for part in parts:
+        m = RUST_STR.fullmatch(part)
+        if not m:
+            return refuse(path, what, f"has the element {part.strip()[:40]!r}, which is not a plain string literal")
+        out.append(m[1])
+    if not out:
+        return refuse(path, what, "has no element")
+    if len(set(out)) != len(out):
+        return refuse(path, what, f"names a route twice ({out})")
+    return set(out)
+def matches_body(path, text, anchor, what):
+    # From `matches!(` to its closing paren, by depth, then the pattern:
+    # what follows the first top-level comma.
+    at = text.find(anchor)
+    if at < 0 or text.find(anchor, at + 1) >= 0:
+        bad.append(f"EXEMPT  {path} holds {what} {0 if at < 0 else 'more than one'} times, where the check reads it once: the copy cannot be compared, so it is refused (C159)")
+        return None
+    start = at + len(anchor)
+    depth, i, comma = 1, start, None
+    while i < len(text) and depth:
+        c = text[i]
+        if c == '"':
+            i = text.index('"', i + 1)
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif c == "," and depth == 1 and comma is None:
+            comma = i
+        i += 1
+    if depth or comma is None:
+        return refuse(path, what, "has no closed matches!(subject, pattern)")
+    return text[comma + 1 : i - 1]
+def python_set(path, what):
+    rhs = once(path, r"^NO_PROBE = ([^\n]*)$", what)
+    if rhs is None:
+        return None
+    try:
+        value = ast.literal_eval(rhs)
+    except (ValueError, SyntaxError) as e:
+        return refuse(path, what, f"is {rhs[:60]!r}, which is no literal ({type(e).__name__})")
+    if not isinstance(value, (set, frozenset)):
+        return refuse(path, what, f"is a {type(value).__name__}, not a set")
+    strange = [m for m in value if not isinstance(m, str)]
+    if strange:
+        return refuse(path, what, f"has the member {strange[0]!r}, which is not a string")
+    return set(value)
 ROUTES = "crates/acquisition-daemon/src/daemon/routes.rs"
 LIMITER = "crates/acquisition-daemon/src/ratelimit/limiter.rs"
+CLIENT = "crates/acquisition-client/tests/harness/mod.rs"
 declared = once(ROUTES, r"const NO_PROBE_ROUTES: &'static \[&'static str\] = &\[([^\]]*)\];", "NO_PROBE_ROUTES")
-token = once(LIMITER, r'^pub const TOKEN_ROUTE: &str = "([^"]*)";', "TOKEN_ROUTE")
+token = once(LIMITER, r'^pub const TOKEN_ROUTE: &str = "([^"\\]*)";', "TOKEN_ROUTE")
+declared = None if declared is None else rust_strings(ROUTES, "NO_PROBE_ROUTES", declared, ",")
 if declared is None or token is None:
     print("\n".join(bad)); sys.exit(1)
-daemon = names(declared) | {token}
+daemon = declared | {token}
+what = "the journal oracle's matches! of the routes it does not probe"
+body = matches_body(CLIENT, read(CLIENT), "let probed = !matches!(", what)
 copies = [
-    ("crates/acquisition-client/tests/harness/mod.rs",
-     r'let probed = !matches!\(\s*name\(&send\.route\)\.as_str\(\),\s*((?:"[^"]*"\s*\|?\s*)+)\);',
-     "the journal oracle's matches! of the routes it does not probe"),
-    ("tools/persist-verify.py", r"^NO_PROBE = \{([^}]*)\}$", "NO_PROBE"),
-    ("tools/tracer-verify.py", r"^NO_PROBE = \{([^}]*)\}$", "NO_PROBE"),
+    (CLIENT, what, None if body is None else rust_strings(CLIENT, what, body, "|")),
+    ("tools/persist-verify.py", "NO_PROBE", python_set("tools/persist-verify.py", "NO_PROBE")),
+    ("tools/tracer-verify.py", "NO_PROBE", python_set("tools/tracer-verify.py", "NO_PROBE")),
 ]
-for path, pattern, what in copies:
-    found = once(path, pattern, what)
-    if found is None:
-        continue
-    copy = names(found)
-    if copy != daemon:
+for path, what, copy in copies:
+    if copy is not None and copy != daemon:
         bad.append(f"EXEMPT  {path}: {what} is {sorted(copy)}, the daemon's set is {sorted(daemon)} (NO_PROBE_ROUTES with TOKEN_ROUTE): a copy of the routes whose first send carries no probe holds the daemon's set (C159)")
 if bad:
     print("\n".join(bad)); sys.exit(1)
-print(f"ok      {'exempt':<13} {len(copies)} copies of the routes whose first send carries no probe equal the daemon's {sorted(daemon)}, NO_PROBE_ROUTES with TOKEN_ROUTE (C159)")
+print(f"ok      {'exempt':<13} {len(copies)} copies of the routes whose first send carries no probe, each read whole, equal the daemon's {sorted(daemon)}, NO_PROBE_ROUTES with TOKEN_ROUTE (C159)")
 PY
 ); then fail=1; fi
 printf '%s\n' "$exempt"
