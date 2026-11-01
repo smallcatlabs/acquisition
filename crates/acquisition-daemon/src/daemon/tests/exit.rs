@@ -1396,29 +1396,11 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
 
 /// A harness daemon serving a world (C134: only a daemon with a world
 /// reads or writes a fault marker), its queue on `<dir>/daemon.db` in the
-/// provider directory beside the marker, restored from it as `run` does.
+/// provider directory beside the marker, restored from it as `run` does:
+/// the component test's below, which reads the rows through a connection
+/// of its own between lifetimes and refuses a write with a trigger.
 fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, TestPath) {
-    world_daemon_at(dir, "http://127.0.0.1:1")
-}
-
-/// [`world_daemon`] facing the server at `base`.
-fn world_daemon_at(dir: &std::path::Path, base: &str) -> (Arc<Daemon>, TestPath) {
-    world_daemon_on(
-        dir,
-        base,
-        Arc::new(ManualClock::new()),
-        RailsConfig::default(),
-    )
-}
-
-/// [`world_daemon_at`] on `clock`, under the rails `config`.
-fn world_daemon_on(
-    dir: &std::path::Path,
-    base: &str,
-    clock: Arc<ManualClock>,
-    config: RailsConfig,
-) -> (Arc<Daemon>, TestPath) {
-    let (mut daemon, log_path) = test_daemon_with(Provider::mock(base), clock, config);
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
         d.world = Some(dir.display().to_string());
@@ -1427,6 +1409,48 @@ fn world_daemon_on(
     }
     daemon.restore_jobs(Retention::default()).unwrap();
     (daemon, log_path)
+}
+
+/// A door serving the world at `dir` ([`DoorBuilder::world`]; C134: a
+/// daemon with a world reads the fault marker beside `daemon.db`), its
+/// queue that directory's `daemon.db`, restored as a start restores it
+/// before the dispatcher starts; facing the account server holding
+/// nothing, which would answer a probe and a GET alike, so any send the
+/// lifetime made is on its record ([`Door::sent`]) and in the journal.
+fn fault_door(dir: &std::path::Path) -> DoorBuilder {
+    Door::open(
+        Server::Account(("GET", "/never", 0)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .world(dir.display().to_string(), dir.to_path_buf())
+    .jobs_db(JobDb::open(&acquisition_store::jobs::daemon_db_path(dir)).unwrap())
+    .restore_jobs(Retention::default())
+}
+
+/// The marker a panic in job 1 leaves (`install_panic_hook` writes it):
+/// a staged input, as the previous lifetime's rows are.
+fn stage_fault_marker(dir: &std::path::Path) {
+    std::fs::write(dir.join("fault.json"), "{\"job\":1}\n").unwrap();
+}
+
+/// The jobs `List` answers, each by its id and state.
+async fn listed_states(door: &mut Door) -> Vec<(JobId, JobState)> {
+    match door.request(Request::List).await {
+        Response::Jobs { jobs } => jobs.iter().map(|job| (job.id, job.state)).collect(),
+        other => panic!("the list answered {other:?}"),
+    }
+}
+
+/// Job `id`'s failure in its words, as `Result` answers it.
+async fn failure_of(door: &mut Door, id: JobId) -> String {
+    match door.request(Request::Result { id }).await {
+        Response::Result {
+            outcome: Outcome::Failure { error, .. },
+            ..
+        } => error,
+        other => panic!("job {id}'s result reads {other:?}"),
+    }
 }
 
 fn sleep_row(id: JobId, state: &str) -> acquisition_store::jobs::JobRow {
@@ -1450,82 +1474,80 @@ fn sleep_row(id: JobId, state: &str) -> acquisition_store::jobs::JobRow {
 
 /// C134: a panic's marker names the job it ran in, and the next lifetime
 /// fails that job, in words that say a fault in the daemon interrupted
-/// it, instead of replaying it (C6); the marker is gone after. Another
-/// running job is replayed as C6 says and a waiting one is untouched. A
-/// second restore changes nothing: the failed job stays failed.
-#[tokio::test]
-async fn a_fault_marker_fails_its_job_once() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let db = acquisition_store::jobs::daemon_db_path(&dir);
+/// it, instead of replaying it (C6). Another running job is replayed as
+/// C6 says and a waiting one is untouched. A second lifetime on the same
+/// directory changes nothing: the failed job stays failed, in the words
+/// first written. Through the door ([`fault_door`]): the marker and the
+/// previous lifetime's rows are staged inputs, each lifetime its own
+/// door's run, its restore held unlanded so the replayed sleeps do not
+/// run; read through `List` and `Result`, and by the observer once each
+/// run is over (C45). That the marker is gone once read is
+/// `a_fault_marker_outlives_a_failure_the_queue_could_not_write`'s.
+#[test]
+fn a_fault_marker_fails_its_job_once() {
+    let dir = TestPath::dir();
     {
-        let db = JobDb::open(&db).unwrap();
+        let db = JobDb::open(&acquisition_store::jobs::daemon_db_path(&dir)).unwrap();
         db.upsert(&sleep_row(1, "running")).unwrap();
         db.upsert(&sleep_row(2, "running")).unwrap();
         db.upsert(&sleep_row(3, "waiting")).unwrap();
     }
-    let marker = dir.join("fault.json");
-    std::fs::write(&marker, "{\"job\":1}\n").unwrap();
+    stage_fault_marker(&dir);
 
-    let (daemon, log1) = world_daemon(&dir);
-    let states = |daemon: &Daemon| -> Vec<(JobId, JobState)> {
-        daemon
-            .job_list()
-            .unwrap()
-            .iter()
-            .map(|j| (j.id, j.state))
-            .collect()
-    };
-    assert_eq!(
-        states(&daemon),
-        [
-            (1, JobState::Failed),
-            (2, JobState::Waiting),
-            (3, JobState::Waiting)
-        ],
-        "the marker's job fails; the rest restore as C6 says"
-    );
-    let failed = |row: acquisition_store::jobs::JobRow| -> String {
-        assert_eq!(row.state, "failed");
-        row.outcome.expect("a failed row has its outcome")["error"]
-            .as_str()
-            .expect("the failure's words")
-            .to_string()
-    };
-    let error = failed(row_of(&db, 1));
-    assert!(
-        error.contains("interrupted by a fault in the daemon"),
-        "{error}"
-    );
-    assert!(error.contains("not replayed"), "{error}");
-    assert!(!marker.exists(), "the marker is removed once read");
-    drop(daemon);
+    let mut first = String::new();
+    let written = &mut first;
+    fault_door(&dir)
+        .restore_landed(false)
+        .run(|mut door| async move {
+            assert_eq!(
+                listed_states(&mut door).await,
+                [
+                    (1, JobState::Failed),
+                    (2, JobState::Waiting),
+                    (3, JobState::Waiting)
+                ],
+                "the marker's job fails; the rest restore as C6 says"
+            );
+            let error = failure_of(&mut door, 1).await;
+            assert!(
+                error.contains("interrupted by a fault in the daemon"),
+                "{error}"
+            );
+            assert!(error.contains("not replayed"), "{error}");
+            *written = error;
+            door.finish().await;
+        });
+    let state = |id| on_disk(&dir, id).expect("the row").job.state;
+    assert_eq!(state(1), "failed", "the failure is on disk");
 
-    let (daemon, log2) = world_daemon(&dir);
-    assert_eq!(
-        states(&daemon),
-        [(2, JobState::Waiting), (3, JobState::Waiting)],
-        "a second restore changes nothing"
-    );
-    assert_eq!(
-        failed(row_of(&db, 1)),
-        error,
-        "the failure stands as written"
-    );
-    drop(daemon);
-    for log in [log1, log2] {
-        finish_harness(None, &log);
-    }
+    let first = &first;
+    fault_door(&dir)
+        .restore_landed(false)
+        .run(|mut door| async move {
+            assert_eq!(
+                listed_states(&mut door).await,
+                [(2, JobState::Waiting), (3, JobState::Waiting)],
+                "a second restore changes nothing"
+            );
+            assert_eq!(
+                &failure_of(&mut door, 1).await,
+                first,
+                "the failure stands as written"
+            );
+            door.finish().await;
+        });
+    assert_eq!(state(1), "failed", "the failure stays on disk");
 }
 
 /// The queue a probe's panic leaves in `dir`: the probe on `fetch`,
 /// recorded running, the `fetch` job waiting behind it, and the marker
-/// naming the probe. Returns the marker's path.
-fn seed_faulted_probe(dir: &std::path::Path, base: &str) -> PathBuf {
+/// naming the probe. The probe's URL is its row's alone: a restore drops
+/// probes, never sending one.
+fn seed_faulted_probe(dir: &std::path::Path) {
     let db = JobDb::open(&acquisition_store::jobs::daemon_db_path(dir)).unwrap();
     db.upsert(&acquisition_store::jobs::JobRow {
         kind: "probe".into(),
-        params: json!({ "route": "fetch", "url": format!("{base}/fetch") }),
+        params: json!({ "route": "fetch", "url": "http://127.0.0.1:1/fetch" }),
         ..sleep_row(1, "running")
     })
     .unwrap();
@@ -1535,62 +1557,56 @@ fn seed_faulted_probe(dir: &std::path::Path, base: &str) -> PathBuf {
         ..sleep_row(2, "waiting")
     })
     .unwrap();
-    let marker = dir.join("fault.json");
-    std::fs::write(&marker, "{\"job\":1}\n").unwrap();
-    marker
+    stage_fault_marker(dir);
 }
 
-/// C134: a marker naming a probe closes that probe's route for its
-/// cooldown, so the job waiting on the route fails instead of recreating
-/// the probe, and nothing is sent in the lifetime after the fault: no
-/// HEAD, no GET. The job's failure names the closed route, and the
-/// marker is gone; a job submitted on the route in the cooldown fails as
-/// the route's degraded. The server would answer the probe and the GET,
-/// so a restore that let the job recreate its probe sends both.
-#[tokio::test]
-async fn a_faulted_probe_closes_its_route() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let (base, wire, server) = scripted_server(vec![
-        ScriptedResponse::full("HEAD", "200 OK", None, ""),
-        ScriptedResponse::full("GET", "200 OK", None, "{}"),
-    ])
-    .await;
-    let marker = seed_faulted_probe(&dir, &base);
-
-    let (daemon, log_path) = world_daemon_at(&dir, &base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let (info, outcome) = wait_terminal(&daemon, 2).await;
+/// Job 2 of [`seed_faulted_probe`]'s queue, awaited to its end: failed,
+/// its words naming the closed route and why it is closed.
+async fn assert_failed_on_the_closed_route(door: &mut Door) {
+    let (info, outcome) = door.await_terminal(2).await;
     assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-    let error = match &outcome {
-        Outcome::Failure { error, .. } => error.clone(),
-        other => panic!("the waiting job failed: {other:?}"),
+    let Outcome::Failure { error, .. } = &outcome else {
+        panic!("the waiting job failed: {outcome:?}")
     };
     assert!(error.contains("route fetch"), "{error}");
     assert!(
         error.contains("a probe on this route broke the daemon"),
         "{error}"
     );
-    assert!(!marker.exists(), "the marker is removed once read");
-    let submitted = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, submitted).await;
-    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-    assert!(
-        matches!(&outcome, Outcome::Failure { error, .. }
-            if error.contains("route fetch is degraded")
-                && error.contains("a probe on this route broke the daemon")),
-        "a job submitted in the cooldown fails on the closed route: {outcome:?}"
-    );
-    assert!(
-        journal_sends(&log_path).is_empty(),
-        "the lifetime after the fault sent: {:?}",
-        journal_sends(&log_path)
-    );
-    assert!(wire.lock().unwrap().is_empty(), "the server was reached");
-    server.abort();
-    finish_harness(dispatcher, &log_path);
+}
+
+/// C134: a marker naming a probe closes that probe's route for its
+/// cooldown, so the job waiting on the route fails instead of recreating
+/// the probe, and nothing is sent in the lifetime after the fault: no
+/// HEAD, no GET. The job's failure names the closed route; a job
+/// submitted on the route in the cooldown fails as the route's degraded.
+/// Through the door ([`fault_door`], the dispatcher running): the
+/// probe's row, the job's and the marker are staged inputs; the account
+/// server would answer the probe and the GET, so a restore that let the
+/// job recreate its probe would put both on its record and the journal.
+#[test]
+fn a_faulted_probe_closes_its_route() {
+    let dir = TestPath::dir();
+    seed_faulted_probe(&dir);
+    fault_door(&dir).run(|mut door| async move {
+        assert_failed_on_the_closed_route(&mut door).await;
+        let submitted = door.submit("fetch", None).await;
+        let (info, outcome) = door.await_terminal(submitted).await;
+        assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+        assert!(
+            matches!(&outcome, Outcome::Failure { error, .. }
+                if error.contains("route fetch is degraded")
+                    && error.contains("a probe on this route broke the daemon")),
+            "a job submitted in the cooldown fails on the closed route: {outcome:?}"
+        );
+        assert!(
+            door.journal().is_empty(),
+            "the lifetime after the fault sent: {:?}",
+            door.journal()
+        );
+        assert!(door.sent().is_empty(), "the server was reached");
+        door.finish().await;
+    });
 }
 
 /// C134: the jobs a faulted probe's route holds fail at the restore, not
@@ -1598,69 +1614,59 @@ async fn a_faulted_probe_closes_its_route() {
 /// persisted by the last lifetime) dispatches nothing; once the cooldown
 /// has passed and the halt is reset, the route is unknown again, and a
 /// job still waiting would recreate the probe and send. The job is
-/// already failed, in words naming the closed route, and nothing is sent.
-#[tokio::test]
-async fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let (base, wire, server) = scripted_server(vec![
-        ScriptedResponse::full("HEAD", "200 OK", None, ""),
-        ScriptedResponse::full("GET", "200 OK", None, "{}"),
-    ])
-    .await;
-    let marker = seed_faulted_probe(&dir, &base);
+/// already failed, in words naming the closed route, and nothing is
+/// sent. Through the door ([`fault_door`]): the trip is a staged input
+/// too (`rails.json` beside the queue), read through `DaemonStatus`; the
+/// cooldown passes by the scenario's hand, since nothing parks on it; the
+/// reset is `ResetTripwire`'s; the row read on disk by the observer once
+/// the run is over (C45).
+#[test]
+fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
+    let dir = TestPath::dir();
+    seed_faulted_probe(&dir);
     let rails_state = dir.join("rails.json");
     std::fs::write(&rails_state, r#"{"tripped":"429 on GET /fetch"}"#).unwrap();
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = world_daemon_on(
-        &dir,
-        &base,
-        clock.clone(),
-        RailsConfig {
+    fault_door(&dir)
+        .rails(RailsConfig {
             state_path: Some(rails_state),
             ..tripwire_config()
-        },
-    );
-    assert!(
-        daemon.rails().halted().is_some(),
-        "the daemon starts halted"
-    );
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    settle().await;
-    clock.advance(crate::ratelimit::PROBE_COOLDOWN + Duration::from_secs(1));
-    daemon.reset_rails().unwrap();
-    let (info, outcome) = wait_terminal(&daemon, 2).await;
-    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-    let error = match &outcome {
-        Outcome::Failure { error, .. } => error.clone(),
-        other => panic!("the waiting job failed: {other:?}"),
-    };
-    assert!(error.contains("route fetch"), "{error}");
-    assert!(
-        error.contains("a probe on this route broke the daemon"),
-        "{error}"
-    );
+        })
+        .run(|mut door| async move {
+            let halted = match door.request(Request::DaemonStatus).await {
+                Response::DaemonStatus { rails, .. } => rails.halted,
+                other => panic!("the daemon's status reads {other:?}"),
+            };
+            assert!(halted.is_some(), "the daemon starts halted");
+            assert_failed_on_the_closed_route(&mut door).await;
+            door.settle().await;
+            door.advance(crate::ratelimit::PROBE_COOLDOWN + Duration::from_secs(1));
+            let reset = door.request(Request::ResetTripwire).await;
+            assert!(matches!(reset, Response::Ack { .. }), "{reset:?}");
+            door.settle().await;
+            assert!(
+                door.journal().is_empty(),
+                "the lifetime after the fault sent: {:?}",
+                door.journal()
+            );
+            assert!(door.sent().is_empty(), "the server was reached");
+            door.finish().await;
+        });
     assert_eq!(
-        row_of(&acquisition_store::jobs::daemon_db_path(&dir), 2).state,
+        on_disk(&dir, 2).expect("the row").job.state,
         "failed",
         "the failure is on disk"
     );
-    assert!(!marker.exists(), "the marker is removed once read");
-    settle().await;
-    assert!(
-        journal_sends(&log_path).is_empty(),
-        "the lifetime after the fault sent: {:?}",
-        journal_sends(&log_path)
-    );
-    assert!(wire.lock().unwrap().is_empty(), "the server was reached");
-    server.abort();
-    finish_harness(dispatcher, &log_path);
 }
 
 /// C134: a fault whose failure the queue could not write keeps its
 /// marker, for the row still says the job was open: the next restore
 /// fails the job instead of replaying it, and only then is the marker
 /// removed. The write is refused by a trigger staged on the queue file.
+/// The marker's removal after a restore that wrote its failure is this
+/// test's to pin, for the scenarios above: the marker is the hook's file
+/// beside `daemon.db`, which no frontend reads. A component test (C158):
+/// two lifetimes read through a connection of the test's own to the
+/// queue file, between them the trigger dropped.
 #[tokio::test]
 async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
     let temp = tempfile::tempdir().unwrap();

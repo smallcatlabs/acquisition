@@ -16,7 +16,9 @@
 //! settled where a state must hold once the daemon has done all it can
 //! ([`Door::settle`]), reads a second lifetime through a door opened
 //! beside it ([`DoorBuilder::beside`]) or a restart's through a door
-//! that restores as a start does ([`DoorBuilder::restore`]), reads the
+//! that restores as a start does ([`DoorBuilder::restore`]), serves a
+//! world whose directory holds what a previous lifetime left
+//! ([`DoorBuilder::world`]), reads the
 //! journal ([`Door::journal`]) and what a scripted server received
 //! ([`Door::received`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
@@ -271,7 +273,9 @@ pub(super) struct DoorBuilder {
     /// The provider named as the real one on the fixture's base
     /// ([`Self::real_named`]).
     real_named: bool,
-    world: Option<(String, BoundSocket, PathBuf)>,
+    /// The world served and its store directory ([`Self::world`]); its
+    /// endpoint is bound inside the runtime.
+    world: Option<(String, PathBuf)>,
     store_dir: Option<PathBuf>,
     events_capacity: Option<usize>,
     /// The lifecycle's driver's idle knob, when the scenario asks for
@@ -303,6 +307,9 @@ pub(super) struct Door {
     /// The scenario's wait for a quiet runtime, which the hook wakes.
     quiet: SettleSlot,
     finished: bool,
+    /// The world's endpoint ([`DoorBuilder::world`]) and, on Unix, the
+    /// folder its socket is in: held open while the door stands.
+    _endpoint: Option<(Listener, Option<TestPath>)>,
 }
 
 /// `AuthStatus`'s answer, its fields as the protocol's `Response::Auth`
@@ -433,9 +440,16 @@ impl DoorBuilder {
         self
     }
 
-    /// The world served (C83), its socket and its store directory.
-    pub(super) fn world(mut self, world: String, socket: BoundSocket, store_dir: PathBuf) -> Self {
-        self.world = Some((world, socket, store_dir));
+    /// The world served (C83) and its store directory, as a start serves
+    /// one: what a daemon with a world alone does follows (C134, the fault
+    /// marker beside `daemon.db` read at the restore). Its endpoint is
+    /// bound inside the door's runtime before the daemon is built, as
+    /// [`Server::own`]'s closure runs there ([`door_endpoint`]: a socket
+    /// in a folder of its own on Unix, a pipe named for the store
+    /// directory on Windows); nothing connects to it, since a scenario
+    /// enters through [`Door::request`], and it closes with the door.
+    pub(super) fn world(mut self, world: String, store_dir: PathBuf) -> Self {
+        self.world = Some((world, store_dir));
         self
     }
 
@@ -594,8 +608,14 @@ impl DoorBuilder {
         if let Some(within) = self.login_within {
             builder = builder.login_within(within);
         }
-        if let Some((world, socket, store_dir)) = self.world {
-            builder = builder.world(world, socket, store_dir);
+        let mut endpoint = None;
+        if let Some((world, store_dir)) = self.world {
+            let (socket, folder) = door_endpoint(&store_dir);
+            let (listener, bound) = Listener::bind(&socket)
+                .await
+                .expect("the door binds its world's endpoint");
+            builder = builder.world(world, bound, store_dir);
+            endpoint = Some((listener, folder));
         }
         if let Some(store_dir) = self.store_dir {
             builder = builder.store_dir(store_dir);
@@ -637,8 +657,39 @@ impl DoorBuilder {
             settle: Arc::default(),
             quiet: Arc::default(),
             finished: false,
+            _endpoint: endpoint,
         }
     }
+}
+
+/// [`DoorBuilder::world`]'s endpoint: on Unix a socket `door.sock` in a
+/// folder of its own, the folder held with the listener and removed with
+/// the door (a path short enough for a socket, which a store directory
+/// need not be).
+#[cfg(unix)]
+fn door_endpoint(_store_dir: &std::path::Path) -> (PathBuf, Option<TestPath>) {
+    let socket = TestPath::file("door.sock");
+    (socket.to_path_buf(), Some(socket))
+}
+
+/// [`DoorBuilder::world`]'s endpoint: on Windows a named pipe, which the
+/// world names `\\.\pipe\acq-<SID>-<world id>` and `Listener::bind`
+/// creates from the name given, so the door names its own from the
+/// process, the store directory's folder name and a count, unique among
+/// the tests that run at once and the doors one test opens in turn.
+#[cfg(windows)]
+fn door_endpoint(store_dir: &std::path::Path) -> (PathBuf, Option<TestPath>) {
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    let folder = store_dir
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let name = format!(
+        r"\\.\pipe\acq-door-{}-{folder}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::SeqCst)
+    );
+    (PathBuf::from(name), None)
 }
 
 impl Door {
