@@ -18,7 +18,10 @@
 # The spawn rule's cases (§9) append to a test file the tree has, so no
 # case is also a layout refusal. The exempt-route cases (§11) drift one
 # copy of the set, or the daemon's declaration under all three, or hide a
-# copy's literal from the reader.
+# copy's literal from the reader. The timer cases (§12) write a tokio
+# timer where the daemon's production runs, before or after a file's tail
+# test module and under a test attribute that is no module, and the
+# blocking case (§10) a second blocking task.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -42,7 +45,8 @@ done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
-       crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py)
+       crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
+       crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -121,7 +125,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|dependencies|layout|exempt' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -274,6 +278,24 @@ PS='NO_PROBE = {"oauth-token", "profile", "league"}'
 run_case 'a verifier adds a single-quoted route'                 refuse "EXEMPT  tools/persist-verify.py: NO_PROBE is ['league', 'oauth-token', 'profile', 'stash']" drift tools/persist-verify.py "$PS" "NO_PROBE = {\"oauth-token\", \"profile\", \"league\", 'stash'}"
 run_case 'a verifier adds a member that is no string'            refuse "EXEMPT  tools/tracer-verify.py: NO_PROBE has the member 7, which is not a string" drift tools/tracer-verify.py "$PS" 'NO_PROBE = {"oauth-token", "profile", "league", 7}'
 run_case 'the client harness adds a raw-string route'            refuse "EXEMPT  $CLIENT: the journal oracle's matches! of the routes it does not probe has the element 'r\"stash\"'" drift "$CLIENT" '"oauth-token" | "profile" | "league"' '"oauth-token" | "profile" | "league" | r"stash"'
+
+echo '== the code: every tokio timer in the daemon sleeps through its clock (C160), every blocking task counted (C158)'
+KINDS=crates/acquisition-daemon/src/daemon/kinds.rs AUTH=crates/acquisition-daemon/src/auth.rs
+TAIL='#[cfg(test)]
+mod tests {'
+SLEEP='tokio::time::sleep(std::time::Duration::ZERO)'
+# The lines each refusal must name, read from the files as they stand: an
+# item appended after kinds.rs's last line and its blank lands two lines on;
+# auth.rs's tail module opens at its `#[cfg(test)]` before `mod tests {`.
+appended=$(( $(wc -l <"$KINDS") + 2 ))
+tail_at=$(awk 'prev == "#[cfg(test)]" && $0 == "mod tests {" { print NR - 1 } { prev = $0 }' "$AUTH")
+run_case 'the timers as they stand'                              pass   'ok      timers' none
+run_case 'a timer in a production line'                          refuse "TIMER   $KINDS:$appended sleeps on tokio's own timer" in_tests "$KINDS" "\nasync fn zz() { $SLEEP.await; }\n"
+run_case 'a timer before the tail test module, the module kept'  refuse "TIMER   $AUTH:$tail_at sleeps on tokio's own timer" drift "$AUTH" "$TAIL" "fn zz() { let _ = $SLEEP; }
+$TAIL"
+run_case 'a timer under a test attribute that is no module'      refuse "TIMER   $KINDS:$((appended + 1)) sleeps on tokio's own timer" in_tests "$KINDS" "\n#[cfg(test)]\nasync fn zz() { $SLEEP.await; }\n"
+run_case 'a function with its own brace after the tail module'   refuse "TIMER   $AUTH:$tail_at opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line" in_tests "$AUTH" "\nfn zz() {\n    let _ = $SLEEP;\n}\n"
+run_case 'a second blocking task'                                refuse "BLOCKING $KINDS:$appended spawns a blocking task outside Daemon::blocking" in_tests "$KINDS" '\nfn zz() { let _ = tokio::task::spawn_blocking(|| ()); }\n'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }
