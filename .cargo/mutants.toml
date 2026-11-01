@@ -33,26 +33,26 @@ test_tool = "nextest"
 exclude_re = [
     # Equal deadlines: the hold keeps the same instant either way, and the
     # seconds stored beside it are read nowhere.
-    'limiter\.rs:685:26: replace > with >= in Limiter::install_retry_hold$',
+    'limiter\.rs:691:26: replace > with >= in Limiter::install_retry_hold$',
     # Reads at the instant a hold, a restriction, a window or a cooldown
     # ends: a status, `is_live` or the degraded list says "still" for that
     # one instant and writes nothing; the next read says "ended". (`is_live`
     # only defers an idle exit to the next check.)
-    'limiter\.rs:763:44: replace > with >= in Limiter::statuses$',
-    'limiter\.rs:777:59: replace > with >= in Limiter::is_live$',
-    'limiter\.rs:779:56: replace > with >= in Limiter::is_live$',
-    'limiter\.rs:792:72: replace < with <= in Limiter::is_live$',
-    'limiter\.rs:846:69: replace > with >= in Limiter::degraded_endpoints$',
+    'limiter\.rs:769:44: replace > with >= in Limiter::statuses$',
+    'limiter\.rs:783:59: replace > with >= in Limiter::is_live$',
+    'limiter\.rs:785:56: replace > with >= in Limiter::is_live$',
+    'limiter\.rs:798:72: replace < with <= in Limiter::is_live$',
+    'limiter\.rs:852:69: replace > with >= in Limiter::degraded_endpoints$',
     # The seed's window, checked again: every caller passes a seed only
     # when the same test already held (`seeded_in`) or passes none, so
     # both arms always agree.
-    'limiter\.rs:929:62: replace < with <= in window_frees_at_seeded$',
+    'limiter\.rs:935:62: replace < with <= in window_frees_at_seeded$',
     # `window_frees_at_seeded`'s fallback arm with a seed: unreachable. The
     # simulation calls it only once the window holds at least max hits,
     # which takes the indexed arm, and `next_safe_send` passes no seed.
-    'limiter\.rs:953:32: replace > with (==|<|>=) in window_frees_at_seeded$',
+    'limiter\.rs:959:32: replace > with (==|<|>=) in window_frees_at_seeded$',
     # A HEAD's body that fails to transfer: both arms fail the probe and
     # differ only in the degraded reason's words, and a HEAD response
     # carries no body for the client to fail on.
-    'choke\.rs:597:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
+    'choke\.rs:604:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
 ]

@@ -217,6 +217,53 @@ fn full_policy_accepts_observed_one_and_three_window_shapes() {
     assert_eq!(trade.rules[0].limits.len(), 3, "N30");
 }
 
+/// #113: a log line names a rule by the scope GGG documents, `Client`
+/// among them, and anything else as outside GGG's. Kills the mutant
+/// `delete match arm "Client" in rule_label`, which said "a rule outside
+/// GGG's" for a `Client` rule (t5's close, #141: a survivor since #86).
+#[test]
+fn a_documented_scope_is_labelled_by_its_name() {
+    for scope in ["Ip", "Account", "Client"] {
+        assert_eq!(rule_label(scope), scope);
+    }
+    assert_eq!(rule_label("Realm"), "a rule outside GGG's");
+}
+
+/// #113: a missing rule header is named by its rule in GGG's spelling,
+/// read back from the lowercased header key. Kills the mutants
+/// `replace capitalise -> String with String::new()` and `with
+/// "xyzzy".into()`, each of which named the rule as outside GGG's (t5's
+/// close, #141: survivors since #86).
+#[test]
+fn a_missing_rule_header_names_its_rule_in_gggs_spelling() {
+    let error = parse(&[
+        ("x-rate-limit-policy", "token-request-limit"),
+        ("x-rate-limit-rules", "Ip"),
+    ])
+    .unwrap_err();
+    assert_eq!(error.to_string(), "missing the limits header of rule Ip");
+}
+
+/// #113: a rate line says a window is restricted only while its
+/// restriction runs: at zero seconds it says nothing of one, at one second
+/// it says so. The tie at zero decides a word, so it is pinned, not
+/// listed. Kills the mutants `replace > with == in rate_words`, `with <`
+/// and `with >=` on `restricted_secs > 0` (t5's close, #141: survivors
+/// since #86).
+#[test]
+fn a_rate_line_says_restricted_only_while_a_restriction_runs() {
+    let words = |state: &str| {
+        rate_words(&serde_json::json!({
+            "x-rate-limit-policy": "token-request-limit",
+            "x-rate-limit-rules": "Ip",
+            "x-rate-limit-ip": "60:30:30",
+            "x-rate-limit-ip-state": state,
+        }))
+    };
+    assert_eq!(words("2:30:0"), "rate Ip 2/60 per 30s");
+    assert_eq!(words("2:30:1"), "rate Ip 2/60 per 30s, restricted 1s");
+}
+
 /// Every partial or malformed header set D8 names, each refused whole.
 const D8_REJECTED: &[(&str, &[(&str, &str)])] = &[
     ("missing policy", &[]),
