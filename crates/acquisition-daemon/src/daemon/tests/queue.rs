@@ -96,6 +96,33 @@ async fn listed(door: &mut Door) -> Vec<JobInfo> {
 /// empty record is nothing sent.
 const NO_HOLD: (&str, &str, usize) = ("GET", "/never", 0);
 
+/// The bait's rule (the account server, [`NO_HOLD`]): a recording fixture
+/// records a request before it interprets it, so one the daemon should
+/// never send is on its record rather than lost in a panicked task. Token
+/// requests whose grant it cannot read (an empty body; a refresh grant
+/// with no token) are each answered and recorded, the account unread. A
+/// component test of the fixture alone: no daemon sends such a request,
+/// and the door does not expose the fixture's base to a scenario's own
+/// client.
+#[tokio::test]
+async fn the_account_bait_records_a_request_it_cannot_read() {
+    let (base, sent_log, _arrived, _release) = account_server(NO_HOLD).await;
+    let client = reqwest::Client::new();
+    for body in ["", "grant_type=refresh_token"] {
+        let answer =
+            tokio::time::timeout(HANG, client.post(format!("{base}/token")).body(body).send())
+                .await
+                .expect("the bait answered")
+                .expect("the bait's answer arrived");
+        assert!(answer.status().is_success(), "{body:?}: {answer:?}");
+    }
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent(UNREAD_ACCOUNT, "POST"), sent(UNREAD_ACCOUNT, "POST")],
+        "each request the bait could not read is on its record"
+    );
+}
+
 /// The provider an admission row's daemon runs as.
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Mode {
@@ -901,8 +928,11 @@ enum Said {
     /// It carries these words and none of the misleading causes given.
     Carries(&'static str, &'static [&'static str]),
     /// It is, word for word, the refusal a client's submit of the same
-    /// kind, params and account is answered with.
-    TheDoors,
+    /// kind, params and account is answered with, and it names the value
+    /// refused (these words): a row that fails for a value names the
+    /// value, which the equality alone would not hold if the door's own
+    /// words omitted it.
+    TheDoors(String),
 }
 
 /// C127, a row of the restored-rows table: a waiting row as an earlier
@@ -1003,7 +1033,7 @@ fn restored_rows() -> Vec<Restored> {
         params: json!({ "realm": "nope" }),
         account: Some("test-user"),
         submitted_by: "daemon",
-        said: Said::TheDoors,
+        said: Said::TheDoors("nope".into()),
     });
     // C127 (one bound on `sleep`): a restored sleep whose `seconds` the
     // door would refuse fails in the door's own words rather than run a
@@ -1018,7 +1048,7 @@ fn restored_rows() -> Vec<Restored> {
             params: json!({ "seconds": seconds }),
             account: None,
             submitted_by: "client",
-            said: Said::TheDoors,
+            said: Said::TheDoors(format!("not {seconds}")),
         });
     }
     rows
@@ -1091,11 +1121,12 @@ fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
                         );
                     }
                 }
-                Said::TheDoors => {
+                Said::TheDoors(value) => {
                     let submit = submit_of(kind, params, 0, "client", account);
                     let answer = door.request(submit).await;
                     let refusal = assert_refused(answer, name, ErrorKind::Refused, &[], &[]);
                     assert_eq!(error, &refusal, "{name}: the failure is the door's words");
+                    assert!(error.contains(&value), "{name}: names {value:?}: {error}");
                 }
             }
             door.settle().await;

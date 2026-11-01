@@ -1420,6 +1420,11 @@ pub(super) fn freeze(dir: &std::path::Path) -> WithMode<'_> {
     with_mode(dir, 0o555)
 }
 
+/// The account [`account_server`] records for a token request whose grant
+/// it cannot read (no `grant_type`, or no `code` or `refresh_token` for
+/// it): the request is on the record all the same.
+pub(super) const UNREAD_ACCOUNT: &str = "?";
+
 /// One send as the account server saw it: the method, and the account it
 /// was for (the token POST's grant, or the GET's bearer).
 pub(super) type Sent = (String, String);
@@ -1431,7 +1436,8 @@ pub(super) type Sent = (String, String);
 /// grant's is its code, so a login's browser carries `code=<name>`; the
 /// tokens answered are `at-<name>` and `rt-<name>`), and `GET /profile`
 /// with the bearer's account, `uuid-<name>`, without rate headers as GGG
-/// serves it. Of the requests
+/// serves it. Every request is recorded before it is answered, one whose
+/// grant cannot be read as [`UNREAD_ACCOUNT`]'s. Of the requests
 /// matching `hold`'s method and path, the one numbered `hold.2` (from 0)
 /// is held: `arrived` fires when it is in, and it is answered when
 /// `release` fires.
@@ -1461,17 +1467,24 @@ pub(super) async fn account_server(
                 let Some(request) = mockggg::read_request(&mut stream).await else {
                     return;
                 };
+                // The bait's rule: the record comes first, whatever the
+                // request holds. The account is read without indexing, a
+                // field the grant lacks reading as `UNREAD_ACCOUNT`, so a
+                // request the daemon should never send is on the record,
+                // never a panic in this detached task.
                 let account = if request.path == "/token" {
                     let grant: HashMap<String, String> =
                         url::form_urlencoded::parse(request.body.as_bytes())
                             .into_owned()
                             .collect();
-                    match grant["grant_type"].as_str() {
-                        "authorization_code" => grant["code"].clone(),
-                        _ => match grant["refresh_token"].as_str() {
-                            "rt-old" => "test-user".to_string(),
-                            token => token.trim_start_matches("rt-").to_string(),
-                        },
+                    let field = |name: &str| grant.get(name).map(String::as_str);
+                    match (field("grant_type"), field("code"), field("refresh_token")) {
+                        (Some("authorization_code"), Some(code), _) => code.to_string(),
+                        (Some("refresh_token"), _, Some("rt-old")) => "test-user".to_string(),
+                        (Some("refresh_token"), _, Some(token)) => {
+                            token.trim_start_matches("rt-").to_string()
+                        }
+                        _ => UNREAD_ACCOUNT.to_string(),
                     }
                 } else {
                     request
