@@ -1109,7 +1109,9 @@ pub struct Described {
     pub id: &'static str,
     /// The site's text for the id.
     pub text: String,
-    /// What makes it hold.
+    /// What makes it hold: empty in the index, which carries the id and
+    /// the site's text alone.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub holds: String,
 }
 

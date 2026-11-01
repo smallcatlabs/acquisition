@@ -1070,7 +1070,7 @@ fn c93_a_row_that_reads_the_category_under_not_and_or() {
 /// totals shipped before the family among them.
 #[test]
 fn c97_describe_of_a_ranged_total_says_its_rows_the_limit_and_what_no_total_reads() {
-    let all = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let all = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let computed = all["computed"].as_array().unwrap();
     let ranged: Vec<&Value> = computed
         .iter()

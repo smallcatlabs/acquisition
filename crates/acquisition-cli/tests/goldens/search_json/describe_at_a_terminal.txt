@@ -1,0 +1,323 @@
+# golden search_json/describe_at_a_terminal: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --describe
+# holds "more: This is the index, each entry by its name and one line"
+# holds "`--describe all` everything"
+# holds "pseudo.total_life"
+# holds "accessory.ring"
+--- stdout
+fields
+  text                       text        every displayed string, each tested on its own
+  name                       text        GGG's name; a magic or normal item, a gem, a currency stack has none
+  typeline                   text        GGG's type line
+  base                       text        GGG's base type
+  note                       text        the item's note as GGG gives it; never part of `text`
+  rarity                     closed set  GGG's rarity; a gem, a currency stack, a card has none
+  frame                      closed set  GGG's frameTypeId, on every item
+  class                      closed set  the item's class as the game names it, read from its base in the class table — classes v1, 82 classes over pc, xbox, sony
+  category                   closed set  the trade site's category of the item, by the site's own id — a convention, computed from the item's class and reviewed rules
+  ilvl                       number      the item level; GGG's 0 is an item with none
+  reqlevel                   number      the level the item requires
+  stack                      number      GGG's stackSize
+  sockets                    number      how many sockets the item has, of every colour; an item whose body lists none lacks it, and one that lists an empty collection has 0
+  links                      number      the size of the item's largest link group; an item with no link group lacks it
+  priced                     flag        whether the item carries an effective price
+  price.amount               number      the number the effective price states
+  price.currency             closed set  the effective price's currency, by the tag of the currency table
+  price.lot                  number      a bulk ratio's lot — `wanted/lot` — which a decimal price lacks
+  price.side                 closed set  who set the effective price
+  league                     text        the league the item is in now — its place, never where it came from
+  tab                        text        the name of the stash tab the item is in; in a substash, that name and its tab's
+  tab.type                   text        GGG's `type` of the stash tab the item is in, verbatim — MapStash, QuadStash, CurrencyStash, …
+  tab.public                 closed set  whether the stash tab the item is in is public, as GGG's stash list says of it
+  tab.remove_only            closed set  whether the stash tab the item is in is remove-only, which GGG marks by ending its name with ` (Remove-only)`
+  character                  text        the name of the character the item is on
+  container                  text        the array the item came in
+  id                         id          any id an answer printed, whole
+  attacks_per_second         number      a weapon's `Attacks per Second`, as displayed — local modifiers applied by the game (properties v1)
+  critical_strike_chance     number      the displayed `Critical Strike Chance`, in percent
+  chance_to_block            number      a shield's displayed `Chance to Block`, in percent (properties v1)
+  armour.q20                 number      the displayed `Armour` at 20 % quality, as the trade site's Armour filter states it
+  evasion_rating.q20         number      the displayed `Evasion Rating` at 20 % quality, by `armour.q20`'s rule (properties v1)
+  energy_shield.q20          number      the displayed `Energy Shield` at 20 % quality, by `armour.q20`'s rule (properties v1)
+  ward.q20                   number      the displayed `Ward` at 20 % quality, by `armour.q20`'s rule (properties v1)
+  armour                     number      the displayed `Armour`, as the item stands at its own quality; `armour.q20` is the trade site's reading at 20 % (properties v1)
+  evasion_rating             number      the displayed `Evasion Rating`, as the item stands at its own quality; `evasion_rating.q20` is the trade site's reading at 20 % (properties v1)
+  energy_shield              number      the displayed `Energy Shield`, as the item stands at its own quality; `energy_shield.q20` is the trade site's reading at 20 % (properties v1)
+  ward                       number      the displayed `Ward`, as the item stands at its own quality; `ward.q20` is the trade site's reading at 20 % (properties v1)
+  str                        number      the Strength the item requires
+  dex                        number      the Dexterity the item requires
+  int                        number      the Intelligence the item requires
+  map_tier                   number      a map's tier
+  area_level                 number      the displayed `Area Level`
+  monster_pack_size          number      a map's displayed `Monster Pack Size`, in percent (properties v1)
+  item_quantity              number      the displayed `Item Quantity`, in percent
+  item_rarity                number      the displayed `Item Rarity`, in percent (properties v1)
+  memory_strands             number      the displayed `Memory Strands` (properties v1)
+  wings_revealed             number      a blueprint's wings revealed
+  wings_revealed.of          number      a blueprint's wings in all
+  escape_routes_revealed     number      the first number of `Escape Routes Revealed
+  escape_routes_revealed.of  number      the second number of `Escape Routes Revealed
+  reward_rooms_revealed      number      the first number of `Reward Rooms Revealed
+  reward_rooms_revealed.of   number      the second number of `Reward Rooms Revealed
+  lockpicking                number      the level of Lockpicking a contract or blueprint requires, `Requires Lockpicking (Level n)`, or a heist item requires of its wearer, `Requires Level n in Lockpicking`, which the trade site's skill filter reads too (properties v1)
+  brute_force                number      the level of Brute Force a contract or blueprint requires, as `lockpicking` (properties v1)
+  perception                 number      the level of Perception a contract or blueprint requires, as `lockpicking` (properties v1)
+  demolition                 number      the level of Demolition a contract or blueprint requires, as `lockpicking` (properties v1)
+  counter_thaumaturgy        number      the level of Counter-Thaumaturgy a contract or blueprint requires, as `lockpicking` (properties v1)
+  trap_disarmament           number      the level of Trap Disarmament a contract or blueprint requires, as `lockpicking` (properties v1)
+  agility                    number      the level of Agility a contract or blueprint requires, as `lockpicking` (properties v1)
+  deception                  number      the level of Deception a contract or blueprint requires, as `lockpicking` (properties v1)
+  engineering                number      the level of Engineering a contract or blueprint requires, as `lockpicking` (properties v1)
+  resolve                    number      a sanctum's resolve
+  resolve.of                 number      a sanctum's maximum resolve
+  inspiration                number      a sanctum's displayed `Inspiration` (properties v1)
+  aureus                     number      a sanctum's displayed `Aureus` (properties v1)
+  quality                    number      the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too; a map's `Quality (Quantity)` and its kin are names of their own and not read (properties v1)
+  level                      number      a gem's displayed `Level`, `(Max)` beside it read and dropped; the level an item requires is `reqlevel` (properties v1)
+  experience                 number      a gem's experience as the percent of its level's
+  stored_experience          number      the displayed `Stored Experience` (properties v1)
+  sockets.<colour>           number      how many sockets of one colour the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W), so an abyssal socket (A) or a resonator's (DV) counts in `sockets` and under no colour
+  is                         flag        every yes the item's body says, as GGG spells it; `-is:` is no, silence is any
+  has                        flag        presence; absence only when all that could hold the thing was readable
+inside line( … )
+  template        text        the displayed line with each number a #, the sign in the number — a + typed before a #, as the game and the trade site write a line, is spelling and is dropped; a bare "T" means template="T". A mod displayed over several rows is one line
+  source          closed set  the array the line came in, without its `Mods`; hybrid is a vaal gem's base skill
+  is              flag        the flags the body sets on the line
+inside linked( … )
+  red green blue white  number      how many sockets of the colour one link group holds; every count named holds together on one group
+  size                  number      how many sockets the link group holds; an item with no link group lacks every `linked( … )`
+values
+  line(P).<slot>  value       one occurrence's number
+  sum             value       the item's sum of a slot over the occurrences P selects, exact in decimals; nothing sums to zero; with a possible contributor unread it is incomplete and its comparison undecided. A sum over lines a pattern selects is your arithmetic, never a reviewed total
+composition
+  and             composition  whitespace or the word, at the level you are in; `a b or c` unparenthesised is an error showing both readings
+  or              composition  either
+  not -           composition  the term is false; at a terminal a query that starts with - goes after --
+  ( )             composition  grouping, and nothing else; a query nests at most 32 deep, each `( )`, `not`, `holds( )` and `undecided( )` around a term one level
+  holds           composition  how many of its queries hold
+  undecided       composition  true when a thing's value or a term's truth cannot be established on the item — something it needs was unread; always decided itself
+  true() false()  composition  always true, always false
+operators
+  :               operator    contains, in any case; on a closed set, picks among its legal values
+  =               operator    the whole value, in any case; with a..b, a number inside the range, a side may be blank
+  ~               operator    a pattern
+  > >= < <=       operator    a number against a number
+slots
+  arg1 arg2 …     slot        every number of a template by position, counting from 1
+  low high avg    slot        on a ranged line — a template with exactly one `# to #`
+computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
+  pseudo.total_cold_res                     total         the trade site's pseudo_total_cold_resistance (`+#% total to Cold Resistance`)
+  pseudo.total_fire_res                     total         the trade site's pseudo_total_fire_resistance (`+#% total to Fire Resistance`)
+  pseudo.total_lightning_res                total         the trade site's pseudo_total_lightning_resistance (`+#% total to Lightning Resistance`)
+  pseudo.total_ele_res                      total         the trade site's pseudo_total_elemental_resistance (`+#% total Elemental Resistance`)
+  pseudo.total_chaos_res                    total         the trade site's pseudo_total_chaos_resistance (`+#% total to Chaos Resistance`)
+  pseudo.total_res                          total         the trade site's pseudo_total_resistance (`+#% total Resistance`)
+  pseudo.total_str                          total         the trade site's pseudo_total_strength (`+# total to Strength`)
+  pseudo.total_dex                          total         the trade site's pseudo_total_dexterity (`+# total to Dexterity`)
+  pseudo.total_int                          total         the trade site's pseudo_total_intelligence (`+# total to Intelligence`)
+  pseudo.total_attack_speed                 total         the trade site's pseudo_total_attack_speed (`+#% total Attack Speed`)
+  pseudo.total_cast_speed                   total         the trade site's pseudo_total_cast_speed (`+#% total Cast Speed`)
+  pseudo.total_increased_phys               total         the trade site's pseudo_increased_physical_damage (`+#% total increased Physical Damage`)
+  pseudo.total_spell_crit                   total         the trade site's pseudo_critical_strike_chance_for_spells (`+#% total Critical Strike Chance for Spells`)
+  pseudo.total_gem_levels                   total         the trade site's pseudo_total_additional_gem_levels (`+# total to Level of Socketed Gems`)
+  pseudo.total_elemental_gem_levels         total         the trade site's pseudo_total_additional_elemental_gem_levels (`+# total to Level of Socketed Elemental Gems`)
+  pseudo.total_fire_gem_levels              total         the trade site's pseudo_total_additional_fire_gem_levels (`+# total to Level of Socketed Fire Gems`)
+  pseudo.total_cold_gem_levels              total         the trade site's pseudo_total_additional_cold_gem_levels (`+# total to Level of Socketed Cold Gems`)
+  pseudo.total_lightning_gem_levels         total         the trade site's pseudo_total_additional_lightning_gem_levels (`+# total to Level of Socketed Lightning Gems`)
+  pseudo.total_chaos_gem_levels             total         the trade site's pseudo_total_additional_chaos_gem_levels (`+# total to Level of Socketed Chaos Gems`)
+  pseudo.total_spell_gem_levels             total         the trade site's pseudo_total_additional_spell_gem_levels (`+# total to Level of Socketed Spell Gems`)
+  pseudo.total_projectile_gem_levels        total         the trade site's pseudo_total_additional_projectile_gem_levels (`+# total to Level of Socketed Projectile Gems`)
+  pseudo.total_bow_gem_levels               total         the trade site's pseudo_total_additional_bow_gem_levels (`+# total to Level of Socketed Bow Gems`)
+  pseudo.total_melee_gem_levels             total         the trade site's pseudo_total_additional_melee_gem_levels (`+# total to Level of Socketed Melee Gems`)
+  pseudo.total_minion_gem_levels            total         the trade site's pseudo_total_additional_minion_gem_levels (`+# total to Level of Socketed Minion Gems`)
+  pseudo.total_strength_gem_levels          total         the trade site's pseudo_total_additional_strength_gem_levels (`+# total to Level of Socketed Strength Gems`)
+  pseudo.total_dexterity_gem_levels         total         the trade site's pseudo_total_additional_dexterity_gem_levels (`+# total to Level of Socketed Dexterity Gems`)
+  pseudo.total_intelligence_gem_levels      total         the trade site's pseudo_total_additional_intelligence_gem_levels (`+# total to Level of Socketed Intelligence Gems`)
+  pseudo.total_aura_gem_levels              total         the trade site's pseudo_total_additional_aura_gem_levels (`+# total to Level of Socketed Aura Gems`)
+  pseudo.total_movement_gem_levels          total         the trade site's pseudo_total_additional_movement_gem_levels (`+# total to Level of Socketed Movement Gems`)
+  pseudo.total_curse_gem_levels             total         the trade site's pseudo_total_additional_curse_gem_levels (`+# total to Level of Socketed Curse Gems`)
+  pseudo.total_vaal_gem_levels              total         the trade site's pseudo_total_additional_vaal_gem_levels (`+# total to Level of Socketed Vaal Gems`)
+  pseudo.total_support_gem_levels           total         the trade site's pseudo_total_additional_support_gem_levels (`+# total to Level of Socketed Support Gems`)
+  pseudo.total_skill_gem_levels             total         the trade site's pseudo_total_additional_skill_gem_levels (`+# total to Level of Socketed Skill Gems`)
+  pseudo.total_warcry_gem_levels            total         the trade site's pseudo_total_additional_warcry_gem_levels (`+# total to Level of Socketed Warcry Gems`)
+  pseudo.total_golem_gem_levels             total         the trade site's pseudo_total_additional_golem_gem_levels (`+# total to Level of Socketed Golem Gems`)
+  pseudo.adds_physical                      ranged total  the trade site's pseudo_adds_physical_damage (`Adds # to # Physical Damage`)
+  pseudo.adds_lightning                     ranged total  the trade site's pseudo_adds_lightning_damage (`Adds # to # Lightning Damage`)
+  pseudo.adds_cold                          ranged total  the trade site's pseudo_adds_cold_damage (`Adds # to # Cold Damage`)
+  pseudo.adds_fire                          ranged total  the trade site's pseudo_adds_fire_damage (`Adds # to # Fire Damage`)
+  pseudo.adds_chaos                         ranged total  the trade site's pseudo_adds_chaos_damage (`Adds # to # Chaos Damage`)
+  pseudo.adds_elemental                     ranged total  the trade site's pseudo_adds_elemental_damage (`Adds # to # Elemental Damage`)
+  pseudo.adds_damage                        ranged total  the trade site's pseudo_adds_damage (`Adds # to # Damage`)
+  pseudo.adds_physical_to_attacks           ranged total  the trade site's pseudo_adds_physical_damage_to_attacks (`Adds # to # Physical Damage to Attacks`)
+  pseudo.adds_lightning_to_attacks          ranged total  the trade site's pseudo_adds_lightning_damage_to_attacks (`Adds # to # Lightning Damage to Attacks`)
+  pseudo.adds_cold_to_attacks               ranged total  the trade site's pseudo_adds_cold_damage_to_attacks (`Adds # to # Cold Damage to Attacks`)
+  pseudo.adds_fire_to_attacks               ranged total  the trade site's pseudo_adds_fire_damage_to_attacks (`Adds # to # Fire Damage to Attacks`)
+  pseudo.adds_chaos_to_attacks              ranged total  the trade site's pseudo_adds_chaos_damage_to_attacks (`Adds # to # Chaos Damage to Attacks`)
+  pseudo.adds_elemental_to_attacks          ranged total  the trade site's pseudo_adds_elemental_damage_to_attacks (`Adds # to # Elemental Damage to Attacks`)
+  pseudo.adds_damage_to_attacks             ranged total  the trade site's pseudo_adds_damage_to_attacks (`Adds # to # Damage to Attacks`)
+  pseudo.adds_physical_to_spells            ranged total  the trade site's pseudo_adds_physical_damage_to_spells (`Adds # to # Physical Damage to Spells`)
+  pseudo.adds_lightning_to_spells           ranged total  the trade site's pseudo_adds_lightning_damage_to_spells (`Adds # to # Lightning Damage to Spells`)
+  pseudo.adds_cold_to_spells                ranged total  the trade site's pseudo_adds_cold_damage_to_spells (`Adds # to # Cold Damage to Spells`)
+  pseudo.adds_fire_to_spells                ranged total  the trade site's pseudo_adds_fire_damage_to_spells (`Adds # to # Fire Damage to Spells`)
+  pseudo.adds_chaos_to_spells               ranged total  the trade site's pseudo_adds_chaos_damage_to_spells (`Adds # to # Chaos Damage to Spells`)
+  pseudo.adds_elemental_to_spells           ranged total  the trade site's pseudo_adds_elemental_damage_to_spells (`Adds # to # Elemental Damage to Spells`)
+  pseudo.adds_damage_to_spells              ranged total  the trade site's pseudo_adds_damage_to_spells (`Adds # to # Damage to Spells`)
+  pseudo.total_life                         total         the trade site's pseudo_total_life (`+# total maximum Life`)
+  pseudo.total_mana                         total         the trade site's pseudo_total_mana (`+# total maximum Mana`)
+  pseudo.total_energy_shield                total         the trade site's pseudo_total_energy_shield (`+# total maximum Energy Shield`)
+  pseudo.total_increased_energy_shield      total         the trade site's pseudo_increased_energy_shield (`#% total increased maximum Energy Shield`)
+  pseudo.increased_movement_speed           total         the trade site's pseudo_increased_movement_speed (`#% increased Movement Speed`)
+  pseudo.global_crit_chance                 total         the trade site's pseudo_global_critical_strike_chance (`+#% Global Critical Strike Chance`)
+  pseudo.global_crit_multi                  total         the trade site's pseudo_global_critical_strike_multiplier (`+#% Global Critical Strike Multiplier`)
+  pseudo.increased_ele_damage               total         the trade site's pseudo_increased_elemental_damage (`#% increased Elemental Damage`)
+  pseudo.increased_lightning_damage         total         the trade site's pseudo_increased_lightning_damage (`#% increased Lightning Damage`)
+  pseudo.increased_cold_damage              total         the trade site's pseudo_increased_cold_damage (`#% increased Cold Damage`)
+  pseudo.increased_fire_damage              total         the trade site's pseudo_increased_fire_damage (`#% increased Fire Damage`)
+  pseudo.increased_spell_damage             total         the trade site's pseudo_increased_spell_damage (`#% increased Spell Damage`)
+  pseudo.increased_lightning_spell_damage   total         the trade site's pseudo_increased_lightning_spell_damage (`#% increased Lightning Spell Damage`)
+  pseudo.increased_cold_spell_damage        total         the trade site's pseudo_increased_cold_spell_damage (`#% increased Cold Spell Damage`)
+  pseudo.increased_fire_spell_damage        total         the trade site's pseudo_increased_fire_spell_damage (`#% increased Fire Spell Damage`)
+  pseudo.increased_lightning_attack_damage  total         the trade site's pseudo_increased_lightning_damage_with_attack_skills (`#% increased Lightning Damage with Attack Skills`)
+  pseudo.increased_cold_attack_damage       total         the trade site's pseudo_increased_cold_damage_with_attack_skills (`#% increased Cold Damage with Attack Skills`)
+  pseudo.increased_fire_attack_damage       total         the trade site's pseudo_increased_fire_damage_with_attack_skills (`#% increased Fire Damage with Attack Skills`)
+  pseudo.increased_ele_attack_damage        total         the trade site's pseudo_increased_elemental_damage_with_attack_skills (`#% increased Elemental Damage with Attack Skills`)
+  pseudo.increased_rarity                   total         the trade site's pseudo_increased_rarity (`#% increased Rarity of Items found`)
+  pseudo.increased_burning_damage           total         the trade site's pseudo_increased_burning_damage (`#% increased Burning Damage`)
+  pseudo.life_regen                         total         the trade site's pseudo_total_life_regen (`# Life Regenerated per Second`)
+  pseudo.life_regen_pct                     total         the trade site's pseudo_percent_life_regen (`#% of Life Regenerated per Second`)
+  pseudo.phys_attack_life_leech             total         the trade site's pseudo_physical_attack_damage_leeched_as_life (`#% of Physical Attack Damage Leeched as Life`)
+  pseudo.phys_attack_mana_leech             total         the trade site's pseudo_physical_attack_damage_leeched_as_mana (`#% of Physical Attack Damage Leeched as Mana`)
+  pseudo.increased_mana_regen               total         the trade site's pseudo_increased_mana_regen (`#% increased Mana Regeneration Rate`)
+  pseudo.count_res                          derived       the trade site's pseudo_count_resistances (`# total Resistances`)
+  pseudo.count_ele_res                      derived       the trade site's pseudo_count_elemental_resistances (`# total Elemental Resistances`)
+  pseudo.total_all_ele_res                  derived       the trade site's pseudo_total_all_elemental_resistances (`+#% total to all Elemental Resistances`)
+  pseudo.total_all_attributes               derived       the trade site's pseudo_total_all_attributes (`+# total to all Attributes`)
+  pseudo.dps                                derived       damage per second
+  pseudo.pdps                               derived       physical damage per second
+  pseudo.edps                               derived       elemental damage per second
+  pseudo.dps_q20                            derived       damage per second at 20 % quality, as the trade site's Damage per Second states it
+  pseudo.pdps_q20                           derived       physical damage per second at 20 % quality, as the trade site's Physical DPS states it
+  pseudo.defence_pct                        derived       the trade site's Base Percentile, by the site's own rule — "The percentile of all base defence rolls, averaged (0-100%)"
+counts
+  --count         view        the matches counted by each key, one table each, no rows
+  line:           view        the vocabulary narrowed
+  --cross         view        one table of two fields
+  --sum           value       beside each count, one number of each item added
+why an answer is what it is
+  --explain       view        one node of the query, named by its path
+  --context       scope       what the answer is of
+  show --against  show        beside one item, a query's canonical text, the root's outcome on the item and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at
+an answer, key by key
+  query                        key         the text as understood, and its tree; a trade site search's report is `query.trade`, which the trade section explains
+  set_aside                    key         under the corpus context, the query typed beside it
+  scope                        key         what was searched
+  scope.never_fetched          key         `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many
+  scope.never_fetched_by_type  key         `never_fetched_by_type` is the same by tab type, a character's `character`
+  scope.never_fetched_leagues  key         `never_fetched_leagues` names the leagues that hold a never-fetched tab, the most first
+  total                        key         the matches
+  before                       key         where a request is sent back with the `count` it was printed with, and the `counted_at` basis it came from
+  rows                         key         id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`
+  view                         key         the view as it ran
+  view.rows.next               key         rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after
+  zero                         key         in place of rows when the total is zero
+  terms                        key         for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`
+  basis                        key         what the answer was computed from
+  request                      key         a count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause's other reading adds or drops, and each term's matched where nothing matched — with `denominator`, what the request searches
+categories — the trade site's ids, as spelled
+  weapon                        Any Weapon
+  weapon.one                    One-Handed Weapon
+  weapon.onemelee               One-Handed Melee Weapon
+  weapon.twomelee               Two-Handed Melee Weapon
+  weapon.bow                    Bow
+  weapon.claw                   Claw
+  weapon.dagger                 Any Dagger
+  weapon.basedagger             Base Dagger
+  weapon.runedagger             Rune Dagger
+  weapon.oneaxe                 One-Handed Axe
+  weapon.onesword               Any One-Handed Sword
+  weapon.basesword              Base One-Handed Sword
+  weapon.rapier                 Rapier
+  weapon.onemace                Any One-Handed Mace
+  weapon.basemace               Base One-Handed Mace
+  weapon.sceptre                Sceptre
+  weapon.staff                  Any Staff
+  weapon.basestaff              Base Staff
+  weapon.warstaff               Warstaff
+  weapon.twoaxe                 Two-Handed Axe
+  weapon.twomace                Two-Handed Mace
+  weapon.twosword               Two-Handed Sword
+  weapon.wand                   Wand
+  weapon.rod                    Fishing Rod
+  armour                        Any Armour
+  armour.chest                  Body Armour
+  armour.boots                  Boots
+  armour.gloves                 Gloves
+  armour.helmet                 Helmet
+  armour.shield                 Shield
+  armour.quiver                 Quiver
+  accessory                     Any Accessory
+  accessory.amulet              Amulet
+  accessory.belt                Belt
+  accessory.ring                Ring
+  accessory.trinket             Trinket
+  gem                           Any Gem
+  gem.activegem                 Skill Gem
+  gem.supportgem                Support Gem
+  gem.supportgemplus            Awakened Support Gem
+  jewel                         Any Jewel
+  jewel.base                    Base Jewel
+  jewel.abyss                   Abyss Jewel
+  jewel.cluster                 Cluster Jewel
+  flask                         Flask
+  map                           Map
+  map.fragment                  Map Fragment
+  map.breachstone               Breachstone
+  map.invitation                Maven's Invitation
+  map.scarab                    Scarab
+  leaguestone                   Leaguestone
+  memoryline                    Memory Line
+  card                          Divination Card
+  monster.beast                 Captured Beast
+  monster.yellowbeast           Yellow Beast
+  monster.redbeast              Red Beast
+  heistequipment                Any Heist Equipment
+  heistequipment.heistweapon    Heist Gear
+  heistequipment.heisttool      Heist Tool
+  heistequipment.heistutility   Heist Cloak
+  heistequipment.heistreward    Heist Brooch
+  heistmission                  Any Heist Mission
+  heistmission.contract         Heist Contract
+  heistmission.blueprint        Heist Blueprint
+  logbook                       Any Expedition Logbook
+  sanctum.research              Sanctum Research
+  sanctum.relic                 Sanctum Relic
+  tincture                      Any Tincture
+  corpse                        Any Corpse
+  idol                          Any Idol
+  graft                         Any Graft
+  wombgift                      Any Wombgift
+  enshrouded                    Any Enshrouded Item
+  chart                         Any Chart
+  currency                      Any Currency
+  currency.piece                Unique Fragment
+  currency.resonator            Resonator
+  currency.fossil               Fossil
+  currency.incubator            Incubator
+  currency.heistobjective       Heist Target
+  currency.omen                 Omen
+  currency.tattoo               Tattoo
+trade — what `--trade` makes of each clause a site search can carry, 149 rows: `--describe trade`
+not built, refused by name
+  --fields              waits for a consumer that asks  the caller names a row's fields
+  --rebind              waits for a consumer that asks  run another account's request deliberately
+  show --basis          waits for a consumer that asks  one item as a named basis held it
+limits, as the search states them
+  a veiled line is shown as the placeholder it is; a value query never matches it
+  a line is matched as displayed text and value; which mods made it is not known and never guessed
+  an item's class is a derivation the search owns — read from its base by the class table, never a fact GGG gives — and an item the table cannot class is undecided with its reason
+  a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
+  league of origin is not a fact the search holds; a derivation from league-specific mods or first-seen is offered as a derivation, never as the answer
+  legacy is the user's knowledge; the search finds what the user names and never says whether the game can still produce it
+more: This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), or all for everything whole.
+      at a terminal: `--describe <name>,…` names entries or blocks, `--describe all` everything

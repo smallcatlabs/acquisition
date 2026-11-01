@@ -862,7 +862,7 @@ fn a_view_that_cannot_be_is_an_authoring_error() {
 #[test]
 fn c97_describe_counts_and_every_example_binds() {
     let s = stash();
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let entries = whole["counts"].as_array().unwrap();
     let names: Vec<&str> = entries
         .iter()

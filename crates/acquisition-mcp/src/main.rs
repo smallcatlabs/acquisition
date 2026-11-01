@@ -788,15 +788,15 @@ struct DescribeParams {
     names: Option<Vec<String>>,
 }
 
-/// `describe`'s `names`: the sections as the answer's own keys
-/// (`describe::SECTIONS`, which the search crate pins against the answer).
+/// `describe`'s `names`: what each form of the list answers. The
+/// sections are named by the index, whose keys they are
+/// (`describe::SECTIONS`, which the search crate pins against the
+/// answer), so the doc names a few and the index every one.
 fn describe_names_doc() -> String {
-    format!(
-        "Sections, each by the key it answers under: {}, {} — or a name within one (league, \
-total_res, revision). Omitted: everything, over 150 KB.",
-        acquisition_search::describe::SECTIONS.join(", "),
-        OWN_SECTIONS.join(", ")
-    )
+    "Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, \
+answer, trade, pricing), an entry (league, total_res), a category's id; all, everything, over \
+150 KB."
+        .to_string()
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -1556,7 +1556,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, pricing some 7 KB, answer some 5 KB, the rest under 4 KB. An unknown name is refused, listing every name it knows."
+        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 7 KB, answer 5 KB, the rest under 4 KB. An unknown name is refused with every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -1600,10 +1600,22 @@ impl AcqMcp {
         } else {
             None
         };
+        // nothing named is the index, each own entry at the search
+        // crate's one line beside the language's; `all` every one whole
+        let all = names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(acquisition_search::describe::ALL));
         let mut chosen = sections.into_iter().enumerate().map(|(section, entries)| {
             let kept: Vec<Entry> = entries
                 .into_iter()
-                .filter(|e| names.is_empty() || names.iter().any(|n| asked(n, section, e)))
+                .filter(|e| all || names.is_empty() || names.iter().any(|n| asked(n, section, e)))
+                .map(|e| match names.is_empty() {
+                    true => Entry {
+                        what: acquisition_search::describe::one_line(&e.what).to_string(),
+                        ..e
+                    },
+                    false => e,
+                })
                 .collect();
             (!kept.is_empty()).then_some(kept)
         });
@@ -2080,8 +2092,8 @@ impl ServerHandler for AcqMcp {
              quote, never starting one.\n\
              - Begin with search and no arguments; where the store holds several realms, name \
              scope.realm (the refusal offers each).\n\
-             - describe with names explains the language and the answers: fields first, then \
-             answer, trade, pricing, daemon, store; the whole is over 150 KB.\n\
+             - describe with no names is the index; names read entries whole, fields first, then \
+             answer, trade, pricing, daemon, store; all is over 150 KB.\n\
              - A refusal is marked isError: error, kind, and readings, next and offers where \
              it has them; any request an offer or an answer holds is sent back as printed, to \
              the tool it names or the same one.\n\

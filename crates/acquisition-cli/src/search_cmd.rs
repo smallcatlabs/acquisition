@@ -143,16 +143,17 @@ pub struct SearchArgs {
     /// it runs carries them all.
     #[arg(long)]
     pub routes: bool,
-    /// The language as this build knows it. Bare, the index: fields,
-    /// what a line has, operators, closed value sets, slots, how terms
-    /// compose, what a count takes, what is not built and the limits
-    /// stated, with each computed value and category by name and one
-    /// line (about 47 KB). Named, those entries whole with their
-    /// definitions (`--describe league,line,pseudo.total_res`; a block's
+    /// The language as this build knows it. Bare, the index: every entry
+    /// — fields, what a line has, values, how terms compose, operators,
+    /// slots, computed values, what a count takes, an answer's keys, the
+    /// categories, what is not built and the limits stated — by its name
+    /// and one line, and the trade catalogue by its count of rows (about
+    /// 33 KB). Named, those entries whole, with their definitions, values
+    /// and examples (`--describe league,line,pseudo.total_res`; a block's
     /// name is one: `--describe computed`, and `--describe trade` what
-    /// `--trade` makes of each clause of a site search). `--describe
-    /// all` is every entry whole, over 150 KB. `--json` is whole unless
-    /// entries are named.
+    /// `--trade` makes of each clause of a site search; a category's id
+    /// is its row: `--describe accessory.ring`). `--describe all` is every
+    /// entry whole, over 150 KB. `--json` is the same document.
     #[arg(long, value_name = "NAME,…", num_args = 0..=1, value_delimiter = ',')]
     pub describe: Option<Vec<String>>,
     /// Count the matches by a key, one table for each key named, and show
@@ -408,15 +409,11 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         if args.print_request {
             whole_describe(json)?;
         }
-        // Bare is the index and `all` every entry whole: the same
-        // document either way (JSON is the contract and stays whole, C53),
-        // read at two densities.
-        let all = names.as_slice() == ["all"];
-        let index = names.is_empty();
-        let asked: &[String] = if all { &[] } else { names };
-        let described = describe(asked).map_err(|e| fail(e.into(), json))?;
-        let totals = asked.iter().any(|n| n.eq_ignore_ascii_case("totals"));
-        return emit(&described, json, |d| describe_text(d, index, totals));
+        // the list as typed: the search crate reads it, bare the index and
+        // `all` every entry whole, in text and in JSON alike (C53)
+        let described = describe(names).map_err(|e| fail(e.into(), json))?;
+        let totals = names.iter().any(|n| n.eq_ignore_ascii_case("totals"));
+        return emit(&described, json, |d| describe_text(d, totals));
     }
     let read = |path: &str, what: &str| -> Result<String> {
         if path == "-" {
@@ -1777,20 +1774,18 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
     out
 }
 
-/// The head of a definition: what a computed value is, before how it is
-/// computed — its text up to the first `: `, which every total's and
-/// derived value's definition has after its name on the site.
-fn definition_head(what: &str) -> &str {
-    what.split_once(": ").map_or(what, |(head, _)| head)
-}
+/// `--describe` as text, a function of the document it is given (C53):
+/// an entry prints what the document holds of it — in the index one
+/// line, its values and examples empty — and the index's trade line and
+/// its last line, how to go on, print from the document's `trade_rows`
+/// and `next`.
+/// How a terminal asks what the document's `next` names.
+const DESCRIBE_SPELLED: &str =
+    "at a terminal: `--describe <name>,…` names entries or blocks, `--describe all` everything";
 
-/// `--describe` as text. `index` is the bare form (C53: more than ten
-/// are counted, never listed whole): the computed values and the
-/// categories, nine tenths of the page, are one line each, and the last
-/// line says how to read one whole.
-fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
+fn describe_text(d: &Describe, totals: bool) -> String {
     let mut out = String::new();
-    let mut block = |head: &str, entries: &[acquisition_search::describe::Named], brief: bool| {
+    let mut block = |head: &str, entries: &[acquisition_search::describe::Named]| {
         if entries.is_empty() {
             return;
         }
@@ -1810,15 +1805,6 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
             .unwrap_or(0)
             .max(12);
         for e in entries {
-            if brief {
-                out.push_str(&format!(
-                    "  {:<name$}{:<kind$}{}\n",
-                    e.name,
-                    e.kind,
-                    definition_head(&e.what)
-                ));
-                continue;
-            }
             out.push_str(&format!("  {:<name$}{:<kind$}{}\n", e.name, e.kind, e.what));
             if !e.values.is_empty() {
                 out.push_str(&format!(
@@ -1838,41 +1824,19 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
             }
         }
     };
-    block("fields", &d.fields, false);
-    block("inside line( … )", &d.line, false);
-    block("inside linked( … )", &d.linked, false);
-    block("values", &d.values, false);
-    block("composition", &d.composition, false);
-    block("operators", &d.operators, false);
-    block("slots", &d.slots, false);
+    block("fields", &d.fields);
+    block("inside line( … )", &d.line);
+    block("inside linked( … )", &d.linked);
+    block("values", &d.values);
+    block("composition", &d.composition);
+    block("operators", &d.operators);
+    block("slots", &d.slots);
     // the totals' table is named once, over the block, with its version
     // and source (C106's clause (c))
-    if index {
-        block(
-            "computed values — one line each; `--describe <name>` is its definition",
-            &d.computed,
-            true,
-        );
-    } else {
-        block(
-            &format!("computed values — {}", d.totals),
-            &d.computed,
-            false,
-        );
-    }
-    block("counts", &d.counts, false);
-    block("why an answer is what it is", &d.explain, false);
-    // an answer's keys: whole where named, one line in the index, as the
-    // trade catalogue is
-    if !index {
-        block("an answer, key by key", &d.answer, false);
-    }
-    if index && !d.answer.is_empty() {
-        out.push_str(&format!(
-            "answer — what each key of an answer holds and counts, {} keys: `--describe answer`\n",
-            d.answer.len()
-        ));
-    }
+    block(&format!("computed values — {}", d.totals), &d.computed);
+    block("counts", &d.counts);
+    block("why an answer is what it is", &d.explain);
+    block("an answer, key by key", &d.answer);
     // `--describe totals`: the table, where no computed value's head
     // already names it
     if totals && d.computed.is_empty() {
@@ -1884,55 +1848,53 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
         out.push_str("categories — the trade site's ids, as spelled\n");
         for c in &d.categories {
             out.push_str(&format!("  {:<30}{}\n", c.id, c.text));
-            if !index {
+            if !c.holds.is_empty() {
                 out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
             }
         }
     }
     // the catalogue is a block of its own: the index names it
+    if let Some(rows) = d.trade_rows {
+        out.push_str(&format!(
+            "trade — what `--trade` makes of each clause a site search can carry, {rows} rows: `--describe trade`\n"
+        ));
+    }
     if let Some(trade) = &d.trade {
-        if index {
-            out.push_str(&format!(
-                "trade — what `--trade` makes of each clause a site search can carry, {} rows: `--describe trade`\n",
-                trade.rows.len()
-            ));
-        } else {
-            out.push_str(&format!(
+        out.push_str(&format!(
                 "trade — the catalogue v{}, the site's stats of {}: what an answer reports of a translation, then each clause a site search can carry, its status when it runs, and the text it becomes\n",
                 trade.version, trade.stats
             ));
-            // the report an answer carries opens the block, before the rows
-            let width = trade
-                .report
-                .iter()
-                .map(|e| e.name.chars().count() + 2)
-                .max()
-                .unwrap_or(0);
-            for e in &trade.report {
-                out.push_str(&format!("  {:<width$}{}\n", e.name, e.what));
+        // the report an answer carries opens the block, before the rows
+        let width = trade
+            .report
+            .iter()
+            .map(|e| e.name.chars().count() + 2)
+            .max()
+            .unwrap_or(0);
+        for e in &trade.report {
+            out.push_str(&format!("  {:<width$}{}\n", e.name, e.what));
+        }
+        let key = trade
+            .rows
+            .iter()
+            .map(|r| r.key.chars().count() + 2)
+            .max()
+            .unwrap_or(0);
+        for r in &trade.rows {
+            out.push_str(&format!(
+                "  {:<key$}{:<14}{}\n",
+                r.key,
+                r.status,
+                r.lands.as_deref().unwrap_or("—")
+            ));
+            for said in r.text.iter().chain(&r.says) {
+                out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
             }
-            let key = trade
-                .rows
-                .iter()
-                .map(|r| r.key.chars().count() + 2)
-                .max()
-                .unwrap_or(0);
-            for r in &trade.rows {
+            if let Some(other) = &r.other {
                 out.push_str(&format!(
-                    "  {:<key$}{:<14}{}\n",
-                    r.key,
-                    r.status,
-                    r.lands.as_deref().unwrap_or("—")
+                    "  {:<key$}{:<14}read the other way: {other}\n",
+                    "", ""
                 ));
-                for said in r.text.iter().chain(&r.says) {
-                    out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
-                }
-                if let Some(other) = &r.other {
-                    out.push_str(&format!(
-                        "  {:<key$}{:<14}read the other way: {other}\n",
-                        "", ""
-                    ));
-                }
             }
         }
     }
@@ -1953,12 +1915,11 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
             out.push_str(&format!("  {}\n", l.said));
         }
     }
-    if index {
-        out.push_str(
-            "more: this is the index — `--describe <name>,…` prints an entry whole (a computed \
-             value's definition, what makes a category hold), `--describe computed` or \
-             `--describe category` a block, `--describe all` everything\n",
-        );
+    // how to go on, in the document's words, then this terminal's
+    // spelling of them (C143: the shared words first)
+    if let Some(next) = &d.next {
+        out.push_str(&format!("more: {next}\n"));
+        out.push_str(&format!("      {DESCRIBE_SPELLED}\n"));
     }
     out
 }

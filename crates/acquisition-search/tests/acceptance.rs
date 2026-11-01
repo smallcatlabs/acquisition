@@ -328,7 +328,7 @@ fn oq2_a_unique_by_name_its_place_and_every_line_through_show() {
     );
     let printed = format!(
         "{a} {none} {shown} {}",
-        serde_json::to_value(describe(&[]).unwrap()).unwrap()
+        serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap()
     );
     assert!(
         !printed.to_lowercase().contains("legacy is")

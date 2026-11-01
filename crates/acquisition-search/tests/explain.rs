@@ -699,7 +699,7 @@ fn a_zero_answer_under_a_count_offers_the_corpus_under_the_same_count() {
 #[test]
 fn describe_says_what_explain_context_and_against_do() {
     use acquisition_search::{NOT_BUILT, describe};
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let names: Vec<&str> = whole["explain"]
         .as_array()
         .unwrap()

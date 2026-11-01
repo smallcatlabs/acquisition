@@ -641,7 +641,7 @@ fn f3_under_all_realms_a_place_value_is_keyed_by_realm() {
 /// undecided with its reason.
 #[test]
 fn f1_the_helps_limit_on_class_says_what_the_class_table_made_true() {
-    let d = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let d = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let s53 = d["limits"]
         .as_array()
         .unwrap()

@@ -493,7 +493,9 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
 /// error for a wrong one. Nine tenths of the page is the computed values'
 /// and the categories' definitions. Bare, it is the index: every name
 /// with one line, under what a host shows whole, ending on how to read
-/// an entry; `all` is the page as it was, and JSON stays whole.
+/// an entry; `all` is the page as it was. Under C53 as amended the
+/// index is the bare answer in JSON too, and `all` the whole; the foot's
+/// words are the golden `search_json/describe_at_a_terminal`.
 #[test]
 fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
     let scratch = harness::scratch("seat-describe");
@@ -510,13 +512,10 @@ fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
         index.contains("\n  accessory.ring "),
         "the index names a category"
     );
-    let last = index.lines().last().unwrap_or_default();
-    assert!(
-        last.starts_with("more: this is the index") && last.contains("`--describe all`"),
-        "{last}"
-    );
+    assert!(!index.contains("the sum over the item's lines of"));
 
-    // An entry named is whole, and so is everything under `all` and JSON.
+    // An entry named is whole, and so is everything under `all`, in text
+    // and in JSON; bare JSON is the index, as the text is.
     let entry = stdout(&acq(&base, &["search", "--describe", "pseudo.total_life"]));
     assert!(
         entry.contains("the sum over the item's lines of"),
@@ -524,13 +523,17 @@ fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
     );
     let all = stdout(&acq(&base, &["search", "--describe", "all"]));
     assert!(all.len() > 100_000 && all.contains("the sum over the item's lines of"));
-    assert!(!all.contains("more: this is the index"));
-    let whole = sole_json(&acq(&base, &["search", "--describe", "--json"]));
+    let bare = sole_json(&acq(&base, &["search", "--describe", "--json"]));
+    let line = bare["computed"][0]["what"].as_str().unwrap_or_default();
+    assert!(!line.is_empty() && !line.contains(": "), "{line}");
+    assert!(bare["next"].is_string(), "{bare}");
+    let whole = sole_json(&acq(&base, &["search", "--describe", "all", "--json"]));
     let defined = whole["computed"][0]["what"].as_str().unwrap_or_default();
     assert!(
         defined.contains("the sum over the item's lines of"),
         "{defined}"
     );
+    assert!(whole.get("next").is_none(), "{whole}");
 }
 
 /// `acq jobs` listed every finished job of the daemon's lifetime above

@@ -590,7 +590,7 @@ fn the_price_names_refuse_what_they_cannot_take_and_describe_prints_them() {
         assert_eq!(e["kind"], kind, "{view}: {e}");
     }
 
-    let d = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let d = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let field = |name: &str| {
         d["fields"]
             .as_array()

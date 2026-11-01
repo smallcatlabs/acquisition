@@ -226,7 +226,7 @@ fn c116_no_user_facing_text_cites_a_record_id() {
         }
     }
     let names = |n: &[&str]| n.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-    for asked in [names(&[]), names(&["trade", "category"])] {
+    for asked in [names(&["all"]), names(&[]), names(&["trade", "category"])] {
         let described =
             serde_json::to_string(&acquisition_search::describe::describe(&asked).unwrap())
                 .unwrap();

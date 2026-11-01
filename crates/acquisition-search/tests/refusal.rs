@@ -100,7 +100,7 @@ fn every_construct_of_the_reference_evaluates_or_is_refused_by_its_name_on_the_l
 
 #[test]
 fn the_list_the_walk_checks_is_the_list_describe_prints() {
-    let printed = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let printed = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let printed: Vec<&str> = printed["not_built"]
         .as_array()
         .unwrap()
@@ -122,7 +122,7 @@ fn c102_s53_a_class_is_a_derivation_the_search_owns_and_says_so() {
     let corpus = common::load(&store, None);
     let a = common::ask(&corpus, "class:ring").unwrap();
     assert_eq!(a.total.matched, 0);
-    let printed = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let printed = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let limits: Vec<&str> = printed["limits"]
         .as_array()
         .unwrap()

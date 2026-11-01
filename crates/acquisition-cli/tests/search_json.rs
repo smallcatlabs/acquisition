@@ -1189,6 +1189,26 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     golden(file!(), "a_price_set_by_hand", &t);
 }
 
+/// C53 as amended: bare `--describe` at a terminal is the index, and its
+/// last lines say how to go on — in the document's words, then this
+/// terminal's spelling of them. The foot's one golden.
+#[test]
+fn describe_at_a_terminal() {
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["search", "--describe"],
+        &[
+            "more: This is the index, each entry by its name and one line",
+            "`--describe all` everything",
+            "pseudo.total_life",
+            "accessory.ring",
+        ],
+    );
+    golden(file!(), "describe_at_a_terminal", &t);
+}
+
 #[test]
 fn describe_and_show_print_json_whole_and_text_from_it() {
     let scratch = harness::scratch("search-cli");
@@ -2777,8 +2797,12 @@ fn describe_trade_is_the_catalogue() {
         !index.contains("\n  url.league "),
         "the index names the block only"
     );
-    let whole = sole_json(&acq(&base, &["--json", "search", "--describe"]));
+    let whole = sole_json(&acq(&base, &["--json", "search", "--describe", "all"]));
     assert_eq!(whole["trade"], named["trade"]);
+    // the index names the catalogue by its count of rows, in JSON as in text
+    let bare = sole_json(&acq(&base, &["--json", "search", "--describe"]));
+    assert!(bare.get("trade").is_none(), "{bare}");
+    assert_eq!(bare["trade_rows"], rows.len());
     // a named entry elsewhere leaves the catalogue out
     let league_only = sole_json(&acq(&base, &["--json", "search", "--describe", "league"]));
     assert!(league_only.get("trade").is_none(), "{league_only}");
@@ -2786,7 +2810,7 @@ fn describe_trade_is_the_catalogue() {
     // the sizes `--describe`'s help states are the ones measured here: a
     // help that says other numbers fails, and is checked again (the help
     // said 36 KB of an index of 47 before the catalogue joined it)
-    assert!((42_000..52_000).contains(&index.len()), "{}", index.len());
+    assert!((30_000..36_000).contains(&index.len()), "{}", index.len());
     let all = text(&acq(&base, &["search", "--describe", "all"]));
     assert!(all.len() > 150_000, "{}", all.len());
     // `--json` pretty-prints, about a fifth larger than the compact JSON
@@ -2799,7 +2823,7 @@ fn describe_trade_is_the_catalogue() {
     let ratio = pretty.len() as f64 / compact as f64;
     assert!((1.1..1.3).contains(&ratio), "{ratio}");
     let help = text(&acq(&base, &["search", "--help"]));
-    assert!(help.contains("(about 47 KB)"), "{help}");
+    assert!(help.contains("(about 33 KB)"), "{help}");
     assert!(help.contains("over 150 KB"), "{help}");
 }
 

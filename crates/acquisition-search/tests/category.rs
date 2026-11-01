@@ -1010,7 +1010,7 @@ fn a_bestiary_line_that_is_no_string_leaves_open_only_what_it_decides() {
 /// it and what makes it hold, and the tables' sources and versions.
 #[test]
 fn describe_category_lists_every_id_with_the_sites_text_and_what_makes_it_hold() {
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let field = |d: &Value| -> Value {
         d["fields"]
             .as_array()

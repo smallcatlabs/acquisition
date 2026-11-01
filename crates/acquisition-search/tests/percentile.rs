@@ -1401,7 +1401,7 @@ fn c97_describe_of_the_percentile_prints_its_definition() {
         examples.contains(&"-has:pseudo.defence_pct"),
         "{examples:?}"
     );
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     assert!(
         whole["not_built"]
             .as_array()

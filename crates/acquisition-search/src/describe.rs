@@ -17,7 +17,9 @@
 //! trade catalogue is a block of its own (C113; `trade/catalogue.rs`):
 //! every clause a site search can carry, its status and the text it
 //! becomes, printed whole and where `trade` is named; the index names it
-//! in one line.
+//! in one line. Read at two densities (C53 as amended): nothing named is
+//! the index, every entry by its name, its kind and [`one_line`], and
+//! `all` the whole, on every surface and in every format.
 
 use serde::Serialize;
 
@@ -63,8 +65,17 @@ pub struct Describe {
     /// whole, and where `trade` is named.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trade: Option<TradeCatalogue>,
+    /// In the index alone, where the catalogue is named by its count of
+    /// rows and read whole by its name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trade_rows: Option<usize>,
     pub not_built: Vec<NotBuilt>,
     pub limits: Vec<Limit>,
+    /// How to go on from a reading at one line an entry: in the index
+    /// alone, in words that name entries and lists and never a
+    /// frontend's flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
 }
 
 /// The sections of the whole answer, by the keys it is serialised under,
@@ -297,10 +308,12 @@ fn named(name: &str, kind: &'static str, what: &str) -> Named {
     }
 }
 
-/// The whole description, or the entries named — a field, `line`, a line's
-/// attribute, `is`, `has`, an operator, a slot word (`arg7` is one), a word
-/// of composition, a block by its name. An unknown name is an authoring
-/// error with the near ones offered.
+/// The description for the list as typed, every frontend's one reader of
+/// it (C46): nothing named is the index ([`index`], C53 as amended), `all`
+/// the whole, and otherwise the entries named, whole — a field, `line`, a
+/// line's attribute, `is`, `has`, an operator, a slot word (`arg7` is
+/// one), a word of composition, a block by its name, a category by its
+/// id. An unknown name is an authoring error with the near ones offered.
 pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     let mut fields: Vec<Named> = bind::fields()
         // the four colour fields are one entry, `sockets.<colour>`
@@ -666,21 +679,24 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             .map(|tables| tables.described())
             .unwrap_or_default(),
         trade: Some(trade_catalogue()?),
+        trade_rows: None,
         not_built: NOT_BUILT.to_vec(),
         limits: LIMITS.to_vec(),
+        next: None,
     };
     if names.is_empty() {
-        return Ok(out);
+        return Ok(index(out));
     }
     // a call is asked for as the language's refusals spell it, its `(`
     // (or `()`) after its name: `sum(` is `sum`, `true(` the entry whose
-    // word is `true()` (the league seat, cli calls 57, 58)
+    // word is `true()` (the league seat, cli calls 57, 58); an entry of
+    // several words is asked by its name whole (`true() false()`)
     let names: Vec<String> = names
         .iter()
         .map(|name| {
             name.strip_suffix("()")
                 .or_else(|| name.strip_suffix('('))
-                .filter(|call| !call.is_empty())
+                .filter(|call| !call.is_empty() && !call.contains(char::is_whitespace))
                 .unwrap_or(name)
                 .to_string()
         })
@@ -724,9 +740,13 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             })
             || (entry.starts_with("arg1") && crate::tree::arg_index(asked).is_some())
     };
-    // every section by its key, and `pseudo` names the computed block, as
-    // the namespace does
-    let blocks = || SECTIONS.into_iter().chain(["pseudo"]);
+    // every section by its key, `pseudo` names the computed block, as
+    // the namespace does, and `all` the whole
+    let blocks = || SECTIONS.into_iter().chain(["pseudo", ALL]);
+    // a category's id names its row (C106): every line the index prints
+    // is askable by its name
+    let ids: Vec<&'static str> = out.categories.iter().map(|c| c.id).collect();
+    let an_id = |asked: &str| ids.iter().any(|id| id.eq_ignore_ascii_case(asked));
     let entries = |d: &Describe| -> Vec<String> {
         [
             &d.fields,
@@ -749,7 +769,8 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     let all = entries(&out);
     for name in names {
         let known = blocks().any(|b| b.eq_ignore_ascii_case(name))
-            || all.iter().any(|entry| answers(entry, name));
+            || all.iter().any(|entry| answers(entry, name))
+            || an_id(name);
         if !known {
             if let Some(unbuilt) = NOT_BUILT.iter().find(|n| {
                 let construct = n.construct.trim_end_matches([':', '*', '.']);
@@ -774,6 +795,9 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             .with_readings(near.into_iter().map(str::to_string).collect()));
         }
     }
+    if names.iter().any(|asked| asked.eq_ignore_ascii_case(ALL)) {
+        return Ok(out);
+    }
     let wants = |block: &str, entry: &str| {
         names
             .iter()
@@ -794,9 +818,10 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     out.explain.retain(|n| wants("explain", &n.name));
     out.answer.retain(|n| wants("answer", &n.name));
     let named = |block: &str| names.iter().any(|asked| asked.eq_ignore_ascii_case(block));
-    // the ids are the field's: printed where `category` is named
+    // the ids are the field's: printed where `category` is named, and
+    // each row where its id is
     if !named(crate::category::FIELD) && !named("categories") {
-        out.categories.clear();
+        out.categories.retain(|c| an_asked_id(c.id, names));
     }
     if !named("trade") {
         out.trade = None;
@@ -808,4 +833,65 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         out.limits.clear();
     }
     Ok(out)
+}
+
+/// Whether one of `names` is the category id `id`, in any case.
+fn an_asked_id(id: &str, names: &[String]) -> bool {
+    names.iter().any(|asked| asked.eq_ignore_ascii_case(id))
+}
+
+/// The name that asks for the whole: every section, every entry whole.
+pub const ALL: &str = "all";
+
+/// What the index says of how to go on: an entry, a block, the whole.
+const INDEX_NEXT: &str = "This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), or all for everything whole.";
+
+/// An entry's one line (C53, the index; C97): its definition up to the
+/// first `: `, which every computed value's has after what it is and
+/// before how it is computed. The rule the index applies to every entry,
+/// and a frontend to an entry of its own.
+pub fn one_line(what: &str) -> &str {
+    what.split_once(": ").map_or(what, |(head, _)| head)
+}
+
+/// The eleven entry sections, each a list of [`Named`].
+fn entries_mut(d: &mut Describe) -> [&mut Vec<Named>; 11] {
+    [
+        &mut d.fields,
+        &mut d.line,
+        &mut d.linked,
+        &mut d.values,
+        &mut d.composition,
+        &mut d.operators,
+        &mut d.slots,
+        &mut d.computed,
+        &mut d.counts,
+        &mut d.explain,
+        &mut d.answer,
+    ]
+}
+
+/// An entry at one line: its name, its kind and its definition's first
+/// line, no values and no examples.
+fn cut(entry: &mut Named) {
+    entry.what = one_line(&entry.what).to_string();
+    entry.values.clear();
+    entry.examples.clear();
+}
+
+/// The index (C53, a document read at two densities: the decision view
+/// where nothing is named): the whole's every entry in the whole's order,
+/// each at one line; each category by its id and the site's text; the
+/// trade catalogue by its count of rows; what is not built and the limits
+/// as the whole says them; and how to go on.
+fn index(mut d: Describe) -> Describe {
+    for section in entries_mut(&mut d) {
+        section.iter_mut().for_each(cut);
+    }
+    for category in &mut d.categories {
+        category.holds.clear();
+    }
+    d.trade_rows = d.trade.take().map(|trade| trade.rows.len());
+    d.next = Some(INDEX_NEXT.to_string());
+    d
 }

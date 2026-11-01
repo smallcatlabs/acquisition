@@ -365,25 +365,44 @@ fn a_malformed_against_is_refused_as_a_tree() {
     }
 }
 
-/// `describe` is `acq search --describe`: the language whole, or the
-/// entries named, with no store read — it answers over an empty world.
+/// `describe` is `acq search --describe`: the index where nothing is
+/// named, everything whole under `all` (C53 as amended), or the entries
+/// named, with no store read — it answers over an empty world.
 #[test]
 fn describe_is_the_clis_and_reads_no_store() {
     let mut seat = Seat::over(scratch("mcp-search"));
-    let (whole, refused) = seat.call("describe", &json!({}));
+    let (index, refused) = seat.call("describe", &json!({}));
+    assert!(!refused, "{index}");
+    let (whole, refused) = seat.call("describe", &json!({ "names": ["all"] }));
     assert!(!refused, "{whole}");
     // the language is the CLI's; this tool's own sections, what the
-    // pricing and job tools answer, stand beside it (#83)
-    let mut language = whole.clone();
-    let fields = language.as_object_mut().unwrap();
-    assert!(fields.remove("pricing").is_some(), "{whole}");
-    assert!(fields.remove("daemon").is_some(), "{whole}");
-    assert!(fields.remove("store").is_some(), "{whole}");
-    assert_spoken_as(
-        &language,
-        &cli(&seat.base, &["search", "--describe"]).0,
-        "describe",
-    );
+    // pricing and job tools answer, stand beside it (#83): in the index
+    // each own entry at the search crate's one line, under `all` whole
+    for (answer, asked, cut) in [
+        (&index, vec!["search", "--describe"], true),
+        (&whole, vec!["search", "--describe", "all"], false),
+    ] {
+        let mut language = answer.clone();
+        let fields = language.as_object_mut().unwrap();
+        let mut long = 0;
+        for own in ["pricing", "daemon", "store"] {
+            let entries = fields
+                .remove(own)
+                .unwrap_or_else(|| panic!("{own}: {answer}"));
+            let entries = entries.as_array().unwrap();
+            assert!(!entries.is_empty(), "{own}");
+            long += entries
+                .iter()
+                .filter(|e| e["what"].as_str().unwrap().contains(": "))
+                .count();
+        }
+        assert_eq!(
+            long == 0,
+            cut,
+            "{asked:?}: {long} own entries past one line"
+        );
+        assert_spoken_as(&language, &cli(&seat.base, &asked).0, &asked.join(" "));
+    }
     let (some, _) = seat.call("describe", &json!({ "names": ["league", "total_res"] }));
     assert_spoken_as(
         &some,
@@ -622,9 +641,15 @@ fn describe_is_as_large_as_its_text_says() {
     };
     // the sizes are of the compact JSON the tool returns (#101), the
     // whole 153,353 bytes of the language alone at the words step, where
-    // `acq search --describe all --json` printed 182,823 pretty
-    let (whole, _) = seat.call("describe", &json!({}));
+    // `acq search --describe all --json` printed 182,823 pretty; the
+    // whole is `all` since C53's amendment
+    let (whole, _) = seat.call("describe", &json!({ "names": ["all"] }));
     assert!(whole.to_string().len() > 150_000);
+    // some 38 KB, the index: every entry's name and one line, this tool's
+    // own among them (C53 as amended; 38,245 bytes when it was built)
+    let (index, _) = seat.call("describe", &json!({}));
+    let index = index.to_string().len();
+    assert!((35_000..41_000).contains(&index), "{index}");
     // some 80 KB, every computed value's definition (83,448 bytes at r5)
     assert!(size(&mut seat, json!(["computed"])) > 70_000);
     assert!(size(&mut seat, json!(["computed"])) < 90_000);
@@ -675,11 +700,12 @@ fn describe_is_as_large_as_its_text_says() {
     // The sizes the text states are the ones measured above: a text
     // that says other numbers fails here and is checked again.
     for stated in [
-        "As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB",
-        "computed is some 80 KB",
-        "fields and trade some 20 KB each",
-        "categories some 10 KB",
-        "pricing some 7 KB, answer some 5 KB",
+        "the index, each entry's name and one line, some 38 KB",
+        "or all: over 150 KB",
+        "computed some 80 KB",
+        "fields and trade 20 KB each",
+        "categories 10 KB",
+        "pricing 7 KB, answer 5 KB",
         "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

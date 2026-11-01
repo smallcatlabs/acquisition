@@ -202,10 +202,12 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
     let mut faults = Vec::new();
     let mut seen = 0;
     for (tool, args, refused) in [
-        // the seat's shapes: describe whole (calls 5, 12, 13), a search
+        // the seat's shapes: describe, the index and whole (calls 5, 12,
+        // 13; the index since C53's amendment), a search
         // naming no realm over two (call 6), the shop (call 35), an
         // account that is none (call 46), a target the facts lack (47)
         ("describe", json!({}), false),
+        ("describe", json!({ "names": ["all"] }), false),
         ("search", json!({}), true),
         ("shop_render", json!({ "realm": "pc" }), false),
         ("tabs", json!({ "account": "Alicia#1234" }), true),
@@ -238,7 +240,7 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         sweep(&doc, &format!("{tool} {args}"), &mut faults);
     }
     assert_eq!(
-        seen, 5,
+        seen, 6,
         "a shape no longer speaks the CLI: the sweep reads less"
     );
     assert!(faults.is_empty(), "{}", faults.join("\n"));

@@ -661,7 +661,7 @@ fn c92_c95_a_computed_value_sorts_and_sums() {
 /// the table's provenance; a name answers to itself without `pseudo.`.
 #[test]
 fn c97_describe_lists_every_computed_value_with_its_definition() {
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let computed = whole["computed"].as_array().unwrap();
     assert_eq!(computed.len(), 92);
     assert_eq!(computed[0]["name"], "pseudo.total_cold_res");

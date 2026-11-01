@@ -190,7 +190,7 @@ fn c100_a_rows_evidence_is_bounded_and_says_what_it_left_out() {
 /// has a value, and a word it prints can be asked for alone.
 #[test]
 fn c97_describe_says_how_terms_compose_and_knows_the_words_it_prints() {
-    let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
     let names = |block: &str| -> Vec<String> {
         whole[block]
             .as_array()
@@ -210,15 +210,20 @@ fn c97_describe_says_how_terms_compose_and_knows_the_words_it_prints() {
     for word in ["sum", "line(P).<slot>"] {
         assert!(values.contains(word), "values lacks `{word}`: {values}");
     }
-    // every example the description prints is a query this build binds
+    // every example the description prints is a query this build binds,
+    // read from the whole: the index prints none, so the loop is held to
+    // have checked some
+    let mut checked = 0;
     for block in ["fields", "line", "composition", "values"] {
         for entry in whole[block].as_array().unwrap() {
             for example in entry["examples"].as_array().into_iter().flatten() {
                 acquisition_search::parse_query(example.as_str().unwrap())
                     .unwrap_or_else(|e| panic!("{example}: {e}"));
+                checked += 1;
             }
         }
     }
+    assert!(checked > 0, "no example was checked: {whole}");
     for (word, block) in [
         ("arg1", "slots"),
         ("arg7", "slots"),
@@ -552,7 +557,7 @@ fn c93_the_reason_given_is_the_open_occurrences_own() {
 /// `trade`, which its instructions tell an agent to send, and `totals`.
 #[test]
 fn c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone() {
-    let whole = serde_json::to_value(describe::describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe::describe(&["all".to_string()]).unwrap()).unwrap();
     let mut keys: Vec<&str> = whole
         .as_object()
         .unwrap()
@@ -579,6 +584,144 @@ fn c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone() {
     let fields =
         serde_json::to_value(describe::describe(&["fields".to_string()]).unwrap()).unwrap();
     assert_eq!(fields["totals"], whole["totals"], "{fields}");
+    // the index's keys are the sections less `trade`, which it names by
+    // its count of rows, and how to go on
+    let index = serde_json::to_value(describe::describe(&[]).unwrap()).unwrap();
+    let mut keys: Vec<&str> = index
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let mut expected: Vec<&str> = describe::SECTIONS
+        .into_iter()
+        .filter(|s| *s != "trade")
+        .chain(["trade_rows", "next"])
+        .collect();
+    keys.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(keys, expected);
+}
+
+/// C53 as amended (a document read at two densities is the decision view
+/// where nothing is named): `describe` with nothing named is the index —
+/// every entry the whole names, in the whole's order, at one line: its
+/// name, its kind and its definition up to the first `: `, no values and
+/// no examples; each category by its id and the site's text; the trade
+/// catalogue by its count of rows; and how to go on. Every name it
+/// prints answers whole when asked alone — an entry, a section, a
+/// category's id — and a construct not built is still refused by name.
+#[test]
+fn c53_the_index_is_every_entry_at_one_line_and_each_name_it_prints_answers_whole() {
+    let index = serde_json::to_value(describe::describe(&[]).unwrap()).unwrap();
+    let whole = serde_json::to_value(describe::describe(&["all".to_string()]).unwrap()).unwrap();
+    const ENTRIES: [&str; 11] = [
+        "fields",
+        "line",
+        "linked",
+        "values",
+        "composition",
+        "operators",
+        "slots",
+        "computed",
+        "counts",
+        "explain",
+        "answer",
+    ];
+    let names = |d: &Value, section: &str| -> Vec<String> {
+        d[section]
+            .as_array()
+            .unwrap_or_else(|| panic!("no `{section}`"))
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let mut asked: Vec<(String, &str)> = Vec::new();
+    for section in ENTRIES {
+        assert_eq!(names(&index, section), names(&whole, section), "{section}");
+        for (entry, full) in index[section]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(whole[section].as_array().unwrap())
+        {
+            let what = entry["what"].as_str().unwrap();
+            assert!(!what.contains(": "), "{section} {entry}");
+            assert_eq!(
+                what,
+                describe::one_line(full["what"].as_str().unwrap()),
+                "{section} {entry}"
+            );
+            assert_eq!(entry["kind"], full["kind"], "{section} {entry}");
+            assert!(entry.get("values").is_none(), "{section} {entry}");
+            assert!(entry.get("examples").is_none(), "{section} {entry}");
+            asked.push((entry["name"].as_str().unwrap().to_string(), section));
+        }
+        asked.push((section.to_string(), section));
+    }
+    let ids: Vec<&str> = index["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            assert!(c.get("holds").is_none(), "{c}");
+            assert!(c["text"].as_str().is_some_and(|t| !t.is_empty()), "{c}");
+            c["id"].as_str().unwrap()
+        })
+        .collect();
+    let whole_ids: Vec<&str> = whole["categories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, whole_ids);
+    assert!(index.get("trade").is_none(), "{index}");
+    let rows = acquisition_search::trade::catalogue::catalogue()
+        .unwrap()
+        .rows()
+        .len();
+    assert_eq!(index["trade_rows"], rows);
+    assert!(index["next"].as_str().is_some_and(|n| !n.is_empty()));
+    assert_eq!(index["not_built"], whole["not_built"]);
+    assert_eq!(index["limits"], whole["limits"]);
+    // every name the index prints answers whole, alone
+    for (name, section) in &asked {
+        let one = serde_json::to_value(
+            describe::describe(std::slice::from_ref(name))
+                .unwrap_or_else(|e| panic!("`{name}`: {e}")),
+        )
+        .unwrap();
+        assert!(one.get("next").is_none(), "`{name}`: {one}");
+        let found = one[section]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| whole[section].as_array().unwrap().contains(e));
+        assert!(found, "`{name}` answers no entry of {section} whole: {one}");
+    }
+    for id in &ids {
+        let one = serde_json::to_value(describe::describe(&[id.to_string()]).unwrap()).unwrap();
+        let row = whole["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["id"] == *id)
+            .unwrap();
+        assert!(
+            one["categories"].as_array().unwrap().contains(row),
+            "`{id}`: {one}"
+        );
+    }
+    for unbuilt in acquisition_search::NOT_BUILT {
+        let construct = unbuilt.construct.trim_end_matches([':', '*', '.']);
+        let e = describe::describe(&[construct.to_string()]).unwrap_err();
+        assert_eq!(
+            e.kind,
+            acquisition_search::ErrorKind::NotBuilt,
+            "`{construct}`: {e}"
+        );
+    }
 }
 
 /// #83: the anatomy of an answer left the MCP's tool text for the
