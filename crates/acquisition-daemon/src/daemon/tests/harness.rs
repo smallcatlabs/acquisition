@@ -40,12 +40,6 @@ impl ManualClock {
         *now = now.checked_add(duration).expect("bounded test deadline");
         *self.wall.lock().unwrap() += duration;
     }
-
-    /// The lid closes: the wall clock moves, the monotonic clock does
-    /// not. This is the R8 shape.
-    pub(super) fn laptop_sleep(&self, duration: Duration) {
-        *self.wall.lock().unwrap() += duration;
-    }
 }
 
 impl Clock for ManualClock {
