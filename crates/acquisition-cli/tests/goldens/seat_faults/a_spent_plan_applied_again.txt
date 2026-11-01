@@ -4,4 +4,4 @@ $ acq refresh --apply=<scratch>/plan.json
 # holds "nothing to do: every request of this plan is spent — 7 fetched after it was compiled, the latest "
 --- stdout
 nothing to do: every request of this plan is spent — 7 fetched after it was compiled, the latest <age> ago
-next: `acq refresh --plan --account alice --realm pc --league Standard` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+next: `acq refresh --plan --account alice --realm pc --league Standard` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do

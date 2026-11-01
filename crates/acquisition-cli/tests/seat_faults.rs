@@ -461,6 +461,9 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
         &[
             "next: `acq refresh --plan --account alice --realm pc --league Standard` — ",
             " more are planned now",
+            // every cause the count can have (the league seat, cli calls
+            // 48, 49: five had gone stale under a 60 s age)
+            "what it left undone, or what went stale since",
         ],
     );
     assert!(out.status.success(), "{}", text(&out));

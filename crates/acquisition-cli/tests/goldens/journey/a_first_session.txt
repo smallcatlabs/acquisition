@@ -28,7 +28,7 @@ $ acq refresh --apply
 applying 2 requests as job <j1>
 job <j1> done: 2 requests, 2 done (jobs <j2>–<j3>)
 changed: no items — 2 responses recorded, nothing added, changed, moved, or removed
-next: `acq refresh --plan --account ExileTester --realm pc --league Standard` — 9 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+next: `acq refresh --plan --account ExileTester --realm pc --league Standard` — 9 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do
 --- stderr
 job <j1> (ExileTester): 2/2 done
 
@@ -65,7 +65,7 @@ $ acq refresh --apply
 applying 9 requests as job <j4>
 job <j4> done: 9 requests, 9 done (jobs <j5>–<j6>)
 changed: +30 added at 6 locations since the apply started; 9 responses recorded (acq store events)
-next: `acq refresh --plan --account ExileTester --realm pc --league Standard` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+next: `acq refresh --plan --account ExileTester --realm pc --league Standard` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do
 --- stderr
 job <j4> (ExileTester): 9/9 done
 

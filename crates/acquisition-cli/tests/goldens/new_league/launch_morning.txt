@@ -62,7 +62,7 @@ $ acq refresh --apply --league Rehearsal
 applying 1 request as job <j2>
 job <j2> done: 1 request, 1 done (job <j3>)
 changed: no items — 1 response recorded, nothing added, changed, moved, or removed
-next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do
 --- stderr
 job <j2> (ExileTester): 1/1 done
 

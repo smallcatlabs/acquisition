@@ -522,8 +522,8 @@ fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan) -> Option<String> 
         0 => "left: nothing — every covered entry is fresh".into(),
         n => format!(
             "next: `{}` — {} more are planned now (what this apply revealed, \
-             such as a map or unique tab's substashes, or left undone); plan and apply until \
-             the plan says nothing to do",
+             such as a map or unique tab's substashes, what it left undone, or what went stale \
+             since); plan and apply until the plan says nothing to do",
             crate::printed_line(&crate::way_words(&Way::RefreshPlan {
                 account: plan_account(plan),
                 realm: plan.realm,
