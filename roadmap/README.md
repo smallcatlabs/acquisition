@@ -412,8 +412,14 @@ inventories), and round 0's baseline dispatched in CI the same day
 refresh and the bearer as scenarios (`briefs/t5-r5a.md`, cut three
 times under cold reviews), closed on 2026-10-31 (`LEDGER.md`): the
 token table and 20 scenarios for 29 retired tests, the door's restore,
-its build reviewed, one documentation finding fixed. Next round 5b's
-brief (`queue.rs` and `rails.rs` through the door); then 5c, the
-sweep; then round 6 against the baseline; then #148; and Phase 3, the
-owner's league run, at his word, its first seat checking the words.
+its build reviewed, one documentation finding fixed. Round 5b, the
+queue and the rails as scenarios (`briefs/t5-r5b.md`, cut four times
+under cold reviews), closed the same day (`LEDGER.md`): the admission
+table of 58 rows, the restored rows, the queue file and the rails, 37
+tests retired, its build reviewed, one fix round reviewed clean. Round
+0's baseline completed the same day (run 41265798977: 18 missed, twelve
+the listed exclusions at drifted lines, six in `policy.rs`). Next
+round 5c's brief, the sweep; then round 6 against the baseline; then
+#148; and Phase 3, the owner's league run, at his word, its first seat
+checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
