@@ -30,7 +30,12 @@
 //! count sees (a browser's callback, a request to its own server before
 //! it reaches the wire) holds the clock across that wait
 //! ([`Door::hold_clock`]), so the hook moves no deadline, the idle
-//! deadline of [`DoorBuilder::life`] among them, under it.
+//! deadline of [`DoorBuilder::life`] among them, under it. C160, the
+//! verdict: a park at which nothing is parked on the clock and no send,
+//! blocking task or hold is pending is one nothing the hook accounts for
+//! can wake, so a door wait pending there fails at that park, naming
+//! what it waited for, with `HANG` the backstop behind it for a wait the
+//! hook does not read (a door opened [`DoorBuilder::beside`] another).
 //!
 //! What stays off the door, each a component test that says which
 //! boundary it needs (`roadmap/briefs/t5-design.md` §2.6): several
@@ -150,8 +155,9 @@ pub(super) enum Fixture {
     None,
 }
 
-/// What the park hook did over a run: readable after, asserted by
-/// nothing (the measure of a scenario, not its property).
+/// What the park hook did over a run: readable after, a measure of a
+/// scenario and never its property (asserted only by the hook's own pin,
+/// `c160_a_wait_the_daemon_will_never_answer_fails_at_the_park`).
 #[derive(Debug, Default, Clone, Copy)]
 pub(super) struct Counters {
     /// Parks that moved the clock to its next deadline.
@@ -165,6 +171,9 @@ pub(super) struct Counters {
     pub(super) held_by_scenario: usize,
     /// Parks that found nothing parked on the clock.
     pub(super) nothing_parked: usize,
+    /// Of those, the parks that found a door wait pending and failed it
+    /// (C160, the verdict).
+    pub(super) stuck: usize,
     /// Parks that found the scenario awaiting a settled runtime
     /// ([`Door::settle`]) and woke it in the clock's place.
     pub(super) settles: usize,
@@ -185,7 +194,10 @@ pub(super) struct Counters {
 /// wakes it before anything else is asked, whatever holds the clock, and
 /// moves nothing. When the scenario awaits a settled runtime
 /// ([`Door::settle`]), a park that would move the clock wakes the
-/// scenario instead and moves nothing. Tokio's paused clock
+/// scenario instead and moves nothing. C160: a park that finds none of
+/// these and nothing parked on the clock is one nothing the hook accounts
+/// for can wake, and fails the door wait pending there (the verdict,
+/// [`Door::await_job`] and its siblings). Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
@@ -200,6 +212,8 @@ struct IdleHook {
     settle: SettleSlot,
     /// The scenario's wait for a quiet runtime ([`Door::quiet`]).
     quiet: SettleSlot,
+    /// The door wait pending, which a stuck park fails (C160).
+    stuck: SettleSlot,
     /// [`COUNTERS_VAR`] set: every park that did not advance the clock is
     /// printed.
     print: bool,
@@ -230,20 +244,21 @@ impl Counters {
             held_by_blocking,
             held_by_scenario,
             nothing_parked,
+            stuck,
             settles,
             quiets,
         } = self;
         eprintln!(
             "door-counters {} {what} advances={advances} held_by_send={held_by_send} \
              held_by_blocking={held_by_blocking} held_by_scenario={held_by_scenario} \
-             settles={settles} quiets={quiets} nothing_parked={nothing_parked}",
+             settles={settles} quiets={quiets} nothing_parked={nothing_parked} stuck={stuck}",
             scenario_name()
         );
     }
 }
 
 /// Where [`Door::settle`] and [`Door::quiet`] leave their wakers for the
-/// park hook.
+/// park hook, and a door wait its verdict's.
 type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 
 impl IdleHook {
@@ -274,8 +289,18 @@ impl IdleHook {
             counters.advances += 1;
             return;
         } else {
+            // C160, the verdict: nothing the hook accounts for is pending,
+            // so nothing it knows of can wake the daemon; a door wait
+            // pending here will not be answered.
             counters.nothing_parked += 1;
-            "nothing_parked"
+            match self.stuck.lock().unwrap().take() {
+                Some(stuck) => {
+                    let _ = stuck.send(());
+                    counters.stuck += 1;
+                    "stuck"
+                }
+                None => "nothing_parked",
+            }
         };
         if self.print {
             counters.print(&format!("park={branch}"));
@@ -356,6 +381,8 @@ pub(super) struct Door {
     settle: SettleSlot,
     /// The scenario's wait for a quiet runtime, which the hook wakes.
     quiet: SettleSlot,
+    /// The door wait pending, which the hook fails at a stuck park.
+    stuck: SettleSlot,
     finished: bool,
     /// The world's endpoint ([`DoorBuilder::world`]) and, on Unix, the
     /// folder its socket is in: held open while the door stands.
@@ -547,6 +574,7 @@ impl DoorBuilder {
                 holds: door.holds.clone(),
                 settle: door.settle.clone(),
                 quiet: door.quiet.clone(),
+                stuck: door.stuck.clone(),
                 print: std::env::var_os(COUNTERS_VAR).is_some(),
             });
             if restore {
@@ -572,7 +600,7 @@ impl DoorBuilder {
     /// state path, C129): a daemon that is asked, sends nothing and is
     /// finished in the scenario, never one with work that sleeps or
     /// sends, which the hook would not see. [`Door::settle`] is the first
-    /// door's.
+    /// door's; this door's waits have no verdict (C160) and keep `HANG`.
     pub(super) async fn beside(self) -> Door {
         let restore = self.restore;
         let mut door = self.build().await;
@@ -711,6 +739,7 @@ impl DoorBuilder {
             holds: Arc::default(),
             settle: Arc::default(),
             quiet: Arc::default(),
+            stuck: Arc::default(),
             finished: false,
             _endpoint: endpoint,
         }
@@ -873,15 +902,16 @@ impl Door {
     /// its last act, which a running daemon performs by ending the
     /// process. Nothing comes back: what the drain cut is read through
     /// the protocol (a cut job is still Running, a clean one is Done) and
-    /// the journal. Needs [`DoorBuilder::life`].
+    /// the journal. Needs [`DoorBuilder::life`]. Fails at the park where
+    /// nothing the hook accounts for can bring the leave (C160), `HANG`
+    /// the backstop behind that verdict.
     pub(super) async fn await_leave(&mut self) {
         let leave = self
             .leave
             .take()
             .expect("the door runs the lifecycle's driver (`DoorBuilder::life`), once");
-        tokio::time::timeout(HANG, leave)
+        self.or_stuck("awaiting the exit's leave".into(), "the exit left", leave)
             .await
-            .expect("the exit left")
             .expect("the driver reached its leave");
     }
 
@@ -890,109 +920,137 @@ impl Door {
     /// daemon's job events (subscribed before the first read), the event
     /// a hint and the snapshot the truth. For a state that is not
     /// terminal (Running, a Waiting job with its retry spent); a job's
-    /// end is [`Self::await_terminal`]'s.
+    /// end is [`Self::await_terminal`]'s. Fails at the park where nothing
+    /// the hook accounts for can bring the state (C160), `HANG` the
+    /// backstop behind that verdict.
     pub(super) async fn await_job(
         &mut self,
         id: JobId,
         predicate: impl Fn(&JobInfo) -> bool,
     ) -> JobInfo {
         let mut events = self.daemon.events.subscribe();
-        tokio::time::timeout(HANG, async {
-            loop {
-                match self.request(Request::Status { id }).await {
-                    Response::Status { job } if predicate(&job) => return job,
-                    Response::Status { .. } => {}
-                    other => panic!("job {id}'s status reads {other:?}"),
-                }
-                match events.recv().await {
-                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(broadcast::error::RecvError::Closed) => {
-                        panic!("the daemon's events closed")
+        let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
+        let ceiling = format!("job {id} reached the state awaited");
+        or_stuck(
+            stuck,
+            counters,
+            format!("awaiting job {id}'s state"),
+            &ceiling,
+            async {
+                loop {
+                    match self.request(Request::Status { id }).await {
+                        Response::Status { job } if predicate(&job) => return job,
+                        Response::Status { .. } => {}
+                        other => panic!("job {id}'s status reads {other:?}"),
+                    }
+                    match events.recv().await {
+                        Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            panic!("the daemon's events closed")
+                        }
                     }
                 }
-            }
-        })
+            },
+        )
         .await
-        .unwrap_or_else(|_| panic!("job {id} reached the state awaited"))
     }
 
     /// Job `id`'s end and outcome, as a client reads them: on the
     /// daemon's job events, subscribed before the first read, each event
     /// a hint and the job re-read through the protocol (`status`, then
     /// `result` once terminal). Never a poll or a yield, so the runtime
-    /// parks whenever nothing can run.
+    /// parks whenever nothing can run. Fails at the park where nothing the
+    /// hook accounts for can end the job (C160), `HANG` the backstop
+    /// behind that verdict.
     pub(super) async fn await_terminal(&mut self, id: JobId) -> (JobInfo, Outcome) {
         let mut events = self.daemon.events.subscribe();
-        tokio::time::timeout(HANG, async {
-            loop {
-                match self.request(Request::Status { id }).await {
-                    Response::Status { job } if job.state.is_terminal() => {
-                        match self.request(Request::Result { id }).await {
-                            Response::Result { outcome, .. } => return (job, outcome),
-                            other => panic!("job {id} is terminal and its result reads {other:?}"),
+        let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
+        or_stuck(
+            stuck,
+            counters,
+            format!("awaiting job {id}'s end"),
+            "the job ended",
+            async {
+                loop {
+                    match self.request(Request::Status { id }).await {
+                        Response::Status { job } if job.state.is_terminal() => {
+                            match self.request(Request::Result { id }).await {
+                                Response::Result { outcome, .. } => return (job, outcome),
+                                other => {
+                                    panic!("job {id} is terminal and its result reads {other:?}")
+                                }
+                            }
+                        }
+                        Response::Status { .. } => {}
+                        other => panic!("job {id}'s status reads {other:?}"),
+                    }
+                    match events.recv().await {
+                        Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            panic!("the daemon's events closed")
                         }
                     }
-                    Response::Status { .. } => {}
-                    other => panic!("job {id}'s status reads {other:?}"),
                 }
-                match events.recv().await {
-                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(broadcast::error::RecvError::Closed) => {
-                        panic!("the daemon's events closed")
-                    }
-                }
-            }
-        })
+            },
+        )
         .await
-        .expect("the job ended")
     }
 
     /// The first `AuthStatus` answer `predicate` holds for: at once if
     /// it already does, else re-read after each auth-change notification
     /// (subscribed before the read), the notification a hint and the
-    /// answer the truth. A login's end is `|s| !s.pending`.
+    /// answer the truth. A login's end is `|s| !s.pending`. Fails at the
+    /// park where nothing the hook accounts for can bring the answer
+    /// (C160), `HANG` the backstop behind that verdict.
     pub(super) async fn await_auth(
         &mut self,
         predicate: impl Fn(&AuthAnswer) -> bool,
     ) -> AuthAnswer {
         let daemon = self.daemon.clone();
-        tokio::time::timeout(HANG, async {
-            loop {
-                let changed = daemon.auth_changed.notified();
-                tokio::pin!(changed);
-                changed.as_mut().enable();
-                let answer = match self.request(Request::AuthStatus).await {
-                    Response::Auth {
-                        logged_in,
-                        pending,
-                        login_ok,
-                        login_error,
-                        username,
-                        access_expires_in_seconds,
-                        keyring,
-                        provider,
-                        accounts,
-                    } => AuthAnswer {
-                        logged_in,
-                        pending,
-                        login_ok,
-                        login_error,
-                        username,
-                        access_expires_in_seconds,
-                        keyring,
-                        provider,
-                        accounts,
-                    },
-                    other => panic!("auth status reads {other:?}"),
-                };
-                if predicate(&answer) {
-                    return answer;
+        let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
+        let awaiting = "awaiting an auth answer its predicate holds for";
+        or_stuck(
+            stuck,
+            counters,
+            awaiting.into(),
+            "the auth answer came",
+            async {
+                loop {
+                    let changed = daemon.auth_changed.notified();
+                    tokio::pin!(changed);
+                    changed.as_mut().enable();
+                    let answer = match self.request(Request::AuthStatus).await {
+                        Response::Auth {
+                            logged_in,
+                            pending,
+                            login_ok,
+                            login_error,
+                            username,
+                            access_expires_in_seconds,
+                            keyring,
+                            provider,
+                            accounts,
+                        } => AuthAnswer {
+                            logged_in,
+                            pending,
+                            login_ok,
+                            login_error,
+                            username,
+                            access_expires_in_seconds,
+                            keyring,
+                            provider,
+                            accounts,
+                        },
+                        other => panic!("auth status reads {other:?}"),
+                    };
+                    if predicate(&answer) {
+                        return answer;
+                    }
+                    changed.await;
                 }
-                changed.await;
-            }
-        })
+            },
+        )
         .await
-        .expect("the auth answer came")
     }
 
     /// [`DoorBuilder::restore`]'s landing awaited: the keyring word
@@ -1109,6 +1167,23 @@ impl Door {
         }
     }
 
+    /// [`or_stuck`] on this door's slot and counters.
+    async fn or_stuck<T>(
+        &self,
+        awaiting: String,
+        ceiling: &str,
+        wait: impl Future<Output = T>,
+    ) -> T {
+        or_stuck(
+            self.stuck.clone(),
+            self.counters.clone(),
+            awaiting,
+            ceiling,
+            wait,
+        )
+        .await
+    }
+
     /// The park hook's counters as they stand, shared: for a component
     /// test of the hook's rule, read from another thread while the
     /// runtime parks. A scenario asserts nothing of them.
@@ -1131,23 +1206,28 @@ impl Door {
     /// the contract oracle with "never over the limit" against the mock,
     /// with "pacing follows responses" otherwise, exact since the door's
     /// clock is manual; a script's journal is held equal to its wire too.
+    /// A server's end fails at the park where nothing the hook accounts
+    /// for can bring it (C160), `HANG` the backstop behind that verdict.
     pub(super) async fn finish(mut self) {
         self.finished = true;
         if let Some(life) = self.life.take() {
             life.abort();
         }
+        let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
         let wire = match &mut self.fixture {
             Fixture::Script { wire, server, .. } => {
-                tokio::time::timeout(HANG, server)
+                let awaiting = "awaiting the scripted server's end, its script answered whole";
+                let ceiling = "the script was answered whole";
+                or_stuck(stuck, counters, awaiting.into(), ceiling, server)
                     .await
-                    .expect("the script was answered whole")
                     .expect("the scripted server's assertions held");
                 Some(wire.lock().unwrap().clone())
             }
             Fixture::Delayed { server, .. } => {
-                tokio::time::timeout(HANG, server)
+                let awaiting = "awaiting the token server's end, its refresh answered";
+                let ceiling = "the token server was answered whole";
+                or_stuck(stuck, counters, awaiting.into(), ceiling, server)
                     .await
-                    .expect("the token server was answered whole")
                     .expect("the token server's assertions held");
                 None
             }
@@ -1173,6 +1253,46 @@ impl Drop for Door {
         if !self.finished && !std::thread::panicking() {
             panic!("a door scenario ends through `finish`, so its oracles run");
         }
+    }
+}
+
+/// C160, a door wait: `wait` raced against the park hook's verdict, the
+/// wait polled first (`biased`), so a wait the same park answers wins.
+/// The verdict's arm panics naming what was awaited and the counters: the
+/// park found nothing parked on the clock, no send, no blocking task and
+/// no hold, so nothing the hook accounts for can bring the answer. `HANG`
+/// stays around both as the backstop a wait outside the accounting can
+/// still reach (a door opened [`DoorBuilder::beside`] another, whose slot
+/// no hook reads), panicking with `ceiling`.
+async fn or_stuck<T>(
+    stuck: SettleSlot,
+    counters: Arc<Mutex<Counters>>,
+    awaiting: String,
+    ceiling: &str,
+    wait: impl Future<Output = T>,
+) -> T {
+    let (verdict, stuck_rx) = oneshot::channel();
+    let previous = stuck.lock().unwrap().replace(verdict);
+    assert!(previous.is_none(), "one door wait at a time");
+    let raced = tokio::time::timeout(HANG, async {
+        tokio::select! {
+            biased;
+            done = wait => Some(done),
+            Ok(()) = stuck_rx => None,
+        }
+    })
+    .await;
+    stuck.lock().unwrap().take();
+    match raced {
+        Ok(Some(done)) => done,
+        Ok(None) => {
+            let counters = *counters.lock().unwrap();
+            panic!(
+                "the daemon can be woken by nothing the hook accounts for: nothing parked on \
+                 its clock, no send, no blocking task, no hold; {awaiting} ({counters:?})"
+            )
+        }
+        Err(_) => panic!("{ceiling}"),
     }
 }
 
@@ -1230,4 +1350,65 @@ pub(super) fn stray_callbacks(authorize_url: &str) -> [String; 4] {
         callback_with(authorize_url, &[("error", "access_denied")]),
         callback_with(authorize_url, &[("state", &state)]),
     ]
+}
+
+/// C160, the verdict: a door wait the daemon will never answer fails at
+/// the park where nothing the hook accounts for is pending, never at
+/// `HANG`. The halted daemon as `rails.rs` stages it: a tripwire's 429
+/// halts it, the first job waiting with its retry spent; a second job
+/// submitted after the halt waits in the queue, the pick passing it over
+/// while halted, and the scenario awaits that job's end. Nothing is parked
+/// on the clock and no send, blocking task or hold is pending, so the
+/// wait's verdict arm panics out of `run` (the scenario is awaited inside
+/// `block_on`): its words name the verdict and the job, and the counters
+/// show the one stuck park and no advance since the wait began. No
+/// duration is asserted (C137): that the wait ended by the verdict and
+/// not by `HANG` is the verdict's own words.
+#[test]
+fn c160_a_wait_the_daemon_will_never_answer_fails_at_the_park() {
+    let script = vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+    ];
+    type Seen = (JobId, Arc<Mutex<Counters>>, Counters);
+    let seen: Arc<Mutex<Option<Seen>>> = Arc::default();
+    let reads = seen.clone();
+    let ended = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        Door::open(
+            Server::Script(script),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .rails(tripwire_config())
+        .run(|mut door| async move {
+            let first = door.submit("fetch", None).await;
+            door.await_job(first, |job| {
+                job.retries == 1 && job.state == JobState::Waiting
+            })
+            .await;
+            let parked = door.submit("fetch", None).await;
+            let counters = door.counters();
+            let before = *counters.lock().unwrap();
+            *reads.lock().unwrap() = Some((parked, counters, before));
+            door.await_terminal(parked).await;
+            panic!("the halted daemon ended job {parked}");
+        });
+    }));
+    let panic = ended.expect_err("the wait on a halted daemon's job failed");
+    let words = panic.downcast_ref::<String>().cloned().unwrap_or_default();
+    let (parked, counters, before) = seen.lock().unwrap().take().expect("the scenario ran");
+    assert!(
+        words.contains("the daemon can be woken by nothing the hook accounts for"),
+        "{words}"
+    );
+    assert!(
+        words.contains(&format!("awaiting job {parked}'s end")),
+        "{words}"
+    );
+    let after = *counters.lock().unwrap();
+    assert_eq!(
+        (after.stuck, after.advances),
+        (before.stuck + 1, before.advances),
+        "one stuck park and no advance since the wait began: {before:?} then {after:?}"
+    );
 }

@@ -128,90 +128,92 @@ fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
 /// Two rate waits on two different keys stay parked on the clock while
 /// an independent job is picked and completes: a wait holds its own key,
 /// never the dispatcher. Then the clock moves, deadline by deadline,
-/// until both waits end.
-#[tokio::test]
-async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
-    let (base, server) = saturated_probe_server().await;
+/// until both waits end. A component test on the door's runtime, its
+/// boundary the parking clock: it reads `sleepers()`, a fact of the clock
+/// no protocol answer carries (C158), so it is never a scenario. The two
+/// waits are found parked once the runtime has settled, which resolves at
+/// the first park that would move the clock: under a limiter that waits
+/// for nothing, the jobs end, the runtime parks with nothing parked, and
+/// the count fails at once. The scenario holds the clock while the
+/// independent job runs, so no park moves time under it.
+#[test]
+fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
+    let probes: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>> = Arc::default();
+    let server = probes.clone();
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock.clone());
-    daemon
-        .choke
-        .head(
-            "character-list",
-            &format!("{base}/character"),
-            None,
-            daemon.choke.now(),
-            ALWAYS_WANTED,
-        )
-        .await
-        .unwrap();
-    daemon
-        .choke
-        .head(
-            "stash-list",
-            &format!("{base}/stash/Standard"),
-            None,
-            daemon.choke.now(),
-            ALWAYS_WANTED,
-        )
-        .await
-        .unwrap();
-    server.await.unwrap();
-
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let characters = daemon
-        .submit("characters".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let stashes = daemon
-        .submit(
-            "stashes".into(),
-            json!({ "league": "Standard" }),
-            0,
-            "test".into(),
-            None,
-        )
-        .unwrap();
-    tokio::time::timeout(HANG, async {
-        while clock.sleepers() < 2 {
-            tokio::task::yield_now().await;
+    let parking = clock.clone();
+    Door::open(
+        Server::own(move || async move {
+            let (base, task) = saturated_probe_server().await;
+            *server.lock().unwrap() = Some(task);
+            base
+        }),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .run(|mut door| async move {
+        let clock = parking;
+        let daemon = door.daemon().clone();
+        let base = daemon.provider.api_base.clone();
+        for (route, path) in [
+            ("character-list", "character"),
+            ("stash-list", "stash/Standard"),
+        ] {
+            daemon
+                .choke
+                .head(
+                    route,
+                    &format!("{base}/{path}"),
+                    None,
+                    daemon.choke.now(),
+                    ALWAYS_WANTED,
+                )
+                .await
+                .unwrap();
         }
-    })
-    .await
-    .expect("the two jobs reached their rate waits");
+        let task = probes.lock().unwrap().take().expect("the probe server");
+        tokio::time::timeout(HANG, task)
+            .await
+            .expect("the probe server answered both")
+            .unwrap();
 
-    let independent = daemon
-        .submit(
-            "sleep".into(),
-            json!({ "seconds": 0.0 }),
-            0,
-            "test".into(),
-            None,
-        )
-        .unwrap();
-    let (info, _) = wait_terminal(&daemon, independent).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(clock.sleepers(), 2, "the two rate waits stayed parked");
+        let characters = daemon
+            .submit("characters".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let stashes = daemon
+            .submit(
+                "stashes".into(),
+                json!({ "league": "Standard" }),
+                0,
+                "test".into(),
+                None,
+            )
+            .unwrap();
+        door.settle().await;
+        assert_eq!(clock.sleepers(), 2, "the two jobs reached their rate waits");
 
-    // The dispatcher pre-waits in one-second cancellation slices: each
-    // deadline in turn, until both jobs end.
-    let terminal = |id| state_of(&daemon, id).is_terminal();
-    tokio::time::timeout(HANG, async {
-        while !(terminal(characters) && terminal(stashes)) {
-            clock.advance_to_next();
-            tokio::task::yield_now().await;
+        let hold = door.hold_clock();
+        let independent = daemon
+            .submit(
+                "sleep".into(),
+                json!({ "seconds": 0.0 }),
+                0,
+                "test".into(),
+                None,
+            )
+            .unwrap();
+        let (info, _) = door.await_terminal(independent).await;
+        assert_eq!(info.state, JobState::Done);
+        assert_eq!(clock.sleepers(), 2, "the two rate waits stayed parked");
+        drop(hold);
+
+        // The hook moves the clock deadline by deadline until both end.
+        for id in [characters, stashes] {
+            let (info, _) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Failed, "job {id}");
         }
-    })
-    .await
-    .expect("both rate waits ended");
-    assert_eq!(
-        wait_terminal(&daemon, characters).await.0.state,
-        JobState::Failed
-    );
-    assert_eq!(
-        wait_terminal(&daemon, stashes).await.0.state,
-        JobState::Failed
-    );
-    finish_harness(dispatcher, &log_path);
+        door.finish().await;
+    });
 }
 
 /// Malformed listings fail the *job*, not just the store: a 2xx with
@@ -2526,6 +2528,56 @@ fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
             .expect("the sleeper woke")
             .unwrap();
         assert_eq!(clock.now() - origin, Duration::from_secs(10));
+        door.finish().await;
+    });
+}
+
+/// C160, the hook's own instrument: the count the door's park hook reads
+/// to tell a send in flight from a stuck park is zero at rest and one
+/// under a held send, beside its bound: `SendGate::occupancy` on a gate
+/// of its own, then `ChokePoint::actual_send_occupancy` on the daemon's,
+/// at rest and while the account server holds a profile `GET`. A mutant
+/// that replaces either count stalls every scenario that needs an
+/// advance (the hook reads every park as held by a send), so the weekly
+/// mutants run lists the four by function and this pin tells them apart
+/// at once (`.cargo/mutants.toml`). A component test of the hook's input
+/// (`door.daemon()`), on the door's runtime.
+#[test]
+fn c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send() {
+    use crate::gate::{MAX_ACTUAL_SENDS, SendGate};
+    Door::open(
+        Server::Account(("GET", "/profile", 0)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .run(|mut door| async move {
+        let gate = SendGate::new();
+        assert_eq!(gate.occupancy(), (0, MAX_ACTUAL_SENDS), "a fresh gate");
+        let permit = gate.acquire("policy").await;
+        assert_eq!(gate.occupancy(), (1, MAX_ACTUAL_SENDS), "one permit held");
+        drop(permit);
+        assert_eq!(
+            gate.occupancy(),
+            (0, MAX_ACTUAL_SENDS),
+            "the permit released"
+        );
+
+        let daemon = door.daemon().clone();
+        let at_rest = daemon.choke.actual_send_occupancy();
+        assert_eq!(at_rest, (0, MAX_ACTUAL_SENDS), "the daemon's gate at rest");
+        let (arrived, release) = door.held();
+        let id = door.submit("profile", Some("test-user")).await;
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the GET reached the server")
+            .unwrap();
+        let held = daemon.choke.actual_send_occupancy();
+        assert_eq!(held, (1, MAX_ACTUAL_SENDS), "one send held at the server");
+        release.send(()).unwrap();
+        door.await_terminal(id).await;
+        let landed = daemon.choke.actual_send_occupancy();
+        assert_eq!(landed, (0, MAX_ACTUAL_SENDS), "the send landed");
         door.finish().await;
     });
 }
