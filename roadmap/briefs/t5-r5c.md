@@ -142,9 +142,9 @@ cannot host). The one production edit is a doc comment that named
   `spec.rs:2016` (the limiter's spec); the literal ceilings
   `dispatch.rs:89` (1 s), `stress.rs:10` (1 s), `log.rs:114` (10 s),
   `exit.rs` 1856 (5 s) and 1900 (10 s), `login.rs` 628, 633, 659, 669
-  (5 s), `credentials.rs:20` `ANSWERED_WITHIN` (30 s, equal to the
-  local nextest kill of `.config/nextest.toml`, which `HANG` also
-  equals); the polls `wait_terminal` (44 calls), `wait_state`
+  (5 s), `credentials.rs:20` `ANSWERED_WITHIN` (30 s, a guard that
+  fires before the local nextest kill of `.config/nextest.toml`, four
+  30 s periods, 120 s, which `HANG` equals); the polls `wait_terminal` (44 calls), `wait_state`
   (`exit.rs:109`, 4), `drive_drain` (8), `await_a_look` (2),
   `wait_for_refresh_waiters` (stress 9–29 at 1 s; sessions 463–483 at
   `HANG`), the inline loops (`dispatch.rs` 90–103, 174, 198, 501, 529;
@@ -174,23 +174,11 @@ Fixed before the round: the inventory above; the door as round 5b
 left it. The gate's test stage at 1092c57b: 23 s on the
 orchestrating session's machine. The last push's CI on 1092c57b:
 read at the round's start. Round 0's baseline (run 41265798977): its
-shards' artifacts, round 6's input. The registry line, drafted for
-`decisions/network.md` in the entry rule's form (the owner's ruling of
-2026-10-31, the design's §5), entered as C159 at this brief's commit
-(`python3 -I tools/bothy.py check` green on it), its Pinned "nothing
-yet" until the round builds the oracle and the check:
-
-> - **C159 — The routes whose first send carries no probe are the
-> daemon's declaration and the token endpoint, and every reader of the
-> wire holds the daemon to it.** A declared route's or the token
-> endpoint's first send in a lifetime is no HEAD and every other
-> route's is one; a reader of the wire outside the daemon crate keeps
-> its own copy of that set only under a check that fails when the copy
-> and the daemon's set differ. *Why:* the set was written in five
-> places and the oracles only skipped the exempt routes, so a probe
-> sent on one passed unseen. *Pinned:* nothing yet (the daemon
-> harness's wire-contract oracle and a gate check over the copies,
-> when built).
+shards' artifacts, round 6's input. The registry line: C159 in
+`decisions/network.md`, entered at this brief's first cut and narrowed
+at its second to the owner's ruling of 2026-10-31 (the design's §5),
+its Pinned "nothing yet" until the round builds the oracle and the
+check; `python3 -I tools/bothy.py check` green on it.
 
 ## Do
 
@@ -449,3 +437,7 @@ The first review's seven (`t5-r5c-brief-4e6c330c.md`):
    `harness.rs:74`'s mention (Do 3, done-when).
 7. C40, C42, C43 in `decisions/plans.md`; three external copies (Read,
    Goal).
+
+The second review's two remnants (`t5-r5c-brief-1f42b30d.md`): the
+Input's quotation of the superseded C159 draft, now a reference to the
+entry; the credential guard against the runner's kill (Input, Read).
