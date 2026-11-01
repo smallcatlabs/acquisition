@@ -186,8 +186,8 @@ Fixed before the work starts:
   outside `/tests/`, `spec.rs` and the tail test module of `auth.rs`,
   which Do 6's check makes a gate stage.
 - **The ruling**, entered: C160 in `decisions/daemon.md` after C158,
-  791 bytes (`python3`, `len(line.encode())`), under the registry's
-  800; `python3 -I tools/bothy.py check` green on it.
+  793 bytes at this cut (`python3`, `len(line.encode())`), under the
+  registry's 800; `python3 -I tools/bothy.py check` green on it.
 - **The 48 moved mutants by the scenario that hung**, read by the
   orchestrating session on 2026-11-01 from each mutant's saved log
   under `runs/t5-round6-after/mutants-shard-*/log/` (the log whose
@@ -252,9 +252,11 @@ Fixed before the work starts:
    more"; it says the hook accounts for four things (the clock's
    sleepers, a send in flight, a blocking task, a hold of the
    scenario's), a wait of the scenario's own outside those stands under
-   a hold, and so a false verdict names the scenario and a missed one
-   cannot happen; the six-site inventory and the mutant count left the
-   entry for this brief; 1,309 bytes became 791. Nothing in this step
+   a hold, and so a false verdict names the scenario; the six-site
+   inventory and the mutant count left the entry for this brief; 1,309
+   bytes became 791. Qualified at the second review (finding 2): a
+   wait on the hook's own door cannot miss, and a `beside` door, which
+   has no hook, keeps the ceiling; 793 bytes. Nothing in this step
    waits on a further word; if the owner rewords it, Do 5's words
    follow his.
 
@@ -336,7 +338,7 @@ Fixed before the work starts:
 
 5. **The verdict and the classes**, on the evidence of Do 4 (zero
    `nothing_parked` across every passing scenario), one commit:
-   - the hook's last branch (`door.rs:233–235` today) becomes the
+   - the hook's last branch (`door.rs:230–231` today) becomes the
      verdict: a park that finds nothing parked, no send, no blocking
      task, no hold, no settle and no quiet pending sends on a slot the
      door holds (`SettleSlot`'s shape, 207), the counters gaining
@@ -456,8 +458,9 @@ evidence beyond what a message summarises is the report's.
   thread's two `std` reads and nothing else, quoted in the same message.
 - Do 2's commit message carries the two commands and their totals (the
   sum of `nothing_parked` over the door scenarios; for each of the
-  three mutants, the hung test and the hook's branch at its last park);
-  Do 4's carries the "after" total.
+  three mutants, the hung test and the hook's branch at its last park,
+  or for class (c) the record "no hook; a runnable yield loop"); Do 4's
+  carries the "after" total.
 - **If Do 5 was built:** `c160_a_wait_the_daemon_will_never_answer_fails_at_the_park`
   and `c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send`
   exist by name; `.cargo/mutants.toml` lists the four occupancy mutants
@@ -545,7 +548,7 @@ a bound, and the pin asserts none.
 
 `TEMPLATE.md`, and: the two `Counters` tables (Do 2, Do 4), each with
 its command; the three local mutant runs, each with the hung test and
-the hook's last branch; the `sleep` and `whoami` tests whose durations
+the hook's last branch (class (c): "no hook; a runnable yield loop"); the `sleep` and `whoami` tests whose durations
 changed under Do 3, before and after, asserted by nothing; the
 breakers' run. Raised for review, at least: whether the verdict's words
 should name the counters or only the wait; whether `ACQ_DOOR_COUNTERS`
@@ -621,3 +624,9 @@ The second review's seven (`151-stuck-verdict-brief-132a43ef.md`):
    result (Do 5, the close).
 6. 33 of class (a), the overlap marked in its row (Input).
 7. Done-when 1 cites the commit carrying this cut (Done when).
+
+The third review's three nitpicks (`151-stuck-verdict-brief-2e0fa403.md`),
+taken in a documents-only round with no further review (the rhythm's
+rule): the class (c) record repeated in done-when 3 and the Report; the
+ruling's size and the second qualification in Input and Do 1; the
+hook's last branch at 230–231.
