@@ -491,9 +491,12 @@ The time seam read whole on 2026-11-01 (`reviews/time-seam-retrospective.md`,
 the owner, answered "yes to all" (the rulings list). The step it
 recommends first, the stuck verdict (`briefs/151-stuck-verdict.md`, #151:
 the daemon's waits on one clock under check 12, a door wait failing at
-the exact park), has its first cut committed at `e1a0dcb8` and under
-cold review; C160 entered ahead of its code, its words narrowed at that review and qualified at the second under the grant (the hook's four accountings named, a `beside` door keeping the ceiling, under 800 bytes; the commits carrying this line), for the owner's re-read. The orchestrating session
-runs it under the grant of 2026-11-01. Next after it: the residue step
+the exact park), cut three times under cold reviews (first cut
+`e1a0dcb8`); C160 entered ahead of its code, its words narrowed at the first review and qualified at the second under the grant (the hook's four accountings named, a `beside` door keeping the ceiling, under 800 bytes), for the owner's re-read. Its build landed
+on 2026-11-01 as `0ae93980..82ac4f4c` (the measurement, the timers with
+no hold owed, the verdict and the three classes, check 12): its cold
+review is pending, then the close and the weekly mutants run on a tag.
+The orchestrating session runs it under the grant of 2026-11-01. Next after it: the residue step
 (the limiter spec's real clock, the client's ceilings, the mock's window
 on the isolation list, the `Boundary` value for #152); then Phase 3, the
 owner's league run, at his word.
