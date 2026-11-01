@@ -324,6 +324,28 @@ fn faulted(
         return;
     }
     doc.extend(fault.fields());
+    // a league the policy does not cover: the plan of each it does
+    if let Fault::NotCovered {
+        username,
+        realm,
+        covered,
+        ..
+    } = fault
+    {
+        offers.extend(covered.iter().map(|league| {
+            (
+                Way::RefreshPlan {
+                    account: username.clone(),
+                    realm: *realm,
+                    league: league.clone(),
+                },
+                format!(
+                    "the plan of {} {league}, which the policy covers",
+                    realm.as_str()
+                ),
+            )
+        }));
+    }
     let names = match fault {
         Fault::UnknownAccount { known, .. } => known.as_slice(),
         Fault::AmbiguousAccount { candidates } => candidates.as_slice(),

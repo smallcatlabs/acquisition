@@ -219,7 +219,9 @@ impl StoreChanges {
 
 /// C39 (the planner, offline) and C46: the one compile every frontend
 /// calls, from a snapshot. A snapshot with no policy is
-/// [`Fault::NoSyncPolicy`] naming the account.
+/// [`Fault::NoSyncPolicy`] naming the account; a league the policy does
+/// not cover is [`Fault::NotCovered`] as the account, whose refusal
+/// offers the leagues it does.
 pub fn compile(
     provider: &str,
     snapshot: &RefreshSnapshot,
@@ -229,6 +231,16 @@ pub fn compile(
     plan_refresh(provider, snapshot, now).map_err(|e| match Fault::from(e) {
         Fault::NoSyncPolicy { .. } => Fault::NoSyncPolicy {
             username: username.to_string(),
+        },
+        Fault::Plan(acquisition_plan::PlanError::LeagueNotCovered {
+            realm,
+            league,
+            covered,
+        }) => Fault::NotCovered {
+            username: username.to_string(),
+            realm,
+            league,
+            covered,
         },
         other => other,
     })

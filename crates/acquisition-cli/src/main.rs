@@ -1033,6 +1033,10 @@ fn fault_words(fault: &Fault) -> String {
             "{fault} — declare one first, e.g. `{}`",
             plan_cmd::policy_set_line("", plan_cmd::POLICY_EXAMPLE)
         ),
+        Fault::NotCovered { covered, .. } => match covered.is_empty() {
+            true => format!("{fault}: `acq policy set` covers a league"),
+            false => format!("{fault}: name one with `--league`"),
+        },
         Fault::Spend(
             acquisition_plan::SpendError::PolicyGone { .. }
             | acquisition_plan::SpendError::PolicyMoved { .. },

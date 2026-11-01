@@ -258,7 +258,8 @@ fn no_policy_and_uncovered_league_are_distinct_structured_errors() {
         err,
         PlanError::LeagueNotCovered {
             realm: Realm::Pc,
-            league: "Standard".into()
+            league: "Standard".into(),
+            covered: vec!["Hardcore".into()],
         }
     );
     // Coverage is per (realm, league): Standard on xbox does not cover

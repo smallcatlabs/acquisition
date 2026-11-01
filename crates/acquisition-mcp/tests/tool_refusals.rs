@@ -89,7 +89,10 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         assert_eq!(doc["accounts"], json!([USER]), "{tool}: {doc}");
     }
 
-    // A league the policy does not cover: refused in the planner's words.
+    // A league the policy does not cover: refused in the planner's words,
+    // which name the leagues it covers, and the plan of each offered (the
+    // league seat, mcp call 9's sibling of cli call 26), sent back as
+    // printed to the same tool.
     let doc = refusal(
         &mut mcp,
         "refresh_plan",
@@ -97,12 +100,21 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         "refused",
     );
     assert!(
-        doc["error"]
-            .as_str()
-            .unwrap()
-            .contains("does not cover league Allflame"),
+        doc["error"].as_str().unwrap().starts_with(
+            "the sync policy covers Standard on realm pc, not Allflame: `league` names one"
+        ),
         "{doc}"
     );
+    assert_eq!(
+        doc["offers"],
+        json!([{
+            "request": { "account": USER, "realm": "pc", "league": "Standard" },
+            "says": "the plan of pc Standard, which the policy covers",
+        }]),
+        "{doc}"
+    );
+    let planned = mcp.expect_ok("refresh_plan", doc["offers"][0]["request"].clone());
+    assert_eq!(planned["plan"]["league"], json!("Standard"), "{planned}");
 
     // A parameter the tool cannot read.
     refusal(&mut mcp, "tabs", json!({ "realm": "pcx" }), "arguments");

@@ -51,8 +51,18 @@ pub enum Fault {
     Unopened(anyhow::Error),
     /// The account has no sync policy to compile. Kind `refused`.
     NoSyncPolicy { username: String },
-    /// A malformed plan or policy, an uncovered league. Kind `refused`.
+    /// A malformed plan or policy. Kind `refused`.
     Plan(PlanError),
+    /// The policy covers no such league on the realm a plan was asked
+    /// for ([`PlanError::LeagueNotCovered`], its words), as the account
+    /// it was asked for: the refusal offers the plan of each league the
+    /// policy covers there (`refusal::document`). Kind `refused`.
+    NotCovered {
+        username: String,
+        realm: acquisition_protocol::realm::Realm,
+        league: String,
+        covered: Vec<String>,
+    },
     /// A plan that may not be spent here: its policy gone or moved, the
     /// wrong provider or account (C44). Kind `refused`.
     Spend(SpendError),
@@ -116,6 +126,7 @@ impl Fault {
             | Fault::NoUuid { .. }
             | Fault::NoSyncPolicy { .. }
             | Fault::Plan(_)
+            | Fault::NotCovered { .. }
             | Fault::Spend(_)
             | Fault::Policy(_)
             | Fault::UnreadablePolicy { .. }
@@ -217,6 +228,20 @@ impl fmt::Display for Fault {
                 write!(f, "no sync policy is set for {username}")
             }
             Fault::Plan(e) => write!(f, "{e}"),
+            Fault::NotCovered {
+                realm,
+                league,
+                covered,
+                ..
+            } => write!(
+                f,
+                "{}",
+                PlanError::LeagueNotCovered {
+                    realm: *realm,
+                    league: league.clone(),
+                    covered: covered.clone(),
+                }
+            ),
             Fault::Spend(e) => write!(f, "{e}"),
             Fault::Policy(e) => write!(f, "{e}"),
             Fault::UnreadablePolicy { revision, detail } => write!(

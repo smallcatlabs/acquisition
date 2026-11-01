@@ -2413,3 +2413,44 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
         run(command);
     }
 }
+
+/// The league seat (cli call 26; mcp's `refresh_plan` the same): a plan
+/// of a league the policy does not cover said what was wrong and not
+/// what to do. The refusal names the leagues the policy covers on the
+/// realm, and its document offers the plan of each, which runs as
+/// printed.
+#[test]
+fn a_plan_of_an_uncovered_league_names_and_offers_the_covered_ones() {
+    let scratch = harness::scratch("seat-uncovered");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Allflame":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    assert!(acq(&base, &["policy", "set", policy]).status.success());
+
+    // Stays a literal: one refusal line, which a golden holds no better.
+    let out = acq(&base, &["refresh", "--plan"]);
+    assert!(!out.status.success());
+    let said = text(&out);
+    assert!(
+        said.contains(
+            "the sync policy covers Allflame on realm pc, not Standard: name one with `--league`"
+        ),
+        "{said}"
+    );
+
+    let out = acq(&base, &["refresh", "--plan", "--json"]);
+    assert!(!out.status.success());
+    let refused = sole_json(&out);
+    let offers = refused["offers"].as_array().cloned().unwrap_or_default();
+    let [offer] = &offers[..] else {
+        panic!("one offer, the covered league's plan: {refused}");
+    };
+    assert_eq!(
+        offer["says"], "the plan of pc Allflame, which the policy covers",
+        "{refused}"
+    );
+    let line = harness::offered_line(offer);
+    let run = run_as_printed(&base, &line);
+    assert!(run.status.success(), "`{line}`: {}", text(&run));
+    assert!(stdout(&run).contains("in Allflame"), "{}", text(&run));
+}

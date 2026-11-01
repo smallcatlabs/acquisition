@@ -193,6 +193,10 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }
+        Fault::NotCovered { covered, .. } => match covered.is_empty() {
+            true => format!("{fault}: set_sync_policy covers a league"),
+            false => format!("{fault}: `league` names one"),
+        },
         // A merge reads the stored row to merge into, so the retry is a
         // whole write naming the revision.
         Fault::UnreadablePolicy { revision, .. } => format!(

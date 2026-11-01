@@ -301,8 +301,14 @@ pub enum PlanError {
     /// never guessed at — same rule as the store's schema stamps.
     PolicyVersionUnsupported { found: i64, supported: i64 },
     /// The policy declares nothing for the snapshot's (realm, league);
-    /// there is no authorized work to derive.
-    LeagueNotCovered { realm: Realm, league: String },
+    /// there is no authorized work to derive. `covered` is the leagues it
+    /// does declare on that realm, in its order, so the refusal names
+    /// them (the league seat, cli call 26).
+    LeagueNotCovered {
+        realm: Realm,
+        league: String,
+        covered: Vec<String>,
+    },
     /// The snapshot names a realm this build does not know. Facts are
     /// stamped with the request's realm, so this is a store written by a
     /// build with a wider table — refused, never guessed at.
@@ -334,12 +340,21 @@ impl std::fmt::Display for PlanError {
                 f,
                 "sync policy declares version {found}, newer than this build's v{supported}"
             ),
-            PlanError::LeagueNotCovered { realm, league } => {
-                write!(
+            PlanError::LeagueNotCovered {
+                realm,
+                league,
+                covered,
+            } => match covered.is_empty() {
+                true => write!(
                     f,
-                    "the sync policy does not cover league {league} on realm {realm}"
-                )
-            }
+                    "the sync policy covers no league on realm {realm}, so not {league}"
+                ),
+                false => write!(
+                    f,
+                    "the sync policy covers {} on realm {realm}, not {league}",
+                    covered.join(", ")
+                ),
+            },
             PlanError::UnknownRealm { realm } => {
                 write!(
                     f,
@@ -2095,6 +2110,11 @@ fn compile(
             .ok_or_else(|| PlanError::LeagueNotCovered {
                 realm,
                 league: snapshot.league.clone(),
+                covered: policy
+                    .realms
+                    .get(&realm)
+                    .map(|r| r.leagues.keys().cloned().collect())
+                    .unwrap_or_default(),
             })?;
     let max_age = i64::from(league_policy.max_age_seconds);
     // Each facet compiles on its own: an absent facet contributes no
