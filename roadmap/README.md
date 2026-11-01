@@ -445,5 +445,11 @@ round; four issues filed (#153, #155, #156, #157). What it leaves for
 the owner's live run: the league loop as the README prints it ran as
 printed on both doors; a plan on an unlearned route gives no time until
 its probe; what is his to rule is listed in the record's "For the
-owner". Next, Phase 3, the owner's league run, at his word; #148 stays
-for after the seat.
+owner". #148 closed on 2026-11-01 in the two weeks before the league:
+the store's five busy timeouts and `ensure_wal`'s retry under
+`ACQ_STORE_WAIT`, each expiry pinned at zero (`8de554bf`, its cold
+review's three findings answered in `41d09423`, the fix review clean;
+the annotation file's switch kept under its own knob, the orchestrating
+session's call, listed for the owner). Next, Phase 3, the owner's
+league run, at his word; #153 and #154 (describe's index and slices)
+before it, as one step.
