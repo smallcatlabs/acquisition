@@ -651,13 +651,18 @@ printf '%s\n' "$exempt"
 # tokio::time as …`), a `use tokio::{…}` group whose members name `time`
 # (read whole to its `}`), and a bare `time::` path to a timer
 # (`time::sleep`, `timeout`, `interval` and their kin), which only such an
-# import makes.
+# import makes. The tokio crate is never renamed there (no `use tokio as
+# …`, no `self as …` in a `use tokio::{…}` group, no `extern crate tokio
+# as …`), so with its root unaliased those three readers cover every path
+# a timer can take, and the check holds under any spelling.
 if ! timers=$(python3 -I - <<'PY'
 import glob, re, sys
 CLOCK = "crates/acquisition-daemon/src/ratelimit.rs"
 WORDS = "sleep through the daemon's Clock, `choke.sleep` or `choke.sleep_until`, removing any import of tokio's timers, or move the test into the file's tail test module (C160)"
 TOKIO_TIME = re.compile(r"\btokio::time\b")
-GROUP = re.compile(r"\buse\s+tokio::\{")
+GROUP = re.compile(r"\buse\s+(?:::)?tokio::\{")
+RENAME = re.compile(r"\b(?:use\s+(?:::)?tokio|extern\s+crate\s+tokio)\s+as\b")
+RENAMED = "tokio is never renamed in the daemon's sources, so every timer spells `tokio::time`, which this check reads; import the crate by its name (C160)"
 BARE = re.compile(r"(?<![\w:])time::(?:sleep|sleep_until|timeout|timeout_at|interval|interval_at|Sleep|Interval|Timeout)\b")
 IMPORT = re.compile(r"\s*(?:pub(?:\([^)]*\))?\s+)?use\b")
 bad = []; n = 0; modules = 0; span = None
@@ -698,6 +703,7 @@ for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=
         if allowed(at):
             continue
         imports = bool(TOKIO_TIME.search(line)) and bool(IMPORT.match(line))
+        renamed = bool(RENAME.search(line))
         if GROUP.search(line):
             # The group whole, to its closing brace, its members read for `time`.
             group, depth = "", 0
@@ -708,6 +714,9 @@ for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=
                     break
             members = group[GROUP.search(group).end():]
             imports = imports or bool(re.search(r"(?<![\w:])time\b", members))
+            renamed = renamed or bool(re.search(r"(?<![\w:])self\s+as\b", members))
+        if renamed:
+            bad.append(f"TIMER   {path}:{at} renames the tokio crate: {RENAMED}")
         if imports:
             bad.append(f"TIMER   {path}:{at} imports tokio's timers, which park beside the daemon's clock where the door's park hook cannot see them: {WORDS}")
         elif TOKIO_TIME.search(line) or BARE.search(line):

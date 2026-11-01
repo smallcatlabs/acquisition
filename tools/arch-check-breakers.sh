@@ -21,7 +21,8 @@
 # copy's literal from the reader. The timer cases (§12) write a tokio
 # timer where the daemon's production runs, before or after a file's tail
 # test module, under a test attribute that is no module and through an
-# import of the timer module (alone, or in a tokio group), and the
+# import of the timer module (alone, or in a tokio group) or of the crate
+# renamed, and the
 # blocking case (§10) a second blocking task.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
@@ -298,6 +299,7 @@ run_case 'a timer under a test attribute that is no module'      refuse "TIMER  
 run_case 'a function with its own brace after the tail module'   refuse "TIMER   $AUTH:$tail_at opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line" in_tests "$AUTH" "\nfn zz() {\n    let _ = $SLEEP;\n}\n"
 run_case 'the timer module imported, its sleep called bare'        refuse "TIMER   $KINDS:$((appended + 1)) sleeps on tokio's own timer" in_tests "$KINDS" '\nuse tokio::time;\nasync fn zz() { time::sleep(std::time::Duration::ZERO).await; }\n'
 run_case 'the timer module in a tokio group, its timeout called'  refuse "TIMER   $KINDS:$appended imports tokio's timers" in_tests "$KINDS" '\nuse tokio::{sync, time};\nasync fn zz() { let _ = time::timeout(std::time::Duration::ZERO, async {}).await; }\n'
+run_case 'the tokio crate renamed, a timer through the alias'     refuse "TIMER   $KINDS:$appended renames the tokio crate" in_tests "$KINDS" '\nuse tokio as runtime;\nasync fn zz() { runtime::time::sleep(std::time::Duration::ZERO).await; }\n'
 run_case 'a second blocking task'                                refuse "BLOCKING $KINDS:$appended spawns a blocking task outside Daemon::blocking" in_tests "$KINDS" '\nfn zz() { let _ = tokio::task::spawn_blocking(|| ()); }\n'
 
 echo '== the code: shapes that must pass'
