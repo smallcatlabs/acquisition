@@ -534,7 +534,8 @@ async fn tabs(
             true,
             acquisition_store::now(),
         );
-        let empty = (listed.tabs == 0).then(|| store_cmd::no_tabs_text(realm, &league, &facts));
+        let empty = (listed.tabs == 0)
+            .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &web.account.entry.username));
         let leagues = web.leagues(realm.as_str())?;
         Ok((league, listed, characters, empty, leagues))
     })

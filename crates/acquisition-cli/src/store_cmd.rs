@@ -151,11 +151,27 @@ pub(crate) fn realm_prefix(realm: Realm) -> String {
 
 /// A league with no tab known, and what lists its tabs: what `tabs` says
 /// and the web UI's tabs page with it.
-pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store) -> String {
+/// No tabs on record for a league, and the two jobs that would list
+/// them, each as `account` in the realm and league asked, so each runs
+/// as printed (fault 1's rule, the review of the league seat's fix
+/// round).
+pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &str) -> String {
+    let scope = [
+        crate::option_words("--account", account),
+        crate::option_words("--realm", realm.as_str()),
+        crate::option_words("--league", league),
+    ]
+    .concat();
+    let job = |verb: &[&str]| {
+        let words: Vec<String> = verb.iter().map(|w| w.to_string()).collect();
+        crate::printed_line(&[words, scope.clone()].concat())
+    };
     format!(
-        "no tabs known for {}{league} in {} (run `acq stashes` or `acq refresh --all`)",
+        "no tabs known for {}{league} in {} (run `{}` or `{}`)",
         realm_prefix(realm),
-        store.path().display()
+        store.path().display(),
+        job(&["acq", "stashes"]),
+        job(&["acq", "refresh", "--all"])
     )
 }
 
@@ -282,7 +298,7 @@ pub fn tabs(
         return Ok(());
     }
     if listed.tabs == 0 {
-        println!("{}", no_tabs_text(realm, league, &store));
+        println!("{}", no_tabs_text(realm, league, &store, &username));
         return Ok(());
     }
     // The answer first (C53), so it is never under a screen of rows.

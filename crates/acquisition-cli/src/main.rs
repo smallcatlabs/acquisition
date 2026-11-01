@@ -1045,10 +1045,21 @@ fn fault_words(fault: &Fault) -> String {
                 printed_line(&policy_show_words(username))
             ),
         },
-        Fault::Spend(
-            acquisition_plan::SpendError::PolicyGone { .. }
-            | acquisition_plan::SpendError::PolicyMoved { .. },
-        ) => format!("{fault} with `acq refresh --plan`"),
+        // the plan compiled again as the account and in the scope the
+        // apply ran in, so it runs as printed (fault 1's rule)
+        Fault::Replan {
+            username,
+            realm,
+            league,
+            ..
+        } => format!(
+            "{fault} with `{}`",
+            printed_line(&way_words(&acquisition_verbs::refusal::Way::RefreshPlan {
+                account: username.clone(),
+                realm: *realm,
+                league: league.clone(),
+            }))
+        ),
         Fault::Spend(_) => fault.to_string(),
         // A merge reads the stored row to merge into, so the retry is a
         // whole write naming the revision.

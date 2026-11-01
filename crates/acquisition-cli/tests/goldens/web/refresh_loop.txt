@@ -151,7 +151,7 @@ POST apply <a plan whose policy moved>
 <main>
 <h1>Apply</h1>
 <div class="refusal"><pre>
-the sync policy moved: the plan cites revision 1, but revision 2 is stored — review and replan with `acq refresh --plan`
+the sync policy moved: the plan cites revision 1, but revision 2 is stored — review and replan with `acq refresh --plan --account ExileTester --realm pc --league Standard`
 </pre>
 </div>
 

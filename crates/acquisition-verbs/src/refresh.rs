@@ -533,7 +533,17 @@ impl Opened {
             frontend.provider,
             self.account.entry.uuid.as_deref(),
             &self.intent,
-        )?;
+        )
+        .map_err(|error| match error {
+            acquisition_plan::SpendError::PolicyGone { .. }
+            | acquisition_plan::SpendError::PolicyMoved { .. } => Fault::Replan {
+                error: Box::new(error),
+                username: username.clone(),
+                realm: plan.realm,
+                league: plan.league.clone(),
+            },
+            other => Fault::Spend(other),
+        })?;
         let skipped = Skipped::of(plan);
         if plan.actions.is_empty() {
             // A strict subset of zero actions is satisfied by doing

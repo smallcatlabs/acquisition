@@ -2431,6 +2431,23 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
         assert!(command.contains("--account seat"), "{command}");
         run(command);
     }
+
+    // a league with no tabs on record names the jobs that list them, as
+    // the account and in the league asked (the review of the fix round,
+    // fault 1's rule over its siblings)
+    let said = stdout(&acq(
+        &base,
+        &["tabs", "--account", "seat", "--league", "Hardcore"],
+    ));
+    let jobs = printed_in_line(&said, "no tabs known");
+    assert_eq!(jobs.len(), 2, "{said}");
+    for command in &jobs {
+        assert!(
+            command.contains("--account seat") && command.contains("--league Hardcore"),
+            "{command}"
+        );
+        run(command);
+    }
 }
 
 /// The league seat (cli call 26; mcp's `refresh_plan` the same): a plan

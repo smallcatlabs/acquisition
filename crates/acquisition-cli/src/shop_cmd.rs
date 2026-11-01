@@ -177,9 +177,10 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
                     String::new()
                 };
                 out.push_str(&format!(
-                    "coverage: {} on the page outside the sync policy (revision {}): {list}; add them with `acq policy set`{past}\n",
+                    "coverage: {} on the page outside the sync policy (revision {}): {list}; add them with `acq policy set {}`{past}\n",
                     plural(f.uncovered_total, "container", "containers"),
-                    f.policy_revision.unwrap_or(0)
+                    f.policy_revision.unwrap_or(0),
+                    crate::price_cmd::write_flags(account)
                 ));
             }
             if f.stale_total > 0 {
@@ -534,7 +535,7 @@ mod tests {
         );
         assert_eq!(
             lines[1],
-            "coverage: 1 container on the page outside the sync policy (revision 4): tab/pc/t2; add them with `acq policy set` (1 of their items past the window too)"
+            "coverage: 1 container on the page outside the sync policy (revision 4): tab/pc/t2; add them with `acq policy set --account a` (1 of their items past the window too)"
         );
         assert_eq!(
             lines[2],

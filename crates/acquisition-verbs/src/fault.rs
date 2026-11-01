@@ -66,6 +66,18 @@ pub enum Fault {
     /// A plan that may not be spent here: its policy gone or moved, the
     /// wrong provider or account (C44). Kind `refused`.
     Spend(SpendError),
+    /// A plan whose policy is gone or moved since it was compiled
+    /// ([`SpendError::PolicyGone`], [`SpendError::PolicyMoved`], their
+    /// words), as the account and the scope it was applied in: the remedy
+    /// is the plan compiled again there, which a surface names in its own
+    /// spelling (the review of the league seat's fix round, fault 1's
+    /// rule). Kind `refused`.
+    Replan {
+        error: Box<SpendError>,
+        username: String,
+        realm: acquisition_protocol::realm::Realm,
+        league: String,
+    },
     /// The policy write refused: invalid, unmergeable, or the store's
     /// compare-and-swap. Kind `refused`; the compare-and-swap's is
     /// `conflict`, with `revision` and `current`, in the one refusal
@@ -128,6 +140,7 @@ impl Fault {
             | Fault::Plan(_)
             | Fault::NotCovered { .. }
             | Fault::Spend(_)
+            | Fault::Replan { .. }
             | Fault::Policy(_)
             | Fault::UnreadablePolicy { .. }
             | Fault::Other(_) => "refused",
@@ -243,6 +256,7 @@ impl fmt::Display for Fault {
                 }
             ),
             Fault::Spend(e) => write!(f, "{e}"),
+            Fault::Replan { error, .. } => write!(f, "{error}"),
             Fault::Policy(e) => write!(f, "{e}"),
             Fault::UnreadablePolicy { revision, detail } => write!(
                 f,

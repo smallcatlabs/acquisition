@@ -393,7 +393,8 @@ async fn a_plan_whose_policy_revision_moved_is_refused_before_any_daemon() {
     assert!(
         matches!(
             fault,
-            Fault::Spend(acquisition_plan::SpendError::PolicyMoved { .. })
+            Fault::Replan { ref error, .. }
+                if matches!(**error, acquisition_plan::SpendError::PolicyMoved { .. })
         ),
         "{fault}"
     );

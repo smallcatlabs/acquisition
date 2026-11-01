@@ -177,7 +177,8 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         | Fault::Daemon(_)
         | Fault::Transport(_)
         | Fault::Other(_)
-        | Fault::Spend(_) => fault.to_string(),
+        | Fault::Spend(_)
+        | Fault::Replan { .. } => fault.to_string(),
         // No login for the caller to run (the agent's seat, F10: a
         // server pointed at the wrong root answered every call with
         // `acq auth`, the one act an agent cannot perform).
