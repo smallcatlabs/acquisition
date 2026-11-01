@@ -1,317 +1,621 @@
 //! The refresh grant: a rejected grant stops further refreshes until
-//! logout, a transient failure marks nothing.
+//! logout, a transient failure marks nothing; a refresh's landing (C144)
+//! and the saved access token's lifetime (C135).
 //!
-//! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
+//! C158, a scenario crosses the daemon's frontend boundary only: the
+//! token table, [`c158_the_token_table_through_the_door`], holds what the
+//! token endpoint answers, each row a script of token answers, the
+//! checks a frontend sends (`AuthCheck`, which always forces a refresh)
+//! and what each is answered, the rails' marks (`DaemonStatus.rails`),
+//! the journal, the grants on the wire ([`Door::received`]: a token's
+//! value is a boundary property only through a send that carries it)
+//! and the saves into the scenario's own store.
+//!
+//! The component tests, each with the boundary it needs:
+//! `a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store`
+//! (a harness property: the bare constructor's default store, which the
+//! door takes as an argument); `a_token_3xx_keeps_its_target_out_of_the_daemon_log`
+//! (the daemon log, which the door does not read); and, until the door
+//! restores as a start does, the landing and save families below.
+//!
+//! Rulings: `decisions/network.md`, `decisions/daemon.md`; the
+//! cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 // Its one reader is a unix-only test (an unwritable index).
 #[cfg(unix)]
 use acquisition_protocol::protocol::KeyringOutcome;
 
-/// The login arm is `a_completed_login_clears_the_dead_grant_mark`.
-#[tokio::test]
-async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
-    let (base, requests, server) = token_server_answering(vec!["400 Bad Request"]).await;
-    let clock = Arc::new(ManualClock::new());
-    // Rails off: this is product behavior, not a ladder rail (L0-R13).
-    let (mut daemon, log_path) =
-        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    let rails = daemon.choke.rails().clone();
-    logged_in(&mut daemon);
+// ---- the token table ----------------------------------------------------
 
-    let first = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert!(first.message.contains("400 Bad Request"), "{first}");
-    assert_eq!(
-        first.kind,
-        ErrorKind::NotLoggedIn,
-        "a rejected grant is a dead session"
-    );
-    assert_eq!(requests.lock().unwrap().len(), 1);
-    assert!(
-        rails
-            .refresh_failed("test-user")
-            .unwrap()
-            .contains("HTTP 400")
-    );
+/// One row of the token table: the token answers the scripted server
+/// plays in order, the rails the daemon opens with, the steps a frontend
+/// takes through the door, and what crosses the boundary back. At the
+/// row's end `DaemonStatus.rails` reads `refresh_failed` and `halted`
+/// (words each carries, or `None`); the journal's sends are `journal` as
+/// [`token_projection`] reads them, the send numbered in
+/// `journal_errors` naming the words given in its `error`; the grants
+/// the token `POST`s carried on the wire are `grants`, in order; the
+/// refresh tokens saved into the scenario's store are `saves`, in order;
+/// and each fragment of `forbids` is absent from every surface it names.
+struct Row {
+    /// The test the row replaced, by name (a ruling's *Pinned* names it).
+    name: &'static str,
+    script: Vec<ScriptedResponse>,
+    rails: RailsConfig,
+    steps: Vec<Step>,
+    refresh_failed: Option<&'static str>,
+    halted: Option<&'static str>,
+    journal: Vec<Value>,
+    journal_errors: Vec<(usize, &'static str)>,
+    grants: Vec<&'static str>,
+    saves: Vec<&'static str>,
+    forbids: Vec<Forbid>,
+}
 
-    let second = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert!(
-        second
-            .message
-            .contains("token refresh disabled for test-user: refresh token rejected with HTTP 400"),
-        "{second}"
-    );
-    assert_eq!(second.kind, ErrorKind::NotLoggedIn);
-    assert_eq!(
-        requests.lock().unwrap().len(),
-        1,
-        "the dead token is not re-sent"
-    );
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert_eq!(
-            s.auth
-                .one()
-                .refresh_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("rt-old"),
-            "nothing is deleted"
-        );
-        assert!(s.auth.one().refresh_flight.is_none());
+/// One step of a row, as a frontend takes it through the door.
+enum Step {
+    /// `AuthCheck` of the sole session, answered as [`Answer`] says.
+    Check(Answer),
+    /// `DaemonStatus.rails` read mid-row: `refresh_failed` and `halted`
+    /// carry these words, or are `None`.
+    Rails {
+        refresh_failed: Option<&'static str>,
+        halted: Option<&'static str>,
+    },
+    /// `ResetTripwire`, acknowledged.
+    Reset,
+    /// `AuthLogout` of the sole session, acknowledged.
+    Logout,
+    /// The lid closes for this long ([`Door::laptop_sleep`]).
+    LaptopSleep(Duration),
+}
+
+/// What a check is answered.
+enum Answer {
+    /// `Response::Auth` naming this account.
+    Auth(&'static str),
+    /// `Response::Error` of this kind, its message carrying each of the
+    /// words.
+    Error {
+        kind: ErrorKind,
+        carries: Vec<&'static str>,
+    },
+}
+
+/// A fragment that must be absent from each surface it names.
+struct Forbid {
+    fragment: &'static str,
+    from: &'static [Surface],
+}
+
+/// A surface a [`Forbid`] names.
+#[derive(Debug)]
+enum Surface {
+    /// Every check's answer, whole.
+    Answers,
+    /// The journal file, header included ([`Door::journal_text`]).
+    Journal,
+    /// `Dashboard.errors`, read at the row's end.
+    DashboardErrors,
+}
+
+fn forbid(fragment: &'static str, from: &'static [Surface]) -> Forbid {
+    Forbid { fragment, from }
+}
+
+/// An error answer of `kind` carrying `carries`.
+fn refused(kind: ErrorKind, carries: &[&'static str]) -> Answer {
+    Answer::Error {
+        kind,
+        carries: carries.to_vec(),
     }
-
-    let _ = daemon.logout(None);
-    assert_eq!(
-        rails.refresh_failed("test-user"),
-        None,
-        "logout clears the mark"
-    );
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
-    finish_harness(None, &log_path);
 }
 
+/// Each send as a row compares it: method, path, status, ok and
+/// `wait_ms` (the hold before it reached the transport, on the clock).
+fn token_projection(sends: &[Value]) -> Vec<Value> {
+    sends
+        .iter()
+        .map(|l| json!([l["method"], l["path"], l["status"], l["ok"], l["wait_ms"]]))
+        .collect()
+}
+
+/// A token `POST` as the journal projects it.
+fn post(status: u16, ok: bool, wait_ms: u64) -> Value {
+    json!(["POST", "/token", status, ok, wait_ms])
+}
+
+/// GGG's rejection of a dead grant.
+const INVALID_GRANT: &str = r#"{"error":"invalid_grant"}"#;
+
+/// What C130's token 307 echoes in its body and its `Location`'s query.
+const C130_TOKEN_SENTINEL: &str = "c130-token-sentinel";
+
+/// C130: a token `POST`'s 307, the token route's headers and a
+/// `Location` whose query, like the body that echoes it, carries
+/// [`C130_TOKEN_SENTINEL`].
+fn token_3xx() -> ScriptedResponse {
+    let target = format!("https://www.pathofexile.com/oauth/token?state={C130_TOKEN_SENTINEL}");
+    token_answer(
+        "307 Temporary Redirect",
+        &format!("{TOKEN_HEADERS}Location: {target}\r\n"),
+        Some(&format!(r#"{{"moved_to":"{target}"}}"#)),
+    )
+}
+
+/// The rows, each written from the ruling it pins and the assertions of
+/// the test it replaced, never from a run of the door.
+fn token_rows() -> Vec<Row> {
+    let huge = json!({
+        "access_token": "at-huge",
+        "refresh_token": "rt-huge",
+        "expires_in": u64::MAX,
+        "username": "test-user",
+    })
+    .to_string();
+    let mut challenge = ScriptedResponse::cloudflare_403_challenge();
+    challenge.method = "POST";
+    challenge.path = "/token";
+    vec![
+        // C24: a 400 is a rejected grant, a dead session: the check says
+        // so, the mark is set; the next check sends nothing and says the
+        // refresh is disabled; a logout clears the mark. The grant after
+        // the mark has no boundary read: no send carries it until login
+        // or logout.
+        Row {
+            name: "rejected_refresh_grant_disables_further_refreshes_until_logout",
+            script: vec![token_answer(
+                "400 Bad Request",
+                TOKEN_HEADERS,
+                Some(INVALID_GRANT),
+            )],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(refused(ErrorKind::NotLoggedIn, &["400 Bad Request"])),
+                Step::Rails {
+                    refresh_failed: Some("HTTP 400"),
+                    halted: None,
+                },
+                Step::Check(refused(
+                    ErrorKind::NotLoggedIn,
+                    &["token refresh disabled for test-user: refresh token rejected with HTTP 400"],
+                )),
+                Step::Logout,
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(400, false, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old"],
+            saves: vec![],
+            forbids: vec![],
+        },
+        // A 5xx is the provider, not the session: no mark. The tripwire
+        // trips on it; reset, the next check refreshes on the grant
+        // that stood.
+        Row {
+            name: "transient_refresh_failures_do_not_mark_the_session",
+            script: vec![
+                token_answer(
+                    "503 Service Unavailable",
+                    TOKEN_HEADERS,
+                    Some(INVALID_GRANT),
+                ),
+                token_answer("200 OK", TOKEN_HEADERS, None),
+            ],
+            rails: tripwire_config(),
+            steps: vec![
+                Step::Check(refused(ErrorKind::Upstream, &["503"])),
+                Step::Rails {
+                    refresh_failed: None,
+                    halted: Some("503"),
+                },
+                Step::Reset,
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(503, false, 0), post(200, true, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old", "rt-old"],
+            saves: vec!["rt-rotated"],
+            forbids: vec![],
+        },
+        // C130: a token POST's 307 is refused upstream with the status and
+        // the redirect's target shown only redacted; the body, which
+        // echoes the target with its query, is kept nowhere. One send, no
+        // follow. The daemon log's read is the component case
+        // `a_token_3xx_keeps_its_target_out_of_the_daemon_log`.
+        Row {
+            name: "a_token_3xx_is_refused_with_the_target_redacted_and_no_body",
+            script: vec![token_3xx()],
+            rails: RailsConfig::default(),
+            steps: vec![Step::Check(refused(
+                ErrorKind::Upstream,
+                &["307", "https://www.pathofexile.com/oauth/token?…"],
+            ))],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(307, false, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old"],
+            saves: vec![],
+            forbids: vec![forbid(
+                C130_TOKEN_SENTINEL,
+                &[Surface::Answers, Surface::Journal, Surface::DashboardErrors],
+            )],
+        },
+        // C129 over C24: Cloudflare's challenge on the token endpoint is
+        // no rejected grant. The block mark, no dead-grant mark; the
+        // refusal says Cloudflare answered and the daemon stopped, never
+        // `acq auth`; the next check sends nothing (the halt refuses it).
+        // Reset, the session stood through the block: the next check's
+        // POST carries the same grant.
+        Row {
+            name: "a_cloudflare_block_on_the_token_route_is_no_rejected_grant",
+            script: vec![challenge, token_answer("200 OK", TOKEN_HEADERS, None)],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(refused(
+                    ErrorKind::Upstream,
+                    &["Cloudflare answered in GGG's place", "reset-tripwire"],
+                )),
+                Step::Rails {
+                    refresh_failed: None,
+                    halted: Some("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
+                },
+                Step::Check(refused(ErrorKind::Upstream, &[])),
+                Step::Reset,
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(403, false, 0), post(200, true, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old", "rt-old"],
+            saves: vec!["rt-rotated"],
+            forbids: vec![
+                forbid("acq auth", &[Surface::Answers]),
+                forbid("Just a moment", &[Surface::Answers]),
+            ],
+        },
+        // C131: a token 2xx with no rate-limit header at all installs its
+        // tokens and the refresh succeeds on them; the send stays a
+        // journaled protocol failure, and the unestablished route is held
+        // one timing bucket: the next grant, the rotated one, waits 60 s.
+        Row {
+            name: "a_headerless_token_2xx_installs_its_tokens_and_holds_the_route",
+            script: vec![
+                token_answer("200 OK", "", None),
+                token_answer("200 OK", TOKEN_HEADERS, None),
+            ],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(Answer::Auth("test-user")),
+                // Crosses the access token's expiry on the wall (an hour,
+                // nothing parks on it) and leaves the C131 hold, parked on
+                // the monotonic face, ahead: an advance would expire the
+                // hold too. The check forces its refresh whatever the
+                // expiry; the hold is what its POST meets.
+                Step::LaptopSleep(Duration::from_secs(3600)),
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(200, false, 0), post(200, true, 60_000)],
+            journal_errors: vec![(0, "x-rate-limit-policy")],
+            grants: vec!["rt-old", "rt-rotated"],
+            saves: vec!["rt-rotated", "rt-rotated"],
+            forbids: vec![],
+        },
+        // C131's limit: a 200 that is no token response (a portal page)
+        // installs nothing; the refresh fails upstream, nothing is saved
+        // or marked, and the session stands: the next check's POST
+        // carries the same grant and lands, after the route's hold (the
+        // page came with no rate-limit header).
+        Row {
+            name: "a_token_2xx_that_is_no_token_response_installs_nothing",
+            script: vec![
+                token_answer(
+                    "200 OK",
+                    "",
+                    Some("<!DOCTYPE html><html><body>Path of Exile</body></html>"),
+                ),
+                token_answer("200 OK", TOKEN_HEADERS, None),
+            ],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(refused(ErrorKind::Upstream, &[])),
+                Step::Rails {
+                    refresh_failed: None,
+                    halted: None,
+                },
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(200, false, 0), post(200, true, 60_000)],
+            journal_errors: vec![],
+            grants: vec!["rt-old", "rt-old"],
+            saves: vec!["rt-rotated"],
+            forbids: vec![],
+        },
+        // C131's hold is for an answer with no rate-limit header at all:
+        // a header set present but malformed installs the tokens and
+        // holds nothing, so the next grant goes out at once.
+        Row {
+            name: "a_token_2xx_with_malformed_rate_headers_installs_its_tokens_without_a_hold",
+            script: vec![
+                token_answer(
+                    "200 OK",
+                    "X-Rate-Limit-Policy: token-request-limit\r\n",
+                    None,
+                ),
+                token_answer("200 OK", TOKEN_HEADERS, None),
+            ],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(Answer::Auth("test-user")),
+                // The access token's expiry on the wall, as the headerless
+                // row's; nothing is held here to stay ahead of.
+                Step::LaptopSleep(Duration::from_secs(3600)),
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(200, false, 0), post(200, true, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old", "rt-rotated"],
+            saves: vec!["rt-rotated", "rt-rotated"],
+            forbids: vec![],
+        },
+        // C47 with C134: an `expires_in` no clock can add is GGG's input,
+        // not a broken invariant. The refresh fails upstream before
+        // anything is installed or saved, its words name no token, and
+        // the session stands; the next check answers (nothing is
+        // poisoned), its POST carrying the same grant.
+        Row {
+            name: "an_out_of_range_expires_in_is_a_token_error",
+            script: vec![
+                token_answer("200 OK", TOKEN_HEADERS, Some(&huge)),
+                token_answer("200 OK", TOKEN_HEADERS, None),
+            ],
+            rails: RailsConfig::default(),
+            steps: vec![
+                Step::Check(refused(ErrorKind::Upstream, &["lifetime"])),
+                Step::Rails {
+                    refresh_failed: None,
+                    halted: None,
+                },
+                Step::Check(Answer::Auth("test-user")),
+            ],
+            refresh_failed: None,
+            halted: None,
+            journal: vec![post(200, true, 0), post(200, true, 0)],
+            journal_errors: vec![],
+            grants: vec!["rt-old", "rt-old"],
+            saves: vec!["rt-rotated"],
+            forbids: vec![
+                forbid(
+                    "at-huge",
+                    &[Surface::Answers, Surface::Journal, Surface::DashboardErrors],
+                ),
+                forbid(
+                    "rt-huge",
+                    &[Surface::Answers, Surface::Journal, Surface::DashboardErrors],
+                ),
+            ],
+        },
+    ]
+}
+
+/// `DaemonStatus.rails`'s two marks, as a frontend reads them.
+async fn marks(door: &mut Door) -> (Option<String>, Option<String>) {
+    match door.request(Request::DaemonStatus).await {
+        Response::DaemonStatus { rails, .. } => (rails.refresh_failed, rails.halted),
+        other => panic!("the daemon's status reads {other:?}"),
+    }
+}
+
+/// A mark as a row expects it: carrying `want`'s words, or none.
+fn assert_mark(name: &str, mark: &str, read: Option<&str>, want: Option<&str>) {
+    match want {
+        Some(words) => assert!(
+            read.is_some_and(|read| read.contains(words)),
+            "{name}: {mark} lacks {words:?}: {read:?}"
+        ),
+        None => assert_eq!(read, None, "{name}: {mark}"),
+    }
+}
+
+/// `Dashboard.errors`, newest first.
+async fn dashboard_errors(door: &mut Door) -> Vec<String> {
+    match door.request(Request::Dashboard).await {
+        Response::Dashboard { errors, .. } => errors.into_iter().map(|e| e.message).collect(),
+        other => panic!("the dashboard reads {other:?}"),
+    }
+}
+
+/// The grants the token `POST`s carried on the wire, in order.
+fn grants_on_the_wire(door: &Door) -> Vec<String> {
+    door.received()
+        .iter()
+        .filter(|request| request.method == "POST" && request.path == "/token")
+        .map(|request| request.grant().expect("a refresh grant's body"))
+        .collect()
+}
+
+/// C158, the token table: each row through the door, a logged-in
+/// `test-user` (its grant `rt-old`, no access token) facing the row's
+/// script with a recording store of the scenario's. It reads nothing
+/// but the protocol's answers, the journal, the scripted server's record
+/// of the wire and its own store. What the hook did prints under
+/// `--no-capture`, asserted by nothing.
+#[test]
+fn c158_the_token_table_through_the_door() {
+    for row in token_rows() {
+        let Row {
+            name,
+            script,
+            rails,
+            steps,
+            refresh_failed,
+            halted,
+            journal,
+            journal_errors,
+            grants,
+            saves,
+            forbids,
+        } = row;
+        let store = Arc::new(RecordingCredentialStore::default());
+        let saved = store.clone();
+        let hook = Door::open(Server::Script(script), Arc::new(ParkingClock::new()), store)
+            .rails(rails)
+            .sessions(logged_in_sessions())
+            .run(|mut door| async move {
+                let mut answers = Vec::new();
+                for step in steps {
+                    match step {
+                        Step::Check(want) => {
+                            let answer = door.request(Request::AuthCheck { account: None }).await;
+                            match (&want, &answer) {
+                                (Answer::Auth(user), Response::Auth { username, .. }) => {
+                                    assert_eq!(username.as_deref(), Some(*user), "{name}")
+                                }
+                                (
+                                    Answer::Error { kind, carries },
+                                    Response::Error {
+                                        kind: answered,
+                                        message,
+                                    },
+                                ) => {
+                                    assert_eq!(answered, kind, "{name}: {message}");
+                                    for words in carries {
+                                        assert!(
+                                            message.contains(words),
+                                            "{name}: the answer lacks {words:?}: {message}"
+                                        );
+                                    }
+                                }
+                                _ => panic!("{name}: a check answered {answer:?}"),
+                            }
+                            answers.push(format!("{answer:?}"));
+                        }
+                        Step::Rails {
+                            refresh_failed,
+                            halted,
+                        } => {
+                            let (marked, halt) = marks(&mut door).await;
+                            assert_mark(
+                                name,
+                                "the dead-grant mark",
+                                marked.as_deref(),
+                                refresh_failed,
+                            );
+                            assert_mark(name, "the halt", halt.as_deref(), halted);
+                        }
+                        Step::Reset => {
+                            let answer = door.request(Request::ResetTripwire).await;
+                            assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
+                        }
+                        Step::Logout => {
+                            let answer = door.request(Request::AuthLogout { account: None }).await;
+                            assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
+                        }
+                        Step::LaptopSleep(lid) => door.laptop_sleep(lid),
+                    }
+                }
+
+                let (marked, halt) = marks(&mut door).await;
+                assert_mark(
+                    name,
+                    "the dead-grant mark",
+                    marked.as_deref(),
+                    refresh_failed,
+                );
+                assert_mark(name, "the halt", halt.as_deref(), halted);
+                let sends = door.journal();
+                assert_eq!(token_projection(&sends), journal, "{name}: the journal");
+                for (send, words) in journal_errors {
+                    assert!(
+                        sends[send]["error"]
+                            .as_str()
+                            .is_some_and(|error| error.contains(words)),
+                        "{name}: send {send} names {words:?}: {}",
+                        sends[send]
+                    );
+                }
+                assert_eq!(grants_on_the_wire(&door), grants, "{name}: the grants");
+                let rotated: Vec<String> = saved_refresh_tokens(&saved.saves.lock().unwrap())
+                    .into_iter()
+                    .map(|(_, token, user)| {
+                        assert_eq!(user, "test-user", "{name}");
+                        token
+                    })
+                    .collect();
+                assert_eq!(rotated, saves, "{name}: the saves");
+                let errors = dashboard_errors(&mut door).await.join("\n");
+                let journal_text = door.journal_text();
+                for Forbid { fragment, from } in &forbids {
+                    for surface in *from {
+                        let texts: Vec<&str> = match surface {
+                            Surface::Answers => answers.iter().map(String::as_str).collect(),
+                            Surface::Journal => vec![&journal_text],
+                            Surface::DashboardErrors => vec![&errors],
+                        };
+                        for text in texts {
+                            assert!(
+                                !text.contains(fragment),
+                                "{name}: {surface:?} keeps {fragment:?}: {text}"
+                            );
+                        }
+                    }
+                }
+                door.finish().await;
+            });
+        eprintln!("{name}: the park hook: {hook:?}");
+    }
+}
+
+/// C130, the daemon log: a component case of the log file, which no
+/// frontend reads through the protocol (the refusal, the journal and
+/// `Dashboard.errors` are the token table's row
+/// `a_token_3xx_is_refused_with_the_target_redacted_and_no_body`). The
+/// check enters by the protocol request; a token 307 whose body and
+/// `Location` carry the sentinel leaves none of it in the log.
 #[tokio::test]
-async fn transient_refresh_failures_do_not_mark_the_session() {
-    let (base, requests, server) =
-        token_server_answering(vec!["503 Service Unavailable", "200 OK"]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, tripwire_config());
-    let rails = daemon.choke.rails().clone();
+async fn a_token_3xx_keeps_its_target_out_of_the_daemon_log() {
+    let (base, requests, server) = scripted_server(vec![token_3xx()]).await;
+    let (mut daemon, log_path) = test_daemon_with(
+        Provider::mock(&base),
+        Arc::new(ManualClock::new()),
+        RailsConfig::default(),
+    );
     logged_in(&mut daemon);
-
-    let first = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert!(first.message.contains("503"), "{first}");
-    assert_eq!(
-        first.kind,
-        ErrorKind::Upstream,
-        "a 5xx is the provider, not the session"
-    );
-    assert_eq!(
-        rails.refresh_failed("test-user"),
-        None,
-        "5xx is not a rejected grant"
-    );
-    // The tripwire did trip on the 503 (Cloudflare shape); clear it so
-    // the retry can show the refresh path itself is untouched.
-    assert!(rails.halted().unwrap().contains("503"));
-    rails.reset_tripwire().unwrap();
-
-    let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!(
-        (token.exposed_for_test(), user.as_str()),
-        ("at-new", "test-user")
-    );
-    assert_eq!(requests.lock().unwrap().len(), 2);
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
-    finish_harness(None, &log_path);
-}
-
-/// C130: a token POST's 307 is refused upstream with the status and the
-/// redirect's target shown only redacted. The body, which echoes the
-/// target with its query, is not kept: the sentinel reaches neither the
-/// refusal, the journal, the daemon log nor its recent errors.
-#[tokio::test]
-async fn a_token_3xx_is_refused_with_the_target_redacted_and_no_body() {
-    const SENTINEL: &str = "c130-token-sentinel";
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let requests = Arc::new(Mutex::new(Vec::new()));
-    let captured = requests.clone();
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut stream).await.unwrap();
-        assert_eq!(request.path, "/token");
-        captured.lock().unwrap().push(request.body.clone());
-        let target = format!("https://www.pathofexile.com/oauth/token?state={SENTINEL}");
-        let headers = format!(
-            "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\nLocation: {target}\r\n"
-        );
-        let body = format!(r#"{{"moved_to":"{target}"}}"#);
-        mockggg::respond_with(
-            &mut stream,
-            "307 Temporary Redirect",
-            "application/json",
-            &headers,
-            &body,
-        )
+    let answer = daemon
+        .handle_request(Request::AuthCheck { account: None }, &mut None)
         .await;
-    });
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) =
-        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    logged_in(&mut daemon);
-
-    let refusal = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
-    assert!(refusal.message.contains("307"), "{refusal}");
-    assert!(
-        !refusal.message.contains(SENTINEL),
-        "the refusal kept it: {refusal}"
-    );
-    assert!(
-        refusal
-            .message
-            .contains("https://www.pathofexile.com/oauth/token?…"),
-        "the refusal names where the 307 pointed: {refusal}"
-    );
-    let journal = std::fs::read_to_string(journal_of(&log_path)).unwrap();
-    assert!(
-        !journal.contains(SENTINEL),
-        "the journal kept it: {journal}"
-    );
+    assert!(matches!(answer, Response::Error { .. }), "{answer:?}");
     let log = std::fs::read_to_string(&log_path).unwrap();
-    assert!(!log.contains(SENTINEL), "the daemon log kept it: {log}");
-    let errors = format!("{:?}", daemon.shared.lock().unwrap().errors);
+    assert!(log.contains("307"), "the log names the 307: {log}");
     assert!(
-        !errors.contains(SENTINEL),
-        "recent errors kept it: {errors}"
+        !log.contains(C130_TOKEN_SENTINEL),
+        "the daemon log kept it: {log}"
     );
-    assert_eq!(requests.lock().unwrap().len(), 1, "one send, no follow");
     server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
-    finish_harness(None, &log_path);
-}
-
-/// C129 over C24: Cloudflare's challenge on the token endpoint is no
-/// rejected grant. The refresh sets the block mark and no dead-grant
-/// mark; the refusal says Cloudflare answered and the daemon stopped,
-/// and never sends the user to `acq auth`, whose code exchange would go
-/// into the same block. The next ask sends nothing: the halt refuses it.
-#[tokio::test]
-async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
-    let challenge = ScriptedResponse {
-        method: "POST",
-        path: "/token",
-        ..ScriptedResponse::cloudflare_403_challenge()
-    };
-    let (base, requests, server) = scripted_server(vec![challenge]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) =
-        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    let rails = daemon.choke.rails().clone();
-    logged_in(&mut daemon);
-
-    let refusal = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert_eq!(
-        refusal.kind,
-        ErrorKind::Upstream,
-        "a block is not a dead session: {refusal}"
-    );
-    assert!(
-        refusal
-            .message
-            .contains("Cloudflare answered in GGG's place"),
-        "{refusal}"
-    );
-    assert!(refusal.message.contains("reset-tripwire"), "{refusal}");
-    assert!(!refusal.message.contains("acq auth"), "{refusal}");
-    assert!(
-        !refusal.message.contains("Just a moment"),
-        "Cloudflare's page is no message of GGG's: {refusal}"
-    );
-    assert_eq!(
-        rails.refresh_failed("test-user"),
-        None,
-        "a block is no rejected grant"
-    );
-    let halt = rails.halted().expect("the block mark is set");
-    assert!(
-        halt.contains("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
-        "{halt}"
-    );
-    assert_eq!(
-        daemon
-            .shared
-            .lock()
-            .unwrap()
-            .auth
-            .one()
-            .refresh_token
-            .as_ref()
-            .map(auth::Secret::exposed_for_test),
-        Some("rt-old"),
-        "the session stands"
-    );
-
-    let second = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert_eq!(second.kind, ErrorKind::Upstream, "{second}");
-    assert!(!second.message.contains("acq auth"), "{second}");
-    server.await.unwrap();
-    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
-}
-
-/// A token answer in the scripted server's shape: `POST /token`, the
-/// given status and rate headers, and the rotated grant (or `body`).
-fn token_answer(status: &'static str, headers: &str, body: Option<&str>) -> ScriptedResponse {
-    ScriptedResponse {
-        method: "POST",
-        path: "/token",
-        status,
-        headers: headers.into(),
-        body: body.map(str::to_string).unwrap_or_else(|| {
-            json!({
-                "access_token": "at-new",
-                "refresh_token": "rt-rotated",
-                "expires_in": 3600,
-                "username": "test-user",
-            })
-            .to_string()
-        }),
-    }
-}
-
-const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
-
-/// A logged-in daemon facing `answers`, on the manual clock, its
-/// credential store a recorder the test keeps.
-async fn token_daemon(
-    answers: Vec<ScriptedResponse>,
-) -> (
-    Arc<Daemon>,
-    Arc<RecordingCredentialStore>,
-    Arc<ManualClock>,
-    TestPath,
-    Arc<Mutex<Vec<String>>>,
-    tokio::task::JoinHandle<()>,
-) {
-    let (base, requests, server) = scripted_server(answers).await;
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) =
-        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
-    logged_in(&mut daemon);
-    let credentials = Arc::new(RecordingCredentialStore::default());
-    Arc::get_mut(&mut daemon).unwrap().credential_store = credentials.clone();
-    (daemon, credentials, clock, log_path, requests, server)
 }
 
 /// Invariant 5's test side: a harness daemon whose test names no store
 /// saves a refresh's rotated token into the harness's recorder, never the
 /// developer's keychain. The store is read before anything is sent, so a
 /// harness that defaulted to the OS store fails there, with nothing saved.
+/// A component test: the bare constructor's default store is a harness
+/// property, and the door takes its store as an argument.
 #[tokio::test]
 async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
     let (base, requests, server) =
@@ -344,196 +648,28 @@ async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
     finish_harness(None, &log_path);
 }
 
-fn session_refresh_token(daemon: &Daemon) -> Option<String> {
-    daemon
-        .shared
-        .lock()
-        .unwrap()
-        .auth
-        .one()
-        .refresh_token
-        .as_ref()
-        .map(|token| token.exposed_for_test().to_string())
-}
+// ---- the landing and save families, component until the door restores ----
 
-/// C131: a token 200 that carries its tokens but no rate-limit header at
-/// all installs the rotated tokens, and the refresh succeeds on them;
-/// the send stays a journaled protocol failure, and the unestablished
-/// token route is held one timing bucket, so the next grant leaves only
-/// after 60 s.
-#[tokio::test]
-async fn a_headerless_token_2xx_installs_its_tokens_and_holds_the_route() {
-    let (daemon, credentials, clock, log_path, requests, server) = token_daemon(vec![
-        token_answer("200 OK", "", None),
-        token_answer("200 OK", TOKEN_HEADERS, None),
-    ])
-    .await;
-
-    let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!(
-        (token.exposed_for_test(), user.as_str()),
-        ("at-new", "test-user")
-    );
-    assert_eq!(
-        session_refresh_token(&daemon).as_deref(),
-        Some("rt-rotated"),
-        "the rotated refresh token is the session's"
-    );
-    assert_eq!(
-        saved_refresh_tokens(&credentials.saves.lock().unwrap()),
-        [(
-            daemon.provider.keyring_service.to_string(),
-            "rt-rotated".to_string(),
-            "test-user".to_string()
-        )],
-        "the rotated refresh token is saved"
-    );
-    let first = journal_sends(&log_path);
-    assert_eq!(first.len(), 1);
-    assert_eq!(first[0]["ok"], false, "{}", first[0]);
-    assert!(
-        first[0]["error"]
-            .as_str()
-            .is_some_and(|error| error.contains("x-rate-limit-policy")),
-        "the journal names the protocol failure: {}",
-        first[0]
-    );
-    assert_eq!(requests.lock().unwrap().len(), 1, "one POST so far");
-
-    // The access token expires on the wall clock alone, so the hold the
-    // first answer installed is still ahead on the monotonic one.
-    clock.laptop_sleep(Duration::from_secs(3600));
-    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!(token, "at-new");
-    let sends = journal_sends(&log_path);
-    assert_eq!(sends.len(), 2);
-    assert_eq!(sends[1]["ok"], true, "{}", sends[1]);
-    assert_eq!(
-        sends[1]["wait_ms"], 60000,
-        "the second grant waits one timing bucket: {}",
-        sends[1]
-    );
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
-}
-
-/// C131's limit: a 200 that is no token response (a portal page) installs
-/// nothing; the refresh fails upstream with the session standing.
-#[tokio::test]
-async fn a_token_2xx_that_is_no_token_response_installs_nothing() {
-    let (daemon, credentials, _clock, log_path, requests, server) =
-        token_daemon(vec![token_answer(
-            "200 OK",
-            "",
-            Some("<!DOCTYPE html><html><body>Path of Exile</body></html>"),
-        )])
-        .await;
-
-    let refusal = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
-    assert_eq!(
-        session_refresh_token(&daemon).as_deref(),
-        Some("rt-old"),
-        "the session stands"
-    );
-    assert!(credentials.saves.lock().unwrap().is_empty());
-    assert_eq!(daemon.choke.rails().refresh_failed("test-user"), None);
-    let sends = journal_sends(&log_path);
-    assert_eq!(sends.len(), 1);
-    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
-}
-
-/// C131's hold is for an answer with no rate-limit header at all: a token
-/// 200 whose header set is present but malformed installs its tokens and
-/// holds nothing, so the next grant goes out at once.
-#[tokio::test]
-async fn a_token_2xx_with_malformed_rate_headers_installs_its_tokens_without_a_hold() {
-    let (daemon, credentials, clock, log_path, requests, server) = token_daemon(vec![
-        token_answer(
-            "200 OK",
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            None,
-        ),
-        token_answer("200 OK", TOKEN_HEADERS, None),
-    ])
-    .await;
-
-    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!(token, "at-new");
-    assert_eq!(
-        session_refresh_token(&daemon).as_deref(),
-        Some("rt-rotated")
-    );
-    assert_eq!(credentials.saves.lock().unwrap().len(), 1);
-
-    clock.laptop_sleep(Duration::from_secs(3600));
-    daemon.valid_access_token(None, false, None).await.unwrap();
-    let sends = journal_sends(&log_path);
-    assert_eq!(sends.len(), 2);
-    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
-    assert_eq!(sends[1]["wait_ms"], 0, "no hold: {}", sends[1]);
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
-}
-
-/// C47 with C134: an `expires_in` no clock can add is GGG's input, not a
-/// broken invariant. The refresh fails upstream before anything is
-/// installed or saved, the session stands, and `shared` is not poisoned:
-/// the next grant installs as usual. Before, the sum panicked under
-/// `shared`, and the refresh owner's drop met the poisoned lock and
-/// aborted the process with the rotated token already in the keyring.
-#[tokio::test]
-async fn an_out_of_range_expires_in_is_a_token_error() {
-    let huge = json!({
-        "access_token": "at-huge",
-        "refresh_token": "rt-huge",
-        "expires_in": u64::MAX,
-        "username": "test-user",
-    })
-    .to_string();
-    let (daemon, credentials, _clock, log_path, requests, server) = token_daemon(vec![
-        token_answer("200 OK", TOKEN_HEADERS, Some(&huge)),
-        token_answer("200 OK", TOKEN_HEADERS, None),
-    ])
-    .await;
-
-    let refusal = daemon
-        .valid_access_token(None, false, None)
-        .await
-        .unwrap_err();
-    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
-    assert!(refusal.message.contains("lifetime"), "{refusal}");
-    assert!(!refusal.message.contains("at-huge"), "{refusal}");
-    assert!(!refusal.message.contains("rt-huge"), "{refusal}");
-    assert!(!daemon.shared.is_poisoned());
-    assert_eq!(
-        session_refresh_token(&daemon).as_deref(),
-        Some("rt-old"),
-        "the session stands"
-    );
-    assert!(
-        credentials.saves.lock().unwrap().is_empty(),
-        "nothing saved"
-    );
-    assert_eq!(daemon.choke.rails().refresh_failed("test-user"), None);
-
-    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!(token, "at-new", "a later grant installs");
-    assert_eq!(
-        session_refresh_token(&daemon).as_deref(),
-        Some("rt-rotated")
-    );
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
+/// A logged-in daemon facing `answers`, on the manual clock, its
+/// credential store a recorder the test keeps.
+async fn token_daemon(
+    answers: Vec<ScriptedResponse>,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    Arc<ManualClock>,
+    TestPath,
+    Arc<Mutex<Vec<String>>>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (base, requests, server) = scripted_server(answers).await;
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
+    logged_in(&mut daemon);
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    Arc::get_mut(&mut daemon).unwrap().credential_store = credentials.clone();
+    (daemon, credentials, clock, log_path, requests, server)
 }
 
 /// A logged-in daemon facing `answers`, its credential store `store`, the

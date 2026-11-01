@@ -676,24 +676,16 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
 /// `c133_a_stop_between_the_profile_and_the_login_waits_for_the_login`.
 #[test]
 fn exit_waits_for_a_login_code_exchange() {
-    // The scenario's own server, bound before the door's runtime exists.
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    listener.set_nonblocking(true).unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
     let clock = Arc::new(ParkingClock::new());
     let parking = clock.clone();
-    Door::open(
-        Server::Own(base),
-        clock,
-        Arc::new(RecordingCredentialStore::default()),
-    )
-    .exit_bound(HELD)
-    .life(IDLE_SHUTDOWN)
-    .run(|mut door| async move {
-        let clock = parking;
-        let listener = TcpListener::from_std(listener).unwrap();
-        let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
-        let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
+    let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
+    let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
+    // The scenario's own server, which holds the exchange: bound and
+    // spawned inside the door's runtime; its barriers are the scenario's.
+    let (served_tx, served) = tokio::sync::oneshot::channel();
+    let own = Server::own(move || async move {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.unwrap();
             let request = mockggg::read_request(&mut stream).await.unwrap();
@@ -719,55 +711,64 @@ fn exit_waits_for_a_login_code_exchange() {
             );
             mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
         });
-
-        // The callback and the exchange's way to the wire are waits no
-        // count of the daemon's sees: the clock is held across them.
-        let hold = door.hold_clock();
-        let url = match door.request(Request::AuthStart).await {
-            Response::AuthUrl { authorize_url } => authorize_url,
-            other => panic!("expected the authorize URL, got {other:?}"),
-        };
-        let authorize = url::Url::parse(&url).unwrap();
-        let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-        let callback = format!(
-            "{}?code=code-x&state={}",
-            query["redirect_uri"], query["state"]
-        );
-        assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-        tokio::time::timeout(HANG, arrived)
-            .await
-            .expect("the exchange reached the server")
-            .unwrap();
-        drop(hold);
-
-        let stopped = clock.now();
-        door.stop();
-        release.send(()).unwrap();
-        door.await_leave().await;
-        let drained = clock.now() - stopped;
-        assert!(
-            drained < HELD,
-            "a clean drain leaves before its bound: {drained:?}"
-        );
-
-        let jobs = match door.request(Request::List).await {
-            Response::Jobs { jobs } => jobs,
-            other => panic!("expected the job list, got {other:?}"),
-        };
-        let profiles: Vec<_> = jobs.iter().filter(|job| job.kind == "profile").collect();
-        assert_eq!(
-            profiles.len(),
-            1,
-            "the login queued its profile job: {jobs:?}"
-        );
-        assert_eq!(profiles[0].state, JobState::Waiting, "{jobs:?}");
-        tokio::time::timeout(HANG, server)
-            .await
-            .expect("the token server was answered")
-            .unwrap();
-        assert_eq!(journal_methods(&door), ["POST"]);
-        door.finish().await;
+        served_tx.send(server).unwrap();
+        base
     });
+    Door::open(own, clock, Arc::new(RecordingCredentialStore::default()))
+        .exit_bound(HELD)
+        .life(IDLE_SHUTDOWN)
+        .run(|mut door| async move {
+            let clock = parking;
+            let server = served.await.expect("the door built the scenario's server");
+
+            // The callback and the exchange's way to the wire are waits no
+            // count of the daemon's sees: the clock is held across them.
+            let hold = door.hold_clock();
+            let url = match door.request(Request::AuthStart).await {
+                Response::AuthUrl { authorize_url } => authorize_url,
+                other => panic!("expected the authorize URL, got {other:?}"),
+            };
+            let authorize = url::Url::parse(&url).unwrap();
+            let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+            let callback = format!(
+                "{}?code=code-x&state={}",
+                query["redirect_uri"], query["state"]
+            );
+            assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+            tokio::time::timeout(HANG, arrived)
+                .await
+                .expect("the exchange reached the server")
+                .unwrap();
+            drop(hold);
+
+            let stopped = clock.now();
+            door.stop();
+            release.send(()).unwrap();
+            door.await_leave().await;
+            let drained = clock.now() - stopped;
+            assert!(
+                drained < HELD,
+                "a clean drain leaves before its bound: {drained:?}"
+            );
+
+            let jobs = match door.request(Request::List).await {
+                Response::Jobs { jobs } => jobs,
+                other => panic!("expected the job list, got {other:?}"),
+            };
+            let profiles: Vec<_> = jobs.iter().filter(|job| job.kind == "profile").collect();
+            assert_eq!(
+                profiles.len(),
+                1,
+                "the login queued its profile job: {jobs:?}"
+            );
+            assert_eq!(profiles[0].state, JobState::Waiting, "{jobs:?}");
+            tokio::time::timeout(HANG, server)
+                .await
+                .expect("the token server was answered")
+                .unwrap();
+            assert_eq!(journal_methods(&door), ["POST"]);
+            door.finish().await;
+        });
 }
 
 /// C133 (a pending login has the bound to land), issue #59: a stop that

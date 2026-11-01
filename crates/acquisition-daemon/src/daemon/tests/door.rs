@@ -15,8 +15,9 @@
 //! events as a frontend does ([`Door::subscribe`]), awaits the runtime
 //! settled where a state must hold once the daemon has done all it can
 //! ([`Door::settle`]), reads a second lifetime through a door opened
-//! beside it ([`DoorBuilder::beside`]), reads the journal
-//! ([`Door::journal`]), moves
+//! beside it ([`DoorBuilder::beside`]), reads the
+//! journal ([`Door::journal`]) and what a scripted server received
+//! ([`Door::received`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
 //! [`Door::laptop_sleep`]) and ends through the oracles
 //! ([`Door::finish`]). It never polls and never yields: the runtime parks
@@ -54,6 +55,7 @@ use crate::daemon::server::InFlight;
 use crate::daemon::*;
 use crate::ratelimit::Clock;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::oneshot;
 
@@ -70,12 +72,33 @@ pub(super) enum Server {
     /// The stateful mock ([`mockggg::start_with_clock`]) on the door's
     /// clock.
     Mock,
-    /// A server the scenario built itself: its base URL. Its listener is
-    /// bound before the runtime exists (a `std::net::TcpListener`, taken
-    /// into the runtime with `TcpListener::from_std` inside the scenario).
-    Own(String),
+    /// A server the scenario builds itself ([`Server::own`]): the closure
+    /// runs inside the door's runtime before the daemon is built, binds
+    /// and spawns there, and answers the server's base URL. What the
+    /// server records and the barriers it holds are the scenario's own,
+    /// captured before (an `Arc`, a oneshot); the door reads nothing of
+    /// it and awaits nothing of it at [`Door::finish`].
+    Own(OwnServer),
     /// No server: a base nothing listens on.
     None,
+}
+
+/// [`Server::Own`]'s builder: run once, inside the door's runtime, it
+/// answers the base URL of the server it bound. Not `Send`: the door's
+/// runtime is one thread, and the closure runs on it.
+pub(super) type OwnServer = Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = String>>>>;
+
+impl Server {
+    /// [`Server::Own`] from an async closure: `build` binds the
+    /// scenario's listener and spawns its server inside the door's
+    /// runtime, answering the base URL.
+    pub(super) fn own<F, Fut>(build: F) -> Server
+    where
+        F: FnOnce() -> Fut + 'static,
+        Fut: Future<Output = String> + 'static,
+    {
+        Server::Own(Box::new(move || Box::pin(build())))
+    }
 }
 
 /// A scenario's hold on the clock ([`Door::hold_clock`]), released when
@@ -89,11 +112,9 @@ impl Drop for ClockHold {
     }
 }
 
-/// The two token servers.
-#[allow(dead_code)] // `Answering`: the refresh families, round 5
+/// The token server a scenario holds a refresh at (a scripted token
+/// answer is [`Server::Script`]'s, through [`token_answer`]).
 pub(super) enum Token {
-    /// [`token_server_answering`]: one `POST /token` per status, in order.
-    Answering(Vec<&'static str>),
     /// [`delayed_token_server`]: one refresh of `rt-old`, answered on
     /// release with the status and the body given (a grant's body is
     /// [`token_body`]'s).
@@ -107,17 +128,14 @@ pub(super) enum Fixture {
     Script {
         /// The methods the server received, in order.
         wire: Arc<Mutex<Vec<String>>>,
+        /// Each request whole, in order ([`Door::received`]).
+        received: Arc<Mutex<Vec<Received>>>,
         server: tokio::task::JoinHandle<()>,
     },
     Account {
         sent: Arc<Mutex<Vec<Sent>>>,
         arrived: Option<oneshot::Receiver<()>>,
         release: Option<oneshot::Sender<()>>,
-    },
-    Token {
-        /// The request bodies the server received, in order.
-        bodies: Arc<Mutex<Vec<String>>>,
-        server: tokio::task::JoinHandle<()>,
     },
     Delayed {
         arrived: Option<oneshot::Receiver<()>>,
@@ -454,8 +472,13 @@ impl DoorBuilder {
     async fn build(self) -> Door {
         let (base, fixture) = match self.server {
             Server::Script(script) => {
-                let (base, wire, server) = scripted_server(script).await;
-                (base, Fixture::Script { wire, server })
+                let (base, wire, received, server) = scripted_server_received(script).await;
+                let fixture = Fixture::Script {
+                    wire,
+                    received,
+                    server,
+                };
+                (base, fixture)
             }
             Server::Account(hold) => {
                 let (base, sent, arrived, release) = account_server(hold).await;
@@ -465,10 +488,6 @@ impl DoorBuilder {
                     release: Some(release),
                 };
                 (base, fixture)
-            }
-            Server::Token(Token::Answering(statuses)) => {
-                let (base, bodies, server) = token_server_answering(statuses).await;
-                (base, Fixture::Token { bodies, server })
             }
             Server::Token(Token::Delayed(status, body)) => {
                 let (base, arrived, release, server) = delayed_token_server(status, body).await;
@@ -485,7 +504,7 @@ impl DoorBuilder {
                     .expect("the mock starts");
                 (base, Fixture::Mock)
             }
-            Server::Own(base) => (base, Fixture::Own),
+            Server::Own(build) => (build().await, Fixture::Own),
             Server::None => ("http://127.0.0.1:1".to_string(), Fixture::None),
         };
         let clock: Arc<dyn Clock> = self.clock.clone();
@@ -831,8 +850,10 @@ impl Door {
         self.clock.advance(duration);
     }
 
-    /// The lid closes: the wall clock moves, the monotonic clock does not.
-    #[allow(dead_code)] // the laptop sleep's rows, round 5
+    /// The lid closes: the wall clock moves, the monotonic clock does not,
+    /// and nothing parked wakes. What a scenario crosses this way is an
+    /// expiry on the wall (an access token's), which nothing parks on;
+    /// a deadline parked on the monotonic face (a hold) stays ahead.
     pub(super) fn laptop_sleep(&self, duration: Duration) {
         self.clock.laptop_sleep(duration);
     }
@@ -871,6 +892,19 @@ impl Door {
             panic!("only the account server records the accounts sent for")
         };
         sent.lock().unwrap().clone()
+    }
+
+    /// What the scripted server received so far, in order, each request
+    /// whole: its method, path, bearer and body ([`Received`]). The wire,
+    /// read at the fixture: a token's value is a boundary property only
+    /// through a send that carries it (a grant in a `POST /token`'s body,
+    /// [`Received::grant`]; a bearer on a `GET`), which the journal never
+    /// names.
+    pub(super) fn received(&self) -> Vec<Received> {
+        let Fixture::Script { received, .. } = &self.fixture else {
+            panic!("only the scripted server records each request whole")
+        };
+        received.lock().unwrap().clone()
     }
 
     /// The methods of the journal's sends, in order: what is held against
@@ -932,14 +966,14 @@ impl Door {
             life.abort();
         }
         let wire = match &mut self.fixture {
-            Fixture::Script { wire, server } => {
+            Fixture::Script { wire, server, .. } => {
                 tokio::time::timeout(HANG, server)
                     .await
                     .expect("the script was answered whole")
                     .expect("the scripted server's assertions held");
                 Some(wire.lock().unwrap().clone())
             }
-            Fixture::Token { server, .. } | Fixture::Delayed { server, .. } => {
+            Fixture::Delayed { server, .. } => {
                 tokio::time::timeout(HANG, server)
                     .await
                     .expect("the token server was answered whole")

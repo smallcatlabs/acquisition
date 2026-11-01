@@ -160,8 +160,8 @@ impl ParkingClock {
         self.inner.lock().unwrap().parked.keys().next().map(|k| k.0)
     }
 
-    /// The lid closes: the wall clock moves, the monotonic clock does not.
-    #[allow(dead_code)]
+    /// The lid closes: the wall clock moves, the monotonic clock does not,
+    /// and no sleeper wakes (nothing parked is due on the wall).
     pub(super) fn laptop_sleep(&self, duration: Duration) {
         self.inner.lock().unwrap().wall += duration;
     }
@@ -546,19 +546,93 @@ impl ScriptedResponse {
     }
 }
 
+/// A token answer in the scripted server's shape: `POST /token`, the
+/// given status and headers, and the rotated grant (`at-new`, `rt-rotated`
+/// for `test-user`, an hour) or `body` as given.
+pub(super) fn token_answer(
+    status: &'static str,
+    headers: &str,
+    body: Option<&str>,
+) -> ScriptedResponse {
+    ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status,
+        headers: headers.into(),
+        body: body
+            .map(str::to_string)
+            .unwrap_or_else(|| token_body("at-new", "rt-rotated", "test-user")),
+    }
+}
+
+/// The token route's rate headers as GGG answers a grant (N33).
+pub(super) const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+
+/// One request as a scripted server received it: the method, the path,
+/// the bearer its `Authorization` header carried (without `Bearer `) and
+/// the body. What a send carried on the wire, which the journal never
+/// keeps (it names no token and no grant).
+#[derive(Debug, Clone)]
+pub(super) struct Received {
+    pub(super) method: String,
+    pub(super) path: String,
+    #[allow(dead_code)] // read by the save family's scenarios, the next commit
+    pub(super) bearer: Option<String>,
+    pub(super) body: String,
+}
+
+impl Received {
+    /// The refresh grant a token `POST` carried: its form body's
+    /// `refresh_token`, or `None` for any other request.
+    pub(super) fn grant(&self) -> Option<String> {
+        url::form_urlencoded::parse(self.body.as_bytes())
+            .find(|(name, _)| name == "refresh_token")
+            .map(|(_, token)| token.into_owned())
+    }
+}
+
+/// [`scripted_server_received`] for a caller that reads the methods alone.
 pub(super) async fn scripted_server(
     responses: Vec<ScriptedResponse>,
 ) -> (String, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
+    let (base, methods, _, task) = scripted_server_received(responses).await;
+    (base, methods, task)
+}
+
+/// A server answering `responses` in order, one connection each, each
+/// request's method and path asserted against its response's; it records
+/// the methods (what the journal is held equal to) and each request whole
+/// ([`Received`]), in order.
+pub(super) async fn scripted_server_received(
+    responses: Vec<ScriptedResponse>,
+) -> (
+    String,
+    Arc<Mutex<Vec<String>>>,
+    Arc<Mutex<Vec<Received>>>,
+    tokio::task::JoinHandle<()>,
+) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));
     let captured = requests.clone();
+    let received: Arc<Mutex<Vec<Received>>> = Arc::default();
+    let whole = received.clone();
     let task = tokio::spawn(async move {
         for response in responses {
             let (mut stream, _) = listener.accept().await.unwrap();
             let request = mockggg::read_request(&mut stream).await.unwrap();
             assert_eq!(request.method, response.method);
             assert_eq!(request.path, response.path);
+            whole.lock().unwrap().push(Received {
+                method: request.method.clone(),
+                path: request.path.clone(),
+                bearer: request
+                    .headers
+                    .get("authorization")
+                    .and_then(|value| value.strip_prefix("Bearer "))
+                    .map(str::to_string),
+                body: request.body.clone(),
+            });
             captured.lock().unwrap().push(request.method);
             if response.status.is_empty() {
                 let _ = stream.write_all(response.body.as_bytes()).await;
@@ -574,7 +648,7 @@ pub(super) async fn scripted_server(
             .await;
         }
     });
-    (base, requests, task)
+    (base, requests, received, task)
 }
 
 /// A token body as GGG answers a grant: the two tokens, an hour's
