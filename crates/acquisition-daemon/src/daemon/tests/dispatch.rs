@@ -1,6 +1,14 @@
-//! The dispatcher on the wire: independent progress under waits, priority
-//! on a scheduling key, the headerless 503, malformed listings, declared
-//! route knowledge, the 429 family and real mode's whoami.
+//! The dispatcher on the wire. The scripted-server families (the 429
+//! family, priority on a scheduling key, the headerless 503, Cloudflare's
+//! blocks and 5xx, GGG's own 4xx and 5xx, a GET's 3xx, the HEAD 403) and
+//! the wire twins of `responses.rs`'s classification table are rows of
+//! the wire table through the door (C158, a scenario crosses the daemon's
+//! frontend boundary only), at the foot. The rest are component tests,
+//! each saying the boundary it needs: independent progress under waits,
+//! malformed listings (the store on disk), declared route knowledge, a
+//! probe's 429 under a private login, a blocked probe (the pick), the
+//! mark on disk and the log's redaction, real mode's whoami, the cancels
+//! at the choke point and the store that cannot record.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -44,16 +52,6 @@ fn fetch_payload_marker(outcome: &Outcome) -> &str {
         panic!("expected successful fetch, got {outcome:?}")
     };
     payload["items"][0].as_str().unwrap()
-}
-
-fn terminal_event_count(receiver: &mut broadcast::Receiver<JobInfo>, id: JobId) -> usize {
-    let mut count = 0;
-    while let Ok(info) = receiver.try_recv() {
-        if info.id == id && info.state.is_terminal() {
-            count += 1;
-        }
-    }
-    count
 }
 
 /// `wait_ms` of every send, in journal order.
@@ -214,121 +212,13 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
     finish_harness(dispatcher, &log_path);
 }
 
-/// C5: on one scheduling key the higher priority goes out first,
-/// whatever the order of submission — read at the wire: the server
-/// answers its first GET "first", and the later-submitted,
-/// higher-priority job is the one that holds it.
-#[tokio::test]
-async fn the_higher_priority_job_on_a_scheduling_key_reaches_the_wire_first() {
-    let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
-    let get = |marker: &str| ScriptedResponse {
-        method: "GET",
-        path: "/fetch",
-        status: "200 OK",
-        headers: policy.into(),
-        body: format!(r#"{{"items":["{marker}"]}}"#),
-    };
-    let responses = vec![
-        ScriptedResponse {
-            method: "HEAD",
-            path: "/fetch",
-            status: "204 No Content",
-            headers: policy.into(),
-            body: String::new(),
-        },
-        get("first"),
-        get("second"),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    // Both are queued before anything dispatches.
-    let low = daemon
-        .submit("fetch".into(), json!({}), 1, "test".into(), None)
-        .unwrap();
-    let high = daemon
-        .submit("fetch".into(), json!({}), 9, "test".into(), None)
-        .unwrap();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    let (info, outcome) = wait_terminal(&daemon, high).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(fetch_payload_marker(&outcome), "first");
-    let (info, outcome) = wait_terminal(&daemon, low).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(fetch_payload_marker(&outcome), "second");
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// Rung 10 (2026-08-24) with the tripwire off: a 503 with no rate
-/// headers fails its job and is never retried, and the *next* job's send
-/// is paced as if the 503 counted — visible as `wait_ms` in the journal.
-#[tokio::test]
-async fn headerless_503_fails_its_job_and_paces_the_next_send() {
-    let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 1:10:60\r\nX-Rate-Limit-Account-State: 0:10:0\r\n";
-    let responses = vec![
-        ScriptedResponse {
-            method: "HEAD",
-            path: "/fetch",
-            status: "204 No Content",
-            headers: policy.into(),
-            body: String::new(),
-        },
-        ScriptedResponse {
-            method: "GET",
-            path: "/fetch",
-            status: "503 Service Unavailable",
-            headers: String::new(),
-            body: "<html><center>openresty</center></html>".into(),
-        },
-        ScriptedResponse {
-            method: "GET",
-            path: "/fetch",
-            status: "200 OK",
-            headers: policy.replace("0:10:0", "1:10:0"),
-            body: r#"{"items":["done"]}"#.into(),
-        },
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let first = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let second = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (info, outcome) = wait_terminal(&daemon, first).await;
-    assert_eq!(info.state, JobState::Failed);
-    assert_eq!(info.retries, 0);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("503 did not fail")
-    };
-    assert!(error.contains("origin error page"), "{error}");
-    let (info, outcome) = wait_terminal(&daemon, second).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(fetch_payload_marker(&outcome), "done");
-    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET", "GET"]);
-    let waits = journal_waits(&log_path);
-    assert_eq!(waits[..2], [0, 0]);
-    // 10 s period + the 5 s initial-window bucket + 1 s buffer, measured
-    // from the 503 itself — the only known in-window hit.
-    assert_eq!(
-        waits[2], 16_000,
-        "the send after a headerless 503 waits as if the 503 filled the window: {waits:?}"
-    );
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
 /// Malformed listings fail the *job*, not just the store: a 2xx with
 /// no `stashes` array is refused by the job's own guard, and a listing
 /// whose entries lack ids is refused by the store (`MalformedBody`)
 /// and propagated through `record` — neither reports success, and
-/// neither leaves a response row a snapshot could cite as a basis.
+/// neither leaves a response row a snapshot could cite as a basis. A
+/// component test (C158): it reads the account's store on disk, which no
+/// frontend reads through the protocol.
 #[tokio::test]
 async fn malformed_listings_fail_the_job_not_just_the_store() {
     let policy = "X-Rate-Limit-Policy: stash-list-test\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
@@ -471,779 +361,11 @@ async fn declared_route_knowledge_holds_against_the_mock() {
     finish_harness_mock(dispatcher, &log_path);
 }
 
-#[tokio::test]
-async fn dispatcher_retries_429_429_success_exactly_three_times_and_completes_once() {
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(5), "{}"),
-        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["done"]}"#),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    let mut events = daemon.events.subscribe();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(info.retries, MAX_429_RETRIES);
-    assert_eq!(fetch_payload_marker(&outcome), "done");
-    assert_eq!(
-        requests.lock().unwrap().as_slice(),
-        ["HEAD", "GET", "GET", "GET"]
-    );
-    assert_eq!(
-        journal_waits(&log_path),
-        [0, 0, full_hold_ms(), 5_000 + full_hold_ms()],
-        "each retry waits its Retry-After plus the bucket pad"
-    );
-    assert_eq!(terminal_event_count(&mut events, id), 1);
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-#[tokio::test]
-async fn dispatcher_exhausts_on_third_429_without_a_fourth_send_or_final_sleep() {
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock.clone());
-    let started = clock.now();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Failed);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("exhausted job did not fail")
-    };
-    assert!(error.contains("giving up"));
-    assert!(
-        clock.now() - started < Duration::from_millis(3 * full_hold_ms()),
-        "the third 429's hold is not slept out before the job fails: {:?}",
-        clock.now() - started
-    );
-    assert_eq!(requests.lock().unwrap().len(), 4, "HEAD plus three GETs");
-    assert_eq!(
-        journal_waits(&log_path),
-        [0, 0, full_hold_ms(), full_hold_ms()],
-        "only the two retryable attempts wait, each behind the full hold"
-    );
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// C19: a landed GET 429 holds its route for its `Retry-After`, clamped
-/// to the cap, plus the retry bucket, whatever the header carried. Such a
-/// 429 is not retried, so a second job's send shows the hold: 61 s after
-/// a missing, garbled or negative value, 961 s after an over-cap one.
-#[tokio::test]
-async fn a_get_429_without_a_usable_retry_after_holds_the_next_send() {
-    let missing = || ScriptedResponse::full("GET", "429 Too Many Requests", None, "{}");
-    let cases = [
-        ("missing", missing(), full_hold_ms()),
-        (
-            "garbled",
-            missing().with_raw_retry_after("soon"),
-            full_hold_ms(),
-        ),
-        (
-            "negative",
-            missing().with_raw_retry_after("-1"),
-            full_hold_ms(),
-        ),
-        (
-            "over the cap",
-            missing().with_raw_retry_after("5000"),
-            crate::ratelimit::RETRY_AFTER_CAP_SECS * 1000 + full_hold_ms(),
-        ),
-    ];
-    for (name, rejected, hold) in cases {
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            rejected,
-            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, _) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        assert_eq!(info.retries, 0, "{name}");
-        let second = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (_, outcome) = wait_terminal(&daemon, second).await;
-        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET", "GET"],
-            "{name}"
-        );
-        assert_eq!(
-            journal_waits(&log_path),
-            [0, 0, hold],
-            "{name}: the next send waits the clamped Retry-After plus the bucket"
-        );
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-#[tokio::test]
-async fn dispatcher_requeue_preserves_fifo_job_identity() {
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["first"]}"#),
-        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["second"]}"#),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let first = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let second = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (_, first_outcome) = wait_terminal(&daemon, first).await;
-    let (_, second_outcome) = wait_terminal(&daemon, second).await;
-    assert_eq!(fetch_payload_marker(&first_outcome), "first");
-    assert_eq!(fetch_payload_marker(&second_outcome), "second");
-    assert_eq!(requests.lock().unwrap().len(), 4);
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-#[tokio::test]
-async fn dispatcher_never_retries_403_or_503() {
-    // The third case is rung 10's live 503 (2026-08-24): an origin page
-    // with no rate headers. Named as such, still never retried.
-    const ORIGIN_503: &str = "<html><head><title>503 Service Temporarily Unavailable</title></head><body><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></body></html>";
-    for (status, body, shape) in [
-        (
-            "403 Forbidden",
-            "{}",
-            "unclassified body, possibly a Cloudflare block",
-        ),
-        (
-            "503 Service Unavailable",
-            "{}",
-            "unclassified body, possibly a Cloudflare block",
-        ),
-        (
-            "503 Service Unavailable",
-            ORIGIN_503,
-            "origin error page, not Cloudflare-shaped",
-        ),
-    ] {
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            ScriptedResponse::full("GET", status, None, body),
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock.clone());
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let id = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-
-        let (info, outcome) = wait_terminal(&daemon, id).await;
-        assert_eq!(info.state, JobState::Failed);
-        assert_eq!(info.retries, 0);
-        let Outcome::Failure { error, .. } = outcome else {
-            panic!("{status} did not fail")
-        };
-        assert!(error.contains("NOT retrying"));
-        assert!(error.contains(shape), "{error}");
-        assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
-        assert_eq!(
-            journal_waits(&log_path),
-            [0, 0],
-            "a block is never waited on"
-        );
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-/// C129: a response Cloudflare gave in GGG's place is a stop. With the
-/// tripwire off, the block fails its job at once (no re-queue, whatever
-/// its `Retry-After`), admits no further send on any route (a second
-/// account's job, whose session would need a refresh first, stays
-/// waiting and nothing reaches the wire for it), and leaves a mark in the
-/// world that a later daemon, also without the tripwire, honours. The
-/// mark and the job's failure name the status, method, route and time,
-/// never the body: the failure is in the halt's words, as the token
-/// route's is. The three shapes: Cloudflare's documented 1015 (its one
-/// marker past the body's first 300 characters), a challenge carrying
-/// `cf-mitigated`, and a 429 with no header and no marker at all (N49).
-#[tokio::test]
-async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
-    let markerless_429 = ScriptedResponse {
-        method: "GET",
-        path: "/fetch",
-        status: "429 Too Many Requests",
-        headers: String::new(),
-        body: "Too many requests from this client".into(),
-    };
-    for (name, block, status, shape) in [
-        (
-            "1015",
-            ScriptedResponse::cloudflare_1015_429(),
-            429,
-            "cloudflare",
-        ),
-        (
-            "challenge",
-            ScriptedResponse::cloudflare_403_challenge(),
-            403,
-            "unclassified",
-        ),
-        ("markerless 429", markerless_429, 429, "unclassified"),
-    ] {
-        let body = block.body.clone();
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            block,
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let temp = tempfile::tempdir().unwrap();
-        let state_path = temp.path().join("c129-rails.json");
-        let (mut daemon, log_path) = test_daemon_with(
-            Provider::mock(&base),
-            clock,
-            RailsConfig {
-                state_path: Some(state_path.clone()),
-                ..RailsConfig::default()
-            },
-        );
-        assert!(!daemon.choke.rails().config().tripwire);
-        logged_in(&mut daemon);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, outcome) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        assert_eq!(info.retries, 0, "{name}: a block is never re-queued");
-        let Outcome::Failure { error, .. } = outcome else {
-            panic!("{name}: the block did not fail its job")
-        };
-        assert!(
-            error.contains("Cloudflare answered in GGG's place"),
-            "{name}: {error}"
-        );
-
-        // Submitted only after the block landed: the gate is two wide, and
-        // a sibling submitted earlier could be admitted beside it.
-        let second = daemon
-            .submit(
-                "stashes".into(),
-                json!({}),
-                0,
-                "test".into(),
-                Some("test-user".into()),
-            )
-            .unwrap();
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        let state = daemon.shared.lock().unwrap().jobs[&second].info.state;
-        assert_eq!(
-            state,
-            JobState::Waiting,
-            "{name}: the sibling stays waiting"
-        );
-        assert!(
-            daemon.choke.rails().halted().is_some(),
-            "{name}: this daemon is halted"
-        );
-        // A blocked 429 still holds its route for its `Retry-After` (C19),
-        // as a blocked HEAD's does (`a_blocked_probe_is_no_probe_failure`).
-        if name == "1015" {
-            let held = daemon.choke.check("fetch").err();
-            assert!(
-                held.is_some_and(|wait| wait >= Duration::from_secs(30)),
-                "{name}: {held:?}"
-            );
-        }
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET"],
-            "{name}"
-        );
-        server.await.unwrap();
-        let sends = journal_sends(&log_path);
-        assert_eq!(sends[1]["status"], status, "{name}");
-        assert_eq!(sends[1]["shape"], shape, "{name}: {}", sends[1]);
-
-        // A later daemon, the tripwire still off, honours the mark.
-        let rebuilt = Rails::with_config(RailsConfig {
-            state_path: Some(state_path.clone()),
-            ..RailsConfig::default()
-        });
-        let cause = rebuilt.halted().expect("the mark survives the daemon");
-        assert!(
-            cause.contains(&format!(
-                "Cloudflare answered in GGG's place: {status} on GET fetch at 2000-01-01T"
-            )),
-            "{name}: {cause}"
-        );
-        assert!(cause.contains("reset-tripwire"), "{name}: {cause}");
-        let persisted = std::fs::read_to_string(&state_path).unwrap();
-        let fragments = [
-            "Ray ID",
-            "<html",
-            "<!DOCTYPE",
-            "Just a moment",
-            "rate limited",
-            "Too many requests",
-        ];
-        for evidence in [&cause, &persisted] {
-            for fragment in fragments.iter().filter(|fragment| body.contains(*fragment)) {
-                assert!(
-                    !evidence.contains(fragment),
-                    "{name}: the mark kept the body's {fragment:?}: {evidence}"
-                );
-            }
-            for header in ["challenge", "Retry-After"] {
-                assert!(!evidence.contains(header), "{name}: {evidence}");
-            }
-        }
-        // The failure keeps the rate headers as evidence, never the page.
-        assert!(error.contains("reset-tripwire"), "{name}: {error}");
-        for fragment in fragments.iter().filter(|fragment| body.contains(*fragment)) {
-            assert!(
-                !error.contains(fragment),
-                "{name}: the failure echoed the body's {fragment:?}: {error}"
-            );
-        }
-        drop(rebuilt);
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-/// C129's false positives: GGG's own 4xx is no block. A JSON 404 with
-/// GGG's headers (its message saying "array id", which holds "ray id"
-/// inside a word), a 403 that names its own auth error in
-/// `WWW-Authenticate` and carries no `cf-mitigated` (its body mentioning
-/// Cloudflare), and GGG's JSON echoing a name the user chose that holds a
-/// page marker ("CloudflareFan", a league "Error 1015 SSF") beside GGG's
-/// policy header, each fail their job and leave the daemon sending: the
-/// next job's GET goes out.
-#[tokio::test]
-async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
-    let auth_error = {
-        let mut response = ScriptedResponse::full(
-            "GET",
-            "403 Forbidden",
-            None,
-            r#"{"error":"insufficient_scope","error_description":"see the Cloudflare-fronted docs"}"#,
-        );
-        response.headers.push_str(
-            "WWW-Authenticate: Bearer realm=\"pathofexile:production\", error=\"insufficient_scope\"\r\n",
-        );
-        response
-    };
-    for (name, rejected) in [
-        (
-            "GGG's 404",
-            ScriptedResponse::full(
-                "GET",
-                "404 Not Found",
-                None,
-                r#"{"error":{"code":1,"message":"Resource not found: unknown array id"}}"#,
-            ),
-        ),
-        ("an auth error", auth_error),
-        (
-            "GGG's 404 echoing CloudflareFan",
-            ScriptedResponse::full(
-                "GET",
-                "404 Not Found",
-                None,
-                r#"{"error":{"code":1,"message":"Character not found: CloudflareFan"}}"#,
-            ),
-        ),
-        (
-            "GGG's 400 echoing a league",
-            ScriptedResponse::full(
-                "GET",
-                "400 Bad Request",
-                None,
-                r#"{"error":{"code":2,"message":"Invalid league: Error 1015 SSF"}}"#,
-            ),
-        ),
-    ] {
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            rejected,
-            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, outcome) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        let Outcome::Failure { error, .. } = outcome else {
-            panic!("{name}: did not fail")
-        };
-        assert!(!error.contains("Cloudflare answered"), "{name}: {error}");
-        assert_eq!(daemon.choke.rails().halted(), None, "{name}");
-        let second = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (_, outcome) = wait_terminal(&daemon, second).await;
-        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET", "GET"],
-            "{name}"
-        );
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-/// C129: a 5xx carrying a Cloudflare page marker and no GGG policy header
-/// is Cloudflare answering for an origin it cannot reach. Its job fails
-/// at once, never retried (C26), and nothing more is sent this daemon
-/// lifetime: a sibling submitted after it lands stays waiting. The halt
-/// is the lifetime's and leaves no mark, so a `Rails` rebuilt from the
-/// same state file is clear; `reset-tripwire` lifts it here, and the
-/// sibling goes out. The 522 Cloudflare names for an origin it cannot
-/// reach, with its page and with no body at all, and a 530, halt on
-/// their status alone; a 503 halts by carrying Cloudflare's page.
-#[tokio::test]
-async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
-    let cloudflare_503 = ScriptedResponse {
-        status: "503 Service Unavailable",
-        ..ScriptedResponse::cloudflare_522()
-    };
-    let empty_522 = ScriptedResponse {
-        body: String::new(),
-        ..ScriptedResponse::cloudflare_522()
-    };
-    let empty_530 = ScriptedResponse {
-        status: "530 Origin Unreachable",
-        body: String::new(),
-        ..ScriptedResponse::cloudflare_522()
-    };
-    for (name, unreachable, status, shape) in [
-        ("522", ScriptedResponse::cloudflare_522(), 522, "cloudflare"),
-        (
-            "503 with Cloudflare's page",
-            cloudflare_503,
-            503,
-            "cloudflare",
-        ),
-        ("522 with no body", empty_522, 522, "unclassified"),
-        ("530 with no body", empty_530, 530, "unclassified"),
-    ] {
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            unreachable,
-            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let temp = tempfile::tempdir().unwrap();
-        let state_path = temp.path().join("c129-lifetime.json");
-        let (daemon, log_path) = test_daemon_with(
-            Provider::mock(&base),
-            clock,
-            RailsConfig {
-                state_path: Some(state_path.clone()),
-                ..RailsConfig::default()
-            },
-        );
-        assert!(!daemon.choke.rails().config().tripwire);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, outcome) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        assert_eq!(info.retries, 0, "{name}: a 5xx is never retried");
-        let Outcome::Failure { error, .. } = outcome else {
-            panic!("{name}: the 5xx did not fail its job")
-        };
-        assert!(
-            error.contains("Cloudflare could not reach GGG"),
-            "{name}: {error}"
-        );
-        assert!(
-            !error.contains("Ray ID") && !error.contains("DOCTYPE"),
-            "{name}: Cloudflare's page is no word of GGG's: {error}"
-        );
-
-        // Submitted only after the 5xx landed (the gate is two wide).
-        let second = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        let state = daemon.shared.lock().unwrap().jobs[&second].info.state;
-        assert_eq!(
-            state,
-            JobState::Waiting,
-            "{name}: the sibling stays waiting"
-        );
-        let cause = daemon
-            .choke
-            .rails()
-            .halted()
-            .unwrap_or_else(|| panic!("{name}: this daemon is not halted"));
-        assert!(
-            cause.contains(&format!(
-                "Cloudflare could not reach GGG: {status} on GET fetch at 2000-01-01T"
-            )),
-            "{name}: {cause}"
-        );
-        assert!(cause.contains("this daemon lifetime"), "{name}: {cause}");
-        assert!(cause.contains("reset-tripwire"), "{name}: {cause}");
-        assert!(!cause.contains("Ray ID"), "{name}: {cause}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET"],
-            "{name}"
-        );
-        let sends = journal_sends(&log_path);
-        assert_eq!(sends.len(), 2, "{name}: {sends:?}");
-        assert_eq!(sends[1]["status"], status, "{name}");
-        assert_eq!(sends[1]["shape"], shape, "{name}: {}", sends[1]);
-
-        // The lifetime's alone: a later daemon starts clear.
-        let rebuilt = Rails::with_config(RailsConfig {
-            state_path: Some(state_path.clone()),
-            ..RailsConfig::default()
-        });
-        assert_eq!(rebuilt.halted(), None, "{name}: no mark was left");
-        drop(rebuilt);
-
-        daemon.reset_rails().unwrap();
-        let (_, outcome) = wait_terminal(&daemon, second).await;
-        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET", "GET"],
-            "{name}"
-        );
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-/// C129's 5xx without Cloudflare's shape halts nothing: GGG's origin 503
-/// (N35's openresty page, no marker, no rate header) and a 5xx whose body
-/// holds a marker beside GGG's policy header (GGG's JSON echoing a name
-/// the user chose; a page Cloudflare serves in GGG's place cannot carry
-/// GGG's headers) each fail their job, never retried, and the next job's
-/// GET goes out.
-#[tokio::test]
-async fn a_5xx_without_cloudflares_shape_halts_nothing() {
-    for (name, unshaped) in [
-        ("origin 503", ScriptedResponse::origin_503()),
-        (
-            "GGG's 500 echoing CloudflareFan",
-            ScriptedResponse::full(
-                "GET",
-                "500 Internal Server Error",
-                None,
-                r#"{"error":{"code":0,"message":"Internal error for CloudflareFan, Ray ID: 8a1"}}"#,
-            ),
-        ),
-    ] {
-        let responses = vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            unshaped,
-            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
-        ];
-        let (base, requests, server) = scripted_server(responses).await;
-        let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, outcome) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        assert_eq!(info.retries, 0, "{name}");
-        let Outcome::Failure { error, .. } = outcome else {
-            panic!("{name}: did not fail")
-        };
-        assert!(!error.contains("Cloudflare could not"), "{name}: {error}");
-        assert_eq!(daemon.choke.rails().halted(), None, "{name}");
-        let second = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (_, outcome) = wait_terminal(&daemon, second).await;
-        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "GET", "GET"],
-            "{name}"
-        );
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
-/// C130: a GET's 302 fails its job with the status and the redirect's
-/// target shown only redacted. The body, which echoes the target with its
-/// query, is not kept: the sentinel reaches neither the job's failure,
-/// the journal, the daemon log nor its recent errors.
-#[tokio::test]
-async fn a_get_3xx_fails_its_job_with_the_target_redacted_and_no_body() {
-    const SENTINEL: &str = "c130-get-sentinel";
-    let target = format!("https://www.pathofexile.com/login?code={SENTINEL}");
-    let mut redirect = ScriptedResponse::full(
-        "GET",
-        "302 Found",
-        None,
-        &format!(r#"<html><a href="{target}">Found</a></html>"#),
-    );
-    redirect
-        .headers
-        .push_str(&format!("Location: {target}\r\n"));
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-        redirect,
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Failed);
-    assert_eq!(info.retries, 0);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("a 302 did not fail its job")
-    };
-    assert!(error.contains("302 Found"), "{error}");
-    assert!(!error.contains(SENTINEL), "the failure kept it: {error}");
-    assert!(
-        error.contains("https://www.pathofexile.com/login?…"),
-        "the failure names where the 302 pointed: {error}"
-    );
-    let journal = std::fs::read_to_string(journal_of(&log_path)).unwrap();
-    assert!(
-        !journal.contains(SENTINEL),
-        "the journal kept it: {journal}"
-    );
-    let log = std::fs::read_to_string(&log_path).unwrap();
-    assert!(!log.contains(SENTINEL), "the daemon log kept it: {log}");
-    let errors = format!("{:?}", daemon.shared.lock().unwrap().errors);
-    assert!(
-        !errors.contains(SENTINEL),
-        "recent errors kept it: {errors}"
-    );
-    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-#[tokio::test]
-async fn full_acceptable_head_429_establishes_under_hold_without_job_retry() {
-    let responses = vec![
-        ScriptedResponse::full("HEAD", "429 Too Many Requests", Some(0), ""),
-        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after-probe"]}"#),
-    ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock.clone());
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(info.retries, 0);
-    assert_eq!(fetch_payload_marker(&outcome), "after-probe");
-    let probe = daemon
-        .job_list()
-        .unwrap()
-        .into_iter()
-        .find(|job| job.kind == "probe")
-        .unwrap();
-    assert_eq!(probe.state, JobState::Done);
-    assert_eq!(probe.retries, 0);
-    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
-    assert_eq!(
-        journal_waits(&log_path),
-        [0, full_hold_ms()],
-        "the GET waits behind the probe's 429 hold"
-    );
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-#[tokio::test]
-async fn malformed_or_unacceptable_head_429_fails_under_cooldown() {
-    for head in [
-        ScriptedResponse::malformed_head_429(),
-        ScriptedResponse::full("HEAD", "429 Too Many Requests", None, ""),
-    ] {
-        let (base, requests, server) = scripted_server(vec![head]).await;
-        let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let id = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-
-        let (info, _) = wait_terminal(&daemon, id).await;
-        assert_eq!(info.state, JobState::Failed);
-        assert_eq!(info.retries, 0);
-        assert!(matches!(
-            daemon.choke.endpoint_state("fetch"),
-            EndpointState::Degraded { .. }
-        ));
-        assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
-        let probe = daemon
-            .job_list()
-            .unwrap()
-            .into_iter()
-            .find(|job| job.kind == "probe")
-            .unwrap();
-        assert_eq!(probe.state, JobState::Failed);
-        assert_eq!(probe.retries, 0);
-        server.await.unwrap();
-        finish_harness_wire(dispatcher, &log_path, &requests);
-    }
-}
-
 /// C19 for a probe: a HEAD's 429 that fails setup still holds its route
 /// for its clamped `Retry-After` plus the retry bucket. A login clears the
 /// setup failure's cooldown at once (`forget_degraded`, as `login` does),
-/// so the next job's probe is held by the hold alone.
+/// so the next job's probe is held by the hold alone. A component test
+/// (C158): the private `forget_degraded` stands in for that login.
 #[tokio::test]
 async fn a_head_429_that_fails_setup_holds_the_next_probe() {
     let full_missing = || ScriptedResponse::full("HEAD", "429 Too Many Requests", None, "");
@@ -1342,7 +464,9 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
 /// the route for its `Retry-After` (C19), as a blocked GET's 429 does.
 /// Once `reset-tripwire` clears the mark, the same probe goes out afresh,
 /// behind that hold for the 1015 and at once for the challenge, and the
-/// job goes out.
+/// job goes out. A component test (C158): it reads the pick
+/// (`pick_runnable`), the route's state (`endpoint_state`) and its hold
+/// (`choke.check`), none of which crosses the protocol.
 #[tokio::test]
 async fn a_blocked_probe_is_no_probe_failure() {
     let head_1015 = ScriptedResponse {
@@ -1372,7 +496,7 @@ async fn a_blocked_probe_is_no_probe_failure() {
             .unwrap();
         // The block lands while the probe runs; the probe is then turned
         // away, back to waiting (C25), where it was a failure before.
-        let probe = tokio::time::timeout(Duration::from_secs(3), async {
+        let probe = tokio::time::timeout(HANG, async {
             loop {
                 let parked = daemon
                     .shared
@@ -1394,8 +518,23 @@ async fn a_blocked_probe_is_no_probe_failure() {
         })
         .await
         .expect("the probe was turned away");
-        // Long enough for a degraded route to fail its job, or a re-probe.
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Nothing more acts on the queue: with the dispatcher stopped and
+        // no job task left running, only a pick could, and the pick passes
+        // the turned-away probe over while halted. So no spin, no job
+        // failed as "route degraded" and no re-probe, read below once the
+        // queue is still. Then a fresh dispatcher takes the queue on.
+        dispatcher.abort();
+        tokio::time::timeout(HANG, async {
+            while !daemon.shared.lock().unwrap().active_jobs.is_empty() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("no job task left running");
+        assert!(
+            daemon.pick_runnable().is_empty(),
+            "{name}: the pick passes the probe over while halted"
+        );
 
         let halt = daemon
             .choke
@@ -1428,21 +567,6 @@ async fn a_blocked_probe_is_no_probe_failure() {
             (state, retries),
             (JobState::Waiting, 0),
             "{name}: the probe waits on the halt"
-        );
-        // No spin: with the dispatcher stopped and no task left running,
-        // the pick passes the turned-away probe over while halted. Then
-        // a fresh dispatcher takes the queue on.
-        dispatcher.abort();
-        tokio::time::timeout(Duration::from_secs(3), async {
-            while !daemon.shared.lock().unwrap().active_jobs.is_empty() {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("no job task left running");
-        assert!(
-            daemon.pick_runnable().is_empty(),
-            "{name}: the pick passes the probe over while halted"
         );
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"], "{name}");
@@ -1481,38 +605,90 @@ async fn a_blocked_probe_is_no_probe_failure() {
     }
 }
 
-/// The narrow HEAD rule (C129, the owner's choice): a HEAD 403 with no
-/// `cf-mitigated` is no block, even with no GGG header (`/profile`'s HEAD
-/// is answered so, N38). It degrades the route as before, its job fails
-/// as "route degraded", and nothing is halted.
+/// C129, the mark on disk: a component case of the rails' state file,
+/// which no frontend reads (a restart's report of the mark is the wire
+/// table's second lifetime, the rows
+/// `a_cloudflare_block_admits_nothing_and_survives_a_restart`). For each
+/// block shape the file holds the mark, and none of the page's fragments
+/// and neither header the response carried.
 #[tokio::test]
-async fn a_head_403_without_cf_mitigated_still_degrades() {
-    let head_403 = ScriptedResponse {
-        method: "HEAD",
-        path: "/fetch",
-        status: "403 Forbidden",
-        headers: String::new(),
-        body: String::new(),
-    };
-    let (base, requests, server) = scripted_server(vec![head_403]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
+async fn a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header() {
+    for (name, block, _, _) in cloudflare_blocks() {
+        let body = block.body.clone();
+        let (base, requests, server) = scripted_server(vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            block,
+        ])
+        .await;
+        let state = TestPath::dir();
+        let state_path = state.join("c129-rails.json");
+        let (daemon, log_path) = test_daemon_with(
+            Provider::mock(&base),
+            Arc::new(ManualClock::new()),
+            RailsConfig {
+                state_path: Some(state_path.clone()),
+                ..RailsConfig::default()
+            },
+        );
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let id = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        assert_eq!(
+            wait_terminal(&daemon, id).await.0.state,
+            JobState::Failed,
+            "{name}"
+        );
+        let persisted = std::fs::read_to_string(&state_path).unwrap();
+        assert!(
+            persisted.contains("Cloudflare answered in GGG's place"),
+            "{name}: the mark is on disk: {persisted}"
+        );
+        for fragment in PAGE_FRAGMENTS
+            .into_iter()
+            .filter(|fragment| body.contains(fragment))
+        {
+            assert!(
+                !persisted.contains(fragment),
+                "{name}: the mark kept the body's {fragment:?}: {persisted}"
+            );
+        }
+        for header in BLOCK_HEADERS {
+            assert!(
+                !persisted.contains(header),
+                "{name}: the mark kept {header:?}: {persisted}"
+            );
+        }
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
+/// C130, the daemon log: a component case of the log file, which no
+/// frontend reads through the protocol (the job's failure, the journal
+/// and `Dashboard.errors` are the wire table's row
+/// `a_get_3xx_fails_its_job_with_the_target_redacted_and_no_body`). A
+/// GET's 302 whose body and `Location` carry the sentinel leaves none of
+/// it in the log.
+#[tokio::test]
+async fn a_get_3xx_keeps_its_target_out_of_the_daemon_log() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        c130_redirect(),
+    ])
+    .await;
+    let (daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = daemon
         .submit("fetch".into(), json!({}), 0, "test".into(), None)
         .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Failed);
-    let Outcome::Failure { error, .. } = outcome else {
-        panic!("the job did not fail")
-    };
-    assert!(error.contains("degraded"), "{error}");
-    assert!(matches!(
-        daemon.choke.endpoint_state("fetch"),
-        EndpointState::Degraded { .. }
-    ));
-    assert_eq!(daemon.choke.rails().halted(), None);
-    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
+    assert_eq!(wait_terminal(&daemon, id).await.0.state, JobState::Failed);
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(log.contains("302 Found"), "the log names the 302: {log}");
+    assert!(
+        !log.contains(C130_SENTINEL),
+        "the daemon log kept it: {log}"
+    );
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
@@ -2203,6 +1379,69 @@ fn journal_projection(sends: &[Value]) -> Vec<Value> {
         .collect()
 }
 
+/// C129's three block shapes, each with the status and the shape the
+/// journal names: Cloudflare's documented 1015 (its one marker past the
+/// body's first 300 characters), a challenge carrying `cf-mitigated`, and
+/// a 429 with no header and no marker at all (N49).
+fn cloudflare_blocks() -> [(&'static str, ScriptedResponse, u16, &'static str); 3] {
+    let markerless_429 = ScriptedResponse {
+        method: "GET",
+        path: "/fetch",
+        status: "429 Too Many Requests",
+        headers: String::new(),
+        body: "Too many requests from this client".into(),
+    };
+    [
+        (
+            "1015",
+            ScriptedResponse::cloudflare_1015_429(),
+            429,
+            "cloudflare",
+        ),
+        (
+            "challenge",
+            ScriptedResponse::cloudflare_403_challenge(),
+            403,
+            "unclassified",
+        ),
+        ("markerless 429", markerless_429, 429, "unclassified"),
+    ]
+}
+
+/// Fragments of Cloudflare's pages that no failure, halt or mark keeps:
+/// the page is Cloudflare's, no word of GGG's (C129).
+const PAGE_FRAGMENTS: [&str; 6] = [
+    "Ray ID",
+    "<html",
+    "<!DOCTYPE",
+    "Just a moment",
+    "rate limited",
+    "Too many requests",
+];
+
+/// The headers a block's response carried, which no halt or mark keeps;
+/// the journal keeps them as evidence on purpose (C129).
+const BLOCK_HEADERS: [&str; 2] = ["challenge", "Retry-After"];
+
+/// What C130's GET 302 echoes in its body and its `Location`'s query.
+const C130_SENTINEL: &str = "c130-get-sentinel";
+
+/// C130: a GET's 302 whose body and `Location` carry [`C130_SENTINEL`]
+/// in the target's query.
+fn c130_redirect() -> ScriptedResponse {
+    let target = format!("https://www.pathofexile.com/login?code={C130_SENTINEL}");
+    let mut redirect = ScriptedResponse::full(
+        "GET",
+        "302 Found",
+        None,
+        &format!(r#"<html><a href="{target}">Found</a></html>"#),
+    );
+    redirect
+        .headers
+        .push_str(&format!("Location: {target}\r\n"));
+    redirect
+}
+
 /// The probe every `/fetch` row's first use sends, landed at once.
 fn probe_sent() -> Value {
     json!(["HEAD", "/fetch", 204, true, false, 0, null])
@@ -2427,44 +1666,15 @@ fn wire_rows() -> Vec<Row> {
     // The 1015 still holds its route for its `Retry-After` (C19): once the
     // sibling is cancelled and the mark reset, a further fetch waits 30 s
     // plus the retry bucket.
-    let markerless_429 = ScriptedResponse {
-        method: "GET",
-        path: "/fetch",
-        status: "429 Too Many Requests",
-        headers: String::new(),
-        body: "Too many requests from this client".into(),
-    };
-    for (case, block, status, shape) in [
-        (
-            "1015",
-            ScriptedResponse::cloudflare_1015_429(),
-            429,
-            "cloudflare",
-        ),
-        (
-            "challenge",
-            ScriptedResponse::cloudflare_403_challenge(),
-            403,
-            "unclassified",
-        ),
-        ("markerless 429", markerless_429, 429, "unclassified"),
-    ] {
+    for (case, block, status, shape) in cloudflare_blocks() {
         let cause =
             format!("Cloudflare answered in GGG's place: {status} on GET fetch at 2000-01-01T");
-        let mut forbids: Vec<Forbid> = [
-            "Ray ID",
-            "<html",
-            "<!DOCTYPE",
-            "Just a moment",
-            "rate limited",
-            "Too many requests",
-        ]
-        .into_iter()
-        .filter(|fragment| block.body.contains(fragment))
-        .map(|fragment| forbid(fragment, &[Surface::JobErrors, Surface::Halts]))
-        .collect();
-        forbids
-            .extend(["challenge", "Retry-After"].map(|header| forbid(header, &[Surface::Halts])));
+        let mut forbids: Vec<Forbid> = PAGE_FRAGMENTS
+            .into_iter()
+            .filter(|fragment| block.body.contains(fragment))
+            .map(|fragment| forbid(fragment, &[Surface::JobErrors, Surface::Halts]))
+            .collect();
+        forbids.extend(BLOCK_HEADERS.map(|header| forbid(header, &[Surface::Halts])));
         let mut row = Row {
             name: format!("a_cloudflare_block_admits_nothing_and_survives_a_restart: {case}"),
             script: vec![
@@ -2727,22 +1937,11 @@ fn wire_rows() -> Vec<Row> {
     // its query, is not kept: the sentinel reaches neither the job's
     // failure, the journal nor the daemon's recent errors. The daemon log
     // is the component case `a_get_3xx_keeps_its_target_out_of_the_daemon_log`.
-    const SENTINEL: &str = "c130-get-sentinel";
-    let target = format!("https://www.pathofexile.com/login?code={SENTINEL}");
-    let mut redirect = ScriptedResponse::full(
-        "GET",
-        "302 Found",
-        None,
-        &format!(r#"<html><a href="{target}">Found</a></html>"#),
-    );
-    redirect
-        .headers
-        .push_str(&format!("Location: {target}\r\n"));
     rows.push(Row {
         name: "a_get_3xx_fails_its_job_with_the_target_redacted_and_no_body".into(),
         script: vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            redirect,
+            c130_redirect(),
         ],
         steps: fetched(Failed),
         jobs: vec![
@@ -2754,13 +1953,254 @@ fn wire_rows() -> Vec<Row> {
             json!(["GET", "/fetch", 302, false, true, 0, "unclassified"]),
         ],
         forbids: vec![forbid(
-            SENTINEL,
+            C130_SENTINEL,
             &[
                 Surface::Journal,
                 Surface::DashboardErrors,
                 Surface::JobErrors,
             ],
         )],
+        ..Row::default()
+    });
+    // C19, rung 10 (2026-08-24) with the tripwire off: a 503 with no rate
+    // headers (N35's origin page) fails its job, never retried, and the
+    // next job's send is paced as if the 503 counted: its window full, it
+    // waits the 10 s period, the 5 s initial-window bucket and the 1 s
+    // buffer, measured from the 503 itself.
+    let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 1:10:60\r\nX-Rate-Limit-Account-State: 0:10:0\r\n";
+    rows.push(Row {
+        name: "headerless_503_fails_its_job_and_paces_the_next_send".into(),
+        script: vec![
+            ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status: "204 No Content",
+                headers: policy.into(),
+                body: String::new(),
+            },
+            ScriptedResponse {
+                method: "GET",
+                path: "/fetch",
+                status: "503 Service Unavailable",
+                headers: String::new(),
+                body: "<html><center>openresty</center></html>".into(),
+            },
+            ScriptedResponse {
+                method: "GET",
+                path: "/fetch",
+                status: "200 OK",
+                headers: policy.replace("0:10:0", "1:10:0"),
+                body: r#"{"items":["done"]}"#.into(),
+            },
+        ],
+        steps: vec![
+            Step::Send(vec![submit("fetch"), submit("fetch")]),
+            Step::Await(vec![(0, Failed), (1, Done)]),
+        ],
+        jobs: vec![
+            Job::fetch(Failed).carries(&["origin error page"]),
+            Job::fetch(Done).marker("done"),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 503, false, true, 0, "origin"]),
+            json!(["GET", "/fetch", 200, true, true, 16_000, null]),
+        ],
+        ..Row::default()
+    });
+    // C26: a 403 or a 503 is never retried and never waited on (invariant
+    // 3). The third case is rung 10's live 503 (2026-08-24), an origin
+    // page, named as such and still never retried.
+    const ORIGIN_503: &str = "<html><head><title>503 Service Temporarily Unavailable</title></head><body><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></body></html>";
+    for (case, status_line, status, body, shape, words) in [
+        (
+            "403",
+            "403 Forbidden",
+            403,
+            "{}",
+            "unclassified",
+            "unclassified body, possibly a Cloudflare block",
+        ),
+        (
+            "503",
+            "503 Service Unavailable",
+            503,
+            "{}",
+            "unclassified",
+            "unclassified body, possibly a Cloudflare block",
+        ),
+        (
+            "rung 10's origin 503",
+            "503 Service Unavailable",
+            503,
+            ORIGIN_503,
+            "origin",
+            "origin error page, not Cloudflare-shaped",
+        ),
+    ] {
+        rows.push(Row {
+            name: format!("dispatcher_never_retries_403_or_503: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", status_line, None, body),
+            ],
+            steps: fetched(Failed),
+            jobs: vec![
+                Job::fetch(Failed).carries(&["NOT retrying", words]),
+                Job::probe(Done),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", status, false, true, 0, shape]),
+            ],
+            ..Row::default()
+        });
+    }
+    // C5: on one scheduling key the higher priority goes out first,
+    // whatever the order of submission: two jobs queued together, the later
+    // at the higher priority, which holds the server's first answer.
+    let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+    let answer = |marker: &str| ScriptedResponse {
+        method: "GET",
+        path: "/fetch",
+        status: "200 OK",
+        headers: policy.into(),
+        body: format!(r#"{{"items":["{marker}"]}}"#),
+    };
+    rows.push(Row {
+        name: "the_higher_priority_job_on_a_scheduling_key_reaches_the_wire_first".into(),
+        script: vec![
+            ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status: "204 No Content",
+                headers: policy.into(),
+                body: String::new(),
+            },
+            answer("first"),
+            answer("second"),
+        ],
+        steps: vec![
+            Step::Send(vec![submit_at("fetch", 1), submit_at("fetch", 9)]),
+            Step::Await(vec![(1, Done), (0, Done)]),
+        ],
+        jobs: vec![
+            Job::fetch(Done).marker("second"),
+            Job::fetch(Done).marker("first"),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, true, true, 0, null]),
+            json!(["GET", "/fetch", 200, true, true, 0, null]),
+        ],
+        ..Row::default()
+    });
+    // The narrow HEAD rule (C129, the owner's choice): a HEAD 403 with no
+    // `cf-mitigated` is no block, even with no GGG header (`/profile`'s
+    // HEAD is answered so, N38). It degrades the route as before, its job
+    // fails as "route degraded", and nothing is halted.
+    rows.push(Row {
+        name: "a_head_403_without_cf_mitigated_still_degrades".into(),
+        script: vec![ScriptedResponse {
+            method: "HEAD",
+            path: "/fetch",
+            status: "403 Forbidden",
+            headers: String::new(),
+            body: String::new(),
+        }],
+        steps: fetched(Failed)
+            .into_iter()
+            .chain([
+                Step::DaemonStatus { halted: None },
+                Step::Dashboard {
+                    degraded: vec!["fetch"],
+                },
+            ])
+            .collect(),
+        jobs: vec![
+            Job::fetch(Failed).carries(&["degraded"]),
+            Job::probe(Failed),
+        ],
+        journal: vec![json!([
+            "HEAD",
+            "/fetch",
+            403,
+            false,
+            false,
+            0,
+            "unclassified"
+        ])],
+        ..Row::default()
+    });
+    // The wire twins of `responses.rs`, the classification's component
+    // table (`roadmap/briefs/t5-design.md` §3): three of its judgements
+    // staged at the boundary, each GET carrying GGG's headers.
+    let ggg = ScriptedResponse::full("GET", "200 OK", None, "").headers;
+    // A 200 whose body is cut short of its `Content-Length` is a transport
+    // failure, in the transport path's words, never bad JSON: the body is
+    // read before anything classifies it
+    // (`body_read_transport_failure_is_not_recast_as_bad_json`). The send
+    // is journaled not ok, with its status.
+    rows.push(Row {
+        name: "a_200_cut_short_is_a_transport_failure_not_bad_json".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::raw(&format!(
+                "HTTP/1.1 200 OK\r\n{ggg}Content-Type: application/json\r\nContent-Length: 64\r\n\r\n{{\"items\":[\"cut"
+            )),
+        ],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed)
+                .carries(&["GET http://", "/fetch failed: "])
+                .lacks(&["bad JSON"]),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, false, true, 0, null]),
+        ],
+        ..Row::default()
+    });
+    // A 500 whose body is cut short keeps its status first and names the
+    // body's failure beside it
+    // (`http_status_keeps_precedence_over_error_body_transport_failure`).
+    rows.push(Row {
+        name: "a_500_cut_short_keeps_its_status_and_names_the_body_read_failure".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::raw(&format!(
+                "HTTP/1.1 500 Internal Server Error\r\n{ggg}Content-Type: application/json\r\nContent-Length: 64\r\n\r\n{{\"error\""
+            )),
+        ],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed).carries(&["returned 500", "a body read transport failure"]),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 500, false, true, 0, "unclassified"]),
+        ],
+        ..Row::default()
+    });
+    // A 200 whose body is not JSON, with GGG's headers so the rate-limit
+    // protocol arm does not fire first, is bad JSON
+    // (`malformed_success_body_remains_a_json_failure`); the send landed.
+    rows.push(Row {
+        name: "a_200_whose_body_is_not_json_is_bad_json".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "200 OK", None, "not json"),
+        ],
+        steps: fetched(Failed),
+        jobs: vec![Job::fetch(Failed).carries(&["bad JSON"]), Job::probe(Done)],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, true, true, 0, null]),
+        ],
         ..Row::default()
     });
     rows

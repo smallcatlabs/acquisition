@@ -1,4 +1,9 @@
 //! The classification of an API response and the bound on a 429's re-queue.
+//! The classification's component table (C158): the three judgements no
+//! other test held at the boundary have wire twins in `dispatch.rs`'s
+//! wire table, the rows `a_200_cut_short_is_a_transport_failure_not_bad_json`,
+//! `a_500_cut_short_keeps_its_status_and_names_the_body_read_failure` and
+//! `a_200_whose_body_is_not_json_is_bad_json`.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
