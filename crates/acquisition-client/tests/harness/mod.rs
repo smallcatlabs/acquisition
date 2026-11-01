@@ -144,16 +144,17 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 // ---- the isolation list -------------------------------------------------
 
 /// Every knob a test process sets, once: each `ACQ_*` the process holds
-/// removed (`None`), then the thirteen values. `world` is the store root
+/// removed (`None`), then the values below. `world` is the store root
 /// (its socket derives from it, C83); the runtime and log directories sit
 /// under `base`: the temp directory is named for each platform's reader
 /// ([`TEMP_VARS`]),
 /// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
 /// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
 /// share the runner's own temp directory there. None of them moves the
-/// real-mode lock (C132, [`scratch_tmp`]). The three liveness deadlines a
-/// frontend runs under, the handshake's, a spawned daemon's bind and the
-/// annotation file's wait, are widened to 60 s, so a starved runner
+/// real-mode lock (C132, [`scratch_tmp`]). The liveness deadlines a
+/// frontend runs under, the handshake's, a spawned daemon's bind, the
+/// annotation file's wait and the fact store's and job queue's wait, are
+/// widened to 60 s, so a starved runner
 /// cannot fail a healthy path (C137, the deadline's contract is its
 /// expiry behaviour); a test that pins one sets its own value after this
 /// list. `MSYSTEM` is removed, so the commands a child prints are quoted

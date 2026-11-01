@@ -2527,8 +2527,12 @@ fn c137_the_store_wait_at_zero_refuses_a_blocked_read_only_reader_at_once() {
 /// C137: `ensure_wal`'s retry takes its wait as a parameter, so its
 /// expiry is forced with no clock: at zero, the switch to WAL on a
 /// rollback-journal file whose write lock another connection holds is
-/// given up at once, as SQLite's busy refusal, and the file is left in
-/// rollback mode; once the lock is free the same call switches it.
+/// attempted exactly once and given up as SQLite's busy refusal, the
+/// file left in rollback mode; once the lock is free the same call
+/// switches it. The attempts are counted by SQLite's authorizer, which
+/// sees each `PRAGMA journal_mode = WAL` as it is prepared, so a retry
+/// that ignored its wait (a deadline of its own) fails here on the
+/// count and never on a duration.
 #[test]
 fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
     let temp = tempfile::tempdir().unwrap();
@@ -2536,6 +2540,19 @@ fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
     let a = Connection::open(&path).unwrap();
     a.busy_timeout(std::time::Duration::ZERO).unwrap();
     a.execute_batch("CREATE TABLE t (x)").unwrap();
+    let switches = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = std::sync::Arc::clone(&switches);
+    a.authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        if let rusqlite::hooks::AuthAction::Pragma {
+            pragma_name,
+            pragma_value: Some(_),
+        } = ctx.action
+            && pragma_name.eq_ignore_ascii_case("journal_mode")
+        {
+            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        rusqlite::hooks::Authorization::Allow
+    }));
     let b = Connection::open(&path).unwrap();
     b.execute_batch("BEGIN IMMEDIATE").unwrap();
     let err = ensure_wal(&a, std::time::Duration::ZERO).unwrap_err();
@@ -2545,6 +2562,11 @@ fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
             rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::DatabaseBusy
         ),
         "{err:?}"
+    );
+    assert_eq!(
+        switches.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "the switch is attempted once at a wait of zero, never retried"
     );
     let mode: String = a
         .query_row("PRAGMA journal_mode", [], |r| r.get(0))
