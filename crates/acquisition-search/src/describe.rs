@@ -672,6 +672,20 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     if names.is_empty() {
         return Ok(out);
     }
+    // a call is asked for as the language's refusals spell it, its `(`
+    // (or `()`) after its name: `sum(` is `sum`, `true(` the entry whose
+    // word is `true()` (the league seat, cli calls 57, 58)
+    let names: Vec<String> = names
+        .iter()
+        .map(|name| {
+            name.strip_suffix("()")
+                .or_else(|| name.strip_suffix('('))
+                .filter(|call| !call.is_empty())
+                .unwrap_or(name)
+                .to_string()
+        })
+        .collect();
+    let names = names.as_slice();
     // narrow to what was named: an entry answers to its name and to each
     // word of it, a computed value to its name without `pseudo.`, the
     // positional slots to any `arg<N>`, a block to its own
@@ -697,6 +711,11 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             || entry
                 .split_whitespace()
                 .any(|word| word != "…" && word.eq_ignore_ascii_case(asked))
+            // a call's word answers to its name: `true()` to `true`
+            || entry.split_whitespace().any(|word| {
+                word.strip_suffix("()")
+                    .is_some_and(|call| call.eq_ignore_ascii_case(asked))
+            })
             // a flag among an entry's words answers to its word too:
             // `against` is `show --against`
             || entry.split_whitespace().any(|word| {

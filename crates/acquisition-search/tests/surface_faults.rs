@@ -232,6 +232,25 @@ fn c97_describe_says_how_terms_compose_and_knows_the_words_it_prints() {
             .unwrap_or_else(|_| panic!("`{word}`"));
         assert_eq!(one[block].as_array().unwrap().len(), 1, "`{word}`: {one}");
     }
+    // The league seat (cli calls 57, 58): the language's refusal spells
+    // its calls with their `(` (`sum(`, `holds(`), and describe refused
+    // `sum(` as nothing it knows. Every call the refusal spells reaches
+    // the entry or the block that holds it, as its bare name does.
+    let readings = acquisition_search::parse_query("nocall(x)")
+        .unwrap_err()
+        .readings;
+    assert!(readings.contains(&"sum(".to_string()), "{readings:?}");
+    for call in &readings {
+        let spelled =
+            describe(std::slice::from_ref(call)).unwrap_or_else(|e| panic!("`{call}`: {e}"));
+        let bare = call.trim_end_matches('(');
+        let named = describe(&[bare.to_string()]).unwrap_or_else(|e| panic!("`{bare}`: {e}"));
+        assert_eq!(
+            serde_json::to_value(spelled).unwrap(),
+            serde_json::to_value(named).unwrap(),
+            "`{call}` reads as `{bare}`"
+        );
+    }
 }
 
 /// Outside review, 2026-09-21: a number is read once, where the body is
