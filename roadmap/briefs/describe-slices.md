@@ -1,0 +1,467 @@
+# describe-slices — the index on both surfaces, then a slice by pattern (#153, #154)
+
+Written 2026-11-01 by the orchestrating session, from #153 (filed by
+the league seat, `audits/league-2026-11/seat/`), #154 (the owner's,
+with his comment on derived groups and the seat session's comment
+with its measurements and two settlements) and the tree at `fdbab0ce`.
+One step, two issues in order, both surfaces (`acq search --describe`
+and the MCP's `describe`): how the search language discloses itself to
+an agent, progressively — the index, a slice the size of a question,
+an entry whole.
+
+## Goal
+
+When this step is done, `describe` takes the same list on both
+surfaces and answers the same document for it: nothing named is the
+index (every entry's name, kind and one line; a name and a line, the
+examples under the entry), a name is the entries whole as today, `all`
+is everything whole, and `~pattern` is a slice: the entries whose name
+or definition the pattern matches, whole when they are ten or fewer,
+their index lines otherwise, counted; a pattern that matches nothing is
+refused in words that say so and offer the index. The index and every
+slice are bounded by construction, measured on both surfaces against the
+seat door's 60,000-byte cut; the whole stays reachable, byte for byte,
+under `all`. The MCP's `describe` calls the search crate's function as
+the CLI does (C46, shared semantics in Rust), and the one-line rule and
+the pattern's reading live there once.
+
+## Read
+
+- `AGENTS.md`: the hard rules (every `acq` in a mock world; C116, no
+  id in user-facing text; C122, one golden per wording, regenerated
+  under `ACQ_UPDATE_FIXTURES=1`; C153, a finding joins the surface that
+  holds it); C46 (shared semantics live in Rust, every frontend an
+  adapter); C53 (three output levels; on the MCP the JSON is the text
+  the reader gets and the decision view is the document's default
+  shape; a `describe` section is never cut; JSON changes are
+  additive); C97 (the closed lists are printed in the help); C143 (a
+  shared refusal speaks the request's own words); C156 (a printed
+  command is quoted for the shell it is pasted into).
+- `decisions/search.md` (C97, C101, C102) and `decisions/frontends.md`
+  (C11, C53, C143, C146, C149); `REVIEW-CHECKLIST.md`, "Search" and
+  "Frontends and the surface an agent meets" (a document unbounded by
+  default; a printed command that does not run as printed; a sibling
+  sentence left standing; a fixture regenerated blind).
+- `search/README.md`, the crate's working directory, its rules in
+  force.
+- `crates/acquisition-search/src/describe.rs`, whole: the module doc,
+  `Describe` and `SECTIONS` (the sixteen keys; `pseudo` names the
+  computed block too), `Named` (`name`, `kind`, `what`, `values`,
+  `examples`), `describe(names)` (line 304: the whole built, then
+  narrowed by `answers` — an entry answers to its name, each word of
+  it, a computed value's name without `pseudo.`, a call's name without
+  its `(` — and an unknown name refused as `unknown_name` listing every
+  word, with `near` readings), `trade_catalogue()`, `answer_keys()`,
+  `LIMITS`.
+- `crates/acquisition-cli/src/search_cmd.rs`: the `describe` arg and
+  its help (lines 144–157: "about 47 KB", "`--describe all` is every
+  entry whole, over 150 KB", "`--json` is whole unless entries are
+  named"); the dispatch (407–419: bare is `index`, `all` is
+  `describe(&[])`, the CLI resolving `all` itself); `definition_head`
+  (1783: the text before the first `: `, the one-line rule) and
+  `describe_text` (1791–1963: the index renders the computed values and
+  the categories one line each, counts the answer's keys and the trade
+  rows, and ends on the `more:` line).
+- `crates/acquisition-mcp/src/main.rs`: `OWN_SECTIONS` and
+  `own_sections()` (732–766: pricing, daemon, store, each entry a
+  `name` and a `what`), `Described` (768–783, the language flattened
+  beside the own sections), `DescribeParams` and `describe_names_doc`
+  (786–799: "Omitted: everything, over 150 KB"), the `describe` tool
+  (1557–1619: its description's sizes, "An unknown name is refused,
+  listing every name it knows"; an own name answered by the MCP, the
+  rest handed to `acquisition_search::describe`), the instructions'
+  describe line (2083–2084), `told_as` and `Prose { all: true }`
+  (499–520, 1233–1250: every string of `describe` is spelled for the
+  MCP, the CLI's flags given this server's spelling after them).
+- `crates/acquisition-store/src/bound.rs`: `LISTED` (16), the one
+  bound every maker applies (C53), and `bounded`.
+- `crates/acquisition-search/src/bind.rs` 1380–1404: the one compiler
+  of a `~` pattern (`RegexBuilder`, case-insensitive) and the
+  `bad_pattern` words, "`{name}~` takes a pattern in Rust regex syntax,
+  and this is not one: {e}"; the `~` entry of `describe` ("Rust regex
+  syntax, unanchored, any case unless it says (?-i)").
+- `crates/acquisition-verbs/src/refusal.rs`: `Way` (50–) and
+  `Surface::request` (the CLI's at `acquisition-cli/src/main.rs:1210`,
+  the MCP's at `acquisition-mcp/src/main.rs:327`), the one maker of
+  every printed request; `of_search` (222) and `offered` (231): how a
+  `SearchError::Scope`'s `offers` reach each surface;
+  `acquisition-search/src/error.rs` `offering_realms` (210), the
+  sibling: a refusal offering each realm as a request.
+- The tests that assert on `describe`'s shape or words today, each
+  found by `git grep -n describe crates/*/tests` and read before an
+  edit:
+  - search crate: `tests/surface_faults.rs`
+    `c97_describe_says_how_terms_compose_and_knows_the_words_it_prints`
+    (192: the whole's examples parse; a call's `(` form), `c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone`
+    (555: the whole's keys are `SECTIONS`; a narrowed answer keeps
+    `totals`), `the_answer_section_names_every_key_an_answer_prints`
+    (592); `describe(&[])` read as the whole in `acceptance.rs:331`,
+    `category.rs:1013`, `counts.rs:865`, `explain.rs:702`,
+    `percentile.rs:1404`, `price.rs:593`, `pseudo.rs:664`,
+    `ranged.rs:1073`, `refusal.rs:103` and `:125`.
+  - CLI: `tests/seat_faults.rs`
+    `describe_is_an_index_that_names_every_entry_and_says_how_to_read_one`
+    (498: the release seat's pin — the index under 50,000 bytes, a
+    computed line, a category line, the `more:` line naming
+    `--describe all`; an entry, `all` and bare `--json` whole);
+    `tests/search_json.rs` `describe_and_show_print_json_whole_and_text_from_it`
+    (1193: bare `--json`'s `fields[].name` in order; `league,line`
+    narrowed), the trade line of the index (2770), `--describe clas`
+    refused `unknown_name` (856), three `--describe` beside a view
+    refused `view` (879–881), named entries read whole (1500, 1611,
+    1738, 1798, 2750); `tests/no_ids.rs` (229: `describe` whole and
+    `trade,category` swept for ids; keep it sweeping the whole);
+    `tests/readme_tour.rs` (the tour line resolves under clap);
+    `tests/cli_reference.rs` (`CLI-REFERENCE.md` equals the help).
+  - MCP: `tests/search_tools.rs` `describe_is_the_clis_and_reads_no_store`
+    (371: `describe {}` spoken as the CLI's bare `--describe`, two
+    names as the CLI's, `leauge` refused listing every name, the own
+    names after the language's); `tests/spoken.rs` (208, 215:
+    `describe {}` and `nonsense` in the spelling sweep);
+    `tests/surface_size.rs` (155–180: `describe` by section);
+    `tests/pricing_tools.rs` (795, 814); `tests/mcp_reference.rs`
+    (109: `describe {}` appended to the intent sweep's text as "the
+    whole, every section the tools point to" — after this step that
+    sweep asks `all`, so it keeps sweeping the whole);
+    `MCP-REFERENCE.md` (the tool's description and `names` doc).
+- `README.md` line 191, the tour line
+  (`acq search --describe [name,…|all]   # the query language: an index, or entries whole`)
+  and 124 (`describe` among the MCP's tools); `CLI-REFERENCE.md` 212.
+
+## Input
+
+The last push's CI on `main` at `fdbab0ce`: `Gate (Linux)` run
+41321381891 and `Gate (Windows)` run 41321381888, both success (`gh run
+list --branch main --workflow … --limit 1`, 2026-11-01).
+
+**The world.** Every measurement in this brief and in the step runs in
+a mock world over a scratch copy of the league seat's pristine
+(`~/seat-worlds/league-2026-11/pristine/store/mock`, 22,721 live items,
+one account `GERWARIC#7694`; copied with `cp -R` into the session's
+scratch; `ACQ_PROVIDER=mock`, `ACQ_NO_KEYRING=1`, `ACQ_NO_SPAWN=1`,
+`ACQ_STORE_DIR` and `ACQ_LOG_DIR` under the scratch), on a debug build
+(`cargo build --workspace`): `describe` reads no store and a byte count
+does not depend on the profile. Never the owner's store, never a
+real-mode daemon. The MCP is driven over stdio by a twelve-line script
+in the session's scratch (`initialize`, `notifications/initialized`,
+one `tools/call`; the size is `content[0].text`'s bytes); the CLI by
+`./target/debug/acq`, the text's bytes by `wc -c`.
+
+**Before, at `fdbab0ce`** (the seat session's numbers on #154
+reproduced to the byte):
+
+| Asked | CLI text | CLI `--json` | MCP (compact JSON) |
+| --- | --- | --- | --- |
+| nothing named (the CLI's index; the MCP's whole) | 49,833 (398 lines) | 182,918 | 169,215 |
+| `all` | 171,824 | 182,918 | refused, `unknown_name` (4,592) |
+| `computed` | 86,354 | 90,702 | 83,460 |
+| `pseudo.count_res,pseudo.total_life` | 1,436 | 1,812 | 1,599 |
+| `~resist` | refused, `unknown_name`, listing every word (4,078) | — | refused, the same (4,613) |
+
+The index's lines holding a word (`grep -ci` over the CLI's index
+text, the seat session's measure): `resist` 14 lines, 1,967 bytes;
+`life` 16, 2,702; `weapon` 28, 2,749. Of `resist`'s 14, four are
+example lines (`e.g. …`) and ten are entries.
+
+**What a pattern matches, by rule** (a Python read of the whole
+`--json` document, case-insensitive, over the eleven entry sections —
+fields, line, linked, values, composition, operators, slots, computed,
+counts, explain, answer — the categories, and the MCP's own entries):
+
+| Pattern | name + one line (the text before the first `: `) | name + definition whole | categories, id + text / + holds | MCP own, name + what |
+| --- | --- | --- | --- | --- |
+| `resist` | 10 (10,123 bytes whole, compact JSON) | 11 | 0 / 0 | 0 |
+| `life` | 4 (2,233) | 5 | 0 / 1 | 0 |
+| `weapon` | 1 (230) | 24 | 25 / 26 | 0 |
+| `a` | 199 | 204 | 75 / 82 | 23 |
+
+`weapon` is the case that decides the reading: the weapon fields and
+the `adds_*` computed values say "weapon" after their first `: `
+(`critical_strike_chance`: "the displayed `Critical Strike Chance`, in
+percent: a weapon's, and a spell gem's, …"; `pseudo.adds_physical`'s
+"where -category=weapon" is deep in its definition), so a pattern over
+the one line alone finds one of the twenty-four. `resist` by definition
+is eleven: the ten plus `answer`'s `view`, whose definition names
+`line:resist`. The one line is what the index prints; the definition is
+what a pattern reads (Do 4).
+
+**The whole, by section** (compact JSON bytes of the bare `--json`
+document; "heads" is the sum of each entry's text before its first
+`: `): fields 73 entries, 21,914, heads 5,173; computed 92, 85,699,
+heads 8,059; answer 15, 5,364, heads 1,957; categories 82, 11,067, id
+and text alone 1,987; trade 149 rows, 25,059; counts 4, 2,594, heads
+150; explain 3, 1,604, heads 414; line 3, 1,229, heads 353;
+composition 7, 1,269, heads 504; linked, values, operators, slots each
+under 800; not_built 3, 269; limits 6, 816; `totals` 403. The eleven
+entry sections' names, kinds and heads together: 22,131 bytes. The
+MCP's own: pricing 10 entries, 7,256, heads 1,442; daemon 8, 3,933,
+heads 857; store 5, 4,011, heads 408. So the index after this step is
+near 30 KB of text and near 35 KB of compact JSON (an estimate; the
+build measures it), the computed block's lines near a third of it.
+
+**The shell trap.** A pattern at the start of a word is a tilde
+expansion: `zsh -c 'echo ~resist'` fails with "no such user or named
+directory: resist" before `acq` runs; bash leaves it. Quoted
+(`'~resist'`) or after `=` (`--describe=~resist`) both shells pass it
+whole. Every printed or documented `--describe` pattern is quoted, as
+a query starting with `-` is (`CLI-REFERENCE.md` 200). The MCP has no
+shell.
+
+**Fixed inputs the tests stage:** a pattern matching exactly ten
+entries and one matching eleven (the bound seen from both sides; the
+worker finds two such patterns over the shipped tables and names them,
+or stages the count another way the report names); `~a` (the wide
+pattern, lines only); a pattern matching nothing (`~qqqqq`); a pattern
+that does not compile (`~(`); a pattern beside a name (`league,~life`);
+`all`; a pattern over the MCP's own entries (`~revision` reaches
+pricing's; `~wedged` daemon's).
+
+## Settled in this brief, under the owner's delegation
+
+Agent-facing (a flag's words, a tool's shape, the words of an answer),
+recorded here and in the commits, listed at the close for his read:
+
+1. **One list, one document, both surfaces.** `describe` takes the
+   list as typed and resolves it in the search crate: empty is the
+   index, `all` is the whole, a name is its entries whole, `~pattern`
+   a slice. Each frontend passes its list through and resolves nothing
+   itself (today the CLI resolves `all` and `index` on its own:
+   `search_cmd.rs` 407–419, two places for one rule).
+2. **The one-line rule moves into the search crate**: an entry's line
+   is its definition up to its first `: ` (`definition_head`, the rule
+   the CLI's index applies to a computed value today), its name and
+   its kind; no values, no examples; a category's id and site text
+   without `holds`; the answer's keys one line each (no longer a
+   count); the trade catalogue counted by rows and named; not_built
+   and limits as today, one line each. The index says how to go on in
+   words that name entries and lists, never a frontend's flag (C143;
+   the MCP spells flags after them).
+3. **A pattern reads an entry's name and definition whole** (`what`),
+   a category's id, text and holds, and on the MCP its own entries'
+   name and what; never values, examples or the trade catalogue's rows
+   (`trade` is a block, reached by its name). The case for the
+   definition over the one line is the `weapon` row above; the
+   precedent is `--count line:`, whose words read "the computed values
+   whose name or own definition holds the words".
+4. **Two tiers at the store's bound.** A pattern's matches, ten or
+   fewer (`acquisition_store::bound::LISTED`), are answered whole;
+   more are answered as their index lines, counted. An entry a name
+   reaches is whole whatever a pattern says of it; several items in
+   one list resolve each on its own, and the denser form wins where
+   two reach one entry. The answer carries, per pattern, the pattern,
+   how many it matched and which tier, and one sentence on how to go
+   on (name one for its whole).
+5. **Nothing matched is a refusal** of kind `unknown_name` (the kind
+   list stays closed: the pattern names nothing describe holds, and
+   the reader's move is the same, re-ask), with no readings and one
+   offer, the index, as a request the surface spells (`acq search
+   --describe` at a terminal; `describe` with `{}` on the MCP),
+   through `Way` and `Surface::request` as every offer is. A pattern
+   that does not compile is `bad_pattern` in the compiler's own words.
+6. **Pattern matching is the operator's**: Rust regex syntax,
+   unanchored, any case unless `(?-i)`, compiled by the one compiler
+   `bind.rs` holds; `^` and `$` are the ends of the line read (a name,
+   then its definition, as one string — the worker says how the two
+   are joined so a `^name$` anchor means what it says).
+
+**Brought to the owner before the build**, since it is non-additive
+for two documents (C53: JSON changes are additive) and has two
+defensible answers: whether nothing named is the index on both
+surfaces and in both formats — the MCP's `describe {}` (169,215 bytes
+today) and the CLI's `--json search --describe` (182,918) become the
+index, `all` keeping the whole byte for byte — or whether the index is
+a named form (`names: ["index"]`, `--describe index`) with the defaults
+left whole. The brief recommends the first: C53's own words make the
+decision view the MCP's default shape; the unbounded default is the
+fault #153 names; one rule (bare is the index) replaces two (the help's
+"`--json` is whole unless entries are named", pinned by the release
+seat at `seat_faults.rs:498`); and the whole is one word away. The
+release seat's reason for keeping JSON whole — text is a function of
+JSON (C53) — is met the other way once the index is a document the
+search crate makes. The build starts on his word; Do 1 is written for
+the recommendation, and the other answer changes Do 1 and Do 6 alone.
+
+## Do
+
+In order; #153 is one commit, #154 one or two, no `Closes` keyword.
+
+1. **The index as a document of the search crate (#153).** In
+   `describe.rs`, the index is made by one function from the same
+   tables the whole is made from: every section of `Describe`, each
+   entry a `Named` with its `what` cut to its line and `values` and
+   `examples` empty (a `Named` without them serializes without them
+   today), the categories as `Described` with `holds` empty (add
+   `skip_serializing_if` so the index carries id and text), `trade`
+   none beside a new always-present `trade_rows` (the catalogue's row
+   count, additive), and a new `next: Option<String>` (skipped where
+   none), the index's sentence on how to go on. `describe(names)`
+   resolves the list: empty → the index; `["all"]` → the whole;
+   otherwise as today, with `~` items by Do 4. The CLI passes its list
+   through, bare `--describe` and bare `--json --describe` both the
+   index, `all` the whole; `describe_text` renders what it is given
+   (an entry with no values and no examples prints one line; the trade
+   line prints from `trade_rows` where `trade` is none and the next
+   sentence from `next`), its `index` flag gone. The MCP's `describe`
+   passes its list through too: `names` omitted → the language's index
+   beside its own sections as lines (each own entry's `what` cut by
+   the search crate's one-line rule, exported as a function); `all` →
+   everything whole (the own sections whole as today); an own name or a
+   language name as today. The search crate exports the one-line rule
+   and nothing of the MCP's sections (C1: the search knows no
+   frontend).
+2. **The words (#153).** The CLI's `--describe` help: bare is the
+   index, "a name and one line each, about N KB" (N measured by the
+   build on its tree, rounded as the help rounds today), a name an
+   entry whole, `all` everything (over 150 KB), `--json` the same
+   document; the index's `next` sentence names an entry, a block,
+   `all` and (after Do 4) a pattern, in words without a flag. The
+   MCP's `names` doc and tool description: omitted is the index (its
+   size), `all` everything with the sizes the description gives today,
+   re-measured; the instructions' describe line the same in one
+   sentence. The README tour line gains nothing here (Do 7 does).
+   `CLI-REFERENCE.md` and `MCP-REFERENCE.md` regenerated under
+   `ACQ_UPDATE_FIXTURES=1` and read as a diff of what a user now reads
+   (shape 9).
+3. **The pins (#153).** At the lowest crate (C122): in
+   `tests/surface_faults.rs`, the index is bounded by construction —
+   over every section, every entry's `what` holds no `: `, its
+   `values` and `examples` are empty, every category's `holds` is
+   empty, `trade` is none and `trade_rows` is the catalogue's count,
+   `next` is some; the index names every entry the whole names, in the
+   whole's order; `all` is the whole; `c97_the_sections_listed…` and
+   the ten `describe(&[])` readers ask `all` where they mean the whole
+   (one edit each, named in the commit). The CLI: `seat_faults.rs:498`
+   re-pinned to the new rule (bare `--json` the index; the `more:`
+   line's successor), the wording of the index's foot one golden under
+   `goldens/search_json/` with its `# holds` facts; `search_json.rs`
+   1193 and 2770 updated; `no_ids.rs` asks `all`. The MCP:
+   `search_tools.rs:371` pins `describe {}` as the CLI's bare `--json
+   --describe` and `all` as `--describe all` (`assert_spoken_as`, the
+   existing shape); `mcp_reference.rs:109` asks `all`; `spoken.rs`
+   gains `all` beside `{}` (both swept). No wording pinned twice.
+4. **The pattern (#154).** In `describe.rs`: a list item starting `~`
+   is a pattern over the index's entries (settled 3 and 6 above),
+   compiled by `bind.rs`'s compiler (the function made `pub(crate)` or
+   its words shared, never a second `RegexBuilder`); its matches
+   resolved by the tier rule (settled 4) over `LISTED`; the answer
+   gains `patterns: Vec<Matched>` (skipped where empty; `pattern`,
+   `matched`, `whole: bool`) and `next` says how to go on; nothing
+   matched is the refusal of settled 5, its offer a `Way` each surface
+   spells (`Way` gains the smallest variant that names a describe
+   request with no names; `SearchError::Scope`'s `offers` carry it as
+   `offering_realms` carries a realm, or the smallest change the worker
+   finds sufficient, named in the commit). On the MCP, the own
+   sections' entries are read by the same pattern under the same count:
+   the search crate's function takes the extra lines to read (name and
+   text pairs) and answers which of them matched and the tier, so one
+   count decides both; the MCP renders its own matched entries whole or
+   as lines accordingly. The CLI's text: a pattern's answer opens with
+   one line per pattern (the pattern, the count, whole or lines) and
+   ends on `next`; a refused pattern prints as every search refusal
+   does, its offer the printed command.
+5. **The pins (#154).** Search crate: the fixed inputs of Input, each
+   a property — the tier seen from both sides at ten and eleven; a
+   match on the definition that the line alone would miss
+   (`critical_strike_chance` under `~weapon`); case; `(?-i)`; a name
+   beside a pattern; nothing matched refused `unknown_name` with no
+   readings and one offer; `~(` refused `bad_pattern` with the
+   compiler's words; the trade rows not read (`~pseudo_total` finds no
+   trade row by its key); the wide pattern answers lines only and its
+   count is the number of entries matched. CLI: one golden for the
+   slice's words (a pattern answered whole, one answered as lines, the
+   refusal with its printed offer), quoted for the shell as printed,
+   run as printed by the test (shape 6). MCP: `~resist` and `~a`
+   spoken as the CLI's `--json` answers; the own entries under
+   `~revision` whole and under `~a` as lines, the count one; the
+   refusal's offer `describe` with `{}` sent back and answered.
+6. **The words (#154).** The `--describe` help and the MCP's `names`
+   doc and description name the pattern form with a quoted example
+   (`--describe '~resist'`; `names: ["~resist"]`), the tier in one
+   sentence (whole when ten or fewer, their lines otherwise), and that
+   it reads names and definitions. The index's `next` sentence names
+   it. References regenerated and read as a diff.
+7. **The README.** The tour line becomes
+   `acq search --describe [name,…|'~pattern'|all]   # the query language: an index, a slice by pattern, or entries whole`
+   (one line; `readme_tour.rs` resolves it); no other README change
+   unless a sentence there contradicts the new help, named in the
+   commit.
+8. **The measurements, after**, in the report, each by the commands of
+   Input on the step's tree: the index on both surfaces (CLI text and
+   `--json`, MCP); `all` on both; `~resist`, `~life`, `~weapon` on
+   both (text and `--json` on the CLI), each with its count and tier;
+   `~a` on both; the refusal on both. Then `tools/gate.sh` on the
+   step's tree before its last commit, nothing tracked edited while it
+   runs.
+
+## Done when
+
+- From the commits: `describe.rs` makes the index and resolves `all`
+  and `~` (Do 1, 4); `search_cmd.rs` passes the list through and
+  `describe_text` has no index flag; the MCP's `describe` passes its
+  list through and reads its own entries by the search crate's
+  functions (Do 1, 4); `Way` carries the describe request (Do 4).
+- From the commits: the pins of Do 3 and Do 5 exist by name; every
+  golden, `CLI-REFERENCE.md` and `MCP-REFERENCE.md` changed are read
+  as a diff of what a user now reads and each change is explained by a
+  source change in the same commit (shape 9); no wording pinned twice
+  (C153); the README tour line (Do 7).
+- From the commits: no `C`, `S`, `N`, `T` or `Q` id in the new words
+  (`no_ids.rs` green); the help and the tool text carry sizes the
+  commit message says it measured, by command.
+- Report-only (execution): `tools/gate.sh` exit 0 per stage on the
+  step's tree; the table of Do 8 on both surfaces, every slice of the
+  seat's three under 60,000 bytes on each, and the index on each under
+  the CLI index's 49,833 of today.
+- #153's "Closes when" met: `describe` on the MCP has an index form,
+  the same index the CLI's bare `--describe` prints, bounded; measured
+  on both surfaces before (Input) and after (Do 8). #154's: both
+  surfaces answer a pattern with the matching entries, the same set on
+  each (whole at ten or fewer, their lines otherwise: the brief's
+  settlement of the issue's "whole", as the seat session's comment
+  settled it); nothing matched says so and offers the index; the
+  describe golden holds the wording; the three slices measured on both
+  surfaces; the help and the tour say how.
+
+## Not in scope
+
+- **Derived groups** (the owner's comment on #154): a trade-site
+  filter group as the set of entries its clauses become, through the
+  shipped catalogue (`reference/trade-filters-2026-09-12.json`,
+  `trade/catalogue.rs`) and the translation table, never a hand list.
+  The right second step, in that form; it waits for a seat that types a
+  group name (the league seat's two needs were pseudo stats no site
+  group names). At the close it gets an issue, `trigger:seat`, citing
+  the comment. Nothing here builds a group or a tag.
+- A bound on a named block: `--describe computed` stays whole (86 KB;
+  C53, a `describe` section is never cut); the index and the pattern
+  are the way in.
+- A pattern over the trade catalogue's rows or the categories'
+  `holds` lines as the index's content; a pattern over values or
+  examples.
+- `limit` or `expand` on `describe`: C53's knobs belong to lists of
+  like entities; the whole is `all`.
+- Any change to what an entry says (its definition) or to the one-line
+  rule beyond moving it; a `kind` added to `ErrorKind`.
+- The web UI (`acq web` has no describe page; `git grep describe
+  crates/acquisition-cli/src/web` finds none).
+
+## Rules
+
+`TEMPLATE.md`. What differs: the build runs as an Opus subagent in the
+main checkout on `main` (one writer per tree; the orchestrating
+session's own gate runs on the range after); its scratch is the
+session's scratch subdirectory named in its launch; every `acq` and
+`acq-mcp` it runs is in that mock world over the scratch copy of the
+pristine, never the owner's store, never a real-mode daemon; never
+push; no `Closes` keyword; every number in a commit message (a size, a
+count) from a command the message names, run after the last edit; a
+commit ends with the Co-Authored-By line the launch gives. The
+attribution line names the model the worker runs on.
+
+## Report
+
+`TEMPLATE.md`, and: the table of Do 8; the two patterns that stage ten
+and eleven matches; the `Way` variant and the error path chosen for
+the offer; the size literals written into the help and the tool text,
+each with the command that measured it; the agent-facing decisions the
+build made beyond those settled here, each a sentence.
