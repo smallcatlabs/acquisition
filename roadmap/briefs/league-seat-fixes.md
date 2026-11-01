@@ -235,6 +235,19 @@ frontend's test pins what its adapter adds, the spelling).
   with no change a source change does not explain.
 - `tools/gate.sh` green on the round's tree.
 
+## Settled in the round: the rerun's faults
+
+Run 2 (`REPORT-cli-2.md`, `REPORT-mcp-2.md`) met none of the ten and
+found three siblings under rules the round had applied, fixed as a
+third round (`98a1a741..418885f6`): `policy show` with no policy
+offered the first write without `--account` and without
+`--if-revision 0` (CLI call 22); `price show` on a target with no row
+printed no revision while `price set --help` says to name what it
+printed (CLI 61, 62); `policy set --if-revision 0` over a stored
+policy was refused in the compare-and-swap's words, "re-read and
+retry", when the refusal was the create-only form's (CLI 24). Done
+when, for each: fixed by one rule and pinned, the gate green.
+
 ## Not in scope
 - A `kind` or `next` on a failed job's record (#7); receipt counts
   (#48); the `describe` index's size (#104, #105); `store refused` on

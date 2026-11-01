@@ -434,3 +434,16 @@ the orchestrating session. #141 closed under C158's wording: t5 is
 done, its `HISTORY.md` row written. Next #148; and Phase 3, the
 owner's league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
+
+Phase 3's first seat, the league seat, closed on 2026-11-01
+(`LEDGER.md`, `audits/league-2026-11/seat/README.md`): two doors, two
+runs each by a blind Opus runner on the league build, the `words`
+step's four fixes met without being named; run 1's ten faults fixed by
+one rule each and reviewed cold, the review's three findings answered;
+run 2 met none of them and found three siblings, fixed in a third
+round; four issues filed (#153, #155, #156, #157). What it leaves for
+the owner's live run: the league loop as the README prints it ran as
+printed on both doors; a plan on an unlearned route gives no time until
+its probe; what is his to rule is listed in the record's "For the
+owner". Next, Phase 3, the owner's league run, at his word; #148 stays
+for after the seat.
