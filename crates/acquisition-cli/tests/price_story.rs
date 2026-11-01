@@ -239,7 +239,7 @@ fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
         for err in outcomes.iter().filter_map(|o| o.as_ref().err()) {
             assert!(
                 err.contains(&format!(
-                    "item/i-b has a price at revision {} (re-read and retry)",
+                    "item/i-b has a price at revision {0}, not the revision named: `--if-revision {0}`",
                     last.revision
                 )),
                 "round {round}: {err}"
@@ -303,7 +303,9 @@ fn c35_a_stale_revision_conflicts_and_changes_nothing() {
         assert_eq!(out.status.code(), Some(1), "{stale:?}");
         let err = write_outcome(&out).unwrap_err();
         assert!(
-            err.contains("item/i-a has a price at revision 2 (re-read and retry)"),
+            err.contains(
+                "item/i-a has a price at revision 2, not the revision named: `--if-revision 2`"
+            ),
             "{stale:?}: {err}"
         );
         assert_eq!(

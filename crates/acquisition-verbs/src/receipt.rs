@@ -71,15 +71,7 @@ pub fn price_undo(write: &PriceWrite, account: &str) -> Result<(Way, String), St
             "undoes it".to_string(),
         ),
         Undo::Set { value, if_revision } => {
-            let price = value.price();
-            let way = Way::PriceSet {
-                target,
-                account: account.to_string(),
-                kind: value.kind().to_string(),
-                amount: price.map(|p| p.amount.to_string()),
-                currency: price.map(|p| p.currency.clone()),
-                if_revision,
-            };
+            let way = price_set_way(target, account, &value, if_revision);
             let says = match if_revision {
                 Some(_) => "puts the prior back".to_string(),
                 None => "puts it back (a create, which lands only where no price stands; the row's count continues past the clear)".to_string(),
@@ -87,6 +79,27 @@ pub fn price_undo(write: &PriceWrite, account: &str) -> Result<(Way, String), St
             (way, says)
         }
     })
+}
+
+/// `value` written on `target` as `account`, over `if_revision` (none: a
+/// create), as `price set` takes it: the `type` word, and its amount and
+/// currency where it has a price. A receipt's undo, and a conflict's
+/// offer ([`crate::refusal`]).
+pub fn price_set_way(
+    target: String,
+    account: &str,
+    value: &acquisition_plan::price::Buyout,
+    if_revision: Option<i64>,
+) -> Way {
+    let price = value.price();
+    Way::PriceSet {
+        target,
+        account: account.to_string(),
+        kind: value.kind().to_string(),
+        amount: price.map(|p| p.amount.to_string()),
+        currency: price.map(|p| p.currency.clone()),
+        if_revision,
+    }
 }
 
 /// The sync policy's write's receipt: [`PolicyWritten`], then its `undo`

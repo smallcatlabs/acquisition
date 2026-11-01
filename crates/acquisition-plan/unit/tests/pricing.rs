@@ -129,7 +129,8 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
             r.kind,
             RefusedKind::Conflict {
                 revision: Some(1),
-                current: None
+                current: None,
+                retry: None,
             }
         ),
         "{:?}",
@@ -271,7 +272,8 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     ));
     assert_eq!(
         r.message,
-        "item/i1 has a price at revision 2 (re-read and retry)"
+        "item/i1 has a price at revision 2, not the revision named: `--if-revision 2` writes \
+         over it as it stands (`acq price show --account a item/i1` reads it)"
     );
     let r = refused(clear(&mut a, "item/i1", Expect::Exactly(1), &via, "a", plain).unwrap_err());
     assert!(matches!(
@@ -307,7 +309,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     ));
     assert_eq!(
         r.message,
-        "item/i1's price was cleared (revision 3); a new price names no revision"
+        "item/i1's price was cleared (revision 3); a new price names revision 0, or none"
     );
     let r = refused(clear(&mut a, "item/i1", Expect::Current, &via, "a", plain).unwrap_err());
     assert!(matches!(
@@ -798,14 +800,15 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
             r.kind,
             RefusedKind::Conflict {
                 revision: None,
-                current: None
+                current: None,
+                retry: Some(_),
             }
         ),
         "{r:?}"
     );
     assert_eq!(
         r.message,
-        "item/i1 has no price of its own; a new price names no revision"
+        "item/i1 has no price of its own; a new price names revision 0, or none"
     );
     set(
         &store,

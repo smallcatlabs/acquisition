@@ -17,8 +17,11 @@
 //!   `{request, says}`, naming `tool` where it is another tool's. An
 //!   offer is made from what the refusal carries — the names known for an
 //!   account that cannot be picked, the target and the scope a `not_found`
-//!   was looked for in ([`Missing`]), a search's own ([`Offered`]) — never
-//!   by reading scope again; the surface spells it ([`Surface::request`]).
+//!   was looked for in ([`Missing`]), a search's own ([`Offered`]), the
+//!   write a conflict refused re-aimed at the revision it names now
+//!   ([`Retry`]), the leagues a policy covers (`Fault::NotCovered`) —
+//!   never by reading scope again; the surface spells it
+//!   ([`Surface::request`]).
 //! - `readings`: how what was typed could be read, payload on every
 //!   refusal.
 //! - `next`: one sentence or command that is a person's act, never an
@@ -30,7 +33,7 @@
 
 use acquisition_client::client::DaemonError;
 use acquisition_plan::PutPolicyError;
-use acquisition_plan::pricing::{Missing, Refused, RefusedKind};
+use acquisition_plan::pricing::{Missing, Refused, RefusedKind, Retry};
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Request, Scope};
 use acquisition_search::error::Offered;
@@ -197,8 +200,12 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
         );
     } else if let Some(refused) = Refused::find(e) {
         doc.extend(refused.fields());
-        if let RefusedKind::NotFound(missing) = &refused.kind {
-            offers.extend(finding(missing));
+        match &refused.kind {
+            RefusedKind::NotFound(missing) => offers.extend(finding(missing)),
+            RefusedKind::Conflict {
+                retry: Some(retry), ..
+            } => offers.push(retrying(retry)),
+            RefusedKind::Conflict { .. } => {}
         }
     } else if let Some(refused) = DaemonError::find(e) {
         doc.insert("kind".into(), json!(refused.kind));
@@ -362,6 +369,34 @@ fn faulted(
             },
         )
     }));
+}
+
+/// A write refused for its revision, offered again at the revision a
+/// write over the target names now (the league seat, fault 3): the
+/// same price over the live row's revision, or as a create (0) where no
+/// row stands; the same clear at the live row's.
+fn retrying(retry: &Retry) -> (Way, String) {
+    let target = retry.target.to_string();
+    let at = retry.if_revision;
+    match &retry.value {
+        Some(value) => (
+            crate::receipt::price_set_way(target, &retry.account, value, Some(at)),
+            match at {
+                0 => {
+                    "the same price as a create, which lands only where no price stands".to_string()
+                }
+                _ => format!("the same price over revision {at}, the row as it stands"),
+            },
+        ),
+        None => (
+            Way::PriceClear {
+                target,
+                account: retry.account.clone(),
+                if_revision: at,
+            },
+            format!("the same clear at revision {at}, the row as it stands"),
+        ),
+    }
 }
 
 /// The ways that would find a target the facts do not hold, from the

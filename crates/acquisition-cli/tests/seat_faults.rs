@@ -2454,3 +2454,102 @@ fn a_plan_of_an_uncovered_league_names_and_offers_the_covered_ones() {
     assert!(run.status.success(), "`{line}`: {}", text(&run));
     assert!(stdout(&run).contains("in Allflame"), "{}", text(&run));
 }
+
+/// The league seat (cli calls 76, 78, 83, 84, 98, 99; mcp 51, 53, 59,
+/// 60, 68): a price write refused for its revision named the revision
+/// and offered nothing, and over a cleared row said "a new price names
+/// no revision" where the clear's own receipt printed the create as
+/// `--if-revision 0`. After a replace no printed command removed the row:
+/// the create's undo was stale. The refusal offers the same write at the
+/// revision a write names now: the live row's, or 0, the create, where
+/// none stands; the stale undo recovers through the offer alone.
+#[test]
+fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
+    let scratch = harness::scratch("seat-conflict-offer");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    Index::load(&base.join("store").join("mock"))
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let manual = |base: &Path| -> Value {
+        sole_json(&acq(
+            base,
+            &[
+                "price",
+                "show",
+                "item/i-std",
+                "--account",
+                "Alice#1234",
+                "--json",
+            ],
+        ))["listing"]["manual"]
+            .clone()
+    };
+    let set = |args: &[&str]| -> std::process::Output {
+        let mut all = vec!["price", "set", "item/i-std"];
+        all.extend(args);
+        all.extend(["--account", "Alice#1234"]);
+        acq(&base, &all)
+    };
+
+    // a create, then a replace: the create's printed undo is stale
+    let out = set(&["exact", "2", "divine"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let stale = printed_in_next(&text(&out))
+        .into_iter()
+        .find(|c| c.contains("price clear"))
+        .unwrap_or_else(|| panic!("no undo: {}", text(&out)));
+    let out = set(&["exact", "3", "divine", "--if-revision", "1"]);
+    assert!(out.status.success(), "{}", text(&out));
+
+    // run as printed it is refused, naming the revision to write over
+    let out = run_as_printed(&base, &stale);
+    assert!(!out.status.success(), "{stale}");
+    assert!(
+        text(&out).contains(
+            "item/i-std has a price at revision 2, not the revision named: \
+             `--if-revision 2` clears it as it stands"
+        ),
+        "{}",
+        text(&out)
+    );
+    // its document offers the clear at that revision, which lands
+    let refused = sole_json(&run_as_printed(&base, &format!("{stale} --json")));
+    assert_eq!(refused["kind"], "conflict", "{refused}");
+    let [offer] = &refused["offers"].as_array().cloned().unwrap_or_default()[..] else {
+        panic!("one offer: {refused}");
+    };
+    assert_eq!(
+        offer["says"], "the same clear at revision 2, the row as it stands",
+        "{refused}"
+    );
+    let line = harness::offered_line(offer);
+    let run = run_as_printed(&base, &line);
+    assert!(run.status.success(), "`{line}`: {}", text(&run));
+    assert_eq!(manual(&base), Value::Null);
+
+    // a set at a wrong revision over the cleared row: offered as a create
+    let out = set(&["exact", "4", "divine", "--if-revision", "7", "--json"]);
+    assert!(!out.status.success());
+    let refused = sole_json(&out);
+    assert!(
+        refused["error"]
+            .as_str()
+            .is_some_and(|e| e.contains("a new price names revision 0, or none")),
+        "{refused}"
+    );
+    let [offer] = &refused["offers"].as_array().cloned().unwrap_or_default()[..] else {
+        panic!("one offer: {refused}");
+    };
+    assert!(
+        offer["argv"]
+            .as_array()
+            .is_some_and(|w| w.ends_with(&[json!("--if-revision"), json!("0")])),
+        "{offer}"
+    );
+    let line = harness::offered_line(offer);
+    let run = run_as_printed(&base, &line);
+    assert!(run.status.success(), "`{line}`: {}", text(&run));
+    assert_eq!(manual(&base)["value"]["amount"], json!("4"));
+}

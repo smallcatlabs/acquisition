@@ -174,6 +174,36 @@ const RECEIPT: &[&str] = &[
     "undo",
 ];
 
+/// Two refusals of one write offer the same ways, each spelled by its
+/// surface and saying the same (the league seat, fault 3: a conflict's
+/// offer), and say the same words, the server's spelling of the CLI they
+/// speak after them (C143): both handed back with `offers` taken out and
+/// the tool's words the CLI's, for the rest to compare whole.
+fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
+    let says = |doc: &Value| -> Vec<Value> {
+        doc["offers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|o| o["says"].clone())
+            .collect()
+    };
+    assert_eq!(says(&by_tool), says(&by_cli), "{by_tool}\n{by_cli}");
+    for doc in [&mut by_tool, &mut by_cli] {
+        if let Some(map) = doc.as_object_mut() {
+            map.remove("offers");
+        }
+    }
+    if let (Some(tool), Some(cli)) = (by_tool["error"].as_str(), by_cli["error"].as_str()) {
+        assert!(
+            tool.starts_with(cli),
+            "the tool's words are the CLI's, spelled after them:\n{tool}\n{cli}"
+        );
+        by_tool["error"] = by_cli["error"].clone();
+    }
+    (by_tool, by_cli)
+}
+
 /// Round 5 of the 2g build: two receipts for one write offer one undo,
 /// each spelled by its surface — the tool's a request naming the tool it
 /// goes to where another's, the CLI's a command line — saying the same,
@@ -588,6 +618,7 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             "{name} {args} / acq {verb:?}: {by_tool}\n{by_cli}"
         );
         undo_alike(&by_tool, &by_cli);
+        let (by_tool, by_cli) = offers_alike(by_tool, by_cli);
         assert_eq!(
             steady(by_tool, RECEIPT),
             steady(by_cli, RECEIPT),
@@ -1044,6 +1075,80 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     let (_, restored) = sent(&mut mcp, "price_set", &replaced);
     assert_eq!(restored["prior"], replaced["written"]);
     assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
+    assert!(no_daemon_appeared(&dir.0));
+}
+
+/// The league seat (mcp calls 51, 53, 59, 60, 68; the CLI's twin is
+/// `seat_faults.rs`'s): a write refused for its revision offered
+/// nothing, so no printed request removed a row after a replace. The
+/// refusal offers the same write at the revision it names now, sent back
+/// as printed to the same tool: the live row's, or `if_revision: 0`, the
+/// create, over a cleared row.
+#[test]
+fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
+    let dir = scratch("mcp-conflict-offer");
+    seed(&dir.0);
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let manual = |mcp: &mut Mcp| {
+        tool(mcp, "price_show", json!({ "target": "item/i-map" })).1["listing"]["manual"].clone()
+    };
+    let (ok, created) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "exact", "amount": "2", "currency": "divine" }),
+    );
+    assert!(ok, "{created}");
+    let (ok, replaced) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "exact", "amount": "3", "currency": "divine",
+                "if_revision": 1 }),
+    );
+    assert!(ok, "{replaced}");
+
+    // the create's undo, now stale: refused, offering the clear at 2
+    let (ok, refused) = tool(&mut mcp, "price_clear", created["undo"]["request"].clone());
+    assert!(!ok, "{refused}");
+    assert_eq!(
+        refused["offers"],
+        json!([{
+            "request": { "target": "item/i-map", "if_revision": 2, "account": USER },
+            "says": "the same clear at revision 2, the row as it stands",
+        }]),
+        "{refused}"
+    );
+    let (ok, cleared) = tool(
+        &mut mcp,
+        "price_clear",
+        refused["offers"][0]["request"].clone(),
+    );
+    assert!(ok, "{cleared}");
+    assert_eq!(manual(&mut mcp), Value::Null);
+
+    // a set at a wrong revision over the cleared row: offered as a create
+    let (ok, refused) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "exact", "amount": "4", "currency": "divine",
+                "if_revision": 7 }),
+    );
+    assert!(!ok, "{refused}");
+    assert_eq!(
+        refused["offers"],
+        json!([{
+            "request": { "target": "item/i-map", "type": "exact", "amount": "4",
+                         "currency": "divine", "if_revision": 0, "account": USER },
+            "says": "the same price as a create, which lands only where no price stands",
+        }]),
+        "{refused}"
+    );
+    let (ok, landed) = tool(
+        &mut mcp,
+        "price_set",
+        refused["offers"][0]["request"].clone(),
+    );
+    assert!(ok, "{landed}");
+    assert_eq!(manual(&mut mcp)["value"]["amount"], json!("4"));
     assert!(no_daemon_appeared(&dir.0));
 }
 

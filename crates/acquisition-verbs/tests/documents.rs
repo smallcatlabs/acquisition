@@ -1405,6 +1405,7 @@ fn every_refusal_is_one_shape_from_one_function() {
                 kind: RefusedKind::Conflict {
                     revision: None,
                     current: None,
+                    retry: None,
                 },
                 message: "item/x has no price of its own".into(),
             }),
@@ -1464,6 +1465,7 @@ fn every_refusal_is_one_shape_from_one_function() {
             kind: RefusedKind::Conflict {
                 revision: None,
                 current: None,
+                retry: None,
             },
             message: "nothing to clear".into(),
         }),

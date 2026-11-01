@@ -388,7 +388,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     let mut t = Transcript::offline(&base);
     let out = t.run(
         &["price", "set", "item/i-map", "skip", "--if-revision", "1"],
-        &["item/i-map has a price at revision 2 (re-read and retry)"],
+        &["item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands"],
     );
     assert!(!out.status.success());
     let (value, revision) =
@@ -576,9 +576,17 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     assert_eq!(
         doc,
         json!({
-            "error": "item/i-map has a price at revision 2 (re-read and retry)",
+            "error": "item/i-map has a price at revision 2, not the revision named: \
+                      `--if-revision 2` writes over it as it stands \
+                      (`acq price show --account 'Alice#1234' item/i-map` reads it)",
             "kind": "conflict",
             "revision": 2,
+            "offers": [{
+                "request": "acq price set --account 'Alice#1234' item/i-map exact 7 divine --if-revision 2",
+                "argv": ["acq", "price", "set", "--account", "Alice#1234", "item/i-map", "exact",
+                         "7", "divine", "--if-revision", "2"],
+                "says": "the same price over revision 2, the row as it stands",
+            }],
         })
     );
     let doc = refused(&[
@@ -609,9 +617,15 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     assert_eq!(
         doc,
         json!({
-            "error": "item/i-map's price was cleared (revision 3); a new price names no revision",
+            "error": "item/i-map's price was cleared (revision 3); a new price names revision 0, or none",
             "kind": "conflict",
             "revision": 3,
+            "offers": [{
+                "request": "acq price set --account 'Alice#1234' item/i-map exact 1 divine --if-revision 0",
+                "argv": ["acq", "price", "set", "--account", "Alice#1234", "item/i-map", "exact",
+                         "1", "divine", "--if-revision", "0"],
+                "says": "the same price as a create, which lands only where no price stands",
+            }],
         })
     );
     let doc = refused(&["price", "clear", "item/i-map", "--json"]);

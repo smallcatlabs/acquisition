@@ -1,9 +1,9 @@
 # golden price_json/a_write_walk_refused: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq price set item/i-map skip --if-revision 1
-# holds "item/i-map has a price at revision 2 (re-read and retry)"
+# holds "item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands"
 --- stderr
-Error: item/i-map has a price at revision 2 (re-read and retry)
+Error: item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands (`acq price show --account 'Alice#1234' item/i-map` reads it)
 --- exit 1
 
 $ acq price set item/i-map exact 1 chisel

@@ -90,9 +90,26 @@ pub enum RefusedKind {
     Conflict {
         revision: Option<i64>,
         current: Option<Box<ManualSide>>,
+        /// The write asked, re-aimed at the revision a write over the
+        /// target names now: a live row's, which this build reads, or 0,
+        /// the create, where no row stands and a price was asked. None
+        /// for a clear with nothing to clear and for a row this build
+        /// cannot read, which is never offered blind (C151). The one
+        /// refusal shape offers it (the league seat, fault 3).
+        retry: Option<Box<Retry>>,
     },
     /// A target the facts do not hold.
     NotFound(Box<Missing>),
+}
+
+/// A refused write as it would land now: its target, the account it ran
+/// as, the price it asked (none: a clear), and the revision to name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Retry {
+    pub target: PriceTarget,
+    pub account: String,
+    pub value: Option<Buyout>,
+    pub if_revision: i64,
 }
 
 /// What a `not_found` refusal knows of the request it refused (round 4
@@ -119,7 +136,30 @@ pub struct Missing {
 }
 
 impl Refused {
-    fn conflict(current: Conflicting, target: &PriceTarget, message: String) -> anyhow::Error {
+    fn conflict(
+        current: Conflicting,
+        target: &PriceTarget,
+        asked: &Asked,
+        message: String,
+    ) -> anyhow::Error {
+        let retry_at = match (&current, asked.verb) {
+            (Conflicting::Live(row), _) if check_value::<Buyout>(&row.value).is_ok() => {
+                Some(row.revision)
+            }
+            (Conflicting::Cleared(_), Verb::Set(_)) => Some(0),
+            _ => None,
+        };
+        let retry = retry_at.map(|if_revision| {
+            Box::new(Retry {
+                target: target.clone(),
+                account: asked.account.to_string(),
+                value: match asked.verb {
+                    Verb::Set(value) => Some(value.clone()),
+                    Verb::Clear => None,
+                },
+                if_revision,
+            })
+        });
         let (revision, current) = match current {
             Conflicting::Live(row) => (
                 Some(row.revision),
@@ -140,7 +180,11 @@ impl Refused {
             Conflicting::Unreadable(revision) => (Some(revision), None),
         };
         anyhow::Error::new(Refused {
-            kind: RefusedKind::Conflict { revision, current },
+            kind: RefusedKind::Conflict {
+                revision,
+                current,
+                retry,
+            },
             message,
         })
     }
@@ -158,7 +202,9 @@ impl Refused {
     pub fn fields(&self) -> serde_json::Map<String, Value> {
         let mut out = serde_json::Map::new();
         match &self.kind {
-            RefusedKind::Conflict { revision, current } => {
+            RefusedKind::Conflict {
+                revision, current, ..
+            } => {
                 out.insert("kind".into(), json!("conflict"));
                 out.insert("revision".into(), json!(revision));
                 if let Some(current) = current {
@@ -623,11 +669,18 @@ fn current_revision(
 }
 
 /// The create-only refusal: a row stands and no revision was named.
-fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str, shown: &str) -> anyhow::Error {
+fn standing(
+    target: &PriceTarget,
+    row: &AnnotationRow,
+    asked: &Asked,
+    verb: &str,
+    shown: &str,
+) -> anyhow::Error {
     let revision = row.revision;
     Refused::conflict(
         Conflicting::Live(row),
         target,
+        asked,
         format!(
             "{target} has a price row of its own at revision {revision}: {verb} names the \
              revision it replaces ({revision}) with `--if-revision {revision}`, never a row it \
@@ -636,11 +689,19 @@ fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str, shown: &str) 
     )
 }
 
-/// Which write a refusal speaks for.
+/// Which write a refusal speaks for: a set, with the price it asked, or
+/// a clear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Verb {
-    Set,
+enum Verb<'a> {
+    Set(&'a Buyout),
     Clear,
+}
+
+/// The write a refusal speaks for, as the account it ran as: what its
+/// offer repeats ([`Retry`]).
+struct Asked<'a> {
+    verb: Verb<'a>,
+    account: &'a str,
 }
 
 /// A write refused for the row's state, in the verb's words: a live row
@@ -652,15 +713,23 @@ fn refused_write(
     annotations: &Annotations,
     target: &PriceTarget,
     current: Option<&AnnotationRow>,
-    verb: Verb,
+    asked: &Asked,
     shown: &str,
 ) -> anyhow::Error {
     if let Some(row) = current {
         let revision = row.revision;
+        let does = match asked.verb {
+            Verb::Set(_) => "writes over it",
+            Verb::Clear => "clears it",
+        };
         return Refused::conflict(
             Conflicting::Live(row),
             target,
-            format!("{target} has a price at revision {revision} (re-read and retry)"),
+            asked,
+            format!(
+                "{target} has a price at revision {revision}, not the revision named: \
+                 `--if-revision {revision}` {does} as it stands (`{shown}` reads it)"
+            ),
         );
     }
     let cleared = target
@@ -668,23 +737,25 @@ fn refused_write(
         .ok()
         .and_then(|(scope, key)| annotations.cleared(scope, &key, BUYOUT_KIND).ok())
         .flatten();
-    let message = match (cleared, verb) {
-        (Some(r), Verb::Set) => {
-            format!("{target}'s price was cleared (revision {r}); a new price names no revision")
+    let message = match (cleared, asked.verb) {
+        (Some(r), Verb::Set(_)) => {
+            format!(
+                "{target}'s price was cleared (revision {r}); a new price names revision 0, or none"
+            )
         }
         (Some(r), Verb::Clear) => format!(
             "{target}'s price was cleared (revision {r}): nothing to clear \
              (`{shown}` reads what covers it)"
         ),
-        (None, Verb::Set) => {
-            format!("{target} has no price of its own; a new price names no revision")
+        (None, Verb::Set(_)) => {
+            format!("{target} has no price of its own; a new price names revision 0, or none")
         }
         (None, Verb::Clear) => format!(
             "nothing to clear: {target} has no price row of its own \
              (`{shown}` reads what covers it)"
         ),
     };
-    Refused::conflict(Conflicting::Cleared(cleared), target, message)
+    Refused::conflict(Conflicting::Cleared(cleared), target, asked, message)
 }
 
 /// The store's compare-and-swap refusal as [`refused_write`]'s; any other
@@ -692,26 +763,27 @@ fn refused_write(
 fn on_conflict(
     annotations: &Annotations,
     target: &PriceTarget,
-    verb: Verb,
+    asked: &Asked,
     e: PriceWriteError,
     shown: &str,
 ) -> anyhow::Error {
     match e {
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
-            refused_write(annotations, target, current.as_deref(), verb, shown)
+            refused_write(annotations, target, current.as_deref(), asked, shown)
         }
         // C151: a stale write over a row this build cannot read is the
         // same conflict shape — kind conflict, the row's revision — in the
         // verb's words, with the revision the write must name to go
         // through (the second review of #63, its fourth finding).
         PriceWriteError::Store(AnnotationError::Unreadable(row)) => {
-            let does = match verb {
-                Verb::Set => "replaces",
+            let does = match asked.verb {
+                Verb::Set(_) => "replaces",
                 Verb::Clear => "clears",
             };
             Refused::conflict(
                 Conflicting::Unreadable(row.revision),
                 target,
+                asked,
                 format!(
                     "{target} holds a value this build cannot read (revision {}: {}); \
                      `--if-revision {}` {does} it deliberately, `{shown}` names it",
@@ -782,13 +854,17 @@ pub fn set(
         Expect::Current => current_revision(annotations, &target, &shown)?,
         Expect::Create => None,
     };
+    let asked = Asked {
+        verb: Verb::Set(&value),
+        account,
+    };
     let write = match set_buyout(annotations, &target, &value, expected, provenance) {
         Err(PriceWriteError::Store(AnnotationError::Conflict { current: Some(row) }))
             if expect == Expect::Create =>
         {
-            return Err(standing(&target, &row, "a write over it", &shown));
+            return Err(standing(&target, &row, &asked, "a write over it", &shown));
         }
-        Err(e) => return Err(on_conflict(annotations, &target, Verb::Set, e, &shown)),
+        Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
         Ok(write) => write,
     };
     Ok(SetReceipt { write, in_facts })
@@ -807,30 +883,28 @@ pub fn clear(
 ) -> Result<PriceWrite> {
     let target = read_target(target)?;
     let shown = read_back(&target, account, quote);
+    let asked = Asked {
+        verb: Verb::Clear,
+        account,
+    };
     let expected = match expect {
         Expect::Exactly(revision) => revision,
         Expect::Current => match current_revision(annotations, &target, &shown)? {
             Some(revision) => revision,
             None => {
-                return Err(refused_write(
-                    annotations,
-                    &target,
-                    None,
-                    Verb::Clear,
-                    &shown,
-                ));
+                return Err(refused_write(annotations, &target, None, &asked, &shown));
             }
         },
         Expect::Create => {
             let (scope, key) = target.address()?;
             return Err(match annotations.get(scope, &key, BUYOUT_KIND)? {
-                Some(row) => standing(&target, &row, "a clear", &shown),
-                None => refused_write(annotations, &target, None, Verb::Clear, &shown),
+                Some(row) => standing(&target, &row, &asked, "a clear", &shown),
+                None => refused_write(annotations, &target, None, &asked, &shown),
             });
         }
     };
     clear_buyout(annotations, &target, expected, provenance)
-        .map_err(|e| on_conflict(annotations, &target, Verb::Clear, e, &shown))
+        .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))
 }
 
 /// `shop render`'s request beside the facts: the page size, the template
