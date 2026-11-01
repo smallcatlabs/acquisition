@@ -592,8 +592,9 @@ fn a_blocked_token_post_leaves_the_job_waiting() {
 /// send a refresh: two accounts' `whoami`, each with a refresh due. The
 /// first refresh `POST` is held at the server, which names the account
 /// it is for; released, it meets the ceiling of one, its job runs to its
-/// end (`whoami` sleeps real time after its refresh, which the park hook
-/// cannot see, so its end is awaited before the runtime is settled), and
+/// end (`whoami` pauses on the clock after its refresh, and a settle
+/// resolves at the park that would move the clock to it, so its end is
+/// awaited before the runtime is settled), and
 /// the other's refresh is refused by the halt. That job waits, no retry
 /// spent, and the pick passes it over while halted: the runtime settles
 /// (no spin), and no second refresh reaches the wire.

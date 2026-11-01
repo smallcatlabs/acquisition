@@ -45,11 +45,12 @@ impl Daemon {
 
         let daemon = self.clone();
         tokio::spawn(async move {
-            let callback = tokio::time::timeout(
-                daemon.login_within,
-                wait_callback(listener, &state, CALLBACK_READ_WITHIN),
-            )
-            .await;
+            let callback = daemon
+                .within(
+                    daemon.login_within,
+                    wait_callback(listener, &state, CALLBACK_READ_WITHIN, daemon.choke.clock()),
+                )
+                .await;
             match callback {
                 Ok(Ok(code)) => {
                     // C133: the exchange is counted from before its send
@@ -442,7 +443,7 @@ impl Daemon {
         timeout: Duration,
     ) -> Option<Result<Outcome, Refusal>> {
         let mut rx = self.events.subscribe();
-        tokio::time::timeout(timeout, async {
+        self.within(timeout, async {
             loop {
                 let held = {
                     let s = self.shared.lock().unwrap();
@@ -961,7 +962,7 @@ pub(super) const CALLBACK_READ_WITHIN: Duration = Duration::from_secs(10);
 /// Wait for the browser to hit the loopback redirect with an auth code.
 ///
 /// Each accepted connection is answered in its own task, its request
-/// read under `read_within`, so a connection that sends nothing holds
+/// read under `read_within` on `clock` (C160), so a connection that sends nothing holds
 /// nothing up: the next accept proceeds, and the silent connection is
 /// dropped unanswered when its bound expires. The flow's `state` is the
 /// one key. A request on the callback path without it, another login's
@@ -976,6 +977,7 @@ pub(super) async fn wait_callback(
     listener: TcpListener,
     expected_state: &str,
     read_within: Duration,
+    clock: Arc<dyn Clock>,
 ) -> Result<auth::Secret, String> {
     let (ended, mut ends) = mpsc::channel::<Result<auth::Secret, String>>(1);
     let expected_state: Arc<str> = Arc::from(expected_state);
@@ -987,6 +989,7 @@ pub(super) async fn wait_callback(
                     stream,
                     expected_state.clone(),
                     read_within,
+                    clock.clone(),
                     ended.clone(),
                 ));
             }
@@ -1002,9 +1005,10 @@ async fn answer_callback(
     mut stream: TcpStream,
     expected_state: Arc<str>,
     read_within: Duration,
+    clock: Arc<dyn Clock>,
     ended: mpsc::Sender<Result<auth::Secret, String>>,
 ) {
-    let Ok(Some(req)) = tokio::time::timeout(read_within, mockggg::read_request(&mut stream)).await
+    let Ok(Some(req)) = within_on(&*clock, read_within, mockggg::read_request(&mut stream)).await
     else {
         return;
     };

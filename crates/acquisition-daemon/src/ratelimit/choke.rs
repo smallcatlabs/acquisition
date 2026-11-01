@@ -321,6 +321,13 @@ impl ChokePoint {
         self.clock.wall()
     }
 
+    /// The clock itself, shared: for a wait that holds no daemon (the
+    /// login's callback reads, `daemon/login.rs`), so it too sleeps
+    /// through the daemon's one clock (C160).
+    pub(crate) fn clock(&self) -> Arc<dyn Clock> {
+        self.clock.clone()
+    }
+
     pub(crate) async fn sleep(&self, duration: Duration) {
         self.clock.sleep(duration).await;
     }

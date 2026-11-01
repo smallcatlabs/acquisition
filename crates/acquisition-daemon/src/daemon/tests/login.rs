@@ -617,7 +617,13 @@ async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let waiting = tokio::spawn(async move {
-        wait_callback(listener, "st-expected", Duration::from_secs(3600)).await
+        wait_callback(
+            listener,
+            "st-expected",
+            Duration::from_secs(3600),
+            Arc::new(SystemClock),
+        )
+        .await
     });
 
     let silent = tokio::net::TcpStream::connect(addr).await.unwrap();
@@ -648,8 +654,15 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
     use tokio::io::AsyncReadExt as _;
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let waiting =
-        tokio::spawn(async move { wait_callback(listener, "st-expected", Duration::ZERO).await });
+    let waiting = tokio::spawn(async move {
+        wait_callback(
+            listener,
+            "st-expected",
+            Duration::ZERO,
+            Arc::new(SystemClock),
+        )
+        .await
+    });
 
     let mut silent = tokio::net::TcpStream::connect(addr).await.unwrap();
     let mut byte = [0u8; 1];

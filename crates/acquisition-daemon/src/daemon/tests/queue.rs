@@ -1377,7 +1377,9 @@ fn refusal_of(answer: Response, what: &str) -> (ErrorKind, String) {
 /// a waiting one keeps its reprioritisation, ids continue, and a third
 /// lifetime has nothing to restore. A component test: three lifetimes in
 /// one test, the second's Running fabricated under `shared` as `process`
-/// writes it, which no door of one lifetime reaches.
+/// writes it, which no door of one lifetime reaches. The jobs the second
+/// lifetime runs sleep zero seconds: a sleep is on the daemon's clock
+/// (C160), which nothing moves in a component test.
 #[tokio::test]
 async fn the_queue_and_results_survive_a_daemon_restart() {
     let db = test_db_path();
@@ -1404,7 +1406,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     let running = daemon
         .submit(
             "sleep".into(),
-            json!({ "seconds": 0.3 }),
+            json!({ "seconds": 0.0 }),
             2,
             "b".into(),
             None,
@@ -1419,7 +1421,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     let waiting = daemon
         .submit(
             "sleep".into(),
-            json!({ "seconds": 0.01 }),
+            json!({ "seconds": 0.0 }),
             1,
             "c".into(),
             None,
@@ -1447,7 +1449,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     let fresh = daemon
         .submit(
             "sleep".into(),
-            json!({ "seconds": 0.01 }),
+            json!({ "seconds": 0.0 }),
             0,
             "d".into(),
             None,

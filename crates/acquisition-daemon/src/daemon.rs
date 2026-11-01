@@ -1006,6 +1006,28 @@ impl Connections {
     }
 }
 
+/// A bound that expired before its future was ready ([`within_on`]): the
+/// daemon's own, since tokio's `Elapsed` is built only by tokio.
+#[derive(Debug)]
+struct Expired;
+
+/// C160 — every tokio timer in the daemon sleeps through its one `Clock`:
+/// `future` raced against `bound` on `clock`, `biased` so the future is
+/// polled first and one ready at its bound's instant wins, as tokio's
+/// `timeout` has it. For a bound that holds no daemon (the login's
+/// callback reads); a daemon's own is [`Daemon::within`].
+async fn within_on<T>(
+    clock: &dyn Clock,
+    bound: Duration,
+    future: impl std::future::Future<Output = T>,
+) -> Result<T, Expired> {
+    tokio::select! {
+        biased;
+        done = future => Ok(done),
+        () = clock.sleep(bound) => Err(Expired),
+    }
+}
+
 /// The lock order. A thread that holds one of these takes only those
 /// after it: `credentials` → `store` → `shared` → `jobs_db` →
 /// `queue_failure` → `log`. `credentials` is taken only on a blocking
@@ -1526,6 +1548,16 @@ impl Daemon {
                 Err(e) => panic!("a blocking task did not run to its end: {e}"),
             }
         })
+    }
+
+    /// C160: `future` raced against `bound` on the daemon's clock, as
+    /// tokio's `timeout` races it on tokio's wheel ([`within_on`]).
+    async fn within<T>(
+        &self,
+        bound: Duration,
+        future: impl std::future::Future<Output = T>,
+    ) -> Result<T, Expired> {
+        within_on(&*self.choke.clock(), bound, future).await
     }
 
     /// C148: whether the start's restore has landed.

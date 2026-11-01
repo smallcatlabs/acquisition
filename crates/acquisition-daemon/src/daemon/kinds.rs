@@ -560,21 +560,23 @@ impl Daemon {
                 }
             }
             "sleep" => {
-                // Real seconds by design, not the daemon's clock: the mock's
-                // demo and the watch tests want a job that visibly takes time.
-                // The door's check of `seconds` (C127), again: a row that
+                // C160: seconds on the daemon's clock, in 200 ms slices so a
+                // cancel is seen within one: real seconds under the system
+                // clock (the mock's demo and the watch tests want a job that
+                // visibly takes time), parked and advanced under the door's
+                // clock like any other wait. The door's check of `seconds` (C127), again: a row that
                 // never passed the door fails in its words rather than
                 // panic in the timer or run a default it would refuse.
                 if let Err(words) = check_sleep(&params) {
                     return Ok(Outcome::failure(words));
                 }
                 let seconds = params.get("seconds").and_then(Value::as_f64).unwrap_or(3.0);
-                let deadline = Instant::now() + Duration::from_secs_f64(seconds);
-                while Instant::now() < deadline {
+                let deadline = self.choke.now() + Duration::from_secs_f64(seconds);
+                while self.choke.now() < deadline {
                     if self.cancelled(id) {
                         return Ok(Outcome::Cancelled);
                     }
-                    tokio::time::sleep(Duration::from_millis(200)).await;
+                    self.choke.sleep(Duration::from_millis(200)).await;
                 }
                 Outcome::Success {
                     payload: json!({ "slept_seconds": seconds }),
@@ -618,7 +620,7 @@ impl Daemon {
                         Ok(pair) => pair,
                         Err(error) => return refused(error),
                     };
-                tokio::time::sleep(Duration::from_millis(300)).await;
+                self.choke.sleep(Duration::from_millis(300)).await;
                 if self.cancelled(id) {
                     return Ok(Outcome::Cancelled);
                 }

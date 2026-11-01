@@ -693,7 +693,7 @@ impl Daemon {
                         .saturating_mul(1u32 << run.min(16))
                         .min(pause_cap);
                     run = run.saturating_add(1);
-                    tokio::time::sleep(pause).await;
+                    self.choke.sleep(pause).await;
                 }
             }
         }

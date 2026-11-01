@@ -1845,7 +1845,9 @@ fn accept_failures(log_path: &std::path::Path) -> Vec<String> {
 }
 
 /// C134: an error from `accept` is logged once and served through: the
-/// next connection is answered, and nothing exits.
+/// next connection is answered, and nothing exits. The pause's cap is
+/// zero: the backoff sleeps on the daemon's clock (C160), which nothing
+/// moves in a component test, and a zero pause is ready at once.
 #[cfg(unix)]
 #[tokio::test]
 async fn a_listener_error_is_served_through() {
@@ -1860,7 +1862,7 @@ async fn a_listener_error_is_served_through() {
         errors: [std::io::Error::from(std::io::ErrorKind::ConnectionAborted)].into(),
         inner: Some(listener),
     };
-    let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::from_millis(1)));
+    let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::ZERO));
 
     let answer = tokio::time::timeout(HANG, async {
         let stream = tokio::net::UnixStream::connect(&path).await?;
