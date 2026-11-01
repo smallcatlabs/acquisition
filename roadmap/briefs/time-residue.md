@@ -1,9 +1,11 @@
 # time-residue — the seam's leftovers: the spec's clock, the client's ceilings, the boundary value, the mock's window (#131, #152)
 
-Cut twice: the first draft (`64c91def`), reviewed cold
-(`roadmap/reviews/time-residue-brief-64c91def.md`, the prompt beside:
-nine findings, two nitpicks); this cut answers each, listed at the foot
-under "Taken from the review". Written by the orchestrating session on
+Cut three times: the first draft (`64c91def`) and the re-cut
+(`a7904b32`), each reviewed cold
+(`roadmap/reviews/time-residue-brief-<sha>.md`, the prompt beside: nine
+findings, then three, two nitpicks each); this cut answers the second
+review's three, listed at the foot under "Taken from the reviews" with
+the first's nine. Written by the orchestrating session on
 2026-11-01 from `roadmap/reviews/time-seam-retrospective.md` (rows E1,
 E2, E3 and C1 of its §10; the owner's "yes to all" of that day,
 question 3: a `Boundary` value at the component constructors meets
@@ -121,8 +123,12 @@ sentence a sweep greps for.
   5, `dispatch.rs` 7, `evict.rs` 3, `exit.rs` 6, `idle.rs` 4, `list.rs`
   1, `log.rs` 3, `login.rs` 1, `parents.rs` 4, `queue.rs` 4, `quote.rs`
   1, `refresh.rs` 3, `stress.rs` 1), some through a helper of the
-  file's own (`list.rs:50` `learned_daemon`, `exit.rs:77`
-  `exit_daemon_on`) that the test reaches by a call; two tests build
+  file's own that the test reaches by a call, one level deep
+  (`list.rs:50` `learned_daemon`) or deeper (`credentials.rs:649` calls
+  `restoring_daemon`, which calls `restoring_daemon_on` at 568, which
+  builds at 575; `exit.rs:1227` and `:1232` call a helper whose own doc
+  at 1194 says "component test", which calls `exit_daemon`, then
+  `exit_daemon_on` at 77, which builds at 83); two tests build
   a daemon directly through `Daemon::builder` (`login.rs:73`,
   `sessions.rs:193`); pure tests that build none (the `Life` table,
   `exit.rs:1095`, with no sentence today); a module doc that names the
@@ -151,8 +157,9 @@ sentence a sweep greps for.
   window (55–60), the step at 103 that requires a wait ("a wait, not
   `ready`: the golden masks its seconds"), the golden
   `goldens/new_league/launch_morning.txt:72` holding
-  `stash-request-limit  7 requests — ~`; the client harness's masking
-  of an ETA's seconds (the `~<eta>s` the golden holds), which
+  `stash-request-limit  7 requests — ~`; the CLI harness's `eta_rule`
+  (`crates/acquisition-cli/tests/harness/mod.rs:1113`, applied at 706),
+  which masks an ETA's seconds (the `~<eta>s` the golden holds) and
   normalises a number, not a word, so `ready` and a masked ETA are
   told apart. The retrospective's measurement: that test 18.5 s, the
   suite 23.4 s wall.
@@ -170,8 +177,9 @@ Fixed before the work starts:
 - **The client's short bounds**: the twelve lines above, nine waits and
   three intervals, by the grep in Read; `wait_all_terminal`'s 60 s.
 - **The census at `d326cfa5`**, attributed tests (`#[test]` and
-  `#[tokio::test]`, by `grep -c` per file): 196 across the eighteen
-  files; in the eight files with no door test (`idle.rs` 4, `list.rs`
+  `#[tokio::test]`, by `grep -c` per file): 197 across the nineteen
+  files under `daemon/tests`, `door.rs`'s one (1367) among them; in the
+  eight files with no door test (`idle.rs` 4, `list.rs`
   2, `log.rs` 8, `evict.rs` 3, `credentials.rs` 11, `responses.rs` 5,
   `diagnostics.rs` 1, `stress.rs` 1: 35), four tests say "component"
   in their own doc (`log.rs` 1, `credentials.rs` 3) and `responses.rs`'s
@@ -256,11 +264,18 @@ In this order, one commit each, each gated on its own tree.
    reaches one of the three constructors, the first argument read), a
    sentence ("a component test", "a component case" or "component
    table" in its own doc or its module's), or neither; a test with both
-   a value and a sentence counts under the value. Helpers are traversed
-   one level within the file; a test that reaches a constructor only
-   through a helper in another file is "neither" until the helper
-   takes the boundary from its caller. The reader counts tests, never
-   rows: no case loop is expanded. Its totals before (at `d326cfa5`)
+   a value and a sentence counts under the value. Helper chains within
+   the file are followed to any depth, cycle-safe (each helper visited
+   once per test), and a `Boundary` a helper forwards from its own
+   arguments resolves to the value the test passes; a helper's own doc
+   sentence is no sentence for the tests that call it (`exit.rs:1194`'s
+   covers that function alone), so `exit.rs:1227` and `:1232` take
+   their value through the chain or gain their own sentence; a test
+   that reaches a constructor only through a helper in another file is
+   "neither" until that helper takes the boundary from its caller. The
+   reader's scope is every file under `daemon/tests`, `door.rs`
+   included. The reader counts tests, never rows: no case loop is
+   expanded. Its totals before (at `d326cfa5`)
    and after in the commit message. After: zero neither.
 
 4. **The mock's window, behind a measurement.** First the measurement:
@@ -398,9 +413,11 @@ from the test's own doc; any golden or failure the two readings of
 Do 4 did not cover; and whether the census reader should become a gate
 stage.
 
-## Taken from the review
+## Taken from the reviews
 
-The first review's nine (`time-residue-brief-64c91def.md`):
+The first review's nine (`time-residue-brief-64c91def.md`), as the
+second review judged them (eight answered, finding 5 narrower until
+this cut):
 
 1. A `sleepers()` wait cannot see a GET parked on the gate's oneshot:
    the GET is pinned and polled once before the trip (Read, Do 1).
@@ -426,3 +443,13 @@ The first review's nine (`time-residue-brief-64c91def.md`):
    reader's before the number the close reports (Input).
 9. Gate success as execution evidence: named as such, with the report,
    the re-run and the close's message as its homes (Done when).
+
+The second review's three (`time-residue-brief-a7904b32.md`):
+
+1. A one-level traversal misses chains two and three deep: helper
+   chains followed to any depth, cycle-safe, forwarded values resolved,
+   a helper's own sentence no sentence for its callers (Read, Do 3).
+2. The baseline omitted `door.rs`'s one attributed test: 197 across
+   nineteen files, the reader's scope every file (Input, Do 3).
+3. The ETA mask named as the client harness's: the CLI harness's
+   `eta_rule` (Read).
