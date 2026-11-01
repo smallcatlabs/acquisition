@@ -2,7 +2,7 @@
 
 $ acq tabs --type UniqueStash --never-fetched
 # holds "40 never-fetched UniqueStash tabs"
-# holds "10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"
+# holds "10 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all"
 --- stdout
 42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items
 40 never-fetched UniqueStash tabs
@@ -17,10 +17,10 @@ Uniques 15 UniqueStash      -  never                     u15
 Uniques 16 UniqueStash      -  never                     u16
 Uniques 17 UniqueStash      -  never                     u17
 Uniques 18 UniqueStash      -  never                     u18
-10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all
+10 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all
 
 $ acq tabs --type UniqueStash --never-fetched --limit 25
-# holds "25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"
+# holds "25 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all"
 --- stdout
 42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items
 40 never-fetched UniqueStash tabs
@@ -50,4 +50,4 @@ Uniques 29 UniqueStash      -  never                     u29
 Uniques 3  UniqueStash      -  never                     u3
 Uniques 30 UniqueStash      -  never                     u30
 Uniques 31 UniqueStash      -  never                     u31
-25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all
+25 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all

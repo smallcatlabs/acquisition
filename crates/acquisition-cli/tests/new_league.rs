@@ -81,7 +81,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
                 format!("refresh {LEAGUE} on mock"),
                 format!("{first} request:"),
                 format!("characters: none in {LEAGUE}"),
-                format!("next: acq refresh --apply --league {LEAGUE}"),
+                format!("next: acq refresh --apply --account ExileTester --realm pc --league {LEAGUE}"),
             ],
         ),
         step(
@@ -89,7 +89,9 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
             1,
             &[
                 format!("{0} request, {0} done", first),
-                format!("next: `acq refresh --plan --league {LEAGUE}` — {second} requests more"),
+                format!(
+                    "next: `acq refresh --plan --account ExileTester --realm pc --league {LEAGUE}` — {second} requests more"
+                ),
             ],
         ),
         step(
@@ -141,7 +143,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
             2,
             &[
                 format!("no items on record for {LEAGUE}"),
-                format!("next: `acq refresh --plan --league {LEAGUE}`"),
+                format!("next: `acq refresh --plan --account ExileTester --realm pc --league {LEAGUE}`"),
             ],
         ),
         step(

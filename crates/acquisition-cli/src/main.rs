@@ -1139,6 +1139,24 @@ impl Terminal {
     }
 }
 
+/// A command line as this terminal prints it: each word quoted for the
+/// declared shell (C156), the one quoting every printed command takes.
+pub(crate) fn printed_line(words: &[String]) -> String {
+    words
+        .iter()
+        .map(|w| acquisition_search::answer::shell_quoted(w))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A way's words as this terminal spells it, for a line a text answer
+/// prints: the words its offer would send ([`Terminal`]'s `argv`), so a
+/// printed next step and an offer are one spelling.
+pub(crate) fn way_words(way: &acquisition_verbs::refusal::Way) -> Vec<String> {
+    use acquisition_verbs::refusal::Surface as _;
+    Terminal::writing().argv(way).unwrap_or_default()
+}
+
 impl acquisition_verbs::refusal::Surface for Terminal {
     fn words(&self, e: &anyhow::Error) -> String {
         failure_words(e)
@@ -1160,12 +1178,7 @@ impl acquisition_verbs::refusal::Surface for Terminal {
             _ => {}
         }
         let words = self.argv(way)?;
-        let line = words
-            .iter()
-            .map(|w| acquisition_search::answer::shell_quoted(w))
-            .collect::<Vec<_>>()
-            .join(" ");
-        Some((json!(line), None))
+        Some((json!(printed_line(&words)), None))
     }
 
     /// The command line a way is sent back as, word by word and unquoted
@@ -1199,6 +1212,34 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 realm,
                 league,
             } => [words(&["acq", "tabs"]), scope(account, realm, league)].concat(),
+            Way::RefreshPlan {
+                account,
+                realm,
+                league,
+            } => [
+                words(&["acq", "refresh", "--plan"]),
+                scope(account, realm, league),
+            ]
+            .concat(),
+            // a reviewed file's scope is the plan's own, named all the
+            // same: the apply refuses a flag the plan does not match
+            Way::RefreshApply {
+                account,
+                realm,
+                league,
+                plan,
+            } => [
+                words(&[
+                    "acq",
+                    "refresh",
+                    &match plan {
+                        Some(path) => format!("--apply={path}"),
+                        None => "--apply".to_string(),
+                    },
+                ]),
+                scope(account, realm, league),
+            ]
+            .concat(),
             Way::PriceShow {
                 target,
                 account,

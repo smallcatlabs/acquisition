@@ -55,6 +55,22 @@ pub enum Way {
         realm: Realm,
         league: String,
     },
+    /// The refresh plan of one league, compiled from the stored policy.
+    RefreshPlan {
+        account: String,
+        realm: Realm,
+        league: String,
+    },
+    /// The refresh of one league applied: its stored policy compiled now,
+    /// or with `plan` the reviewed envelope at that path. A surface that
+    /// applies a plan it is handed, never one it compiles from a scope,
+    /// sends none ([`Surface::request`]).
+    RefreshApply {
+        account: String,
+        realm: Realm,
+        league: String,
+        plan: Option<String>,
+    },
     /// One price target in one league.
     PriceShow {
         target: String,

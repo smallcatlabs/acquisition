@@ -1,7 +1,8 @@
 //! The faults the whole-CLI seat found (2026-10-13,
-//! `audits/rehome-2026-10/seat/REPORT.md` at `7653f8b0`) and the trade
-//! import's seat (2026-10-17, `audits/trade-2026-10/seat/`), each held by
-//! the test named for it. A test here drives the real binary in a scratch
+//! `audits/rehome-2026-10/seat/REPORT.md` at `7653f8b0`), the trade
+//! import's seat (2026-10-17, `audits/trade-2026-10/seat/`) and the league
+//! seat (2026-11-01, `audits/league-2026-11/seat/`), each held by the test
+//! named for it. A test here drives the real binary in a scratch
 //! world against the mock; nothing reaches GGG.
 
 use std::path::{Path, PathBuf};
@@ -457,13 +458,18 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     let mut t = Transcript::new(&base);
     let out = t.run(
         &["refresh", "--apply"],
-        &["next: `acq refresh --plan` — ", " more are planned now"],
+        &[
+            "next: `acq refresh --plan --account alice --realm pc --league Standard` — ",
+            " more are planned now",
+        ],
     );
     assert!(out.status.success(), "{}", text(&out));
     let said = stdout(&out);
     let last = said.lines().last().unwrap_or_default();
     assert!(
-        last.starts_with("next: `acq refresh --plan` — ") && last.contains(" more are planned now"),
+        last.starts_with(
+            "next: `acq refresh --plan --account alice --realm pc --league Standard` — "
+        ) && last.contains(" more are planned now"),
         "{said}"
     );
     golden(file!(), "an_apply_ends_on_what_is_still_planned", &t);
@@ -681,7 +687,7 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
         &["tabs"],
         &[
             "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items",
-            "next: `acq tabs --expand` lists all 41",
+            "next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 41",
         ],
     ));
     assert!(
@@ -711,8 +717,8 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     t.run(
         &["tabs", "--league", "Hard Mode"],
         &[
-            "`acq tabs --expand --league 'Hard Mode'` lists all 41",
-            r#"`acq search --realm pc 'league="Hard Mode"' --count tab`"#,
+            "`acq tabs --account 'Alice#1234' --realm pc --league 'Hard Mode' --expand` lists all 41",
+            r#"`acq search --account 'Alice#1234' --realm pc 'league="Hard Mode"' --count tab`"#,
         ],
     );
     // Twenty tabs, thirty or fewer: counted and the ten listed, like any
@@ -737,7 +743,7 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
         &[
             "20 tabs in Small: 0 fetched, 20 never fetched; 0 items",
             "the 10 with the most items:",
-            "`acq tabs --expand --league Small` lists all 20",
+            "`acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20",
         ],
     );
     t.run(
@@ -804,7 +810,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         &["tabs", "--type", "UniqueStash", "--never-fetched"],
         &[
             "40 never-fetched UniqueStash tabs",
-            "10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all",
+            "10 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all",
         ],
     );
     t.run(
@@ -816,7 +822,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
             "--limit",
             "25",
         ],
-        &["25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"],
+        &["25 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all"],
     );
     golden(file!(), "tabs_never_fetched_of_a_type", &t);
     let all = stdout(&acq(
@@ -2315,4 +2321,95 @@ fn the_status_next_step_runs_as_printed_in_its_league() {
         "{}",
         String::from_utf8_lossy(&run.stdout)
     );
+}
+
+/// The commands a line prints between backticks, the line the first of
+/// `said`'s to hold `marker`.
+fn printed_in_line(said: &str, marker: &str) -> Vec<String> {
+    let line = said
+        .lines()
+        .find(|l| l.contains(marker))
+        .unwrap_or_else(|| panic!("no line holding {marker:?}: {said}"));
+    line.split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_string)
+        .collect()
+}
+
+/// The league seat (cli calls 24 to 28, 43, 44, 48, 49): with a second
+/// account known, the next steps `policy set`, `refresh --plan`, `refresh
+/// --apply` and `tabs` printed named no account, and `policy set`'s named
+/// no league, so as printed it planned Standard, which the policy did not
+/// cover, and the rest were refused as ambiguous. Each names the account
+/// the verb ran as and the scope it resolved, and runs as printed in a
+/// world of one logged-in account and one the index holds alone.
+#[test]
+fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
+    let scratch = harness::scratch("seat-next-account");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let _login = login(&base, "seat");
+    seed_one_account(&base, "Other#1", "u-other");
+    let run = |command: &str| -> String {
+        let out = run_as_printed(&base, command);
+        let said = text(&out);
+        assert!(out.status.success(), "`{command}`: {said}");
+        stdout(&out)
+    };
+
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+    let out = acq(
+        &base,
+        &[
+            "policy",
+            "set",
+            policy,
+            "--if-revision",
+            "0",
+            "--account",
+            "seat",
+        ],
+    );
+    let said = stdout(&out);
+    assert!(out.status.success(), "{}", text(&out));
+    let [preview] = &printed_in_line(&said, "preview the work with")[..] else {
+        panic!("one plan per league written: {said}");
+    };
+    assert!(preview.contains("--league Rehearsal"), "{preview}");
+
+    // the plan, as printed; its apply, as printed
+    let planned = run(preview);
+    let apply = planned
+        .lines()
+        .find_map(|l| l.strip_prefix("next: "))
+        .unwrap_or_else(|| panic!("no next line: {planned}"))
+        .to_string();
+    assert!(apply.contains("--account seat"), "{apply}");
+    let applied = run(&apply);
+    // the first round lists the tabs it then fetches, so more are planned
+    let [again] = &printed_in_next(&applied)[..] else {
+        panic!("one command in the apply's next line: {applied}");
+    };
+    run(again);
+
+    // a league counted past one row prints its two next commands
+    let listed = stdout(&acq(
+        &base,
+        &[
+            "tabs",
+            "--account",
+            "seat",
+            "--league",
+            "Rehearsal",
+            "--limit",
+            "1",
+        ],
+    ));
+    let next = printed_in_next(&listed);
+    assert_eq!(next.len(), 2, "{listed}");
+    for command in &next {
+        assert!(command.contains("--account seat"), "{command}");
+        run(command);
+    }
 }

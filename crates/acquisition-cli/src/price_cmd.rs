@@ -250,28 +250,6 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
     out
 }
 
-/// The realm and league an answer resolved, as flags, where they are not
-/// the defaults: what the `acq refresh --plan` a status names carries
-/// (the release seat's rerun: Allflame's next step read Standard, call
-/// 48). A printed `acq price` read carries [`scope_flags`] instead.
-pub(crate) fn place_flags(h: &ReportHeader) -> String {
-    format!(
-        "{}{}",
-        match h.realm.segment() {
-            Some(seg) => format!(" --realm {seg}"),
-            None => String::new(),
-        },
-        if h.league == pricing::DEFAULT_LEAGUE {
-            String::new()
-        } else {
-            format!(
-                " --league {}",
-                acquisition_search::answer::shell_quoted(&h.league)
-            )
-        }
-    )
-}
-
 /// The one scope every printed `acq price` read carries (step 2g's
 /// round-2 fix rule, refined by its review): the account it ran as, and
 /// the realm and league the answer resolved, always — a default league
@@ -300,7 +278,6 @@ pub(crate) fn write_flags(account: &str) -> String {
 
 fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
     // Every command the next step prints, as it runs ([`scope_flags`]).
-    let place_flags = place_flags(&r.header);
     let scope = scope_flags(&r.header, account);
     let mut out = String::new();
     let h = &r.header;
@@ -331,7 +308,14 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
         let next = if r.rows.unreadable_total > 0 {
             format!("`acq price status {scope} --expand` lists the rows that cannot be read")
         } else {
-            format!("`acq refresh --plan{place_flags}` shows what a refresh would fetch")
+            // the answer's league as the account it ran as (the release
+            // seat's rerun, call 48; the league seat's rule)
+            let plan = crate::printed_line(&crate::way_words(&Way::RefreshPlan {
+                account: account.to_string(),
+                realm: h.realm,
+                league: h.league.clone(),
+            }));
+            format!("`{plan}` shows what a refresh would fetch")
         };
         out.push_str(&format!("next: {next}\n"));
         return out;
@@ -1310,7 +1294,9 @@ mod tests {
         let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
         assert!(text.starts_with("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n"), "{text}");
         assert!(
-            text.ends_with("next: `acq refresh --plan` shows what a refresh would fetch\n"),
+            text.ends_with(
+                "next: `acq refresh --plan --account a --realm pc --league Standard` shows what a refresh would fetch\n"
+            ),
             "{text}"
         );
         empty.stash_listing = None;

@@ -342,6 +342,17 @@ impl refusal::Surface for Spoken<'_> {
                 json!({ "account": account, "realm": realm.as_str(), "league": league }),
                 other("tabs"),
             )),
+            Way::RefreshPlan {
+                account,
+                realm,
+                league,
+            } => Some((
+                json!({ "account": account, "realm": realm.as_str(), "league": league }),
+                other("refresh_plan"),
+            )),
+            // apply_plan takes the envelope refresh_plan returns, never a
+            // scope it compiles: no request here applies one by its league
+            Way::RefreshApply { .. } => None,
             Way::PriceShow {
                 target,
                 account,

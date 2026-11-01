@@ -9,7 +9,7 @@ Gear PremiumStash      1  <age> ago                 a1
 
 $ acq tabs
 # holds "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items"
-# holds "next: `acq tabs --expand` lists all 41"
+# holds "next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 41"
 --- stdout
 41 tabs in Standard: 1 fetched, 40 never fetched; 1 items
 type           tabs  fetched   items
@@ -27,11 +27,11 @@ Dump 14 QuadStash         -  never                     q14
 Dump 15 QuadStash         -  never                     q15
 Dump 16 QuadStash         -  never                     q16
 Dump 17 QuadStash         -  never                     q17
-next: `acq tabs --expand` lists all 41; `acq search --realm pc league=Standard --count tab` counts what a query matches by tab
+next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 41; `acq search --account 'Alice#1234' --realm pc league=Standard --count tab` counts what a query matches by tab
 
 $ acq tabs --league 'Hard Mode'
-# holds "`acq tabs --expand --league 'Hard Mode'` lists all 41"
-# holds "`acq search --realm pc 'league=\"Hard Mode\"' --count tab`"
+# holds "`acq tabs --account 'Alice#1234' --realm pc --league 'Hard Mode' --expand` lists all 41"
+# holds "`acq search --account 'Alice#1234' --realm pc 'league=\"Hard Mode\"' --count tab`"
 --- stdout
 41 tabs in Hard Mode: 0 fetched, 41 never fetched; 0 items
 type           tabs  fetched   items
@@ -49,12 +49,12 @@ Dump 14 QuadStash         -  never                     q14
 Dump 15 QuadStash         -  never                     q15
 Dump 16 QuadStash         -  never                     q16
 Dump 17 QuadStash         -  never                     q17
-next: `acq tabs --expand --league 'Hard Mode'` lists all 41; `acq search --realm pc 'league="Hard Mode"' --count tab` counts what a query matches by tab
+next: `acq tabs --account 'Alice#1234' --realm pc --league 'Hard Mode' --expand` lists all 41; `acq search --account 'Alice#1234' --realm pc 'league="Hard Mode"' --count tab` counts what a query matches by tab
 
 $ acq tabs --league Small
 # holds "20 tabs in Small: 0 fetched, 20 never fetched; 0 items"
 # holds "the 10 with the most items:"
-# holds "`acq tabs --expand --league Small` lists all 20"
+# holds "`acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20"
 --- stdout
 20 tabs in Small: 0 fetched, 20 never fetched; 0 items
 type           tabs  fetched   items
@@ -72,7 +72,7 @@ Dump 14 QuadStash         -  never                     q14
 Dump 15 QuadStash         -  never                     q15
 Dump 16 QuadStash         -  never                     q16
 Dump 17 QuadStash         -  never                     q17
-next: `acq tabs --expand --league Small` lists all 20; `acq search --realm pc league=Small --count tab` counts what a query matches by tab
+next: `acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20; `acq search --account 'Alice#1234' --realm pc league=Small --count tab` counts what a query matches by tab
 
 $ acq tabs --league Small --limit 15
 # holds "the 15 with the most items:"
@@ -98,4 +98,4 @@ Dump 19 QuadStash         -  never                     q19
 Dump 2  QuadStash         -  never                     q2
 Dump 3  QuadStash         -  never                     q3
 Dump 4  QuadStash         -  never                     q4
-next: `acq tabs --expand --league Small` lists all 20; `acq search --realm pc league=Small --count tab` counts what a query matches by tab
+next: `acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20; `acq search --account 'Alice#1234' --realm pc league=Small --count tab` counts what a query matches by tab

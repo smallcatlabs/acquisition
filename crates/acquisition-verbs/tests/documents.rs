@@ -1329,6 +1329,8 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::Again { .. } => None,
             Way::Search(_) => Some("search"),
             Way::Tabs { .. } => Some("tabs"),
+            Way::RefreshPlan { .. } => Some("refresh_plan"),
+            Way::RefreshApply { .. } => Some("apply_plan"),
             Way::PriceShow { .. } => Some("price_show"),
             Way::PriceStatus { .. } => Some("price_status"),
             Way::PriceSet { .. } => Some("price_set"),

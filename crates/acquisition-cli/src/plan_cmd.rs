@@ -76,6 +76,7 @@ use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteScope};
 use acquisition_protocol::realm::Realm;
 use acquisition_verbs::refresh::{holding_jobs, spent_phrase};
+use acquisition_verbs::refusal::Way;
 use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
@@ -170,8 +171,9 @@ pub fn policy_set(
         println!("{}", serde_json::to_string_pretty(&receipt)?);
     } else {
         println!(
-            "sync policy written (revision {}) — preview the work with `acq refresh --plan`",
-            written.row.revision
+            "sync policy written (revision {}){}",
+            written.row.revision,
+            preview_line(&written)
         );
         print!(
             "{}",
@@ -179,6 +181,39 @@ pub fn policy_set(
         );
     }
     Ok(())
+}
+
+/// The policy write's next step: the plan of each league the realms it
+/// wrote cover, as the account it ran as, so each runs as printed with a
+/// second account known and plans the league written, never Standard
+/// unasked (the league seat, cli call 24). None where the realms written
+/// cover no league (a realm removed).
+fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String {
+    let Ok(policy) = acquisition_plan::SyncPolicy::from_value(&written.row.value) else {
+        return String::new();
+    };
+    let lines: Vec<String> = written
+        .target
+        .realms
+        .iter()
+        .filter_map(|realm| Some((*realm, policy.realms.get(realm)?)))
+        .flat_map(|(realm, covered)| {
+            covered.leagues.keys().map(move |league| {
+                format!(
+                    "`{}`",
+                    crate::printed_line(&crate::way_words(&Way::RefreshPlan {
+                        account: written.target.account.clone(),
+                        realm,
+                        league: league.clone(),
+                    }))
+                )
+            })
+        })
+        .collect();
+    match lines.is_empty() {
+        true => String::new(),
+        false => format!(" — preview the work with {}", lines.join(", ")),
+    }
 }
 
 /// C126 (a league the list lacks is a note): one line for each league
@@ -480,35 +515,31 @@ fn wait_hint(spent: &[Spent]) -> String {
 
 /// The apply's last line (C53: the next action): what a plan compiled
 /// now would still fetch, or that nothing is left. The command carries
-/// the plan's realm and league where they are not the defaults, so it
-/// plans the league just applied as printed.
+/// the plan's account, realm and league, so it plans the league just
+/// applied as printed whatever else is known.
 fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan) -> Option<String> {
     Some(match remaining? {
         0 => "left: nothing — every covered entry is fresh".into(),
         n => format!(
-            "next: `acq refresh --plan{}` — {} more are planned now (what this apply revealed, \
+            "next: `{}` — {} more are planned now (what this apply revealed, \
              such as a map or unique tab's substashes, or left undone); plan and apply until \
              the plan says nothing to do",
-            scope_flags(plan),
+            crate::printed_line(&crate::way_words(&Way::RefreshPlan {
+                account: plan_account(plan),
+                realm: plan.realm,
+                league: plan.league.clone(),
+            })),
             requests(n)
         ),
     })
 }
 
-/// ` --realm R --league L` for a plan off the defaults, each only where
-/// it differs, the league quoted where a shell needs it.
-fn scope_flags(plan: &RefreshPlan) -> String {
-    let mut flags = String::new();
-    if plan.realm != Realm::DEFAULT {
-        flags.push_str(&format!(" --realm {}", plan.realm));
-    }
-    if plan.league != acquisition_plan::DEFAULT_LEAGUE {
-        flags.push_str(&format!(
-            " --league {}",
-            acquisition_search::answer::shell_quoted(&plan.league)
-        ));
-    }
-    flags
+/// The account a plan was compiled for, as `--account` takes it: its
+/// name, or its uuid where the plan names none.
+fn plan_account(plan: &RefreshPlan) -> String {
+    plan.account_name
+        .clone()
+        .unwrap_or_else(|| plan.account_uuid.clone())
 }
 
 /// `changed: +98 items added, 3 changed at 5 locations; 112 responses
@@ -844,11 +875,19 @@ pub(crate) fn render_plan(
     }
     // a selection compiled here is applied by the command that compiled
     // it, or by the page's Apply: no command to name but a reviewed file's
+    // either names the plan's account, realm and league, so it runs as
+    // printed with a second account known (the league seat, cli call 28)
+    let apply = |plan_file: Option<&str>| {
+        crate::printed_line(&crate::way_words(&Way::RefreshApply {
+            account: plan_account(plan),
+            realm: plan.realm,
+            league: plan.league.clone(),
+            plan: plan_file.map(str::to_string),
+        }))
+    };
     match (source, plan.basis.policy_revision) {
-        (Some(path), _) => out.push_str(&format!("next: acq refresh --apply={path}\n")),
-        (None, Some(_)) => {
-            out.push_str(&format!("next: acq refresh --apply{}\n", scope_flags(plan)))
-        }
+        (Some(path), _) => out.push_str(&format!("next: {}\n", apply(Some(path)))),
+        (None, Some(_)) => out.push_str(&format!("next: {}\n", apply(None))),
         (None, None) => {}
     }
     out

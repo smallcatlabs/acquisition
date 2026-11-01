@@ -264,7 +264,9 @@ pub fn tabs(
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let store = open(cx)?;
+    let account = cx.account()?;
+    let username = account.entry.username.clone();
+    let store = account.facts()?;
     let now = acquisition_store::now();
     let listed = acquisition_search::tabs::Tabs::of(
         realm.as_str(),
@@ -293,7 +295,7 @@ pub fn tabs(
         print!("{}", render_tabs_table(&listed.rows, now));
         print!("{}", remove_only_said(&listed.rows));
         if listed.left_out > 0 {
-            let (expand, _) = tabs_next(realm, league);
+            let (expand, _) = tabs_next(&username, realm, league);
             let mut expand = expand;
             if let Some(kind) = &selection.kind {
                 expand.push_str(&format!(" --type {kind}"));
@@ -333,7 +335,7 @@ pub fn tabs(
     println!("the {} with the most items:", listed.rows.len());
     print!("{}", render_tabs_table(&listed.rows, now));
     print!("{}", remove_only_said(&listed.rows));
-    let (expand, count) = tabs_next(realm, league);
+    let (expand, count) = tabs_next(&username, realm, league);
     println!(
         "next: `{expand}` lists all {}; `{count}` counts what a query matches by tab",
         listed.tabs
@@ -355,20 +357,22 @@ fn remove_only_said(rows: &[acquisition_store::TabRow]) -> &'static str {
     }
 }
 
-/// The large league's next commands, over the league and realm just
-/// shown: `tabs` names them where they are not its defaults, and the
-/// search, whose scope is a realm, takes the league as a term — printed
-/// as every route is, so it runs as printed.
-fn tabs_next(realm: Realm, league: &str) -> (String, String) {
-    use acquisition_search::answer::{Counts, QueryInput, Request, Scope, Shape, shell_quoted};
+/// The large league's next commands, as `account`, over the league and
+/// realm just shown: `tabs` as the refusal's way to the tabs spells it
+/// (the account, realm and league named) with `--expand`, and the search,
+/// whose scope is the account and a realm, takes the league as a term —
+/// printed as every route is, so each runs as printed with a second
+/// account known (the league seat, cli calls 43, 44).
+fn tabs_next(account: &str, realm: Realm, league: &str) -> (String, String) {
+    use acquisition_search::answer::{Counts, QueryInput, Request, Scope, Shape};
     use acquisition_search::tree::{Node, Op, Value as Term};
-    let mut expand = String::from("acq tabs --expand");
-    if league != acquisition_plan::DEFAULT_LEAGUE {
-        expand.push_str(&format!(" --league {}", shell_quoted(league)));
-    }
-    if realm != Realm::DEFAULT {
-        expand.push_str(&format!(" --realm {}", realm.as_str()));
-    }
+    let mut words = crate::way_words(&acquisition_verbs::refusal::Way::Tabs {
+        account: account.to_string(),
+        realm,
+        league: league.to_string(),
+    });
+    words.push("--expand".to_string());
+    let expand = crate::printed_line(&words);
     let term = Node::Test {
         field: "league".into(),
         op: Op::Eq,
@@ -376,6 +380,7 @@ fn tabs_next(realm: Realm, league: &str) -> (String, String) {
     };
     let count = Request {
         scope: Scope {
+            account: Some(account.to_string()),
             realm: Some(acquisition_search::corpus::Realm::One(
                 realm.as_str().into(),
             )),

@@ -19,7 +19,7 @@ reason: stash and characters never listed
 
 quote: ETA unavailable until 2 rate-limit policies are learned
 wire: 2–6 sends; plus first-contact probes and token refresh if needed
-next: acq refresh --apply
+next: acq refresh --apply --account ExileTester --realm pc --league Standard
 </pre>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 

@@ -132,7 +132,7 @@ fn breakdown(r: &ShopRender, verdict: Verdict) -> String {
 }
 
 /// The C72 lines: only those that change the next decision.
-fn freshness_lines(r: &ShopRender, now: i64) -> String {
+fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
     let mut out = String::new();
     let f = &r.freshness;
     if r.counts.posted == 0 {
@@ -183,14 +183,19 @@ fn freshness_lines(r: &ShopRender, now: i64) -> String {
                 ));
             }
             if f.stale_total > 0 {
+                // the plan of the render's league, as the account it
+                // ran as, so it runs as printed (the league seat's rule)
+                let plan = crate::printed_line(&crate::way_words(
+                    &acquisition_verbs::refusal::Way::RefreshPlan {
+                        account: account.to_string(),
+                        realm: r.listing.realm,
+                        league: r.listing.league.clone(),
+                    },
+                ));
                 let remedy = match (f.refresh_requests, &f.refresh_problem) {
-                    (Some(n), _) => format!("`acq refresh --plan` would send {n} requests"),
-                    (None, Some(why)) => {
-                        format!("`acq refresh --plan` could not be compiled: {why}")
-                    }
-                    (None, None) => {
-                        "`acq refresh --plan` shows what a refresh would fetch".to_string()
-                    }
+                    (Some(n), _) => format!("`{plan}` would send {n} requests"),
+                    (None, Some(why)) => format!("`{plan}` could not be compiled: {why}"),
+                    (None, None) => format!("`{plan}` shows what a refresh would fetch"),
                 };
                 out.push_str(&format!(
                     "stale: {} on the page last seen past the policy's window of {}s (oldest {}); {remedy}\n",
@@ -270,7 +275,7 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String 
             plural(c.pages, "page", "pages")
         ));
     }
-    out.push_str(&freshness_lines(r, now));
+    out.push_str(&freshness_lines(r, now, account));
     let blocked: Vec<_> = r
         .left_out
         .iter()
@@ -533,7 +538,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "stale: 1 item on the page last seen past the policy's window of 3600s (oldest 63m ago); `acq refresh --plan` would send 7 requests"
+            "stale: 1 item on the page last seen past the policy's window of 3600s (oldest 63m ago); `acq refresh --plan --account a --realm pc --league Standard` would send 7 requests"
         );
         assert!(
             lines[3]
@@ -619,7 +624,7 @@ mod tests {
         broken.freshness.refresh_problem = Some("no such league".into());
         let text = render_text(&broken, 5000, false, "a");
         assert!(
-            text.contains("; `acq refresh --plan` could not be compiled: no such league\n"),
+            text.contains("; `acq refresh --plan --account a --realm pc --league Standard` could not be compiled: no such league\n"),
             "{text}"
         );
 

@@ -34,13 +34,13 @@ revision 1, updated <age> ago
 $ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
 # holds "revision 2"
 --- stdout
-sync policy written (revision 2) — preview the work with `acq refresh --plan`
+sync policy written (revision 2) — preview the work with `acq refresh --plan --account ExileTester --realm pc --league Rehearsal`, `acq refresh --plan --account ExileTester --realm pc --league Standard`
 
 $ acq refresh --plan --league Rehearsal
 # holds "refresh Rehearsal on mock"
 # holds "1 request:"
 # holds "characters: none in Rehearsal"
-# holds "next: acq refresh --apply --league Rehearsal"
+# holds "next: acq refresh --apply --account ExileTester --realm pc --league Rehearsal"
 --- stdout
 refresh Rehearsal on mock as ExileTester — policy 2
 facts: stash never listed
@@ -53,16 +53,16 @@ reason: stash never listed
 quote (<age> ago):
   stash-list-request-limit  1 request — ready
 wire: 1–3 sends; plus first-contact probes and token refresh if needed
-next: acq refresh --apply --league Rehearsal
+next: acq refresh --apply --account ExileTester --realm pc --league Rehearsal
 
 $ acq refresh --apply --league Rehearsal
 # holds "1 request, 1 done"
-# holds "next: `acq refresh --plan --league Rehearsal` — 7 requests more"
+# holds "next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` — 7 requests more"
 --- stdout
 applying 1 request as job <j2>
 job <j2> done: 1 request, 1 done (job <j3>)
 changed: no items — 1 response recorded, nothing added, changed, moved, or removed
-next: `acq refresh --plan --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
 --- stderr
 job <j2> (ExileTester): 1/1 done
 
@@ -90,7 +90,7 @@ skipped 1 tab: 1 folder — container only
 quote (<age> ago):
   stash-request-limit  7 requests — ~<eta>s
 wire: 7–21 sends; plus first-contact probes and token refresh if needed
-next: acq refresh --apply --league Rehearsal
+next: acq refresh --apply --account ExileTester --realm pc --league Rehearsal
 
 $ acq refresh --apply --league Rehearsal
 # holds "7 requests, 7 done"
@@ -148,7 +148,7 @@ Currency    CurrencyStash      3  <age> ago                 cur1
   Old 1     PremiumStash       2  <age> ago    fold         old1
   Old 2     QuadStash          2  <age> ago    fold         old2
   (unnamed) UniqueStash        2  <age> ago    uniq         u001
-next: `acq tabs --expand` lists all 15; `acq search --realm pc league=Standard --count tab` counts what a query matches by tab
+next: `acq tabs --account ExileTester --realm pc --league Standard --expand` lists all 15; `acq search --account ExileTester --realm pc league=Standard --count tab` counts what a query matches by tab
 
 $ acq search --count league
 # holds "count   league · 1 value"
@@ -165,10 +165,10 @@ basis   store <store> · build <build> · snapshot 28 · facts v9 · prices and 
 
 $ acq price status --league Rehearsal
 # holds "no items on record for Rehearsal"
-# holds "next: `acq refresh --plan --league Rehearsal`"
+# holds "next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal`"
 --- stdout
 no items on record for Rehearsal: 8 tabs and characters listed, none fetched with items
-next: `acq refresh --plan --league Rehearsal` shows what a refresh would fetch
+next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` shows what a refresh would fetch
 
 $ acq store characters --league Rehearsal
 # holds "no characters known in Rehearsal ("
@@ -185,7 +185,7 @@ skipped 2 characters: 2 fresh
 $ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600},"Typo":{"tabs":"all","max_age_seconds":3600}}}}}'
 # holds "note: Typo is not among the leagues fetched"
 --- stdout
-sync policy written (revision 3) — preview the work with `acq refresh --plan`
+sync policy written (revision 3) — preview the work with `acq refresh --plan --account ExileTester --realm pc --league Rehearsal`, `acq refresh --plan --account ExileTester --realm pc --league Standard`, `acq refresh --plan --account ExileTester --realm pc --league Typo`
 note: Typo is not among the leagues fetched <age> ago (`acq leagues`)
 
 $ acq refresh --plan --league Typo
@@ -203,7 +203,7 @@ reason: stash never listed
 quote (<age> ago):
   stash-list-request-limit  1 request — ready
 wire: 1–3 sends; plus first-contact probes and token refresh if needed
-next: acq refresh --apply --league Typo
+next: acq refresh --apply --account ExileTester --realm pc --league Typo
 
 $ acq refresh --apply --league Typo
 # holds "stashes Typo  GET /stash/Typo returned 404 Not Found"
