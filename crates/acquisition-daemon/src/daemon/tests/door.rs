@@ -200,6 +200,46 @@ struct IdleHook {
     settle: SettleSlot,
     /// The scenario's wait for a quiet runtime ([`Door::quiet`]).
     quiet: SettleSlot,
+    /// [`COUNTERS_VAR`] set: every park that did not advance the clock is
+    /// printed.
+    print: bool,
+}
+
+/// Test support, no knob: when set, the hook prints to stderr, at the
+/// park itself, one line for every park that did not advance the clock,
+/// and [`DoorBuilder::run`] prints the counters at its end, each line
+/// naming the scenario, so a scenario killed mid-wait leaves its last
+/// park's branch in the log (the measure of `briefs/151-stuck-verdict.md`).
+const COUNTERS_VAR: &str = "ACQ_DOOR_COUNTERS";
+
+/// The scenario's name, as the test harness names its thread.
+fn scenario_name() -> String {
+    std::thread::current()
+        .name()
+        .unwrap_or("unnamed")
+        .to_string()
+}
+
+impl Counters {
+    /// One line of [`COUNTERS_VAR`]'s output: `what` at the scenario,
+    /// then every count.
+    fn print(&self, what: &str) {
+        let Counters {
+            advances,
+            held_by_send,
+            held_by_blocking,
+            held_by_scenario,
+            nothing_parked,
+            settles,
+            quiets,
+        } = self;
+        eprintln!(
+            "door-counters {} {what} advances={advances} held_by_send={held_by_send} \
+             held_by_blocking={held_by_blocking} held_by_scenario={held_by_scenario} \
+             settles={settles} quiets={quiets} nothing_parked={nothing_parked}",
+            scenario_name()
+        );
+    }
 }
 
 /// Where [`Door::settle`] and [`Door::quiet`] leave their wakers for the
@@ -209,26 +249,36 @@ type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 impl IdleHook {
     fn on_idle(&mut self) {
         let mut counters = self.counters.lock().unwrap();
-        if let Some(quiet) = self.quiet.lock().unwrap().take() {
+        let branch = if let Some(quiet) = self.quiet.lock().unwrap().take() {
             // Before the holds: a quiet park is the runtime's, whatever
             // holds the clock; it moves nothing.
             let _ = quiet.send(());
             counters.quiets += 1;
+            "quiet"
         } else if self.holds.load(Ordering::SeqCst) > 0 {
             counters.held_by_scenario += 1;
+            "held_by_scenario"
         } else if self.daemon.choke.actual_send_occupancy().0 > 0 {
             counters.held_by_send += 1;
+            "held_by_send"
         } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
             counters.held_by_blocking += 1;
+            "held_by_blocking"
         } else if let Some(settled) = self.settle.lock().unwrap().take() {
             // Tokio runs a task an `on_thread_park` hook wakes instead of
             // parking, so the scenario resumes with nothing else runnable.
             let _ = settled.send(());
             counters.settles += 1;
+            "settle"
         } else if self.clock.advance_to_next().is_some() {
             counters.advances += 1;
+            return;
         } else {
             counters.nothing_parked += 1;
+            "nothing_parked"
+        };
+        if self.print {
+            counters.print(&format!("park={branch}"));
         }
     }
 }
@@ -497,13 +547,18 @@ impl DoorBuilder {
                 holds: door.holds.clone(),
                 settle: door.settle.clone(),
                 quiet: door.quiet.clone(),
+                print: std::env::var_os(COUNTERS_VAR).is_some(),
             });
             if restore {
                 door.await_restored().await;
             }
             scenario(door).await;
             slot.lock().unwrap().take();
-            *counters.lock().unwrap()
+            let counters = *counters.lock().unwrap();
+            if std::env::var_os(COUNTERS_VAR).is_some() {
+                counters.print("end");
+            }
+            counters
         })
     }
 
