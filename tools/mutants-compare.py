@@ -4,11 +4,19 @@ mutant by mutant (t5's close, #141; the design's round 0 asks that
 corresponding mutants be compared and additions and removals classified
 apart).
 
-    python3 -I tools/mutants-compare.py BEFORE AFTER [--config-rev REV]
+    python3 -I tools/mutants-compare.py BEFORE AFTER [--before-rev REV] [--config-rev REV]
 
 BEFORE and AFTER are directories holding a run's shards as the weekly
 workflow uploads them (`mutants-shard-N/outcomes.json`, gitignored under
-`runs/`). Every mutant is keyed by its file, its function and its
+`runs/`), BEFORE run at --before-rev and AFTER at --config-rev (each
+default HEAD). A run is read whole or not at all: its shards are the
+workflow's at its commit (`.github/workflows/weekly.yml`, the `/N` of its
+`--shard` line, its matrix 0 to N-1), every one present and none other,
+and every one ended. cargo-mutants rewrites `outcomes.json` after each
+mutant and sets its `end_time` only when the run finishes, so a shard cut
+short (the job's time limit, a cancel) holds consistent counts and a
+null `end_time`. A missing, extra or unended shard is refused by name.
+Every mutant is keyed by its file, its function and its
 description, the name less its `file:line:col:` prefix, never by the
 line, which drifts with any edit above it. A key may name several mutants
 (the same operator twice in one function), so each run is a list that
@@ -48,17 +56,47 @@ OUTCOMES = {
 NAME = re.compile(r"^(?P<file>.*?):(?P<line>\d+):(?P<col>\d+): (?P<desc>.*)$", re.S)
 
 
-def load(run_dir):
-    """One run's mutants, each a dict, and its shards' headers."""
-    paths = sorted(glob.glob(os.path.join(run_dir, "mutants-shard-*", "outcomes.json")))
-    if not paths:
-        sys.exit(f"mutants-compare: no mutants-shard-*/outcomes.json under {run_dir}")
+def shard_count(rev):
+    """The workflow's shard count at `rev`, from the one line that splits
+    the run (`--shard ${{ matrix.shard }}/N`), its matrix held to 0..N-1."""
+    text = subprocess.run(
+        ["git", "show", f"{rev}:.github/workflows/weekly.yml"], check=True, capture_output=True, text=True
+    ).stdout
+    split = re.findall(r"--shard \$\{\{ matrix\.shard \}\}/(\d+)", text)
+    matrix = re.findall(r"^\s*shard:\s*\[([^\]]*)\]", text, re.M)
+    if len(split) != 1 or len(matrix) != 1:
+        sys.exit(f"mutants-compare: weekly.yml at {rev} does not hold one --shard split and one shard matrix")
+    count = int(split[0])
+    if [m.strip() for m in matrix[0].split(",")] != [str(i) for i in range(count)]:
+        sys.exit(f"mutants-compare: weekly.yml at {rev} splits {count} ways but its matrix is [{matrix[0]}]")
+    return count
+
+
+def load(run_dir, count):
+    """One run's mutants, each a dict, and its shards' headers: every
+    shard of `count` present, none other, every one ended."""
+    found = {
+        os.path.basename(path): path
+        for path in glob.glob(os.path.join(run_dir, "mutants-shard-*"))
+    }
+    wanted = [f"mutants-shard-{i}" for i in range(count)]
+    missing = [name for name in wanted if not os.path.isfile(os.path.join(run_dir, name, "outcomes.json"))]
+    extra = sorted(set(found) - set(wanted))
+    if missing or extra:
+        sys.exit(
+            f"mutants-compare: {run_dir} is not a whole run of {count} shards:"
+            + (f" missing {', '.join(missing)}" if missing else "")
+            + (f" not the workflow's {', '.join(extra)}" if extra else "")
+        )
+    paths = [os.path.join(run_dir, name, "outcomes.json") for name in wanted]
     mutants, shards = [], []
     for path in paths:
         with open(path, encoding="utf-8") as handle:
             data = json.load(handle)
         header = {k: v for k, v in data.items() if k != "outcomes"}
         header["shard"] = os.path.basename(os.path.dirname(path))
+        if not header.get("end_time"):
+            sys.exit(f"mutants-compare: {path}: {header['shard']} has not ended (no end_time): a run cut short")
         counted = collections.Counter()
         for outcome in data["outcomes"]:
             scenario = outcome["scenario"]
@@ -121,12 +159,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("before")
     parser.add_argument("after")
+    parser.add_argument("--before-rev", default="HEAD")
     parser.add_argument("--config-rev", default="HEAD")
     args = parser.parse_args()
 
     runs = {}
-    for label, run_dir in (("before", args.before), ("after", args.after)):
-        mutants, shards = load(run_dir)
+    for label, run_dir, rev in (("before", args.before, args.before_rev), ("after", args.after, args.config_rev)):
+        mutants, shards = load(run_dir, shard_count(rev))
         runs[label] = mutants
         versions = sorted({s.get("cargo_mutants_version") for s in shards})
         print(f"{label}: {run_dir}, cargo-mutants {', '.join(map(str, versions))}")
