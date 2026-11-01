@@ -807,9 +807,12 @@ impl Redactor {
 }
 
 /// Whether the character beside a match leaves it a whole word: none, or
-/// one that is not a letter, a digit or `_`.
+/// one that is not a letter, a digit, `_` or `-`. A hyphen joins a word
+/// as an underscore does, so `seat-worlds` is no use of the account
+/// `seat` (the league seat, cli call 109: a path printed as
+/// `~/<account 2>-worlds/…`).
 fn word_edge(c: Option<char>) -> bool {
-    !c.is_some_and(|c| c.is_alphanumeric() || c == '_')
+    !c.is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '-')
 }
 
 /// A challenge's parameter after a scheme (`Bearer error=…`, which a
@@ -885,6 +888,18 @@ mod tests {
                 paths: 1,
                 tokens: 0
             }
+        );
+    }
+
+    /// The league seat (cli call 109): a name inside a hyphenated word
+    /// was replaced, `~/seat-worlds/…` printed as `~/<account 1>-worlds/…`.
+    /// A hyphen joins a word; a dot, an `@` and a quote do not.
+    #[test]
+    fn a_hyphenated_word_holding_an_account_name_stays_whole() {
+        let mut r = Redactor::new(&[("seat".into(), None)], &[]);
+        assert_eq!(
+            r.redact("~/seat-worlds/league stays; seat.db, stash@seat and \"seat\" go"),
+            "~/seat-worlds/league stays; <account 1>.db, stash@<account 1> and \"<account 1>\" go"
         );
     }
 
