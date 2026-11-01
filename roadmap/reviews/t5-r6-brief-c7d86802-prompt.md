@@ -1,0 +1,13 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/t5-r6.md as re-cut at c7d86802, round 6 of t5 (#141), the close: the mutants after round 5c against round 0's baseline. Read it with `git show c7d86802` and the file as it stands. The first cold review (of 854ae961, saved verbatim at roadmap/reviews/t5-r6-brief-854ae961.md with its prompt beside) found eight findings, one a nitpick; this cut answers each, and the brief's foot ("Taken from the review") says how. The design is roadmap/briefs/t5-design.md (§4 rounds 0 and 6); `runs/` is gitignored, so the artifacts' counts are the brief's claims. Read; do not build or run anything; the tree is read-only to you.
+
+Your lens, in this order:
+1. Is each of the eight findings answered in substance, not only in words? In particular finding 1 (Do 1: both whole inventories, additions and removals apart, duplicates kept as a list: does cargo-mutants 27.1.0's `outcomes.json` carry every mutant with its outcome, so the comparison can be whole); finding 2 (Do 5: the census counted the same way at `a4834369` and at 5c's close, rows expanded from each table's source, component tests apart: is "a test over a row vector" identifiable by a command at both commits, and is the before number, 197 plus 28 with no tables, right at `a4834369`: `grep -c` of the attributes there); finding 3 (done-when: report-only evidence marked, the commit-checkable lines kept: is anything still asked of a commit that only execution shows); finding 5 (Do 3: the capitalisation pinned through `PolicyParseError`'s `Display`, policy.rs 180–189 and 209: does a header set missing the limits header of rule `ip` produce "missing the limits header of rule Ip", and would `capitalise` replaced by `String::new()` or "xyzzy" change that string); finding 6 (Input: the ledger's recorded seconds, LEDGER.md rounds 1, 2 and 5c, quoted right); finding 7 (Do 6: the close under C158's wording); finding 8 (`--re` as a description filter with the selected descriptions inspected).
+2. Anything this cut introduced that contradicts another section, or a citation that does not match the tree.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- The eight findings: one line each, answered / narrower (sound or not) / not answered.
+- Findings, most severe first, each: the Do or done-when number, what is wrong in one sentence, the concrete reading (file:line), and the smallest change to the brief sufficient.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether round 6 may start as drawn, in one line.
