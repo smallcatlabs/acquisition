@@ -189,6 +189,13 @@ Each in his words, with the commit that landed it.
   in `Outcome`, each until its trigger; the client's harness keeps
   its exempt-route copy under a check. Landed: the ruling commit
   after this design's third cut (`ef7e4b3f`).
+- 2026-11-01, describe's default shape (`briefs/describe-slices.md`,
+  the one question brought to him): "Yes, the index." Bare `describe`
+  is the index on both surfaces and in both formats (the MCP's
+  `describe {}`, the CLI's `--describe` in text and under `--json`),
+  the whole kept under `all`, one word away; C53 amended to carry it,
+  the additive clause read as protecting shapes a program can use
+  (the commit carrying this line).
 
 ## Roles
 
