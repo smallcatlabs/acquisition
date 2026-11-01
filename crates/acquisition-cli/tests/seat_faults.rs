@@ -2361,7 +2361,10 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
         stdout(&out)
     };
 
-    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+    // a league whose name starts with `-` is spelled attached, so the
+    // parser reads it as the value it is (the review of the fix round,
+    // finding 3)
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600},"-L":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let out = acq(
         &base,
         &[
@@ -2376,10 +2379,23 @@ fn every_printed_next_runs_as_printed_with_a_store_only_account_known() {
     );
     let said = stdout(&out);
     assert!(out.status.success(), "{}", text(&out));
-    let [preview] = &printed_in_line(&said, "preview the work with")[..] else {
-        panic!("one plan per league written: {said}");
-    };
-    assert!(preview.contains("--league Rehearsal"), "{preview}");
+    let previews = printed_in_line(&said, "preview the work with");
+    assert_eq!(previews.len(), 2, "one plan per league written: {said}");
+    let hyphen = previews
+        .iter()
+        .find(|p| p.contains("--league=-L"))
+        .unwrap_or_else(|| panic!("`-L` spelled attached: {said}"));
+    let out = run_as_printed(&base, hyphen);
+    assert!(out.status.success(), "`{hyphen}`: {}", text(&out));
+    assert!(
+        stdout(&out).contains("refresh -L on mock"),
+        "{}",
+        text(&out)
+    );
+    let preview = previews
+        .iter()
+        .find(|p| p.contains("--league Rehearsal"))
+        .unwrap_or_else(|| panic!("no Rehearsal plan: {said}"));
 
     // the plan, as printed; its apply, as printed
     let planned = run(preview);

@@ -258,11 +258,13 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
 /// promises each or every item adds `--expand` itself, since the default
 /// lists ten (C53, the read economy). A write takes [`write_flags`].
 pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
-    format!(
-        "{} --realm {} --league {}",
-        write_flags(account),
-        h.realm.as_str(),
-        acquisition_search::answer::shell_quoted(&h.league)
+    crate::printed_line(
+        &[
+            crate::option_words("--account", account),
+            crate::option_words("--realm", h.realm.as_str()),
+            crate::option_words("--league", &h.league),
+        ]
+        .concat(),
     )
 }
 
@@ -270,10 +272,7 @@ pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
 /// alone, since a write takes no realm or league (its target names the
 /// place).
 pub(crate) fn write_flags(account: &str) -> String {
-    format!(
-        "--account {}",
-        acquisition_search::answer::shell_quoted(account)
-    )
+    crate::printed_line(&crate::option_words("--account", account))
 }
 
 fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
@@ -1014,10 +1013,7 @@ fn value_text(row: &AnnotationRow) -> String {
 /// the command ran with, so it runs as printed once a second account is
 /// known.
 fn price_verb(verb: &str, account: &str) -> String {
-    format!(
-        "acq price {verb} --account {}",
-        acquisition_search::answer::shell_quoted(account)
-    )
+    format!("acq price {verb} {}", write_flags(account))
 }
 
 /// An offer's request as this terminal prints it: the command line.

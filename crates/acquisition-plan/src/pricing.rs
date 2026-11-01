@@ -360,10 +360,10 @@ fn not_on_record(
     };
     let scope = |realm: Realm, league: &str| {
         format!(
-            "--account {} --realm {} --league {}",
-            quote(account),
-            realm.as_str(),
-            quote(league)
+            "{} {} {}",
+            option("--account", account, quote),
+            option("--realm", realm.as_str(), quote),
+            option("--league", league, quote)
         )
     };
     let here = scope(here_realm, &r.header.league);
@@ -378,9 +378,9 @@ fn not_on_record(
         .join(", ");
     let hint = match elsewhere.as_slice() {
         [] => format!(
-            "`acq search --account {} --realm {}` finds an item's id, `acq tabs {here}` a tab's",
-            quote(account),
-            here_realm.as_str()
+            "`acq search {} {}` finds an item's id, `acq tabs {here}` a tab's",
+            option("--account", account, quote),
+            option("--realm", here_realm.as_str(), quote)
         ),
         held if held.iter().all(|(realm, _)| *realm == here_realm) => {
             format!("the facts hold it in {places}: `--league` reads it there")
@@ -856,10 +856,22 @@ fn in_substash(store: &Store, annotations: &Annotations, target: &PriceTarget) -
 /// `quote` is the frontend's shell quoting, as for [`show`].
 fn read_back(target: &PriceTarget, account: &str, quote: fn(&str) -> String) -> String {
     format!(
-        "acq price show --account {} {}",
-        quote(account),
+        "acq price show {} {}",
+        option("--account", account, quote),
         quote(&target.to_string())
     )
+}
+
+/// A scope option and its value as a printed command spells them, quoted
+/// by the frontend's `quote`: attached, `--league=-L`, where the value
+/// starts with `-`, which the parser would otherwise read as an option
+/// (the review of the league seat's fix round, finding 3; the CLI's
+/// `option_words` is the same rule for the lines it spells itself).
+fn option(name: &str, value: &str, quote: fn(&str) -> String) -> String {
+    match value.starts_with('-') {
+        true => quote(&format!("{name}={value}")),
+        false => format!("{name} {}", quote(value)),
+    }
 }
 
 /// `price set <target> <type> [<amount> <currency>]`: one row through

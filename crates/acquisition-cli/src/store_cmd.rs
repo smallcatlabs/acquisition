@@ -506,16 +506,16 @@ pub(crate) fn characters_text(
     ));
     if listed.left_out > 0 {
         let mut every = format!(
-            "acq store characters --account {}",
-            acquisition_search::answer::shell_quoted(account)
+            "acq store characters {}",
+            crate::price_cmd::write_flags(account)
         );
         if let Some(realm) = &listed.realm {
             every.push_str(&format!(" --realm {realm}"));
         }
         if let Some(league) = &listed.league {
             every.push_str(&format!(
-                " --league {}",
-                acquisition_search::answer::shell_quoted(league)
+                " {}",
+                crate::printed_line(&crate::option_words("--league", league))
             ));
         }
         out.push_str(&format!(
@@ -831,10 +831,10 @@ pub(crate) fn event_summary_text(
         // printed as `--hours 0.0` read an empty window): the hours as
         // the request held them, shortest round-trip
         out.push_str(&format!(
-            "{} of {} locations listed: `acq store events --account {} --hours {} --limit {} --summary --expand` lists every one\n",
+            "{} of {} locations listed: `acq store events {} --hours {} --limit {} --summary --expand` lists every one\n",
             rows.len(),
             listed.locations,
-            acquisition_search::answer::shell_quoted(account),
+            crate::price_cmd::write_flags(account),
             listed.hours,
             listed.limit
         ));

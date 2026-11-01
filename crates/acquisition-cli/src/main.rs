@@ -1154,10 +1154,23 @@ impl Terminal {
 /// `acq policy show` as `account`: what lists a policy's leagues past the
 /// ten a refusal or a receipt names (C53).
 pub(crate) fn policy_show_words(account: &str) -> Vec<String> {
-    ["acq", "policy", "show", "--account", account]
-        .iter()
-        .map(|w| w.to_string())
-        .collect()
+    [
+        vec!["acq".to_string(), "policy".into(), "show".into()],
+        option_words("--account", account),
+    ]
+    .concat()
+}
+
+/// A scope option and its value as the words of a printed command: two
+/// words, or one, `--league=-L`, where the value starts with `-`, which
+/// the parser would otherwise read as an option of its own (the review
+/// of the league seat's fix round, finding 3). Quoted after, as every
+/// word is ([`printed_line`]).
+pub(crate) fn option_words(name: &str, value: &str) -> Vec<String> {
+    match value.starts_with('-') {
+        true => vec![format!("{name}={value}")],
+        false => vec![name.to_string(), value.to_string()],
+    }
 }
 
 /// A command line as this terminal prints it: each word quoted for the
@@ -1210,18 +1223,17 @@ impl acquisition_verbs::refusal::Surface for Terminal {
         use acquisition_verbs::refusal::Way;
         let words = |line: &[&str]| line.iter().map(|w| w.to_string()).collect::<Vec<_>>();
         let scope = |account: &str, realm: &acquisition_protocol::realm::Realm, league: &str| {
-            words(&[
-                "--account",
-                account,
-                "--realm",
-                realm.as_str(),
-                "--league",
-                league,
-            ])
+            [
+                option_words("--account", account),
+                option_words("--realm", realm.as_str()),
+                option_words("--league", league),
+            ]
+            .concat()
         };
         Some(match way {
             Way::Again { account } => match &self.repeat {
-                Repeat::Line(line) => words(&["acq", "--account", account])
+                Repeat::Line(line) => [words(&["acq"]), option_words("--account", account)]
+                    .concat()
                     .into_iter()
                     .chain(line.iter().cloned())
                     .collect(),
@@ -1290,7 +1302,12 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 currency,
                 if_revision,
             } => {
-                let mut line = words(&["acq", "price", "set", "--account", account, target, kind]);
+                let mut line = [
+                    words(&["acq", "price", "set"]),
+                    option_words("--account", account),
+                    words(&[target, kind]),
+                ]
+                .concat();
                 line.extend([amount, currency].into_iter().flatten().cloned());
                 // a create is 0 here, since naming none at a terminal
                 // replaces whatever stands
@@ -1304,31 +1321,27 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 target,
                 account,
                 if_revision,
-            } => words(&[
-                "acq",
-                "price",
-                "clear",
-                "--account",
-                account,
-                target,
-                "--if-revision",
-                &if_revision.to_string(),
-            ]),
+            } => [
+                words(&["acq", "price", "clear"]),
+                option_words("--account", account),
+                words(&[target, "--if-revision", &if_revision.to_string()]),
+            ]
+            .concat(),
             Way::PolicySet {
                 account,
                 value,
                 if_revision,
-            } => words(&[
-                "acq",
-                "policy",
-                "set",
-                "--account",
-                account,
-                "--replace",
-                "--if-revision",
-                &if_revision.to_string(),
-                &value.to_string(),
-            ]),
+            } => [
+                words(&["acq", "policy", "set"]),
+                option_words("--account", account),
+                words(&[
+                    "--replace",
+                    "--if-revision",
+                    &if_revision.to_string(),
+                    &value.to_string(),
+                ]),
+            ]
+            .concat(),
         })
     }
 
