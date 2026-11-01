@@ -492,7 +492,7 @@ the owner, answered "yes to all" (the rulings list). The step it
 recommends first, the stuck verdict (`briefs/151-stuck-verdict.md`, #151:
 the daemon's waits on one clock under check 12, a door wait failing at
 the exact park), has its first cut committed at `e1a0dcb8` and under
-cold review; C160 entered ahead of its code, its words narrowed at that review under the grant (the hook's four accountings named, 791 bytes; the commit carrying this line), for the owner's re-read. The orchestrating session
+cold review; C160 entered ahead of its code, its words narrowed at that review and qualified at the second under the grant (the hook's four accountings named, a `beside` door keeping the ceiling, under 800 bytes; the commits carrying this line), for the owner's re-read. The orchestrating session
 runs it under the grant of 2026-11-01. Next after it: the residue step
 (the limiter spec's real clock, the client's ceilings, the mock's window
 on the isolation list, the `Boundary` value for #152); then Phase 3, the

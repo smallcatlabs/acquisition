@@ -1,16 +1,18 @@
 # 151-stuck-verdict — the daemon's one clock, and a door wait that fails at the exact park (#151)
 
-Cut twice: the first draft (`e1a0dcb8`), reviewed cold
-(`roadmap/reviews/151-stuck-verdict-brief-e1a0dcb8.md`, the prompt
-beside: eight findings, two nitpicks); this cut answers each, listed
-at the foot under "Taken from the review". Written by the orchestrating
+Cut three times: the first draft (`e1a0dcb8`) and the re-cut
+(`132a43ef`), each reviewed cold
+(`roadmap/reviews/151-stuck-verdict-brief-<sha>.md`, the prompt beside:
+eight findings, then seven, two nitpicks each); this cut answers the
+second review's seven, listed at the foot under "Taken from the
+reviews" with the first's eight. Written by the orchestrating
 session on 2026-11-01 from `roadmap/reviews/time-seam-retrospective.md`
 (Root A and rows A1, A2 and E4 of its §10), a re-read of the tree at
 `b67776d7` (every line number below from it) and a read of the saved
 mutant logs under `runs/`. Its one ruling (Do 1) was the owner's and
 is in the registry ahead of the code ("yes to all", 2026-11-01); its
-words were narrowed at the first review under his grant of that day,
-for his re-read (Do 1). To be reviewed cold again before a worker reads
+words were narrowed at the first review and qualified at the second
+under his grant of that day, for his re-read (Do 1). To be reviewed cold again before a worker reads
 it.
 
 ## Goal
@@ -18,9 +20,10 @@ it.
 When this step is done, every tokio timer in the daemon's production
 sources sleeps through the daemon's one `Clock`, held by a check in
 `tools/arch-check.sh` in the shape check 10 has for `spawn_blocking`;
-and a door wait whose answer nothing the hook accounts for can still
-bring fails at that park, naming what it waited for, instead of running
-to the 120 s ceiling. Of the 48 mutants that moved from caught to
+and a wait on the hook's own door, whose answer nothing the hook
+accounts for can still bring, fails at that park, naming what it waited
+for, instead of running to the 120 s ceiling (a door opened beside
+another has no hook and keeps the ceiling). Of the 48 mutants that moved from caught to
 timeout at t5's close (#151), the ones whose hung scenario waited at
 such a park are caught again; the four that replace the count the
 hook reads are listed as the hook's own instrument, told apart by a
@@ -200,18 +203,19 @@ Fixed before the work starts:
   | `rails::tripped_daemon_leaves_queued_jobs_waiting_until_reset` | 24 (22 of `policy.rs`'s parse, `choke.rs` 600 and 644 in `head`) | `await_job(first, retries == 1 && Waiting)`, `rails.rs:129`: a predicate the mutant keeps from holding, nothing pending |
   | `dispatch::dispatcher_rate_waits_do_not_cap_independent_job_progress` | 10 (`limiter.rs` 112 ×2, 218, 737, 738, 900, 912, 930, 990; `choke.rs:342`) | the yield loop `while clock.sleepers() < 2`, `dispatch.rs:174–178`, a component test |
   | `dispatch::c158_the_wire_table_through_the_door`, `c158_a_blocking_task_holds_the_clock_…`, `exit::a_faulted_probe_fails_its_route_jobs_even_when_halted`, `exit::exit_cuts_a_stuck_job_at_the_bound` | 4 (`gate.rs:79` ×2, `choke.rs:474` ×2: occupancy replaced with `(1, 0)` and `(1, 1)`) | every advance withheld: the hook's send branch (`door.rs:219`) reads the mutated count |
-  | `dispatch::a_head_429_that_fails_setup_holds_the_next_probe` | 4 (`limiter.rs` 444, 485; `policy.rs` 333:32, 333:24 true) | a door wait |
+  | `dispatch::a_head_429_that_fails_setup_holds_the_next_probe` | 4 (`limiter.rs` 444, 485; `policy.rs` 333:32, 333:24 true), of which 333:32 also hung the first row's scenario and is counted there | a door wait |
   | `dispatch::a_blocked_probe_is_no_probe_failure` | 3 (`choke.rs` 619, 676, 934) | a door wait |
   | `dispatch::a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header` | 2 (`choke.rs` 1063, 1064) | a door wait |
   | `stress::n6_integration_stress_…` | 1 (`choke.rs:800`) | a component test, two fixtures |
   | four tests at once (`exit.rs` ×2, `credentials.rs`, `bearer.rs`) | 1 (`limiter.rs:545`) | mixed |
 
-  `policy.rs:333:32` hung two scenarios and is counted once, in the
-  first row. The classes the step acts on: **(a)** a door wait at a
-  park with nothing pending (the verdict's: the first, fourth, fifth
-  and sixth rows and the mixed one's door scenarios, 34 mutants at
-  least); **(b)** the hook's own instrument (the third row, 4); **(c)**
-  a component test's yield loop (the second and seventh rows, 11). Do
+  The table's memberships sum to 49 for 48 mutants, `policy.rs:333:32`
+  in two rows and counted once. The classes the step acts on: **(a)**
+  a door wait at a park with nothing pending (the verdict's: the first,
+  fourth, fifth and sixth rows and the mixed one's door scenarios, 33
+  mutants, 48 less the 4 and the 11 below); **(b)** the hook's own
+  instrument (the third row, 4); **(c)** a component test's yield loop
+  on a plain runtime with no hook (the second and seventh rows, 11). Do
   2's measurement confirms each class by running one mutant of it
   locally before Do 5 is built.
 - **The measurement this step owes before Do 5**: `nothing_parked` per
@@ -256,10 +260,15 @@ Fixed before the work starts:
 
 2. **The measurement**, before any production edit, its own commit:
    the harness reads `ACQ_DOOR_COUNTERS` (test support only, no README
-   row), and when it is set `DoorBuilder::run` prints one line per
-   scenario at its end: the test's name (`std::thread::current().name()`)
-   and every field of `Counters`. Then two runs, both in the report
-   and summarised in the commit message by the command and its totals:
+   row), and when it is set the hook prints, flushed to stderr at the
+   park itself, one line for every park that did not advance the clock
+   (held by a send, a blocking task or a hold; a settle; a quiet;
+   nothing parked), carrying the scenario's name
+   (`std::thread::current().name()`) and the counters so far, and
+   `DoorBuilder::run` prints the counters once more at its end; so a
+   scenario cargo-mutants kills leaves its last park's branch in the
+   log above the `SIGTERM` line. Then two runs, both in the report and
+   summarised in the commit message by the command and its totals:
    - `ACQ_DOOR_COUNTERS=1 cargo nextest run -p acquisition-daemon
      --no-capture`, parsed to a table (scenario, advances, held_by_send,
      held_by_blocking, held_by_scenario, settles, quiets,
@@ -273,9 +282,10 @@ Fixed before the work starts:
      Default::default()` (class c), each with `ACQ_DOOR_COUNTERS=1`
      passed through (cargo-mutants' `--env` or the environment), the
      hung test and the hook's branch at its last park read from the
-     log. This confirms the class each row of Input assigns; a mutant
-     that lands in another class moves its row, and the report says
-     so.
+     log; for class (c), whose test runs on a plain runtime with no
+     hook, the record is "no hook; a runnable yield loop". This
+     confirms the class each row of Input assigns; a mutant that lands
+     in another class moves its row, and the report says so.
 
 3. **The six timers onto the clock**, one commit, each site named in
    the message with the clock call that replaced it:
@@ -362,17 +372,25 @@ Fixed before the work starts:
      `.cargo/mutants.toml`'s `exclude_re` in its form (the function's
      name, never the line), with the reason: the door's park hook reads
      this count, so every scenario that needs an advance stalls under
-     the mutant and the run times out before the pin's failure is
-     reported; the pin is named in the comment;
+     the mutant, and the run is killed before a completed result
+     though the pin's failure prints; the pin is named in the comment;
+     an excluded mutant is not run, so the compare tool lists the four
+     as removals;
    - **class (c), the yield loops**: `dispatcher_rate_waits_do_not_cap_independent_job_progress`
-     onto the door as a scenario, its property kept (the independent
-     job completes while two rate waits stay parked, `sleepers() == 2`
-     read after `settle`, which resolves at the first park that would
+     onto the door's runtime as a component test, the shape the
+     blocking-count probe already has (`dispatch.rs:2458–2510`: built
+     through `Door::open … .run`, reading the clock, never a scenario,
+     since it asserts `sleepers() == 2`, a clock-internal fact outside
+     C158's boundary, and its doc names the parking clock as the
+     boundary it needs); its property kept: the independent job
+     completes while two rate waits stay parked, `sleepers() == 2` read
+     after `settle`, which resolves at the first park that would
      advance; under a limiter mutant that waits for nothing the
      independent job completes, the runtime parks with nothing parked,
-     `settle` wakes and the assertion fails at once); the retirement
-     line names it. `stress.rs:44` stays a component test (two
-     fixtures) and is named in the report as class (c) left under
+     `settle` wakes and the assertion fails at once. The retirement
+     line: `retired the yield loop while clock.sleepers() < 2; held by
+     settle`. `stress.rs:44` stays a component test on a plain runtime
+     (two fixtures) and is named in the report as class (c) left under
      `HANG`, one mutant.
 
 6. **Check 12 and the breakers**, one commit: in `tools/arch-check.sh`,
@@ -382,10 +400,12 @@ Fixed before the work starts:
    `impl Clock for SystemClock` in `ratelimit.rs` (the span found as
    check 10 finds `fn blocking`'s, 491–495) and inside a file's tail
    test module, defined as: a line `#[cfg(test)]` at column zero whose
-   next line is `mod <ident> {` at column zero, that module's closing
-   `}` at column zero being the file's last non-blank line (the reader
-   takes the last column-zero `}` and refuses the file by name if any
-   non-blank line follows it, or if two such modules open). A
+   next line is `mod <ident> {` at column zero, the module's closing
+   brace being the first line after the opener that is exactly `}` at
+   column zero, which must be the file's last non-blank line; a file
+   where it is not (an item after the module), or where two such
+   modules open, is refused by name as unrecognised, in check 12's own
+   words. A
    `#[cfg(test)]` on anything else exempts nothing (the item forms at
    `ratelimit.rs` 44–50 are never brace-matched); braces inside string
    literals (`auth.rs:678`) are never counted, since no brace is
@@ -405,8 +425,11 @@ Fixed before the work starts:
    - a `tokio::time::sleep` under a `#[cfg(test)] fn` outside the tail
      module in `kinds.rs`: refused (the reader exempts the tail module
      alone);
-   - an item appended after `auth.rs`'s tail module's closing brace:
-     the file refused as unrecognised, by name;
+   - a multiline production function containing `tokio::time::sleep`,
+     ending with its own column-zero `}`, appended after `auth.rs`'s
+     tail module: the file refused as unrecognised by check 12's own
+     words (a reader that took the last column-zero brace would exempt
+     it);
    - a second `spawn_blocking` written into `kinds.rs`: check 10's
      `BLOCKING` refusal (its first breaker; the group's rule of
      2026-10-30, each fixed check gains one).
@@ -422,8 +445,8 @@ Fixed before the work starts:
 Each line from the commit alone, its tree or its message; execution
 evidence beyond what a message summarises is the report's.
 
-- `decisions/daemon.md` holds C160 as the registry shows it at
-  `b67776d7` or as the owner reworded it after.
+- `decisions/daemon.md` holds C160 as the registry shows it at the
+  commit carrying this cut, or as the owner reworded it after.
 - `grep -rn "tokio::time" crates/acquisition-daemon/src | grep -v "/tests/"`
   prints `ratelimit.rs`'s two `SystemClock` lines and `auth.rs`'s three
   tail-module lines and nothing else, quoted in Do 3's commit message
@@ -439,10 +462,11 @@ evidence beyond what a message summarises is the report's.
   and `c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send`
   exist by name; `.cargo/mutants.toml` lists the four occupancy mutants
   by function with the reason and the pin's name;
-  `dispatcher_rate_waits_do_not_cap_independent_job_progress` is a door
-  scenario, its retirement line in the commit (`retired <the component
-  test>; held by <the scenario>`); every door wait's doc says `HANG` is
-  the backstop behind the verdict; the commit message names the
+  `dispatcher_rate_waits_do_not_cap_independent_job_progress` runs on
+  the door's runtime through `settle`, its doc naming the parking clock
+  as its boundary, the yield loop gone, its retirement line in the
+  commit; every door wait's doc says `HANG` is the backstop behind the
+  verdict; the commit message names the
   mutants of class (a) the verdict catches by their rows in Input.
 - **If Do 5 was not built** (the stop rule): the last commit's message
   names the scenario, the park and what the runtime waited on; Do 3,
@@ -465,10 +489,10 @@ Not this step's done-when, the close's: the weekly workflow dispatched
 on a tag at the step's last commit by the orchestrating session, its
 four shards under `runs/`, and `python3 -I tools/mutants-compare.py
 runs/t5-round6-after runs/<this tag>` showing the class (a) mutants
-caught, the four of class (b) listed, and no new survivor; the longest
-shard against the baseline's 106 minutes, which #151's "Closes when"
-names and the close reads honestly, since class (c)'s one mutant and
-the four listed still run to the timeout.
+caught, the four of class (b) as removals (listed, so not run), and no
+new survivor; the longest shard against the baseline's 106 minutes,
+which #151's "Closes when" names and the close reads honestly, since
+class (c)'s one mutant still runs to the timeout.
 
 ## Not in scope
 
@@ -539,9 +563,11 @@ Input whose class the local run overturned.
   listing if he would rather they stay timeouts in the weekly run.
 - **The stop rule** (Do 4), as the first cut had it.
 
-## Taken from the review
+## Taken from the reviews
 
-The first review's eight (`151-stuck-verdict-brief-e1a0dcb8.md`):
+The first review's eight (`151-stuck-verdict-brief-e1a0dcb8.md`), as
+the second review judged them (five answered, finding 1 and finding 2
+narrower, finding 5 not answered until this cut):
 
 1. Quiescence is not proof of no future progress (the I/O driver's
    readiness is outside the hook's accounting): C160 narrowed to what
@@ -572,3 +598,26 @@ The first review's eight (`151-stuck-verdict-brief-e1a0dcb8.md`):
 7. Report-only evidence: the commands and their totals in the commit
    messages, the tables in the report (Do 2, Do 4, Do 6, Done when).
 8. "The losing arm panics": the selected verdict arm panics (Do 5).
+
+The second review's seven (`151-stuck-verdict-brief-132a43ef.md`):
+
+1. The last column-zero brace is not the module's: the first standalone
+   `}` after the opener ends the module and must end the file; the
+   appended-item breaker is a multiline production function holding a
+   timer, refused by check 12's words (Do 6).
+2. "A missed one cannot happen" exceeded the `beside` exception: C160
+   qualified to a wait on the hook's own door, a `beside` door keeping
+   the ceiling; the Goal likewise (Do 1, Goal).
+3. An end-of-scenario print cannot show a killed scenario's last park:
+   the hook prints, flushed, at every park that did not advance, with
+   the scenario's name; class (c) recorded as "no hook; a runnable
+   yield loop" (Do 2).
+4. The sleepers test asserting `sleepers()` is a component test, never
+   a scenario: on the door's runtime as the blocking-count probe is,
+   its boundary named, the retirement the yield loop's (Do 5, Done
+   when).
+5. An excluded mutant does not run: the four are removals in the close's
+   compare; the reason worded as the run killed before a completed
+   result (Do 5, the close).
+6. 33 of class (a), the overlap marked in its row (Input).
+7. Done-when 1 cites the commit carrying this cut (Done when).
