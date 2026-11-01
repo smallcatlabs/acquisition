@@ -314,7 +314,7 @@ fn named(name: &str, kind: &'static str, what: &str) -> Named {
 }
 
 /// The description for the list as typed, every frontend's one reader of
-/// it (C46): nothing named is the index ([`index`], C53 as amended), `all`
+/// it (C46): nothing named is the index (`index`, C53 as amended), `all`
 /// the whole, and otherwise the entries named, whole — a field, `line`, a
 /// line's attribute, `is`, `has`, an operator, a slot word (`arg7` is
 /// one), a word of composition, a block by its name, a category by its
