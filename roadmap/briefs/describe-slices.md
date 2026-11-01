@@ -474,6 +474,11 @@ The ruling's commit precedes the build (Input).
    pattern), that it reads names and definitions, and on the MCP that
    pricing, daemon and store are read by name. The index's `next`
    sentence names it. References regenerated and read as a diff.
+   Settled in the round (`4e53584d`, the build review's first
+   finding): the example is the portable `--describe=~resist`, which
+   no declared shell expands or needs quoted, in the help, the
+   terminal's spelling line and the README tour line; an apostrophe
+   is POSIX quoting that cmd.exe keeps as typed.
 7. **The README.** The tour line becomes
    `acq search --describe [name,…|'~pattern'|all]   # the query language: an index, a slice by pattern, or entries whole`
    (one line; `readme_tour.rs` resolves its verb and flags); no other

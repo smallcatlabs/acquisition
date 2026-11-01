@@ -458,6 +458,13 @@ the store's five busy timeouts and `ensure_wal`'s retry under
 review's three findings answered in `41d09423`, the fix review clean;
 the annotation file's switch kept under its own knob, the orchestrating
 session's call, listed for the owner). Next, Phase 3, the owner's
-league run, at his word; #153 and #154 (describe's index and slices)
-before it, as one step (`briefs/describe-slices.md`): built, its review
-pending, `eb9f29b9` to the commit carrying this line.
+league run, at his word. Before it, #153 and #154 (describe's index
+and slices) closed on 2026-11-01 as one step (`briefs/describe-slices.md`,
+`LEDGER.md`): the index a document of the search crate read at two
+densities on both surfaces and in both formats (C53 amended, the
+owner's word), `~pattern` a slice over names and definitions whole at
+ten or fewer and lines otherwise; the build `eb9f29b9..ea07ebfb`
+reviewed cold, its two findings answered in `4e53584d`, the fix review
+clean; the derived groups the owner drew wait on #159 for a seat that
+types a group name. Next, Phase 3, the owner's league run, at his
+word.
