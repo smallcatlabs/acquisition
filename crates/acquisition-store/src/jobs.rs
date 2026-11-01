@@ -114,6 +114,21 @@ pub fn daemon_db_path(dir: &Path) -> PathBuf {
     dir.join("daemon.db")
 }
 
+/// A read-only connection to the ledger at `path`, under the store wait
+/// (C137): the one opener a frontend's reads of the queue share, so the
+/// wait they enforce is set, and read back by its pin, in one place. A
+/// daemon may be writing; the wait is a connection setting, never a
+/// write to the file.
+fn open_read_only(path: &Path) -> Result<Connection> {
+    let conn = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .with_context(|| format!("opening {} read-only", path.display()))?;
+    conn.busy_timeout(crate::store_wait())?;
+    Ok(conn)
+}
+
 /// The queue's schema version, stamped in `user_version` (issue #63; C48,
 /// the schema is internal). A file a build before the stamp wrote carries
 /// 0 and the same table, and is stamped on open; a file stamped newer than
@@ -165,7 +180,7 @@ impl JobDb {
     /// is what keeps two opens from racing the stamp, so no transaction
     /// serialises it here.
     fn init(conn: Connection, path: PathBuf) -> Result<JobDb> {
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        conn.busy_timeout(crate::store_wait())?;
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found > JOBS_SCHEMA_VERSION {
             return Err(QueueSchemaTooNew {
@@ -174,7 +189,7 @@ impl JobDb {
             }
             .into());
         }
-        crate::ensure_wal(&conn)?;
+        crate::ensure_wal(&conn, crate::store_wait())?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
         if found < JOBS_SCHEMA_VERSION {
@@ -452,12 +467,7 @@ impl Persisted {
         if !path.exists() {
             return Ok(None);
         }
-        let conn = Connection::open_with_flags(
-            &path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-        .with_context(|| format!("opening {} read-only", path.display()))?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let conn = open_read_only(&path)?;
         conn.query_row(
             "SELECT id, kind, state, priority, submitted_by, parent, retries, account,
                     params, cancel_requested, submitted_at, updated_at, outcome
@@ -515,12 +525,7 @@ impl Persisted {
         if !path.exists() {
             return Ok(None);
         }
-        let conn = Connection::open_with_flags(
-            &path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-        .with_context(|| format!("opening {} read-only", path.display()))?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let conn = open_read_only(&path)?;
         let context = || format!("reading the queue in {}", path.display());
         let written_at: Option<i64> = conn
             .query_row("SELECT MAX(updated_at) FROM jobs", [], |r| r.get(0))

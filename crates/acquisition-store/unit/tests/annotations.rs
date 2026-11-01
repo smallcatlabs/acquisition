@@ -1,5 +1,6 @@
 use super::test_kinds::{Buyout, GuardedNote, Note, Policy, via_test};
 use super::*;
+use crate::MAX_WAIT_SECS;
 use serde_json::json;
 
 /// C66 — a kind's writer's rule runs at the door on every write and

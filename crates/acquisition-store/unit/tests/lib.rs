@@ -2403,3 +2403,157 @@ fn c124_a_read_only_open_reads_a_current_file_and_writes_nothing() {
     drop(ro);
     assert_eq!(file_hash(&path), before, "the current file changed");
 }
+
+/// C137's shape for a knob the process owns: unless this process has
+/// `ACQ_STORE_WAIT=0`, run `test` (in `module`, `module_path!()` at the
+/// call) again as a child with it set, assert the child passed, and
+/// answer true so the caller returns; with it set, answer false so the
+/// caller runs its body. No other test of this binary reads the knob
+/// changed.
+pub(crate) fn ran_as_a_child_with_the_store_wait_at_zero(module: &str, test: &str) -> bool {
+    if std::env::var("ACQ_STORE_WAIT").as_deref() == Ok("0") {
+        return false;
+    }
+    let module = module.split_once("::").map_or(module, |(_, rest)| rest);
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            format!("{module}::{test}"),
+            "--exact".into(),
+            "--nocapture".into(),
+            "--test-threads=1".into(),
+        ])
+        .env("ACQ_STORE_WAIT", "0")
+        .output()
+        .unwrap();
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success() && said.contains("1 passed"),
+        "the child with the store wait at zero: {}\n{said}\n{}",
+        out.status,
+        String::from_utf8_lossy(&out.stderr)
+    );
+    true
+}
+
+/// Whether `err`, anywhere in its chain, is SQLite's busy refusal.
+pub(crate) fn refused_as_busy(err: &anyhow::Error) -> bool {
+    err.chain().any(|e| {
+        matches!(
+            e.downcast_ref::<rusqlite::Error>(),
+            Some(rusqlite::Error::SqliteFailure(f, _)) if f.code == rusqlite::ErrorCode::DatabaseBusy
+        )
+    })
+}
+
+/// Take the file at `path` out of WAL mode, so a writer's exclusive
+/// lock blocks a reader: how a held writer reaches a read-only door.
+pub(crate) fn rollback_mode(path: &Path) {
+    let conn = Connection::open(path).unwrap();
+    let mode: String = conn
+        .query_row("PRAGMA journal_mode = DELETE", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(mode, "delete");
+}
+
+/// C137: the store wait at zero (`ACQ_STORE_WAIT=0`) refuses a writer
+/// the fact file's lock is held from at once, as busy: the expiry
+/// forced, no real waiting, and no wall-clock bound asserted. The wait
+/// SQLite enforces is read back from the connection, so a knob unwired
+/// from [`Store::open`]'s busy timeout leaves the default's five and
+/// fails here. The knob is the process's, so the test runs itself again
+/// as a child with it set.
+#[test]
+fn c137_the_store_wait_at_zero_refuses_a_held_writer_at_once() {
+    if ran_as_a_child_with_the_store_wait_at_zero(
+        module_path!(),
+        "c137_the_store_wait_at_zero_refuses_a_held_writer_at_once",
+    ) {
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("facts.db");
+    let mut s = Store::open(&path).unwrap();
+    assert_eq!(
+        annotations::enforced_wait(&s.conn),
+        Some(std::time::Duration::ZERO),
+        "the wait the connection enforced, not the default"
+    );
+    // `b` holds the write lock in an open transaction the whole time.
+    let b = Connection::open(&path).unwrap();
+    b.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let leagues = json!({ "leagues": [] });
+    let err = s
+        .record(&Endpoint::Leagues, &json!({}), 200, &leagues, 50)
+        .unwrap_err();
+    assert!(refused_as_busy(&err), "{err:?}");
+    b.execute_batch("ROLLBACK").unwrap();
+    // Nothing landed: the same record succeeds once the lock is free.
+    s.record(&Endpoint::Leagues, &json!({}), 200, &leagues, 50)
+        .unwrap();
+    assert_eq!(s.status().unwrap().league_list, "fetched");
+}
+
+/// C137: the store wait at zero refuses a read-only door's read at once
+/// when a writer holds the file exclusively (a rollback-journal file,
+/// where an exclusive lock blocks readers; a WAL file's never does).
+/// The wait is read back from [`Store::open_read_only`]'s connection,
+/// as above, so a knob unwired from that open fails here.
+#[test]
+fn c137_the_store_wait_at_zero_refuses_a_blocked_read_only_reader_at_once() {
+    if ran_as_a_child_with_the_store_wait_at_zero(
+        module_path!(),
+        "c137_the_store_wait_at_zero_refuses_a_blocked_read_only_reader_at_once",
+    ) {
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("facts.db");
+    drop(Store::open(&path).unwrap());
+    rollback_mode(&path);
+    let s = Store::open_read_only(&path).unwrap();
+    assert_eq!(
+        annotations::enforced_wait(&s.conn),
+        Some(std::time::Duration::ZERO),
+        "the wait the connection enforced, not the default"
+    );
+    let b = Connection::open(&path).unwrap();
+    b.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    let err = s.status().unwrap_err();
+    assert!(refused_as_busy(&err), "{err:?}");
+    b.execute_batch("ROLLBACK").unwrap();
+    assert_eq!(s.status().unwrap().league_list, "never fetched");
+}
+
+/// C137: `ensure_wal`'s retry takes its wait as a parameter, so its
+/// expiry is forced with no clock: at zero, the switch to WAL on a
+/// rollback-journal file whose write lock another connection holds is
+/// given up at once, as SQLite's busy refusal, and the file is left in
+/// rollback mode; once the lock is free the same call switches it.
+#[test]
+fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("plain.db");
+    let a = Connection::open(&path).unwrap();
+    a.busy_timeout(std::time::Duration::ZERO).unwrap();
+    a.execute_batch("CREATE TABLE t (x)").unwrap();
+    let b = Connection::open(&path).unwrap();
+    b.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let err = ensure_wal(&a, std::time::Duration::ZERO).unwrap_err();
+    assert!(
+        matches!(
+            &err,
+            rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::DatabaseBusy
+        ),
+        "{err:?}"
+    );
+    let mode: String = a
+        .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(mode, "delete", "the file is as it was");
+    b.execute_batch("ROLLBACK").unwrap();
+    ensure_wal(&a, std::time::Duration::ZERO).unwrap();
+    let mode: String = a
+        .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(mode, "wal");
+}

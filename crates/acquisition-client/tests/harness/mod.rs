@@ -180,6 +180,7 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
         ("ACQ_HELLO_WITHIN", "60".into()),
         ("ACQ_STARTUP_WITHIN", "60".into()),
         ("ACQ_ANNOTATION_WAIT", "60".into()),
+        ("ACQ_STORE_WAIT", "60".into()),
     ] {
         list.push((key.into(), Some(value)));
     }

@@ -144,28 +144,17 @@ fn annotation_wait() -> std::time::Duration {
         .map_or(BUSY_TIMEOUT, |v| parse_annotation_wait(&v))
 }
 
-/// The largest wait a knob may name, in seconds: the largest whose
-/// milliseconds fit SQLite's signed 32-bit busy timeout, and far below
-/// any `Instant` addition.
-const MAX_WAIT_SECS: u64 = 2_147_483;
-
-/// C137: the knob's value as the wait it names. A value the consumer
-/// cannot represent — over [`MAX_WAIT_SECS`], or not a whole number of
-/// seconds — is unsupported and the default stands; zero is valid and
-/// forces the expiry.
+/// C137: the knob's value as the wait it names, [`crate::parse_wait`]
+/// with this file's default: a value SQLite cannot hold keeps
+/// [`BUSY_TIMEOUT`]; zero is valid and forces the expiry.
 fn parse_annotation_wait(value: &str) -> std::time::Duration {
-    value
-        .trim()
-        .parse::<u64>()
-        .ok()
-        .filter(|secs| *secs <= MAX_WAIT_SECS)
-        .map_or(BUSY_TIMEOUT, std::time::Duration::from_secs)
+    crate::parse_wait(value, BUSY_TIMEOUT)
 }
 
 /// The busy wait SQLite enforces on `conn`, read back from it
 /// (`PRAGMA busy_timeout`, milliseconds): what a busy refusal reports,
 /// so its words are the connection's fact and not the knob's (C137).
-fn enforced_wait(conn: &Connection) -> Option<std::time::Duration> {
+pub(crate) fn enforced_wait(conn: &Connection) -> Option<std::time::Duration> {
     conn.query_row("PRAGMA busy_timeout", [], |r| r.get::<_, i64>(0))
         .ok()
         .and_then(|ms| u64::try_from(ms).ok())
@@ -915,8 +904,8 @@ impl Annotations {
         // The file is ours from here: WAL like the fact store — one writer
         // at a time, any number of readers — under `crate::ensure_wal`'s
         // retry, since the two openers above may reach this switch
-        // together.
-        crate::ensure_wal(conn)?;
+        // together; the retry waits as long as this file's writers do.
+        crate::ensure_wal(conn, annotation_wait())?;
         Ok(conn
             .query_row("SELECT value FROM meta WHERE key = ?1", [META_UUID], |r| {
                 r.get(0)

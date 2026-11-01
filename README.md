@@ -267,6 +267,7 @@ them.
 | `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake, and every read request after it, before it is reported unresponsive; the one exception is a quote, which the plan bounds on its own at 5 s and notes | [client.rs][client] |
 | `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
 | `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |
+| `ACQ_STORE_WAIT=<s>` | 5 | how long a statement on the fact store or the job queue waits for another connection's lock before it is refused as busy, and how long a first open retries the switch to write-ahead logging | [lib.rs][store] |
 | `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [start.rs][daemon] |
 | `ACQ_TRIPWIRE=1` | off | rail 1: halt on 429/401/403/503 until reset, persisted | [rails.rs][rails] |
 | `ACQ_MAX_SENDS=<n>` | off | rail 5: halt after `n` real sends this lifetime, not persisted | [rails.rs][rails] |
@@ -277,6 +278,7 @@ them.
 [cli]: crates/acquisition-cli/src/main.rs
 [world]: crates/acquisition-store/src/world.rs
 [annotations]: crates/acquisition-store/src/annotations.rs
+[store]: crates/acquisition-store/src/lib.rs
 [auth]: crates/acquisition-daemon/src/auth.rs
 [client]: crates/acquisition-client/src/client.rs
 [daemon]: crates/acquisition-daemon/src/daemon/start.rs

@@ -955,6 +955,41 @@ pub struct Checkpoint {
     pub checkpointed: i64,
 }
 
+/// How long a connection on a fact or queue file waits for another
+/// connection's lock before a statement is refused as busy, and how long
+/// a first open retries the switch to WAL, by default.
+const STORE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// The largest wait a knob may name, in seconds: the largest whose
+/// milliseconds fit SQLite's signed 32-bit busy timeout, and far below
+/// any `Instant` addition.
+pub(crate) const MAX_WAIT_SECS: u64 = 2_147_483;
+
+/// C137, the deadline's contract is its expiry behaviour:
+/// `ACQ_STORE_WAIT=<secs>` overrides [`STORE_WAIT`], read at each open
+/// of a fact or queue file ([`parse_wait`]). The test isolation list
+/// widens it, so a starved runner cannot fail a healthy writer; zero
+/// refuses a held file at once. The annotation file has its own knob
+/// (`ACQ_ANNOTATION_WAIT`, `annotations.rs`), the same shape.
+pub(crate) fn store_wait() -> std::time::Duration {
+    std::env::var("ACQ_STORE_WAIT")
+        .ok()
+        .map_or(STORE_WAIT, |v| parse_wait(&v, STORE_WAIT))
+}
+
+/// C137: a wait knob's value as the wait it names. A value the consumer
+/// cannot represent — over [`MAX_WAIT_SECS`], or not a whole number of
+/// seconds — is unsupported and `default` stands; zero is valid and
+/// forces the expiry. The one parse both knobs share.
+pub(crate) fn parse_wait(value: &str, default: std::time::Duration) -> std::time::Duration {
+    value
+        .trim()
+        .parse::<u64>()
+        .ok()
+        .filter(|secs| *secs <= MAX_WAIT_SECS)
+        .map_or(default, std::time::Duration::from_secs)
+}
+
 /// Put a file into WAL mode when it is created, and leave a file already
 /// in WAL mode alone (reading the mode takes no lock, and a fresh
 /// connection learns it from the header). The switch itself is the one
@@ -965,15 +1000,17 @@ pub struct Checkpoint {
 /// two first-ever `acq price set`s started together met exactly that on
 /// the intent file (plan step 7, item 3; `tests/price_story.rs` in
 /// acquisition-cli races the creation in its first round). So the switch
-/// retries, briefly, up to the same five seconds the busy timeout gives
-/// every other statement; the loser's retry finds the winner's WAL file
-/// and is a no-op.
-pub(crate) fn ensure_wal(conn: &Connection) -> rusqlite::Result<()> {
+/// retries, briefly, for `wait`: the caller passes the wait its busy
+/// timeout gives every other statement on the connection ([`store_wait`]
+/// for a fact or queue file, the annotation wait for the intent file),
+/// so one knob at zero forces this expiry too (C137); the loser's retry
+/// finds the winner's WAL file and is a no-op.
+pub(crate) fn ensure_wal(conn: &Connection, wait: std::time::Duration) -> rusqlite::Result<()> {
     let mode: String = conn.query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
     if mode.eq_ignore_ascii_case("wal") {
         return Ok(());
     }
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + wait;
     loop {
         match conn.pragma_update(None, "journal_mode", "WAL") {
             Ok(()) => return Ok(()),
@@ -1032,7 +1069,7 @@ impl Store {
         }
         let conn = Connection::open(path).with_context(|| format!("opening {}", path.display()))?;
         // A connection setting, not a file write.
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        conn.busy_timeout(store_wait())?;
         Self::init(conn, path.to_path_buf())
     }
 
@@ -1059,7 +1096,7 @@ impl Store {
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .with_context(|| format!("opening {} read-only", path.display()))?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        conn.busy_timeout(store_wait())?;
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found != FACT_SCHEMA_VERSION {
             return Err(anyhow::Error::new(SchemaNotCurrent {
@@ -1107,7 +1144,7 @@ impl Store {
             .into());
         }
         // WAL: the daemon writes while any number of frontends read.
-        ensure_wal(&conn)?;
+        ensure_wal(&conn, store_wait())?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         if found == FACT_SCHEMA_VERSION {
             return Ok(Store { conn, path });

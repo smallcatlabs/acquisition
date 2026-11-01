@@ -195,3 +195,79 @@ fn prune_keeps_failures_longer_than_successes() {
         "a waiting row is never pruned by age, nor an open parent's child"
     );
 }
+
+/// C137: the store wait at zero (`ACQ_STORE_WAIT=0`) refuses a writer
+/// the queue file's lock is held from at once, as busy, the wait read
+/// back from [`JobDb::open`]'s connection so a knob unwired from its
+/// busy timeout fails here (the shape of the fact store's pin, in
+/// `unit/tests/lib.rs`, which runs the test again as a child with the
+/// knob set).
+#[test]
+fn c137_the_store_wait_at_zero_refuses_a_held_queue_writer_at_once() {
+    if crate::tests::ran_as_a_child_with_the_store_wait_at_zero(
+        module_path!(),
+        "c137_the_store_wait_at_zero_refuses_a_held_queue_writer_at_once",
+    ) {
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let path = daemon_db_path(temp.path());
+    let db = JobDb::open(&path).unwrap();
+    assert_eq!(
+        crate::annotations::enforced_wait(&db.conn),
+        Some(std::time::Duration::ZERO),
+        "the wait the connection enforced, not the default"
+    );
+    // `b` holds the write lock in an open transaction the whole time.
+    let b = Connection::open(&path).unwrap();
+    b.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let err = db.upsert(&row(1, "waiting", 100)).unwrap_err();
+    assert!(crate::tests::refused_as_busy(&err), "{err:?}");
+    b.execute_batch("ROLLBACK").unwrap();
+    db.upsert(&row(1, "waiting", 100)).unwrap();
+    assert_eq!(db.load().unwrap().len(), 1);
+}
+
+/// C137: the store wait at zero refuses a frontend's read-only read of
+/// the queue at once when a writer holds the file exclusively (a
+/// rollback-journal file; a WAL file's readers never wait). The wait is
+/// read back from the one read-only opener both [`Persisted::read`]
+/// and [`Persisted::read_job`] share, so a knob unwired from it fails
+/// here, and the door itself is refused through it.
+#[test]
+fn c137_the_store_wait_at_zero_refuses_a_blocked_queue_reader_at_once() {
+    if crate::tests::ran_as_a_child_with_the_store_wait_at_zero(
+        module_path!(),
+        "c137_the_store_wait_at_zero_refuses_a_blocked_queue_reader_at_once",
+    ) {
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let path = daemon_db_path(temp.path());
+    drop(JobDb::open(&path).unwrap());
+    crate::tests::rollback_mode(&path);
+    let reader = open_read_only(&path).unwrap();
+    assert_eq!(
+        crate::annotations::enforced_wait(&reader),
+        Some(std::time::Duration::ZERO),
+        "the wait the connection enforced, not the default"
+    );
+    let b = Connection::open(&path).unwrap();
+    b.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    let err = reader
+        .query_row("SELECT COUNT(*) FROM jobs", [], |r| r.get::<_, i64>(0))
+        .unwrap_err();
+    assert!(
+        matches!(
+            &err,
+            rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::DatabaseBusy
+        ),
+        "{err:?}"
+    );
+    let err = Persisted::read(temp.path()).unwrap_err();
+    assert!(crate::tests::refused_as_busy(&err), "{err:?}");
+    let err = Persisted::read_job(temp.path(), 1).unwrap_err();
+    assert!(crate::tests::refused_as_busy(&err), "{err:?}");
+    b.execute_batch("ROLLBACK").unwrap();
+    assert!(Persisted::read(temp.path()).unwrap().is_some());
+}
