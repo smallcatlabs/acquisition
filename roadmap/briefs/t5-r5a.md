@@ -230,8 +230,8 @@ progress at this brief's commit, read at its close.
    status, ok, wait_ms]` with the error's words where the row names
    them; the bodies on the wire (the grants, in order); the saves'
    count in the scenario's store; `forbids`, fragments each with its
-   surfaces (`journal_text`, `log_text`, `Dashboard.errors`, the
-   answer's words). The rows, written from the rulings and the old
+   surfaces (`journal_text`, `Dashboard.errors`, the answer's
+   words). The rows, written from the rulings and the old
    assertions, never from running the door: T1 (400: `NotLoggedIn`
    carrying "400 Bad Request"; the mark carries "HTTP 400"; a second
    check carries "disabled" and the journal still one POST, its body's
@@ -485,3 +485,6 @@ The first review's six (`t5-r5a-brief-e818ed51.md`):
 5. The code diff checked under `crates/` from the brief's last cut
    (done-when).
 6. `world` at door.rs:381, `TOKEN_HEADERS` at refresh.rs:287 (Read).
+
+The second review's one remnant (`t5-r5a-brief-17265e8f.md`): the
+table's surface list named `log_text` (Do 2).
