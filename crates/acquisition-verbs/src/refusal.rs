@@ -339,7 +339,10 @@ fn faulted(
         ..
     } = fault
     {
-        offers.extend(covered.iter().map(|league| {
+        // C53: the first ten, as the words name them; the words count
+        // the rest and say what lists them
+        let (named, _) = acquisition_store::bound::bounded(covered.clone(), None, false);
+        offers.extend(named.iter().map(|league| {
             (
                 Way::RefreshPlan {
                     account: username.clone(),

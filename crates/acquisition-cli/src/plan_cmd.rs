@@ -210,9 +210,19 @@ fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String 
             })
         })
         .collect();
+    // C53: ten plans named, the rest counted, and what lists them (the
+    // review of the league seat's fix round, finding 2)
+    let (lines, more) = acquisition_store::bound::bounded(lines, None, false);
+    let more = match more {
+        0 => String::new(),
+        n => format!(
+            ", and {n} more: `{}` lists them",
+            crate::printed_line(&crate::policy_show_words(&written.target.account))
+        ),
+    };
     match lines.is_empty() {
         true => String::new(),
-        false => format!(" — preview the work with {}", lines.join(", ")),
+        false => format!(" — preview the work with {}{more}", lines.join(", ")),
     }
 }
 

@@ -2456,6 +2456,45 @@ fn a_plan_of_an_uncovered_league_names_and_offers_the_covered_ones() {
     let run = run_as_printed(&base, &line);
     assert!(run.status.success(), "`{line}`: {}", text(&run));
     assert!(stdout(&run).contains("in Allflame"), "{}", text(&run));
+
+    // Eleven leagues (the review of the fix round, finding 2): ten named
+    // and offered, the rest counted, and what lists them all (C53).
+    let leagues: Vec<String> = (1..=11)
+        .map(|n| format!("\"L{n:02}\":{{\"tabs\":\"all\",\"max_age_seconds\":3600}}"))
+        .collect();
+    let policy = format!(
+        r#"{{"version":3,"realms":{{"pc":{{"leagues":{{{}}}}}}}}}"#,
+        leagues.join(",")
+    );
+    let out = acq(&base, &["policy", "set", &policy]);
+    let said = stdout(&out);
+    assert!(out.status.success(), "{}", text(&out));
+    let previews = printed_in_line(&said, "preview the work with");
+    assert_eq!(
+        previews.len(),
+        11,
+        "ten plans and what lists the rest: {said}"
+    );
+    assert!(
+        said.contains(", and 1 more: `acq policy show --account 'Alice#1234'` lists them"),
+        "{said}"
+    );
+    let out = acq(&base, &["refresh", "--plan"]);
+    let said = text(&out);
+    assert!(
+        said.contains(
+            "covers L01, L02, L03, L04, L05, L06, L07, L08, L09, L10 and 1 more on realm pc, \
+             not Standard: name one with `--league`; \
+             `acq policy show --account 'Alice#1234'` lists them all"
+        ),
+        "{said}"
+    );
+    let refused = sole_json(&acq(&base, &["refresh", "--plan", "--json"]));
+    assert_eq!(
+        refused["offers"].as_array().map(Vec::len),
+        Some(10),
+        "{refused}"
+    );
 }
 
 /// The league seat (cli calls 76, 78, 83, 84, 98, 99; mcp 51, 53, 59,

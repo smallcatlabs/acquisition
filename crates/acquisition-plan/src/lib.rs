@@ -349,11 +349,21 @@ impl std::fmt::Display for PlanError {
                     f,
                     "the sync policy covers no league on realm {realm}, so not {league}"
                 ),
-                false => write!(
-                    f,
-                    "the sync policy covers {} on realm {realm}, not {league}",
-                    covered.join(", ")
-                ),
+                false => {
+                    // C53: ten named, the rest counted (the review of the
+                    // league seat's fix round, finding 2)
+                    let (named, more) =
+                        acquisition_store::bound::bounded(covered.clone(), None, false);
+                    let more = match more {
+                        0 => String::new(),
+                        n => format!(" and {n} more"),
+                    };
+                    write!(
+                        f,
+                        "the sync policy covers {}{more} on realm {realm}, not {league}",
+                        named.join(", ")
+                    )
+                }
             },
             PlanError::UnknownRealm { realm } => {
                 write!(

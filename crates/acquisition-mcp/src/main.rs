@@ -193,9 +193,12 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }
-        Fault::NotCovered { covered, .. } => match covered.is_empty() {
-            true => format!("{fault}: set_sync_policy covers a league"),
-            false => format!("{fault}: `league` names one"),
+        Fault::NotCovered { covered, .. } => match covered.len() {
+            0 => format!("{fault}: set_sync_policy covers a league"),
+            n if n <= acquisition_store::bound::LISTED => {
+                format!("{fault}: `league` names one")
+            }
+            _ => format!("{fault}: `league` names one; sync_policy lists them all"),
         },
         // A merge reads the stored row to merge into, so the retry is a
         // whole write naming the revision.

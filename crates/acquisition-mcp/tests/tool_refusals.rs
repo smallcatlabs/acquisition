@@ -115,6 +115,35 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     );
     let planned = mcp.expect_ok("refresh_plan", doc["offers"][0]["request"].clone());
     assert_eq!(planned["plan"]["league"], json!("Standard"), "{planned}");
+    // eleven covered (the review of the fix round, finding 2): ten named
+    // and offered, the rest counted, and the tool that lists them all
+    let leagues: serde_json::Map<String, Value> = (1..=11)
+        .map(|n| {
+            (
+                format!("L{n:02}"),
+                json!({ "tabs": "all", "max_age_seconds": 3600 }),
+            )
+        })
+        .collect();
+    mcp.expect_ok(
+        "set_sync_policy",
+        json!({ "value": { "version": 3, "realms": { "pc": { "leagues": leagues } } },
+                "if_revision": 1 }),
+    );
+    let doc = refusal(
+        &mut mcp,
+        "refresh_plan",
+        json!({ "league": "Allflame" }),
+        "refused",
+    );
+    assert!(
+        doc["error"].as_str().unwrap().starts_with(
+            "the sync policy covers L01, L02, L03, L04, L05, L06, L07, L08, L09, L10 and 1 more \
+             on realm pc, not Allflame: `league` names one; sync_policy lists them all"
+        ),
+        "{doc}"
+    );
+    assert_eq!(doc["offers"].as_array().map(Vec::len), Some(10), "{doc}");
 
     // A parameter the tool cannot read.
     refusal(&mut mcp, "tabs", json!({ "realm": "pcx" }), "arguments");

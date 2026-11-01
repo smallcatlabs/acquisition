@@ -1033,9 +1033,17 @@ fn fault_words(fault: &Fault) -> String {
             "{fault} — declare one first, e.g. `{}`",
             plan_cmd::policy_set_line("", plan_cmd::POLICY_EXAMPLE)
         ),
-        Fault::NotCovered { covered, .. } => match covered.is_empty() {
-            true => format!("{fault}: `acq policy set` covers a league"),
-            false => format!("{fault}: name one with `--league`"),
+        Fault::NotCovered {
+            covered, username, ..
+        } => match covered.len() {
+            0 => format!("{fault}: `acq policy set` covers a league"),
+            n if n <= acquisition_store::bound::LISTED => {
+                format!("{fault}: name one with `--league`")
+            }
+            _ => format!(
+                "{fault}: name one with `--league`; `{}` lists them all",
+                printed_line(&policy_show_words(username))
+            ),
         },
         Fault::Spend(
             acquisition_plan::SpendError::PolicyGone { .. }
@@ -1141,6 +1149,15 @@ impl Terminal {
             repeat: Repeat::None,
         }
     }
+}
+
+/// `acq policy show` as `account`: what lists a policy's leagues past the
+/// ten a refusal or a receipt names (C53).
+pub(crate) fn policy_show_words(account: &str) -> Vec<String> {
+    ["acq", "policy", "show", "--account", account]
+        .iter()
+        .map(|w| w.to_string())
+        .collect()
 }
 
 /// A command line as this terminal prints it: each word quoted for the
