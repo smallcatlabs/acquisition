@@ -2553,3 +2553,43 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     assert!(run.status.success(), "`{line}`: {}", text(&run));
     assert_eq!(manual(&base)["value"]["amount"], json!("4"));
 }
+
+/// The league seat (cli call 76, mcp call 51): a price set on an item in
+/// a map tab's substash landed silently, and only `shop render` said
+/// "blocked (substash)" (cli call 82). The set's receipt says so in the
+/// shop's own words, the row standing all the same (C69): a `note` in
+/// JSON, a `note:` line in text, on an item the facts hold in a substash
+/// and on a substash itself; nothing on an item in a tab.
+#[test]
+fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
+    let scratch = harness::scratch("seat-substash-note");
+    let world = scratch.0.clone();
+    crate::price_json::seed(&world);
+    let rule = "the shop blocks what this row prices (substash): the website's stash view \
+                offers no link for an item in a map or unique substash";
+    for target in ["item/i-map", "substash/pc/m1/s1"] {
+        let receipt = sole_json(&harness::offline_acq(
+            &world,
+            &["price", "set", target, "skip", "--json"],
+        ));
+        assert!(
+            receipt["note"]
+                .as_str()
+                .is_some_and(|n| n.starts_with(rule)),
+            "{target}: {receipt}"
+        );
+        assert!(receipt["written"].is_object(), "the row stands: {receipt}");
+        let out = harness::offline_acq(&world, &["price", "set", target, "exact", "1", "chaos"]);
+        assert!(out.status.success(), "{}", text(&out));
+        assert!(
+            text(&out).contains(&format!("note: {rule}")),
+            "{target}: {}",
+            text(&out)
+        );
+    }
+    let receipt = sole_json(&harness::offline_acq(
+        &world,
+        &["price", "set", "item/i-noted", "skip", "--json"],
+    ));
+    assert_eq!(receipt.get("note"), None, "{receipt}");
+}

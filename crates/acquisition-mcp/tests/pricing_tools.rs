@@ -1078,6 +1078,35 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     assert!(no_daemon_appeared(&dir.0));
 }
 
+/// The league seat (mcp call 51; the CLI's twin is `seat_faults.rs`'s):
+/// `price_set` on an item in a map tab's substash landed silently. The
+/// receipt's `note` says the shop blocks it, in the shop's own words,
+/// and the row stands; an item in a tab has none.
+#[test]
+fn a_price_set_in_a_substash_says_the_shop_blocks_it() {
+    let dir = scratch("mcp-substash-note");
+    seed(&dir.0);
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let (ok, receipt) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "skip" }),
+    );
+    assert!(ok, "{receipt}");
+    assert_eq!(
+        receipt["note"],
+        json!(acquisition_plan::pricing::substash_note()),
+        "{receipt}"
+    );
+    let (ok, receipt) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-noted", "type": "skip" }),
+    );
+    assert!(ok, "{receipt}");
+    assert_eq!(receipt.get("note"), None, "{receipt}");
+}
+
 /// The league seat (mcp calls 51, 53, 59, 60, 68; the CLI's twin is
 /// `seat_faults.rs`'s): a write refused for its revision offered
 /// nothing, so no printed request removed a row after a replace. The

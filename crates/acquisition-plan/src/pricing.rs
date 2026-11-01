@@ -802,13 +802,51 @@ fn on_conflict(
 }
 
 /// `set --json`: the [`PriceWrite`] plus whether the facts hold the
-/// target — the text's note, as JSON. Absent from `clear`, which only
-/// ever removes a row that exists.
+/// target — the text's note, as JSON — and, where the target is or sits
+/// in a map or unique substash, `note`, the shop's rule that blocks what
+/// it prices ([`substash_note`]; absent otherwise). Absent from `clear`,
+/// which only ever removes a row that exists.
 #[derive(Debug, Serialize)]
 pub struct SetReceipt {
     #[serde(flatten)]
     pub write: PriceWrite,
     pub in_facts: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+/// The note a set's receipt carries where the shop cannot post what the
+/// row prices (the league seat, fault 4): the row stands (C69), and the
+/// shop's own rule says why, in its words (`Cell::Substash`).
+pub fn substash_note() -> String {
+    format!(
+        "the shop blocks what this row prices (substash): {}",
+        crate::shop::Cell::Substash.why()
+    )
+}
+
+/// Whether `target` is a substash, or an item the facts hold in one, as
+/// the listing reads an item's place (its `location`, the shop's reading
+/// too): in any realm and league the facts hold it in.
+fn in_substash(store: &Store, annotations: &Annotations, target: &PriceTarget) -> Result<bool> {
+    match target {
+        PriceTarget::Substash { .. } => Ok(true),
+        PriceTarget::Item { .. } => {
+            for (realm, league) in store.places_of(&FactAddress::from(target))? {
+                let Some(realm) = Realm::parse(&realm) else {
+                    continue;
+                };
+                let report = report(store, annotations, realm, &league)?;
+                if report.find(target).is_some_and(|l| {
+                    matches!(l.subject.location, Some(PriceTarget::Substash { .. }))
+                }) {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        PriceTarget::Tab { .. } | PriceTarget::Character { .. } => Ok(false),
+    }
 }
 
 /// The read-back a write's refusal prints: `price show` of the target as
@@ -849,6 +887,9 @@ pub fn set(
     let in_facts = store
         .holds(&FactAddress::from(&target))
         .context("reading the facts for the target")?;
+    let note = in_substash(store, annotations, &target)
+        .context("reading the facts for the target's place")?
+        .then(substash_note);
     let expected = match expect {
         Expect::Exactly(revision) => Some(revision),
         Expect::Current => current_revision(annotations, &target, &shown)?,
@@ -867,7 +908,11 @@ pub fn set(
         Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
         Ok(write) => write,
     };
-    Ok(SetReceipt { write, in_facts })
+    Ok(SetReceipt {
+        write,
+        in_facts,
+        note,
+    })
 }
 
 /// `price clear <target>`: remove the row, under the same compare-and-
@@ -1037,10 +1082,10 @@ pub fn currency_document(word: Option<&str>) -> Result<CurrencyDocument> {
 /// name and what it says (the MCP's `describe` with names
 /// `["pricing"]`, #83). The words are the ones the MCP's tool texts carried,
 /// cut, beside the functions that make what they describe.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Described {
     pub name: &'static str,
-    pub what: &'static str,
+    pub what: String,
 }
 
 /// The listing model, read once rather than in every tool's text: the
@@ -1049,7 +1094,10 @@ pub struct Described {
 /// listing state, a list and a shop render carry (C146: on the MCP a
 /// count's gloss stands here, named by the tool's description).
 pub fn described() -> Vec<Described> {
-    let entry = |name, what| Described { name, what };
+    let entry = |name, what: &str| Described {
+        name,
+        what: what.to_string(),
+    };
     vec![
         entry(
             "hand row",
@@ -1071,10 +1119,13 @@ pub fn described() -> Vec<Described> {
             "revision",
             "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands, `manual` less the age words an answer adds (`updated_at_age`), absent over a cleared row — and with no row names none, or 0, to create one (0, which no row carries, creates only where no row stands, on every surface); a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
-        entry(
-            "undo",
-            "a write's receipt, a set's or a clear's, is one shape, the sync policy's write's too: `target`; `written`, the row now standing, null after a clear; `prior`, the row before, null on a create; `revision`, the one the next write names; and `undo`, the request that puts `prior` back, sent back as printed (`request` and `says`, `tool` where it is another tool's, and beside a command line `argv`, its words unquoted for a program to run with no shell): after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision; after a clear, a set with the prior's value naming no revision, a create. Where nothing puts it back `undo` is absent and `no_undo` says why, in words: a prior this build cannot read (a newer build's, replaced only by naming its revision), one naming a retired currency, which a new price cannot name, or a policy's first write, since no verb clears a policy. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands",
-        ),
+        Described {
+            name: "undo",
+            what: format!(
+                "a write's receipt, a set's or a clear's, is one shape, the sync policy's write's too: `target`; `written`, the row now standing, null after a clear; `prior`, the row before, null on a create; `revision`, the one the next write names; and `undo`, the request that puts `prior` back, sent back as printed (`request` and `says`, `tool` where it is another tool's, and beside a command line `argv`, its words unquoted for a program to run with no shell): after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision; after a clear, a set with the prior's value naming no revision, a create. Where nothing puts it back `undo` is absent and `no_undo` says why, in words: a prior this build cannot read (a newer build's, replaced only by naming its revision), one naming a retired currency, which a new price cannot name, or a policy's first write, since no verb clears a policy. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands; `note`, on a set whose target is a map or unique tab's substash or an item the facts hold in one, where the row stands all the same, says: {}",
+                substash_note()
+            ),
+        },
         entry(
             "status counts",
             "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); price_list with `game_text` `residue` or `invalid_note` lists the items of either count; `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read (`unreadable`), which belong to other leagues (`other_league`) or realms (`other_realm`, a count); each of the three lists holds ten unless `expand`, its whole count beside it (`unmatched_total`, `unreadable_total`, `other_league_total`)",

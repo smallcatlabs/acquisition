@@ -30,7 +30,7 @@ fn stderr(out: &Output) -> String {
 /// A folder holding a public priced tab with two items (one noted, one
 /// with a row), a map tab with a substash holding one item, a character
 /// wearing one; a row on the folder and one naming nothing here.
-fn seed(base: &Path) -> PathBuf {
+pub(crate) fn seed(base: &Path) -> PathBuf {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let at = acquisition_store::now();

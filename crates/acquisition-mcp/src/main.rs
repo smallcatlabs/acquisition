@@ -735,7 +735,10 @@ fn own_sections() -> [Vec<Entry>; 3] {
     let entries = |table: &[(&'static str, &'static str)]| {
         table
             .iter()
-            .map(|&(name, what)| Entry { name, what })
+            .map(|&(name, what)| Entry {
+                name,
+                what: what.to_string(),
+            })
             .collect()
     };
     [
@@ -755,7 +758,7 @@ fn own_sections() -> [Vec<Entry>; 3] {
 #[derive(serde::Serialize)]
 struct Entry {
     name: &'static str,
-    what: &'static str,
+    what: String,
 }
 
 /// `describe`'s answer: the search crate's document for the names it
@@ -1549,7 +1552,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, the rest under 4 KB each. An unknown name is refused, listing every name it knows."
+        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, pricing some 7 KB, answer some 5 KB, the rest under 4 KB. An unknown name is refused, listing every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {

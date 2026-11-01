@@ -46,7 +46,7 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, the rest under 4 KB each. An unknown name is refused, listing every name it knows.
+What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, pricing some 7 KB, answer some 5 KB, the rest under 4 KB. An unknown name is refused, listing every name it knows.
 
 - `names` (array | null) — Sections, each by the key it answers under: fields, line, linked, values, composition, operators, slots, computed, totals, counts, explain, answer, categories, trade, not_built, limits, pricing, daemon, store — or a name within one (league, total_res, revision). Omitted: everything, over 150 KB.
 

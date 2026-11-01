@@ -643,10 +643,11 @@ fn describe_is_as_large_as_its_text_says() {
     // 5,340 bytes when the anatomy left `search`'s text)
     assert!(size(&mut seat, json!(["answer"])) < 7_000);
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
-    // some 5 KB since a show's counts joined it (step 2g, round 2: 4,541
-    // bytes of entries then)
-    assert!(size(&mut seat, json!(["pricing"])) < 7_000);
-    assert!(size(&mut seat, json!(["pricing"])) > 4_000);
+    // some 7 KB since a show's counts joined it (step 2g, round 2: 4,541
+    // bytes of entries then) and the shop's substash rule the receipt's
+    // `note` (the league seat, fault 4: 7,131 bytes)
+    assert!(size(&mut seat, json!(["pricing"])) < 8_000);
+    assert!(size(&mut seat, json!(["pricing"])) > 6_000);
     let large = [
         "computed",
         "trade",
@@ -678,8 +679,8 @@ fn describe_is_as_large_as_its_text_says() {
         "computed is some 80 KB",
         "fields and trade some 20 KB each",
         "categories some 10 KB",
-        "answer and pricing some 5 KB each",
-        "the rest under 4 KB each",
+        "pricing some 7 KB, answer some 5 KB",
+        "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
     }
