@@ -1251,6 +1251,13 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 Repeat::Request(_) | Repeat::None => return None,
             },
             Way::Search(_) => return None,
+            // the index bare; each name a value of its own, `=` joined so
+            // none is read as a flag and a pattern's commas stay its own
+            Way::Describe { names } if names.is_empty() => words(&["acq", "search", "--describe"]),
+            Way::Describe { names } => words(&["acq", "search"])
+                .into_iter()
+                .chain(names.iter().map(|name| format!("--describe={name}")))
+                .collect(),
             Way::Tabs {
                 account,
                 realm,

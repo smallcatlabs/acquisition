@@ -430,6 +430,55 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert_eq!(e["readings"], printed["readings"]);
 }
 
+/// #154: a pattern is the CLI's slice, the documents one — no own
+/// section stands in a pattern's answer — whole at ten or fewer and at
+/// one line past them; the pattern is echoed as sent, never spelled;
+/// nothing matched is refused with one offer, `describe` with `{}`,
+/// which sent back is the index.
+#[test]
+fn describe_slices_by_pattern_as_the_cli_does() {
+    let mut seat = Seat::over(scratch("mcp-search"));
+    for pattern in ["~resist", "~a", "~^.{1,20}$"] {
+        let (slice, refused) = seat.call("describe", &json!({ "names": [pattern] }));
+        assert!(!refused, "{pattern}: {slice}");
+        for own in ["pricing", "daemon", "store"] {
+            assert!(slice.get(own).is_none(), "{pattern}: {own}");
+        }
+        assert_spoken_as(
+            &slice,
+            &cli(&seat.base, &["search", "--describe", pattern]).0,
+            pattern,
+        );
+    }
+    let (flagged, _) = seat.call("describe", &json!({ "names": ["~--count"] }));
+    assert_eq!(flagged["patterns"][0]["pattern"], "~--count", "{flagged}");
+
+    let (e, refused) = seat.call("describe", &json!({ "names": ["~qqqqq"] }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "unknown_name", "{e}");
+    assert!(e.get("readings").is_none(), "{e}");
+    assert!(
+        e["error"]
+            .as_str()
+            .unwrap()
+            .contains("pricing, daemon and store are read by name alone"),
+        "{e}"
+    );
+    let offers = e["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 1, "{e}");
+    assert_eq!(offers[0]["request"], json!({}), "{e}");
+    let (index, refused) = seat.call("describe", &offers[0]["request"]);
+    assert!(!refused, "{index}");
+    let (bare, _) = seat.call("describe", &json!({}));
+    assert_eq!(index, bare);
+    assert!(
+        index["next"]
+            .as_str()
+            .unwrap()
+            .starts_with("This is the index")
+    );
+}
+
 /// #83: what the pricing tools and the job tools answer is read once, by
 /// name, through the one door for reading on demand: `describe` with
 /// names [`pricing`] or [`daemon`] answers that section alone, beside a

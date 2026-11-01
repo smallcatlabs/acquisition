@@ -46,9 +46,9 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 7 KB, answer 5 KB, the rest under 4 KB. An unknown name is refused with every name it knows.
+What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 7 KB, answer 5 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows.
 
-- `names` (array | null) — Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, answer, trade, pricing), an entry (league, total_res), a category's id; all, everything, over 150 KB.
+- `names` (array | null) — Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, answer, trade, pricing), an entry (league, total_res), a category's id; all, everything. "~resist": the language's entries whose name or definition matches, whole if ten or fewer, else their lines.
 
 ### `item_events`
 

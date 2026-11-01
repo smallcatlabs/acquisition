@@ -164,6 +164,11 @@ pub struct Offered {
     /// `says`.
     pub reading: String,
     pub request: Option<Request>,
+    /// Where the way on is `describe`, the names it is asked with — none
+    /// for the index: a request each surface spells as its own, never a
+    /// reading (a refusal's `readings` are how what was typed could be
+    /// read).
+    pub describe: Option<Vec<String>>,
     /// A realm offered where no request was at hand to put it in, and
     /// the account of the store that was read: the store's read knows
     /// the realms held and whose they are, and not what was asked
@@ -182,6 +187,18 @@ impl Offered {
         Offered {
             reading: request.command(),
             request: Some(request),
+            describe: None,
+            realm: None,
+        }
+    }
+
+    /// `describe` asked with `names`, the index where none, as the way on:
+    /// `reading` what it answers.
+    pub(crate) fn describing(names: Vec<String>, reading: impl Into<String>) -> Offered {
+        Offered {
+            reading: reading.into(),
+            request: None,
+            describe: Some(names),
             realm: None,
         }
     }
@@ -216,6 +233,7 @@ impl SearchError {
                 .map(|realm| Offered {
                     reading: format!("realm {}", realm.as_str()),
                     request: None,
+                    describe: None,
                     realm: Some((realm, account.to_string())),
                 })
                 .collect();
@@ -279,9 +297,15 @@ impl SearchError {
                 message, offers, ..
             } => {
                 out["error"] = serde_json::json!(message);
-                if !offers.is_empty() {
-                    out["readings"] =
-                        serde_json::json!(offers.iter().map(|o| &o.reading).collect::<Vec<_>>());
+                // a describe offer is a request a surface spells, never a
+                // reading
+                let readings: Vec<&String> = offers
+                    .iter()
+                    .filter(|o| o.describe.is_none())
+                    .map(|o| &o.reading)
+                    .collect();
+                if !readings.is_empty() {
+                    out["readings"] = serde_json::json!(readings);
                 }
                 let requests: Vec<_> = offers
                     .iter()

@@ -24,10 +24,15 @@
 use serde::Serialize;
 
 use crate::bind::{self, ITEM_FLAGS, Kind, LINE_FLAGS, NOT_BUILT, NotBuilt, SOURCES, Thing};
-use crate::error::{ErrorKind, LanguageError};
+use crate::error::{ErrorKind, LanguageError, Offered, SearchError};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Describe {
+    /// Each pattern asked (`~` and at least one character more): what it
+    /// matched and whether its matches stand whole or at one line; present
+    /// only where a pattern was asked.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub patterns: Vec<Matched>,
     pub fields: Vec<Named>,
     /// What `line( … )` takes inside.
     pub line: Vec<Named>,
@@ -314,7 +319,7 @@ fn named(name: &str, kind: &'static str, what: &str) -> Named {
 /// line's attribute, `is`, `has`, an operator, a slot word (`arg7` is
 /// one), a word of composition, a block by its name, a category by its
 /// id. An unknown name is an authoring error with the near ones offered.
-pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
+pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     let mut fields: Vec<Named> = bind::fields()
         // the four colour fields are one entry, `sockets.<colour>`
         .filter(|f| !matches!(f.thing, Thing::SocketColour(_)))
@@ -678,6 +683,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         categories: crate::category::tables()
             .map(|tables| tables.described())
             .unwrap_or_default(),
+        patterns: Vec::new(),
         trade: Some(trade_catalogue()?),
         trade_rows: None,
         not_built: NOT_BUILT.to_vec(),
@@ -690,9 +696,13 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     // a call is asked for as the language's refusals spell it, its `(`
     // (or `()`) after its name: `sum(` is `sum`, `true(` the entry whose
     // word is `true()` (the league seat, cli calls 57, 58); an entry of
-    // several words is asked by its name whole (`true() false()`)
+    // several words is asked by its name whole (`true() false()`). A
+    // pattern is `~` and at least one character more; the bare `~` is
+    // the operator entry's own name.
+    let (patterns, names): (Vec<&String>, Vec<&String>) =
+        names.iter().partition(|name| pattern(name).is_some());
     let names: Vec<String> = names
-        .iter()
+        .into_iter()
         .map(|name| {
             name.strip_suffix("()")
                 .or_else(|| name.strip_suffix('('))
@@ -779,7 +789,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                         .strip_prefix("pseudo.")
                         .is_some_and(|c| c.eq_ignore_ascii_case(name))
             }) {
-                return Err(bind::not_built(unbuilt.construct));
+                return Err(bind::not_built(unbuilt.construct).into());
             }
             let words: Vec<&str> = all
                 .iter()
@@ -792,8 +802,29 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                 ErrorKind::UnknownName,
                 format!("`{name}` is nothing describe knows: {}", words.join(", ")),
             )
-            .with_readings(near.into_iter().map(str::to_string).collect()));
+            .with_readings(near.into_iter().map(str::to_string).collect())
+            .into());
         }
+    }
+    // each pattern over the language's entries, refused alone where it
+    // compiles to nothing or matches nothing; its matches whole where
+    // they are the store's count or fewer, else their lines
+    let mut reach = Reach::of(&out);
+    let mut matched = Vec::new();
+    for asked in &patterns {
+        let regex = bind::pattern_of("", pattern(asked).unwrap_or_default())?;
+        let hit = Reach::matching(&out, &regex);
+        let count = hit.count();
+        if count == 0 {
+            return Err(nothing_matched(asked));
+        }
+        let whole = count <= acquisition_store::bound::LISTED;
+        reach.add(&hit, if whole { Density::Whole } else { Density::Line });
+        matched.push(Matched {
+            pattern: asked.to_string(),
+            matched: count,
+            whole,
+        });
     }
     if names.iter().any(|asked| asked.eq_ignore_ascii_case(ALL)) {
         return Ok(out);
@@ -803,26 +834,46 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             .iter()
             .any(|asked| asked.eq_ignore_ascii_case(block) || answers(entry, asked))
     };
-    out.fields.retain(|n| wants("fields", &n.name));
-    out.line.retain(|n| wants("line", &n.name));
-    out.linked.retain(|n| wants("linked", &n.name));
-    out.values.retain(|n| wants("values", &n.name));
-    out.composition.retain(|n| wants("composition", &n.name));
-    out.operators.retain(|n| wants("operators", &n.name));
-    // a line's numbers are named by its slots
-    out.slots
-        .retain(|n| wants("slots", &n.name) || wants("line", &n.name));
-    out.computed
-        .retain(|n| wants("computed", &n.name) || wants("pseudo", &n.name));
-    out.counts.retain(|n| wants("counts", &n.name));
-    out.explain.retain(|n| wants("explain", &n.name));
-    out.answer.retain(|n| wants("answer", &n.name));
+    // a name reaches its entries whole, whatever a pattern says of them
+    let wanted: [Vec<bool>; 11] = {
+        let wanted = |block: &str, entries: &[Named], also: Option<&str>| -> Vec<bool> {
+            entries
+                .iter()
+                .map(|n| wants(block, &n.name) || also.is_some_and(|b| wants(b, &n.name)))
+                .collect()
+        };
+        [
+            wanted("fields", &out.fields, None),
+            wanted("line", &out.line, None),
+            wanted("linked", &out.linked, None),
+            wanted("values", &out.values, None),
+            wanted("composition", &out.composition, None),
+            wanted("operators", &out.operators, None),
+            // a line's numbers are named by its slots
+            wanted("slots", &out.slots, Some("line")),
+            wanted("computed", &out.computed, Some("pseudo")),
+            wanted("counts", &out.counts, None),
+            wanted("explain", &out.explain, None),
+            wanted("answer", &out.answer, None),
+        ]
+    };
+    for (section, wanted) in reach.entries.iter_mut().zip(&wanted) {
+        for (density, wanted) in section.iter_mut().zip(wanted) {
+            if *wanted {
+                *density = Density::Whole;
+            }
+        }
+    }
     let named = |block: &str| names.iter().any(|asked| asked.eq_ignore_ascii_case(block));
     // the ids are the field's: printed where `category` is named, and
     // each row where its id is
-    if !named(crate::category::FIELD) && !named("categories") {
-        out.categories.retain(|c| an_asked_id(c.id, names));
+    let every_id = named(crate::category::FIELD) || named("categories");
+    for (density, c) in reach.categories.iter_mut().zip(&out.categories) {
+        if every_id || an_asked_id(c.id, names) {
+            *density = Density::Whole;
+        }
     }
+    reach.narrow(&mut out);
     if !named("trade") {
         out.trade = None;
     }
@@ -831,6 +882,10 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     }
     if !named("limits") {
         out.limits.clear();
+    }
+    if !matched.is_empty() {
+        out.next = Some(sliced_next(&matched));
+        out.patterns = matched;
     }
     Ok(out)
 }
@@ -843,8 +898,9 @@ fn an_asked_id(id: &str, names: &[String]) -> bool {
 /// The name that asks for the whole: every section, every entry whole.
 pub const ALL: &str = "all";
 
-/// What the index says of how to go on: an entry, a block, the whole.
-const INDEX_NEXT: &str = "This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), or all for everything whole.";
+/// What the index says of how to go on: an entry, a block, a pattern,
+/// the whole.
+const INDEX_NEXT: &str = "This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), ~ and a pattern for the entries whose name or definition it matches (~resist), or all for everything whole.";
 
 /// An entry's one line (C53, the index; C97): its definition up to the
 /// first `: `, which every computed value's has after what it is and
@@ -894,4 +950,170 @@ fn index(mut d: Describe) -> Describe {
     d.trade_rows = d.trade.take().map(|trade| trade.rows.len());
     d.next = Some(INDEX_NEXT.to_string());
     d
+}
+
+/// One pattern of a list, as its answer reports it: the item as typed, how
+/// many of the language's entries it matched, and whether they stand whole
+/// (the store's count or fewer, `acquisition_store::bound::LISTED`) or at
+/// one line each, counted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Matched {
+    pub pattern: String,
+    pub matched: usize,
+    pub whole: bool,
+}
+
+/// A list item's pattern: what follows its `~`, where at least one
+/// character does (the bare `~` is the operator's entry).
+fn pattern(item: &str) -> Option<&str> {
+    item.strip_prefix('~').filter(|rest| !rest.is_empty())
+}
+
+/// How densely an entry stands in an answer: absent, at one line, whole.
+/// The denser wins where two items of a list reach one entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Density {
+    Absent,
+    Line,
+    Whole,
+}
+
+/// What a list reaches of the whole: a density for each entry of the
+/// eleven sections and for each category, in the whole's order.
+struct Reach {
+    entries: [Vec<Density>; 11],
+    categories: Vec<Density>,
+}
+
+impl Reach {
+    /// Nothing reached, over `d`'s entries.
+    fn of(d: &Describe) -> Reach {
+        Reach {
+            entries: entries(d).map(|section| vec![Density::Absent; section.len()]),
+            categories: vec![Density::Absent; d.categories.len()],
+        }
+    }
+
+    /// What `regex` matches (C97, the `~` operator's reading): an entry by
+    /// its name or its definition, each its own string, so `^` and `$`
+    /// are the ends of one; a category by its id, its site text or what
+    /// makes it hold. Never values, examples or the trade catalogue.
+    fn matching(d: &Describe, regex: &regex::Regex) -> Reach {
+        let hit = |yes: bool| if yes { Density::Whole } else { Density::Absent };
+        Reach {
+            entries: entries(d).map(|section| {
+                section
+                    .iter()
+                    .map(|n| hit(regex.is_match(&n.name) || regex.is_match(&n.what)))
+                    .collect()
+            }),
+            categories: d
+                .categories
+                .iter()
+                .map(|c| {
+                    hit(regex.is_match(c.id) || regex.is_match(&c.text) || regex.is_match(&c.holds))
+                })
+                .collect(),
+        }
+    }
+
+    /// How many entries and categories are reached.
+    fn count(&self) -> usize {
+        self.entries
+            .iter()
+            .flatten()
+            .chain(&self.categories)
+            .filter(|d| **d != Density::Absent)
+            .count()
+    }
+
+    /// `hit`'s reach added at `density`, the denser standing.
+    fn add(&mut self, hit: &Reach, density: Density) {
+        let both = self
+            .entries
+            .iter_mut()
+            .flatten()
+            .zip(hit.entries.iter().flatten())
+            .chain(self.categories.iter_mut().zip(&hit.categories));
+        for (mine, hit) in both {
+            if *hit != Density::Absent {
+                *mine = (*mine).max(density);
+            }
+        }
+    }
+
+    /// `d` narrowed to what is reached: each entry whole or at one line,
+    /// the rest gone.
+    fn narrow(self, d: &mut Describe) {
+        for (section, reach) in entries_mut(d).into_iter().zip(self.entries) {
+            *section = std::mem::take(section)
+                .into_iter()
+                .zip(reach)
+                .filter_map(|(mut entry, density)| match density {
+                    Density::Absent => None,
+                    Density::Line => {
+                        cut(&mut entry);
+                        Some(entry)
+                    }
+                    Density::Whole => Some(entry),
+                })
+                .collect();
+        }
+        d.categories = std::mem::take(&mut d.categories)
+            .into_iter()
+            .zip(self.categories)
+            .filter_map(|(mut c, density)| match density {
+                Density::Absent => None,
+                Density::Line => {
+                    c.holds.clear();
+                    Some(c)
+                }
+                Density::Whole => Some(c),
+            })
+            .collect();
+    }
+}
+
+/// The eleven entry sections, read.
+fn entries(d: &Describe) -> [&Vec<Named>; 11] {
+    [
+        &d.fields,
+        &d.line,
+        &d.linked,
+        &d.values,
+        &d.composition,
+        &d.operators,
+        &d.slots,
+        &d.computed,
+        &d.counts,
+        &d.explain,
+        &d.answer,
+    ]
+}
+
+/// A pattern that matches nothing (C53, every nothing says which
+/// nothing): named, with what a pattern reads and the index offered, the
+/// way to the names a pattern could have found.
+fn nothing_matched(asked: &str) -> SearchError {
+    SearchError::Scope {
+        kind: "unknown_name",
+        message: format!(
+            "`{asked}` matches nothing describe holds: a pattern reads each entry of the language by its name and its definition, and each category by its id, its text and what makes it hold"
+        ),
+        offers: vec![Offered::describing(
+            Vec::new(),
+            "the index, every entry by its name and one line",
+        )],
+    }
+}
+
+/// How to go on from a pattern's answer: an entry at one line by its name.
+fn sliced_next(matched: &[Matched]) -> String {
+    match matched.iter().any(|m| !m.whole) {
+        true => format!(
+            "A pattern matching more than {0} entries answers each at one line: name one for it whole, or narrow the pattern to {0} or fewer for them whole.",
+            acquisition_store::bound::LISTED
+        ),
+        false => "Each entry a pattern matched is whole here; nothing named is the index, every entry by its name and one line.".to_string(),
+    }
 }

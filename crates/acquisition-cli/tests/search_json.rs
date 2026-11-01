@@ -1191,7 +1191,11 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
 
 /// C53 as amended: bare `--describe` at a terminal is the index, and its
 /// last lines say how to go on — in the document's words, then this
-/// terminal's spelling of them. The foot's one golden.
+/// terminal's spelling of them. #154: a pattern's slice opens with what
+/// it matched, whole at ten or fewer and at one line past them, and ends
+/// on how to go on; one that matches nothing is refused with the index
+/// offered as the command it is, which runs as printed. The describe
+/// words' one golden.
 #[test]
 fn describe_at_a_terminal() {
     let scratch = harness::scratch("search-cli");
@@ -1201,12 +1205,79 @@ fn describe_at_a_terminal() {
         &["search", "--describe"],
         &[
             "more: This is the index, each entry by its name and one line",
+            "~ and a pattern for the entries whose name or definition it matches (~resist)",
+            "`--describe '~<pattern>'` a pattern, quoted for the shell",
             "`--describe all` everything",
             "pseudo.total_life",
             "accessory.ring",
         ],
     );
+    t.run(
+        &["search", "--describe", "~^sockets"],
+        &[
+            "pattern ~^sockets — 2 entries, each whole",
+            "how many sockets the item has, of every colour",
+            "more: Each entry a pattern matched is whole here",
+        ],
+    );
+    t.run(
+        &["search", "--describe", "~resist"],
+        &[
+            "pattern ~resist — 11 entries, one line each",
+            "name one for it whole, or narrow the pattern to 10 or fewer",
+        ],
+    );
+    t.run(
+        &["search", "--describe", "~qqqqq"],
+        &[
+            "`~qqqqq` matches nothing describe holds",
+            "the index, every entry by its name and one line: acq search --describe",
+        ],
+    );
     golden(file!(), "describe_at_a_terminal", &t);
+
+    // the refusal's offer runs as printed, through the shell and with no
+    // shell, and answers the index
+    let e = sole_json(&acq(&base, &["--json", "search", "--describe", "~qqqqq"]));
+    assert_eq!(e["kind"], "unknown_name", "{e}");
+    assert!(e.get("readings").is_none(), "{e}");
+    let offers = e["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 1, "{e}");
+    let line = harness::offered_line(&offers[0]);
+    let index = sole_json(&run_printed(&base, &line));
+    assert!(
+        index["next"]
+            .as_str()
+            .is_some_and(|n| n.starts_with("This is the index")),
+        "{index}"
+    );
+    assert_eq!(harness::run_argv(&base, &offers[0], &["--json"]), index);
+
+    // a pattern takes the rest of its value, its commas its own; a name
+    // after it is given by `--describe` again, which adds a list
+    let comma = sole_json(&acq(
+        &base,
+        &["--json", "search", "--describe", "~^.{1,20}$"],
+    ));
+    assert_eq!(comma["patterns"][0]["pattern"], "~^.{1,20}$", "{comma}");
+    let twice = sole_json(&acq(
+        &base,
+        &[
+            "--json",
+            "search",
+            "--describe",
+            "league",
+            "--describe",
+            "~life",
+        ],
+    ));
+    assert_eq!(twice["fields"][0]["name"], "league", "{twice}");
+    assert_eq!(twice["patterns"][0]["pattern"], "~life", "{twice}");
+    let listed = sole_json(&acq(
+        &base,
+        &["--json", "search", "--describe", "league,~life"],
+    ));
+    assert_eq!(listed, twice);
 }
 
 #[test]

@@ -152,9 +152,16 @@ pub struct SearchArgs {
     /// and examples (`--describe league,line,pseudo.total_res`; a block's
     /// name is one: `--describe computed`, and `--describe trade` what
     /// `--trade` makes of each clause of a site search; a category's id
-    /// is its row: `--describe accessory.ring`). `--describe all` is every
-    /// entry whole, over 150 KB. `--json` is the same document.
-    #[arg(long, value_name = "NAME,…", num_args = 0..=1, value_delimiter = ',')]
+    /// is its row: `--describe accessory.ring`). `--describe '~resist'` is
+    /// a pattern, Rust regex syntax in any case: the entries whose name or
+    /// definition it matches, and the categories whose id, text or rule
+    /// does — whole when ten or fewer, their lines otherwise, counted per
+    /// pattern, so a list of several may answer more whole. Quote it, or
+    /// the shell reads `~resist` as a home directory; it takes the rest of
+    /// its value, commas and all, and a name after it is another
+    /// `--describe`. `--describe all` is every entry whole, over 150 KB.
+    /// `--json` is the same document.
+    #[arg(long, value_name = "NAME,…", num_args = 0..=1)]
     pub describe: Option<Vec<String>>,
     /// Count the matches by a key, one table for each key named, and show
     /// no rows: a field (`tab`, `league`, `rarity`, `base`, …; `--describe
@@ -275,11 +282,19 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
         SearchError::Scope {
             message, offers, ..
         } => std::iter::once(message.clone())
-            .chain(
-                offers
-                    .iter()
-                    .map(|o| format!("    {}", terminal_reading(o))),
-            )
+            .chain(offers.iter().map(|o| match &o.describe {
+                // a describe offer prints the command it is
+                Some(names) => format!(
+                    "    {}: {}",
+                    o.reading,
+                    crate::printed_line(&crate::way_words(
+                        &acquisition_verbs::refusal::Way::Describe {
+                            names: names.clone()
+                        }
+                    ))
+                ),
+                None => format!("    {}", terminal_reading(o)),
+            }))
             .collect::<Vec<_>>()
             .join("\n"),
         SearchError::Store(e) => format!("{e:#}"),
@@ -411,7 +426,8 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         }
         // the list as typed: the search crate reads it, bare the index and
         // `all` every entry whole, in text and in JSON alike (C53)
-        let described = describe(names).map_err(|e| fail(e.into(), json))?;
+        let names = describe_list(names);
+        let described = describe(&names).map_err(|e| fail(e, json))?;
         let totals = names.iter().any(|n| n.eq_ignore_ascii_case("totals"));
         return emit(&described, json, |d| describe_text(d, totals));
     }
@@ -1779,12 +1795,51 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
 /// line, its values and examples empty — and the index's trade line and
 /// its last line, how to go on, print from the document's `trade_rows`
 /// and `next`.
+/// `--describe`'s values as one list, read as `--count`'s are: commas
+/// part the names, and an item that starts with `~` and has more is a
+/// pattern taking the rest of its value whole, so a pattern's own commas
+/// reach the search crate; each `--describe` adds a list of its own.
+fn describe_list(values: &[String]) -> Vec<String> {
+    let mut names = Vec::new();
+    for value in values {
+        let mut rest = value.as_str();
+        loop {
+            if rest.len() > 1 && rest.starts_with('~') {
+                names.push(rest.to_string());
+                break;
+            }
+            match rest.split_once(',') {
+                Some((name, after)) => {
+                    names.push(name.to_string());
+                    rest = after;
+                }
+                None => {
+                    names.push(rest.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    names
+}
+
 /// How a terminal asks what the document's `next` names.
-const DESCRIBE_SPELLED: &str =
-    "at a terminal: `--describe <name>,…` names entries or blocks, `--describe all` everything";
+const DESCRIBE_SPELLED: &str = "at a terminal: `--describe <name>,…` names entries or blocks, `--describe '~<pattern>'` a pattern, quoted for the shell, `--describe all` everything";
 
 fn describe_text(d: &Describe, totals: bool) -> String {
     let mut out = String::new();
+    // a pattern's answer opens with what each pattern matched
+    for m in &d.patterns {
+        out.push_str(&format!(
+            "pattern {} — {}, {}\n",
+            m.pattern,
+            plural(m.matched, "entry", "entries"),
+            match m.whole {
+                true => "each whole",
+                false => "one line each",
+            }
+        ));
+    }
     let mut block = |head: &str, entries: &[acquisition_search::describe::Named]| {
         if entries.is_empty() {
             return;

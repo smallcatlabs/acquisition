@@ -52,6 +52,8 @@ pub enum Way {
     Again { account: String },
     /// A search, as the search tool and `acq search --request` read one.
     Search(Box<Request>),
+    /// The language described, asked with `names`: none for the index.
+    Describe { names: Vec<String> },
     /// The tabs of one league.
     Tabs {
         account: String,
@@ -297,13 +299,24 @@ fn searched(
             }
         }
         SearchError::Scope { offers: ways, .. } => {
-            if !ways.is_empty() {
-                let read: Vec<String> = ways.iter().map(|o| surface.reading(o)).collect();
+            // a describe offer is a request, never a reading
+            let read: Vec<String> = ways
+                .iter()
+                .filter(|o| o.describe.is_none())
+                .map(|o| surface.reading(o))
+                .collect();
+            if !read.is_empty() {
                 doc.insert("readings".into(), json!(read));
             }
             offers.extend(ways.iter().filter_map(|o| {
-                let request = o.request.clone()?;
-                Some((Way::Search(Box::new(request)), surface.reading(o)))
+                let way = match (&o.describe, &o.request) {
+                    (Some(names), _) => Way::Describe {
+                        names: names.clone(),
+                    },
+                    (None, Some(request)) => Way::Search(Box::new(request.clone())),
+                    (None, None) => return None,
+                };
+                Some((way, surface.reading(o)))
             }));
         }
         SearchError::Store(_) => {}

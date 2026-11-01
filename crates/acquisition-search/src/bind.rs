@@ -1390,10 +1390,17 @@ pub(crate) fn text_test(name: &str, op: Op, value: &Value) -> Result<TextTest, L
             ));
         }
     };
-    RegexBuilder::new(&pattern)
+    pattern_of(name, &pattern).map(TextTest)
+}
+
+/// The one compiler of a `~` pattern (the `~` entry of `describe`: Rust
+/// regex syntax, unanchored, any case unless it says `(?-i)`), and its
+/// refusal: `name~`'s, or the bare operator's where `name` is empty
+/// (`describe`'s pattern).
+pub(crate) fn pattern_of(name: &str, pattern: &str) -> Result<Regex, LanguageError> {
+    RegexBuilder::new(pattern)
         .case_insensitive(true)
         .build()
-        .map(TextTest)
         .map_err(|e| {
             LanguageError::new(
                 ErrorKind::BadPattern,

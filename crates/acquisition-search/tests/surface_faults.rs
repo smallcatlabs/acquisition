@@ -716,12 +716,198 @@ fn c53_the_index_is_every_entry_at_one_line_and_each_name_it_prints_answers_whol
     for unbuilt in acquisition_search::NOT_BUILT {
         let construct = unbuilt.construct.trim_end_matches([':', '*', '.']);
         let e = describe::describe(&[construct.to_string()]).unwrap_err();
+        assert_eq!(e.kind(), "not_built", "`{construct}`: {e}");
+    }
+}
+
+/// The entries of the eleven sections an answer holds, and the
+/// categories, as JSON values: what a slice's count counts.
+fn sliced(d: &Value) -> Vec<Value> {
+    const ENTRIES: [&str; 11] = [
+        "fields",
+        "line",
+        "linked",
+        "values",
+        "composition",
+        "operators",
+        "slots",
+        "computed",
+        "counts",
+        "explain",
+        "answer",
+    ];
+    ENTRIES
+        .iter()
+        .flat_map(|s| d[s].as_array().cloned().unwrap_or_default())
+        .chain(d["categories"].as_array().cloned().unwrap_or_default())
+        .collect()
+}
+
+/// `describe` with `items`, as JSON.
+fn described(items: &[&str]) -> Value {
+    let items: Vec<String> = items.iter().map(|i| i.to_string()).collect();
+    serde_json::to_value(describe::describe(&items).unwrap_or_else(|e| panic!("{items:?}: {e}")))
+        .unwrap()
+}
+
+/// #154, a slice by pattern: `~` and a pattern reads the language's
+/// entries by name and by definition, the categories by id, text and what
+/// makes one hold, and answers its matches whole where they are the
+/// store's count or fewer (ten) and at one line each past it, counted.
+/// `~resistance` matches ten and `~resist` eleven over the tables this
+/// build ships (the eleventh the answer's `view`, whose definition names
+/// `line:resist`): the bound seen from both sides.
+#[test]
+fn c53_a_pattern_answers_ten_matches_whole_and_eleven_at_one_line() {
+    let whole = described(&["all"]);
+    let every = sliced(&whole);
+    for (pattern, count, is_whole) in [("~resistance", 10, true), ("~resist", 11, false)] {
+        let d = described(&[pattern]);
         assert_eq!(
-            e.kind,
-            acquisition_search::ErrorKind::NotBuilt,
-            "`{construct}`: {e}"
+            d["patterns"],
+            json!([{ "pattern": pattern, "matched": count, "whole": is_whole }]),
+            "{pattern}"
+        );
+        let entries = sliced(&d);
+        assert_eq!(entries.len(), count, "{pattern}: {d}");
+        for entry in &entries {
+            match is_whole {
+                true => assert!(every.contains(entry), "{pattern}: not whole: {entry}"),
+                false => {
+                    let what = entry["what"].as_str().unwrap();
+                    assert!(!what.contains(": "), "{pattern}: {entry}");
+                    assert!(entry.get("examples").is_none(), "{pattern}: {entry}");
+                }
+            }
+        }
+        assert!(d["next"].as_str().is_some_and(|n| !n.is_empty()), "{d}");
+        assert!(d.get("trade").is_none() && d.get("trade_rows").is_none());
+    }
+    // the wide pattern: lines only, its count every entry it matched
+    let wide = described(&["~a"]);
+    assert_eq!(wide["patterns"][0]["whole"], false);
+    assert_eq!(wide["patterns"][0]["matched"], sliced(&wide).len());
+    assert!(sliced(&wide).len() > 100, "{}", sliced(&wide).len());
+    // case: any case unless the pattern says (?-i)
+    assert_eq!(described(&["~RESIST"])["patterns"][0]["matched"], 11);
+    let cased = described(&["~(?-i)Resist"]);
+    for entry in sliced(&cased) {
+        let full = every
+            .iter()
+            .find(|e| e["name"] == entry["name"] && e["kind"] == entry["kind"])
+            .unwrap();
+        assert!(
+            full["name"].as_str().unwrap().contains("Resist")
+                || full["what"].as_str().unwrap().contains("Resist"),
+            "{entry}"
         );
     }
+    assert!(
+        cased["patterns"][0]["matched"].as_u64() < Some(11),
+        "{cased}"
+    );
+}
+
+/// #154: a pattern reads an entry's definition whole, not its one line —
+/// `critical_strike_chance` says "weapon" after its first `: ` — and the
+/// name and the definition each as its own string, so `^` and `$` are the
+/// ends of one: `^GGG's` finds `name`, whose definition starts so, and
+/// not `ilvl`, whose definition holds the words later and whose name does
+/// not; `_res$` the computed values whose name ends so and `sum`, whose
+/// definition does. A name beside a
+/// pattern answers whole; the bare `~` is the operator's entry; the trade
+/// catalogue's rows are never read.
+#[test]
+fn c97_a_pattern_reads_names_and_definitions_each_its_own_string() {
+    let names = |d: &Value| -> Vec<String> {
+        sliced(d)
+            .iter()
+            .map(|e| e["name"].as_str().or(e["id"].as_str()).unwrap().to_string())
+            .collect()
+    };
+    let weapon = described(&["~weapon"]);
+    assert!(names(&weapon).contains(&"critical_strike_chance".to_string()));
+    let line = described(&[])["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "critical_strike_chance")
+        .unwrap()["what"]
+        .clone();
+    assert!(!line.as_str().unwrap().contains("weapon"), "{line}");
+
+    let anchored = names(&described(&["~^GGG's"]));
+    assert!(anchored.contains(&"name".to_string()), "{anchored:?}");
+    assert!(!anchored.contains(&"ilvl".to_string()), "{anchored:?}");
+    assert!(names(&described(&["~GGG's"])).contains(&"ilvl".to_string()));
+    // `$` ends the name for the totals, and `sum`'s definition, which
+    // ends on `pseudo.total_res`
+    let ends = described(&["~_res$"]);
+    assert_eq!(ends["patterns"][0]["whole"], true, "{ends}");
+    for entry in sliced(&ends) {
+        assert!(
+            entry["name"].as_str().unwrap().ends_with("_res")
+                || entry["what"].as_str().unwrap().ends_with("_res"),
+            "{entry}"
+        );
+    }
+    let ends = names(&ends);
+    assert!(ends.contains(&"pseudo.total_res".to_string()), "{ends:?}");
+    assert!(ends.contains(&"sum".to_string()), "{ends:?}");
+    assert!(
+        names(&described(&["~^pseudo\\.total"]))
+            .iter()
+            .all(|n| n.starts_with("pseudo.total"))
+    );
+
+    // a name beside a pattern, each read on its own
+    let both = described(&["league", "~life"]);
+    assert!(names(&both).contains(&"league".to_string()), "{both}");
+    assert_eq!(both["patterns"][0]["pattern"], "~life");
+    // the bare `~` is the operator's own entry, whole, as before
+    let bare = described(&["~"]);
+    assert!(bare.get("patterns").is_none(), "{bare}");
+    assert_eq!(bare["operators"][0]["name"], "~");
+    assert!(
+        bare["operators"][0]["what"]
+            .as_str()
+            .unwrap()
+            .contains(": ")
+    );
+    // the trade rows are a block, reached by its name: `pseudo_total`
+    // keys a row and matches the computed values' definitions, never the row
+    let total = described(&["~pseudo_total"]);
+    assert!(total.get("trade").is_none(), "{total}");
+    assert!(!sliced(&total).is_empty());
+}
+
+/// #154: a pattern that matches nothing names itself and what a pattern
+/// reads, as `unknown_name` (the reader's move is a name's: ask again),
+/// with no readings and one offer, `describe` with no names, the index;
+/// one that does not compile is the compiler's own refusal.
+#[test]
+fn c53_a_pattern_that_matches_nothing_offers_the_index() {
+    let e = describe::describe(&["~qqqqq".to_string()]).unwrap_err();
+    assert_eq!(e.kind(), "unknown_name");
+    let acquisition_search::SearchError::Scope {
+        message, offers, ..
+    } = &e
+    else {
+        panic!("{e}");
+    };
+    assert!(message.starts_with("`~qqqqq` matches nothing"), "{message}");
+    assert_eq!(offers.len(), 1, "{e}");
+    assert_eq!(offers[0].describe, Some(Vec::new()));
+    assert!(offers[0].request.is_none());
+    let json = e.to_json();
+    assert!(json.get("readings").is_none(), "{json}");
+    let e = describe::describe(&["~(".to_string()]).unwrap_err();
+    assert_eq!(e.kind(), "bad_pattern");
+    assert!(
+        e.to_string()
+            .starts_with("`~` takes a pattern in Rust regex syntax, and this is not one:"),
+        "{e}"
+    );
 }
 
 /// #83: the anatomy of an answer left the MCP's tool text for the

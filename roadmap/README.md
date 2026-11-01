@@ -459,4 +459,5 @@ review's three findings answered in `41d09423`, the fix review clean;
 the annotation file's switch kept under its own knob, the orchestrating
 session's call, listed for the owner). Next, Phase 3, the owner's
 league run, at his word; #153 and #154 (describe's index and slices)
-before it, as one step.
+before it, as one step (`briefs/describe-slices.md`): built, its review
+pending, `eb9f29b9` to the commit carrying this line.

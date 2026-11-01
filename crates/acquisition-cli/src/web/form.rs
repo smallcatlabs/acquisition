@@ -142,7 +142,7 @@ impl Form {
             });
         }
         let described = acquisition_search::describe(&["trade".to_string()])
-            .map_err(|e| anyhow::anyhow!("{}", e.message))?;
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         let rows = described
             .trade
             .ok_or_else(|| anyhow::anyhow!("the trade catalogue is not described"))?

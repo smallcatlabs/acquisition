@@ -1329,6 +1329,7 @@ impl acquisition_verbs::refusal::Surface for Plain {
         let tool = match way {
             Way::Again { .. } => None,
             Way::Search(_) => Some("search"),
+            Way::Describe { .. } => Some("describe"),
             Way::Tabs { .. } => Some("tabs"),
             Way::RefreshPlan { .. } => Some("refresh_plan"),
             Way::RefreshApply { .. } => Some("apply_plan"),

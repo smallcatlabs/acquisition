@@ -333,9 +333,9 @@ pub fn document(result: &Value) -> Value {
 
 /// The keys whose value is payload (`PAYLOAD` in the server): what an
 /// agent sends back as printed or types as written, never spelled.
-const PAYLOAD: [&str; 10] = [
+const PAYLOAD: [&str; 11] = [
     "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
-    "accounts",
+    "accounts", "patterns",
 ];
 
 /// C143: the server's document is the CLI's with this server's spelling

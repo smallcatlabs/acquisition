@@ -2,6 +2,8 @@
 
 $ acq search --describe
 # holds "more: This is the index, each entry by its name and one line"
+# holds "~ and a pattern for the entries whose name or definition it matches (~resist)"
+# holds "`--describe '~<pattern>'` a pattern, quoted for the shell"
 # holds "`--describe all` everything"
 # holds "pseudo.total_life"
 # holds "accessory.ring"
@@ -319,5 +321,50 @@ limits, as the search states them
   a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
   league of origin is not a fact the search holds; a derivation from league-specific mods or first-seen is offered as a derivation, never as the answer
   legacy is the user's knowledge; the search finds what the user names and never says whether the game can still produce it
-more: This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), or all for everything whole.
-      at a terminal: `--describe <name>,…` names entries or blocks, `--describe all` everything
+more: This is the index, each entry by its name and one line: name an entry for it whole (league, pseudo.total_res, accessory.ring), a block for every entry in it (computed, categories, trade), ~ and a pattern for the entries whose name or definition it matches (~resist), or all for everything whole.
+      at a terminal: `--describe <name>,…` names entries or blocks, `--describe '~<pattern>'` a pattern, quoted for the shell, `--describe all` everything
+
+$ acq search --describe '~^sockets'
+# holds "pattern ~^sockets — 2 entries, each whole"
+# holds "how many sockets the item has, of every colour"
+# holds "more: Each entry a pattern matched is whole here"
+--- stdout
+pattern ~^sockets — 2 entries, each whole
+fields
+  sockets           number      how many sockets the item has, of every colour; an item whose body lists none lacks it, and one that lists an empty collection has 0
+                                e.g. sockets>=5   -has:sockets
+  sockets.<colour>  number      how many sockets of one colour the item has, over every link group; GGG's letter for the word (red R, green G, blue B, white W), so an abyssal socket (A) or a resonator's (DV) counts in `sockets` and under no colour
+                                one of: red, green, blue, white
+                                e.g. sockets.red>=2   sockets.blue=0
+more: Each entry a pattern matched is whole here; nothing named is the index, every entry by its name and one line.
+      at a terminal: `--describe <name>,…` names entries or blocks, `--describe '~<pattern>'` a pattern, quoted for the shell, `--describe all` everything
+
+$ acq search --describe '~resist'
+# holds "pattern ~resist — 11 entries, one line each"
+# holds "name one for it whole, or narrow the pattern to 10 or fewer"
+--- stdout
+pattern ~resist — 11 entries, one line each
+fields
+  quality         number      the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too; a map's `Quality (Quantity)` and its kin are names of their own and not read (properties v1)
+computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
+  pseudo.total_cold_res       total       the trade site's pseudo_total_cold_resistance (`+#% total to Cold Resistance`)
+  pseudo.total_fire_res       total       the trade site's pseudo_total_fire_resistance (`+#% total to Fire Resistance`)
+  pseudo.total_lightning_res  total       the trade site's pseudo_total_lightning_resistance (`+#% total to Lightning Resistance`)
+  pseudo.total_ele_res        total       the trade site's pseudo_total_elemental_resistance (`+#% total Elemental Resistance`)
+  pseudo.total_chaos_res      total       the trade site's pseudo_total_chaos_resistance (`+#% total to Chaos Resistance`)
+  pseudo.total_res            total       the trade site's pseudo_total_resistance (`+#% total Resistance`)
+  pseudo.count_res            derived     the trade site's pseudo_count_resistances (`# total Resistances`)
+  pseudo.count_ele_res        derived     the trade site's pseudo_count_elemental_resistances (`# total Elemental Resistances`)
+  pseudo.total_all_ele_res    derived     the trade site's pseudo_total_all_elemental_resistances (`+#% total to all Elemental Resistances`)
+an answer, key by key
+  view            key         the view as it ran
+more: A pattern matching more than 10 entries answers each at one line: name one for it whole, or narrow the pattern to 10 or fewer for them whole.
+      at a terminal: `--describe <name>,…` names entries or blocks, `--describe '~<pattern>'` a pattern, quoted for the shell, `--describe all` everything
+
+$ acq search --describe '~qqqqq'
+# holds "`~qqqqq` matches nothing describe holds"
+# holds "the index, every entry by its name and one line: acq search --describe"
+--- stderr
+Error: `~qqqqq` matches nothing describe holds: a pattern reads each entry of the language by its name and its definition, and each category by its id, its text and what makes it hold
+    the index, every entry by its name and one line: acq search --describe
+--- exit 1
