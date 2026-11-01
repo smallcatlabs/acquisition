@@ -6,8 +6,9 @@ split on 2026-10-31 and amended at this brief's commit: 5b is
 door-able tests of the other files join 5c; ruled 2026-10-31, C158).
 Cut twice: the first draft (`5c301c06`) was reviewed cold
 (`roadmap/reviews/t5-r5b-brief-5c301c06.md`, the prompt beside); this
-cut answers its twelve findings, each named at the foot, "Taken from
-the review". Written from two read-only inventories at `c03a11c5`
+cut answers its twelve findings, and a third cut the second review's
+four, each named at the foot, "Taken from the reviews". Written from
+two read-only inventories at `c03a11c5`
 (`queue.rs` and the admission, queue-file, restore and cancel paths;
 `rails.rs` and the rails), every line printed, neither file touched
 since; the door's lines at `72ca3330` (round 5a's close); and a read
@@ -19,7 +20,8 @@ of the fixtures each recipe names. Rounds 1 to 5a closed
 When this round is done, admission is one table through the door: a
 row is a provider mode, a session, a kind, params and a submitter, and
 what the row asserts is the refusal's kind and words, nothing admitted
-(`List` empty, the next submit answered id 1) and nothing on the wire.
+(`List` empty; on the mock rows, the next submit answered id 1) and
+nothing on the wire.
 A row that never passed the client's door (a kind or params the
 admission would refuse) is seeded on disk, restored as a lifetime
 restores its queue, and fails in the door's words with nothing sent.
@@ -31,7 +33,7 @@ persisted view. The rails' tripwire, ceiling and halts are scenarios
 through the door: a halt's bare cause through `DaemonStatus.rails`,
 its full words through a quote or the job's failure, a parked job
 through `Status`, "nothing picked" through `settle`, the disk through
-the store's observer read once the door has finished (C45: an observer
+the store's observer read once `run` has returned (C45: an observer
 reads the queue from the ledger with no daemon running). The door
 gains a real-named mode on the fixture's base and the harness a live
 session; `Token::Answering`'s former callers take
@@ -210,13 +212,18 @@ uploaded whatever the outcome): round 6's input, read then.
      None })`: `Response::Quote { quote }` with `quote.halted`, the
      halt's full words (`halted()`'s), on a daemon with one session.
      No new door call.
-   - A scenario's disk read is C45's observer read, after the door
-     has finished: `acquisition_store::jobs::read_job(dir, id)` or
-     `read(dir)` on the directory whose daemon db the scenario opened
-     for `.jobs_db` (the path the store's observer reads,
+   - A scenario's disk read is C45's observer read, after
+     `DoorBuilder::run` has returned (`finish` asks the dispatcher to
+     abort without awaiting it, `harness.rs` 1023–1024, and the hook
+     holds the daemon until the scenario returns, `door.rs` 462–474:
+     only once `run` is back is no daemon answering):
+     `acquisition_store::jobs::Persisted::read_job(dir, id)` or
+     `Persisted::read(dir)` (`jobs.rs` 450, 513) on a directory the
+     test owns outside the closure, whose daemon db the scenario
+     opened for `.jobs_db` (the path the observer reads,
      `daemon_db_path`, `jobs.rs:113`), never while the daemon answers
      and never through `shared`; a halted or parked daemon's rows are
-     the same after `finish` as before it. A row the scenario writes
+     the same after the run as before it. A row the scenario writes
      before the door opens, or behind the daemon (1544's rows 40 and
      41, which model a row the daemon never admitted), is a persisted
      input the scenario stages, as `break_queue` stages a broken file:
@@ -246,10 +253,11 @@ uploaded whatever the outcome): round 6's input, read then.
      restored job would dispatch before the read: 1369; the queue
      broken after a submit: 1728) opens with `.restore_landed(false)`:
      the dispatcher picks nothing until the restore lands
-     (`dispatch.rs` 73–77), and a `sleep` submit, a `Cancel`, a
-     `SetPriority`, a `List`, a `Status` and a `Result` never wait on
-     the restore (`server.rs` 273–275 waits only for a kind that needs
-     an account).
+     (`dispatch.rs` 73–77), and a `sleep` submit with `account: None`,
+     a `Cancel`, a `SetPriority`, a `List`, a `Status` and a `Result`
+     never wait on the restore (`server.rs` 273–275 waits when an
+     account is named or the kind needs one; `kind_needs_account`
+     is false for `sleep`, `daemon.rs` 1668–1672).
 
 2. **The admission table** in `queue.rs`: one `#[test]` over rows,
    each a provider (`mock` or `ggg`), a session (`None`, live, or
@@ -311,7 +319,7 @@ uploaded whatever the outcome): round 6's input, read then.
      the rows 40 and 41 written to the db after the door opened (the
      neighbour rows as today), `Cancel { 40 }` answering `UnknownJob`
      "no job 40", `SetPriority { 40 }` likewise, `Cancel { 41 }` and
-     `SetPriority { 41 }` answering `WrongState`; after `finish`, row
+     `SetPriority { 41 }` answering `WrongState`; after `run`, row
      40 still waiting through the store's observer read.
    - 1369 (the restore drops probes and finishes parents): the seeded
      rows as today (1398–1409: probe 3, the cancelling running job 4,
@@ -322,12 +330,12 @@ uploaded whatever the outcome): round 6's input, read then.
      parent 1 (success); `Cancel { 7 }` acknowledged, then `Result` for
      parent 6 (interrupted, its tally: it concludes only once its last
      child ends, 1432–1449); the next sleep submit `Submitted { id: 8
-     }`; after `finish`, the probe row 3 absent through the store's
+     }`; after `run`, the probe row 3 absent through the store's
      observer read.
    - 1310 (C50): the seeded rows, `.restore_jobs`, `.sessions(logged_
      in_sessions())`, `Server::Account`; `await_terminal` on 1 (Failed,
      the words naming no id) and 2 (Done); `sent()` `[POST, GET]`; the
-     journal against the wire; after `finish`, the rows' states through
+     journal against the wire; after `run`, the rows' states through
      the store's observer read.
    - 1465's refusal (a failed write refuses new jobs, "refuses new
      jobs") becomes a row of Do 4's shape beside 1751; its id rollback
@@ -347,14 +355,12 @@ uploaded whatever the outcome): round 6's input, read then.
      stays theirs).
    - 986 and 1127 (admitted at the bound): their refusals are rows of
      Do 2; their admissions (a 3,408-action apply, an at-bound sleep, a
-     50,000-action apply) are admitted-and-listed through the door on
-     `.restore_landed(false)` only if the apply's account wait
-     (`server.rs` 273–275) lets the submit answer; the worker checks on
-     the tree, and otherwise the two admissions stay a component test
-     together, their doc saying the admitted job must not run (the
-     `sleep` kind on real time; an apply's children on the wire). The
-     exact ids (id 1, id 2) are the daemon's, not the property: a row
-     asserts "admitted" (`Submitted`) and `List` naming it.
+     50,000-action apply) stay one component test together, their doc
+     saying the admitted job must not run (an apply needs an account,
+     so its submit waits on the restore before `resolve_account`,
+     `server.rs` 273–275, and `.restore_landed(false)` would hold it
+     forever; landed, the `sleep` runs on real time and an apply's
+     children reach the wire).
    - 200 (a league with a space, encoded on the wire): a scenario on
      `Script` (HEAD and GET to `/stash/Hard%20Mode`), `await_terminal`
      Done, the journal's two paths encoded.
@@ -372,7 +378,7 @@ uploaded whatever the outcome): round 6's input, read then.
    asserted them (361's "this daemon lifetime", 474's "halted by
    live-test rails:" prefix, 423's containment), parked jobs through
    `Status` (Waiting, retries 0), the disk through the store's observer
-   read after `finish`, "nothing picked" through `settle` where no send
+   read after `run`, "nothing picked" through `settle` where no send
    is held and `quiet` where one is (517), the nine sleeps and the two
    polls through `settle` and `await_job`, the 3 s ceilings gone; a
    local table's expected halt words are a row field (a ceiling of
@@ -399,7 +405,7 @@ uploaded whatever the outcome): round 6's input, read then.
      token answer `Script [token_answer("200 OK", ..)]` or none; the
      submits; `settle`; `Status` Waiting with retries 0 for each parked
      job; `halted` carrying the row's words; the wire (`received()`)
-     and the journal against it; after `finish`, the rows through the
+     and the journal against it; after `run`, the rows through the
      store's observer read.
    - 361 (a HEAD 522 halts this lifetime): `Script` HEAD 522 (no body),
      HEAD 204, GET; `halted` carrying "522 on HEAD fetch at
@@ -423,7 +429,7 @@ uploaded whatever the outcome): round 6's input, read then.
      "/token", 0)`; the submit, `held()`'s arrival, `Cancel`, `quiet`
      (a send is held, so `settle` would wait out `HANG`, door.rs
      217–224), release; `await_terminal` Cancelled; `sent()` one POST;
-     the journal against it; after `finish`, the row Cancelled through
+     the journal against it; after `run`, the row Cancelled through
      the store's observer read.
    - 552 (a blocked token POST leaves the job waiting): `Script` POST
      /token a 403 challenge; `settle`; `Status` Waiting; the journal
@@ -487,8 +493,8 @@ uploaded whatever the outcome): round 6's input, read then.
   call added for it.
 - `grep -n "JobDb::open\|read_job\|jobs::read\|Persisted" crates/acquisition-daemon/src/daemon/tests/{queue,rails}.rs`
   finds the scenarios' seeding writes (before the door opens, or the
-  staged rows named in Do 4) and their observer reads after `finish`,
-  each quoted with the `finish` above it, and the component tests'
+  staged rows named in Do 4) and their observer reads after `run`
+  returns, each quoted with the `run` above it, and the component tests'
   own; no scenario reads `shared`.
 - `git diff --stat <this brief's last cut> <head> -- crates/` lists
   files under `daemon/tests/` only; every golden, `CLI-REFERENCE.md`
@@ -533,10 +539,11 @@ sessions' home, `real_named`'s shape) for the owner's review.
 
 ## Raised for review
 
-- A scenario's disk read as C45's observer after `finish` (Do 1): the
-  first cut read the live file while the daemon answered, which C158
-  does not permit and C45 says "never while a daemon answers"; the
-  reviewer may hold the rule against every disk read.
+- A scenario's disk read as C45's observer after `run` returns (Do
+  1): the first cut read the live file while the daemon answered,
+  which C158 does not permit and C45 says "never while a daemon
+  answers"; the second read it after `finish`, which does not end the
+  daemon; the reviewer may hold the rule against every disk read.
 - "Nothing picked" as `settle` resolving generalises round 3's
   component precedent (`dispatch.rs:468`); the rule is stated in Do 1
   and the reviewer may hold it against the rails scenarios.
@@ -548,7 +555,7 @@ sessions' home, `real_named`'s shape) for the owner's review.
   write also fails: the error ring then holds two "could not be
   written" lines where the old fabricated mark gave one.
 
-## Taken from the review
+## Taken from the reviews
 
 The first review's twelve (`t5-r5b-brief-5c301c06.md`):
 
@@ -572,3 +579,15 @@ The first review's twelve (`t5-r5b-brief-5c301c06.md`):
 11. The done-when greps as calls, the kept helper's `Arc::get_mut`
     and the seeding writes allowed (Done when).
 12. The account bait records before it parses a grant (Do 1).
+
+The second review's four (`t5-r5b-brief-297a6566.md`):
+
+1. `finish` aborts the dispatcher without awaiting it: the observer
+   read after `run` returns, on a directory the test owns (Do 1, Do 4,
+   Do 5, done-when, Raised).
+2. The observer functions are `Persisted::read_job` and
+   `Persisted::read` (Do 1).
+3. A sleep submit waits on the restore when an account is named:
+   `account: None`; 986/1127's admissions stay a component test (Do 1,
+   Do 4).
+4. The Goal's id check is the mock rows' (Goal).
