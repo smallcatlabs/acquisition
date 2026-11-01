@@ -4,12 +4,14 @@ Written 2026-11-01 by the orchestrating session, from #153 (filed by
 the league seat, `audits/league-2026-11/seat/`), #154 (the owner's,
 with his comment on derived groups and the seat session's comment
 with its measurements and two settlements) and the tree at `fdbab0ce`.
-Cut three times: the first cut (`4f879174`) was reviewed cold
+Cut four times: the first cut (`4f879174`) was reviewed cold
 (`roadmap/reviews/describe-slices-brief-4f879174.md`, the prompt
 beside) and the second (`9dfa89f5`) answered its ten findings; the
-second was reviewed cold too (`describe-slices-brief-9dfa89f5.md`),
-and this third cut answers its five, each named at the foot, "Taken
-from the reviews". One step, two issues in order, both
+second was reviewed cold too (`describe-slices-brief-9dfa89f5.md`)
+and the third (`38073d13`) answered its five; the third's confirming
+review (`describe-slices-brief-38073d13.md`) found one test sentence
+contradicting settled 6, corrected in this fourth cut. Each is named
+at the foot, "Taken from the reviews". One step, two issues in order, both
 surfaces (`acq search --describe` and the MCP's `describe`): how the
 search language discloses itself to an agent, progressively — the
 index, a slice the size of a question, an entry whole.
@@ -447,7 +449,8 @@ The ruling's commit precedes the build (Input).
    (`critical_strike_chance` under `~weapon`); case; `(?-i)`; `^` and
    `$` against a name alone and against a definition alone (a pattern
    anchored at a definition's start matches the entry whose definition
-   starts so and not one whose name does); the bare `~` answering the
+   starts so and not one whose definition holds the text later and
+   whose name does not match); the bare `~` answering the
    operator entry; a name beside a pattern; nothing matched
    refused `unknown_name` with no readings and one describe offer;
    `~(` refused `bad_pattern` with the compiler's words; the trade
@@ -605,3 +608,9 @@ The second review's five (`roadmap/reviews/describe-slices-brief-9dfa89f5.md`):
    categories; a not-built construct stays a refusal (settled 2, Do 3).
 5. The escaped dot written once, with an anchored-definition case
    (settled 6, Do 5).
+
+The third review's one (`roadmap/reviews/describe-slices-brief-38073d13.md`):
+
+1. The anchored-definition case's negative is an entry whose
+   definition holds the text later and whose name does not match, so
+   the case contradicts nothing in settled 6 (Do 5).
