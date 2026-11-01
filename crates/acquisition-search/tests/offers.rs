@@ -101,11 +101,16 @@ fn a_realm_needed_offers_the_request_in_each_realm() {
     .unwrap();
     let e = request.corpus(&s, &intent(&s)).err().unwrap().to_json();
     assert_eq!(e["kind"], "realm_needed", "{e}");
-    assert_eq!(e["readings"], json!(["realm pc", "realm xbox"]));
+    // `all` beside each realm, as the words name it (the league seat,
+    // cli call 40, mcp call 25: "pc | poe2, or all" offered pc and poe2)
+    assert_eq!(
+        e["readings"],
+        json!(["realm pc", "realm xbox", "realm all"])
+    );
     assert_eq!(e["offers"][1]["says"], "realm xbox", "{e}");
     let offers = offered(&e);
-    assert_eq!(offers.len(), 2, "{e}");
-    for (offer, realm) in offers.iter().zip(["pc", "xbox"]) {
+    assert_eq!(offers.len(), 3, "{e}");
+    for (offer, realm) in offers.iter().zip(["pc", "xbox", "all"]) {
         // the request sent, in that realm, and named for the account it
         // was asked of as every request an answer holds is: with a second
         // account known, one that names none is refused

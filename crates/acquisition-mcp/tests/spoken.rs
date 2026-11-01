@@ -269,4 +269,14 @@ fn a_refusals_offer_sent_back_as_printed_is_answered() {
         json!(text),
         "{answered}"
     );
+    // the words name `all` beside the realms, and an offer sends it (the
+    // league seat, mcp call 25)
+    let all = refusal["offers"]
+        .as_array()
+        .and_then(|offers| offers.last())
+        .map(|offer| offer["request"].clone())
+        .unwrap_or_default();
+    assert_eq!(all["scope"]["realm"], json!("all"), "{refusal}");
+    let answered = mcp.result("search", all.clone());
+    assert_ne!(answered["isError"], json!(true), "{all}: {answered}");
 }

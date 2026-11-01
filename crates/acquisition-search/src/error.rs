@@ -205,15 +205,18 @@ impl SearchError {
     }
 
     /// The realms a search of `account`'s store may name, each read in
-    /// the request's words (C143).
+    /// the request's words (C143), and `all` after them, which the words
+    /// name too (the league seat, cli call 40, mcp call 25).
     pub(crate) fn offering_realms(mut self, realms: &[String], account: &str) -> SearchError {
         if let SearchError::Scope { offers, .. } = &mut self {
             *offers = realms
                 .iter()
+                .map(|realm| Realm::One(realm.clone()))
+                .chain([Realm::All])
                 .map(|realm| Offered {
-                    reading: format!("realm {realm}"),
+                    reading: format!("realm {}", realm.as_str()),
                     request: None,
-                    realm: Some((Realm::One(realm.clone()), account.to_string())),
+                    realm: Some((realm, account.to_string())),
                 })
                 .collect();
         }

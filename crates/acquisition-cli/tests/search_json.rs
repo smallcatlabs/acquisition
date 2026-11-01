@@ -2277,13 +2277,17 @@ fn a_refusal_offers_requests_beside_its_readings() {
         // the request's words, this terminal's flag after them (C143)
         assert_eq!(
             refused["readings"],
-            json!(["realm pc (--realm pc)", "realm poe2 (--realm poe2)"])
+            json!([
+                "realm pc (--realm pc)",
+                "realm poe2 (--realm poe2)",
+                "realm all (--realm all)"
+            ])
         );
         let offers = refused["offers"]
             .as_array()
             .unwrap_or_else(|| panic!("{refused}"));
-        assert_eq!(offers.len(), 2, "{refused}");
-        for (offer, realm) in offers.iter().zip(["pc", "poe2"]) {
+        assert_eq!(offers.len(), 3, "{refused}");
+        for (offer, realm) in offers.iter().zip(["pc", "poe2", "all"]) {
             assert_eq!(offer["request"]["scope"]["realm"], realm);
             assert_eq!(offer["request"]["query"]["text"], "rarity=rare");
             // named for the account it was asked of, as a route is
@@ -2721,13 +2725,13 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
     }
 
     // an id over two realms (seed_more added poe2): each realm offered
-    // as the site search in it, sent back as printed
+    // as the site search in it, and all of them, sent back as printed
     let out = acq(&base, &["--json", "search", "--trade", TRADE_ID]);
     assert_eq!(out.status.code(), Some(1));
     let e = sole_json(&out);
     assert_eq!(e["kind"], "realm_needed", "{e}");
     let offers = e["offers"].as_array().unwrap();
-    assert_eq!(offers.len(), 2, "{e}");
+    assert_eq!(offers.len(), 3, "{e}");
     for offer in offers.iter().map(|o| &o["request"]) {
         assert_eq!(offer["query"]["trade"], TRADE_ID, "{offer}");
         std::fs::write(&file, offer.to_string()).unwrap();
