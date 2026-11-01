@@ -1,5 +1,10 @@
 //! The queue: what a client may submit, a restart, a restore, and a
-//! queue write that fails.
+//! queue write that fails. Through the door (C158): the admission table
+//! and its positive twins, the restored rows that never passed the
+//! client's door, the queue file failing, the cancel and the priority
+//! after a failed write, and the restores; a scenario's disk read is an
+//! observer's once its door's run has returned (C45). The component
+//! tests each say in their doc which boundary they need.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -10,29 +15,9 @@ use crate::daemon::queue::{
     SUBMITTER_MAX_BYTES, door as kind_door,
 };
 use crate::daemon::*;
+use acquisition_store::jobs::{Persisted, PersistedRecord, daemon_db_path};
 
 // ---- admission (C127) ------------------------------------------------
-
-/// A client's submit through the door every frontend uses.
-async fn client_submit(
-    daemon: &Arc<Daemon>,
-    kind: &str,
-    params: Value,
-    account: Option<&str>,
-) -> Response {
-    daemon
-        .handle_request(
-            Request::Submit {
-                kind: kind.into(),
-                params,
-                priority: 0,
-                submitted_by: "client".into(),
-                account: account.map(str::to_string),
-            },
-            &mut None,
-        )
-        .await
-}
 
 /// The response is a refusal of `kind` whose words carry every one of
 /// `carries` and none of `lacks`, quoted within a bounded preview (C127,
@@ -783,28 +768,14 @@ async fn c127_a_large_plan_and_params_and_actions_at_their_bounds_are_admitted()
     }
     finish_harness(None, &log_path);
 }
-/// A harness daemon with one live session holding a fresh access
-/// token, so a network job it admitted would send at once.
-fn live_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
-    let (daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "Alice#1234");
-        let session = s.auth.one_mut();
-        session.username = Some("Alice#1234".into());
-        session.access_token = Some("at-test.Alice#1234".into());
-        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
-    }
-    (daemon, log_path)
-}
-
 /// C127 (a path param is one segment, encoded): a league whose name holds
 /// a space is a legitimate segment; it is admitted, and the probe and the
-/// GET carry it percent-encoded as one segment, as the journal records.
-#[tokio::test]
-async fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
+/// GET carry it percent-encoded as one segment, as the scripted server's
+/// paths and the journal record.
+#[test]
+fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
     let policy = "X-Rate-Limit-Policy: stash-list-test\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
-    let (base, requests, server) = scripted_server(vec![
+    let script = vec![
         ScriptedResponse {
             method: "HEAD",
             path: "/stash/Hard%20Mode",
@@ -819,34 +790,38 @@ async fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
             headers: policy.replace("0:1:0", "1:1:0"),
             body: r#"{"stashes":[]}"#.into(),
         },
-    ])
-    .await;
-    let (daemon, log_path) = live_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let response = client_submit(
-        &daemon,
-        "stashes",
-        json!({ "league": "Hard Mode" }),
-        Some("Alice#1234"),
+    ];
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    Door::open(
+        Server::Script(script),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
     )
-    .await;
-    let Response::Submitted { id } = response else {
-        panic!("a league with a space was refused: {response:?}")
-    };
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Done, "{outcome:?}");
-    server.await.unwrap();
-    let paths: Vec<Value> = journal_sends(&log_path)
-        .iter()
-        .map(|send| send["path"].clone())
-        .collect();
-    assert_eq!(
-        paths,
-        [json!("/stash/Hard%20Mode"), json!("/stash/Hard%20Mode")]
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let submit = submit_of(
+            "stashes",
+            json!({ "league": "Hard Mode" }),
+            0,
+            "client",
+            Some("Alice#1234"),
+        );
+        let id = submitted(door.request(submit).await, "a league with a space");
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Done, "{outcome:?}");
+        let paths: Vec<Value> = door
+            .journal()
+            .iter()
+            .map(|send| send["path"].clone())
+            .collect();
+        assert_eq!(
+            paths,
+            [json!("/stash/Hard%20Mode"), json!("/stash/Hard%20Mode")]
+        );
+        door.finish().await;
+    });
 }
-
 /// C127 (a path param is one segment, encoded): where a URL is rendered,
 /// each path param is percent-encoded as one segment, so `%`, `#` and `?`
 /// stay inside it; a value that is not one segment renders no URL at all,
@@ -921,19 +896,37 @@ fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
     }
 }
 
-/// C127 (a row that renders no URL says why): a row that never passed the
-/// client's door (here the daemon's own submit, as a restored row or a
-/// child whose params came from a response) and whose params render no
-/// URL fails naming the real cause in the door's words, and sends nothing.
-#[tokio::test]
-async fn c127_a_row_that_renders_no_url_fails_naming_the_cause() {
-    let (base, requests, server) = scripted_server(vec![
-        ScriptedResponse::full("HEAD", "200 OK", None, ""),
-        ScriptedResponse::full("GET", "200 OK", None, "{}"),
-    ])
-    .await;
-    let (daemon, log_path) = live_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+/// What a restored row's failure must say.
+enum Said {
+    /// It carries these words and none of the misleading causes given.
+    Carries(&'static str, &'static [&'static str]),
+    /// It is, word for word, the refusal a client's submit of the same
+    /// kind, params and account is answered with.
+    TheDoors,
+}
+
+/// C127, a row of the restored-rows table: a waiting row as an earlier
+/// lifetime's `daemon.db` holds it (kind, params, account, submitter),
+/// never having passed the client's door, the sessions it restores
+/// beside, and what its failure says. Named for the test it replaced and
+/// its case.
+struct Restored {
+    name: String,
+    session: Session,
+    kind: &'static str,
+    params: Value,
+    account: Option<&'static str>,
+    submitted_by: &'static str,
+    said: Said,
+}
+
+/// The restored-rows table's rows, written from the rows and the words of
+/// the tests they replaced.
+fn restored_rows() -> Vec<Restored> {
+    let mut rows = Vec::new();
+    // C127 (a row that renders no URL says why): the daemon's own work,
+    // as a restored row or a child whose params came from a response, for
+    // a live session whose admitted job would send at once.
     for (kind, params, said) in [
         (
             "stash",
@@ -956,53 +949,22 @@ async fn c127_a_row_that_renders_no_url_fails_naming_the_cause() {
             "`league` must be a string that is one path segment",
         ),
     ] {
-        let what = format!("{kind} {params}");
-        let id = daemon
-            .submit(
-                kind.into(),
-                params,
-                0,
-                "daemon".into(),
-                Some("Alice#1234".into()),
-            )
-            .unwrap_or_else(|e| panic!("{what}: the daemon's own submit was refused: {e}"));
-        let (info, outcome) = wait_terminal(&daemon, id).await;
-        assert_eq!(info.state, JobState::Failed, "{what}: {outcome:?}");
-        let Outcome::Failure { error, .. } = &outcome else {
-            panic!("{what}: {outcome:?}")
-        };
-        assert!(
-            error.contains(said),
-            "{what}: the failure says {said:?}: {error}"
-        );
-        for wrong in ["needs an id", "needs a name", "unrenderable realm"] {
-            assert!(
-                !error.contains(wrong),
-                "{what}: a misleading cause: {error}"
-            );
-        }
+        rows.push(Restored {
+            name: format!("c127_a_row_that_renders_no_url_fails_naming_the_cause: {kind} {params}"),
+            session: Session::Live,
+            kind,
+            params,
+            account: Some("Alice#1234"),
+            submitted_by: "daemon",
+            said: Said::Carries(said, &["needs an id", "needs a name", "unrenderable realm"]),
+        });
     }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "nothing reached the wire"
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// C127 (a row that renders no URL spends no token): a row whose params
-/// render no URL fails in the door's words before the job authenticates,
-/// so a session whose refresh is due sends no refresh for it. Every kind
-/// whose path params can render no URL past the daemon's own submit is in
-/// the table, so a handler that authenticates first is caught. Not here:
-/// `leagues` and `profile` always render, and `characters` renders none
-/// only for a realm the daemon's own submit refuses.
-#[tokio::test]
-async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
-    let (base, requests, server) = token_server_answering(vec![]).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    // C127 (a row that renders no URL spends no token): every kind whose
+    // path params can render no URL past the daemon's own submit, on a
+    // session whose refresh is due, so a handler that authenticates first
+    // would send a refresh. Not here: `leagues` and `profile` always
+    // render, and `characters` renders none only for a realm the daemon's
+    // own submit refuses (the row after these).
     for (kind, params, said) in [
         (
             "stash",
@@ -1020,72 +982,129 @@ async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
             "`league` must be a string that is one path segment",
         ),
     ] {
-        let what = format!("{kind} {params}");
-        let id = daemon
-            .submit(
-                kind.into(),
-                params,
-                0,
-                "daemon".into(),
-                Some("test-user".into()),
-            )
-            .unwrap_or_else(|e| panic!("{what}: the daemon's own submit was refused: {e}"));
-        let (info, outcome) = wait_terminal(&daemon, id).await;
-        assert_eq!(info.state, JobState::Failed, "{what}: {outcome:?}");
-        let Outcome::Failure { error, .. } = &outcome else {
-            panic!("{what}: {outcome:?}")
-        };
-        assert!(
-            error.contains(said),
-            "{what}: the failure says {said:?}: {error}"
-        );
-    }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "the token server saw no request"
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// C127 (a row that renders no URL spends no token), for `characters`:
-/// its one no-URL case is a realm the daemon's own submit refuses, so the
-/// handler is called directly, on a session whose refresh is due. It fails
-/// in the door's words, and the journal equals the wire, both empty.
-#[tokio::test]
-async fn c127_a_characters_row_that_renders_no_url_fails_before_any_refresh() {
-    let (base, requests, server) = token_server_answering(vec![]).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    let params = json!({ "realm": "nope" });
-    let said = admit_realm("characters", &params)
-        .expect_err("the door refuses the realm")
-        .message;
-    let outcome = daemon
-        .execute_inner(
-            9,
-            "characters",
+        rows.push(Restored {
+            name: format!(
+                "c127_a_row_that_renders_no_url_fails_before_any_refresh: {kind} {params}"
+            ),
+            session: Session::RefreshDue,
+            kind,
             params,
-            None,
-            Some("test-user"),
-            daemon.choke.now(),
-        )
-        .await
-        .unwrap_or_else(|e| panic!("characters: {e:?}"));
-    let Outcome::Failure { error, .. } = &outcome else {
-        panic!("characters with realm \"nope\": {outcome:?}")
-    };
-    assert_eq!(error, &said, "the failure is the door's words");
-    assert!(error.contains("nope"), "{error}");
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "the token server saw no request"
-    );
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
+            account: Some("test-user"),
+            submitted_by: "daemon",
+            said: Said::Carries(said, &[]),
+        });
+    }
+    // The same, for `characters`: its one no-URL case is a realm the
+    // daemon's own submit refuses, which a restored row never met.
+    rows.push(Restored {
+        name: "c127_a_characters_row_that_renders_no_url_fails_before_any_refresh".into(),
+        session: Session::RefreshDue,
+        kind: "characters",
+        params: json!({ "realm": "nope" }),
+        account: Some("test-user"),
+        submitted_by: "daemon",
+        said: Said::TheDoors,
+    });
+    // C127 (one bound on `sleep`): a restored sleep whose `seconds` the
+    // door would refuse fails in the door's own words rather than run a
+    // default: a string `seconds` once slept 3 s.
+    for seconds in [json!("1"), json!(true), json!(-1), json!(3601)] {
+        rows.push(Restored {
+            name: format!(
+                "c127_a_restored_sleep_the_door_would_refuse_fails_in_its_words: sleep {seconds}"
+            ),
+            session: Session::None,
+            kind: "sleep",
+            params: json!({ "seconds": seconds }),
+            account: None,
+            submitted_by: "client",
+            said: Said::TheDoors,
+        });
+    }
+    rows
 }
 
+/// C127 and C6, the rows that never passed the client's door: each row
+/// is seeded waiting into a `daemon.db` the scenario opened, which the
+/// door's daemon restores as a start does (C6), its sessions beside it;
+/// the dispatcher runs it, and it fails in the door's words: its
+/// `Result` carries the row's words, or equals the refusal a client's
+/// submit of the same kind, params and account is answered with. Once
+/// the runtime has settled, the account server's record and the journal
+/// are empty: nothing was sent for it, no refresh among it. A restored
+/// row is a persisted input, trusted as the daemon trusts it.
+#[test]
+fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
+    for row in restored_rows() {
+        let Restored {
+            name,
+            session,
+            kind,
+            params,
+            account,
+            submitted_by,
+            said,
+        } = row;
+        let dir = TestPath::dir();
+        let db = JobDb::open(&daemon_db_path(&dir)).unwrap();
+        db.upsert(&JobRow {
+            id: 1,
+            kind: kind.into(),
+            state: "waiting".into(),
+            priority: 0,
+            submitted_by: submitted_by.into(),
+            parent: None,
+            retries: 0,
+            account: account.map(str::to_string),
+            params: params.clone(),
+            outcome: None,
+            deferred: None,
+            cancel_requested: false,
+            submitted_at: 0,
+            updated_at: 0,
+        })
+        .unwrap();
+        let clock = Arc::new(ParkingClock::new());
+        let sessions = session.on(&clock);
+        let name = &name;
+        Door::open(
+            Server::Account(NO_HOLD),
+            clock,
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .sessions(sessions)
+        .jobs_db(db)
+        .restore_jobs(Retention::default())
+        .run(|mut door| async move {
+            let (job, outcome) = door.await_terminal(1).await;
+            assert_eq!(job.state, JobState::Failed, "{name}: {outcome:?}");
+            let Outcome::Failure { error, .. } = &outcome else {
+                panic!("{name}: {outcome:?}")
+            };
+            match said {
+                Said::Carries(said, wrong) => {
+                    assert!(error.contains(said), "{name}: says {said:?}: {error}");
+                    for wrong in wrong {
+                        assert!(
+                            !error.contains(wrong),
+                            "{name}: a misleading cause: {error}"
+                        );
+                    }
+                }
+                Said::TheDoors => {
+                    let submit = submit_of(kind, params, 0, "client", account);
+                    let answer = door.request(submit).await;
+                    let refusal = assert_refused(answer, name, ErrorKind::Refused, &[], &[]);
+                    assert_eq!(error, &refusal, "{name}: the failure is the door's words");
+                }
+            }
+            door.settle().await;
+            assert!(door.sent().is_empty(), "{name}: nothing reached the wire");
+            assert!(door.journal().is_empty(), "{name}: nothing was journaled");
+            door.finish().await;
+        });
+    }
+}
 /// C127 (no legitimate value is refused or changed): realistic league,
 /// character, stash and substash values on every realm a family takes,
 /// each run through `route_for` and then `url::Url::parse` (what reqwest
@@ -1206,32 +1225,6 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
     assert_eq!(own, ["probe"]);
 }
 
-/// C127 (one bound on `sleep`): a row that never passed the door (a
-/// restored row) whose `seconds` the door would refuse fails when run, in
-/// the door's own words, rather than run a default: a string `seconds`
-/// once slept 3 s.
-#[tokio::test]
-async fn c127_a_restored_sleep_the_door_would_refuse_fails_in_its_words() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    for seconds in [json!("1"), json!(true), json!(-1), json!(3601)] {
-        let what = format!("sleep {seconds}");
-        let params = json!({ "seconds": seconds });
-        let door = match client_submit(&daemon, "sleep", params.clone(), None).await {
-            Response::Error { message, .. } => message,
-            other => panic!("{what}: the door admitted it: {other:?}"),
-        };
-        let outcome = daemon
-            .execute_inner(9, "sleep", params, None, None, daemon.choke.now())
-            .await
-            .unwrap();
-        match &outcome {
-            Outcome::Failure { error, .. } => assert_eq!(error, &door, "{what}"),
-            other => panic!("{what}: the runner did not fail: {other:?}"),
-        }
-    }
-    finish_harness(None, &log_path);
-}
-
 // ---- persistence (C6) ------------------------------------------------
 
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
@@ -1257,6 +1250,40 @@ fn break_queue(db: &std::path::Path) {
         .unwrap();
 }
 
+/// A door on the `daemon.db` under `dir`, as a start opens it: the
+/// account server holding nothing, one empty session, the queue file
+/// the scenario's own, which it may break (`break_queue`), seed behind
+/// the daemon, or read as an observer once the run is over (C45).
+fn queue_door(dir: &std::path::Path) -> DoorBuilder {
+    Door::open(
+        Server::Account(NO_HOLD),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .jobs_db(JobDb::open(&daemon_db_path(dir)).unwrap())
+}
+
+/// Job `id` as an observer reads it from the ledger under `dir`, with no
+/// daemon answering (C45, the store's `Persisted` view): for a scenario's
+/// disk read once its door's `run` has returned.
+fn on_disk(dir: &std::path::Path, id: JobId) -> Option<PersistedRecord> {
+    Persisted::read_job(dir, id).expect("the ledger reads")
+}
+
+/// The refusal a request is answered with: its kind and its words.
+fn refusal_of(answer: Response, what: &str) -> (ErrorKind, String) {
+    match answer {
+        Response::Error { kind, message } => (kind, message),
+        other => panic!("{what} answered {other:?}"),
+    }
+}
+
+/// C6: the queue and its results survive a restart: a finished job's
+/// result is answered by the next lifetime, a running job is re-queued,
+/// a waiting one keeps its reprioritisation, ids continue, and a third
+/// lifetime has nothing to restore. A component test: three lifetimes in
+/// one test, the second's Running fabricated under `shared` as `process`
+/// writes it, which no door of one lifetime reaches.
 #[tokio::test]
 async fn the_queue_and_results_survive_a_daemon_restart() {
     let db = test_db_path();
@@ -1376,162 +1403,192 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
 /// access token, so a replay would cost a token POST and a GET with no
 /// one waiting. The same fetch a frontend submitted, waiting beside it,
 /// still replays: one POST and one GET reach the wire, the account
-/// server's, and the journal matches them.
-#[tokio::test]
-async fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let db = test_db_path();
-    {
-        let db = JobDb::open(&db).unwrap();
-        let waiting_profile = |id: JobId, submitted_by: &str| acquisition_store::jobs::JobRow {
-            id,
-            kind: "profile".into(),
-            state: "waiting".into(),
-            priority: 0,
-            submitted_by: submitted_by.into(),
-            parent: None,
-            retries: 0,
-            account: Some("test-user".into()),
-            params: json!({}),
-            outcome: None,
-            deferred: None,
-            cancel_requested: false,
-            submitted_at: 0,
-            updated_at: 0,
-        };
-        db.upsert(&waiting_profile(1, "daemon")).unwrap();
-        db.upsert(&waiting_profile(2, "cli:1")).unwrap();
-    }
-    let (mut daemon, log_path) = persisting_daemon(&base, &db);
-    logged_in(&mut daemon);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    let (login, outcome) = wait_terminal(&daemon, 1).await;
-    assert_eq!(login.state, JobState::Failed, "{outcome:?}");
-    let Outcome::Failure { error, .. } = &outcome else {
-        panic!("{outcome:?}")
+/// server's, and the journal matches them; after the run, an observer
+/// reads both rows' ends on disk.
+#[test]
+fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
+    let dir = TestPath::dir();
+    let seed = JobDb::open(&daemon_db_path(&dir)).unwrap();
+    let waiting_profile = |id: JobId, submitted_by: &str| JobRow {
+        id,
+        kind: "profile".into(),
+        state: "waiting".into(),
+        priority: 0,
+        submitted_by: submitted_by.into(),
+        parent: None,
+        retries: 0,
+        account: Some("test-user".into()),
+        params: json!({}),
+        outcome: None,
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: 0,
+        updated_at: 0,
     };
-    assert!(
-        error.contains("login") && error.contains("log in again") && !error.contains('1'),
-        "the failure names the lost login and the remedy, no id: {error}"
-    );
-    let (client, outcome) = wait_terminal(&daemon, 2).await;
-    assert_eq!(client.state, JobState::Done, "{outcome:?}");
+    seed.upsert(&waiting_profile(1, "daemon")).unwrap();
+    seed.upsert(&waiting_profile(2, "cli:1")).unwrap();
+    drop(seed);
+    queue_door(&dir)
+        .sessions(logged_in_sessions())
+        .restore_jobs(Retention::default())
+        .run(|mut door| async move {
+            let (login, outcome) = door.await_terminal(1).await;
+            assert_eq!(login.state, JobState::Failed, "{outcome:?}");
+            let Outcome::Failure { error, .. } = &outcome else {
+                panic!("{outcome:?}")
+            };
+            assert!(
+                error.contains("login") && error.contains("log in again") && !error.contains('1'),
+                "the failure names the lost login and the remedy, no id: {error}"
+            );
+            let (client, outcome) = door.await_terminal(2).await;
+            assert_eq!(client.state, JobState::Done, "{outcome:?}");
+            let wire = door.sent();
+            assert_eq!(
+                wire,
+                [sent("test-user", "POST"), sent("test-user", "GET")],
+                "the frontend's fetch replays; the lost login's sends nothing"
+            );
+            assert_eq!(door.journal_methods(), wire_methods_of(&wire));
+            door.finish().await;
+        });
+    let state = |id| on_disk(&dir, id).expect("the row").job.state;
+    assert_eq!(state(1), "failed", "the failure is on disk");
     assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")],
-        "the frontend's fetch replays; the lost login's sends nothing"
-    );
-    assert_eq!(
-        JobDb::open(&db).unwrap().get(1).unwrap().unwrap().state,
-        JobState::Failed.to_string(),
-        "the failure is on disk"
-    );
-    assert_eq!(
-        JobDb::open(&db).unwrap().get(2).unwrap().unwrap().state,
-        JobState::Done.to_string(),
+        state(2),
+        "done",
         "the wire's two sends are the frontend's fetch"
     );
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(dispatcher, &log_path);
 }
 
-#[tokio::test]
-async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
-    let db = test_db_path();
-    {
-        let db = JobDb::open(&db).unwrap();
-        let row = |id: u64, kind: &str, state: &str, parent: Option<u64>| {
-            acquisition_store::jobs::JobRow {
-                id,
-                kind: kind.into(),
-                state: state.into(),
-                priority: 0,
-                submitted_by: "t".into(),
-                parent,
-                retries: 0,
-                account: Some("A#1".into()),
-                params: json!({ "route": "fetch@A#1", "league": "Standard" }),
-                outcome: (state == "done").then(|| json!({ "outcome": "success", "payload": {} })),
-                deferred: None,
-                cancel_requested: false,
-                submitted_at: 0,
-                updated_at: 0,
+/// C6, the restore: a probe from the previous daemon is dropped (gone
+/// from the table too); a running job that was asked to cancel concludes
+/// cancelled; a running job on a declared no-probe route is not replayed
+/// (a replay would send against an empty limiter) and fails; an apply
+/// whose last child finished before the daemon died finishes with its
+/// held result; and an apply caught mid-fan-out holds for its waiting
+/// child, finishing as interrupted, never success (the full child set is
+/// unknown), with its children's tally, once that child ends. Ids
+/// continue past the restored rows. Read through `List`, `Result`, a
+/// cancel and a submit, the restore held unlanded so the dispatcher runs
+/// nothing restored; after the run, an observer finds no probe row.
+#[test]
+fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
+    let dir = TestPath::dir();
+    let seed = JobDb::open(&daemon_db_path(&dir)).unwrap();
+    let row = |id: u64, kind: &str, state: &str, parent: Option<u64>| JobRow {
+        id,
+        kind: kind.into(),
+        state: state.into(),
+        priority: 0,
+        submitted_by: "t".into(),
+        parent,
+        retries: 0,
+        account: Some("A#1".into()),
+        params: json!({ "route": "fetch@A#1", "league": "Standard" }),
+        outcome: (state == "done").then(|| json!({ "outcome": "success", "payload": {} })),
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: 0,
+        updated_at: 0,
+    };
+    // An apply whose last child finished just before the daemon
+    // died: its own result is held, deferred.
+    let mut parent = row(1, "apply", "running", None);
+    parent.deferred = Some(json!({ "outcome": "success", "payload": { "tabs_listed": 1 } }));
+    seed.upsert(&parent).unwrap();
+    seed.upsert(&row(2, "stash", "done", Some(1))).unwrap();
+    // Per-lifetime: a probe from the previous daemon.
+    seed.upsert(&row(3, "probe", "waiting", None)).unwrap();
+    // A running job that was asked to cancel: it never ran again.
+    let mut cancelling = row(4, "sleep", "running", None);
+    cancelling.cancel_requested = true;
+    seed.upsert(&cancelling).unwrap();
+    // Running on a declared no-probe route: a replay would send
+    // against an empty limiter, so it is not replayed.
+    seed.upsert(&row(5, "leagues", "running", None)).unwrap();
+    // Mid-fan-out: children submitted, held result not yet
+    // written. Re-running would duplicate the children.
+    seed.upsert(&row(6, "apply", "running", None)).unwrap();
+    seed.upsert(&row(7, "stash", "waiting", Some(6))).unwrap();
+    drop(seed);
+    queue_door(&dir)
+        .restore_jobs(Retention::default())
+        .restore_landed(false)
+        .run(|mut door| async move {
+            let states: Vec<(JobId, JobState)> = listed(&mut door)
+                .await
+                .iter()
+                .map(|j| (j.id, j.state))
+                .collect();
+            assert_eq!(
+                states,
+                [
+                    (1, JobState::Done),
+                    (2, JobState::Done),
+                    (4, JobState::Cancelled),
+                    (5, JobState::Failed),
+                    (6, JobState::Running),
+                    (7, JobState::Waiting)
+                ],
+                "no-probe replays fail; a mid-fan-out parent holds for its children"
+            );
+            let (_, outcome) = door.await_terminal(5).await;
+            let Outcome::Failure { error, .. } = outcome else {
+                panic!("the leagues replay did not fail: {outcome:?}")
+            };
+            assert!(error.contains("not replayed"), "{error}");
+            let (_, outcome) = door.await_terminal(1).await;
+            let Outcome::Success { payload } = outcome else {
+                panic!("parent did not finish with its held result: {outcome:?}")
+            };
+            assert_eq!(payload["tabs_listed"], json!(1));
+            assert_eq!(payload["children"]["done"], json!(1));
+            // The held parent finishes when its remaining child does — as
+            // interrupted, never success: the full child set is unknown.
+            match door.request(Request::Cancel { id: 7 }).await {
+                Response::Ack { .. } => {}
+                other => panic!("the cancel of job 7 answered {other:?}"),
             }
-        };
-        // An apply whose last child finished just before the daemon
-        // died: its own result is held, deferred.
-        let mut parent = row(1, "apply", "running", None);
-        parent.deferred = Some(json!({ "outcome": "success", "payload": { "tabs_listed": 1 } }));
-        db.upsert(&parent).unwrap();
-        db.upsert(&row(2, "stash", "done", Some(1))).unwrap();
-        // Per-lifetime: a probe from the previous daemon.
-        db.upsert(&row(3, "probe", "waiting", None)).unwrap();
-        // A running job that was asked to cancel: it never ran again.
-        let mut cancelling = row(4, "sleep", "running", None);
-        cancelling.cancel_requested = true;
-        db.upsert(&cancelling).unwrap();
-        // Running on a declared no-probe route: a replay would send
-        // against an empty limiter, so it is not replayed.
-        db.upsert(&row(5, "leagues", "running", None)).unwrap();
-        // Mid-fan-out: children submitted, held result not yet
-        // written. Re-running would duplicate the children.
-        db.upsert(&row(6, "apply", "running", None)).unwrap();
-        db.upsert(&row(7, "stash", "waiting", Some(6))).unwrap();
-    }
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    let jobs = daemon.job_list().unwrap();
-    let states: Vec<(JobId, JobState)> = jobs.iter().map(|j| (j.id, j.state)).collect();
-    assert_eq!(
-        states,
-        [
-            (1, JobState::Done),
-            (2, JobState::Done),
-            (4, JobState::Cancelled),
-            (5, JobState::Failed),
-            (6, JobState::Running),
-            (7, JobState::Waiting)
-        ],
-        "no-probe replays fail; a mid-fan-out parent holds for its children"
-    );
-    let Outcome::Failure { error, .. } = held(&daemon, 5).unwrap().1.unwrap() else {
-        panic!("the leagues replay did not fail")
-    };
-    assert!(error.contains("not replayed"), "{error}");
-    // The held parent finishes when its remaining child does — as
-    // interrupted, never success: the full child set is unknown.
-    daemon.cancel(7).unwrap();
-    let Outcome::Failure {
-        error, children, ..
-    } = held(&daemon, 6).unwrap().1.unwrap()
-    else {
-        panic!("held parent must finish as interrupted, not success")
-    };
-    assert!(error.contains("mid fan-out"), "{error}");
-    // C23: the deferred failure keeps its message and gains the tally.
-    assert_eq!(
-        children,
-        Some(Children {
-            done: 0,
-            failed: 0,
-            cancelled: 1,
-            failed_ids: vec![],
-        }),
-        "the interrupted parent carries its children's tally as a field"
-    );
-    let Outcome::Success { payload } = held(&daemon, 1).unwrap().1.unwrap() else {
-        panic!("parent did not finish with its held result")
-    };
-    assert_eq!(payload["tabs_listed"], json!(1));
-    assert_eq!(payload["children"]["done"], json!(1));
+            let (_, outcome) = door.await_terminal(6).await;
+            let Outcome::Failure {
+                error, children, ..
+            } = outcome
+            else {
+                panic!("held parent must finish as interrupted, not success: {outcome:?}")
+            };
+            assert!(error.contains("mid fan-out"), "{error}");
+            // C23: the deferred failure keeps its message and gains the tally.
+            assert_eq!(
+                children,
+                Some(Children {
+                    done: 0,
+                    failed: 0,
+                    cancelled: 1,
+                    failed_ids: vec![],
+                }),
+                "the interrupted parent carries its children's tally as a field"
+            );
+            let next = submit_of("sleep", json!({}), 0, "client", None);
+            assert_eq!(
+                submitted(door.request(next).await, "a sleep after the restore"),
+                8,
+                "ids continue past the restored rows"
+            );
+            door.finish().await;
+        });
     assert!(
-        JobDb::open(&db).unwrap().get(3).unwrap().is_none(),
+        on_disk(&dir, 3).is_none(),
         "the probe row is gone from the table too"
     );
-    assert_eq!(daemon.shared.lock().unwrap().next_id, 8);
-    finish_harness(None, &log);
 }
-
+/// C6: a submit whose queue write fails rolls its id back, and a failed
+/// queue dispatches nothing, its waiting job left unpicked. Its refusal,
+/// `QueueFailed` saying the daemon refuses new jobs, is a row of
+/// `c6_the_queue_file_failing_through_the_door`. A component test: the
+/// rolled-back id and the empty pick have no boundary read (after the
+/// break no submit is admitted to show the next id, and the job never
+/// picked reads Waiting as one not yet picked does).
 #[tokio::test]
 async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
     let db = test_db_path();
@@ -1540,11 +1597,9 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap();
     break_queue(&db);
-    let err = daemon
+    daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap_err();
-    assert!(err.message.contains("refuses new jobs"), "{err}");
-    assert_eq!(err.kind, ErrorKind::QueueFailed);
     assert_eq!(
         daemon.shared.lock().unwrap().next_id,
         2,
@@ -1554,16 +1609,14 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
         daemon.pick_runnable().is_empty(),
         "a failed queue dispatches nothing"
     );
-    assert!(
-        !Daemon::has_live_jobs(&daemon.shared.lock().unwrap(), true),
-        "the parked queue does not hold the daemon up"
-    );
     finish_harness(None, &log);
 }
 
 /// C6 as amended: a concluded tree leaves memory only when every row is
 /// persisted. A job that concludes after a failed queue write stays in
-/// memory, which answers for it: its row was not written.
+/// memory, which answers for it: its row was not written. A component
+/// test: the conclusion is fabricated after the break
+/// (`start_and_finish`), and memory's membership has no boundary read.
 #[tokio::test]
 async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     let db = test_db_path();
@@ -1605,48 +1658,6 @@ fn disk_row(id: u64, kind: &str, state: &str, parent: Option<u64>) -> JobRow {
     }
 }
 
-/// C6: a job not in memory is read from the table and never acted on.
-/// A row still waiting on disk that memory does not hold (a probe whose
-/// delete failed at the restore) is no job to `cancel` and
-/// `set-priority`, as it was before the table answered; a finished row
-/// is the `wrong_state` refusal. Nothing panics, and the open row is
-/// left as it was.
-#[tokio::test]
-async fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
-    let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    {
-        let other = JobDb::open(&db).unwrap();
-        other
-            .upsert(&disk_row(40, "probe", "waiting", None))
-            .unwrap();
-        other.upsert(&disk_row(41, "sleep", "done", None)).unwrap();
-    }
-    for refusal in [daemon.cancel(40), daemon.set_priority(40, 3)] {
-        let refusal = refusal.unwrap_err();
-        assert_eq!(
-            (refusal.kind, refusal.message.as_str()),
-            (ErrorKind::UnknownJob, "no job 40")
-        );
-    }
-    assert_eq!(
-        JobDb::open(&db).unwrap().get(40).unwrap().unwrap().state,
-        "waiting",
-        "the open row is left as it was"
-    );
-    let cancel = daemon.cancel(41).unwrap_err();
-    assert_eq!(
-        (cancel.kind, cancel.message.as_str()),
-        (ErrorKind::WrongState, "job 41 already done")
-    );
-    let priority = daemon.set_priority(41, 3).unwrap_err();
-    assert_eq!(
-        (priority.kind, priority.message.as_str()),
-        (ErrorKind::WrongState, "job 41 is done, not waiting")
-    );
-    finish_harness(None, &log);
-}
-
 /// C6, uniform eviction: a tree the restore brought back leaves memory
 /// when it concludes, as any tree does, and the list names this daemon's
 /// work and what the restore brought back, never the rows between. A
@@ -1657,7 +1668,9 @@ async fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
 /// memory holds only the waiting job. The list names it, the tree, and
 /// a job this daemon then runs; neither earlier finished job, which stay
 /// on disk for `result` (a list of every such row is what would carry a
-/// long history past the frame).
+/// long history past the frame). A component test: memory's membership
+/// (`shared.jobs`) is what it asserts, which no protocol answer reads
+/// apart from the table's.
 #[tokio::test]
 async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
     let db = test_db_path();
@@ -1734,7 +1747,9 @@ async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
 /// the table, and a table that cannot be read is its answer at once,
 /// the cause the login fails with, never a wait for an event that will
 /// not come and a timeout that names none. The job concludes and is
-/// evicted, the queue breaks, then the wait reads.
+/// evicted, the queue breaks, then the wait reads. A component test: the
+/// login's own wait (`wait_job_terminal`) is internal, and no request
+/// reaches it with a concluded, evicted job.
 #[tokio::test]
 async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
     let db = test_db_path();
@@ -1753,6 +1768,9 @@ async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
     finish_harness(None, &log);
 }
 
+/// C6: a queue the restore cannot read is fatal to the start, in words
+/// that say so. A component test: a restore that fails fails the door's
+/// construction, which the door cannot answer.
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();
@@ -1763,11 +1781,15 @@ async fn a_broken_queue_is_fatal_to_restore() {
     finish_harness(None, &log);
 }
 
+/// C6: waiting → running is the transition that gates a send: if its
+/// write fails, disk still says waiting, and after a restart a no-probe
+/// job would replay blind. The job must not run: it reverts to waiting,
+/// and the failed write trips the queue. A component test: the break
+/// must land after the admission and before the dispatcher's
+/// transition, which no boundary step orders (a door holding its restore
+/// unlanded never transitions; one landed transitions at the submit).
 #[tokio::test]
 async fn a_transition_that_cannot_persist_does_not_run() {
-    // waiting → running is the transition that gates a send: if its
-    // write fails, disk still says waiting, and after a restart a
-    // no-probe job would replay blind. The job must not run.
     let db = test_db_path();
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     let id = daemon
@@ -1781,57 +1803,157 @@ async fn a_transition_that_cannot_persist_does_not_run() {
         .unwrap();
     break_queue(&db);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    // The dispatcher's transition, awaited: its failed write sets the
+    // queue failure and reverts in one critical section, so once the
+    // failure is read the revert has landed.
+    tokio::time::timeout(HANG, async {
+        while daemon.queue_failed().is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the failed write tripped the queue");
     let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
     assert_eq!(
         state,
         JobState::Waiting,
         "the job reverted instead of running"
     );
-    assert!(
-        daemon.queue_failed().is_some(),
-        "the failed write tripped the queue"
-    );
     finish_harness(dispatcher, &log);
 }
 
-#[tokio::test]
-async fn cancel_and_reprioritize_report_a_failed_queue_write() {
-    let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    let id = daemon
-        .submit("sleep".into(), json!({}), 3, "t".into(), None)
-        .unwrap();
-    break_queue(&db);
-    let err = daemon.set_priority(id, 9).unwrap_err();
-    assert!(err.message.contains("priority unchanged"), "{err}");
-    assert_eq!(err.kind, ErrorKind::QueueFailed);
-    assert_eq!(daemon.shared.lock().unwrap().jobs[&id].info.priority, 3);
-    let err = daemon.cancel(id).unwrap_err();
-    assert!(err.message.contains("may not survive"), "{err}");
-    assert_eq!(err.kind, ErrorKind::QueueFailed);
-    assert_eq!(
-        daemon.shared.lock().unwrap().jobs[&id].info.state,
-        JobState::Cancelled,
-        "the cancellation still holds for this lifetime"
-    );
-    finish_harness(None, &log);
+/// C6 (a queue write that fails is never silent), the queue file failing
+/// through the door: the scenario breaks the `daemon.db` its door's
+/// daemon holds, and an operation after the break is answered
+/// `QueueFailed` with its words. A result the table cannot read is
+/// reported, never "no job"; a submit whose write fails refuses new jobs.
+#[test]
+fn c6_the_queue_file_failing_through_the_door() {
+    for (name, request, said) in [
+        (
+            "a_result_read_failure_is_reported_not_no_job",
+            Request::Result { id: 42 },
+            "could not read the persisted queue",
+        ),
+        (
+            "a_failed_queue_write_refuses_new_jobs_and_stops_dispatch: the submit",
+            submit_of("sleep", json!({}), 0, "client", None),
+            "refuses new jobs",
+        ),
+    ] {
+        let dir = TestPath::dir();
+        let path = daemon_db_path(&dir);
+        queue_door(&dir).run(|mut door| async move {
+            break_queue(&path);
+            let (kind, message) = refusal_of(door.request(request).await, name);
+            assert_eq!(kind, ErrorKind::QueueFailed, "{name}: {message}");
+            assert!(message.contains(said), "{name}: says {said:?}: {message}");
+            door.finish().await;
+        });
+    }
 }
 
-#[tokio::test]
-async fn a_result_read_failure_is_reported_not_no_job() {
-    let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    break_queue(&db);
-    match daemon
-        .handle_request(Request::Result { id: 42 }, &mut None)
-        .await
-    {
-        Response::Error { message, .. } => assert!(
-            message.contains("could not read the persisted queue"),
-            "{message}"
-        ),
-        other => panic!("{other:?}"),
-    }
-    finish_harness(None, &log);
+/// C6: a cancel and a reprioritisation whose queue write fails say so,
+/// `QueueFailed`, instead of claiming success: the priority is unchanged
+/// and the cancellation holds for this lifetime only, as `Status` reads
+/// them. The door's restore is held unlanded, so the dispatcher picks
+/// nothing and the sleep never runs; a sleep's submit with no account,
+/// a cancel, a reprioritisation and a status never wait on the restore.
+#[test]
+fn cancel_and_reprioritize_report_a_failed_queue_write() {
+    let dir = TestPath::dir();
+    let path = daemon_db_path(&dir);
+    queue_door(&dir)
+        .restore_landed(false)
+        .run(|mut door| async move {
+            let submit = submit_of("sleep", json!({}), 3, "client", None);
+            let id = submitted(door.request(submit).await, "a sleep");
+            break_queue(&path);
+            let (kind, message) = refusal_of(
+                door.request(Request::SetPriority { id, priority: 9 }).await,
+                "a reprioritisation after the break",
+            );
+            assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
+            assert!(message.contains("priority unchanged"), "{message}");
+            let (kind, message) = refusal_of(
+                door.request(Request::Cancel { id }).await,
+                "a cancel after the break",
+            );
+            assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
+            assert!(message.contains("may not survive"), "{message}");
+            let Response::Status { job } = door.request(Request::Status { id }).await else {
+                panic!("job {id}'s status did not read")
+            };
+            assert_eq!(
+                job.priority, 3,
+                "the priority as it was before the failed change"
+            );
+            assert_eq!(
+                job.state,
+                JobState::Cancelled,
+                "the cancellation still holds for this lifetime"
+            );
+            door.finish().await;
+        });
+}
+
+/// C6: a job not in memory is read from the table and never acted on.
+/// A row still waiting on disk that memory does not hold (a probe whose
+/// delete failed at the restore) is no job to `cancel` and
+/// `set-priority`, as it was before the table answered; a finished row
+/// is the `wrong_state` refusal. Nothing panics, and the open row is
+/// left as it was: after the run, an observer reads it waiting. The two
+/// rows are written behind the daemon, as a neighbour connection would,
+/// after the door opened: a staged input.
+#[test]
+fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
+    let dir = TestPath::dir();
+    let path = daemon_db_path(&dir);
+    queue_door(&dir).run(|mut door| async move {
+        {
+            let other = JobDb::open(&path).unwrap();
+            other
+                .upsert(&disk_row(40, "probe", "waiting", None))
+                .unwrap();
+            other.upsert(&disk_row(41, "sleep", "done", None)).unwrap();
+        }
+        for request in [
+            Request::Cancel { id: 40 },
+            Request::SetPriority {
+                id: 40,
+                priority: 3,
+            },
+        ] {
+            let what = format!("{request:?}");
+            let (kind, message) = refusal_of(door.request(request).await, &what);
+            assert_eq!(
+                (kind, message.as_str()),
+                (ErrorKind::UnknownJob, "no job 40"),
+                "{what}"
+            );
+        }
+        let (kind, message) = refusal_of(
+            door.request(Request::Cancel { id: 41 }).await,
+            "a cancel of the finished row",
+        );
+        assert_eq!(
+            (kind, message.as_str()),
+            (ErrorKind::WrongState, "job 41 already done")
+        );
+        let (kind, message) = refusal_of(
+            door.request(Request::SetPriority {
+                id: 41,
+                priority: 3,
+            })
+            .await,
+            "a reprioritisation of the finished row",
+        );
+        assert_eq!(
+            (kind, message.as_str()),
+            (ErrorKind::WrongState, "job 41 is done, not waiting")
+        );
+        door.finish().await;
+    });
+    let row = on_disk(&dir, 40).expect("row 40");
+    assert_eq!(row.job.state, "waiting", "the open row is left as it was");
 }
