@@ -268,6 +268,9 @@ pub(super) struct DoorBuilder {
     restore: bool,
     restore_jobs: Option<Retention>,
     login_within: Option<Duration>,
+    /// The provider named as the real one on the fixture's base
+    /// ([`Self::real_named`]).
+    real_named: bool,
     world: Option<(String, BoundSocket, PathBuf)>,
     store_dir: Option<PathBuf>,
     events_capacity: Option<usize>,
@@ -340,6 +343,7 @@ impl Door {
             restore: false,
             restore_jobs: None,
             login_within: None,
+            real_named: false,
             world: None,
             store_dir: None,
             events_capacity: None,
@@ -407,6 +411,19 @@ impl DoorBuilder {
     /// is recorded.
     pub(super) fn store_dir(mut self, store_dir: PathBuf) -> Self {
         self.store_dir = Some(store_dir);
+        self
+    }
+
+    /// The real provider's name on the fixture's base: `Provider { name:
+    /// GGG, ..Provider::mock(&base) }`, so `is_real()` holds and the
+    /// daemon judges what a client may submit as in real mode (C127, the
+    /// mock-only kinds refused), while every URL it renders is the
+    /// fixture's and every send reaches the fixture's record. The rule:
+    /// never `Provider::ggg()`, which carries the production URLs, so a
+    /// door on it would send to GGG and the fixture's empty record would
+    /// prove nothing. Off by default: the mock's name on the same base.
+    pub(super) fn real_named(mut self) -> Self {
+        self.real_named = true;
         self
     }
 
@@ -558,7 +575,15 @@ impl DoorBuilder {
             .write(true)
             .open(&log_path)
             .unwrap();
-        let mut builder = Daemon::builder(Provider::mock(&base), clock, self.credentials, log)
+        let provider = if self.real_named {
+            Provider {
+                name: acquisition_protocol::provider::GGG,
+                ..Provider::mock(&base)
+            }
+        } else {
+            Provider::mock(&base)
+        };
+        let mut builder = Daemon::builder(provider, clock, self.credentials, log)
             .rails(rails)
             .sessions(self.sessions)
             .restore_landed(self.restore_landed)

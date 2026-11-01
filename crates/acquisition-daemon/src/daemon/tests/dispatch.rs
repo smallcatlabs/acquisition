@@ -696,18 +696,6 @@ async fn a_get_3xx_keeps_its_target_out_of_the_daemon_log() {
 
 // ---- C25: a cancel reaches a job parked at the choke point ----------------
 
-/// The cancel family's sessions: `test-user` and `other`, each holding a
-/// refresh token and no access token, so each one's first job refreshes.
-fn two_accounts() -> Sessions {
-    let mut sessions = logged_in_sessions();
-    sessions.replace(AuthSession {
-        username: Some("other".into()),
-        refresh_token: Some("rt-other".into()),
-        ..AuthSession::default()
-    });
-    sessions
-}
-
 /// The cancel family's door: the account server holding the request
 /// `hold` names, the two accounts' sessions.
 fn cancel_door(hold: (&'static str, &'static str, usize)) -> DoorBuilder {

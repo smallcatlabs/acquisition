@@ -3,68 +3,15 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::queue::{
-    APPLY_MAX_ACTIONS, Door, KINDS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES, door,
+    APPLY_MAX_ACTIONS, Door as KindDoor, KINDS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES,
+    SUBMITTER_MAX_BYTES, door as kind_door,
 };
 use crate::daemon::*;
 
 // ---- admission (C127) ------------------------------------------------
-
-/// C127 (a client never submits a daemon-only kind): a client's `probe`,
-/// naming a route and a URL of its own, is refused at the door with the
-/// refused-work kind, before a job id exists, and nothing reaches the
-/// wire. The scripted server would answer the HEAD the probe would send.
-#[tokio::test]
-async fn c127_a_client_probe_is_refused_and_sends_nothing() {
-    let (base, requests, server) =
-        scripted_server(vec![ScriptedResponse::full("HEAD", "200 OK", None, "")]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let response = daemon
-        .handle_request(
-            Request::Submit {
-                kind: "probe".into(),
-                params: json!({ "route": "fetch", "url": format!("{base}/fetch") }),
-                priority: 0,
-                submitted_by: "client".into(),
-                account: None,
-            },
-            &mut None,
-        )
-        .await;
-    match response {
-        Response::Error { kind, message } => {
-            assert_eq!(kind, ErrorKind::Refused, "{message}");
-            assert!(
-                message.contains("probe")
-                    && message.contains("daemon itself")
-                    && message.contains("a client cannot submit"),
-                "the refusal says the rule in words: {message}"
-            );
-        }
-        other => panic!("a client's probe was admitted: {other:?}"),
-    }
-    assert_nothing_admitted(&daemon, "probe");
-    for _ in 0..50 {
-        tokio::task::yield_now().await;
-    }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "nothing reached the wire"
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// A refused submit admits no job and spends no id: the refusal came
-/// before `next_id` moved, so the next admitted job is still job 1.
-fn assert_nothing_admitted(daemon: &Daemon, what: &str) {
-    let s = daemon.shared.lock().unwrap();
-    assert!(s.jobs.is_empty(), "{what}: a refused submit admits no job");
-    assert_eq!(s.next_id, 1, "{what}: a refused submit spent a job id");
-}
 
 /// A client's submit through the door every frontend uses.
 async fn client_submit(
@@ -87,55 +34,193 @@ async fn client_submit(
         .await
 }
 
-/// The response is a refusal with the refused-work kind whose words
-/// include every one of `said`.
-fn assert_refused(response: Response, what: &str, said: &[&str]) {
-    match response {
-        Response::Error { kind, message } => {
-            assert_eq!(kind, ErrorKind::Refused, "{what}: {message}");
-            for words in said {
-                assert!(
-                    message.contains(words),
-                    "{what}: the refusal says {words:?}: {message}"
-                );
-            }
+/// The response is a refusal of `kind` whose words carry every one of
+/// `carries` and none of `lacks`, quoted within a bounded preview (C127,
+/// a refused value is described, never echoed whole); its message, for a
+/// row that compares it.
+fn assert_refused(
+    response: Response,
+    what: &str,
+    kind: ErrorKind,
+    carries: &[String],
+    lacks: &[String],
+) -> String {
+    let Response::Error {
+        kind: answered,
+        message,
+    } = response
+    else {
+        panic!("{what} was admitted: {response:?}")
+    };
+    assert_eq!(answered, kind, "{what}: {message}");
+    assert!(
+        message.len() <= 1024,
+        "{what}: the refusal quotes a bounded preview, not {} bytes",
+        message.len()
+    );
+    for words in carries {
+        assert!(
+            message.contains(words.as_str()),
+            "{what}: the refusal says {words:?}: {message}"
+        );
+    }
+    for words in lacks {
+        assert!(
+            !message.contains(words.as_str()),
+            "{what}: the refusal says {words:?}: {message}"
+        );
+    }
+    message
+}
+
+/// `Request::Submit` as a frontend sends it.
+fn submit_of(
+    kind: &str,
+    params: Value,
+    priority: Priority,
+    submitted_by: &str,
+    account: Option<&str>,
+) -> Request {
+    Request::Submit {
+        kind: kind.into(),
+        params,
+        priority,
+        submitted_by: submitted_by.into(),
+        account: account.map(str::to_string),
+    }
+}
+
+/// The id a submit was answered with; anything else fails the scenario.
+fn submitted(answer: Response, what: &str) -> JobId {
+    match answer {
+        Response::Submitted { id } => id,
+        other => panic!("{what} answered {other:?}"),
+    }
+}
+
+/// The jobs `List` answers.
+async fn listed(door: &mut Door) -> Vec<JobInfo> {
+    match door.request(Request::List).await {
+        Response::Jobs { jobs } => jobs,
+        other => panic!("the list answered {other:?}"),
+    }
+}
+
+/// The account server's hold that no request matches: it records every
+/// well-formed send and holds none, so its record is the wire and an
+/// empty record is nothing sent.
+const NO_HOLD: (&str, &str, usize) = ("GET", "/never", 0);
+
+/// The provider an admission row's daemon runs as.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Mode {
+    /// The mock's name.
+    Mock,
+    /// The real provider's name on the fixture's base
+    /// ([`DoorBuilder::real_named`]).
+    RealNamed,
+}
+
+/// The sessions a row's daemon starts with.
+#[derive(Clone, Copy, Debug)]
+enum Session {
+    /// One empty session, the door's default.
+    None,
+    /// `Alice#1234`, its access token fresh ([`live_sessions`]): a job
+    /// admitted for it sends at once.
+    Live,
+    /// `test-user`, its refresh due ([`logged_in_sessions`]): a job
+    /// admitted for it refreshes first.
+    RefreshDue,
+}
+
+impl Session {
+    fn on(self, clock: &ParkingClock) -> Sessions {
+        match self {
+            Session::None => Sessions::with(AuthSession::default()),
+            Session::Live => live_sessions(clock),
+            Session::RefreshDue => logged_in_sessions(),
         }
-        other => panic!("{what} was admitted: {other:?}"),
     }
 }
 
-/// A harness daemon with one live session holding a fresh access
-/// token, so a network job it admitted would send at once.
-fn live_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
-    let (daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "Alice#1234");
-        let session = s.auth.one_mut();
-        session.username = Some("Alice#1234".into());
-        session.access_token = Some("at-test.Alice#1234".into());
-        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
-    }
-    (daemon, log_path)
+/// C127, a row of the admission table: a provider mode, the sessions, a
+/// client's submit (kind, params, priority, submitter, account) as
+/// `Request::Submit` carries it, and the refusal it is answered with:
+/// its kind, words it carries and words it must not. Named for the test
+/// it replaced and its case.
+struct Admission {
+    name: String,
+    mode: Mode,
+    session: Session,
+    submit: Request,
+    refused: ErrorKind,
+    carries: Vec<String>,
+    lacks: Vec<String>,
 }
 
-/// C127 (a path param is one segment): a client's path param that is not
-/// exactly one segment is refused at submit, through `Submit` and through
-/// an `apply` tuple, before a job id exists, and nothing reaches the
-/// wire. The first case is the shape that steered a character fetch onto
-/// `/account/leagues` with the bearer: `..` to climb, `?` to cut the rest
-/// of the path off as a query. The server would answer anything sent.
-#[tokio::test]
-async fn c127_a_path_param_that_is_not_one_segment_is_refused_and_sends_nothing() {
-    let (base, requests, server) = scripted_server(vec![
-        ScriptedResponse::full("HEAD", "200 OK", None, ""),
-        ScriptedResponse::full("GET", "200 OK", None, "{}"),
-    ])
-    .await;
-    let (daemon, log_path) = live_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let account = Some("Alice#1234");
-    let cases = [
+impl Admission {
+    /// A row refused with the refused-work kind, on the mock with one
+    /// empty session, carrying `carries`.
+    fn new(name: String, submit: Request, carries: &[&str]) -> Admission {
+        Admission {
+            name,
+            mode: Mode::Mock,
+            session: Session::None,
+            submit,
+            refused: ErrorKind::Refused,
+            carries: carries.iter().map(|words| words.to_string()).collect(),
+            lacks: Vec::new(),
+        }
+    }
+
+    fn mode(self, mode: Mode) -> Admission {
+        Admission { mode, ..self }
+    }
+
+    fn session(self, session: Session) -> Admission {
+        Admission { session, ..self }
+    }
+
+    fn answered(self, refused: ErrorKind) -> Admission {
+        Admission { refused, ..self }
+    }
+
+    fn lacking(self, lacks: &[&str]) -> Admission {
+        Admission {
+            lacks: lacks.iter().map(|words| words.to_string()).collect(),
+            ..self
+        }
+    }
+}
+
+/// The admission table's rows, each written from the submits and the
+/// words of the test it replaced.
+fn admission_rows() -> Vec<Admission> {
+    let mut rows = Vec::new();
+    let client = |kind: &str, params: Value, account: Option<&str>| {
+        submit_of(kind, params, 0, "client", account)
+    };
+
+    // C127 (a client never submits a daemon-only kind): a client's
+    // `probe`, naming a route and a URL of its own.
+    rows.push(Admission::new(
+        "c127_a_client_probe_is_refused_and_sends_nothing".into(),
+        client(
+            "probe",
+            json!({ "route": "fetch", "url": "http://127.0.0.1:1/fetch" }),
+            None,
+        ),
+        &["probe", "daemon itself", "a client cannot submit"],
+    ));
+
+    // C127 (a path param is one segment), through `Submit` and through an
+    // `apply` tuple, for a live session whose admitted job would send at
+    // once. The first case is the shape that steered a character fetch
+    // onto `/account/leagues` with the bearer: `..` to climb, `?` to cut
+    // the rest of the path off as a query.
+    let name = "c127_a_path_param_that_is_not_one_segment_is_refused_and_sends_nothing";
+    for (kind, params, param) in [
         (
             "character",
             json!({ "name": "../../account/leagues?x=" }),
@@ -167,30 +252,550 @@ async fn c127_a_path_param_that_is_not_one_segment_is_refused_and_sends_nothing(
             json!({ "league": "../Standard", "id": "t1", "deep": true }),
             "`league`",
         ),
-    ];
-    for (kind, params, param) in cases {
-        let what = format!("{kind} {params}");
-        let response = client_submit(&daemon, kind, params.clone(), account).await;
-        assert_refused(response, &what, &[param, "one path segment"]);
-        assert_nothing_admitted(&daemon, &what);
+    ] {
+        let account = Some("Alice#1234");
+        rows.push(
+            Admission::new(
+                format!("{name}: {kind} {params}"),
+                client(kind, params.clone(), account),
+                &[param, "one path segment"],
+            )
+            .session(Session::Live),
+        );
         // The same tuple as a plan's action, where the vocabulary takes it.
         if matches!(kind, "character" | "stash") && params.get("deep").is_none() {
             let apply = json!({ "jobs": [{ "kind": kind, "params": params }] });
-            let what = format!("apply of {what}");
-            let response = client_submit(&daemon, "apply", apply, account).await;
-            assert_refused(response, &what, &["action 0", param, "one path segment"]);
-            assert_nothing_admitted(&daemon, &what);
+            rows.push(
+                Admission::new(
+                    format!("{name}: apply of {kind} {params}"),
+                    client("apply", apply, account),
+                    &["action 0", param, "one path segment"],
+                )
+                .session(Session::Live),
+            );
         }
     }
-    for _ in 0..50 {
-        tokio::task::yield_now().await;
+
+    // C127 (a path param is one segment, as a server may read it): a
+    // server that strips `;` path parameters (Tomcat, Jetty) reads `..;x`
+    // as `..`, and one that trims trailing dots and spaces (IIS) reads
+    // `.. .` as `..`: a segment whose head, the part before any `;`, is
+    // only dots and spaces.
+    for league in [
+        "..;",
+        ";..",
+        "..;x=1",
+        ".;",
+        ";",
+        ";Standard",
+        ".. .",
+        "...",
+        " ",
+        " .. ",
+    ] {
+        let params = json!({ "league": league });
+        rows.push(Admission::new(
+            format!(
+                "c127_a_dot_segment_behind_a_semicolon_or_a_space_is_refused: stashes {params}"
+            ),
+            client("stashes", params, None),
+            &["`league`", "one path segment"],
+        ));
     }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "nothing reached the wire"
+
+    // C127 (a path param is bounded): longer than the bound in UTF-8
+    // bytes, multi-byte characters counted as bytes, since each goes out
+    // as its percent-encoded bytes; described by its head, type and size,
+    // never echoed whole.
+    let bound = format!("at most {SEGMENT_MAX_BYTES} bytes");
+    for (kind, params) in [
+        (
+            "stashes",
+            json!({ "league": "a".repeat(SEGMENT_MAX_BYTES + 1) }),
+        ),
+        (
+            "character",
+            json!({ "name": "é".repeat(SEGMENT_MAX_BYTES / 2 + 1) }),
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": "f".repeat(100_000) }),
+        ),
+    ] {
+        rows.push(Admission::new(
+            format!(
+                "c127_a_path_param_longer_than_the_bound_is_refused: {kind} of {} bytes",
+                params.to_string().len()
+            ),
+            client(kind, params, None),
+            &[
+                "one path segment",
+                &bound,
+                "… (a string of",
+                "bytes) is not one path segment",
+            ],
+        ));
+    }
+
+    // C127 (a required segment is judged at the door): a `stash` without
+    // an id, with or without a `sub`, and a `character` without a name,
+    // as an `apply` tuple already was.
+    for (kind, params, said) in [
+        (
+            "stash",
+            json!({ "league": "Standard", "sub": "s1" }),
+            "stash needs an id",
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard" }),
+            "stash needs an id",
+        ),
+        (
+            "stash",
+            json!({ "id": null, "sub": "s1" }),
+            "stash needs an id",
+        ),
+        (
+            "character",
+            json!({ "realm": "pc" }),
+            "character needs a name",
+        ),
+    ] {
+        rows.push(Admission::new(
+            format!("c127_a_stash_without_an_id_is_refused_at_submit: {kind} {params}"),
+            client(kind, params, None),
+            &[said],
+        ));
+    }
+
+    // C127 and the 4b sitting round: the ad-hoc `refresh` kind is retired
+    // (a selection is a plan, applied as `apply`), refused as any kind the
+    // table does not list, for a session whose refresh is due.
+    for params in [
+        json!({ "league": "Standard", "all": true }),
+        json!({ "league": "Standard", "tabs": ["t1"] }),
+    ] {
+        rows.push(
+            Admission::new(
+                format!("c127_the_retired_refresh_kind_is_refused_at_submit: refresh {params}"),
+                client("refresh", params, Some("test-user")),
+                &["unknown job kind"],
+            )
+            .session(Session::RefreshDue),
+        );
+    }
+
+    // C127 (a mock-only kind is the mock's): in real mode a client's
+    // `sleep`, `fetch` and `whoami`. Real in name only: every URL is the
+    // fixture's.
+    for kind in ["sleep", "fetch", "whoami"] {
+        rows.push(
+            Admission::new(
+                format!("c127_a_mock_only_kind_is_refused_in_real_mode: {kind}"),
+                client(kind, json!({ "seconds": 3600 }), None),
+                &[kind, "mock-only", "real mode"],
+            )
+            .mode(Mode::RealNamed),
+        );
+    }
+
+    // C127 (a sleep is bounded): seconds that are negative, beyond the
+    // bound or not a number.
+    for seconds in [
+        json!(-1),
+        json!(1e300),
+        json!(3601),
+        json!("5"),
+        json!(true),
+    ] {
+        rows.push(Admission::new(
+            format!("c127_a_sleep_with_bad_seconds_is_refused_at_submit: sleep {seconds}"),
+            client("sleep", json!({ "seconds": seconds }), None),
+            &["sleep", "`seconds`", "from 0 to 3600"],
+        ));
+    }
+
+    // C127 (the kind table): a kind the daemon does not run names only
+    // the kinds a client may submit in this provider mode: never the
+    // daemon's own `probe`, and in real mode none of the mock-only kinds.
+    let name = "c127_an_unknown_kind_is_refused_naming_only_client_kinds";
+    rows.push(
+        Admission::new(
+            format!("{name}: bogus in mock mode"),
+            client("bogus", json!({}), None),
+            &[
+                "unknown job kind \"bogus\"",
+                "profile",
+                "stash",
+                "apply",
+                "sleep",
+                "fetch",
+                "whoami",
+            ],
+        )
+        .lacking(&["probe"]),
     );
-    finish_harness_wire(dispatcher, &log_path, &requests);
+    rows.push(
+        Admission::new(
+            format!("{name}: bogus in real mode"),
+            client("bogus", json!({}), None),
+            &["unknown job kind \"bogus\"", "profile", "stash", "apply"],
+        )
+        .mode(Mode::RealNamed)
+        .lacking(&["probe", "sleep", "fetch", "whoami"]),
+    );
+
+    // C127 (a refused value is described, never echoed whole): each value
+    // here fits a request frame, and each is 20 MiB of backslashes, which
+    // every escape doubles: quoted whole, its refusal would exceed the
+    // response frame and be lost.
+    let name = "c127_a_refused_value_is_described_by_its_type_and_size_within_the_response_bound";
+    let huge = "\\".repeat(20 << 20);
+    let huge_len = huge.len().to_string();
+    for (what, submit, said) in [
+        (
+            "a league array",
+            client("stashes", json!({ "league": [huge] }), None),
+            vec![
+                "`league` must be a string",
+                "(an array of",
+                "bytes as JSON)",
+            ],
+        ),
+        (
+            "a sleep's array seconds",
+            client("sleep", json!({ "seconds": [huge] }), None),
+            vec![
+                "`seconds` must be a number",
+                "(an array of",
+                "bytes as JSON)",
+            ],
+        ),
+        (
+            "a substash id that is no segment",
+            client("stash", json!({ "id": "t1", "sub": huge }), None),
+            vec!["not one path segment", "(a string of", &huge_len],
+        ),
+        (
+            "an unknown kind",
+            client(&huge, json!({}), None),
+            vec!["unknown job kind", "(a string of", &huge_len],
+        ),
+        (
+            "an apply's budget",
+            client(
+                "apply",
+                json!({ "jobs": [{ "kind": "stashes", "params": {} }], "max_requests": [huge] }),
+                None,
+            ),
+            vec!["max_requests must be", "(an array of", "bytes as JSON)"],
+        ),
+        (
+            "an apply's kind",
+            client(
+                "apply",
+                json!({ "jobs": [{ "kind": huge, "params": {} }] }),
+                None,
+            ),
+            vec!["not in the plan vocabulary", "(a string of", &huge_len],
+        ),
+        (
+            "a realm",
+            client("stashes", json!({ "realm": huge }), None),
+            vec!["realm must be a string", "(a string of", &huge_len],
+        ),
+    ] {
+        rows.push(Admission::new(format!("{name}: {what}"), submit, &said));
+    }
+    rows.push(
+        Admission::new(
+            format!("{name}: an account selector"),
+            client("profile", json!({}), Some(&huge)),
+            &["account", "not logged in", "(a string of", &huge_len],
+        )
+        .answered(ErrorKind::NotLoggedIn),
+    );
+
+    // C127 (a submit's params have a bound): params one byte over
+    // `PARAMS_MAX_BYTES` as JSON, named by their size and the bound and not
+    // their value; a submitter over `SUBMITTER_MAX_BYTES`, described.
+    let name = "c127_params_over_their_bound_are_refused_and_a_large_plan_is_admitted";
+    let over = pad(PARAMS_MAX_BYTES + 1);
+    assert_eq!(
+        serde_json::to_vec(&over).unwrap().len(),
+        PARAMS_MAX_BYTES + 1
+    );
+    rows.push(
+        Admission::new(
+            format!("{name}: params over the bound"),
+            client("sleep", over, None),
+            &[
+                &(PARAMS_MAX_BYTES + 1).to_string(),
+                &PARAMS_MAX_BYTES.to_string(),
+            ],
+        )
+        .session(Session::Live)
+        .lacking(&["xxxx"]),
+    );
+    rows.push(
+        Admission::new(
+            format!("{name}: a submitter over its bound"),
+            submit_of("sleep", json!({}), 0, &"y".repeat(20 << 20), None),
+            &[
+                "submitted_by must be at most",
+                &SUBMITTER_MAX_BYTES.to_string(),
+                "(a string of 20971520 bytes)",
+            ],
+        )
+        .session(Session::Live),
+    );
+
+    // C127 (an apply's actions have a bound): one action over
+    // `APPLY_MAX_ACTIONS`, though its tiny tuples sit far under
+    // `PARAMS_MAX_BYTES`; the bound wins over a `max_requests` the plan
+    // also exceeds.
+    let over = APPLY_MAX_ACTIONS + 1;
+    let actions = vec![json!({ "kind": "stashes", "params": {} }); over];
+    let carries = [
+        format!("an apply of {over} actions"),
+        format!("bound of {APPLY_MAX_ACTIONS} actions"),
+        "nothing was submitted".to_string(),
+        "covers fewer tabs or characters".to_string(),
+    ];
+    let carries: Vec<&str> = carries.iter().map(String::as_str).collect();
+    for (what, plan) in [
+        ("an apply over its action bound", json!({ "jobs": actions })),
+        (
+            "an apply over its action bound and its budget",
+            json!({ "jobs": actions, "max_requests": 1 }),
+        ),
+    ] {
+        assert!(serde_json::to_vec(&plan).unwrap().len() < PARAMS_MAX_BYTES);
+        rows.push(
+            Admission::new(
+                format!("c127_an_apply_over_its_action_bound_is_refused_and_one_at_it_is_admitted: {what}"),
+                client("apply", plan, None),
+                &carries,
+            )
+            .session(Session::Live),
+        );
+    }
+
+    // C136 (the submitter `daemon` is the daemon's own): a client's
+    // profile fetch for a live session, which, admitted, would send at
+    // once.
+    rows.push(
+        Admission::new(
+            "c136_a_client_submit_as_the_daemon_is_refused_and_sends_nothing".into(),
+            submit_of("profile", json!({}), 0, "daemon", None),
+            &["reserved for the daemon's own work", "a client cannot"],
+        )
+        .session(Session::Live),
+    );
+    rows
+}
+
+/// Params of exactly `len` bytes as JSON: `{"pad":"…"}` is ten bytes
+/// around the string.
+fn pad(len: usize) -> Value {
+    json!({ "pad": "x".repeat(len - 10) })
+}
+
+/// C127, admission through the door: each row's daemon faces the account
+/// server holding nothing, so any send the daemon made is on its record,
+/// and is sent the row's submit as a frontend's frame (the request
+/// itself within a frame). The answer is the row's refusal, within the
+/// response frame; then nothing is admitted (`List` answers no job) and,
+/// once the runtime has settled, nothing is on the wire or in the
+/// journal. On the mock a sleep is then admitted as job 1: the refusal
+/// spent no id. A real-named daemon refuses a client's `sleep`, so its
+/// rows read the list and the wire alone.
+#[test]
+fn c127_admission_through_the_door() {
+    for row in admission_rows() {
+        let Admission {
+            name,
+            mode,
+            session,
+            submit,
+            refused,
+            carries,
+            lacks,
+        } = row;
+        let clock = Arc::new(ParkingClock::new());
+        let sessions = session.on(&clock);
+        let mut builder = Door::open(
+            Server::Account(NO_HOLD),
+            clock,
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .sessions(sessions);
+        if mode == Mode::RealNamed {
+            builder = builder.real_named();
+        }
+        let name = &name;
+        builder.run(|mut door| async move {
+            let request_bytes = serde_json::to_vec(&submit).unwrap().len() + 1;
+            assert!(
+                request_bytes <= MAX_FRAME_BYTES,
+                "{name}: the request fits its frame ({request_bytes} bytes)"
+            );
+            let answer = door.request(submit).await;
+            let response_bytes = serde_json::to_vec(&answer).unwrap().len() + 1;
+            assert!(
+                response_bytes <= MAX_FRAME_BYTES,
+                "{name}: the refusal fits the response frame ({response_bytes} bytes)"
+            );
+            assert_refused(answer, name, refused, &carries, &lacks);
+            assert!(
+                listed(&mut door).await.is_empty(),
+                "{name}: a refused submit admits no job"
+            );
+            door.settle().await;
+            assert!(door.sent().is_empty(), "{name}: nothing reached the wire");
+            assert!(door.journal().is_empty(), "{name}: nothing was journaled");
+            if mode == Mode::Mock {
+                let sleep = submit_of("sleep", json!({ "seconds": 0 }), 0, "client", None);
+                let answer = door.request(sleep).await;
+                assert_eq!(
+                    submitted(answer, "the sleep after the refusal"),
+                    1,
+                    "{name}: a refused submit spent a job id"
+                );
+                let (job, _) = door.await_terminal(1).await;
+                assert_eq!(job.state, JobState::Done, "{name}");
+            }
+            door.finish().await;
+        });
+    }
+}
+
+/// C136, the admission table's row of this name beside it: the same
+/// profile fetch a client may not submit as the daemon, submitted under a
+/// frontend's name for a live session, is admitted as job 1 and sends its
+/// one GET, which the journal records.
+#[test]
+fn c136_a_frontends_submit_of_the_same_fetch_is_admitted_and_sends_once() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    Door::open(
+        Server::Account(NO_HOLD),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let answer = door
+            .request(submit_of("profile", json!({}), 0, "cli:1", None))
+            .await;
+        assert_eq!(submitted(answer, "a frontend's profile fetch"), 1);
+        let (job, outcome) = door.await_terminal(1).await;
+        assert_eq!(job.state, JobState::Done, "{outcome:?}");
+        let wire = wire_methods_of(&door.sent());
+        assert_eq!(wire, ["GET"], "the admitted fetch sends once");
+        assert_eq!(door.journal_methods(), wire);
+        door.finish().await;
+    });
+}
+
+/// C127 (a sleep is bounded), the admission table's rows of
+/// `c127_a_sleep_with_bad_seconds_is_refused_at_submit` beside it: a
+/// sleep within the bound, zero seconds, is admitted as job 1 and runs to
+/// its end.
+#[test]
+fn c127_a_sleep_within_the_bound_is_admitted_and_done() {
+    Door::open(
+        Server::None,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .run(|mut door| async move {
+        let sleep = submit_of("sleep", json!({ "seconds": 0 }), 0, "client", None);
+        assert_eq!(
+            submitted(door.request(sleep).await, "a zero-second sleep"),
+            1
+        );
+        let (job, outcome) = door.await_terminal(1).await;
+        assert_eq!(job.state, JobState::Done, "{outcome:?}");
+        door.finish().await;
+    });
+}
+
+/// C127, the admissions at the bounds whose refusals are the admission
+/// table's rows: an `apply` the size of the largest plan observed, the
+/// owner's Standard (3,347 tabs, 3,009 of them substashes, and 59
+/// characters, N47), params at `PARAMS_MAX_BYTES`, and an `apply` of
+/// exactly `APPLY_MAX_ACTIONS`, each admitted with the next id. A
+/// component test, its boundary `handle_request` with no dispatcher: an
+/// admitted job here must not run, and through the door it would or its
+/// submit would never be answered (an `apply` needs an account, so its
+/// submit waits on the start's restore before the account is resolved,
+/// and a restore held unlanded holds it forever; landed, the `sleep`
+/// runs on real time and an `apply`'s children reach the wire).
+#[tokio::test]
+async fn c127_a_large_plan_and_params_and_actions_at_their_bounds_are_admitted() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let mut jobs = vec![
+        json!({ "kind": "stashes", "params": { "realm": "pc", "league": "Standard" } }),
+        json!({ "kind": "characters", "params": { "realm": "pc" } }),
+    ];
+    for i in 0..338 {
+        jobs.push(json!({ "kind": "stash", "params": {
+            "realm": "pc", "league": "Standard", "id": format!("{i:010x}"), "deep": false,
+        } }));
+    }
+    for i in 0..3009 {
+        jobs.push(json!({ "kind": "stash", "params": {
+            "realm": "pc", "league": "Standard", "id": format!("{:010x}", i % 14),
+            "sub": format!("{i:010x}"), "deep": false,
+        } }));
+    }
+    for i in 0..59 {
+        jobs.push(json!({ "kind": "character", "params": {
+            "realm": "pc", "name": format!("ACharacterName{i}"),
+        } }));
+    }
+    let at_bound = vec![json!({ "kind": "stashes", "params": {} }); APPLY_MAX_ACTIONS];
+    for (id, what, kind, params) in [
+        (
+            1,
+            "the largest plan observed",
+            "apply",
+            json!({ "jobs": jobs, "max_requests": 3408 }),
+        ),
+        (2, "params at the bound", "sleep", pad(PARAMS_MAX_BYTES)),
+        (
+            3,
+            "an apply at its action bound",
+            "apply",
+            json!({ "jobs": at_bound, "max_requests": APPLY_MAX_ACTIONS }),
+        ),
+    ] {
+        let answer = daemon
+            .handle_request(submit_of(kind, params, 0, "client", None), &mut None)
+            .await;
+        assert_eq!(
+            submitted(answer, what),
+            id,
+            "{what} is admitted as job {id}"
+        );
+    }
+    finish_harness(None, &log_path);
+}
+/// A harness daemon with one live session holding a fresh access
+/// token, so a network job it admitted would send at once.
+fn live_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
+    let (daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.rename("", "Alice#1234");
+        let session = s.auth.one_mut();
+        session.username = Some("Alice#1234".into());
+        session.access_token = Some("at-test.Alice#1234".into());
+        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
+    }
+    (daemon, log_path)
 }
 
 /// C127 (a path param is one segment, encoded): a league whose name holds
@@ -246,7 +851,10 @@ async fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
 /// each path param is percent-encoded as one segment, so `%`, `#` and `?`
 /// stay inside it; a value that is not one segment renders no URL at all,
 /// so a row that never passed the door (a restored row, a child whose id
-/// came from a response) sends nothing.
+/// came from a response) sends nothing. That holds of a dot segment
+/// behind a `;` or a space, and of a segment over the bound in UTF-8
+/// bytes, while one at the bound renders (the admission table refuses
+/// each at submit). A component test: `route_for` is a function.
 #[test]
 fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
     let (daemon, _) = test_daemon("http://mock", Arc::new(ManualClock::new()));
@@ -274,16 +882,6 @@ fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
     ] {
         assert_eq!(daemon.route_for(kind, &params), None, "{kind} {params}");
     }
-}
-
-/// C127 (a path param is one segment, as a server may read it): a server
-/// that strips `;` path parameters (Tomcat, Jetty) reads `..;x` as `..`,
-/// and one that trims trailing dots and spaces (IIS) reads `.. .` as `..`.
-/// A segment whose head, the part before any `;`, is only dots and spaces
-/// is refused at submit before a job id exists, and renders no URL.
-#[tokio::test]
-async fn c127_a_dot_segment_behind_a_semicolon_or_a_space_is_refused() {
-    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
     for league in [
         "..;",
         ";..",
@@ -297,26 +895,11 @@ async fn c127_a_dot_segment_behind_a_semicolon_or_a_space_is_refused() {
         " .. ",
     ] {
         let params = json!({ "league": league });
-        let what = format!("stashes {params}");
-        let response = client_submit(&daemon, "stashes", params.clone(), None).await;
-        assert_refused(response, &what, &["`league`", "one path segment"]);
-        assert_nothing_admitted(&daemon, &what);
-        assert_eq!(daemon.route_for("stashes", &params), None, "{what}");
+        assert_eq!(daemon.route_for("stashes", &params), None, "{params}");
     }
-}
-
-/// C127 (a path param is bounded): a segment param longer than the bound
-/// in UTF-8 bytes is refused at submit before a job id exists, and renders
-/// no URL; one at the bound renders. Multi-byte characters count as bytes,
-/// since each goes out as its percent-encoded bytes.
-#[tokio::test]
-async fn c127_a_path_param_longer_than_the_bound_is_refused() {
-    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
-    let at_bound = "a".repeat(SEGMENT_MAX_BYTES);
+    let at_bound = json!({ "league": "a".repeat(SEGMENT_MAX_BYTES) });
     assert!(
-        daemon
-            .route_for("stashes", &json!({ "league": at_bound }))
-            .is_some(),
+        daemon.route_for("stashes", &at_bound).is_some(),
         "a league at the bound renders"
     );
     for (kind, params) in [
@@ -334,56 +917,7 @@ async fn c127_a_path_param_longer_than_the_bound_is_refused() {
         ),
     ] {
         let what = format!("{kind} of {} bytes", params.to_string().len());
-        let response = client_submit(&daemon, kind, params.clone(), None).await;
-        assert_refused(
-            response,
-            &what,
-            &[
-                "one path segment",
-                &format!("at most {SEGMENT_MAX_BYTES} bytes"),
-                // Described by its head, type and size, never echoed whole.
-                "… (a string of",
-                "bytes) is not one path segment",
-            ],
-        );
-        assert_nothing_admitted(&daemon, &what);
         assert_eq!(daemon.route_for(kind, &params), None, "{what}");
-    }
-}
-
-/// C127 (a required segment is judged at the door): a `stash` without an
-/// id, with or without a `sub`, and a `character` without a name are
-/// refused at submit before a job id exists, as an `apply` tuple already
-/// was; neither could render a URL.
-#[tokio::test]
-async fn c127_a_stash_without_an_id_is_refused_at_submit() {
-    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
-    for (kind, params, said) in [
-        (
-            "stash",
-            json!({ "league": "Standard", "sub": "s1" }),
-            "stash needs an id",
-        ),
-        (
-            "stash",
-            json!({ "league": "Standard" }),
-            "stash needs an id",
-        ),
-        (
-            "stash",
-            json!({ "id": null, "sub": "s1" }),
-            "stash needs an id",
-        ),
-        (
-            "character",
-            json!({ "realm": "pc" }),
-            "character needs a name",
-        ),
-    ] {
-        let what = format!("{kind} {params}");
-        let response = client_submit(&daemon, kind, params, None).await;
-        assert_refused(response, &what, &[said]);
-        assert_nothing_admitted(&daemon, &what);
     }
 }
 
@@ -505,36 +1039,6 @@ async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
             error.contains(said),
             "{what}: the failure says {said:?}: {error}"
         );
-    }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "the token server saw no request"
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// C127 and the 4b sitting round: the ad-hoc `refresh` kind is retired
-/// (a selection is a plan, applied as `apply`), so a client naming it is
-/// refused at the door as any kind the table does not list, before an id
-/// exists, and nothing is admitted or sent.
-#[tokio::test]
-async fn c127_the_retired_refresh_kind_is_refused_at_submit() {
-    let (base, requests, server) = token_server_answering(vec![]).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    for params in [
-        json!({ "league": "Standard", "all": true }),
-        json!({ "league": "Standard", "tabs": ["t1"] }),
-    ] {
-        let what = format!("refresh {params}");
-        let response = client_submit(&daemon, "refresh", params, Some("test-user")).await;
-        assert_refused(response, &what, &["unknown job kind"]);
-        assert_nothing_admitted(&daemon, &what);
-    }
-    for _ in 0..50 {
-        tokio::task::yield_now().await;
     }
     server.abort();
     assert!(
@@ -681,140 +1185,6 @@ fn c127_legitimate_values_render_to_these_wire_paths() {
     }
 }
 
-/// C127 (a mock-only kind is the mock's): in real mode a client's
-/// `sleep`, `fetch` and `whoami` are refused at the door, before a job id
-/// exists, and nothing reaches the wire. Real in name only: every URL is
-/// the local server's, which would answer one request of any kind.
-#[tokio::test]
-async fn c127_a_mock_only_kind_is_refused_in_real_mode() {
-    let (base, requests, server) =
-        scripted_server(vec![ScriptedResponse::full("GET", "200 OK", None, "{}")]).await;
-    let provider = Provider {
-        name: acquisition_protocol::provider::GGG,
-        ..Provider::mock(&base)
-    };
-    assert!(provider.is_real());
-    let (daemon, log_path) = test_daemon_with(
-        provider,
-        Arc::new(ManualClock::new()),
-        RailsConfig::default(),
-    );
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    for kind in ["sleep", "fetch", "whoami"] {
-        let response = client_submit(&daemon, kind, json!({ "seconds": 3600 }), None).await;
-        assert_refused(response, kind, &[kind, "mock-only", "real mode"]);
-        assert_nothing_admitted(&daemon, kind);
-    }
-    for _ in 0..50 {
-        tokio::task::yield_now().await;
-    }
-    server.abort();
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "nothing reached the wire"
-    );
-    finish_harness_wire(dispatcher, &log_path, &requests);
-}
-
-/// C127 (a sleep is bounded): the mock's `sleep` with seconds that are
-/// negative, beyond the bound or not a number is refused at submit, before
-/// a job id exists; a sleep within the bound is admitted as job 1. A row
-/// that never passed the door fails as a job instead of panicking.
-#[tokio::test]
-async fn c127_a_sleep_with_bad_seconds_is_refused_at_submit() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    for seconds in [
-        json!(-1),
-        json!(1e300),
-        json!(3601),
-        json!("5"),
-        json!(true),
-    ] {
-        let what = format!("sleep {seconds}");
-        let response = client_submit(&daemon, "sleep", json!({ "seconds": seconds }), None).await;
-        assert_refused(response, &what, &["sleep", "`seconds`", "from 0 to 3600"]);
-        assert_nothing_admitted(&daemon, &what);
-    }
-    let response = client_submit(&daemon, "sleep", json!({ "seconds": 0 }), None).await;
-    let Response::Submitted { id } = response else {
-        panic!("a sleep within the bound was refused: {response:?}")
-    };
-    assert_eq!(id, 1, "the refusals spent no id");
-    let (info, _) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Done);
-    let outcome = daemon
-        .execute_inner(
-            9,
-            "sleep",
-            json!({ "seconds": -1 }),
-            None,
-            None,
-            daemon.choke.now(),
-        )
-        .await
-        .unwrap();
-    assert!(
-        matches!(&outcome, Outcome::Failure { error, .. } if error.contains("seconds")),
-        "{outcome:?}"
-    );
-    finish_harness(dispatcher, &log_path);
-}
-
-/// C127 (the kind table): a kind the daemon does not run is refused at
-/// the door, before a job id exists, naming only the kinds a client may
-/// submit in this provider mode: never the daemon's own `probe`, and in
-/// real mode none of the mock-only kinds the door would refuse there.
-#[tokio::test]
-async fn c127_an_unknown_kind_is_refused_naming_only_client_kinds() {
-    for real in [false, true] {
-        let provider = if real {
-            Provider {
-                name: acquisition_protocol::provider::GGG,
-                ..Provider::mock("http://127.0.0.1:1")
-            }
-        } else {
-            Provider::mock("http://127.0.0.1:1")
-        };
-        assert_eq!(provider.is_real(), real);
-        let (daemon, log_path) = test_daemon_with(
-            provider,
-            Arc::new(ManualClock::new()),
-            RailsConfig::default(),
-        );
-        let what = if real {
-            "bogus in real mode"
-        } else {
-            "bogus in mock mode"
-        };
-        let response = client_submit(&daemon, "bogus", json!({}), None).await;
-        let message = match &response {
-            Response::Error { message, .. } => message.clone(),
-            other => panic!("{what}: an unknown kind was admitted: {other:?}"),
-        };
-        let (named, unnamed): (&[&str], &[&str]) = if real {
-            (
-                &["profile", "stash", "apply"],
-                &["probe", "sleep", "fetch", "whoami"],
-            )
-        } else {
-            (
-                &["profile", "stash", "apply", "sleep", "fetch", "whoami"],
-                &["probe"],
-            )
-        };
-        assert_refused(response, what, &["unknown job kind \"bogus\""]);
-        for kind in named {
-            assert!(message.contains(kind), "{what}: names {kind}: {message}");
-        }
-        for kind in unnamed {
-            assert!(!message.contains(kind), "{what}: names {kind}: {message}");
-        }
-        assert_nothing_admitted(&daemon, what);
-        finish_harness(None, &log_path);
-    }
-}
-
 /// C127 (one list of the kinds a client may submit): every kind the
 /// protocol names, the list each frontend prints and the refusal above
 /// lists, is a row of the daemon's table, so none is refused as unknown
@@ -830,7 +1200,7 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
     }
     let own: Vec<&str> = KINDS
         .iter()
-        .filter(|row| door(row.kind) == Door::DaemonOnly)
+        .filter(|row| kind_door(row.kind) == KindDoor::DaemonOnly)
         .map(|row| row.kind)
         .collect();
     assert_eq!(own, ["probe"]);
@@ -859,305 +1229,6 @@ async fn c127_a_restored_sleep_the_door_would_refuse_fails_in_its_words() {
             other => panic!("{what}: the runner did not fail: {other:?}"),
         }
     }
-    finish_harness(None, &log_path);
-}
-
-/// C127 (a refused value is described, never echoed whole): a client's
-/// value the door refuses is quoted by its head, its JSON type and its
-/// size, so the refusal fits the response bound whatever the request
-/// held. Each value here fits a request frame, and each is 20 MiB of
-/// backslashes, which every escape doubles: quoted whole, its refusal
-/// would exceed the response frame and be lost.
-#[tokio::test]
-async fn c127_a_refused_value_is_described_by_its_type_and_size_within_the_response_bound() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    let huge = "\\".repeat(20 << 20);
-    let huge_len = huge.len().to_string();
-    let submit = |kind: &str, params: Value, account: Option<&str>| Request::Submit {
-        kind: kind.into(),
-        params,
-        priority: 0,
-        submitted_by: "client".into(),
-        account: account.map(str::to_string),
-    };
-    let cases = [
-        (
-            "a league array",
-            submit("stashes", json!({ "league": [huge] }), None),
-            ErrorKind::Refused,
-            vec![
-                "`league` must be a string",
-                "(an array of",
-                "bytes as JSON)",
-            ],
-        ),
-        (
-            "a sleep's array seconds",
-            submit("sleep", json!({ "seconds": [huge] }), None),
-            ErrorKind::Refused,
-            vec![
-                "`seconds` must be a number",
-                "(an array of",
-                "bytes as JSON)",
-            ],
-        ),
-        (
-            "a substash id that is no segment",
-            submit("stash", json!({ "id": "t1", "sub": huge }), None),
-            ErrorKind::Refused,
-            vec!["not one path segment", "(a string of", &huge_len],
-        ),
-        (
-            "an unknown kind",
-            submit(&huge, json!({}), None),
-            ErrorKind::Refused,
-            vec!["unknown job kind", "(a string of", &huge_len],
-        ),
-        (
-            "an apply's budget",
-            submit(
-                "apply",
-                json!({ "jobs": [{ "kind": "stashes", "params": {} }], "max_requests": [huge] }),
-                None,
-            ),
-            ErrorKind::Refused,
-            vec!["max_requests must be", "(an array of", "bytes as JSON)"],
-        ),
-        (
-            "an apply's kind",
-            submit(
-                "apply",
-                json!({ "jobs": [{ "kind": huge, "params": {} }] }),
-                None,
-            ),
-            ErrorKind::Refused,
-            vec!["not in the plan vocabulary", "(a string of", &huge_len],
-        ),
-        (
-            "a realm",
-            submit("stashes", json!({ "realm": huge }), None),
-            ErrorKind::Refused,
-            vec!["realm must be a string", "(a string of", &huge_len],
-        ),
-        (
-            "an account selector",
-            submit("profile", json!({}), Some(&huge)),
-            ErrorKind::NotLoggedIn,
-            vec!["account", "not logged in", "(a string of", &huge_len],
-        ),
-    ];
-    for (what, request, kind, said) in cases {
-        let request_bytes = serde_json::to_vec(&request).unwrap().len() + 1;
-        assert!(
-            request_bytes <= MAX_FRAME_BYTES,
-            "{what}: the request fits its frame ({request_bytes} bytes)"
-        );
-        let response = daemon.handle_request(request, &mut None).await;
-        let response_bytes = serde_json::to_vec(&response).unwrap().len() + 1;
-        assert!(
-            response_bytes <= MAX_FRAME_BYTES,
-            "{what}: the refusal fits the response frame ({response_bytes} bytes)"
-        );
-        let Response::Error { kind: got, message } = response else {
-            panic!("{what} was admitted: {response:?}")
-        };
-        assert_eq!(got, kind, "{what}: {message}");
-        assert!(
-            message.len() <= 1024,
-            "{what}: the refusal quotes a bounded preview, not {} bytes",
-            message.len()
-        );
-        for words in said {
-            assert!(message.contains(words), "{what}: says {words:?}: {message}");
-        }
-        assert_nothing_admitted(&daemon, what);
-    }
-    finish_harness(None, &log_path);
-}
-
-/// C127 (a submit's params have a bound): params one byte over
-/// `PARAMS_MAX_BYTES` as JSON are refused at submit, naming their size and
-/// not their value, and spend no id, as is a `submitted_by` over
-/// `SUBMITTER_MAX_BYTES`; params at the bound are admitted,
-/// and so is an `apply` the size of the largest plan observed, the
-/// owner's Standard: 3,347 tabs, 3,009 of them substashes, and 59
-/// characters (N47).
-#[tokio::test]
-async fn c127_params_over_their_bound_are_refused_and_a_large_plan_is_admitted() {
-    let (daemon, log_path) = live_daemon("http://127.0.0.1:1");
-    // `{"pad":"…"}` is ten bytes around the string.
-    let pad = |len: usize| json!({ "pad": "x".repeat(len - 10) });
-    let over = pad(PARAMS_MAX_BYTES + 1);
-    assert_eq!(
-        serde_json::to_vec(&over).unwrap().len(),
-        PARAMS_MAX_BYTES + 1
-    );
-    let response = client_submit(&daemon, "sleep", over, None).await;
-    let Response::Error { kind, message } = &response else {
-        panic!("params over the bound were admitted: {response:?}")
-    };
-    assert_eq!(*kind, ErrorKind::Refused, "{message}");
-    assert!(
-        message.contains(&(PARAMS_MAX_BYTES + 1).to_string())
-            && message.contains(&PARAMS_MAX_BYTES.to_string()),
-        "the refusal names the size and the bound: {message}"
-    );
-    assert!(
-        message.len() <= 1024 && !message.contains("xxxx"),
-        "the refusal quotes nothing of the value: {message}"
-    );
-    assert_nothing_admitted(&daemon, "params over the bound");
-    // A submit's other stored and echoed string, its submitter, has a
-    // bound of its own, and is described, never echoed.
-    let submitter = "y".repeat(20 << 20);
-    let response = daemon
-        .handle_request(
-            Request::Submit {
-                kind: "sleep".into(),
-                params: json!({}),
-                priority: 0,
-                submitted_by: submitter,
-                account: None,
-            },
-            &mut None,
-        )
-        .await;
-    assert_refused(
-        response,
-        "a submitter over its bound",
-        &[
-            "submitted_by must be at most",
-            &SUBMITTER_MAX_BYTES.to_string(),
-            "(a string of 20971520 bytes)",
-        ],
-    );
-    assert_nothing_admitted(&daemon, "a submitter over its bound");
-
-    let mut jobs = vec![
-        json!({ "kind": "stashes", "params": { "realm": "pc", "league": "Standard" } }),
-        json!({ "kind": "characters", "params": { "realm": "pc" } }),
-    ];
-    for i in 0..338 {
-        jobs.push(json!({ "kind": "stash", "params": {
-            "realm": "pc", "league": "Standard", "id": format!("{i:010x}"), "deep": false,
-        } }));
-    }
-    for i in 0..3009 {
-        jobs.push(json!({ "kind": "stash", "params": {
-            "realm": "pc", "league": "Standard", "id": format!("{:010x}", i % 14),
-            "sub": format!("{i:010x}"), "deep": false,
-        } }));
-    }
-    for i in 0..59 {
-        jobs.push(json!({ "kind": "character", "params": {
-            "realm": "pc", "name": format!("ACharacterName{i}"),
-        } }));
-    }
-    let plan = json!({ "jobs": jobs, "max_requests": 3408 });
-    let response = client_submit(&daemon, "apply", plan, None).await;
-    assert!(
-        matches!(response, Response::Submitted { id: 1 }),
-        "the largest plan observed is admitted, as job 1: {response:?}"
-    );
-    let response = client_submit(&daemon, "sleep", pad(PARAMS_MAX_BYTES), None).await;
-    assert!(
-        matches!(response, Response::Submitted { id: 2 }),
-        "params at the bound are admitted: {response:?}"
-    );
-    finish_harness(None, &log_path);
-}
-
-/// C136 (the submitter `daemon` is the daemon's own): a client's submit
-/// that names it is refused at the door with the refused-work kind,
-/// before an id exists, in words that say the rule, and nothing reaches
-/// the wire. The daemon holds a live session, so the
-/// profile fetch, admitted, would send at once: the same submit under a
-/// frontend's name is then admitted as job 1 and sends its one GET.
-#[tokio::test]
-async fn c136_a_client_submit_as_the_daemon_is_refused_and_sends_nothing() {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (daemon, log_path) = live_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let submit_as = |submitted_by: &str| Request::Submit {
-        kind: "profile".into(),
-        params: json!({}),
-        priority: 0,
-        submitted_by: submitted_by.into(),
-        account: None,
-    };
-
-    let response = daemon.handle_request(submit_as("daemon"), &mut None).await;
-    assert_refused(
-        response,
-        "a client submit as the daemon",
-        &["reserved for the daemon's own work", "a client cannot"],
-    );
-    assert_nothing_admitted(&daemon, "a client submit as the daemon");
-    for _ in 0..50 {
-        tokio::task::yield_now().await;
-    }
-    assert!(
-        sent_log.lock().unwrap().is_empty(),
-        "nothing reached the wire"
-    );
-
-    let response = daemon.handle_request(submit_as("cli:1"), &mut None).await;
-    assert!(
-        matches!(response, Response::Submitted { id: 1 }),
-        "a frontend's submit is admitted as job 1: {response:?}"
-    );
-    let (info, _) = wait_terminal(&daemon, 1).await;
-    assert_eq!(info.state, JobState::Done);
-    assert_eq!(
-        wire_methods(&sent_log),
-        ["GET"],
-        "the admitted fetch sends once"
-    );
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(Some(dispatcher), &log_path);
-}
-
-/// C127 (an apply's actions have a bound): an `apply` of one action over
-/// `APPLY_MAX_ACTIONS` is refused at submit, naming its count and the
-/// bound and pointing to a narrower selection, and spends no id, though
-/// its tiny tuples sit far under `PARAMS_MAX_BYTES`; the bound wins over a
-/// `max_requests` the plan also exceeds. An `apply` of exactly `APPLY_MAX_ACTIONS` is
-/// admitted (the owner-sized plan is admitted above).
-#[tokio::test]
-async fn c127_an_apply_over_its_action_bound_is_refused_and_one_at_it_is_admitted() {
-    let (daemon, log_path) = live_daemon("http://127.0.0.1:1");
-    let jobs = |n: usize| -> Vec<Value> { vec![json!({ "kind": "stashes", "params": {} }); n] };
-    let over = APPLY_MAX_ACTIONS + 1;
-    for (what, plan) in [
-        (
-            "an apply over its action bound",
-            json!({ "jobs": jobs(over) }),
-        ),
-        (
-            "an apply over its action bound and its budget",
-            json!({ "jobs": jobs(over), "max_requests": 1 }),
-        ),
-    ] {
-        assert!(serde_json::to_vec(&plan).unwrap().len() < PARAMS_MAX_BYTES);
-        let response = client_submit(&daemon, "apply", plan, None).await;
-        assert_refused(
-            response,
-            what,
-            &[
-                &format!("an apply of {over} actions"),
-                &format!("bound of {APPLY_MAX_ACTIONS} actions"),
-                "nothing was submitted",
-                "covers fewer tabs or characters",
-            ],
-        );
-        assert_nothing_admitted(&daemon, what);
-    }
-    let plan = json!({ "jobs": jobs(APPLY_MAX_ACTIONS), "max_requests": APPLY_MAX_ACTIONS });
-    let response = client_submit(&daemon, "apply", plan, None).await;
-    assert!(
-        matches!(response, Response::Submitted { id: 1 }),
-        "an apply at its action bound is admitted, as job 1: {response:?}"
-    );
     finish_harness(None, &log_path);
 }
 

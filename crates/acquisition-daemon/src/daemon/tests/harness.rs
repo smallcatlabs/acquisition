@@ -1348,6 +1348,34 @@ pub(super) fn logged_in_sessions() -> Sessions {
     sessions
 }
 
+/// One live session, `Alice#1234`, holding the access token
+/// `at-test.Alice#1234` until an hour past `clock`'s wall (as an install
+/// writes the expiry) and no refresh token: a job admitted for it sends at
+/// once, with no refresh first. [`logged_in_sessions`] is the
+/// refresh-due shape.
+pub(super) fn live_sessions(clock: &ParkingClock) -> Sessions {
+    Sessions::with(AuthSession {
+        username: Some("Alice#1234".into()),
+        access_token: Some("at-test.Alice#1234".into()),
+        access_expires_at: Some(clock.wall() + Duration::from_secs(3600)),
+        ..AuthSession::default()
+    })
+}
+
+/// Two refresh-due sessions: `test-user` and `other`, each holding a
+/// refresh token (`rt-old`, `rt-other`) and no access token, so each
+/// one's first job refreshes. The cancel family's (`dispatch.rs`) and
+/// the rails' two-account scenarios (`rails.rs`).
+pub(super) fn two_accounts() -> Sessions {
+    let mut sessions = logged_in_sessions();
+    sessions.replace(AuthSession {
+        username: Some("other".into()),
+        refresh_token: Some("rt-other".into()),
+        ..AuthSession::default()
+    });
+    sessions
+}
+
 /// `path` at `mode` until this drops, then back at the mode it had. A
 /// test that takes write away from a folder holds one, declared after the
 /// folder's own guard: it drops first, so the folder can go however the
