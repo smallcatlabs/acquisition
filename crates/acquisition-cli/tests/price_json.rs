@@ -247,6 +247,12 @@ fn price_json_documents_are_the_views_the_text_reads() {
         &["price", "show", "tab/pc/f1"],
         &["items covered through children: 2 items"],
     );
+    // No row on it or above it: the read-back names the revision the next
+    // write names, a create's (the league seat, cli-opus-2 calls 61, 62).
+    t.run(
+        &["price", "show", "item/i-map"],
+        &["by hand: nothing (no row on it or above it: a first price names revision 0)"],
+    );
 
     // A container not on record, or another realm's address, is a
     // refusal naming the facts — never an empty selection.

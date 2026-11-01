@@ -21,6 +21,18 @@ items covered through children: 2 items — 1 agree, 1 conflict
   agree        hand  3 chaos            3 chaos            Chaos Orb x5                             i-plain
 next: `acq price show --account 'Alice#1234' --realm pc --league Standard item/<id>` is one item
 
+$ acq price show item/i-map
+# holds "by hand: nothing (no row on it or above it: a first price names revision 0)"
+--- stdout
+item/i-map: Chaos Orb x5  in "1" substash/pc/m1/s1
+relation none: no row applies and the game states nothing
+effective: none — nothing applies
+by hand: nothing (no row on it or above it: a first price names revision 0)
+in game: none
+  tab m1 "Maps" reads none, not public
+  substash "1" (its parent's name and public are read)
+next: `acq price list --account 'Alice#1234' --realm pc --league Standard --in substash/pc/m1/s1` is its neighbours
+
 $ acq price list --in tab/pc/nope
 # holds "tab/pc/nope is not in the facts for Standard"
 --- stderr

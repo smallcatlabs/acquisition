@@ -792,7 +792,11 @@ fn render_show(view: &ShowView, now: i64, bound: pricing::Bound, account: &str) 
             out.push_str(&line);
         }
         (None, Some(p)) => out.push_str(&format!("by hand: unreadable — {p}\n")),
-        (None, None) => out.push_str("by hand: nothing (no row on it or above it)\n"),
+        // the read-back names what the next write names (the league
+        // seat, cli calls 61, 62 and run 1's 74): with no row, a create
+        (None, None) => out.push_str(
+            "by hand: nothing (no row on it or above it: a first price names revision 0)\n",
+        ),
     }
 
     let g = &l.game;
@@ -1619,7 +1623,9 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("by hand: nothing (no row on it or above it)\n"),
+            text.contains(
+                "by hand: nothing (no row on it or above it: a first price names revision 0)\n"
+            ),
             "{text}"
         );
 
