@@ -283,6 +283,11 @@ retirement waits for its last user.
    commit, the config, the toolchain and the tool's version recorded,
    its `mutants.out` kept under `runs/`. Round 6 compares
    corresponding mutants and classifies additions and removals apart.
+   Dispatched on 2026-10-31 by the orchestrating session, after
+   round 4: the weekly workflow (`workflow_dispatch`) on the tag
+   `t5-round0-baseline` (`a8a719d6`, round 1's parent), run
+   41265798977, four shards, its artifacts the baseline; no machine
+   of the owner's.
 1. **The clock and the door.** `ParkingClock`, `Clock::sleep_until`,
    the counted blocking helper and its arch check, the auth-change
    notification, the door's five calls with its builder, fixture
@@ -311,6 +316,18 @@ retirement waits for its last user.
    source and its oracle; the 20 fixed sleeps to awaited states; the
    27 literal ceilings and the two unbounded polls to the hang
    ceiling; #131's remaining daemon rows closed by their rules.
+   Split on 2026-10-31 by the orchestrating session under the owner's
+   grant of autonomy, for his re-read, from two inventories at
+   `9736bdcf`: 5a the refresh and bearer families (`t5-r5a.md`); 5b
+   the door-able tests of the other files (34 of 118) and round 4's
+   narrowed private reads; 5c the sweep (`ManualClock`'s retirement as
+   a harness-level swap, four tests relying on its self-advancing
+   sleep; the 14 sleeps, 19 ceilings and the polls left; the
+   exempt-route check and its registry line). Two premises corrected
+   by those inventories: the laptop sleep has no production detection
+   (the wall-face expiry is the mechanism), and a yield-loop test can
+   run on a hand-driven parking clock (four already do); the blocker
+   is a production sleep on the clock.
 6. **The close.** `cargo mutants` after round 5 against round 0's
    baseline: no new survivor in the configured scope; the scenario
    count before and after (rows, not occurrences); the gate's test
