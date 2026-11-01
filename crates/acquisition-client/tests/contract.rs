@@ -48,7 +48,7 @@ use acquisition_protocol::protocol::{ErrorKind, MAX_FRAME_BYTES, Request, Respon
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
 use acquisition_store::world::{Lock, World};
 use harness::{
-    acqd_built, compatible_client, login_in_process, session, start_daemon_in_process,
+    HANG, acqd_built, compatible_client, login_in_process, session, start_daemon_in_process,
     wait_all_terminal,
 };
 use serde_json::{Value, json};
@@ -239,7 +239,7 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
         .ask(json!({ "req": "daemon_stop", "reason": "contract test", "world": "/future" }))
         .await;
     assert_eq!(reply, json!({ "resp": "stopping" }));
-    daemon.wait_exit(Duration::from_secs(10));
+    daemon.wait_exit(HANG);
     assert!(
         !endpoint::exists(&session_socket()),
         "the socket is removed on exit"
@@ -753,7 +753,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     drop(client);
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), pid);
-    daemon.wait_exit(Duration::from_secs(10));
+    daemon.wait_exit(HANG);
     assert!(
         !endpoint::exists(&home_socket),
         "the socket is removed on exit"
@@ -1288,7 +1288,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
 
     let mut events_before = 0usize;
     let missed = loop {
-        match tokio::time::timeout(Duration::from_secs(10), subscription.next()).await {
+        match tokio::time::timeout(HANG, subscription.next()).await {
             Ok(Ok(Some(Signal::Event(_)))) => events_before += 1,
             Ok(Ok(Some(Signal::ResyncRequired { missed }))) => break missed,
             Ok(other) => panic!("{other:?}"),
@@ -1324,7 +1324,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
     let newest = jobs.iter().map(|j| j.id).max().unwrap();
     let next = submitted(submit(&mut client, "sleep", json!({ "seconds": 0 }), None).await);
     assert!(next > newest);
-    let first = tokio::time::timeout(Duration::from_secs(10), subscription.next())
+    let first = tokio::time::timeout(HANG, subscription.next())
         .await
         .expect("an event")
         .expect("open");
@@ -1349,7 +1349,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
     wait_all_terminal(&mut client, 1).await;
     let mut done = false;
     while !done {
-        match tokio::time::timeout(Duration::from_secs(10), subscription.next())
+        match tokio::time::timeout(HANG, subscription.next())
             .await
             .expect("an event")
             .expect("open")
@@ -1361,8 +1361,8 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
 
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), daemon.id());
-    daemon.wait_exit(Duration::from_secs(10));
-    let end = tokio::time::timeout(Duration::from_secs(10), subscription.next())
+    daemon.wait_exit(HANG);
+    let end = tokio::time::timeout(HANG, subscription.next())
         .await
         .expect("the stream ends");
     assert!(matches!(end, Ok(None) | Err(_)), "{end:?}");
@@ -1389,7 +1389,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
     ));
     let next = submitted(submit(&mut client, "sleep", json!({ "seconds": 0 }), None).await);
     assert!(next > id, "ids continue across the restart");
-    let event = tokio::time::timeout(Duration::from_secs(10), subscription.next())
+    let event = tokio::time::timeout(HANG, subscription.next())
         .await
         .expect("an event")
         .expect("open");
@@ -1597,7 +1597,7 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
         .ask(json!({ "req": "daemon_stop", "reason": "exit pin" }))
         .await;
     assert_eq!(reply, json!({ "resp": "stopping" }));
-    daemon.wait_exit(Duration::from_secs(10));
+    daemon.wait_exit(HANG);
 
     assert!(
         socket.exists(),

@@ -328,6 +328,12 @@ fn same_file(a: &Path, b: &Path) -> bool {
 /// panicking (C82: a failure says which executable ran).
 pub struct Proc(pub Child, pub PathBuf);
 
+/// The hang ceiling: how long a test waits for a healthy daemon before
+/// it calls the wait hung, never a measure of the wait (C137, a
+/// deadline's contract is its behaviour at expiry); the daemon crate's
+/// test ceiling is the same.
+pub const HANG: Duration = Duration::from_secs(120);
+
 impl Proc {
     pub fn id(&self) -> u32 {
         self.0.id()
@@ -441,7 +447,7 @@ pub fn start_daemon_with(
     let mut cmd = daemon_command(acqd, base);
     cmd.envs(env.iter().copied());
     let (daemon, said) = spawn_drained(cmd, acqd);
-    let deadline = Instant::now() + Duration::from_secs(120);
+    let deadline = Instant::now() + HANG;
     loop {
         let mut status = Command::new(acq);
         status.args(["daemon", "status", "--json"]);
@@ -968,7 +974,7 @@ impl Session {
 pub async fn start_daemon_in_process(s: &Session, acqd: &Path) -> Proc {
     link_beside_this_test(acqd);
     let (daemon, said) = spawn_drained(daemon_command(acqd, &s.base), acqd);
-    let deadline = Instant::now() + Duration::from_secs(120);
+    let deadline = Instant::now() + HANG;
     loop {
         match Client::observe().await {
             Ok(Observed::Compatible(mut client)) => {
@@ -1015,7 +1021,7 @@ pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
     tokio::task::spawn_blocking(move || approve(&url, user.as_deref()))
         .await
         .expect("the approve step");
-    let deadline = Instant::now() + Duration::from_secs(120);
+    let deadline = Instant::now() + HANG;
     loop {
         match client.request(&Request::AuthStatus).await.unwrap() {
             Response::Auth {
@@ -1038,7 +1044,7 @@ pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
 /// Poll `list` until every job the daemon holds, `expected` of them, is
 /// terminal.
 pub async fn wait_all_terminal(client: &mut Client, expected: usize) {
-    let deadline = Instant::now() + Duration::from_secs(60);
+    let deadline = Instant::now() + HANG;
     loop {
         let jobs = match client.request(&Request::List).await.expect("list") {
             Response::Jobs { jobs } => jobs,
