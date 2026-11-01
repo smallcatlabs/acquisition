@@ -398,7 +398,10 @@ recommendations"), C158 entered. Round 1, the clock and the door
 reviewed, one fix round reviewed clean. Round 2, `Life` on the clock
 (`briefs/t5-r2.md`, cut three times under cold reviews), closed the
 same day (`LEDGER.md`): its build reviewed, one fix round reviewed
-clean. Next round 3's brief, the families as tables; then rounds 4
-to 6; then #148; and Phase 3, the owner's
+clean. Round 3, the families as tables (`briefs/t5-r3.md`, cut three
+times under cold reviews), closed the same day (`LEDGER.md`): 34 rows
+for 15 tests, its build reviewed, one fix round reviewed clean. Next
+round 4's brief, the sessions and the login as scenarios; then rounds
+5 and 6; then #148; and Phase 3, the owner's
 league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
