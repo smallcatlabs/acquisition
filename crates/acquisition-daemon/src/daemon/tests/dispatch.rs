@@ -1997,33 +1997,195 @@ async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_noth
 
 // ---- C158: the wire table, through the door ----
 
-/// One row of the wire table: a script the server answers, the
-/// requests the scenario sends through the door in order (each submit's
-/// job awaited to its end before the next request), and what crosses
-/// the boundary: each job's end state and the journal's sends as
-/// [`journal_projection`] reads them.
+/// One row of the wire table: a script the server answers, the steps a
+/// frontend takes through the door in order, and what crosses the
+/// boundary back. Every job the daemon lists at the row's end, in id
+/// order (the submitted and the probes the daemon makes, as
+/// `Request::List` lists them), ends as [`Job`] says; the journal's sends
+/// are the row's as [`journal_projection`] reads them; each fragment of
+/// `forbids` is absent from every surface it names; and the parking
+/// clock moved at most `virtual_at_most` over the row. What the daemon's
+/// status and dashboard answer mid-row is asserted by the step that reads
+/// it ([`Step`]).
+#[derive(Default)]
 struct Row {
-    name: &'static str,
+    /// What the row pins: where a ruling's *Pinned* names the test the
+    /// row replaced, that test's name, then the case.
+    name: String,
     script: Vec<ScriptedResponse>,
-    requests: Vec<Request>,
-    /// The end state of each job the requests submitted, in order.
-    ends: Vec<JobState>,
+    /// The daemon starts with `test-user`'s session
+    /// ([`logged_in_sessions`]), else with one empty session.
+    logged_in: bool,
+    steps: Vec<Step>,
+    jobs: Vec<Job>,
     journal: Vec<Value>,
+    forbids: Vec<Forbid>,
+    virtual_at_most: Option<Duration>,
+}
+
+/// One step of a row, through the door, as a frontend takes it.
+enum Step {
+    /// Submits sent one after another, none awaited: jobs queued
+    /// together. A submitted job is named after by its place among the
+    /// row's submits.
+    Send(Vec<Request>),
+    /// The submitted jobs named, each awaited to the state given: a
+    /// terminal one through `await_terminal`; a waiting one once the
+    /// runtime has settled ([`Door::settle`]: the daemon has done all it
+    /// can without time moving), through `await_job`.
+    Await(Vec<(usize, JobState)>),
+    /// `Request::Cancel` of the submitted job named, acknowledged.
+    Cancel(usize),
+    /// `Request::ResetTripwire`, acknowledged.
+    ResetTripwire,
+    /// `Request::DaemonStatus`: its `rails.halted` carries these words,
+    /// or is `None`.
+    DaemonStatus { halted: Option<String> },
+    /// `Request::Dashboard`: its `degraded_endpoints` name these.
+    Dashboard { degraded: Vec<&'static str> },
+    /// A second lifetime while this one is live: a door opened beside
+    /// this one on the same rails state path, facing no server, whose
+    /// `DaemonStatus` `rails.halted` carries these words or is `None`;
+    /// then finished.
+    SecondLifetime { halted: Option<String> },
+}
+
+/// What a row expects of one job the daemon lists.
+struct Job {
+    kind: &'static str,
+    end: JobState,
+    retries: u32,
+    /// The first item of its success's payload ([`fetch_payload_marker`]).
+    marker: Option<&'static str>,
+    /// Words its failure's error carries.
+    carries: Vec<String>,
+    /// Words its failure's error does not carry.
+    lacks: Vec<String>,
+}
+
+impl Job {
+    /// A `fetch` the row submitted, ending `end` with no retry.
+    fn fetch(end: JobState) -> Job {
+        Job {
+            kind: "fetch",
+            end,
+            retries: 0,
+            marker: None,
+            carries: Vec::new(),
+            lacks: Vec::new(),
+        }
+    }
+
+    /// A probe the daemon made for a route's first use, ending `end`.
+    fn probe(end: JobState) -> Job {
+        Job {
+            kind: "probe",
+            ..Job::fetch(end)
+        }
+    }
+
+    fn kind(self, kind: &'static str) -> Job {
+        Job { kind, ..self }
+    }
+
+    fn retries(self, retries: u32) -> Job {
+        Job { retries, ..self }
+    }
+
+    fn marker(self, marker: &'static str) -> Job {
+        Job {
+            marker: Some(marker),
+            ..self
+        }
+    }
+
+    fn carries(mut self, words: &[&str]) -> Job {
+        self.carries.extend(words.iter().map(|w| w.to_string()));
+        self
+    }
+
+    fn lacks(mut self, words: &[&str]) -> Job {
+        self.lacks.extend(words.iter().map(|w| w.to_string()));
+        self
+    }
+}
+
+/// A fragment that must be absent from each surface it names.
+struct Forbid {
+    fragment: String,
+    from: &'static [Surface],
+}
+
+/// A surface a [`Forbid`] names.
+#[derive(Debug)]
+enum Surface {
+    /// The journal's sends, whole.
+    Journal,
+    /// `Dashboard.errors`, read at the row's end.
+    DashboardErrors,
+    /// Every listed job's failure words.
+    JobErrors,
+    /// Every `rails.halted` the row read, of either lifetime.
+    Halts,
+}
+
+fn forbid(fragment: &str, from: &'static [Surface]) -> Forbid {
+    Forbid {
+        fragment: fragment.into(),
+        from,
+    }
 }
 
 /// A client's submit of `kind` with empty params, as a frontend sends it.
 fn submit(kind: &str) -> Request {
+    submit_at(kind, 0)
+}
+
+/// [`submit`] at `priority`.
+fn submit_at(kind: &str, priority: Priority) -> Request {
     Request::Submit {
         kind: kind.into(),
         params: json!({}),
-        priority: 0,
+        priority,
         submitted_by: "test".into(),
         account: None,
     }
 }
 
-/// Each send as a row compares it: method, path, status, counted,
-/// `wait_ms`.
+/// A client's submit of `kind` with `params` as `account`.
+fn submit_as(kind: &str, params: Value, account: &str) -> Request {
+    Request::Submit {
+        kind: kind.into(),
+        params,
+        priority: 0,
+        submitted_by: "test".into(),
+        account: Some(account.into()),
+    }
+}
+
+/// One `fetch` submitted and awaited to `end`.
+fn fetched(end: JobState) -> Vec<Step> {
+    vec![
+        Step::Send(vec![submit("fetch")]),
+        Step::Await(vec![(0, end)]),
+    ]
+}
+
+/// One `fetch` submitted and awaited failed, the daemon not halted, and
+/// a second `fetch` submitted and awaited landed.
+fn not_halted_then_after() -> Vec<Step> {
+    vec![
+        Step::Send(vec![submit("fetch")]),
+        Step::Await(vec![(0, JobState::Failed)]),
+        Step::DaemonStatus { halted: None },
+        Step::Send(vec![submit("fetch")]),
+        Step::Await(vec![(1, JobState::Done)]),
+    ]
+}
+
+/// Each send as a row compares it: method, path, status, ok, counted,
+/// `wait_ms`, and the body's shape (`null` where the journal names none:
+/// a 2xx, a send that never landed).
 fn journal_projection(sends: &[Value]) -> Vec<Value> {
     sends
         .iter()
@@ -2032,70 +2194,829 @@ fn journal_projection(sends: &[Value]) -> Vec<Value> {
                 l["method"],
                 l["path"],
                 l["status"],
+                l["ok"],
                 l["counted"],
-                l["wait_ms"]
+                l["wait_ms"],
+                l["shape"]
             ])
         })
         .collect()
 }
 
-/// The rows. The 429 hold: one fetch; its probe; its GET answered 429
-/// with GGG's headers and `Retry-After: 0`, held the bucket pad and the
-/// buffer (61 s); its GET again after the whole hold, landing.
+/// The probe every `/fetch` row's first use sends, landed at once.
+fn probe_sent() -> Value {
+    json!(["HEAD", "/fetch", 204, true, false, 0, null])
+}
+
+/// The rows, each written from the ruling it pins and the assertions of
+/// the test it replaced, never from a run of the door.
 fn wire_rows() -> Vec<Row> {
-    vec![Row {
-        name: "the 429 hold",
+    use JobState::{Cancelled, Done, Failed, Waiting};
+    let hold = full_hold_ms();
+    let mut rows = vec![
+        // The 429 hold: one fetch; its probe; its GET answered 429 with
+        // GGG's headers and `Retry-After: 0`, held the bucket pad and the
+        // buffer (61 s); its GET again after the whole hold, landing.
+        Row {
+            name: "the 429 hold".into(),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after the hold"]}"#),
+            ],
+            steps: fetched(Done),
+            jobs: vec![
+                Job::fetch(Done).retries(1).marker("after the hold"),
+                Job::probe(Done),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", 429, false, true, 0, "unclassified"]),
+                json!(["GET", "/fetch", 200, true, true, hold, null]),
+            ],
+            ..Row::default()
+        },
+        // C26: two 429s with GGG's headers re-queue the job, each retry
+        // behind its `Retry-After` plus the bucket pad (C19), and the
+        // third answer lands it, once.
+        Row {
+            name: "dispatcher_retries_429_429_success_exactly_three_times_and_completes_once"
+                .into(),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(5), "{}"),
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["done"]}"#),
+            ],
+            steps: fetched(Done),
+            jobs: vec![
+                Job::fetch(Done).retries(MAX_429_RETRIES).marker("done"),
+                Job::probe(Done),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", 429, false, true, 0, "unclassified"]),
+                json!(["GET", "/fetch", 429, false, true, hold, "unclassified"]),
+                json!(["GET", "/fetch", 200, true, true, 5_000 + hold, null]),
+            ],
+            ..Row::default()
+        },
+        // C26: after `MAX_429_RETRIES` the third 429 fails the job with
+        // the evidence; no fourth send, and the third's hold is not slept
+        // out first: the clock moves the two holds the retries waited.
+        Row {
+            name: "dispatcher_exhausts_on_third_429_without_a_fourth_send_or_final_sleep".into(),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+            ],
+            steps: fetched(Failed),
+            jobs: vec![
+                Job::fetch(Failed)
+                    .retries(MAX_429_RETRIES)
+                    .carries(&["giving up"]),
+                Job::probe(Done),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", 429, false, true, 0, "unclassified"]),
+                json!(["GET", "/fetch", 429, false, true, hold, "unclassified"]),
+                json!(["GET", "/fetch", 429, false, true, hold, "unclassified"]),
+            ],
+            virtual_at_most: Some(Duration::from_millis(2 * hold)),
+            ..Row::default()
+        },
+        // C26: a re-queued job keeps its place; two queued together land
+        // in submission order, each with its own answer.
+        Row {
+            name: "dispatcher_requeue_preserves_fifo_job_identity".into(),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["first"]}"#),
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["second"]}"#),
+            ],
+            steps: vec![
+                Step::Send(vec![submit("fetch"), submit("fetch")]),
+                Step::Await(vec![(0, Done), (1, Done)]),
+            ],
+            jobs: vec![
+                Job::fetch(Done).retries(1).marker("first"),
+                Job::fetch(Done).marker("second"),
+                Job::probe(Done),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", 429, false, true, 0, "unclassified"]),
+                json!(["GET", "/fetch", 200, true, true, hold, null]),
+                json!(["GET", "/fetch", 200, true, true, 0, null]),
+            ],
+            ..Row::default()
+        },
+        // C19 for a probe: a HEAD's 429 with GGG's full headers and an
+        // acceptable `Retry-After` establishes the route under its hold;
+        // the probe and the job each end with no retry, and the GET waits
+        // the whole hold.
+        Row {
+            name: "full_acceptable_head_429_establishes_under_hold_without_job_retry".into(),
+            script: vec![
+                ScriptedResponse::full("HEAD", "429 Too Many Requests", Some(0), ""),
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after-probe"]}"#),
+            ],
+            steps: fetched(Done),
+            jobs: vec![Job::fetch(Done).marker("after-probe"), Job::probe(Done)],
+            journal: vec![
+                json!(["HEAD", "/fetch", 429, false, false, 0, "unclassified"]),
+                json!(["GET", "/fetch", 200, true, true, hold, null]),
+            ],
+            ..Row::default()
+        },
+    ];
+    // C19: a landed GET 429 holds its route for its `Retry-After`, clamped
+    // to the cap, plus the retry bucket, whatever the header carried.
+    // Such a 429 is not retried, so a second job's send shows the hold:
+    // 61 s after a missing, garbled or negative value, 961 s after an
+    // over-cap one.
+    let missing = || ScriptedResponse::full("GET", "429 Too Many Requests", None, "{}");
+    for (case, rejected, held) in [
+        ("missing", missing(), hold),
+        ("garbled", missing().with_raw_retry_after("soon"), hold),
+        ("negative", missing().with_raw_retry_after("-1"), hold),
+        (
+            "over the cap",
+            missing().with_raw_retry_after("5000"),
+            crate::ratelimit::RETRY_AFTER_CAP_SECS * 1000 + hold,
+        ),
+    ] {
+        rows.push(Row {
+            name: format!("a_get_429_without_a_usable_retry_after_holds_the_next_send: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                rejected,
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+            ],
+            steps: vec![
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(0, Failed)]),
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(1, Done)]),
+            ],
+            jobs: vec![
+                Job::fetch(Failed),
+                Job::probe(Done),
+                Job::fetch(Done).marker("after"),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", 429, false, true, 0, "unclassified"]),
+                json!(["GET", "/fetch", 200, true, true, held, null]),
+            ],
+            ..Row::default()
+        });
+    }
+    // A HEAD 429 whose policy header is malformed, or whose `Retry-After`
+    // is missing, fails setup: the probe and its job fail with no retry,
+    // nothing more is sent, and the route is degraded under a cooldown.
+    for (case, head) in [
+        ("malformed", ScriptedResponse::malformed_head_429()),
+        (
+            "unacceptable",
+            ScriptedResponse::full("HEAD", "429 Too Many Requests", None, ""),
+        ),
+    ] {
+        rows.push(Row {
+            name: format!("malformed_or_unacceptable_head_429_fails_under_cooldown: {case}"),
+            script: vec![head],
+            steps: fetched(Failed)
+                .into_iter()
+                .chain([Step::Dashboard {
+                    degraded: vec!["fetch"],
+                }])
+                .collect(),
+            jobs: vec![Job::fetch(Failed), Job::probe(Failed)],
+            journal: vec![json!([
+                "HEAD",
+                "/fetch",
+                429,
+                false,
+                false,
+                0,
+                "unclassified"
+            ])],
+            ..Row::default()
+        });
+    }
+    // C129: a response Cloudflare gave in GGG's place is a stop. With the
+    // tripwire off, the block fails its job at once (no re-queue, whatever
+    // its `Retry-After`), in the halt's words with its remedy; it admits no
+    // further send on any route (a second account's job, whose session
+    // would need a refresh first, submitted only after the block landed,
+    // since the gate is two wide, stays waiting with nothing on the wire
+    // for it); and it leaves a mark that a later daemon on the same rails
+    // state, also without the tripwire, reports. The halt names the
+    // status, method, route and time, never the body: no fragment of the
+    // page reaches the job's failure or either lifetime's halt, and no
+    // header the response carried reaches the halt (the journal keeps the
+    // headers as evidence on purpose). The mark's file on disk is the
+    // component case `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header`.
+    // The three shapes: Cloudflare's documented 1015 (its one marker past
+    // the body's first 300 characters), a challenge carrying
+    // `cf-mitigated`, and a 429 with no header and no marker at all (N49).
+    // The 1015 still holds its route for its `Retry-After` (C19): once the
+    // sibling is cancelled and the mark reset, a further fetch waits 30 s
+    // plus the retry bucket.
+    let markerless_429 = ScriptedResponse {
+        method: "GET",
+        path: "/fetch",
+        status: "429 Too Many Requests",
+        headers: String::new(),
+        body: "Too many requests from this client".into(),
+    };
+    for (case, block, status, shape) in [
+        (
+            "1015",
+            ScriptedResponse::cloudflare_1015_429(),
+            429,
+            "cloudflare",
+        ),
+        (
+            "challenge",
+            ScriptedResponse::cloudflare_403_challenge(),
+            403,
+            "unclassified",
+        ),
+        ("markerless 429", markerless_429, 429, "unclassified"),
+    ] {
+        let cause =
+            format!("Cloudflare answered in GGG's place: {status} on GET fetch at 2000-01-01T");
+        let mut forbids: Vec<Forbid> = [
+            "Ray ID",
+            "<html",
+            "<!DOCTYPE",
+            "Just a moment",
+            "rate limited",
+            "Too many requests",
+        ]
+        .into_iter()
+        .filter(|fragment| block.body.contains(fragment))
+        .map(|fragment| forbid(fragment, &[Surface::JobErrors, Surface::Halts]))
+        .collect();
+        forbids
+            .extend(["challenge", "Retry-After"].map(|header| forbid(header, &[Surface::Halts])));
+        let mut row = Row {
+            name: format!("a_cloudflare_block_admits_nothing_and_survives_a_restart: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                block,
+            ],
+            logged_in: true,
+            steps: vec![
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(0, Failed)]),
+                Step::Send(vec![submit_as(
+                    "stashes",
+                    json!({ "league": "Standard" }),
+                    "test-user",
+                )]),
+                Step::Await(vec![(1, Waiting)]),
+                Step::DaemonStatus {
+                    halted: Some(cause.clone()),
+                },
+                Step::SecondLifetime {
+                    halted: Some(cause),
+                },
+            ],
+            jobs: vec![
+                Job::fetch(Failed)
+                    .carries(&["Cloudflare answered in GGG's place", "reset-tripwire"]),
+                Job::probe(Done),
+                Job::fetch(Waiting).kind("stashes"),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", status, false, true, 0, shape]),
+            ],
+            forbids,
+            ..Row::default()
+        };
+        if case == "1015" {
+            row.steps.extend([
+                Step::Cancel(1),
+                Step::ResetTripwire,
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(2, Done)]),
+            ]);
+            row.script.push(ScriptedResponse::full(
+                "GET",
+                "200 OK",
+                None,
+                r#"{"items":["after the block"]}"#,
+            ));
+            row.jobs[2] = Job::fetch(Cancelled).kind("stashes");
+            row.jobs.push(Job::fetch(Done).marker("after the block"));
+            row.journal.push(json!([
+                "GET",
+                "/fetch",
+                200,
+                true,
+                true,
+                30_000 + hold,
+                null
+            ]));
+        }
+        rows.push(row);
+    }
+    // C129: a 5xx Cloudflare gave for an origin it could not reach, by
+    // its status alone (the 522 with its page and with no body at all, a
+    // 530) or by carrying Cloudflare's page with no GGG policy header (a
+    // 503), fails its job at once, never retried (C26), in the halt's
+    // words with its remedy and none of the page; nothing more is sent
+    // this daemon lifetime (a sibling submitted after it landed stays
+    // waiting). The halt is the lifetime's and leaves no mark: a second
+    // lifetime on the same rails state reports none, read before the
+    // reset (which clears the persisted marks too). `reset-tripwire`
+    // lifts it, and the sibling goes out to the script's pending GET.
+    let cloudflare_503 = ScriptedResponse {
+        status: "503 Service Unavailable",
+        ..ScriptedResponse::cloudflare_522()
+    };
+    let empty_522 = ScriptedResponse {
+        body: String::new(),
+        ..ScriptedResponse::cloudflare_522()
+    };
+    let empty_530 = ScriptedResponse {
+        status: "530 Origin Unreachable",
+        body: String::new(),
+        ..ScriptedResponse::cloudflare_522()
+    };
+    for (case, unreachable, status, shape) in [
+        ("522", ScriptedResponse::cloudflare_522(), 522, "cloudflare"),
+        (
+            "503 with Cloudflare's page",
+            cloudflare_503,
+            503,
+            "cloudflare",
+        ),
+        ("522 with no body", empty_522, 522, "unclassified"),
+        ("530 with no body", empty_530, 530, "unclassified"),
+    ] {
+        rows.push(Row {
+            name: format!("a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                unreachable,
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+            ],
+            steps: vec![
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(0, Failed)]),
+                Step::Send(vec![submit("fetch")]),
+                Step::Await(vec![(1, Waiting)]),
+                Step::DaemonStatus {
+                    halted: Some(format!(
+                        "Cloudflare could not reach GGG: {status} on GET fetch at 2000-01-01T"
+                    )),
+                },
+                Step::SecondLifetime { halted: None },
+                Step::ResetTripwire,
+                Step::Await(vec![(1, Done)]),
+            ],
+            jobs: vec![
+                Job::fetch(Failed).carries(&[
+                    "Cloudflare could not reach GGG",
+                    "this daemon lifetime",
+                    "reset-tripwire",
+                ]),
+                Job::probe(Done),
+                Job::fetch(Done).marker("after"),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", status, false, true, 0, shape]),
+                json!(["GET", "/fetch", 200, true, true, 0, null]),
+            ],
+            forbids: vec![
+                forbid("Ray ID", &[Surface::JobErrors, Surface::Halts]),
+                forbid("DOCTYPE", &[Surface::JobErrors]),
+            ],
+            ..Row::default()
+        });
+    }
+    // C129's 5xx without Cloudflare's shape halts nothing: GGG's origin
+    // 503 (N35's openresty page, no marker, no rate header) and a 5xx whose
+    // body holds a marker beside GGG's policy header (GGG's JSON echoing a
+    // name the user chose; a page Cloudflare serves in GGG's place cannot
+    // carry GGG's headers) each fail their job, never retried, and the
+    // next job's GET goes out.
+    for (case, unshaped, status, shape) in [
+        ("origin 503", ScriptedResponse::origin_503(), 503, "origin"),
+        (
+            "GGG's 500 echoing CloudflareFan",
+            ScriptedResponse::full(
+                "GET",
+                "500 Internal Server Error",
+                None,
+                r#"{"error":{"code":0,"message":"Internal error for CloudflareFan, Ray ID: 8a1"}}"#,
+            ),
+            500,
+            "cloudflare",
+        ),
+    ] {
+        rows.push(Row {
+            name: format!("a_5xx_without_cloudflares_shape_halts_nothing: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                unshaped,
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+            ],
+            steps: not_halted_then_after(),
+            jobs: vec![
+                Job::fetch(Failed).lacks(&["Cloudflare could not"]),
+                Job::probe(Done),
+                Job::fetch(Done).marker("after"),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", status, false, true, 0, shape]),
+                json!(["GET", "/fetch", 200, true, true, 0, null]),
+            ],
+            ..Row::default()
+        });
+    }
+    // C129's false positives: GGG's own 4xx is no block. A JSON 404 with
+    // GGG's headers (its message saying "array id", which holds "ray id"
+    // inside a word), a 403 that names its own auth error in
+    // `WWW-Authenticate` and carries no `cf-mitigated` (its body mentioning
+    // Cloudflare), and GGG's JSON echoing a name the user chose that holds
+    // a page marker ("CloudflareFan", a league "Error 1015 SSF") beside
+    // GGG's policy header, each fail their job and leave the daemon
+    // sending: the next job's GET goes out.
+    let auth_error = {
+        let mut response = ScriptedResponse::full(
+            "GET",
+            "403 Forbidden",
+            None,
+            r#"{"error":"insufficient_scope","error_description":"see the Cloudflare-fronted docs"}"#,
+        );
+        response.headers.push_str(
+            "WWW-Authenticate: Bearer realm=\"pathofexile:production\", error=\"insufficient_scope\"\r\n",
+        );
+        response
+    };
+    for (case, rejected, status, shape) in [
+        (
+            "GGG's 404",
+            ScriptedResponse::full(
+                "GET",
+                "404 Not Found",
+                None,
+                r#"{"error":{"code":1,"message":"Resource not found: unknown array id"}}"#,
+            ),
+            404,
+            "unclassified",
+        ),
+        ("an auth error", auth_error, 403, "cloudflare"),
+        (
+            "GGG's 404 echoing CloudflareFan",
+            ScriptedResponse::full(
+                "GET",
+                "404 Not Found",
+                None,
+                r#"{"error":{"code":1,"message":"Character not found: CloudflareFan"}}"#,
+            ),
+            404,
+            "cloudflare",
+        ),
+        (
+            "GGG's 400 echoing a league",
+            ScriptedResponse::full(
+                "GET",
+                "400 Bad Request",
+                None,
+                r#"{"error":{"code":2,"message":"Invalid league: Error 1015 SSF"}}"#,
+            ),
+            400,
+            "cloudflare",
+        ),
+    ] {
+        rows.push(Row {
+            name: format!("ggg_4xx_answers_are_not_cloudflare_blocks: {case}"),
+            script: vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                rejected,
+                ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+            ],
+            steps: not_halted_then_after(),
+            jobs: vec![
+                Job::fetch(Failed).lacks(&["Cloudflare answered"]),
+                Job::probe(Done),
+                Job::fetch(Done).marker("after"),
+            ],
+            journal: vec![
+                probe_sent(),
+                json!(["GET", "/fetch", status, false, true, 0, shape]),
+                json!(["GET", "/fetch", 200, true, true, 0, null]),
+            ],
+            ..Row::default()
+        });
+    }
+    // C130: a GET's 302 fails its job with the status and the redirect's
+    // target shown only redacted. The body, which echoes the target with
+    // its query, is not kept: the sentinel reaches neither the job's
+    // failure, the journal nor the daemon's recent errors. The daemon log
+    // is the component case `a_get_3xx_keeps_its_target_out_of_the_daemon_log`.
+    const SENTINEL: &str = "c130-get-sentinel";
+    let target = format!("https://www.pathofexile.com/login?code={SENTINEL}");
+    let mut redirect = ScriptedResponse::full(
+        "GET",
+        "302 Found",
+        None,
+        &format!(r#"<html><a href="{target}">Found</a></html>"#),
+    );
+    redirect
+        .headers
+        .push_str(&format!("Location: {target}\r\n"));
+    rows.push(Row {
+        name: "a_get_3xx_fails_its_job_with_the_target_redacted_and_no_body".into(),
         script: vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
-            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after the hold"]}"#),
+            redirect,
         ],
-        requests: vec![submit("fetch")],
-        ends: vec![JobState::Done],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed).carries(&["302 Found", "https://www.pathofexile.com/login?…"]),
+            Job::probe(Done),
+        ],
         journal: vec![
-            json!(["HEAD", "/fetch", 204, false, 0]),
-            json!(["GET", "/fetch", 429, true, 0]),
-            json!(["GET", "/fetch", 200, true, full_hold_ms()]),
+            probe_sent(),
+            json!(["GET", "/fetch", 302, false, true, 0, "unclassified"]),
         ],
-    }]
+        forbids: vec![forbid(
+            SENTINEL,
+            &[
+                Surface::Journal,
+                Surface::DashboardErrors,
+                Surface::JobErrors,
+            ],
+        )],
+        ..Row::default()
+    });
+    rows
 }
 
 /// C158: every row of the wire table through the door on a parking
 /// clock, the runtime's park hook moving virtual time whenever nothing
-/// the scenario started can run: each job ends as the row says and the
-/// journal is the row's, the 429 hold's whole 61 s in virtual time. What
-/// the hook did prints under `--no-capture`, asserted by nothing.
+/// the scenario started can run. The runner subscribes to the job events
+/// once, before any submit, as a frontend does: every job a row ends
+/// published exactly one terminal event, and a job it leaves waiting
+/// none; a subscription that lost events fails the row. It reads nothing
+/// but the protocol's answers, the journal and its own clock. What the
+/// hook did prints under `--no-capture`, asserted by nothing.
 #[test]
 fn c158_the_wire_table_through_the_door() {
     for row in wire_rows() {
         let Row {
             name,
             script,
-            requests,
-            ends,
+            logged_in,
+            steps,
+            jobs,
             journal,
+            forbids,
+            virtual_at_most,
         } = row;
-        let hook = Door::open(
+        let clock = Arc::new(ParkingClock::new());
+        let origin = clock.now();
+        let parking = clock.clone();
+        // A row that reads a second lifetime gives both the same rails
+        // state, where a restart finds a block's mark.
+        let state = TestPath::dir();
+        let state_path = steps
+            .iter()
+            .any(|step| matches!(step, Step::SecondLifetime { .. }))
+            .then(|| state.join("rails.json"));
+        let mut door = Door::open(
             Server::Script(script),
-            Arc::new(ParkingClock::new()),
+            clock,
             Arc::new(RecordingCredentialStore::default()),
         )
-        .run(|mut door| async move {
-            let mut ended = Vec::new();
-            for request in requests {
-                if let Response::Submitted { id } = door.request(request).await {
-                    ended.push(door.await_terminal(id).await.0.state);
+        .rails(RailsConfig {
+            state_path: state_path.clone(),
+            ..RailsConfig::default()
+        });
+        if logged_in {
+            door = door.sessions(logged_in_sessions());
+        }
+        let row = name.clone();
+        let hook = door.run(|mut door| async move {
+            let mut events = door.subscribe().await;
+            let mut submitted = Vec::new();
+            let mut halts = Vec::new();
+            for step in steps {
+                match step {
+                    Step::Send(requests) => {
+                        for request in requests {
+                            match door.request(request).await {
+                                Response::Submitted { id } => submitted.push(id),
+                                other => panic!("{name}: a submit answered {other:?}"),
+                            }
+                        }
+                    }
+                    Step::Await(wanted) => {
+                        for (submit, state) in wanted {
+                            let id = submitted[submit];
+                            let reached = if state.is_terminal() {
+                                door.await_terminal(id).await.0.state
+                            } else {
+                                door.settle().await;
+                                door.await_job(id, |job| job.state != JobState::Running)
+                                    .await
+                                    .state
+                            };
+                            assert_eq!(reached, state, "{name}: submit {submit} (job {id})");
+                        }
+                    }
+                    Step::Cancel(submit) => {
+                        let id = submitted[submit];
+                        let answer = door.request(Request::Cancel { id }).await;
+                        assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
+                    }
+                    Step::ResetTripwire => {
+                        let answer = door.request(Request::ResetTripwire).await;
+                        assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
+                    }
+                    Step::DaemonStatus { halted } => {
+                        let read = halted_of(door.request(Request::DaemonStatus).await);
+                        assert_halted(&name, "this lifetime", read.as_deref(), halted.as_deref());
+                        halts.extend(read);
+                    }
+                    Step::Dashboard { degraded } => {
+                        let Response::Dashboard {
+                            degraded_endpoints, ..
+                        } = door.request(Request::Dashboard).await
+                        else {
+                            panic!("{name}: the dashboard did not answer")
+                        };
+                        let named: Vec<&str> = degraded_endpoints
+                            .iter()
+                            .map(|endpoint| endpoint.endpoint.as_str())
+                            .collect();
+                        assert_eq!(named, degraded, "{name}: the degraded endpoints");
+                    }
+                    Step::SecondLifetime { halted } => {
+                        let mut second = Door::open(
+                            Server::None,
+                            Arc::new(ParkingClock::new()),
+                            Arc::new(RecordingCredentialStore::default()),
+                        )
+                        .rails(RailsConfig {
+                            state_path: state_path.clone(),
+                            ..RailsConfig::default()
+                        })
+                        .beside()
+                        .await;
+                        let read = halted_of(second.request(Request::DaemonStatus).await);
+                        second.finish().await;
+                        assert_halted(
+                            &name,
+                            "a second lifetime",
+                            read.as_deref(),
+                            halted.as_deref(),
+                        );
+                        halts.extend(read);
+                    }
                 }
             }
-            assert_eq!(ended, ends, "{name}: the jobs' ends");
+
+            // Every job the daemon lists, against the row's, with the
+            // terminal events the subscription carried.
+            let listed = match door.request(Request::List).await {
+                Response::Jobs { jobs } => jobs,
+                other => panic!("{name}: the job list reads {other:?}"),
+            };
+            let mut ended: HashMap<JobId, usize> = HashMap::new();
+            loop {
+                match events.try_recv() {
+                    Ok(job) if job.state.is_terminal() => *ended.entry(job.id).or_default() += 1,
+                    Ok(_) => {}
+                    Err(broadcast::error::TryRecvError::Empty) => break,
+                    Err(error) => panic!("{name}: the subscription lost events: {error:?}"),
+                }
+            }
             assert_eq!(
-                journal_projection(&door.journal()),
-                journal,
-                "{name}: the journal"
+                listed.len(),
+                jobs.len(),
+                "{name}: the jobs listed: {listed:?}"
             );
+            let mut errors = Vec::new();
+            for (job, want) in listed.iter().zip(&jobs) {
+                let id = job.id;
+                assert_eq!(
+                    (job.kind.as_str(), job.state, job.retries),
+                    (want.kind, want.end, want.retries),
+                    "{name}: job {id}"
+                );
+                assert_eq!(
+                    ended.remove(&id).unwrap_or(0),
+                    usize::from(job.state.is_terminal()),
+                    "{name}: job {id}'s terminal events"
+                );
+                if !job.state.is_terminal() {
+                    assert!(
+                        want.marker.is_none() && want.carries.is_empty() && want.lacks.is_empty(),
+                        "{name}: job {id} has no outcome to read"
+                    );
+                    continue;
+                }
+                let outcome = match door.request(Request::Result { id }).await {
+                    Response::Result { outcome, .. } => outcome,
+                    other => panic!("{name}: job {id}'s result reads {other:?}"),
+                };
+                if let Some(marker) = want.marker {
+                    assert_eq!(fetch_payload_marker(&outcome), marker, "{name}: job {id}");
+                }
+                match &outcome {
+                    Outcome::Failure { error, .. } => {
+                        for words in &want.carries {
+                            assert!(
+                                error.contains(words.as_str()),
+                                "{name}: job {id} lacks {words:?}: {error}"
+                            );
+                        }
+                        for words in &want.lacks {
+                            assert!(
+                                !error.contains(words.as_str()),
+                                "{name}: job {id} carries {words:?}: {error}"
+                            );
+                        }
+                        errors.push(error.clone());
+                    }
+                    _ => assert!(
+                        want.carries.is_empty() && want.lacks.is_empty(),
+                        "{name}: job {id} has no failure's words to read: {outcome:?}"
+                    ),
+                }
+            }
+            assert!(
+                ended.is_empty(),
+                "{name}: terminal events of jobs not listed: {ended:?}"
+            );
+
+            let sends = door.journal();
+            assert_eq!(journal_projection(&sends), journal, "{name}: the journal");
+            let dashboard_errors = match door.request(Request::Dashboard).await {
+                Response::Dashboard { errors, .. } => serde_json::to_string(&errors).unwrap(),
+                other => panic!("{name}: the dashboard reads {other:?}"),
+            };
+            let journal_text = serde_json::to_string(&sends).unwrap();
+            for Forbid { fragment, from } in &forbids {
+                for surface in *from {
+                    let texts: Vec<&str> = match surface {
+                        Surface::Journal => vec![&journal_text],
+                        Surface::DashboardErrors => vec![&dashboard_errors],
+                        Surface::JobErrors => errors.iter().map(String::as_str).collect(),
+                        Surface::Halts => halts.iter().map(String::as_str).collect(),
+                    };
+                    for text in texts {
+                        assert!(
+                            !text.contains(fragment.as_str()),
+                            "{name}: {surface:?} keeps {fragment:?}: {text}"
+                        );
+                    }
+                }
+            }
+            if let Some(bound) = virtual_at_most {
+                let moved = parking.now() - origin;
+                assert!(
+                    moved <= bound,
+                    "{name}: the clock moved {moved:?}, past {bound:?}"
+                );
+            }
             door.finish().await;
         });
-        eprintln!("{name}: the park hook: {hook:?}");
+        drop(state);
+        eprintln!("{row}: the park hook: {hook:?}");
+    }
+}
+
+/// `DaemonStatus`'s `rails.halted`.
+fn halted_of(answer: Response) -> Option<String> {
+    match answer {
+        Response::DaemonStatus { rails, .. } => rails.halted,
+        other => panic!("the daemon's status reads {other:?}"),
+    }
+}
+
+/// A lifetime's halt as a row expects it: carrying `want`'s words, or none.
+fn assert_halted(name: &str, lifetime: &str, read: Option<&str>, want: Option<&str>) {
+    match want {
+        Some(words) => assert!(
+            read.is_some_and(|halted| halted.contains(words)),
+            "{name}: {lifetime}'s halt lacks {words:?}: {read:?}"
+        ),
+        None => assert_eq!(read, None, "{name}: {lifetime} is halted"),
     }
 }
 

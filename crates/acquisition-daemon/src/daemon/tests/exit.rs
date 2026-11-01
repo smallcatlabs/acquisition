@@ -38,18 +38,6 @@ fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, TestPath, TestPath)
     exit_daemon_on(base, bound, Arc::new(ParkingClock::new()))
 }
 
-/// The sessions [`logged_in`] leaves a harness daemon with, for a door:
-/// `test-user`, its refresh token `rt-old`, the keyring `ok`.
-fn logged_in_sessions() -> Sessions {
-    let mut sessions = Sessions::with(AuthSession {
-        refresh_token: Some("rt-old".into()),
-        ..AuthSession::default()
-    });
-    sessions.rename("", "test-user");
-    sessions.keyring = "ok".into();
-    sessions
-}
-
 /// A client's submit, as `Request::Submit` carries it.
 fn submit_request(kind: &str, params: Value, account: Option<&str>) -> Request {
     Request::Submit {

@@ -11,7 +11,11 @@
 //! and the stop a frontend's `acq daemon stop` sends ([`Door::stop`]),
 //! awaits a job's state, its end or an auth answer on the daemon's events
 //! ([`Door::await_job`], [`Door::await_terminal`], [`Door::await_auth`])
-//! and the exit's leave ([`Door::await_leave`]), reads the journal
+//! and the exit's leave ([`Door::await_leave`]), subscribes to the job
+//! events as a frontend does ([`Door::subscribe`]), awaits the runtime
+//! settled where a state must hold once the daemon has done all it can
+//! ([`Door::settle`]), reads a second lifetime through a door opened
+//! beside it ([`DoorBuilder::beside`]), reads the journal
 //! ([`Door::journal`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
 //! [`Door::laptop_sleep`]) and ends through the oracles
@@ -139,6 +143,9 @@ pub(super) struct Counters {
     pub(super) held_by_scenario: usize,
     /// Parks that found nothing parked on the clock.
     pub(super) nothing_parked: usize,
+    /// Parks that found the scenario awaiting a settled runtime
+    /// ([`Door::settle`]) and woke it in the clock's place.
+    pub(super) settles: usize,
 }
 
 /// C158, the park hook: run at every park of the door's current-thread
@@ -149,7 +156,9 @@ pub(super) struct Counters {
 /// verdict on its thread): then the park is the wire's or the blocking
 /// thread's, and time must not move under it; nor while the scenario
 /// holds the clock across a wait of its own ([`Door::hold_clock`]).
-/// Tokio's paused clock
+/// When the scenario awaits a settled runtime ([`Door::settle`]), a park
+/// that would move the clock wakes the scenario instead and moves
+/// nothing. Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
@@ -160,7 +169,12 @@ struct IdleHook {
     counters: Arc<Mutex<Counters>>,
     /// The scenario's holds ([`Door::hold_clock`]).
     holds: Arc<AtomicUsize>,
+    /// The scenario's wait for a settled runtime ([`Door::settle`]).
+    settle: SettleSlot,
 }
+
+/// Where [`Door::settle`] leaves its waker for the park hook.
+type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 
 impl IdleHook {
     fn on_idle(&mut self) {
@@ -171,6 +185,11 @@ impl IdleHook {
             counters.held_by_send += 1;
         } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
             counters.held_by_blocking += 1;
+        } else if let Some(settled) = self.settle.lock().unwrap().take() {
+            // Tokio runs a task an `on_thread_park` hook wakes instead of
+            // parking, so the scenario resumes with nothing else runnable.
+            let _ = settled.send(());
+            counters.settles += 1;
         } else if self.clock.advance_to_next().is_some() {
             counters.advances += 1;
         } else {
@@ -238,6 +257,8 @@ pub(super) struct Door {
     counters: Arc<Mutex<Counters>>,
     /// The scenario's holds on the clock, which the hook reads.
     holds: Arc<AtomicUsize>,
+    /// The scenario's wait for a settled runtime, which the hook wakes.
+    settle: SettleSlot,
     finished: bool,
 }
 
@@ -365,11 +386,27 @@ impl DoorBuilder {
                 daemon: door.daemon.clone(),
                 counters: counters.clone(),
                 holds: door.holds.clone(),
+                settle: door.settle.clone(),
             });
             scenario(door).await;
             slot.lock().unwrap().take();
             *counters.lock().unwrap()
         })
+    }
+
+    /// A second door, opened inside a first door's scenario on the
+    /// runtime that scenario runs on (a second `run` would nest one
+    /// runtime in another): the fixture and the daemon built as
+    /// [`Self::run`] builds them, the dispatcher spawned, and no park hook
+    /// of its own, since the first door's hook holds the runtime and
+    /// reads the first daemon's counts alone. For a second lifetime read
+    /// while the first is live (a restart's view of the same rails
+    /// state path, C129): a daemon that is asked, sends nothing and is
+    /// finished in the scenario, never one with work that sleeps or
+    /// sends, which the hook would not see. [`Door::settle`] is the first
+    /// door's.
+    pub(super) async fn beside(self) -> Door {
+        self.build().await
     }
 
     /// The fixture, then the daemon on the clock, journaling to a scratch
@@ -473,6 +510,7 @@ impl DoorBuilder {
             leave,
             counters: Arc::default(),
             holds: Arc::default(),
+            settle: Arc::default(),
             finished: false,
         }
     }
@@ -483,6 +521,37 @@ impl Door {
     /// frontend's frame takes, with the door's own events receiver.
     pub(super) async fn request(&mut self, req: Request) -> Response {
         self.daemon.handle_request(req, &mut self.events).await
+    }
+
+    /// C85, a frontend's subscription: `Subscribe` sent through
+    /// [`Self::request`], answered `subscribed`, and the daemon's job
+    /// events from then on, as the subscribed connection carries them.
+    pub(super) async fn subscribe(&mut self) -> broadcast::Receiver<JobInfo> {
+        match self.request(Request::Subscribe).await {
+            Response::Subscribed => {}
+            other => panic!("a subscribe answered {other:?}"),
+        }
+        self.events
+            .take()
+            .expect("the subscription's receiver, which `subscribe` installs")
+    }
+
+    /// C158: the runtime settled. Resolves at the first park at which the
+    /// hook would move the clock or find nothing parked: no task can run,
+    /// no send and no blocking task is in flight, and the scenario does
+    /// not hold the clock. That park moves nothing; the scenario resumes
+    /// in its place. For a state that must hold once the daemon has done
+    /// all it can without time moving (a halted daemon's sibling left
+    /// waiting), never a sleep that stands for it. Needs the door's own
+    /// hook: a door opened [`DoorBuilder::beside`] another has none.
+    pub(super) async fn settle(&self) {
+        let (settled, wake) = oneshot::channel();
+        let previous = self.settle.lock().unwrap().replace(settled);
+        assert!(previous.is_none(), "one settle at a time");
+        tokio::time::timeout(HANG, wake)
+            .await
+            .expect("the runtime settled")
+            .expect("the park hook woke the settle");
     }
 
     /// A protocol request on a connection of its own, spawned: a second

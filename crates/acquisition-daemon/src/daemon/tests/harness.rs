@@ -1261,6 +1261,18 @@ pub(super) fn logged_in(daemon: &mut Arc<Daemon>) {
     s.auth.keyring = "ok".into();
 }
 
+/// The sessions [`logged_in`] leaves a harness daemon with, for a door:
+/// `test-user`, its refresh token `rt-old`, the keyring `ok`.
+pub(super) fn logged_in_sessions() -> Sessions {
+    let mut sessions = Sessions::with(AuthSession {
+        refresh_token: Some("rt-old".into()),
+        ..AuthSession::default()
+    });
+    sessions.rename("", "test-user");
+    sessions.keyring = "ok".into();
+    sessions
+}
+
 /// `path` at `mode` until this drops, then back at the mode it had. A
 /// test that takes write away from a folder holds one, declared after the
 /// folder's own guard: it drops first, so the folder can go however the
