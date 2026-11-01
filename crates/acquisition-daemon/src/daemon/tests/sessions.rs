@@ -109,12 +109,7 @@ async fn abandon_then_success_token_responses(
     let requests = Arc::new(Mutex::new(Vec::new()));
     let captured = requests.clone();
     let server = tokio::spawn(async move {
-        let headers = concat!(
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-        );
+        let headers = TOKEN_HEADERS;
 
         let (mut first, _) = listener.accept().await.unwrap();
         let request = mockggg::read_request(&mut first).await.unwrap();
@@ -517,12 +512,7 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         assert_eq!(request.method, "POST");
         assert_eq!(request.path, "/token");
         token_arrived_tx.send(()).unwrap();
-        let token_headers = concat!(
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-        );
+        let token_headers = TOKEN_HEADERS;
         mockggg::respond_with(
             &mut token,
             "200 OK",

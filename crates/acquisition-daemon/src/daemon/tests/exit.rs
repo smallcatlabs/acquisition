@@ -708,12 +708,7 @@ fn exit_waits_for_a_login_code_exchange() {
                 "username": "test-user",
             })
             .to_string();
-            let headers = concat!(
-                "X-Rate-Limit-Policy: token-request-limit\r\n",
-                "X-Rate-Limit-Rules: Ip\r\n",
-                "X-Rate-Limit-Ip: 60:30:30\r\n",
-                "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-            );
+            let headers = TOKEN_HEADERS;
             mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
         });
         served_tx.send(server).unwrap();

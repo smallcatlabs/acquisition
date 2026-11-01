@@ -82,9 +82,6 @@ fn login_daemon(
     (daemon, credentials, store_dir, log_path)
 }
 
-/// The token route's rate headers, as GGG answers a grant.
-const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
-
 /// The code exchange answered `status` with `body` and the token route's
 /// headers.
 fn exchange(status: &'static str, body: String) -> ScriptedResponse {

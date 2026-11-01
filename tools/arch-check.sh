@@ -35,6 +35,11 @@
 #      lines, `spawn_blocking` is written once, in `Daemon::blocking`,
 #      the helper that counts it for a door scenario's park hook.
 #
+#  11. The routes whose first send carries no probe are one set (C159):
+#      each copy outside the daemon crate (the client harness's journal
+#      oracle, the two live-run verifiers) holds the set the daemon's
+#      `NO_PROBE_ROUTES` and `TOKEN_ROUTE` compose.
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -504,5 +509,57 @@ print(f"ok      {'blocking':<13} {n} daemon source files outside tests/: the one
 PY
 ); then fail=1; fi
 printf '%s\n' "$blocking"
+
+# ---- 11. the routes whose first send carries no probe, held in one set ----
+# C159: the routes whose first send in a lifetime carries no probe are the
+# daemon's declaration (`NO_PROBE_ROUTES`, `daemon/routes.rs`) and the
+# token endpoint (`TOKEN_ROUTE`, `ratelimit/limiter.rs`); the daemon
+# harness's wire oracle reads the two constants. Three copies of the set
+# live where the daemon crate cannot be linked or read: the client
+# harness's journal oracle (a `matches!` of the route names), and the
+# two live-run verifiers' `NO_PROBE` (Python). Each copy's literal set is
+# read here and held equal to the set the two constants compose; a copy
+# whose literal is not found once, or a constant not found once, fails,
+# never passes as a set that matched nothing.
+if ! exempt=$(python3 -I - <<'PY'
+import re, sys
+def read(path):
+    return open(path, encoding="utf-8").read()
+def once(path, pattern, what):
+    found = re.findall(pattern, read(path), re.S | re.M)
+    if len(found) != 1:
+        bad.append(f"EXEMPT  {path} holds {what} {len(found)} times, where the check reads it once: the copy cannot be compared, so it is refused (C159)")
+        return None
+    return found[0]
+def names(text):
+    return set(re.findall(r'"([^"]*)"', text))
+bad = []
+ROUTES = "crates/acquisition-daemon/src/daemon/routes.rs"
+LIMITER = "crates/acquisition-daemon/src/ratelimit/limiter.rs"
+declared = once(ROUTES, r"const NO_PROBE_ROUTES: &'static \[&'static str\] = &\[([^\]]*)\];", "NO_PROBE_ROUTES")
+token = once(LIMITER, r'^pub const TOKEN_ROUTE: &str = "([^"]*)";', "TOKEN_ROUTE")
+if declared is None or token is None:
+    print("\n".join(bad)); sys.exit(1)
+daemon = names(declared) | {token}
+copies = [
+    ("crates/acquisition-client/tests/harness/mod.rs",
+     r'let probed = !matches!\(\s*name\(&send\.route\)\.as_str\(\),\s*((?:"[^"]*"\s*\|?\s*)+)\);',
+     "the journal oracle's matches! of the routes it does not probe"),
+    ("tools/persist-verify.py", r"^NO_PROBE = \{([^}]*)\}$", "NO_PROBE"),
+    ("tools/tracer-verify.py", r"^NO_PROBE = \{([^}]*)\}$", "NO_PROBE"),
+]
+for path, pattern, what in copies:
+    found = once(path, pattern, what)
+    if found is None:
+        continue
+    copy = names(found)
+    if copy != daemon:
+        bad.append(f"EXEMPT  {path}: {what} is {sorted(copy)}, the daemon's set is {sorted(daemon)} (NO_PROBE_ROUTES with TOKEN_ROUTE): a copy of the routes whose first send carries no probe holds the daemon's set (C159)")
+if bad:
+    print("\n".join(bad)); sys.exit(1)
+print(f"ok      {'exempt':<13} {len(copies)} copies of the routes whose first send carries no probe equal the daemon's {sorted(daemon)}, NO_PROBE_ROUTES with TOKEN_ROUTE (C159)")
+PY
+); then fail=1; fi
+printf '%s\n' "$exempt"
 
 exit $fail

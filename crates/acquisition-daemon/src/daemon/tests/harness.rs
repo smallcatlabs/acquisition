@@ -642,12 +642,7 @@ pub(super) async fn delayed_token_server(
         assert!(request.body.contains("refresh_token=rt-old"));
         arrived_tx.send(()).unwrap();
         release_rx.await.unwrap();
-        let headers = concat!(
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-        );
+        let headers = TOKEN_HEADERS;
         mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
     });
     (base, arrived_rx, release_tx, task)
@@ -737,13 +732,31 @@ pub(super) fn journal_of(log_path: &std::path::Path) -> PathBuf {
 /// comes back through `daemon.choke.rails()`. Its credential store is a
 /// `RecordingCredentialStore` (`harness_credentials` reads it): a harness
 /// daemon never writes the developer's keychain unless its test names
-/// the OS store.
+/// the OS store. One empty session ([`test_daemon_at`] takes others).
 pub(super) fn test_daemon_with(
     provider: Provider,
     clock: Arc<dyn Clock>,
     config: RailsConfig,
 ) -> (Arc<Daemon>, TestPath) {
-    let log_path = test_log_path();
+    test_daemon_at(
+        provider,
+        clock,
+        config,
+        test_log_path(),
+        Sessions::with(AuthSession::default()),
+    )
+}
+
+/// [`test_daemon_with`], its log (and the journal beside it) at
+/// `log_path`, which a child process names inside its own directory, and
+/// its sessions `sessions`, as the daemon's builder takes them.
+pub(super) fn test_daemon_at(
+    provider: Provider,
+    clock: Arc<dyn Clock>,
+    config: RailsConfig,
+    log_path: TestPath,
+    sessions: Sessions,
+) -> (Arc<Daemon>, TestPath) {
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal_of(&log_path)),
@@ -751,31 +764,16 @@ pub(super) fn test_daemon_with(
         },
         clock.clone(),
     ));
-    test_daemon_scenario_at(
-        provider,
-        clock,
-        rails,
-        Arc::new(RecordingCredentialStore::default()),
-        log_path,
-    )
-}
-
-pub(super) fn test_daemon_scenario_at(
-    provider: Provider,
-    clock: Arc<dyn Clock>,
-    rails: Arc<Rails>,
-    credential_store: Arc<dyn CredentialStore>,
-    log_path: TestPath,
-) -> (Arc<Daemon>, TestPath) {
     let log = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .open(&log_path)
         .unwrap();
-    let daemon = Daemon::builder(provider, clock, credential_store, log)
+    let credentials: Arc<dyn CredentialStore> = Arc::new(RecordingCredentialStore::default());
+    let daemon = Daemon::builder(provider, clock, credentials, log)
         .rails(rails)
-        .sessions(Sessions::with(AuthSession::default()))
+        .sessions(sessions)
         .log_path(log_path.to_str().map(str::to_string))
         .build();
     (daemon, log_path)
@@ -1081,12 +1079,12 @@ pub(super) fn full_hold_ms() -> u64 {
 /// experiment 3) found expressible over the journal alone and true of
 /// the product with rails off:
 ///
-/// - N16/N24, probe-before-send: within one daemon lifetime the first
-///   send on any API route is a HEAD. The token endpoint is never
-///   probed, nor are `profile` and `league`, the two routes
-///   `Daemon::NO_PROBE_ROUTES` declares (C32); the route's name is the
-///   part of its endpoint key before `@`, as the client harness's rule
-///   reads it.
+/// - N16/N24, probe-before-send, and C159, its exempt routes: within one
+///   daemon lifetime the first send on a route is a HEAD, unless the
+///   route is the token endpoint (`TOKEN_ROUTE`) or one the daemon
+///   declares (`Daemon::NO_PROBE_ROUTES`, C32), whose first send is
+///   never a HEAD ([`probe_exempt`]); the route's name is the part of its
+///   endpoint key before `@`, as the client harness's rule reads it.
 /// - N24, accounting: a HEAD is never counted; everything else is.
 ///
 /// Not here, though it was from 2026-08-24 to 2026-09-12: "after a
@@ -1104,15 +1102,19 @@ fn assert_wire_contract(sends: &[Value]) {
         let pid = send["pid"].as_u64().unwrap();
         let route = send["route"].as_str().unwrap().to_string();
         let method = send["method"].as_str().unwrap();
-        let probed = !matches!(
-            crate::ratelimit::split_endpoint_key(&route).0,
-            "oauth-token" | "profile" | "league"
-        );
-        if probed && seen.insert((pid, route.clone())) {
-            assert_eq!(
-                method, "HEAD",
-                "first send on {route} in pid {pid} was not a probe: {send}"
-            );
+        if seen.insert((pid, route.clone())) {
+            if probe_exempt(&route) {
+                assert_ne!(
+                    method, "HEAD",
+                    "first send on {route} in pid {pid} was a probe, on a route whose first \
+                     send carries none (C159): {send}"
+                );
+            } else {
+                assert_eq!(
+                    method, "HEAD",
+                    "first send on {route} in pid {pid} was not a probe: {send}"
+                );
+            }
         }
         assert_eq!(
             send["counted"],
@@ -1120,6 +1122,15 @@ fn assert_wire_contract(sends: &[Value]) {
             "HEADs are not counted and everything else is: {send}"
         );
     }
+}
+
+/// C159: whether `route`'s first send in a lifetime carries no probe:
+/// the token endpoint and the routes the daemon declares, read from the
+/// daemon's own constants, the one set (the copies outside the daemon
+/// crate are held equal to it by check 11 of `tools/arch-check.sh`).
+fn probe_exempt(route: &str) -> bool {
+    let name = crate::ratelimit::split_endpoint_key(route).0;
+    name == crate::ratelimit::TOKEN_ROUTE || Daemon::NO_PROBE_ROUTES.contains(&name)
 }
 
 /// The pacing invariant, derived from N19 and C19 rather than from the
@@ -1286,12 +1297,7 @@ pub(super) async fn token_server_answering(
             let request = mockggg::read_request(&mut stream).await.unwrap();
             assert_eq!(request.path, "/token");
             captured.lock().unwrap().push(request.body.clone());
-            let headers = concat!(
-                "X-Rate-Limit-Policy: token-request-limit\r\n",
-                "X-Rate-Limit-Rules: Ip\r\n",
-                "X-Rate-Limit-Ip: 60:30:30\r\n",
-                "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-            );
+            let headers = TOKEN_HEADERS;
             let body = if status.starts_with("200") {
                 json!({
                     "access_token": "at-new",
@@ -1498,12 +1504,7 @@ pub(super) async fn account_server(
                         "username": account,
                     })
                     .to_string();
-                    let headers = concat!(
-                        "X-Rate-Limit-Policy: token-request-limit\r\n",
-                        "X-Rate-Limit-Rules: Ip\r\n",
-                        "X-Rate-Limit-Ip: 60:30:30\r\n",
-                        "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-                    );
+                    let headers = TOKEN_HEADERS;
                     mockggg::respond_with(
                         &mut stream,
                         "200 OK",

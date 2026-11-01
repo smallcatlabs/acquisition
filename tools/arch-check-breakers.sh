@@ -16,7 +16,9 @@
 # unparseable, fails the suite instead of passing as a refusal.
 #
 # The spawn rule's cases (§9) append to a test file the tree has, so no
-# case is also a layout refusal.
+# case is also a layout refusal. The exempt-route cases (§11) drift one
+# copy of the set, or the daemon's declaration under all three, or hide a
+# copy's literal from the reader.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -39,7 +41,8 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
-files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh)
+files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
+       crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -118,7 +121,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|dependencies|layout' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|dependencies|layout|exempt' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -251,6 +254,22 @@ run_case 'a test runs a system tool by name'                     pass   'ok     
 run_case 'a comment names the binary'                            pass   'ok      spawns'            cli_test "\n// the binary is $BIN, through the harness\n"
 run_case 'the harness names the binary and spawns it by a path'  pass   'ok      spawns'            in_tests crates/acquisition-cli/tests/harness/mod.rs "\nfn zz() { let _ = Command::new(env!(\"$BIN\")); }\n"
 run_case 'the daemon crate'"'"'s tests, which cannot link the harness' pass 'ok      spawns'           in_tests crates/acquisition-daemon/tests/main.rs '\nfn zz(p: &std::path::Path) { let _ = Command::new(p); }\n'
+
+echo '== the code: the routes whose first send carries no probe are one set (C159)'
+drift() {  # drift <file> <old> <new>: an exact-once substitution in a copy of the set
+  python3 - "$1" "$2" "$3" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+assert s.count(sys.argv[2]) == 1, 'drift anchor not found once: ' + sys.argv[2][:60]
+p.write_text(s.replace(sys.argv[2], sys.argv[3]))
+PY
+}
+CLIENT=crates/acquisition-client/tests/harness/mod.rs
+run_case 'the set and its three copies as they stand'            pass   'ok      exempt' none
+run_case 'a live-run verifier drops a route'                     refuse 'EXEMPT  tools/persist-verify.py: NO_PROBE is' drift tools/persist-verify.py 'NO_PROBE = {"oauth-token", "profile", "league"}' 'NO_PROBE = {"oauth-token", "profile"}'
+run_case 'the client harness skips a route the daemon probes'    refuse "EXEMPT  $CLIENT: the journal oracle" drift "$CLIENT" '"oauth-token" | "profile" | "league"' '"oauth-token" | "profile" | "league" | "stash"'
+run_case 'the daemon declares a route no copy names'             refuse 'EXEMPT  tools/tracer-verify.py: NO_PROBE is' drift crates/acquisition-daemon/src/daemon/routes.rs '&["profile", "league"]' '&["profile", "league", "character"]'
+run_case 'a copy renamed past the reader'                        refuse 'EXEMPT  tools/tracer-verify.py holds NO_PROBE 0 times' drift tools/tracer-verify.py 'NO_PROBE = {' 'NO_PROBES = {'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

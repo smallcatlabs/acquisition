@@ -35,7 +35,6 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
                 .unwrap_or("")
                 .to_string();
             let api_headers = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
-            let token_headers = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
             let (status, headers, body) = if request.path == "/token" {
                 kept.lock().unwrap().push(request.body.clone());
                 let (access, refresh) = if request.body.contains("grant_type=authorization_code") {
@@ -50,7 +49,7 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
                     "username": "log-user",
                 })
                 .to_string();
-                ("200 OK", token_headers, body)
+                ("200 OK", TOKEN_HEADERS, body)
             } else if request.path == "/profile" {
                 let body = json!({ "uuid": "uuid-log-user", "name": "log-user" }).to_string();
                 ("200 OK", "", body)
@@ -82,22 +81,8 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
 async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     let (base, forms, server) = token_aware_server().await;
     let clock = Arc::new(ParkingClock::new());
-    let log_path = test_log_path();
-    let rails = Arc::new(Rails::with_config_and_clock(
-        RailsConfig {
-            journal_path: Some(journal_of(&log_path)),
-            ..RailsConfig::default()
-        },
-        clock.clone(),
-    ));
-    let credentials = Arc::new(RecordingCredentialStore::default());
-    let (mut daemon, log_path) = test_daemon_scenario_at(
-        Provider::mock(&base),
-        clock.clone(),
-        rails,
-        credentials.clone() as Arc<dyn CredentialStore>,
-        log_path,
-    );
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
     let store_dir = TestPath::dir();
     Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
     daemon.shared.lock().unwrap().auth.by_account.clear();
@@ -171,7 +156,7 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
         "the refresh was sent: {forms:?}"
     );
     assert!(
-        credentials
+        harness_credentials(&daemon)
             .entries
             .lock()
             .unwrap()
@@ -200,8 +185,22 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     finish_harness(dispatcher, &log_path);
 }
 
-/// The token endpoint's rate headers (N33).
-const TOKEN_RATE: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+/// `scenario-user`'s one session, as a grant leaves it: `access` until
+/// `expires_in` seconds past `clock`'s wall, and `refresh`.
+fn scenario_session(
+    clock: &ParkingClock,
+    access: &str,
+    refresh: &str,
+    expires_in: u64,
+) -> Sessions {
+    Sessions::with(AuthSession {
+        username: Some("scenario-user".into()),
+        access_token: Some(access.into()),
+        access_expires_at: Some(clock.wall() + Duration::from_secs(expires_in)),
+        refresh_token: Some(refresh.into()),
+        ..AuthSession::default()
+    })
+}
 
 /// A provider whose token endpoint answers every refresh with `status`,
 /// `headers` and `body`; any other request is a 200.
@@ -236,7 +235,7 @@ async fn refresh_answered_by(
     extra: &'static str,
     body: &'static str,
 ) -> String {
-    refresh_answered_by_headers(status, format!("{TOKEN_RATE}{extra}"), body)
+    refresh_answered_by_headers(status, format!("{TOKEN_HEADERS}{extra}"), body)
         .await
         .0
 }
@@ -249,34 +248,13 @@ async fn refresh_answered_by_headers(
 ) -> (String, ()) {
     let (base, server) = token_endpoint_answering(status, headers.into(), body).await;
     let clock = Arc::new(ParkingClock::new());
-    let log_path = test_log_path();
-    let rails = Arc::new(Rails::with_config_and_clock(
-        RailsConfig {
-            journal_path: Some(journal_of(&log_path)),
-            ..RailsConfig::default()
-        },
-        clock.clone(),
-    ));
-    let (daemon, log_path) = test_daemon_scenario_at(
+    let (daemon, log_path) = test_daemon_at(
         Provider::mock(&base),
         clock.clone(),
-        rails,
-        Arc::new(NoopCredentialStore),
-        log_path,
+        RailsConfig::default(),
+        test_log_path(),
+        scenario_session(&clock, "at-expired", "rt-held", 60),
     );
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "scenario-user");
-        daemon.install_tokens_locked(
-            s.auth.one_mut(),
-            auth::TokenResponse {
-                access_token: "at-expired".into(),
-                refresh_token: "rt-held".into(),
-                expires_in: 60,
-                username: "scenario-user".into(),
-            },
-        );
-    }
     clock.advance(Duration::from_secs(120));
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let job = daemon
@@ -403,34 +381,13 @@ async fn api_answered_by(
         }
     });
     let clock = Arc::new(ParkingClock::new());
-    let log_path = test_log_path();
-    let rails = Arc::new(Rails::with_config_and_clock(
-        RailsConfig {
-            journal_path: Some(journal_of(&log_path)),
-            ..RailsConfig::default()
-        },
-        clock.clone(),
-    ));
-    let (daemon, log_path) = test_daemon_scenario_at(
+    let (daemon, log_path) = test_daemon_at(
         Provider::mock(&base),
         clock.clone(),
-        rails,
-        Arc::new(NoopCredentialStore),
-        log_path,
+        RailsConfig::default(),
+        test_log_path(),
+        scenario_session(&clock, "at-live", "rt-live", 3600),
     );
-    {
-        let mut s = daemon.shared.lock().unwrap();
-        s.auth.rename("", "scenario-user");
-        daemon.install_tokens_locked(
-            s.auth.one_mut(),
-            auth::TokenResponse {
-                access_token: "at-live".into(),
-                refresh_token: "rt-live".into(),
-                expires_in: 3600,
-                username: "scenario-user".into(),
-            },
-        );
-    }
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let job = daemon
         .submit(

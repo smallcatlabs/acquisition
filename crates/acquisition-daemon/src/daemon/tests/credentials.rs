@@ -483,20 +483,12 @@ fn landing_panic_child(dir: &std::path::Path) -> ! {
     runtime.block_on(async {
         let (base, _sent, _arrived, _release) = account_server(("GET", "/never", 0)).await;
         let clock = Arc::new(ParkingClock::new());
-        let log_path = TestPath::file_in(dir, "daemon.log");
-        let rails = Arc::new(Rails::with_config_and_clock(
-            RailsConfig {
-                journal_path: Some(journal_of(&log_path)),
-                ..RailsConfig::default()
-            },
-            clock.clone(),
-        ));
-        let (mut daemon, _log_path) = test_daemon_scenario_at(
+        let (mut daemon, _log_path) = test_daemon_at(
             Provider::mock(&base),
             clock,
-            rails,
-            Arc::new(RecordingCredentialStore::default()),
-            log_path,
+            RailsConfig::default(),
+            TestPath::file_in(dir, "daemon.log"),
+            Sessions::with(AuthSession::default()),
         );
         logged_in(&mut daemon);
         let store = RecordingCredentialStore::default();
