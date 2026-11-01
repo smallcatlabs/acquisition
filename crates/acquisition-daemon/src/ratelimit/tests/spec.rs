@@ -12,6 +12,7 @@
 // tolerance only absorbs float rounding.
 
 use super::*;
+use crate::testing::{HANG, ParkingClock};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
@@ -19,6 +20,18 @@ use tokio::sync::{mpsc, oneshot};
 /// The API base of a choke point whose test sends no bearer: a port
 /// nothing listens on.
 const NO_BEARER_API: &str = "http://127.0.0.1:9";
+
+/// A choke point on a parking clock (C158, time moves by the test's own
+/// hand): nothing passes between a send and the check after it, so a
+/// wait the limiter computes is exact. Rails disabled, as
+/// `ChokePoint::new` builds them; production keeps that constructor.
+fn parked_choke() -> ChokePoint {
+    ChokePoint::with_clock_and_rails(
+        Arc::new(ParkingClock::new()),
+        Arc::new(Rails::disabled()),
+        NO_BEARER_API,
+    )
+}
 
 /// A row of the pacing table.
 struct Row {
@@ -1922,7 +1935,7 @@ async fn full_200_with_truncated_body_is_network_after_observing_policy() {
         "{}",
     );
     let (url, server) = serve_one_raw(raw).await;
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
 
     let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
     assert!(matches!(result, Err(SendError::Transport(_))));
@@ -1952,8 +1965,11 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
         tripwire: true,
         ..RailsConfig::default()
     }));
-    let choke =
-        ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails.clone(), NO_BEARER_API);
+    let choke = ChokePoint::with_clock_and_rails(
+        Arc::new(ParkingClock::new()),
+        rails.clone(),
+        NO_BEARER_API,
+    );
 
     let landed = choke
         .get(route, &url, choke.now(), ALWAYS_WANTED)
@@ -2039,7 +2055,7 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
         ..RailsConfig::default()
     }));
     let choke = Arc::new(ChokePoint::with_clock_and_rails(
-        Arc::new(SystemClock),
+        Arc::new(ParkingClock::new()),
         rails.clone(),
         NO_BEARER_API,
     ));
@@ -2053,15 +2069,13 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     });
     head_arrived.await.unwrap();
 
-    let get_choke = choke.clone();
+    // Polled once, the GET runs to the gate and registers there: a
+    // parked sender waits on the gate's grant, no clock sleep, so nothing
+    // counts it and no sleep is owed for it to arrive.
     let get_url = format!("{base}/data");
-    let get = tokio::spawn(async move {
-        get_choke
-            .get("parked", &get_url, choke.now(), ALWAYS_WANTED)
-            .await
-    });
-    tokio::time::sleep(Duration::from_millis(50)).await; // let it park
-    assert!(!get.is_finished(), "the GET must be parked behind the HEAD");
+    let mut get = std::pin::pin!(choke.get("parked", &get_url, choke.now(), ALWAYS_WANTED));
+    let first = std::future::poll_fn(|cx| std::task::Poll::Ready(get.as_mut().poll(cx))).await;
+    assert!(first.is_pending(), "the GET must be parked behind the HEAD");
 
     // GGG's 429 (it names its policy): a ladder trip, not a block (C129).
     let ggg = serde_json::json!({ "x-rate-limit-policy": "elsewhere-policy" });
@@ -2082,10 +2096,9 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     });
     release_tx.send(()).unwrap();
     head.await.unwrap().unwrap();
-    let refused = tokio::time::timeout(Duration::from_secs(3), get)
+    let refused = tokio::time::timeout(HANG, get)
         .await
-        .expect("parked GET must resolve promptly after the HEAD releases")
-        .unwrap()
+        .expect("parked GET must resolve after the HEAD releases")
         .err()
         .expect("halted");
     assert!(matches!(refused, SendError::Halted(_)), "{refused}");
@@ -2171,7 +2184,7 @@ fn headerless_counted_response_paces_as_if_counted() {
 #[tokio::test]
 async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
     let route = "origin-503";
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
     choke
         .limiter
         .lock()
@@ -2204,9 +2217,13 @@ async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
         .expect("landed");
     assert_eq!(completed.status.as_u16(), 503);
     server.await.unwrap();
+    // Assumed counted: 2/2 in the 10 s window, saturated, so the next
+    // send waits the period + the 5 s bucket + 1 s from the last hit, which
+    // landed now: no time passes on the parking clock.
     let wait = choke.check(route).unwrap_err();
-    assert!(
-        wait > Duration::from_secs(5),
+    assert_eq!(
+        wait,
+        Duration::from_secs(10 + 5 + 1),
         "the headerless 503 is assumed counted; window must be saturated, got {wait:?}"
     );
 }
@@ -2214,7 +2231,7 @@ async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
 #[tokio::test]
 async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
     let route = "lost-send";
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
     // 2 per 10 s with one hit already reported: one more counted send
     // saturates the window.
     choke
@@ -2242,14 +2259,18 @@ async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
         .err()
         .expect("transport failure");
     assert!(matches!(refused, SendError::Transport(_)), "{refused}");
+    // Assumed counted: 2/2 in the 10 s window, saturated, so the next
+    // send waits the period + the 5 s bucket + 1 s from the lost send, at
+    // now on the parking clock.
     let wait = choke.check(route).unwrap_err();
-    assert!(
-        wait > Duration::from_secs(5),
+    assert_eq!(
+        wait,
+        Duration::from_secs(10 + 5 + 1),
         "the lost send is assumed counted; window must be saturated, got {wait:?}"
     );
 
     // A HEAD that fails in transport is not counted and adds nothing.
-    let head_choke = ChokePoint::new();
+    let head_choke = parked_choke();
     head_choke
         .limiter
         .lock()
@@ -2300,7 +2321,7 @@ fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
 /// read a HEAD's record (#86's mutants run).
 #[tokio::test]
 async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
     let (url, server) = serve_one_raw(raw_response("200 OK", "", 0, "")).await;
     let _ = choke
         .head("headerless-head", &url, None, choke.now(), ALWAYS_WANTED)
@@ -2329,7 +2350,7 @@ async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
 #[tokio::test]
 async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
     let route = "malformed-truncated";
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
     let established_raw = serde_json::json!({ "source": "established" });
     choke
         .limiter
@@ -2360,7 +2381,7 @@ async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
 async fn complete_malformed_200_is_protocol() {
     let route = "malformed-complete";
     let (url, server) = serve_one_raw(raw_response("200 OK", "", 2, "{}")).await;
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
 
     assert!(matches!(
         choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
@@ -2381,7 +2402,7 @@ async fn a_headerless_get_2xx_keeps_nothing_and_takes_no_hold() {
     let route = "headerless-get";
     let body = r#"{"access_token":"at-x","refresh_token":"rt-x","expires_in":3600,"username":"u"}"#;
     let (url, server) = serve_one_raw(raw_response("200 OK", "", body.len(), body)).await;
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
 
     assert!(matches!(
         choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
@@ -2464,7 +2485,8 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
             journal_path: Some(journal.clone()),
             ..RailsConfig::default()
         }));
-        let choke = ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails, NO_BEARER_API);
+        let choke =
+            ChokePoint::with_clock_and_rails(Arc::new(ParkingClock::new()), rails, NO_BEARER_API);
 
         let url = format!("{base}/start");
         let landed = match method {
@@ -2531,7 +2553,7 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
         })
         .await;
         let choke = ChokePoint::with_clock_and_rails(
-            Arc::new(SystemClock),
+            Arc::new(ParkingClock::new()),
             Arc::new(Rails::disabled()),
             &base,
         );
@@ -2636,7 +2658,7 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
             "{}",
         );
         let (url, server) = serve_one_raw(raw).await;
-        let choke = ChokePoint::new();
+        let choke = parked_choke();
 
         let response = choke
             .get(&route, &url, choke.now(), ALWAYS_WANTED)
@@ -2684,7 +2706,7 @@ async fn common_gate_caps_gets_until_response_bodies_complete() {
         }
     });
 
-    let choke = Arc::new(ChokePoint::new());
+    let choke = Arc::new(parked_choke());
     let sends: Vec<_> = (0..3)
         .map(|index| {
             let choke = choke.clone();
@@ -2706,7 +2728,7 @@ async fn common_gate_caps_gets_until_response_bodies_complete() {
         "a third actual send bypassed the global cap"
     );
     release_senders[first].take().unwrap().send(()).unwrap();
-    let third = tokio::time::timeout(Duration::from_secs(1), arrived_rx.recv())
+    let third = tokio::time::timeout(HANG, arrived_rx.recv())
         .await
         .expect("a body completion releases the permit")
         .unwrap();
@@ -2753,7 +2775,7 @@ async fn head_waits_exclusively_for_an_incomplete_get_body() {
         stream.write_all(response.as_bytes()).await.unwrap();
     });
 
-    let choke = Arc::new(ChokePoint::new());
+    let choke = Arc::new(parked_choke());
     let get = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -2779,7 +2801,7 @@ async fn head_waits_exclusively_for_an_incomplete_get_body() {
         "HEAD overlapped an ordinary response body"
     );
     release_get.send(()).unwrap();
-    tokio::time::timeout(Duration::from_secs(1), &mut head_arrived)
+    tokio::time::timeout(HANG, &mut head_arrived)
         .await
         .expect("HEAD starts after the ordinary permit drains")
         .unwrap();
@@ -2821,7 +2843,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         held_get("writer-first-policy").await;
     let (second_url, second_arrived, release_second, second_server) =
         held_get("writer-second-policy").await;
-    let choke = Arc::new(ChokePoint::new());
+    let choke = Arc::new(parked_choke());
     let first = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -2948,7 +2970,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
     );
 
     release_second.send(()).unwrap();
-    tokio::time::timeout(Duration::from_secs(1), &mut head_arrived)
+    tokio::time::timeout(HANG, &mut head_arrived)
         .await
         .expect("HEAD starts when the last ordinary body completes")
         .unwrap();
@@ -2961,7 +2983,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
 
     release_head.send(()).unwrap();
     head.await.unwrap().unwrap();
-    tokio::time::timeout(Duration::from_secs(1), &mut later_arrived)
+    tokio::time::timeout(HANG, &mut later_arrived)
         .await
         .expect("ordinary send resumes after the HEAD writer completes")
         .unwrap();
@@ -3008,8 +3030,10 @@ fn account_rules_are_paced_per_account() {
         &[1.0, 0.5],
         now,
     );
+    // Alice's window is full: the next send waits the period + the 5 s
+    // bucket + 1 s from her older hit, 1 s ago.
     let alice_wait = l.wait_for(&alice, now);
-    assert!(alice_wait > Duration::ZERO, "Alice's window is full");
+    assert_wait("alice", alice_wait, 10.0 + 5.0 + 1.0 - 1.0);
     assert_eq!(
         l.wait_for(&bob, now),
         Duration::ZERO,
@@ -3207,7 +3231,7 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
 /// mutants run; no row read either through the choke point).
 #[tokio::test]
 async fn the_choke_point_reports_policyless_and_degraded_routes() {
-    let choke = ChokePoint::new();
+    let choke = parked_choke();
     {
         let mut limiter = choke.limiter.lock().unwrap();
         limiter.declare_policyless("profile");
@@ -3414,7 +3438,7 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
     let api_port = api.local_addr().unwrap().port();
     let foreign_port = foreign.local_addr().unwrap().port();
     let choke = ChokePoint::with_clock_and_rails(
-        Arc::new(SystemClock),
+        Arc::new(ParkingClock::new()),
         Arc::new(Rails::disabled()),
         &format!("http://127.0.0.1:{api_port}"),
     );
@@ -3424,10 +3448,9 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
         format!("http://localhost:{api_port}/profile"),
         format!("https://127.0.0.1:{api_port}/profile"),
     ];
-    let bound = Duration::from_secs(5);
     for url in &off_origin {
         let get = tokio::time::timeout(
-            bound,
+            HANG,
             choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED),
         )
         .await
@@ -3446,7 +3469,7 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
             .unwrap_or_default();
         assert!(words.contains(&refused), "{words:?} names no {refused}");
         let head = tokio::time::timeout(
-            bound,
+            HANG,
             choke.head(
                 "c128",
                 url,
