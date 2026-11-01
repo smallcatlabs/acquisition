@@ -104,8 +104,9 @@ sentence a sweep greps for.
   of a loop under a ceiling, which prove no wait and force no expiry;
   the default's assertion `HELLO_WITHIN == 5 s` at 367, a value. That is
   the whole of `grep -rn "from_secs([1-9])\|from_secs(1[0-9])\|from_millis"`
-  under `crates/acquisition-client/tests/*.rs` outside `harness/`
-  (twelve lines, the nine waits and the three intervals). `tests/harness/mod.rs`:
+  under `crates/acquisition-client/tests/*.rs` outside `harness/`:
+  thirteen matches, the twelve timing sites (the nine waits and the
+  three intervals) and the default-value assertion. `tests/harness/mod.rs`:
   `wait_exit(within)` (337, a 50 ms poll under the bound it is given),
   the 120 s ceilings at 444, 971 and 1018, `wait_all_terminal`'s 60 s
   at 1039–1043 (called from `contract.rs` 1287 and 1349, the
@@ -453,3 +454,8 @@ The second review's three (`time-residue-brief-a7904b32.md`):
    nineteen files, the reader's scope every file (Input, Do 3).
 3. The ETA mask named as the client harness's: the CLI harness's
    `eta_rule` (Read).
+
+The third review's one nitpick (`time-residue-brief-bcd7c96b.md`),
+taken in a documents-only round with no further review (the rhythm's
+rule): the grep gives thirteen matches, twelve timing sites and the
+default-value assertion (Read).
