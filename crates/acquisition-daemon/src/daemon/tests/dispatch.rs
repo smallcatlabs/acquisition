@@ -1295,7 +1295,8 @@ struct Forbid {
 /// A surface a [`Forbid`] names.
 #[derive(Debug)]
 enum Surface {
-    /// The journal's sends, whole.
+    /// The journal file the daemon wrote, its whole text, header
+    /// included ([`Door::journal_text`]).
     Journal,
     /// `Dashboard.errors`, read at the row's end.
     DashboardErrors,
@@ -2136,7 +2137,8 @@ fn wire_rows() -> Vec<Row> {
     });
     // The wire twins of `responses.rs`, the classification's component
     // table (`roadmap/briefs/t5-design.md` §3): three of its judgements
-    // staged at the boundary, each GET carrying GGG's headers.
+    // staged at the boundary, each GET carrying GGG's headers. A twin
+    // carries its cause's words, never the server's port.
     let ggg = ScriptedResponse::full("GET", "200 OK", None, "").headers;
     // A 200 whose body is cut short of its `Content-Length` is a transport
     // failure, in the transport path's words, never bad JSON: the body is
@@ -2154,7 +2156,7 @@ fn wire_rows() -> Vec<Row> {
         steps: fetched(Failed),
         jobs: vec![
             Job::fetch(Failed)
-                .carries(&["GET http://", "/fetch failed: "])
+                .carries(&["GET http://", "/fetch failed: ", "error decoding response body"])
                 .lacks(&["bad JSON"]),
             Job::probe(Done),
         ],
@@ -2177,7 +2179,10 @@ fn wire_rows() -> Vec<Row> {
         ],
         steps: fetched(Failed),
         jobs: vec![
-            Job::fetch(Failed).carries(&["returned 500", "a body read transport failure"]),
+            Job::fetch(Failed).carries(&[
+                "returned 500",
+                "a body read transport failure: error decoding response body",
+            ]),
             Job::probe(Done),
         ],
         journal: vec![
@@ -2410,7 +2415,7 @@ fn c158_the_wire_table_through_the_door() {
                 Response::Dashboard { errors, .. } => serde_json::to_string(&errors).unwrap(),
                 other => panic!("{name}: the dashboard reads {other:?}"),
             };
-            let journal_text = serde_json::to_string(&sends).unwrap();
+            let journal_text = door.journal_text();
             for Forbid { fragment, from } in &forbids {
                 for surface in *from {
                     let texts: Vec<&str> = match surface {

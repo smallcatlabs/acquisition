@@ -715,6 +715,13 @@ impl Door {
         journal_sends(&self.log_path)
     }
 
+    /// The journal file the daemon wrote, its whole text as it stands,
+    /// header included: what a fragment the journal must not keep is
+    /// read against.
+    pub(super) fn journal_text(&self) -> String {
+        std::fs::read_to_string(journal_of(&self.log_path)).expect("the door's journal reads")
+    }
+
     /// Time passes by the scenario's hand: both faces move, every sleeper
     /// due wakes.
     #[allow(dead_code)] // a verdict read at a moment, round 5
