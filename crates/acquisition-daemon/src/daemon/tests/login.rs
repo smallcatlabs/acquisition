@@ -1,12 +1,34 @@
 //! The login flow: the session registered only when the profile's uuid
 //! lands, and every way a login fails whole.
 //!
+//! C158, a scenario crosses the daemon's frontend boundary only: a login
+//! here is `AuthStart`, the browser's callback played by the scenario
+//! ([`Door::browser`], the frontend's side of the boundary), and
+//! `await_auth` over `AuthStatus`; a logout is `AuthLogout`; what a
+//! scenario reads is the protocol's answers, the journal, the fixture's
+//! record of the wire, its own credential store and the account index on
+//! disk (the store's read API, C12). A scenario that starts logged out
+//! opens with no session: the door's default legacy session reads as
+//! logged in.
+//!
+//! The component tests, each with the boundary it needs:
+//! `a_superseded_login_cannot_complete_and_leaves_no_zombie` (a
+//! completion superseded by generation: `complete_login`'s return and the
+//! staging slot have no boundary read);
+//! `c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token`
+//! (the same account's staging window, which a client job through the
+//! door would wait out behind the held login profile on its scheduling
+//! key); the two callback tests on `wait_callback` (the listener's own
+//! reads).
+//!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::login::wait_callback;
 use crate::daemon::*;
 use acquisition_protocol::protocol::KeyringOutcome;
+use acquisition_protocol::status::RailsStatus;
 
 // ---- tracer step 2: uuid-at-login (C50) ------------------------------
 
@@ -19,8 +41,9 @@ fn login_tokens(access: &str, user: &str) -> auth::TokenResponse {
     }
 }
 
-/// A daemon wired for login tests: a recording credential store, a
-/// scratch store directory, and no pre-existing session.
+/// A daemon wired for the login's component tests: a recording
+/// credential store, a scratch store directory, no session, on the
+/// manual clock.
 fn login_daemon(
     base: &str,
 ) -> (
@@ -29,277 +52,387 @@ fn login_daemon(
     TestPath,
     TestPath,
 ) {
-    login_daemon_on(base, Arc::new(ManualClock::new()))
-}
-
-/// [`login_daemon`] on `clock`, the clock the mock it faces counts its
-/// windows on.
-fn login_daemon_on(
-    base: &str,
-    clock: Arc<ManualClock>,
-) -> (
-    Arc<Daemon>,
-    Arc<RecordingCredentialStore>,
-    TestPath,
-    TestPath,
-) {
-    let rails = Arc::new(Rails::with_config_and_clock(
-        RailsConfig::default(),
-        clock.clone(),
-    ));
     let credentials = Arc::new(RecordingCredentialStore::default());
-    let (mut daemon, log_path) = test_daemon_scenario(
-        Provider::mock(base),
-        clock,
-        rails,
-        credentials.clone() as Arc<dyn CredentialStore>,
-    );
     let store_dir = TestPath::dir();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
-    // The harness pre-installs an empty legacy session; a login test
-    // starts logged out.
-    daemon.shared.lock().unwrap().auth.by_account.clear();
+    let log_path = test_log_path();
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&log_path)
+        .unwrap();
+    let daemon = Daemon::builder(
+        Provider::mock(base),
+        Arc::new(ManualClock::new()),
+        credentials.clone(),
+        log,
+    )
+    .store_dir(store_dir.to_path_buf())
+    .log_path(log_path.to_str().map(str::to_string))
+    .build();
     (daemon, credentials, store_dir, log_path)
 }
 
-async fn run_login(daemon: &Arc<Daemon>, access: &str, user: &str) {
-    let generation = daemon.begin_auth_flow();
-    let username = daemon
-        .stage_auth_flow(generation, login_tokens(access, user))
-        .expect("current flow stages");
-    daemon.login_with_profile(generation, username).await;
+/// The token route's rate headers, as GGG answers a grant.
+const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+
+/// The code exchange answered `status` with `body` and the token route's
+/// headers.
+fn exchange(status: &'static str, body: String) -> ScriptedResponse {
+    ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status,
+        headers: TOKEN_HEADERS.into(),
+        body,
+    }
 }
 
-fn login_result(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
-    match daemon.auth_status() {
-        Response::Auth {
-            logged_in,
-            login_ok,
-            login_error,
-            ..
-        } => (logged_in, login_ok, login_error),
-        other => panic!("unexpected response: {other:?}"),
+/// The login's `GET /profile` answered `status` with `body`, without
+/// rate headers as GGG serves it (C32).
+fn profile(status: &'static str, body: String) -> ScriptedResponse {
+    ScriptedResponse {
+        method: "GET",
+        path: "/profile",
+        status,
+        headers: String::new(),
+        body,
     }
+}
+
+/// A profile body naming `user` with its uuid.
+fn profile_of(user: &str) -> String {
+    json!({ "uuid": format!("uuid-{user}"), "name": user }).to_string()
+}
+
+/// A logged-out door on `server`, saving into `credentials`, recording
+/// into `store_dir`, on `clock`.
+fn logged_out(
+    server: Server,
+    clock: &Arc<ParkingClock>,
+    credentials: &Arc<RecordingCredentialStore>,
+    store_dir: &std::path::Path,
+) -> DoorBuilder {
+    Door::open(server, clock.clone(), credentials.clone())
+        .sessions(Sessions::default())
+        .store_dir(store_dir.to_path_buf())
+}
+
+/// `AuthStart` through the door: the authorize URL the user opens.
+async fn authorize(door: &mut Door) -> String {
+    match door.request(Request::AuthStart).await {
+        Response::AuthUrl { authorize_url } => authorize_url,
+        other => panic!("a login's start answered {other:?}"),
+    }
+}
+
+/// A login approved in the browser with `code` (the account server's
+/// account), awaited to its end.
+async fn log_in(door: &mut Door, code: &str) -> AuthAnswer {
+    let url = authorize(door).await;
+    let (status, page) = door.browser(&code_callback(&url, code)).await;
+    assert_eq!(status, 200, "{page}");
+    assert!(page.contains("Logged in"), "{page}");
+    door.await_auth(|answer| !answer.pending).await
+}
+
+/// `DaemonStatus`'s rails, as a frontend reads them.
+async fn rails_status(door: &mut Door) -> RailsStatus {
+    match door.request(Request::DaemonStatus).await {
+        Response::DaemonStatus { rails, .. } => rails,
+        other => panic!("the daemon's status answered {other:?}"),
+    }
+}
+
+/// `Dashboard`'s errors, newest first.
+async fn dashboard_errors(door: &mut Door) -> Vec<String> {
+    match door.request(Request::Dashboard).await {
+        Response::Dashboard { errors, .. } => errors.into_iter().map(|e| e.message).collect(),
+        other => panic!("the dashboard answered {other:?}"),
+    }
+}
+
+/// The accounts `AuthStatus` lists, by name and keyring word.
+fn accounts(answer: &AuthAnswer) -> Vec<(String, String)> {
+    answer
+        .accounts
+        .iter()
+        .map(|a| (a.username.clone(), a.keyring.clone()))
+        .collect()
 }
 
 /// A login is not a login until the profile fetch delivers the account
 /// uuid: until then nothing is registered — no session, no keyring
 /// entry, no index row — and when it lands, everything is, with the
-/// uuid (deterministic per username on the mock).
-#[tokio::test]
-async fn login_registers_the_session_only_when_the_profile_uuid_lands() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, credentials, store_dir, _log_path) = login_daemon_on(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+/// uuid (the account server's, per username).
+#[test]
+fn login_registers_the_session_only_when_the_profile_uuid_lands() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let store = credentials.clone();
+    logged_out(
+        Server::Account(("GET", "/profile", 0)),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let url = authorize(&mut door).await;
+        let (status, page) = door.browser(&code_callback(&url, "Alice#1234")).await;
+        assert_eq!(status, 200, "{page}");
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the login's profile reached the server")
+            .unwrap();
 
-    let generation = daemon.begin_auth_flow();
-    let username = daemon
-        .stage_auth_flow(generation, login_tokens("at-x.Alice#1234", "Alice#1234"))
-        .expect("current flow stages");
-    // Staged: the flow is still pending and nothing is registered —
-    // the tokens sit in the staging slot, outside the session map.
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.pending, Some(generation));
-        assert!(s.auth.by_account.is_empty(), "no session exists yet");
-        assert!(s.auth.staging.is_some());
-    }
-    assert!(matches!(
-        daemon.auth_status(),
-        Response::Auth {
-            logged_in: false,
-            pending: true,
-            login_ok: None,
-            login_error: None,
-            ..
-        }
-    ));
-    assert!(credentials.saves.lock().unwrap().is_empty());
-    assert!(!acquisition_store::index_path(&store_dir).exists());
+        // The profile held: the flow is still pending and nothing is
+        // registered.
+        let staged = door.await_auth(|_| true).await;
+        assert!(staged.pending, "{staged:?}");
+        assert!(!staged.logged_in, "{staged:?}");
+        assert_eq!((staged.login_ok, staged.login_error), (None, None));
+        assert!(staged.accounts.is_empty(), "no session exists yet");
+        assert!(store.saves.lock().unwrap().is_empty());
+        assert!(!acquisition_store::index_path(&dir).exists());
 
-    daemon.login_with_profile(generation, username).await;
+        // Released: the session visible with its keyring written, the
+        // index row with the uuid, the flow's result naming the account.
+        release.send(()).unwrap();
+        let landed = door.await_auth(|answer| !answer.pending).await;
+        assert_eq!(landed.login_ok.as_deref(), Some("Alice#1234"), "{landed:?}");
+        assert_eq!(landed.login_error, None);
+        assert!(landed.logged_in);
+        assert_eq!(
+            accounts(&landed),
+            [("Alice#1234".to_string(), "ok".to_string())]
+        );
+        assert_eq!(store.saves.lock().unwrap().len(), 1);
+        let index = Index::load(&dir).unwrap();
+        let entry = index.get("Alice#1234").expect("indexed at login");
+        assert_eq!(entry.uuid.as_deref(), Some("uuid-Alice#1234"));
+        assert!(entry.persisted);
 
-    // Registered: session visible, keyring written, index row with
-    // uuid, and the flow's own terminal result names the account.
-    let index = Index::load(&store_dir).unwrap();
-    let entry = index.get("Alice#1234").expect("indexed at login");
-    let uuid = entry.uuid.clone().expect("uuid recorded at login");
-    assert!(entry.persisted);
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.pending, None);
-        assert!(s.auth.staging.is_none());
-        assert_eq!(s.auth.last_login.as_deref(), Some("Alice#1234"));
-        let session = s.auth.find("Alice#1234").expect("registered");
-        assert_eq!(session.keyring, "ok");
-        assert_eq!(session.uuid.as_deref(), Some(uuid.as_str()));
-    }
-    assert_eq!(credentials.saves.lock().unwrap().len(), 1);
-    assert_eq!(
-        login_result(&daemon),
-        (true, Some("Alice#1234".into()), None)
-    );
-
-    // A re-login as the same account lands the same uuid: the mock's
-    // uuids are deterministic per username, and the index keeps one
-    // entry per account.
-    run_login(&daemon, "at-y.Alice#1234", "Alice#1234").await;
-    let index = Index::load(&store_dir).unwrap();
-    assert_eq!(index.entries().len(), 1);
-    assert_eq!(
-        index.get("Alice#1234").unwrap().uuid.as_deref(),
-        Some(uuid.as_str())
-    );
-
-    dispatcher.abort();
+        // A re-login as the same account lands the same uuid, and the
+        // index keeps one entry per account.
+        let again = log_in(&mut door, "Alice#1234").await;
+        assert_eq!(again.login_ok.as_deref(), Some("Alice#1234"), "{again:?}");
+        let index = Index::load(&dir).unwrap();
+        assert_eq!(index.entries().len(), 1);
+        assert_eq!(
+            index.get("Alice#1234").unwrap().uuid.as_deref(),
+            Some("uuid-Alice#1234")
+        );
+        let wire = door.sent();
+        assert_eq!(
+            wire,
+            [
+                sent("Alice#1234", "POST"),
+                sent("Alice#1234", "GET"),
+                sent("Alice#1234", "POST"),
+                sent("Alice#1234", "GET"),
+            ]
+        );
+        assert_eq!(door.journal_methods(), wire_methods_of(&wire));
+        door.finish().await;
+    });
 }
 
-/// A login whose profile fetch fails fails whole: no provisional
+/// The methods of a record of the wire, for the journal's comparison.
+fn wire_methods_of(wire: &[Sent]) -> Vec<String> {
+    wire.iter().map(|(method, _)| method.clone()).collect()
+}
+
+/// C50: a login whose profile fetch fails fails whole: no provisional
 /// identity — the staged tokens are dropped, no keyring entry is
 /// minted, the index is untouched, and the flow's terminal result is
-/// the failure.
-#[tokio::test]
-async fn a_login_whose_profile_fetch_fails_fails_whole() {
-    // Nothing listens here: the profile GET dies in transport.
-    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
-
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.pending, None, "the flow is closed");
-        assert!(s.auth.by_account.is_empty(), "no session appeared");
-        assert!(s.auth.staging.is_none(), "the staged tokens are gone");
-        assert!(
-            s.errors
-                .iter()
-                .any(|(_, m)| m.contains("login failed for Alice#1234")),
-            "the failure is reported"
-        );
-    }
-    let (logged_in, ok, error) = login_result(&daemon);
-    assert!(!logged_in && ok.is_none());
-    assert!(
-        error
-            .as_deref()
-            .is_some_and(|e| e.contains("profile fetch")),
-        "{error:?}"
+/// the failure, which the daemon's errors carry.
+#[test]
+fn a_login_whose_profile_fetch_fails_fails_whole() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let store = credentials.clone();
+    let script = vec![
+        exchange("200 OK", token_body("at-x", "rt-x", "Alice#1234")),
+        profile(
+            "404 Not Found",
+            r#"{"error":{"code":1,"message":"Resource not found"}}"#.into(),
+        ),
+    ];
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir).run(
+        |mut door| async move {
+            let url = authorize(&mut door).await;
+            let (status, page) = door.browser(&code_callback(&url, "code-x")).await;
+            assert_eq!(status, 200, "{page}");
+            let ended = door.await_auth(|answer| !answer.pending).await;
+            assert!(!ended.logged_in && ended.login_ok.is_none(), "{ended:?}");
+            let error = ended.login_error.expect("the login failed");
+            assert!(error.contains("profile fetch"), "{error}");
+            assert!(ended.accounts.is_empty(), "no session appeared");
+            assert!(store.saves.lock().unwrap().is_empty());
+            assert!(!acquisition_store::index_path(&dir).exists());
+            let errors = dashboard_errors(&mut door).await;
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.contains("login failed for Alice#1234")),
+                "the failure is reported: {errors:?}"
+            );
+            door.finish().await;
+        },
     );
-    assert!(credentials.saves.lock().unwrap().is_empty());
-    assert!(!acquisition_store::index_path(&store_dir).exists());
-
-    dispatcher.abort();
 }
 
 /// An aborted *re-login* leaves the previously registered session
 /// exactly as it was (staging never touches the session map), and the
 /// flow's terminal result reports the failure even though `logged_in`
 /// stays true — so `acq auth` cannot mistake the surviving session for
-/// this login succeeding. The abort is called here directly: that a
-/// profile fetch which really fails reaches it is not driven.
-#[tokio::test]
-async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, credentials, _store_dir, _log_path) = login_daemon_on(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
-    assert_eq!(login_result(&daemon).1.as_deref(), Some("Alice#1234"));
-    let old_token = {
-        let s = daemon.shared.lock().unwrap();
-        s.auth.find("Alice#1234").unwrap().access_token.clone()
-    };
-
-    // A re-login aborted after staging, as a failed profile fetch
-    // aborts it.
-    let g2 = daemon.begin_auth_flow();
-    daemon
-        .stage_auth_flow(g2, login_tokens("at-y.Alice#1234", "Alice#1234"))
-        .expect("current flow stages");
-    daemon.abort_login(g2, "Alice#1234", "profile fetch failed: simulated");
-
-    {
-        let s = daemon.shared.lock().unwrap();
-        let session = s.auth.find("Alice#1234").expect("old session survives");
-        assert_eq!(
-            session.access_token, old_token,
-            "the old session is untouched — the staged tokens never reached it"
-        );
-        assert!(s.auth.staging.is_none());
-    }
-    let (logged_in, ok, error) = login_result(&daemon);
-    assert!(logged_in, "the old session is still live");
-    assert!(ok.is_none(), "the failed flow claims no success");
-    assert!(error.as_deref().is_some_and(|e| e.contains("simulated")));
-    // The keyring still holds exactly the first login's entry.
-    assert_eq!(credentials.saves.lock().unwrap().len(), 1);
-
-    dispatcher.abort();
+/// this login succeeding. The profile fetch really fails: the old
+/// session's token is read as its expiry, the seeded one's and never the
+/// exchange's.
+#[test]
+fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let store = credentials.clone();
+    let parking = clock.clone();
+    let expires = clock.wall() + Duration::from_secs(7200);
+    let script = vec![
+        exchange("200 OK", token_body("at-y", "rt-y", "Alice#1234")),
+        profile(
+            "404 Not Found",
+            r#"{"error":{"code":1,"message":"Resource not found"}}"#.into(),
+        ),
+    ];
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir)
+        .sessions(Sessions::with(AuthSession {
+            username: Some("Alice#1234".into()),
+            uuid: Some("uuid-Alice#1234".into()),
+            access_token: Some("at-x".into()),
+            access_expires_at: Some(expires),
+            refresh_token: Some("rt-x".into()),
+            keyring: "ok".into(),
+            ..AuthSession::default()
+        }))
+        .run(|mut door| async move {
+            let clock = parking;
+            let ended = log_in(&mut door, "code-y").await;
+            assert!(ended.logged_in, "the old session is still live");
+            assert!(
+                ended.login_ok.is_none(),
+                "the failed flow claims no success"
+            );
+            let error = ended.login_error.clone().expect("the login failed");
+            assert!(error.contains("profile fetch"), "{error}");
+            assert_eq!(ended.username.as_deref(), Some("Alice#1234"));
+            assert_eq!(
+                accounts(&ended),
+                [("Alice#1234".to_string(), "ok".to_string())]
+            );
+            let seeded = expires.duration_since(clock.wall()).unwrap().as_secs();
+            assert!(seeded > 3600, "the seeded expiry outlasts the exchange's");
+            assert_eq!(
+                ended.access_expires_in_seconds,
+                Some(seeded),
+                "the old session's token is untouched: the staged tokens never reached it"
+            );
+            assert!(store.saves.lock().unwrap().is_empty(), "nothing saved");
+            door.finish().await;
+        });
 }
 
 /// A rejected refresh grant marks the account so the dead token is
 /// never re-sent; only a completed login clears the mark, since until
-/// then the keyring still held the rejected token.
-#[tokio::test]
-async fn a_completed_login_clears_the_dead_grant_mark() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, _credentials, _store_dir, _log_path) = login_daemon_on(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let rails = daemon.choke.rails().clone();
-    assert!(rails.mark_refresh_failed("Alice#1234", "HTTP 400"));
-    assert!(rails.refresh_failed("Alice#1234").is_some());
+/// then the keyring still held the rejected token. The mark is read
+/// once the landing is done: the landing publishes the login before it
+/// clears the mark.
+#[test]
+fn a_completed_login_clears_the_dead_grant_mark() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let expired = clock.wall();
+    let script = vec![
+        exchange("400 Bad Request", r#"{"error":"invalid_grant"}"#.into()),
+        exchange("200 OK", token_body("at-x", "rt-x", "Alice#1234")),
+        profile("200 OK", profile_of("Alice#1234")),
+    ];
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir)
+        .sessions(Sessions::with(AuthSession {
+            username: Some("Alice#1234".into()),
+            access_token: Some("at-old".into()),
+            access_expires_at: Some(expired),
+            refresh_token: Some("rt-old".into()),
+            keyring: "ok".into(),
+            ..AuthSession::default()
+        }))
+        .run(|mut door| async move {
+            let check = door
+                .request(Request::AuthCheck {
+                    account: Some("Alice#1234".into()),
+                })
+                .await;
+            let Response::Error { kind, message } = &check else {
+                panic!("a rejected refresh is the check's answer: {check:?}")
+            };
+            assert_eq!(*kind, ErrorKind::NotLoggedIn, "{message}");
+            let marked = rails_status(&mut door).await.refresh_failed;
+            assert!(
+                marked.as_deref().is_some_and(|m| m.contains("Alice#1234")),
+                "{marked:?}"
+            );
 
-    run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
-    assert_eq!(login_result(&daemon).1.as_deref(), Some("Alice#1234"));
-    assert_eq!(rails.refresh_failed("Alice#1234"), None);
-
-    dispatcher.abort();
+            let landed = log_in(&mut door, "code-x").await;
+            assert_eq!(landed.login_ok.as_deref(), Some("Alice#1234"), "{landed:?}");
+            door.settle().await;
+            assert_eq!(rails_status(&mut door).await.refresh_failed, None);
+            door.finish().await;
+        });
 }
 
 /// A login the account index cannot record fails whole: the session
 /// never becomes visible and no keyring entry is left (the index cannot
 /// hold the name, so none is saved) — a session without its uuid
 /// mapping could neither be restored nor find its annotation file.
-#[tokio::test]
-async fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, credentials, store_dir, _log_path) = login_daemon_on(&base, clock);
+#[test]
+fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
     // A directory where the index file should be: every index read and
     // write fails, while the profile's facts file opens and records (a
     // store that cannot record fails the profile job first, C144).
     std::fs::create_dir_all(acquisition_store::index_path(&store_dir)).unwrap();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
-
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert!(s.auth.by_account.is_empty(), "the session never appeared");
-        assert!(s.auth.staging.is_none());
-    }
-    let (logged_in, ok, error) = login_result(&daemon);
-    assert!(!logged_in && ok.is_none());
-    assert!(
-        error
-            .as_deref()
-            .is_some_and(|e| e.contains("account index")),
-        "{error:?}"
+    let store = credentials.clone();
+    let script = vec![
+        exchange("200 OK", token_body("at-x", "rt-x", "Alice#1234")),
+        profile("200 OK", profile_of("Alice#1234")),
+    ];
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir).run(
+        |mut door| async move {
+            let ended = log_in(&mut door, "code-x").await;
+            assert!(!ended.logged_in && ended.login_ok.is_none(), "{ended:?}");
+            let error = ended.login_error.expect("the login failed");
+            assert!(error.contains("account index"), "{error}");
+            assert!(ended.accounts.is_empty(), "the session never appeared");
+            // C144: the index could not hold the name first, so no
+            // keyring write happened and there is nothing to roll back.
+            assert!(store.saves.lock().unwrap().is_empty());
+            assert!(store.entries.lock().unwrap().is_empty());
+            door.finish().await;
+        },
     );
-    // C144: the index could not hold the name first, so no keyring write
-    // happened and there is nothing to roll back.
-    assert!(credentials.saves.lock().unwrap().is_empty());
-    assert!(credentials.entries.lock().unwrap().is_empty());
-
-    dispatcher.abort();
-    drop(daemon);
 }
 
 /// A superseded flow can neither stage nor complete, and its staged
-/// tokens do not linger.
+/// tokens do not linger. A component test: a completion superseded by
+/// generation has no boundary read (`complete_login`'s return and the
+/// staging slot).
 #[tokio::test]
 async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
     let (daemon, credentials, _store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
@@ -336,214 +469,148 @@ async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
 /// the flow fails with words that say Cloudflare answered and the daemon
 /// stopped, not with Cloudflare's page or a word to log in again; the
 /// block mark is set, and wire == journal == one POST.
-#[tokio::test]
-async fn a_cloudflare_block_on_the_code_exchange_is_no_rejected_grant() {
+#[test]
+fn a_cloudflare_block_on_the_code_exchange_is_no_rejected_grant() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
     let challenge = ScriptedResponse {
         method: "POST",
         path: "/token",
         ..ScriptedResponse::cloudflare_403_challenge()
     };
-    let (base, requests, server) = scripted_server(vec![challenge]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
-    );
-    let answered = reqwest::get(&callback).await.unwrap();
-    assert!(answered.status().is_success());
-    let error = loop {
-        if let (_, _, Some(error)) = login_result(&daemon) {
-            break error;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    };
-
-    assert!(
-        error.contains("Cloudflare answered in GGG's place"),
-        "{error}"
-    );
-    assert!(error.contains("reset-tripwire"), "{error}");
-    assert!(!error.contains("acq auth"), "{error}");
-    assert!(!error.contains("Just a moment"), "{error}");
-    let rails = daemon.choke.rails();
-    let halt = rails.halted().expect("the block mark is set");
-    assert!(
-        halt.contains("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
-        "{halt}"
-    );
-    server.await.unwrap();
-    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(None, &log_path);
+    logged_out(
+        Server::Script(vec![challenge]),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let ended = log_in(&mut door, "code-x").await;
+        let error = ended.login_error.expect("the login failed");
+        assert!(
+            error.contains("Cloudflare answered in GGG's place"),
+            "{error}"
+        );
+        assert!(error.contains("reset-tripwire"), "{error}");
+        assert!(!error.contains("acq auth"), "{error}");
+        assert!(!error.contains("Just a moment"), "{error}");
+        let halt = rails_status(&mut door)
+            .await
+            .halted
+            .expect("the block mark is set");
+        assert!(
+            halt.contains("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
+            "{halt}"
+        );
+        assert_eq!(door.journal_methods(), ["POST"]);
+        door.finish().await;
+    });
 }
 
 /// C129, the login arm's announcement: a block on the code exchange is
-/// logged as the daemon's error when it lands, as a block on any other
-/// send is, and is not logged again as current after `reset-tripwire`:
-/// the next block's own cause is the one announced.
-#[tokio::test]
-async fn a_block_on_the_code_exchange_is_announced_when_it_lands() {
+/// announced among the daemon's errors when it lands, as a block on any
+/// other send is, and is not announced again as current after
+/// `reset-tripwire`: the next block's own cause is the one announced.
+#[test]
+fn a_block_on_the_code_exchange_is_announced_when_it_lands() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
     let challenge = ScriptedResponse {
         method: "POST",
         path: "/token",
         ..ScriptedResponse::cloudflare_403_challenge()
     };
-    let responses = vec![
+    let script = vec![
         challenge,
         ScriptedResponse::full("HEAD", "204 No Content", None, ""),
         ScriptedResponse::cloudflare_403_challenge(),
     ];
-    let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-    let errors = |daemon: &Daemon| -> Vec<String> {
-        let s = daemon.shared.lock().unwrap();
-        s.errors
-            .iter()
-            .map(|(_, message)| message.clone())
-            .collect()
-    };
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir).run(
+        |mut door| async move {
+            let ended = log_in(&mut door, "code-x").await;
+            assert!(ended.login_error.is_some(), "{ended:?}");
+            let logged = dashboard_errors(&mut door).await;
+            assert!(
+                logged
+                    .iter()
+                    .any(|e| e.starts_with("SENDS STOPPED: ")
+                        && e.contains("403 on POST oauth-token")),
+                "the exchange's block is announced: {logged:?}"
+            );
 
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
+            match door.request(Request::ResetTripwire).await {
+                Response::Ack { .. } => {}
+                other => panic!("the reset answered {other:?}"),
+            }
+            let before = dashboard_errors(&mut door).await.len();
+            let id = door.submit("fetch", None).await;
+            let (info, _) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Failed);
+            let logged = dashboard_errors(&mut door).await;
+            // Newest first: the errors since the reset lead.
+            let since = &logged[..logged.len() - before];
+            let stopped: Vec<&String> = since
+                .iter()
+                .filter(|e| e.starts_with("SENDS STOPPED: "))
+                .collect();
+            assert!(
+                stopped.len() == 1 && stopped[0].contains("403 on GET fetch"),
+                "after the reset, only the next block's own cause is announced: {since:?}"
+            );
+            door.finish().await;
+        },
     );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    while login_result(&daemon).2.is_none() {
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-    let logged = errors(&daemon);
-    assert!(
-        logged
-            .iter()
-            .any(|e| e.starts_with("SENDS STOPPED: ") && e.contains("403 on POST oauth-token")),
-        "the exchange's block is announced: {logged:?}"
-    );
-
-    daemon.reset_rails().unwrap();
-    let before = errors(&daemon).len();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = daemon
-        .submit("fetch".into(), json!({}), 0, "test".into(), None)
-        .unwrap();
-    let (info, _) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Failed);
-    let logged = errors(&daemon);
-    let stopped: Vec<&String> = logged[before..]
-        .iter()
-        .filter(|e| e.starts_with("SENDS STOPPED: "))
-        .collect();
-    assert!(
-        stopped.len() == 1 && stopped[0].contains("403 on GET fetch"),
-        "after the reset, only the next block's own cause is announced: {:?}",
-        &logged[before..]
-    );
-    server.await.unwrap();
-    finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
 /// C25, the login arm: a flow a newer login superseded sends nothing.
 /// Its callback still lands (the browser was already sent), but its code
 /// exchange is turned away before the gate admits it: no POST reaches
-/// the wire, the newer flow stays pending, and the journal agrees.
-#[tokio::test]
-async fn a_superseded_login_flow_sends_no_code_exchange() {
-    let grant = ScriptedResponse {
-        method: "POST",
-        path: "/token",
-        status: "200 OK",
-        headers: String::new(),
-        body: json!({
-            "access_token": "at-stale",
-            "refresh_token": "rt-stale",
-            "expires_in": 3600,
-            "username": "test-user",
-        })
-        .to_string(),
-    };
-    let (base, requests, server) = scripted_server(vec![grant]).await;
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
+/// the wire, the newer flow stays pending, and the journal agrees. The
+/// account server records any POST that reaches it and holds none (its
+/// hold matches no request); the stale end notifies nothing, so the
+/// runtime is let settle.
+#[test]
+fn a_superseded_login_flow_sends_no_code_exchange() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    logged_out(
+        Server::Account(("POST", "/never", 0)),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let first = authorize(&mut door).await;
+        let _second = authorize(&mut door).await;
+        let (status, page) = door.browser(&code_callback(&first, "test-user")).await;
+        assert_eq!(status, 200, "{page}");
+        door.settle().await;
 
-    let first = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let _second = daemon.auth_start().await.unwrap();
-    let query: HashMap<String, String> = first.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
-    );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    tokio::time::timeout(Duration::from_secs(5), async {
-        while !std::fs::read_to_string(&log_path)
-            .unwrap_or_default()
-            .contains("stale auth flow completion ignored")
-        {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("the superseded flow finished");
-
-    assert!(
-        requests.lock().unwrap().is_empty(),
-        "the superseded flow sent its exchange: {:?}",
-        requests.lock().unwrap()
-    );
-    assert_eq!(login_result(&daemon), (false, None, None));
-    assert!(daemon.shared.lock().unwrap().auth.pending.is_some());
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    server.abort();
-    finish_harness(None, &log_path);
+        let waiting = door.await_auth(|_| true).await;
+        assert!(waiting.pending, "the newer flow stays pending: {waiting:?}");
+        assert_eq!((waiting.login_ok, waiting.login_error), (None, None));
+        assert!(!waiting.logged_in);
+        assert!(
+            door.sent().is_empty(),
+            "the superseded flow sent its exchange"
+        );
+        assert!(door.journal_methods().is_empty());
+        door.finish().await;
+    });
 }
 
 // ---- the callback listener (#68) --------------------------------------
-
-/// The authorize URL's redirect target and state, as the browser would
-/// carry them back.
-fn callback_of(authorize_url: &str) -> (String, String) {
-    let authorize = url::Url::parse(authorize_url).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    (query["redirect_uri"].clone(), query["state"].clone())
-}
-
-/// Approve the flow at the mock as its own user: the authorize URL's
-/// approve variant, its 302 followed to the daemon's callback.
-async fn approve_at_mock(authorize_url: &str) {
-    let approve = authorize_url.replacen("/authorize?", "/approve?", 1);
-    let answered = reqwest::get(&approve).await.unwrap();
-    assert!(answered.status().is_success(), "{answered:?}");
-}
-
-/// The flow's terminal result, waited for.
-async fn flow_ended(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
-    tokio::time::timeout(Duration::from_secs(10), async {
-        loop {
-            let result = login_result(daemon);
-            if result.1.is_some() || result.2.is_some() {
-                return result;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("the flow ended")
-}
 
 /// A callback connection that sends nothing holds nothing up: with a
 /// read bound of an hour, a silent connection and then the browser's
 /// redirect on a second connection, `wait_callback` returns the code
 /// within the test's guard. Green for one reason: a listener that read
 /// its connections one at a time would wait the hour on the silent one,
-/// so the redirect could only be answered by a task of its own.
+/// so the redirect could only be answered by a task of its own. A
+/// component test: the callback listener's own reads.
 #[tokio::test]
 async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -573,7 +640,8 @@ async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
 /// for one reason: the second connection's EOF, read while the flow's
 /// task still runs, is written only by a task that accepted it and
 /// dropped it at its own expiry; a connection left in the backlog reads
-/// nothing until the listener closes.
+/// nothing until the listener closes. A component test: the callback
+/// listener's own reads.
 #[tokio::test]
 async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
     use tokio::io::AsyncReadExt as _;
@@ -608,38 +676,29 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
 /// never "state mismatch"; the browser reads a page that says so. #113:
 /// the free-text description is text received, and these words reach
 /// the log, so it is not carried.
-#[tokio::test]
-async fn a_denied_login_is_reported_in_the_browsers_words() {
-    let clock = Arc::new(ManualClock::new());
-    let (daemon, log_path) = test_daemon_with(
-        Provider::mock("http://127.0.0.1:1"),
-        clock,
-        RailsConfig::default(),
-    );
-    daemon.shared.lock().unwrap().auth.by_account.clear();
+#[test]
+fn a_denied_login_is_reported_in_the_browsers_words() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    logged_out(Server::None, &clock, &credentials, &store_dir).run(|mut door| async move {
+        let url = authorize(&mut door).await;
+        let (status, page) = door.browser(&denied_callback(&url)).await;
+        assert_eq!(status, 200);
+        assert!(page.contains("denied in the browser"), "{page}");
+        assert!(page.contains("acq auth"), "{page}");
 
-    let authorize = daemon.auth_start().await.unwrap();
-    let (redirect_uri, state) = callback_of(&authorize);
-    let denied = format!(
-        "{redirect_uri}?error=access_denied&error_description=The+user+denied+the+request&state={state}"
-    );
-    let answered = reqwest::get(&denied).await.unwrap();
-    assert_eq!(answered.status(), 200);
-    let page = answered.text().await.unwrap();
-    assert!(page.contains("denied in the browser"), "{page}");
-    assert!(page.contains("acq auth"), "{page}");
-
-    let (logged_in, ok, error) = flow_ended(&daemon).await;
-    assert!(!logged_in);
-    assert_eq!(ok, None);
-    let error = error.expect("the flow failed");
-    assert!(error.contains("denied in the browser"), "{error}");
-    assert!(error.contains("access_denied"), "{error}");
-    assert!(!error.contains("The user denied"), "{error}");
-    assert!(error.contains("acq auth"), "{error}");
-    assert!(!error.contains("state mismatch"), "{error}");
-    assert!(daemon.shared.lock().unwrap().auth.pending.is_none());
-    finish_harness(None, &log_path);
+        let ended = door.await_auth(|answer| !answer.pending).await;
+        assert!(!ended.logged_in);
+        assert_eq!(ended.login_ok, None);
+        let error = ended.login_error.expect("the flow failed");
+        assert!(error.contains("denied in the browser"), "{error}");
+        assert!(error.contains("access_denied"), "{error}");
+        assert!(!error.contains("The user denied"), "{error}");
+        assert!(error.contains("acq auth"), "{error}");
+        assert!(!error.contains("state mismatch"), "{error}");
+        door.finish().await;
+    });
 }
 
 /// A request on the callback path without the flow's state is answered
@@ -647,238 +706,178 @@ async fn a_denied_login_is_reported_in_the_browsers_words() {
 /// completes the login. So is one with the state and neither a code nor
 /// an error. A local process that finds the port can neither end the
 /// flow nor take the code.
-#[tokio::test]
-async fn a_callback_with_another_state_is_answered_and_the_login_waits() {
-    let clock = Arc::new(ManualClock::new());
-    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, _credentials, _store_dir, log_path) = login_daemon_on(&base, clock);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+#[test]
+fn a_callback_with_another_state_is_answered_and_the_login_waits() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    logged_out(Server::Mock, &clock, &credentials, &store_dir).run(|mut door| async move {
+        let url = authorize(&mut door).await;
+        for stray in stray_callbacks(&url) {
+            let (status, page) = door.browser(&stray).await;
+            assert_eq!(status, 400, "{stray}");
+            assert!(page.contains("return to the terminal"), "{page}");
+            let waiting = door.await_auth(|_| true).await;
+            assert!(waiting.pending, "the flow still waits after {stray}");
+            assert!(!waiting.logged_in, "{stray}");
+            assert_eq!(
+                (waiting.login_ok, waiting.login_error),
+                (None, None),
+                "{stray}"
+            );
+        }
 
-    let authorize = daemon.auth_start().await.unwrap();
-    let (redirect_uri, state) = callback_of(&authorize);
-    for stray in [
-        format!("{redirect_uri}?code=code-x&state=not-ours"),
-        format!("{redirect_uri}?code=code-x"),
-        format!("{redirect_uri}?error=access_denied"),
-        format!("{redirect_uri}?state={state}"),
-    ] {
-        let answered = reqwest::get(&stray).await.unwrap();
-        assert_eq!(answered.status(), 400, "{stray}");
-        let page = answered.text().await.unwrap();
-        assert!(page.contains("return to the terminal"), "{page}");
-        assert_eq!(login_result(&daemon), (false, None, None), "{stray}");
-        assert!(
-            daemon.shared.lock().unwrap().auth.pending.is_some(),
-            "the flow still waits after {stray}"
-        );
-    }
-
-    approve_at_mock(&authorize).await;
-    let (logged_in, ok, error) = flow_ended(&daemon).await;
-    assert!(logged_in, "ok={ok:?} error={error:?}");
-    assert_eq!(ok.as_deref(), Some(mockggg::USERNAME));
-    dispatcher.abort();
-    finish_harness(None, &log_path);
+        // The mock approves as its own user: its 302 followed to the
+        // daemon's callback.
+        let approve = url.replacen("/authorize?", "/approve?", 1);
+        let (status, page) = door.browser(&approve).await;
+        assert_eq!(status, 200, "{page}");
+        let ended = door.await_auth(|answer| !answer.pending).await;
+        assert!(ended.logged_in, "{ended:?}");
+        assert_eq!(ended.login_ok.as_deref(), Some(mockggg::USERNAME));
+        door.finish().await;
+    });
 }
 
 /// C137, the browser wait's expiry forced: a daemon whose `login_within`
 /// is zero fails the flow before any redirect, its result saying the
 /// browser did not complete the login within the bound and to run the
 /// login again, and the flow is no longer pending.
-#[tokio::test]
-async fn an_expired_browser_wait_fails_the_flow_with_its_words() {
-    let clock = Arc::new(ManualClock::new());
-    let (mut daemon, log_path) = test_daemon_with(
-        Provider::mock("http://127.0.0.1:1"),
-        clock,
-        RailsConfig::default(),
-    );
-    Arc::get_mut(&mut daemon)
-        .expect("fresh daemon")
-        .login_within = Duration::ZERO;
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-
-    daemon.auth_start().await.unwrap();
-    let (logged_in, ok, error) = flow_ended(&daemon).await;
-    assert!(!logged_in);
-    assert_eq!(ok, None);
-    let error = error.expect("the flow failed");
-    assert!(
-        error.contains("the browser did not complete the login within 0 s"),
-        "{error}"
-    );
-    assert!(error.contains("run `acq auth` again"), "{error}");
-    assert!(daemon.shared.lock().unwrap().auth.pending.is_none());
-    finish_harness(None, &log_path);
+#[test]
+fn an_expired_browser_wait_fails_the_flow_with_its_words() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    logged_out(Server::None, &clock, &credentials, &store_dir)
+        .login_within(Duration::ZERO)
+        .run(|mut door| async move {
+            authorize(&mut door).await;
+            let ended = door.await_auth(|answer| !answer.pending).await;
+            assert!(!ended.logged_in);
+            assert_eq!(ended.login_ok, None);
+            let error = ended.login_error.expect("the flow failed");
+            assert!(
+                error.contains("the browser did not complete the login within 0 s"),
+                "{error}"
+            );
+            assert!(error.contains("run `acq auth` again"), "{error}");
+            door.finish().await;
+        });
 }
 
 /// C131, the login arm: a code exchange answered 200 with its tokens but
 /// no rate-limit header at all installs them, and the login completes
-/// on them; the exchange stays a journaled protocol failure.
-#[tokio::test]
-async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
-    let grant = ScriptedResponse {
-        method: "POST",
-        path: "/token",
-        status: "200 OK",
-        headers: String::new(),
-        body: json!({
-            "access_token": "at-new",
-            "refresh_token": "rt-rotated",
-            "expires_in": 3600,
-            "username": "test-user",
-        })
-        .to_string(),
-    };
-    // GGG serves `/profile` without rate headers (C32).
-    let profile = ScriptedResponse {
-        method: "GET",
-        path: "/profile",
-        status: "200 OK",
-        headers: String::new(),
-        body: json!({ "uuid": "uuid-test-user", "name": "test-user" }).to_string(),
-    };
-    let (base, requests, server) = scripted_server(vec![grant, profile]).await;
-    let clock = Arc::new(ManualClock::new());
-    let log_path = test_log_path();
-    let _ = std::fs::remove_file(journal_of(&log_path));
-    let rails = Arc::new(Rails::with_config_and_clock(
-        RailsConfig {
-            journal_path: Some(journal_of(&log_path)),
-            ..RailsConfig::default()
-        },
-        clock.clone(),
-    ));
+/// on them; the exchange stays a journaled protocol failure. What the
+/// session holds is read where a frontend meets it: the keyring entry the
+/// login saved (C135, the access token beside the refresh token).
+#[test]
+fn a_headerless_code_exchange_2xx_installs_its_tokens() {
+    let clock = Arc::new(ParkingClock::new());
     let credentials = Arc::new(RecordingCredentialStore::default());
-    let (mut daemon, log_path) = test_daemon_scenario_at(
-        Provider::mock(&base),
-        clock,
-        rails,
-        credentials.clone() as Arc<dyn CredentialStore>,
-        log_path,
-    );
     let store_dir = TestPath::dir();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
+    let store = credentials.clone();
+    let parking = clock.clone();
+    let grant = ScriptedResponse {
+        headers: String::new(),
+        ..exchange("200 OK", token_body("at-new", "rt-rotated", "test-user"))
+    };
+    let script = vec![grant, profile("200 OK", profile_of("test-user"))];
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir).run(
+        |mut door| async move {
+            let ended = log_in(&mut door, "code-x").await;
+            assert_eq!(
+                (
+                    ended.logged_in,
+                    ended.login_ok.as_deref(),
+                    ended.login_error.as_deref()
+                ),
+                (true, Some("test-user"), None)
+            );
+            assert_eq!(
+                accounts(&ended),
+                [("test-user".to_string(), "ok".to_string())]
+            );
+            assert_eq!(
+                saved_refresh_tokens(&store.saves.lock().unwrap())
+                    .iter()
+                    .map(|(_, token, user)| (token.as_str(), user.as_str()))
+                    .collect::<Vec<_>>(),
+                [("rt-rotated", "test-user")]
+            );
+            let saved = store.entries.lock().unwrap()["test-user"].clone();
+            let entry = auth::KeyringEntry::from_secret(&saved.as_str().into(), parking.wall());
+            assert_eq!(
+                entry
+                    .access_token
+                    .as_ref()
+                    .map(auth::Secret::exposed_for_test),
+                Some("at-new")
+            );
+            let sends = door.journal();
+            assert_eq!(sends[0]["method"], "POST");
+            assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
+            door.finish().await;
+        },
     );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    let (logged_in, ok, error) = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            let result = login_result(&daemon);
-            if result.1.is_some() || result.2.is_some() {
-                break result;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("the login finished");
-    assert_eq!(
-        (logged_in, ok.as_deref(), error.as_deref()),
-        (true, Some("test-user"), None)
-    );
-    {
-        let s = daemon.shared.lock().unwrap();
-        let session = s.auth.find("test-user").expect("registered");
-        assert_eq!(
-            session
-                .access_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("at-new")
-        );
-        assert_eq!(
-            session
-                .refresh_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("rt-rotated")
-        );
-    }
-    assert_eq!(
-        saved_refresh_tokens(&credentials.saves.lock().unwrap())
-            .iter()
-            .map(|(_, token, user)| (token.as_str(), user.as_str()))
-            .collect::<Vec<_>>(),
-        [("rt-rotated", "test-user")]
-    );
-    let sends = journal_sends(&log_path);
-    assert_eq!(sends[0]["method"], "POST");
-    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
-    server.await.unwrap();
-    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
-    finish_harness(dispatcher, &log_path);
 }
 
 /// C47 with C134, the login arm: a code exchange whose `expires_in` no
 /// clock can add fails the login as the provider's error, stages and
 /// saves nothing, gives back its count for the exit's drain, and leaves
-/// `shared` unpoisoned, so the daemon still answers. Before, the sum
-/// panicked under `shared` in the exchange's task and wedged the daemon.
-#[tokio::test]
-async fn an_out_of_range_expires_in_is_a_token_error() {
-    let grant = ScriptedResponse {
-        method: "POST",
-        path: "/token",
-        status: "200 OK",
-        headers: "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n".into(),
-        body: json!({
+/// the daemon answering. Before, the sum panicked under `shared` in the
+/// exchange's task and wedged the daemon. The count given back is read
+/// at the exit: a stop leaves before the drain's bound on the clock,
+/// which a pending exchange would hold (C133); that the daemon still
+/// answers is every request after the failure.
+#[test]
+fn an_out_of_range_expires_in_is_a_token_error() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let store = credentials.clone();
+    let parking = clock.clone();
+    let grant = exchange(
+        "200 OK",
+        json!({
             "access_token": "at-huge",
             "refresh_token": "rt-huge",
             "expires_in": u64::MAX,
             "username": "test-user",
         })
         .to_string(),
-    };
-    let (base, requests, server) = scripted_server(vec![grant]).await;
-    let (daemon, credentials, _store_dir, log_path) = login_daemon(&base);
+    );
+    logged_out(
+        Server::Script(vec![grant]),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .exit_bound(HELD)
+    .life(IDLE_SHUTDOWN)
+    .run(|mut door| async move {
+        let clock = parking;
+        let ended = log_in(&mut door, "code-x").await;
+        assert_eq!((ended.logged_in, ended.login_ok.as_deref()), (false, None));
+        let error = ended.login_error.expect("the login failed");
+        assert!(error.contains("token exchange failed"), "{error}");
+        assert!(error.contains("lifetime"), "{error}");
+        assert!(
+            !error.contains("at-huge") && !error.contains("rt-huge"),
+            "{error}"
+        );
+        assert!(store.saves.lock().unwrap().is_empty(), "nothing saved");
+        assert_eq!(door.journal_methods(), ["POST"], "one POST");
 
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code=code-x&state={}",
-        query["redirect_uri"], query["state"]
-    );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    let (logged_in, ok, error) = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            let result = login_result(&daemon);
-            if result.1.is_some() || result.2.is_some() {
-                break result;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("the login finished");
-    assert_eq!((logged_in, ok.as_deref()), (false, None));
-    let error = error.expect("the login failed");
-    assert!(error.contains("token exchange failed"), "{error}");
-    assert!(error.contains("lifetime"), "{error}");
-    assert!(
-        !error.contains("at-huge") && !error.contains("rt-huge"),
-        "{error}"
-    );
-    assert!(!daemon.shared.is_poisoned());
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert!(s.auth.staging.is_none(), "nothing staged");
-        assert_eq!(s.auth.exchanges, 0, "the exchange gave its count back");
-    }
-    assert!(
-        credentials.saves.lock().unwrap().is_empty(),
-        "nothing saved"
-    );
-    server.await.unwrap();
-    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"], "one POST");
-    finish_harness(None, &log_path);
+        let stopped = clock.now();
+        door.stop();
+        door.await_leave().await;
+        let drained = clock.now() - stopped;
+        assert!(
+            drained < HELD,
+            "a clean drain leaves before its bound: {drained:?}"
+        );
+        door.finish().await;
+    });
 }
 
 /// C144 (a staged login token serves the login's own profile job alone),
@@ -888,7 +887,12 @@ async fn an_out_of_range_expires_in_is_a_token_error() {
 /// session's token — never with the staged token, and writes nothing of
 /// the login's. A client's profile job for an account with no session
 /// fails `not_logged_in` and sends nothing. The login's own profile job,
-/// submitted after, carries the staged token.
+/// submitted after, carries the staged token. A component test: the
+/// window it pins is the same account's (the client's profile job for
+/// the account whose token is staged), and a client job for that account
+/// through the door would wait behind the held login profile on its
+/// scheduling key; a boundary twin needs an interleaving the door does
+/// not draw.
 #[tokio::test]
 async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;

@@ -25,11 +25,6 @@ use crate::daemon::*;
 /// daemon's clock.
 const BOUND: Duration = Duration::from_secs(3);
 
-/// The bound of a drain a test holds open and releases: far past
-/// anything the drain waits for, so it cannot expire before the release,
-/// and safely added to an instant. Virtual: on the daemon's clock.
-const HELD: Duration = Duration::from_secs(60 * 60);
-
 /// A logged-in harness daemon on a parking clock nothing drives (a
 /// deadline already due is ready at once; any other parks until the test
 /// moves the clock), its queue on a file-backed `daemon.db`, its exit
@@ -204,7 +199,10 @@ fn exit_waits_for_a_refresh_and_installs_the_token() {
     let clock = Arc::new(ParkingClock::new());
     let parking = clock.clone();
     Door::open(
-        Server::Token(Token::Delayed),
+        Server::Token(Token::Delayed(
+            "200 OK",
+            token_body("at-new", "rt-rotated", "test-user"),
+        )),
         clock,
         Arc::new(RecordingCredentialStore::default()),
     )

@@ -64,7 +64,8 @@ fn journal_waits(log_path: &std::path::Path) -> Vec<u64> {
 
 #[tokio::test]
 async fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
-    let (base, arrived, release, server) = delayed_token_server().await;
+    let (base, arrived, release, server) =
+        delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
     let clock = Arc::new(ManualClock::new());
     let (mut daemon, log_path) = test_daemon(&base, clock);
     Arc::get_mut(&mut daemon).unwrap().credential_store = Arc::new(NoopCredentialStore);

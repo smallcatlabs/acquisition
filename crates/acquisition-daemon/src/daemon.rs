@@ -1245,6 +1245,15 @@ impl Builder {
         self
     }
 
+    /// The store directory alone, without a world: what the profile's
+    /// facts and the account index are written under. `world` sets it
+    /// with the rest; nothing else differs.
+    #[cfg_attr(not(test), allow(dead_code))] // `run` serves a world
+    fn store_dir(mut self, store_dir: PathBuf) -> Builder {
+        self.store_dir = Some(store_dir);
+        self
+    }
+
     /// The log's path, as `daemon_status` reports it.
     fn log_path(mut self, log_path: Option<String>) -> Builder {
         self.log_path = log_path;

@@ -69,7 +69,6 @@ pub(super) enum Server {
     Token(Token),
     /// The stateful mock ([`mockggg::start_with_clock`]) on the door's
     /// clock.
-    #[allow(dead_code)] // the mock's scenarios, rounds 3 to 5
     Mock,
     /// A server the scenario built itself: its base URL. Its listener is
     /// bound before the runtime exists (a `std::net::TcpListener`, taken
@@ -95,8 +94,10 @@ impl Drop for ClockHold {
 pub(super) enum Token {
     /// [`token_server_answering`]: one `POST /token` per status, in order.
     Answering(Vec<&'static str>),
-    /// [`delayed_token_server`]: one refresh, answered on release.
-    Delayed,
+    /// [`delayed_token_server`]: one refresh of `rt-old`, answered on
+    /// release with the status and the body given (a grant's body is
+    /// [`token_body`]'s).
+    Delayed(&'static str, String),
 }
 
 /// The fixture as constructed: what the scenario reads from it or drives
@@ -146,6 +147,9 @@ pub(super) struct Counters {
     /// Parks that found the scenario awaiting a settled runtime
     /// ([`Door::settle`]) and woke it in the clock's place.
     pub(super) settles: usize,
+    /// Parks that found the scenario awaiting a quiet runtime
+    /// ([`Door::quiet`]) and woke it, whatever held the clock.
+    pub(super) quiets: usize,
 }
 
 /// C158, the park hook: run at every park of the door's current-thread
@@ -156,9 +160,11 @@ pub(super) struct Counters {
 /// verdict on its thread): then the park is the wire's or the blocking
 /// thread's, and time must not move under it; nor while the scenario
 /// holds the clock across a wait of its own ([`Door::hold_clock`]).
-/// When the scenario awaits a settled runtime ([`Door::settle`]), a park
-/// that would move the clock wakes the scenario instead and moves
-/// nothing. Tokio's paused clock
+/// When the scenario awaits a quiet runtime ([`Door::quiet`]), the park
+/// wakes it before anything else is asked, whatever holds the clock, and
+/// moves nothing. When the scenario awaits a settled runtime
+/// ([`Door::settle`]), a park that would move the clock wakes the
+/// scenario instead and moves nothing. Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
@@ -171,15 +177,23 @@ struct IdleHook {
     holds: Arc<AtomicUsize>,
     /// The scenario's wait for a settled runtime ([`Door::settle`]).
     settle: SettleSlot,
+    /// The scenario's wait for a quiet runtime ([`Door::quiet`]).
+    quiet: SettleSlot,
 }
 
-/// Where [`Door::settle`] leaves its waker for the park hook.
+/// Where [`Door::settle`] and [`Door::quiet`] leave their wakers for the
+/// park hook.
 type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 
 impl IdleHook {
     fn on_idle(&mut self) {
         let mut counters = self.counters.lock().unwrap();
-        if self.holds.load(Ordering::SeqCst) > 0 {
+        if let Some(quiet) = self.quiet.lock().unwrap().take() {
+            // Before the holds: a quiet park is the runtime's, whatever
+            // holds the clock; it moves nothing.
+            let _ = quiet.send(());
+            counters.quiets += 1;
+        } else if self.holds.load(Ordering::SeqCst) > 0 {
             counters.held_by_scenario += 1;
         } else if self.daemon.choke.actual_send_occupancy().0 > 0 {
             counters.held_by_send += 1;
@@ -230,8 +244,10 @@ pub(super) struct DoorBuilder {
     jobs_db: Option<JobDb>,
     sessions: Sessions,
     restore_landed: bool,
+    restore_jobs: Option<Retention>,
     login_within: Option<Duration>,
     world: Option<(String, BoundSocket, PathBuf)>,
+    store_dir: Option<PathBuf>,
     events_capacity: Option<usize>,
     /// The lifecycle's driver's idle knob, when the scenario asks for
     /// the driver.
@@ -259,13 +275,15 @@ pub(super) struct Door {
     holds: Arc<AtomicUsize>,
     /// The scenario's wait for a settled runtime, which the hook wakes.
     settle: SettleSlot,
+    /// The scenario's wait for a quiet runtime, which the hook wakes.
+    quiet: SettleSlot,
     finished: bool,
 }
 
 /// `AuthStatus`'s answer, its fields as the protocol's `Response::Auth`
 /// carries them, for [`Door::await_auth`]'s predicate.
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // the login's scenarios read these, round 4
+#[allow(dead_code)] // `provider`: read by no scenario yet
 pub(super) struct AuthAnswer {
     pub(super) logged_in: bool,
     pub(super) pending: bool,
@@ -297,8 +315,10 @@ impl Door {
             jobs_db: None,
             sessions: Sessions::with(AuthSession::default()),
             restore_landed: true,
+            restore_jobs: None,
             login_within: None,
             world: None,
+            store_dir: None,
             events_capacity: None,
             life: None,
             exit_bound: None,
@@ -330,6 +350,24 @@ impl DoorBuilder {
     /// C148: whether the start's restore has landed; landed by default.
     pub(super) fn restore_landed(mut self, landed: bool) -> Self {
         self.restore_landed = landed;
+        self
+    }
+
+    /// C6: the persisted queue restored before the dispatcher starts, as
+    /// a start restores it (`Daemon::restore_jobs`, pruned by
+    /// `retention`): for a second lifetime on the first's
+    /// [`Self::jobs_db`], which alone installs the table and restores
+    /// nothing. A restore that fails fails the door's construction.
+    pub(super) fn restore_jobs(mut self, retention: Retention) -> Self {
+        self.restore_jobs = Some(retention);
+        self
+    }
+
+    /// The store directory the daemon records into (the profile's facts,
+    /// the account index), without a world; none by default, so nothing
+    /// is recorded.
+    pub(super) fn store_dir(mut self, store_dir: PathBuf) -> Self {
+        self.store_dir = Some(store_dir);
         self
     }
 
@@ -387,6 +425,7 @@ impl DoorBuilder {
                 counters: counters.clone(),
                 holds: door.holds.clone(),
                 settle: door.settle.clone(),
+                quiet: door.quiet.clone(),
             });
             scenario(door).await;
             slot.lock().unwrap().take();
@@ -431,8 +470,8 @@ impl DoorBuilder {
                 let (base, bodies, server) = token_server_answering(statuses).await;
                 (base, Fixture::Token { bodies, server })
             }
-            Server::Token(Token::Delayed) => {
-                let (base, arrived, release, server) = delayed_token_server().await;
+            Server::Token(Token::Delayed(status, body)) => {
+                let (base, arrived, release, server) = delayed_token_server(status, body).await;
                 let fixture = Fixture::Delayed {
                     arrived: Some(arrived),
                     release: Some(release),
@@ -484,6 +523,9 @@ impl DoorBuilder {
         if let Some((world, socket, store_dir)) = self.world {
             builder = builder.world(world, socket, store_dir);
         }
+        if let Some(store_dir) = self.store_dir {
+            builder = builder.store_dir(store_dir);
+        }
         if let Some(capacity) = self.events_capacity {
             builder = builder.events_capacity(capacity);
         }
@@ -491,6 +533,11 @@ impl DoorBuilder {
             builder = builder.exit(Exit::with_bound(bound));
         }
         let daemon = builder.build();
+        if let Some(retention) = self.restore_jobs {
+            daemon
+                .restore_jobs(retention)
+                .expect("the door's daemon restores its queue");
+        }
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         let (life, leave) = match self.life {
             Some(knob) => {
@@ -511,6 +558,7 @@ impl DoorBuilder {
             counters: Arc::default(),
             holds: Arc::default(),
             settle: Arc::default(),
+            quiet: Arc::default(),
             finished: false,
         }
     }
@@ -542,8 +590,11 @@ impl Door {
     /// not hold the clock. That park moves nothing; the scenario resumes
     /// in its place. For a state that must hold once the daemon has done
     /// all it can without time moving (a halted daemon's sibling left
-    /// waiting), never a sleep that stands for it. Needs the door's own
-    /// hook: a door opened [`DoorBuilder::beside`] another has none.
+    /// waiting), never a sleep that stands for it. Under a send the
+    /// scenario holds at its own fixture it never resolves (the held send
+    /// leaves the clock, and settling waits on it): that wait is
+    /// [`Self::quiet`]'s. Needs the door's own hook: a door opened
+    /// [`DoorBuilder::beside`] another has none.
     pub(super) async fn settle(&self) {
         let (settled, wake) = oneshot::channel();
         let previous = self.settle.lock().unwrap().replace(settled);
@@ -552,6 +603,52 @@ impl Door {
             .await
             .expect("the runtime settled")
             .expect("the park hook woke the settle");
+    }
+
+    /// C158: the runtime quiet. Resolves at the next park, at which no
+    /// task can run, whatever holds the clock (a send, a blocking task,
+    /// a hold of the scenario's); that park moves nothing, and the
+    /// scenario resumes in its place. The rule: a scenario calls it only
+    /// after the arrival barrier of a request it holds at its own
+    /// fixture has fired (`Fixture::Account`'s or `Fixture::Delayed`'s
+    /// `arrived`), never before. Under that held send every task the
+    /// daemon runs for a request has either answered or parked on what
+    /// it waits for (the refresh flight's result, the gate's queue), so
+    /// the park is the runtime's own word that the waiters joined and a
+    /// parked job reached the gate, never a count of receivers. Before an
+    /// arrival a park may be a socket read's on the way to the fixture,
+    /// and the quiet would resolve early. Where nothing is held and the
+    /// state must hold once the daemon has done all it can, the wait is
+    /// [`Self::settle`]'s. Needs the door's own hook.
+    #[allow(dead_code)] // the sessions' and the cancel family's scenarios, round 4's last commit
+    pub(super) async fn quiet(&self) {
+        let (quiet, wake) = oneshot::channel();
+        let previous = self.quiet.lock().unwrap().replace(quiet);
+        assert!(previous.is_none(), "one quiet at a time");
+        tokio::time::timeout(HANG, wake)
+            .await
+            .expect("the runtime went quiet")
+            .expect("the park hook woke the quiet");
+    }
+
+    /// The browser, as the user's: a `GET` of `url` under
+    /// [`Self::hold_clock`] (the daemon's callback listener is a wait no
+    /// count of the daemon's sees), following one redirect (the mock's
+    /// `/approve` answers one, to the daemon's callback), its last answer
+    /// read as the user reads the page: the status and the body.
+    pub(super) async fn browser(&self, url: &str) -> (reqwest::StatusCode, String) {
+        let _hold = self.hold_clock();
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::limited(1))
+            .build()
+            .expect("the browser builds");
+        let answered = tokio::time::timeout(HANG, client.get(url).send())
+            .await
+            .expect("the browser was answered")
+            .expect("the browser's request went through");
+        let status = answered.status();
+        let page = answered.text().await.expect("the page reads");
+        (status, page)
     }
 
     /// A protocol request on a connection of its own, spawned: a second
@@ -724,7 +821,7 @@ impl Door {
 
     /// Time passes by the scenario's hand: both faces move, every sleeper
     /// due wakes.
-    #[allow(dead_code)] // a verdict read at a moment, round 5
+    #[allow(dead_code)] // the cancel family's scenarios, round 4's last commit
     pub(super) fn advance(&self, duration: Duration) {
         self.clock.advance(duration);
     }
@@ -739,6 +836,67 @@ impl Door {
     /// drives it with (a hold's release, a recorder).
     pub(super) fn fixture(&mut self) -> &mut Fixture {
         &mut self.fixture
+    }
+
+    /// The held request's two barriers, taken once: `arrived` fires when
+    /// the request the fixture holds is in, and the request is answered
+    /// when `release` fires. The account server's hold or the delayed
+    /// token server's refresh.
+    pub(super) fn held(&mut self) -> (oneshot::Receiver<()>, oneshot::Sender<()>) {
+        let (Fixture::Account {
+            arrived, release, ..
+        }
+        | Fixture::Delayed {
+            arrived, release, ..
+        }) = &mut self.fixture
+        else {
+            panic!("only the account server and the delayed token server hold a request")
+        };
+        (
+            arrived.take().expect("the arrival, taken once"),
+            release.take().expect("the release, taken once"),
+        )
+    }
+
+    /// What the account server received so far, in order: each request's
+    /// method and the account it named (a grant's, or a bearer's). The
+    /// wire, read at the fixture, which the journal is held against.
+    pub(super) fn sent(&self) -> Vec<Sent> {
+        let Fixture::Account { sent, .. } = &self.fixture else {
+            panic!("only the account server records the accounts sent for")
+        };
+        sent.lock().unwrap().clone()
+    }
+
+    /// The methods of the journal's sends, in order: what is held against
+    /// a fixture's record of the wire.
+    pub(super) fn journal_methods(&self) -> Vec<String> {
+        self.journal()
+            .iter()
+            .map(|send| {
+                send["method"]
+                    .as_str()
+                    .expect("a journaled method")
+                    .to_string()
+            })
+            .collect()
+    }
+
+    /// A client's submit of `kind` with empty params as `account` (the
+    /// sole session's when `None`), as a frontend sends it: the id the
+    /// daemon answered.
+    pub(super) async fn submit(&mut self, kind: &str, account: Option<&str>) -> JobId {
+        let submit = Request::Submit {
+            kind: kind.into(),
+            params: json!({}),
+            priority: 0,
+            submitted_by: "test".into(),
+            account: account.map(str::to_string),
+        };
+        match self.request(submit).await {
+            Response::Submitted { id } => id,
+            other => panic!("a submit of {kind} answered {other:?}"),
+        }
     }
 
     /// The park hook's counters as they stand, shared: for a component
@@ -806,4 +964,54 @@ impl Drop for Door {
             panic!("a door scenario ends through `finish`, so its oracles run");
         }
     }
+}
+
+/// The authorize URL's callback, as the browser carries it back: the
+/// daemon's redirect target and the flow's state.
+pub(super) fn callback_of(authorize_url: &str) -> (String, String) {
+    let authorize = url::Url::parse(authorize_url).expect("the authorize URL parses");
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    (query["redirect_uri"].clone(), query["state"].clone())
+}
+
+/// The daemon's callback URL for the authorize URL's flow, its query the
+/// pairs given, in order, each encoded.
+fn callback_with(authorize_url: &str, pairs: &[(&str, &str)]) -> String {
+    let (redirect_uri, _) = callback_of(authorize_url);
+    let mut callback = url::Url::parse(&redirect_uri).expect("the redirect target parses");
+    callback.query_pairs_mut().extend_pairs(pairs);
+    callback.to_string()
+}
+
+/// The provider's redirect on approval: `code` with the flow's state.
+pub(super) fn code_callback(authorize_url: &str, code: &str) -> String {
+    let (_, state) = callback_of(authorize_url);
+    callback_with(authorize_url, &[("code", code), ("state", &state)])
+}
+
+/// The provider's redirect on a denial: `error=access_denied` with a
+/// free-text description and the flow's state.
+pub(super) fn denied_callback(authorize_url: &str) -> String {
+    let (_, state) = callback_of(authorize_url);
+    callback_with(
+        authorize_url,
+        &[
+            ("error", "access_denied"),
+            ("error_description", "The user denied the request"),
+            ("state", &state),
+        ],
+    )
+}
+
+/// Requests on the callback path that are not the flow's answer: a code
+/// under another state, a code and an error with no state, and the
+/// flow's state with neither a code nor an error.
+pub(super) fn stray_callbacks(authorize_url: &str) -> [String; 4] {
+    let (_, state) = callback_of(authorize_url);
+    [
+        callback_with(authorize_url, &[("code", "code-x"), ("state", "not-ours")]),
+        callback_with(authorize_url, &[("code", "code-x")]),
+        callback_with(authorize_url, &[("error", "access_denied")]),
+        callback_with(authorize_url, &[("state", &state)]),
+    ]
 }

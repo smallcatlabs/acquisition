@@ -577,7 +577,25 @@ pub(super) async fn scripted_server(
     (base, requests, task)
 }
 
-pub(super) async fn delayed_token_server() -> (
+/// A token body as GGG answers a grant: the two tokens, an hour's
+/// lifetime and the account's name.
+pub(super) fn token_body(access_token: &str, refresh_token: &str, username: &str) -> String {
+    json!({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_in": 3600,
+        "username": username,
+    })
+    .to_string()
+}
+
+/// One refresh of `rt-old`, held: `arrived` fires when its `POST /token`
+/// is in (the grant and the token checked), and it is answered `status`
+/// with `body` and the token route's rate headers when `release` fires.
+pub(super) async fn delayed_token_server(
+    status: &'static str,
+    body: String,
+) -> (
     String,
     oneshot::Receiver<()>,
     oneshot::Sender<()>,
@@ -596,20 +614,13 @@ pub(super) async fn delayed_token_server() -> (
         assert!(request.body.contains("refresh_token=rt-old"));
         arrived_tx.send(()).unwrap();
         release_rx.await.unwrap();
-        let body = json!({
-            "access_token": "at-new",
-            "refresh_token": "rt-rotated",
-            "expires_in": 3600,
-            "username": "test-user",
-        })
-        .to_string();
         let headers = concat!(
             "X-Rate-Limit-Policy: token-request-limit\r\n",
             "X-Rate-Limit-Rules: Ip\r\n",
             "X-Rate-Limit-Ip: 60:30:30\r\n",
             "X-Rate-Limit-Ip-State: 1:30:0\r\n",
         );
-        mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
+        mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
     });
     (base, arrived_rx, release_tx, task)
 }
@@ -721,15 +732,6 @@ pub(super) fn test_daemon_with(
     )
 }
 
-pub(super) fn test_daemon_scenario(
-    provider: Provider,
-    clock: Arc<dyn Clock>,
-    rails: Arc<Rails>,
-    credential_store: Arc<dyn CredentialStore>,
-) -> (Arc<Daemon>, TestPath) {
-    test_daemon_scenario_at(provider, clock, rails, credential_store, test_log_path())
-}
-
 pub(super) fn test_daemon_scenario_at(
     provider: Provider,
     clock: Arc<dyn Clock>,
@@ -800,6 +802,12 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
 /// never a measure of the wait (C137, the deadline's contract is its
 /// expiry behaviour); the process harness's ceiling.
 pub(super) const HANG: Duration = Duration::from_secs(120);
+
+/// The bound of a drain a test holds open and releases: far past
+/// anything the drain waits for, so it cannot expire before the release,
+/// and safely added to an instant. Virtual: on the daemon's clock. A
+/// clean leave reads less than it on the clock (round 2's rule).
+pub(super) const HELD: Duration = Duration::from_secs(60 * 60);
 
 /// C157, the runner: a lifecycle, a script of events, every effect asked
 /// for, from its start.
@@ -1310,11 +1318,14 @@ pub(super) fn freeze(dir: &std::path::Path) -> WithMode<'_> {
 /// was for (the token POST's grant, or the GET's bearer).
 pub(super) type Sent = (String, String);
 
-/// A server for the cancel scenarios that answers by what was sent, each
-/// connection on its own task: `POST /token` with the grant's account's
-/// tokens (`rt-old` is `test-user`'s, `rt-<name>` is `<name>`'s, and the
-/// rotated token is `rt-<name>`), and `GET /profile` with the bearer's
-/// account, without rate headers as GGG serves it. Of the requests
+/// A server for the cancel scenarios and the logins that answers by what
+/// was sent, each connection on its own task: `POST /token` with the
+/// grant's account's tokens (a refresh grant's account is its token's,
+/// `rt-old` being `test-user`'s and `rt-<name>` `<name>`'s; a code
+/// grant's is its code, so a login's browser carries `code=<name>`; the
+/// tokens answered are `at-<name>` and `rt-<name>`), and `GET /profile`
+/// with the bearer's account, `uuid-<name>`, without rate headers as GGG
+/// serves it. Of the requests
 /// matching `hold`'s method and path, the one numbered `hold.2` (from 0)
 /// is held: `arrived` fires when it is in, and it is answered when
 /// `release` fires.
@@ -1349,9 +1360,12 @@ pub(super) async fn account_server(
                         url::form_urlencoded::parse(request.body.as_bytes())
                             .into_owned()
                             .collect();
-                    match grant["refresh_token"].as_str() {
-                        "rt-old" => "test-user".to_string(),
-                        token => token.trim_start_matches("rt-").to_string(),
+                    match grant["grant_type"].as_str() {
+                        "authorization_code" => grant["code"].clone(),
+                        _ => match grant["refresh_token"].as_str() {
+                            "rt-old" => "test-user".to_string(),
+                            token => token.trim_start_matches("rt-").to_string(),
+                        },
                     }
                 } else {
                     request
