@@ -15,8 +15,10 @@ use crate::daemon::kinds::SessionBearer;
 use crate::daemon::*;
 use tokio::sync::oneshot;
 
-/// The liveness guard on each wait: far past any healthy answer, short
-/// of the runner's own kill.
+/// The liveness guard on each wait: far past any healthy answer, and
+/// short of the local runner's kill (`.config/nextest.toml`'s default
+/// profile ends a test at four 30 s periods, 120 s, [`HANG`]'s equal), so
+/// the guard fires first, by its own margin, and names the wait.
 const ANSWERED_WITHIN: Duration = Duration::from_secs(30);
 
 /// `work`'s answer, or `None` past [`ANSWERED_WITHIN`]. The work runs as
@@ -69,7 +71,7 @@ async fn saving_daemon() -> (
     TestPath,
 ) {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ParkingClock::new()));
     logged_in(&mut daemon);
     let store = Arc::new(RecordingCredentialStore::default());
     let held = hold_the_next_save(&store);
@@ -227,7 +229,7 @@ async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() 
 /// registered. Released, the first login registers its session.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let store = Arc::new(RecordingCredentialStore::default());
     let mut held = hold_the_next_save(&store);
     let store_dir = TestPath::dir();
@@ -431,6 +433,8 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
         let posts = posts.clone();
         answered(async move {
             while !looked_up.load(Ordering::SeqCst) && posts() < 2 {
+                // The poll's interval: a component test on a plain runtime has no
+                // park hook to wake it when the state it waits for holds.
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
         })
@@ -478,7 +482,7 @@ fn landing_panic_child(dir: &std::path::Path) -> ! {
         .unwrap();
     runtime.block_on(async {
         let (base, _sent, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-        let clock = Arc::new(ManualClock::new());
+        let clock = Arc::new(ParkingClock::new());
         let log_path = TestPath::file_in(dir, "daemon.log");
         let rails = Arc::new(Rails::with_config_and_clock(
             RailsConfig {

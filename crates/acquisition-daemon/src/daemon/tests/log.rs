@@ -81,7 +81,7 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
 #[tokio::test]
 async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     let (base, forms, server) = token_aware_server().await;
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let log_path = test_log_path();
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
@@ -111,7 +111,7 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
         query["redirect_uri"], query["state"]
     );
     assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    tokio::time::timeout(Duration::from_secs(10), async {
+    tokio::time::timeout(HANG, async {
         loop {
             if let Response::Auth {
                 login_ok: Some(_), ..
@@ -119,6 +119,8 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
             {
                 break;
             }
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })
@@ -246,7 +248,7 @@ async fn refresh_answered_by_headers(
     body: &'static str,
 ) -> (String, ()) {
     let (base, server) = token_endpoint_answering(status, headers.into(), body).await;
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let log_path = test_log_path();
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
@@ -400,7 +402,7 @@ async fn api_answered_by(
             mockggg::respond_with(&mut stream, status, "application/json", &headers, body).await;
         }
     });
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let log_path = test_log_path();
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {

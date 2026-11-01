@@ -109,6 +109,8 @@ fn row_of(db: &std::path::Path, id: JobId) -> acquisition_store::jobs::JobRow {
 async fn wait_state(daemon: &Daemon, id: JobId, state: JobState) {
     tokio::time::timeout(HANG, async {
         while state_of(daemon, id) != state {
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
@@ -120,11 +122,6 @@ async fn wait_state(daemon: &Daemon, id: JobId, state: JobState) {
 /// still waiting.
 fn spawn_drain(daemon: &Arc<Daemon>) -> tokio::task::JoinHandle<Option<InFlight>> {
     tokio::spawn(drain(daemon))
-}
-
-/// Long enough for a drain that does not wait to have returned.
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
 /// C133: a job whose GET is on the wire when the exit begins is waited
@@ -307,7 +304,11 @@ async fn park_a_job_at_the_token_route() -> Parked {
     arrived.await.unwrap();
     let parked = submit_for(&daemon, "profile", json!({}), Some("test-user"));
     wait_state(&daemon, parked, JobState::Running).await;
-    // Long enough for the parked refresh to reach the gate's queue.
+    // Long enough for the parked refresh to reach the gate's queue. It
+    // stays a sleep: the exact signal is the door's `quiet` (the runtime
+    // parked under the held POST), and this fixture's two users are
+    // component tests of the exit's park on a plain runtime, which has no
+    // park hook.
     tokio::time::sleep(Duration::from_millis(50)).await;
     let warmed = vec![
         sent("other", "POST"),
@@ -383,7 +384,6 @@ async fn a_turned_away_job_is_not_picked_again_while_exiting() {
     assert_eq!(state_of(&p.daemon, p.parked), JobState::Waiting);
 
     let local = submit_for(&p.daemon, "sleep", json!({ "seconds": 0 }), None);
-    settle().await;
     assert!(
         p.daemon.pick_runnable().is_empty(),
         "the pick takes nothing"
@@ -478,7 +478,7 @@ fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
 /// in the middle would lose the login.
 #[test]
 fn the_idle_verdict_holds_while_a_login_is_pending() {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon("http://127.0.0.1:1", clock.clone());
     let knob = Duration::from_secs(60);
     clock.advance(knob);
@@ -555,6 +555,9 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
             tokio::spawn(async move { daemon.is_idle(Duration::from_secs(60)) })
         })
         .collect();
+    // It stays a thread sleep: the runtime's two workers are blocked on
+    // `shared`, so no task can signal that both reached the lock; long
+    // enough for both to.
     std::thread::sleep(Duration::from_millis(100));
 
     let began = std::time::Instant::now();
@@ -619,6 +622,8 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
             if held && clock.sleepers() >= 1 {
                 break;
             }
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
     })
@@ -805,7 +810,8 @@ async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
 
     assert!(daemon.begin_exit("test: exit"));
     let drain = spawn_drain(&daemon);
-    settle().await;
+    // The drain's look parks on the clock, the login in flight.
+    await_a_look(&clock).await;
     assert!(
         !drain.is_finished(),
         "the drain waits for the login whose profile landed"
@@ -839,7 +845,7 @@ async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
 /// as a lost login's (C50), and the drain does not stall to its bound.
 #[test]
 fn a_login_whose_profile_job_waits_is_not_held_by_the_drain() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let generation = daemon.begin_auth_flow();
     daemon
         .stage_auth_flow(
@@ -1363,6 +1369,8 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
         while daemon.rails().halted().is_none()
             || !std::fs::read_to_string(&log_path).unwrap().contains(&why)
         {
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
@@ -1400,7 +1408,7 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
 /// the component test's below, which reads the rows through a connection
 /// of its own between lifetimes and refuses a write with a trigger.
 fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, TestPath) {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
         d.world = Some(dir.display().to_string());
@@ -1847,7 +1855,7 @@ fn accept_failures(log_path: &std::path::Path) -> Vec<String> {
 #[tokio::test]
 async fn a_listener_error_is_served_through() {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("listener.sock");
     let (listener, bound) = crate::daemon::endpoint::Listener::bind(&path)
@@ -1859,7 +1867,7 @@ async fn a_listener_error_is_served_through() {
     };
     let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::from_millis(1)));
 
-    let answer = tokio::time::timeout(Duration::from_secs(5), async {
+    let answer = tokio::time::timeout(HANG, async {
         let stream = tokio::net::UnixStream::connect(&path).await?;
         let (read, mut write) = tokio::io::split(stream);
         write.write_all(b"{\"req\":\"hello\"}\n").await?;
@@ -1892,7 +1900,7 @@ async fn a_listener_error_is_served_through() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_run_of_listener_errors_logs_a_bounded_number_of_lines() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let mut errors: std::collections::VecDeque<std::io::Error> = (0..1000)
         .map(|_| std::io::Error::other("too many open files"))
         .collect();
@@ -1903,11 +1911,13 @@ async fn a_run_of_listener_errors_logs_a_bounded_number_of_lines() {
     };
     let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::ZERO));
     let aborted = std::io::Error::from(std::io::ErrorKind::ConnectionAborted).to_string();
-    tokio::time::timeout(Duration::from_secs(10), async {
+    tokio::time::timeout(HANG, async {
         while !accept_failures(&log_path)
             .iter()
             .any(|l| l.contains(&aborted))
         {
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })

@@ -59,7 +59,7 @@ fn done(tabs: u64) -> Outcome {
 /// and the whole tree leaves, its tally counting both children.
 #[tokio::test]
 async fn a_parent_with_one_slow_child_keeps_its_tree_in_memory_until_it_concludes() {
-    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let (parent, quick, slow) = fan_out(&daemon);
     daemon.finish(quick, done(1));
     daemon.conclude(parent, done(2));
@@ -96,7 +96,7 @@ async fn a_parent_with_one_slow_child_keeps_its_tree_in_memory_until_it_conclude
 /// saw as it concluded.
 #[tokio::test]
 async fn an_evicted_tree_answers_from_the_table_as_memory_did() {
-    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let (parent, quick, slow) = fan_out(&daemon);
     daemon.finish(quick, done(1));
     daemon.conclude(parent, done(2));
@@ -183,7 +183,7 @@ async fn an_evicted_tree_answers_from_the_table_as_memory_did() {
 /// answers from the table.
 #[tokio::test]
 async fn a_thousand_single_jobs_concluded_leave_none_in_memory() {
-    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let ids: Vec<JobId> = (0..1000)
         .map(|_| {
             daemon

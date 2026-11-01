@@ -7,7 +7,7 @@ use super::harness::*;
 use crate::daemon::*;
 
 async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
-    tokio::time::timeout(Duration::from_secs(1), async {
+    tokio::time::timeout(HANG, async {
         loop {
             let receivers = daemon
                 .shared
@@ -42,7 +42,7 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
 /// mock records no bearer) and the refresh flight have none.
 #[tokio::test]
 async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_the_limit() {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let api_base = mockggg::start_with_clock(clock.clone()).await.unwrap();
     let (token_base, token_arrived, release_token, token_server) =
         delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
@@ -153,6 +153,14 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
     }
     token_server.await.unwrap();
 
+    // The clock crosses the 5-per-10 s window the first five fetches
+    // fill, which parks the sixth until a slot frees.
+    advance_until(&clock, || {
+        fetches
+            .iter()
+            .all(|&id| state_of(&daemon, id).is_terminal())
+    })
+    .await;
     let mut done = 0;
     let mut failed = 0;
     let mut cancelled_count = 0;

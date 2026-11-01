@@ -21,58 +21,19 @@ use tokio::sync::oneshot;
 /// scenario even if someone strips the header line.
 pub(super) const MANUAL_WALL_ORIGIN: Duration = Duration::from_secs(946_684_800);
 
-pub(super) struct ManualClock {
-    now: Mutex<Instant>,
-    wall: Mutex<SystemTime>,
-}
-
-impl ManualClock {
-    pub(super) fn new() -> Self {
-        ManualClock {
-            now: Mutex::new(Instant::now()),
-            wall: Mutex::new(SystemTime::UNIX_EPOCH + MANUAL_WALL_ORIGIN),
-        }
-    }
-
-    /// Time passes normally: both faces move.
-    pub(super) fn advance(&self, duration: Duration) {
-        let mut now = self.now.lock().unwrap();
-        *now = now.checked_add(duration).expect("bounded test deadline");
-        *self.wall.lock().unwrap() += duration;
-    }
-}
-
-impl Clock for ManualClock {
-    fn now(&self) -> Instant {
-        *self.now.lock().unwrap()
-    }
-
-    fn wall(&self) -> SystemTime {
-        *self.wall.lock().unwrap()
-    }
-
-    fn kind(&self) -> &'static str {
-        "manual"
-    }
-
-    fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            self.advance(duration);
-            tokio::task::yield_now().await;
-        })
-    }
-}
-
-/// C158, the clock a door scenario runs on (found by the 4-0 spike,
-/// `roadmap/briefs/4-0-spike.md`): a clock whose sleeps park. `sleep`
+/// C158, the clock every daemon test runs on (found by the 4-0 spike,
+/// `roadmap/briefs/4-0-spike.md`): a clock whose sleeps park, moved by
+/// the door's park hook in a scenario and by the test's own hand in a
+/// component test; nothing moves it by itself. `sleep`
 /// and `sleep_until` park in a map ordered by deadline (then by arrival,
 /// so equal deadlines wake first-come); `advance_to(t)` wakes
 /// every sleeper due by `t`, in deadline order; `advance_to_next()` moves
 /// to the earliest parked deadline and wakes the sleepers due there, so
 /// each sleeper wakes at its own deadline, never a summed overshoot;
 /// `sleepers()` is how many are parked now (a woken or dropped sleep is
-/// not). `now` and `wall` are `ManualClock`'s two faces. Tokio's paused
-/// clock behind the project's own trait, without `test-util` (C84).
+/// not). Two faces, `now` and `wall`, from [`MANUAL_WALL_ORIGIN`], its
+/// journal's clock `manual`. Tokio's paused clock behind the project's
+/// own trait, without `test-util` (C84).
 pub(super) struct ParkingClock {
     inner: Mutex<Parked>,
 }
@@ -865,6 +826,25 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
     .expect("dispatcher completed the scripted job")
 }
 
+/// C158, a component test's hand on its parking clock where the daemon
+/// waits on it (a landed 429's hold, a full window): until `reached`
+/// holds, the clock moves to its earliest parked deadline, then the test
+/// yields so what woke runs. Each sleeper wakes at its own deadline, so a
+/// hold reads on the journal exactly as long as it was; nothing parked,
+/// nothing moves. The shape of the scenario's park hook, by the test's
+/// hand, for a test on a plain runtime, which has no hook. Under the hang
+/// ceiling.
+pub(super) async fn advance_until(clock: &ParkingClock, mut reached: impl FnMut() -> bool) {
+    tokio::time::timeout(HANG, async {
+        while !reached() {
+            clock.advance_to_next();
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the state was reached as the clock moved");
+}
+
 /// The hang ceiling: how long a test waits before it calls a wait hung,
 /// never a measure of the wait (C137, the deadline's contract is its
 /// expiry behaviour); the process harness's ceiling.
@@ -937,6 +917,8 @@ pub(super) async fn drive_drain<T>(
     let mut drain = std::pin::pin!(drain);
     tokio::time::timeout(HANG, async {
         loop {
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::select! {
                 biased;
                 out = &mut drain => return out,
@@ -965,6 +947,8 @@ pub(super) async fn drive_drain<T>(
 pub(super) async fn await_a_look(clock: &ParkingClock) {
     tokio::time::timeout(HANG, async {
         while clock.sleepers() == 0 {
+            // The poll's interval: a component test on a plain runtime has no
+            // park hook to wake it when the state it waits for holds.
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
     })

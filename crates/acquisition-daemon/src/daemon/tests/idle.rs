@@ -8,7 +8,7 @@ use crate::daemon::*;
 
 #[tokio::test]
 async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
-    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let id = daemon
         .submit("fetch".into(), json!({}), 0, "t".into(), None)
         .unwrap();
@@ -45,7 +45,7 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
 /// its waiting queue, which stays on disk (C25).
 #[test]
 fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let (daemon, log) = test_daemon_with(
         Provider::mock("http://127.0.0.1:1"),
         clock.clone(),
@@ -137,7 +137,7 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
         },
     ];
     let (base, requests, server) = scripted_server(responses).await;
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon(&base, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = daemon
@@ -171,7 +171,7 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
 /// both two hours gone, nothing holds the daemon.
 #[test]
 fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let (daemon, log) = test_daemon("http://127.0.0.1:1", clock.clone());
     assert_eq!(
         IDLE_SHUTDOWN,

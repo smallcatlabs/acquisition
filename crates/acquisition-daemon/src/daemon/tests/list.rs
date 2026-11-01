@@ -48,7 +48,7 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
 /// A daemon whose mock `fetch` policy is learned, for `alice` too, so
 /// the queue's etas are forward simulations rather than zeros.
 async fn learned_daemon() -> Arc<Daemon> {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
     let (daemon, _log_path) = test_daemon(&base, clock);
     for route in ["fetch", "fetch@alice"] {

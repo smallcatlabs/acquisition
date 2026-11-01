@@ -817,7 +817,7 @@ fn c127_a_sleep_within_the_bound_is_admitted_and_done() {
 /// runs on real time and an `apply`'s children reach the wire).
 #[tokio::test]
 async fn c127_a_large_plan_and_params_and_actions_at_their_bounds_are_admitted() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
     let mut jobs = vec![
         json!({ "kind": "stashes", "params": { "realm": "pc", "league": "Standard" } }),
         json!({ "kind": "characters", "params": { "realm": "pc" } }),
@@ -929,7 +929,7 @@ fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
 /// each at submit). A component test: `route_for` is a function.
 #[test]
 fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
-    let (daemon, _) = test_daemon("http://mock", Arc::new(ManualClock::new()));
+    let (daemon, _) = test_daemon("http://mock", Arc::new(ParkingClock::new()));
     assert_eq!(
         daemon
             .route_for("stash", &json!({ "league": "50% Off #2", "id": "a?b" }))
@@ -1213,7 +1213,7 @@ fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
 /// holds before and after any tightening of the segment rule.
 #[test]
 fn c127_legitimate_values_render_to_these_wire_paths() {
-    let (daemon, _) = test_daemon("https://api.pathofexile.com", Arc::new(ManualClock::new()));
+    let (daemon, _) = test_daemon("https://api.pathofexile.com", Arc::new(ParkingClock::new()));
     let table = [
         (
             "stashes",
@@ -1331,7 +1331,7 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
 /// to a throwaway in-memory one), restored from it like `run` does.
 fn persisting_daemon(base: &str, db_path: &std::path::Path) -> (Arc<Daemon>, TestPath) {
-    let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
+    let (mut daemon, log_path) = test_daemon(base, Arc::new(ParkingClock::new()));
     Arc::get_mut(&mut daemon).unwrap().jobs_db = Mutex::new(JobDb::open(db_path).unwrap());
     daemon.restore_jobs(Retention::default()).unwrap();
     (daemon, log_path)

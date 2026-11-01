@@ -673,9 +673,9 @@ impl Daemon {
     /// verdict's answer, the quiet wait's looks and the two timers. Every
     /// instant is on the daemon's `Clock` and every wait sleeps through
     /// it, to an absolute deadline: the system clock runs them as tokio's
-    /// timers, and a test's parking clock parks them (C158). A test's
-    /// `ManualClock`, which advances on every sleep, would fire them at
-    /// once, so no driver runs on it. `knob` is the idle exit's, read once
+    /// timers, and a test's parking clock parks them (C158), so a test's
+    /// driver waits until the test or the door moves the clock, never
+    /// firing at once. `knob` is the idle exit's, read once
     /// by the caller at the loop's start. The loop ends by `leave`, the
     /// effect `Leave` performed, given what the bound cut (`None` when the
     /// drain was clean): `run` installs [`Self::leave`], which ends the

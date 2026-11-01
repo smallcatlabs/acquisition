@@ -72,7 +72,7 @@ fn login_daemon(
         .unwrap();
     let daemon = Daemon::builder(
         Provider::mock(base),
-        Arc::new(ManualClock::new()),
+        Arc::new(ParkingClock::new()),
         credentials.clone(),
         log,
     )
@@ -625,12 +625,12 @@ async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
 
     let silent = tokio::net::TcpStream::connect(addr).await.unwrap();
     let redirect = format!("http://{addr}{CALLBACK_PATH}?code=code-x&state=st-expected");
-    let answered = tokio::time::timeout(Duration::from_secs(5), reqwest::get(&redirect))
+    let answered = tokio::time::timeout(HANG, reqwest::get(&redirect))
         .await
         .expect("the redirect was answered while the silent connection was open")
         .unwrap();
     assert!(answered.status().is_success(), "{answered:?}");
-    let code = tokio::time::timeout(Duration::from_secs(5), waiting)
+    let code = tokio::time::timeout(HANG, waiting)
         .await
         .expect("the flow ended on the redirect")
         .unwrap();
@@ -656,7 +656,7 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
 
     let mut silent = tokio::net::TcpStream::connect(addr).await.unwrap();
     let mut byte = [0u8; 1];
-    let read = tokio::time::timeout(Duration::from_secs(5), silent.read(&mut byte))
+    let read = tokio::time::timeout(HANG, silent.read(&mut byte))
         .await
         .expect("the daemon closed the silent connection");
     assert_eq!(read.ok(), Some(0), "closed without a response");
@@ -666,7 +666,7 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
     // taken and dropped at the zero bound, so it too reads EOF; one left
     // in the backlog would read nothing while the listener stands.
     let mut second = tokio::net::TcpStream::connect(addr).await.unwrap();
-    let read = tokio::time::timeout(Duration::from_secs(5), second.read(&mut byte))
+    let read = tokio::time::timeout(HANG, second.read(&mut byte))
         .await
         .expect("the daemon accepted and closed the second connection");
     assert_eq!(read.ok(), Some(0), "closed without a response");
@@ -900,7 +900,7 @@ fn an_out_of_range_expires_in_is_a_token_error() {
 #[tokio::test]
 async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ParkingClock::new()));
     logged_in(&mut daemon);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 

@@ -178,7 +178,7 @@ fn session_daemon(
     store_dir: Option<&std::path::Path>,
     journal: bool,
 ) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, TestPath) {
-    let clock = Arc::new(ManualClock::new());
+    let clock = Arc::new(ParkingClock::new());
     let expired = clock.wall();
     let log_path = test_log_path();
     let log = std::fs::OpenOptions::new()
