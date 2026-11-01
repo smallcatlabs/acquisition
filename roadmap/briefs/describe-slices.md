@@ -4,10 +4,12 @@ Written 2026-11-01 by the orchestrating session, from #153 (filed by
 the league seat, `audits/league-2026-11/seat/`), #154 (the owner's,
 with his comment on derived groups and the seat session's comment
 with its measurements and two settlements) and the tree at `fdbab0ce`.
-Cut twice: the first cut (`4f879174`) was reviewed cold
+Cut three times: the first cut (`4f879174`) was reviewed cold
 (`roadmap/reviews/describe-slices-brief-4f879174.md`, the prompt
-beside), and this second cut answers its ten findings, each named at
-the foot, "Taken from the review". One step, two issues in order, both
+beside) and the second (`9dfa89f5`) answered its ten findings; the
+second was reviewed cold too (`describe-slices-brief-9dfa89f5.md`),
+and this third cut answers its five, each named at the foot, "Taken
+from the reviews". One step, two issues in order, both
 surfaces (`acq search --describe` and the MCP's `describe`): how the
 search language discloses itself to an agent, progressively — the
 index, a slice the size of a question, an entry whole.
@@ -256,7 +258,9 @@ pattern, lines only); a pattern matching nothing (`~qqqqq`); a pattern
 that does not compile (`~(`); a pattern beside a name (`league,~life`);
 `all`; a category line asked by its id (`accessory.ring`); a pattern
 holding a CLI flag's spelling (`~--count`), echoed unchanged by the
-MCP; `web/form.rs`'s `describe(["trade"])` unchanged.
+MCP; a pattern holding a comma (`~^.{1,20}$`) on both surfaces; the
+bare `~`; a not-built construct asked by name; `web/form.rs`'s
+`describe(["trade"])` unchanged.
 
 ## Settled in this brief, under the owner's delegation
 
@@ -269,7 +273,13 @@ the one ruling is Input's.
    index, `all` is the whole, a name is its entries whole, `~pattern`
    a slice. Each frontend passes its list through and resolves nothing
    itself (today the CLI resolves `all` and `index` on its own:
-   `search_cmd.rs` 407–419, two places for one rule).
+   `search_cmd.rs` 407–419, two places for one rule). The CLI's list
+   is read as `--count`'s is (`search_cmd.rs:172`, no clap delimiter,
+   split in code): commas part the names, and an item starting `~`
+   takes the rest of that `--describe` value whole, so a pattern's own
+   commas (`'~^.{1,20}$'`) reach the search crate intact; a name after
+   a pattern is given by `--describe` again, which adds a list of its
+   own. The MCP's `names` is a JSON array, one pattern an item.
 2. **The one-line rule moves into the search crate**: an entry's line
    is its definition up to its first `: ` (`definition_head`, the rule
    the CLI's index applies to a computed value today), its name and
@@ -278,10 +288,14 @@ the one ruling is Input's.
    count); the trade catalogue counted by rows and named; not_built
    and limits as today, one line each. The index says how to go on in
    words that name entries and lists, never a frontend's flag (C143;
-   the MCP spells flags after them). Every line the index prints is
-   askable by its name: a category's id becomes a name describe knows
-   (exact, case-insensitive), answering its row whole, which the
-   resolver does not do today (`describe.rs` 730, 798).
+   the MCP spells flags after them). Every entry line the index
+   prints is askable by its name — the eleven sections' entries, the
+   section names, and the categories: a category's id becomes a name
+   describe knows (exact, case-insensitive), answering its row whole,
+   which the resolver does not do today (`describe.rs` 730, 798). A
+   not-built construct's line stays what it is: asked by name it is
+   refused `not_built`, as today (`bind.rs:138`, `describe.rs:754`),
+   and a limit's line has no name.
 3. **A pattern reads the language's entries**: an entry's name and
    definition whole (`what`), a category's id, text and holds; never
    values, examples or the trade catalogue's rows (`trade` is a block,
@@ -319,8 +333,10 @@ the one ruling is Input's.
    unanchored, any case unless `(?-i)`, compiled by the one compiler
    `bind.rs` holds; the pattern is tried against the name and against
    the definition each as its own string, so `^` and `$` are the ends
-   of a name or of a definition and `~^pseudo\.total` reads as it
-   says.
+   of a name or of a definition and `~^pseudo\.total` (one backslash,
+   the regex's escaped dot) reads as it says. A pattern is `~` followed
+   by at least one character: the bare item `~` is the operator entry's
+   own name (`describe.rs:575`) and answers it whole, as today.
 7. **The step's keys stand only where they say something.** The index
    carries `trade_rows` and `next`; a pattern's answer carries
    `patterns` and `next`; the whole under `all` and an answer by name
@@ -379,10 +395,13 @@ The ruling's commit precedes the build (Input).
    `examples` are empty, every category's `holds` is empty, `trade` is
    none and `trade_rows` is the catalogue's count, `next` is some; the
    index names every entry the whole names, in the whole's order, and
-   every name it prints (a category's id among them) answers whole
-   when asked alone; `all` serializes as the whole did (the sections
+   every entry name it prints (the eleven sections' entries, the
+   section names, a category's id) answers whole when asked alone,
+   while a not-built construct asked by name is still refused
+   `not_built`; `all` serializes as the whole did (the sections
    pin, `c97_the_sections_listed…`, reads `all`, and a new case holds
-   that the index's keys are the sections and the two it adds);
+   that the index's keys are the sections less `trade`, which the
+   index leaves out, plus `trade_rows` and `next`);
    `c97_describe_says_how_terms…` reads `all` and asserts at least one
    example was checked (a nonempty-example witness), and the ten
    `describe(&[])` readers ask `all` where they mean the whole (one
@@ -396,8 +415,12 @@ The ruling's commit precedes the build (Input).
    `--describe all` (`assert_spoken_as`); `mcp_reference.rs:109` asks
    `all`; `spoken.rs` gains `all` beside `{}` (both swept). No wording
    pinned twice.
-4. **The pattern (#154).** In `describe.rs`: a list item starting `~`
-   is a pattern over the language's entries (settled 3 and 6),
+4. **The pattern (#154).** In `describe.rs`: a list item that is `~`
+   and at least one character more is a pattern over the language's
+   entries (settled 3 and 6; the bare `~` stays the operator's name);
+   the CLI's `describe` arg loses its clap delimiter and the CLI
+   splits the value as settled 1 says, a pattern taking the rest of
+   its value (`--count`'s shape);
    compiled by `bind.rs`'s compiler (the function made `pub(crate)`,
    its words shared, never a second `RegexBuilder`); its matches
    resolved by the tier rule (settled 4) over `LISTED`; the answer
@@ -422,7 +445,10 @@ The ruling's commit precedes the build (Input).
    a property — the tier seen from both sides at ten and eleven; a
    match on the definition that the line alone would miss
    (`critical_strike_chance` under `~weapon`); case; `(?-i)`; `^` and
-   `$` against a name alone; a name beside a pattern; nothing matched
+   `$` against a name alone and against a definition alone (a pattern
+   anchored at a definition's start matches the entry whose definition
+   starts so and not one whose name does); the bare `~` answering the
+   operator entry; a name beside a pattern; nothing matched
    refused `unknown_name` with no readings and one describe offer;
    `~(` refused `bad_pattern` with the compiler's words; the trade
    rows not read (`~pseudo_total` finds no trade row by its key); the
@@ -431,7 +457,9 @@ The ruling's commit precedes the build (Input).
    whole. CLI: one golden for the slice's words (a pattern answered
    whole, one answered as lines, the refusal with its printed offer),
    quoted for the shell as printed, the offer run as printed by the
-   test (shape 6). MCP: `~resist` and `~a` spoken as the CLI's `--json`
+   test (shape 6); a pattern with a comma (`'~^.{1,20}$'`) reaching the
+   search crate whole, and `--describe` given twice adding its names.
+   MCP: `~resist`, `~a` and `~^.{1,20}$` spoken as the CLI's `--json`
    answers, the documents one (no own section stands in a pattern's
    answer); `~--count` echoed unchanged in `patterns[].pattern`; the
    refusal's offer `describe` with `{}` sent back and answered as the
@@ -537,7 +565,7 @@ help and the tool text, each with the command that measured it; the
 agent-facing decisions the build made beyond those settled here, each
 a sentence.
 
-## Taken from the review
+## Taken from the reviews
 
 The first review's ten (`roadmap/reviews/describe-slices-brief-4f879174.md`):
 
@@ -563,3 +591,17 @@ The first review's ten (`roadmap/reviews/describe-slices-brief-4f879174.md`):
    the exceptions kept (Goal, settled 4 and 5, Done when).
 10. `web/form.rs:144` named and left unchanged (Read, Do 1, Not in
     scope).
+
+The second review's five (`roadmap/reviews/describe-slices-brief-9dfa89f5.md`):
+
+1. The CLI's list read as `--count`'s, a pattern taking the rest of
+   its value, so a comma inside a pattern survives; the comma pattern
+   a parity case (settled 1, Do 4, Do 5, Input).
+2. A pattern is `~` and at least one character; the bare `~` stays the
+   operator entry's name, both pinned (settled 6, Do 4, Do 5).
+3. The index's keys are the sections less `trade` plus `trade_rows`
+   and `next` (Do 3).
+4. "Every name answers whole" scoped to entries, section names and
+   categories; a not-built construct stays a refusal (settled 2, Do 3).
+5. The escaped dot written once, with an anchored-definition case
+   (settled 6, Do 5).
