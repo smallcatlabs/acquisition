@@ -696,129 +696,104 @@ async fn a_get_3xx_keeps_its_target_out_of_the_daemon_log() {
 
 // ---- C25: a cancel reaches a job parked at the choke point ----------------
 
-/// A harness daemon on the manual clock with two sessions, `test-user`
-/// and `other`, each with its refresh due.
-fn two_account_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
-    let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    daemon.shared.lock().unwrap().auth.by_account.insert(
-        "other".into(),
-        AuthSession {
-            username: Some("other".into()),
-            refresh_token: Some("rt-other".into()),
-            ..Default::default()
-        },
-    );
-    (daemon, log_path)
+/// The cancel family's sessions: `test-user` and `other`, each holding a
+/// refresh token and no access token, so each one's first job refreshes.
+fn two_accounts() -> Sessions {
+    let mut sessions = logged_in_sessions();
+    sessions.replace(AuthSession {
+        username: Some("other".into()),
+        refresh_token: Some("rt-other".into()),
+        ..AuthSession::default()
+    });
+    sessions
 }
 
-fn submit_for(daemon: &Daemon, kind: &str, account: &str) -> JobId {
-    daemon
-        .submit(
-            kind.into(),
-            json!({}),
-            0,
-            "test".into(),
-            Some(account.into()),
-        )
-        .unwrap()
+/// The cancel family's door: the account server holding the request
+/// `hold` names, the two accounts' sessions.
+fn cancel_door(hold: (&'static str, &'static str, usize)) -> DoorBuilder {
+    Door::open(
+        Server::Account(hold),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(two_accounts())
 }
 
-/// Wait until `account`'s refresh flight is up with `waiters` callers
-/// waiting on its owner: every job named has asked for the refresh, and
-/// none has sent it.
-async fn wait_for_flight(daemon: &Daemon, account: &str, waiters: usize) {
-    tokio::time::timeout(Duration::from_secs(3), async {
-        loop {
-            let joined = daemon
-                .shared
-                .lock()
-                .unwrap()
-                .auth
-                .find(account)
-                .and_then(|session| session.refresh_flight.as_ref())
-                .is_some_and(|flight| flight.result.receiver_count() == waiters);
-            if joined {
-                return;
-            }
-            tokio::task::yield_now().await;
-        }
-    })
-    .await
-    .expect("the jobs joined the refresh flight");
+/// `Request::Cancel` of job `id`, acknowledged.
+async fn cancel(door: &mut Door, id: JobId) {
+    match door.request(Request::Cancel { id }).await {
+        Response::Ack { .. } => {}
+        other => panic!("the cancel of job {id} answered {other:?}"),
+    }
 }
 
-async fn wait_outcome(daemon: &Daemon, id: JobId) -> Outcome {
-    wait_terminal(daemon, id).await.1
+/// Job `id`'s outcome, its end awaited through the protocol.
+async fn outcome_of(door: &mut Door, id: JobId) -> Outcome {
+    door.await_terminal(id).await.1
 }
 
 /// C25: a cancel reaches a job parked Running in its refresh's wait on
 /// the token route. `other` refreshes once, so the route's policy is
-/// learned; its second POST is held on the wire, holding the route's one
-/// permit, and `test-user`'s job, already running, owns its own refresh
-/// flight and waits behind it at the gate. The job is cancelled and the
+/// learned; the clock moves past the token that refresh installed, so
+/// `other`'s second job refreshes again, and that POST is held on the
+/// wire, holding the route's one permit; `test-user`'s job, already
+/// running, owns its own refresh flight and waits behind it at the gate
+/// (the runtime quiet under the held send). The job is cancelled and the
 /// POST released: the job's refresh is turned away once the gate admits
 /// it, nothing is sent for it, and it concludes cancelled. The next job
 /// for the same account refreshes and goes out.
-#[tokio::test]
-async fn a_cancel_reaches_a_job_waiting_on_the_token_route() {
-    let (base, sent_log, arrived, release) = account_server(("POST", "/token", 1)).await;
-    let (daemon, log_path) = two_account_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let warm = submit_for(&daemon, "profile", "other");
-    assert!(matches!(
-        wait_outcome(&daemon, warm).await,
-        Outcome::Success { .. }
-    ));
-    daemon
-        .shared
-        .lock()
-        .unwrap()
-        .auth
-        .find_mut("other")
-        .unwrap()
-        .access_token = None;
-    let first = submit_for(&daemon, "profile", "other");
-    arrived.await.unwrap();
-    let parked = submit_for(&daemon, "profile", "test-user");
-    wait_for_flight(&daemon, "test-user", 0).await;
-    // Long enough for the parked refresh to reach the gate's queue.
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    let warmed = [
-        sent("other", "POST"),
-        sent("other", "GET"),
-        sent("other", "POST"),
-    ];
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        warmed,
-        "the parked refresh has sent nothing"
-    );
-    daemon.cancel(parked).unwrap();
-    release.send(()).unwrap();
+#[test]
+fn a_cancel_reaches_a_job_waiting_on_the_token_route() {
+    cancel_door(("POST", "/token", 1)).run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let warm = door.submit("profile", Some("other")).await;
+        assert!(matches!(
+            outcome_of(&mut door, warm).await,
+            Outcome::Success { .. }
+        ));
+        // Past the hour the account server's grant installs.
+        door.advance(Duration::from_secs(3600));
+        let first = door.submit("profile", Some("other")).await;
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("other's second refresh reached the server")
+            .unwrap();
+        let parked = door.submit("profile", Some("test-user")).await;
+        door.await_job(parked, |job| job.state == JobState::Running)
+            .await;
+        door.quiet().await;
+        let warmed = [
+            sent("other", "POST"),
+            sent("other", "GET"),
+            sent("other", "POST"),
+        ];
+        assert_eq!(door.sent(), warmed, "the parked refresh has sent nothing");
+        cancel(&mut door, parked).await;
+        release.send(()).unwrap();
 
-    let outcome = wait_outcome(&daemon, parked).await;
-    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
-    assert!(matches!(
-        wait_outcome(&daemon, first).await,
-        Outcome::Success { .. }
-    ));
-    let mut expected = warmed.to_vec();
-    expected.push(sent("other", "GET"));
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        expected,
-        "nothing was sent for the cancelled job"
-    );
-    let next = submit_for(&daemon, "profile", "test-user");
-    assert!(matches!(
-        wait_outcome(&daemon, next).await,
-        Outcome::Success { .. }
-    ));
-    expected.extend([sent("test-user", "POST"), sent("test-user", "GET")]);
-    assert_eq!(sent_log.lock().unwrap().as_slice(), expected);
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(dispatcher, &log_path);
+        let outcome = outcome_of(&mut door, parked).await;
+        assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+        assert!(matches!(
+            outcome_of(&mut door, first).await,
+            Outcome::Success { .. }
+        ));
+        let mut expected = warmed.to_vec();
+        expected.push(sent("other", "GET"));
+        assert_eq!(
+            door.sent(),
+            expected,
+            "nothing was sent for the cancelled job"
+        );
+        let next = door.submit("profile", Some("test-user")).await;
+        assert!(matches!(
+            outcome_of(&mut door, next).await,
+            Outcome::Success { .. }
+        ));
+        expected.extend([sent("test-user", "POST"), sent("test-user", "GET")]);
+        assert_eq!(door.sent(), expected);
+        assert_eq!(door.journal_methods(), wire_methods_of(&expected));
+        door.finish().await;
+    });
 }
 
 /// C25: a cancel reaches a job's own send at the choke point's admission.
@@ -826,136 +801,142 @@ async fn a_cancel_reaches_a_job_waiting_on_the_token_route() {
 /// already admitted, lands and its tokens are kept; the job's GET is
 /// turned away before it is sent, and it concludes cancelled. The next
 /// job goes out on the kept token, with no second refresh.
-#[tokio::test]
-async fn a_cancel_during_the_refresh_turns_the_jobs_send_away() {
-    let (base, sent_log, arrived, release) = account_server(("POST", "/token", 0)).await;
-    let (daemon, log_path) = two_account_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = submit_for(&daemon, "profile", "test-user");
-    arrived.await.unwrap();
-    daemon.cancel(id).unwrap();
-    release.send(()).unwrap();
+#[test]
+fn a_cancel_during_the_refresh_turns_the_jobs_send_away() {
+    cancel_door(("POST", "/token", 0)).run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let id = door.submit("profile", Some("test-user")).await;
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        cancel(&mut door, id).await;
+        release.send(()).unwrap();
 
-    let outcome = wait_outcome(&daemon, id).await;
-    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST")],
-        "the admitted refresh landed; the job's own GET was never sent"
-    );
-    let next = submit_for(&daemon, "profile", "test-user");
-    assert!(matches!(
-        wait_outcome(&daemon, next).await,
-        Outcome::Success { .. }
-    ));
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")]
-    );
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(dispatcher, &log_path);
+        let outcome = outcome_of(&mut door, id).await;
+        assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+        assert_eq!(
+            door.sent(),
+            [sent("test-user", "POST")],
+            "the admitted refresh landed; the job's own GET was never sent"
+        );
+        let next = door.submit("profile", Some("test-user")).await;
+        assert!(matches!(
+            outcome_of(&mut door, next).await,
+            Outcome::Success { .. }
+        ));
+        let wire = door.sent();
+        assert_eq!(wire, [sent("test-user", "POST"), sent("test-user", "GET")]);
+        assert_eq!(door.journal_methods(), wire_methods_of(&wire));
+        door.finish().await;
+    });
 }
 
 /// C25 stops at admission: a cancel that lands while the job's GET is on
 /// the wire un-sends nothing. The GET lands and is journaled, and the job
 /// concludes as a running job cancelled at its end always has: cancelled.
-#[tokio::test]
-async fn a_cancel_after_admission_leaves_the_send_landed() {
-    let (base, sent_log, arrived, release) = account_server(("GET", "/profile", 0)).await;
-    let (daemon, log_path) = two_account_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let id = submit_for(&daemon, "profile", "test-user");
-    arrived.await.unwrap();
-    daemon.cancel(id).unwrap();
-    release.send(()).unwrap();
+#[test]
+fn a_cancel_after_admission_leaves_the_send_landed() {
+    cancel_door(("GET", "/profile", 0)).run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let id = door.submit("profile", Some("test-user")).await;
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the GET reached the server")
+            .unwrap();
+        cancel(&mut door, id).await;
+        release.send(()).unwrap();
 
-    let outcome = wait_outcome(&daemon, id).await;
-    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")]
-    );
-    let journal = journal_sends(&log_path);
-    assert_eq!(journal.len(), 2);
-    assert_eq!(journal[1]["method"], "GET");
-    assert_eq!(
-        journal[1]["ok"], true,
-        "the admitted GET landed: {journal:?}"
-    );
-    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
-    finish_harness(dispatcher, &log_path);
+        let outcome = outcome_of(&mut door, id).await;
+        assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+        let wire = door.sent();
+        assert_eq!(wire, [sent("test-user", "POST"), sent("test-user", "GET")]);
+        let journal = door.journal();
+        assert_eq!(journal.len(), 2);
+        assert_eq!(journal[1]["method"], "GET");
+        assert_eq!(
+            journal[1]["ok"], true,
+            "the admitted GET landed: {journal:?}"
+        );
+        assert_eq!(door.journal_methods(), wire_methods_of(&wire));
+        door.finish().await;
+    });
 }
 
 /// C25 on a shared refresh: a cancel of one job never cancels the refresh
 /// for another. `test-user`'s profile job owns the flight and its
-/// `whoami` waits on it, both behind `other`'s POST on the token route.
+/// `whoami` waits on it, both behind `other`'s POST on the token route
+/// (each read joined by the runtime gone quiet under that held POST).
 /// Cancelling the owner, the waiter, or both: one POST goes out while
 /// either job still wants it (a cancelled owner's flight is called off and
 /// the waiter asks again), the job still wanted goes out, the cancelled
 /// one concludes cancelled with no send of its own, and when both are
 /// cancelled the POST is never sent.
-#[tokio::test]
-async fn a_cancel_of_one_job_on_a_shared_refresh_keeps_it_for_the_other() {
+#[test]
+fn a_cancel_of_one_job_on_a_shared_refresh_keeps_it_for_the_other() {
     for (cancel_owner, cancel_waiter) in [(true, false), (false, true), (true, true)] {
         let case = format!("owner cancelled {cancel_owner}, waiter cancelled {cancel_waiter}");
-        let (base, sent_log, arrived, release) = account_server(("POST", "/token", 0)).await;
-        let (daemon, log_path) = two_account_daemon(&base);
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = submit_for(&daemon, "profile", "other");
-        arrived.await.unwrap();
-        let owner = submit_for(&daemon, "profile", "test-user");
-        wait_for_flight(&daemon, "test-user", 0).await;
-        let waiter = submit_for(&daemon, "whoami", "test-user");
-        wait_for_flight(&daemon, "test-user", 1).await;
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        if cancel_owner {
-            daemon.cancel(owner).unwrap();
-        }
-        if cancel_waiter {
-            daemon.cancel(waiter).unwrap();
-        }
-        release.send(()).unwrap();
-
-        for (id, cancelled) in [(owner, cancel_owner), (waiter, cancel_waiter)] {
-            let outcome = wait_outcome(&daemon, id).await;
-            if cancelled {
-                assert!(
-                    matches!(outcome, Outcome::Cancelled),
-                    "{case}: job {id}: {outcome:?}"
-                );
-            } else {
-                assert!(
-                    matches!(outcome, Outcome::Success { .. }),
-                    "{case}: job {id}: {outcome:?}"
-                );
+        cancel_door(("POST", "/token", 0)).run(move |mut door| async move {
+            let (arrived, release) = door.held();
+            let first = door.submit("profile", Some("other")).await;
+            tokio::time::timeout(HANG, arrived)
+                .await
+                .expect("other's refresh reached the server")
+                .unwrap();
+            let owner = door.submit("profile", Some("test-user")).await;
+            door.await_job(owner, |job| job.state == JobState::Running)
+                .await;
+            door.quiet().await;
+            let waiter = door.submit("whoami", Some("test-user")).await;
+            door.await_job(waiter, |job| job.state == JobState::Running)
+                .await;
+            door.quiet().await;
+            if cancel_owner {
+                cancel(&mut door, owner).await;
             }
-        }
-        wait_outcome(&daemon, first).await;
-        let mut test_user: Vec<String> = sent_log
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|(_, account)| account == "test-user")
-            .map(|(method, _)| method.clone())
-            .collect();
-        test_user.sort();
-        let expected: &[&str] = match (cancel_owner, cancel_waiter) {
-            (true, true) => &[],
-            (true, false) => &["POST"],
-            (false, _) => &["GET", "POST"],
-        };
-        assert_eq!(test_user, expected, "{case}");
-        // `other`'s GET and `test-user`'s POST may cross on the wire, so
-        // the journal is held to the wire as a count of each method.
-        let mut wire = wire_methods(&sent_log);
-        let mut journal: Vec<String> = journal_sends(&log_path)
-            .iter()
-            .map(|line| line["method"].as_str().unwrap().to_string())
-            .collect();
-        wire.sort();
-        journal.sort();
-        assert_eq!(journal, wire, "{case}");
-        finish_harness(dispatcher, &log_path);
+            if cancel_waiter {
+                cancel(&mut door, waiter).await;
+            }
+            release.send(()).unwrap();
+
+            for (id, cancelled) in [(owner, cancel_owner), (waiter, cancel_waiter)] {
+                let outcome = outcome_of(&mut door, id).await;
+                if cancelled {
+                    assert!(
+                        matches!(outcome, Outcome::Cancelled),
+                        "{case}: job {id}: {outcome:?}"
+                    );
+                } else {
+                    assert!(
+                        matches!(outcome, Outcome::Success { .. }),
+                        "{case}: job {id}: {outcome:?}"
+                    );
+                }
+            }
+            outcome_of(&mut door, first).await;
+            let wire = door.sent();
+            let mut test_user: Vec<String> = wire
+                .iter()
+                .filter(|(_, account)| account == "test-user")
+                .map(|(method, _)| method.clone())
+                .collect();
+            test_user.sort();
+            let expected: &[&str] = match (cancel_owner, cancel_waiter) {
+                (true, true) => &[],
+                (true, false) => &["POST"],
+                (false, _) => &["GET", "POST"],
+            };
+            assert_eq!(test_user, expected, "{case}");
+            // `other`'s GET and `test-user`'s POST may cross on the wire,
+            // so the journal is held to the wire as a count of each
+            // method.
+            let mut wire = wire_methods_of(&wire);
+            let mut journal = door.journal_methods();
+            wire.sort();
+            journal.sort();
+            assert_eq!(journal, wire, "{case}");
+            door.finish().await;
+        });
     }
 }
 
@@ -1067,109 +1048,99 @@ fn c144_a_kind_the_store_cannot_place_fails_the_job_naming_the_kind() {
 
 /// C144 end to end: the job a store cannot record for ends failed, never
 /// done, its outcome carrying the body GGG answered.
-#[tokio::test]
-async fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    let dir = TestPath::dir();
-    schema_too_new(&dir, "test-user");
-    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-
-    let id = daemon
-        .submit(
-            "profile".into(),
-            json!({}),
-            0,
-            "test".into(),
-            Some("test-user".into()),
-        )
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, id).await;
-    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-    let (_, payload) = kept_failure(&outcome);
-    assert_eq!(payload["body"]["uuid"], "uuid-test-user");
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")]
-    );
-    finish_harness(dispatcher, &log_path);
-    drop(daemon);
+#[test]
+fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
+    let store_dir = TestPath::dir();
+    schema_too_new(&store_dir, "test-user");
+    Door::open(
+        Server::Account(("GET", "/never", 0)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let id = door.submit("profile", Some("test-user")).await;
+        let (info, outcome) = door.await_terminal(id).await;
+        assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+        let (_, payload) = kept_failure(&outcome);
+        assert_eq!(payload["body"]["uuid"], "uuid-test-user");
+        assert_eq!(
+            door.sent(),
+            [sent("test-user", "POST"), sent("test-user", "GET")]
+        );
+        door.finish().await;
+    });
 }
 
 /// C144 (the daemon reports no success it did not earn), issue #63's
 /// second comment: a restart after a failed write. A daemon on a
 /// file-backed `daemon.db` whose account's facts file is newer than it
 /// fails the profile job with the body kept (the test above, end to end);
-/// a second lifetime on the same `daemon.db` restores no open job, since
-/// the table holds the row as failed (C6: terminal rows are history, not
-/// the queue), answers the id from the table as that failure with its
-/// body, and so has nothing to replay — the account server's log at the
-/// end is lifetime 1's two sends and nothing more, read from the server,
-/// never from a daemon's report of itself.
-#[tokio::test]
-async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+/// a second lifetime on the same `daemon.db`, its queue restored as a
+/// start restores it, restores no open job, since the table holds the
+/// row as failed (C6: terminal rows are history, not the queue), answers
+/// the id from the table as that failure with its body, lists no job and
+/// so has nothing to replay: it journals nothing, and the account
+/// server's record at the end is lifetime 1's two sends and nothing more,
+/// read from the server, never from a daemon's report of itself.
+#[test]
+fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() {
     let db = test_db_path();
-    let dir = TestPath::dir();
-    schema_too_new(&dir, "test-user");
-
-    // Lifetime 1: the job fails after its send, its row written failed.
-    let id = {
-        let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-        logged_in(&mut daemon);
-        let d = Arc::get_mut(&mut daemon).unwrap();
-        d.store_dir = Some(dir.to_path_buf());
-        d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
-        daemon.restore_jobs(Retention::default()).unwrap();
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let id = daemon
-            .submit(
-                "profile".into(),
-                json!({}),
-                0,
-                "test".into(),
-                Some("test-user".into()),
-            )
-            .unwrap();
-        let (info, outcome) = wait_terminal(&daemon, id).await;
+    let store_dir = TestPath::dir();
+    schema_too_new(&store_dir, "test-user");
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
+    let dir = store_dir.to_path_buf();
+    let path = db.to_path_buf();
+    Door::open(
+        Server::Account(("GET", "/never", 0)),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .store_dir(store_dir.to_path_buf())
+    .jobs_db(JobDb::open(&db).unwrap())
+    .restore_jobs(Retention::default())
+    .run(|mut door| async move {
+        // Lifetime 1: the job fails after its send, its row written failed.
+        let id = door.submit("profile", Some("test-user")).await;
+        let (info, outcome) = door.await_terminal(id).await;
         assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-        finish_harness(dispatcher, &log_path);
-        drop(daemon);
-        id
-    };
-    assert!(
-        JobDb::open(&db).unwrap().load_open().unwrap().is_empty(),
-        "the table holds no open row: nothing for a restart to replay"
-    );
 
-    // Lifetime 2: restored from the same file, its dispatcher running.
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
-    let d = Arc::get_mut(&mut daemon).unwrap();
-    d.store_dir = Some(dir.to_path_buf());
-    d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
-    daemon.restore_jobs(Retention::default()).unwrap();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    assert!(
-        daemon.shared.lock().unwrap().list(&daemon).is_empty(),
-        "no job restored into memory"
-    );
-    let stored = daemon
-        .stored_outcome(id)
-        .unwrap()
-        .expect("the failed job is answered from the table");
-    let (error, payload) = kept_failure(&stored);
-    assert!(error.contains("could not record it"), "{error}");
-    assert_eq!(payload["body"]["uuid"], "uuid-test-user");
-    finish_harness(dispatcher, &log_path);
-    drop(daemon);
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")],
-        "the server saw lifetime 1's sends and nothing more"
-    );
+        // Lifetime 2: restored from the same file, its dispatcher running.
+        let mut restarted = Door::open(
+            Server::None,
+            parking,
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .sessions(logged_in_sessions())
+        .store_dir(dir)
+        .jobs_db(JobDb::open(&path).unwrap())
+        .restore_jobs(Retention::default())
+        .beside()
+        .await;
+        match restarted.request(Request::List).await {
+            Response::Jobs { jobs } => assert!(jobs.is_empty(), "no job restored: {jobs:?}"),
+            other => panic!("the list answered {other:?}"),
+        }
+        let stored = match restarted.request(Request::Result { id }).await {
+            Response::Result { outcome, .. } => outcome,
+            other => panic!("the failed job is answered from the table: {other:?}"),
+        };
+        let (error, payload) = kept_failure(&stored);
+        assert!(error.contains("could not record it"), "{error}");
+        assert_eq!(payload["body"]["uuid"], "uuid-test-user");
+        assert!(restarted.journal().is_empty(), "the restart sent nothing");
+        restarted.finish().await;
+
+        assert_eq!(
+            door.sent(),
+            [sent("test-user", "POST"), sent("test-user", "GET")],
+            "the server saw lifetime 1's sends and nothing more"
+        );
+        door.finish().await;
+    });
 }
 
 // ---- C158: the wire table, through the door ----

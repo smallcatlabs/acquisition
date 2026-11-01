@@ -1,14 +1,50 @@
-//! The session layer's tests, with their own harness: account selection,
-//! the single-flight refresh, and logout or re-login during a refresh.
+//! The session layer: account selection, the single-flight refresh, and
+//! logout or re-login during a refresh.
+//!
+//! C158, a scenario crosses the daemon's frontend boundary only: a
+//! refresh here is `Request::AuthCheck` through the door, against the
+//! delayed token server, whose `arrived` and `release` are the
+//! scenario's barriers; a second caller is a request on a connection of
+//! its own (`Door::spawn_request`), and the waiters joined are the
+//! runtime gone quiet under the held refresh (`Door::quiet`). What a
+//! scenario reads is the protocol's answers, the journal, its own
+//! credential store and the account index on disk. A session's expiry is
+//! written from the door's clock's wall.
+//!
+//! The component tests, each with the boundary it needs:
+//! `a_selector_matching_several_sessions_is_ambiguous` and
+//! `session_keys_follow_renames_so_replace_finds_the_right_session`
+//! (`Sessions` as a struct);
+//! `realm_is_a_segment_before_league_or_name_and_pc_is_silent`
+//! (`route_for` and `validate_apply` as functions);
+//! `submit_resolves_the_account_against_the_live_session`
+//! (`resolve_account`); `a_token_is_refused_once_the_session_no_longer_matches_the_job`
+//! (fabricated live tokens, their expiries from the clock's wall);
+//! `a_response_is_filed_under_the_job_account_not_the_session`
+//! (`record` as a function);
+//! `authentication_completes_before_the_api_send_takes_a_gate_slot`
+//! (the choke point and `execute_inner` called directly);
+//! `abandoned_refresh_owner_completes_all_waiters_and_allows_retry` and
+//! `abandoned_refresh_owner_without_waiters_allows_retry` (a refresh
+//! owner aborted by the test, which production never does: the guard's
+//! property); and
+//! `reauthentication_during_refresh_keeps_new_session_and_rejects_old_completion`
+//! (a re-login as the same account while its refresh is held: the
+//! exchange's POST would wait behind the held refresh on the token
+//! route's one permit, so no boundary interleaving lands before the
+//! release). They run on the harness's daemon and the manual clock.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
-use super::harness::{TestPath, saved_refresh_tokens};
+use super::door::*;
+use super::harness::*;
 use crate::daemon::refresh::{REFRESH_OWNER_ABANDONED, SESSION_CHANGED_DURING_REFRESH};
 use crate::daemon::*;
+use tokio::sync::oneshot;
 
 /// C51: a bare name two live sessions share is refused, never guessed
-/// (review finding 2026-09-10); the full name and the uuid select.
+/// (review finding 2026-09-10); the full name and the uuid select. A
+/// component test: `Sessions` as a struct.
 #[test]
 fn a_selector_matching_several_sessions_is_ambiguous() {
     let mut sessions = Sessions::default();
@@ -55,72 +91,6 @@ fn a_selector_matching_several_sessions_is_ambiguous() {
     );
     assert!(sessions.matching("carol").unwrap().is_none());
 }
-use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::oneshot;
-
-#[derive(Default)]
-struct MemoryCredentialStore {
-    saves: Mutex<Vec<(String, String, String)>>,
-    cleared: AtomicBool,
-}
-
-impl CredentialStore for MemoryCredentialStore {
-    fn save(&self, service: &str, secret: &auth::Secret, username: &str) -> Result<(), String> {
-        self.saves.lock().unwrap().push((
-            service.to_string(),
-            secret.exposed_for_test().to_string(),
-            username.to_string(),
-        ));
-        Ok(())
-    }
-
-    fn load(&self, _service: &str, _username: &str) -> Result<Option<auth::Secret>, String> {
-        Ok(None)
-    }
-
-    fn clear(&self, _service: &str, _username: &str) -> Result<(), auth::NotCleared> {
-        self.cleared.store(true, Ordering::SeqCst);
-        Ok(())
-    }
-}
-
-struct DelayedTokenResponse {
-    base: String,
-    arrived: oneshot::Receiver<()>,
-    release: oneshot::Sender<()>,
-    server: tokio::task::JoinHandle<()>,
-}
-
-async fn delayed_token_response(status: &'static str, body: String) -> DelayedTokenResponse {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let (arrived_tx, arrived) = oneshot::channel();
-    let (release, release_rx) = oneshot::channel();
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut stream).await.unwrap();
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.path, "/token");
-        assert!(request.body.contains("grant_type=refresh_token"));
-        assert!(request.body.contains("refresh_token=rt-old"));
-        arrived_tx.send(()).unwrap();
-        release_rx.await.unwrap();
-        let headers = concat!(
-            "X-Rate-Limit-Policy: token-request-limit\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-        );
-        mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
-    });
-    DelayedTokenResponse {
-        base,
-        arrived,
-        release,
-        server,
-    }
-}
-
 struct AbandonThenSuccessTokenResponses {
     base: String,
     first_arrived: oneshot::Receiver<()>,
@@ -194,50 +164,160 @@ fn tokens(access_token: &str, refresh_token: &str, username: &str) -> auth::Toke
     }
 }
 
-fn token_body(access_token: &str, refresh_token: &str, username: &str) -> String {
-    json!({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "expires_in": 3600,
-        "username": username,
-    })
-    .to_string()
-}
-
-fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath) {
-    let log_path = TestPath::file("daemon.log");
+/// The component tests' daemon, on the manual clock, journaling beside
+/// its log as every harness daemon does, saving into a recording
+/// credential store, recording into `store_dir` when given: its one
+/// session `old-user`'s, its access token expired at the clock's wall,
+/// its refresh token `rt-old`.
+fn session_daemon(
+    base: &str,
+    store_dir: Option<&std::path::Path>,
+) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, TestPath) {
+    let clock = Arc::new(ManualClock::new());
+    let expired = clock.wall();
+    let log_path = test_log_path();
     let log = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .open(&log_path)
         .unwrap();
-    let credential_store = Arc::new(MemoryCredentialStore::default());
-    let daemon = Daemon::builder(
-        Provider::mock(base),
-        Arc::new(SystemClock),
-        credential_store.clone(),
-        log,
-    )
-    .rails(Arc::new(Rails::disabled()))
-    .sessions(Sessions::with(AuthSession {
-        access_token: Some("at-expired".into()),
-        access_expires_at: Some(SystemTime::now()),
-        refresh_token: Some("rt-old".into()),
-        username: Some("old-user".into()),
-        keyring: "ok".into(),
-        generations: AuthGenerations {
-            session: 7,
-            access_token: 11,
-            refresh_token: 13,
+    let rails = Arc::new(Rails::with_config_and_clock(
+        RailsConfig {
+            journal_path: Some(journal_of(&log_path)),
+            ..RailsConfig::default()
         },
-        next_refresh_flight: 1,
+        clock.clone(),
+    ));
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let mut builder = Daemon::builder(Provider::mock(base), clock, credentials.clone(), log)
+        .rails(rails)
+        .log_path(log_path.to_str().map(str::to_string))
+        .events_capacity(16)
+        .sessions(Sessions::with(AuthSession {
+            access_token: Some("at-expired".into()),
+            access_expires_at: Some(expired),
+            refresh_token: Some("rt-old".into()),
+            username: Some("old-user".into()),
+            keyring: "ok".into(),
+            generations: AuthGenerations {
+                session: 7,
+                access_token: 11,
+                refresh_token: 13,
+            },
+            next_refresh_flight: 1,
+            ..AuthSession::default()
+        }));
+    if let Some(store_dir) = store_dir {
+        builder = builder.store_dir(store_dir.to_path_buf());
+    }
+    (builder.build(), credentials, log_path)
+}
+
+/// The scenarios' one session: `test-user`, its access token expired at
+/// `clock`'s wall, its refresh token `rt-old` (what the delayed token
+/// server checks), its keyring `ok`, its uuid `uuid`.
+fn expired_session(clock: &ParkingClock, uuid: Option<&str>) -> Sessions {
+    Sessions::with(AuthSession {
+        access_token: Some("at-expired".into()),
+        access_expires_at: Some(clock.wall()),
+        refresh_token: Some("rt-old".into()),
+        username: Some("test-user".into()),
+        uuid: uuid.map(str::to_string),
+        keyring: "ok".into(),
         ..AuthSession::default()
-    }))
-    .log_path(log_path.to_str().map(str::to_string))
-    .events_capacity(16)
-    .build();
-    (daemon, credential_store, log_path)
+    })
+}
+
+/// A door on the delayed token server answering `status` with `body`,
+/// facing `expired_session`, saving into `store`.
+fn refresh_door(
+    status: &'static str,
+    body: String,
+    store: &Arc<RecordingCredentialStore>,
+    uuid: Option<&str>,
+) -> DoorBuilder {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = expired_session(&clock, uuid);
+    Door::open(
+        Server::Token(Token::Delayed(status, body)),
+        clock,
+        store.clone(),
+    )
+    .sessions(sessions)
+}
+
+/// `AuthCheck` of the sole session, as `acq auth check` sends it.
+fn check() -> Request {
+    Request::AuthCheck { account: None }
+}
+
+/// A spawned request's answer, awaited under the hang ceiling.
+async fn answer(request: tokio::task::JoinHandle<Response>) -> Response {
+    tokio::time::timeout(HANG, request)
+        .await
+        .expect("the request was answered")
+        .expect("the request's task ran to its end")
+}
+
+/// An answer's stable fields, as `auth status` prints them: logged in,
+/// the account, the access token's expiry. Never the keyring word, which
+/// reads `saving` for a caller answered before the persist lands.
+fn stable(answer: &Response) -> (bool, Option<String>, Option<u64>) {
+    match answer {
+        Response::Auth {
+            logged_in,
+            username,
+            access_expires_in_seconds,
+            ..
+        } => (*logged_in, username.clone(), *access_expires_in_seconds),
+        other => panic!("an auth check answered {other:?}"),
+    }
+}
+
+/// Whether every live session's keyring word is `ok`: the persist landed.
+fn saved(answer: &AuthAnswer) -> bool {
+    !answer.accounts.is_empty() && answer.accounts.iter().all(|a| a.keyring == "ok")
+}
+
+/// C87: concurrent callers of an expired session share one refresh: the
+/// owner's `AuthCheck` reaches the token server and is held there; three
+/// more join it while it is held (the runtime gone quiet under the held
+/// send is the word that they joined); released, every caller is
+/// answered alike, one POST is journaled, and one save lands.
+#[test]
+fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let credentials = store.clone();
+    refresh_door(
+        "200 OK",
+        token_body("at-rotated", "rt-rotated", "test-user"),
+        &store,
+        None,
+    )
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let owner = door.spawn_request(check());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        let waiters: Vec<_> = (0..3).map(|_| door.spawn_request(check())).collect();
+        door.quiet().await;
+        release.send(()).unwrap();
+
+        let owner = stable(&answer(owner).await);
+        assert!(owner.0, "logged in");
+        assert_eq!(owner.1.as_deref(), Some("test-user"));
+        assert_eq!(owner.2, Some(3600), "the rotated token's lifetime");
+        for waiter in waiters {
+            assert_eq!(stable(&answer(waiter).await), owner, "the owner's result");
+        }
+        door.await_auth(saved).await;
+        assert_eq!(credentials.saves.lock().unwrap().len(), 1);
+        assert_eq!(door.journal_methods(), ["POST"], "one refresh on the wire");
+        door.finish().await;
+    });
 }
 
 /// Realm on the wire (C58, C59): pc is omitted, so a pc
@@ -245,10 +325,12 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
 /// or explicit — every live send so far stays the same; any other
 /// realm is a segment before the league or name on the URL and a
 /// suffix on the label, so it gets its own probe; a realm a family
-/// does not take renders nothing and is refused at admission.
+/// does not take renders nothing and is refused at admission. A
+/// component test: `route_for` and `validate_apply` as functions, beside
+/// the admission's refusals of the same realms.
 #[test]
 fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
-    let (daemon, _, _) = test_daemon("http://mock");
+    let (daemon, _, _) = session_daemon("http://mock", None);
     let route = |kind: &str, params: Value| daemon.route_for(kind, &params);
     for (kind, absent, explicit) in [
         ("characters", json!({}), json!({ "realm": "pc" })),
@@ -373,7 +455,7 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
 }
 
 async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
-    tokio::time::timeout(Duration::from_secs(1), async {
+    tokio::time::timeout(HANG, async {
         loop {
             let receivers = daemon
                 .shared
@@ -394,33 +476,10 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
     .expect("refresh waiters joined the flight");
 }
 
-#[tokio::test]
-async fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
-    let delayed = delayed_token_response(
-        "200 OK",
-        token_body("at-rotated", "rt-rotated", "shared-user"),
-    )
-    .await;
-    let (daemon, store, _log_path) = test_daemon(&delayed.base);
-
-    let owner_daemon = daemon.clone();
-    let owner =
-        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
-    let waiter_daemon = daemon.clone();
-    let waiter =
-        tokio::spawn(async move { waiter_daemon.valid_access_token(None, false, None).await });
-    tokio::task::yield_now().await;
-    delayed.release.send(()).unwrap();
-
-    let owner_result = owner.await.unwrap().unwrap();
-    let waiter_result = waiter.await.unwrap().unwrap();
-    assert_eq!(owner_result, ("at-rotated".into(), "shared-user".into()));
-    assert_eq!(waiter_result, owner_result);
-    assert_eq!(store.saves.lock().unwrap().len(), 1);
-    delayed.server.await.unwrap();
-}
-
+/// A refresh needed by an API send completes before that send takes a
+/// gate slot, so the token request can use the slot that remains. A
+/// component test: the choke point and `execute_inner` are called
+/// directly, beside a held send on a route of the test's own.
 #[tokio::test]
 async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -488,7 +547,7 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         hold.write_all(b"{}").await.unwrap();
     });
 
-    let (daemon, _, _log_path) = test_daemon(&base);
+    let (daemon, _, _log_path) = session_daemon(&base, None);
     let hold = {
         let daemon = daemon.clone();
         let url = format!("{base}/hold");
@@ -521,7 +580,7 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         })
     };
 
-    tokio::time::timeout(Duration::from_secs(1), token_arrived)
+    tokio::time::timeout(HANG, token_arrived)
         .await
         .expect("refresh can use the remaining gate slot before the API send")
         .unwrap();
@@ -534,12 +593,18 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
     server.await.unwrap();
 }
 
+/// N2, an owner that leaves without publishing: a refresh owner aborted
+/// while its POST is held completes every waiter with the abandonment,
+/// leaves the session's tokens and generations as they were, and a retry
+/// refreshes. A component test: the owner is aborted by the test, which
+/// production never does (`RefreshOwnerGuard`'s property); the waiters
+/// joined are read from the flight's receiver count.
 #[tokio::test]
 async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, _log_path) = test_daemon(&responses.base);
+    let (daemon, store, _log_path) = session_daemon(&responses.base, None);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -561,7 +626,7 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     let mut waiter_errors = Vec::new();
     for waiter in waiters {
         waiter_errors.push(
-            tokio::time::timeout(Duration::from_secs(1), waiter)
+            tokio::time::timeout(HANG, waiter)
                 .await
                 .expect("abandoned refresh waiter completed")
                 .unwrap()
@@ -594,13 +659,10 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     assert!(store.saves.lock().unwrap().is_empty());
 
     responses.release_first.send(()).unwrap();
-    let retry = tokio::time::timeout(
-        Duration::from_secs(2),
-        daemon.valid_access_token(None, false, None),
-    )
-    .await
-    .expect("retry after owner abandonment completed")
-    .unwrap();
+    let retry = tokio::time::timeout(HANG, daemon.valid_access_token(None, false, None))
+        .await
+        .expect("retry after owner abandonment completed")
+        .unwrap();
     assert_eq!(retry, ("at-retried".into(), "retry-user".into()));
     responses.server.await.unwrap();
     let requests = responses.requests.lock().unwrap();
@@ -613,12 +675,15 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     assert_eq!(store.saves.lock().unwrap().len(), 1);
 }
 
+/// N2 with no waiter: an aborted refresh owner closes its flight, so a
+/// retry refreshes. A component test: the owner is aborted by the test,
+/// as above.
 #[tokio::test]
 async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, _log_path) = test_daemon(&responses.base);
+    let (daemon, store, _log_path) = session_daemon(&responses.base, None);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -651,13 +716,10 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     assert!(store.saves.lock().unwrap().is_empty());
 
     responses.release_first.send(()).unwrap();
-    let retry = tokio::time::timeout(
-        Duration::from_secs(2),
-        daemon.valid_access_token(None, false, None),
-    )
-    .await
-    .expect("retry after owner abandonment completed")
-    .unwrap();
+    let retry = tokio::time::timeout(HANG, daemon.valid_access_token(None, false, None))
+        .await
+        .expect("retry after owner abandonment completed")
+        .unwrap();
     assert_eq!(retry, ("at-retried".into(), "retry-user".into()));
     responses.server.await.unwrap();
     let requests = responses.requests.lock().unwrap();
@@ -670,146 +732,197 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     assert_eq!(store.saves.lock().unwrap().len(), 1);
 }
 
-#[tokio::test]
-async fn successful_refresh_rotation_advances_token_generations_and_persists_new_token() {
-    let delayed = delayed_token_response(
+/// A refresh that rotates the token persists the new one: one save, the
+/// rotated refresh token under the name the token response gave (a
+/// rename the session follows), which `auth status` reports; one POST
+/// journaled.
+#[test]
+fn successful_refresh_rotation_advances_token_generations_and_persists_new_token() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let credentials = store.clone();
+    refresh_door(
         "200 OK",
         token_body("at-rotated", "rt-rotated", "rotated-user"),
+        &store,
+        None,
     )
-    .await;
-    let (daemon, store, _log_path) = test_daemon(&delayed.base);
-    let before = daemon.shared.lock().unwrap().auth.one().generations;
-
-    let refresh_daemon = daemon.clone();
-    let refresh =
-        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
-    delayed.release.send(()).unwrap();
-    assert_eq!(
-        refresh.await.unwrap().unwrap(),
-        ("at-rotated".into(), "rotated-user".into())
-    );
-
-    {
-        let s = daemon.shared.lock().unwrap();
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let refresh = door.spawn_request(check());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        release.send(()).unwrap();
         assert_eq!(
-            s.auth
-                .one()
-                .refresh_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("rt-rotated")
+            stable(&answer(refresh).await).1.as_deref(),
+            Some("rotated-user")
         );
+        let after = door.await_auth(saved).await;
+        assert_eq!(after.username.as_deref(), Some("rotated-user"));
         assert_eq!(
-            s.auth
-                .one()
-                .access_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("at-rotated")
+            saved_refresh_tokens(&credentials.saves.lock().unwrap()),
+            [(
+                "acq-mock".into(),
+                "rt-rotated".into(),
+                "rotated-user".into()
+            )]
         );
-        assert_eq!(s.auth.one().generations.session, before.session);
-        assert_ne!(s.auth.one().generations.access_token, before.access_token);
-        assert_ne!(s.auth.one().generations.refresh_token, before.refresh_token);
-    }
-    assert_eq!(
-        saved_refresh_tokens(&store.saves.lock().unwrap()),
-        [(
-            "acq-mock".into(),
-            "rt-rotated".into(),
-            "rotated-user".into()
-        )]
-    );
-    delayed.server.await.unwrap();
+        assert_eq!(door.journal_methods(), ["POST"]);
+        door.finish().await;
+    });
 }
 
-#[tokio::test]
-async fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
-    let delayed =
-        delayed_token_response("400 Bad Request", r#"{"error":"invalid_grant"}"#.into()).await;
-    let (daemon, store, _log_path) = test_daemon(&delayed.base);
-    let before = daemon.shared.lock().unwrap().auth.one().generations;
+/// C24 with C87: a rejected refresh is shared by the callers on its
+/// flight and leaves the session as it was. A caller that joined the held
+/// flight gets the owner's 400; a caller after the rejection gets the
+/// dead grant's refusal ("token refresh disabled") and sends no second
+/// POST; `daemon status` reports the mark; nothing is saved.
+#[test]
+fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let credentials = store.clone();
+    refresh_door(
+        "400 Bad Request",
+        r#"{"error":"invalid_grant"}"#.into(),
+        &store,
+        None,
+    )
+    .run(|mut door| async move {
+        let before = door.await_auth(|_| true).await;
+        let (arrived, release) = door.held();
+        let owner = door.spawn_request(check());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        let waiter = door.spawn_request(check());
+        door.quiet().await;
+        release.send(()).unwrap();
 
-    let owner_daemon = daemon.clone();
-    let owner =
-        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
-    let waiter_daemon = daemon.clone();
-    let waiter =
-        tokio::spawn(async move { waiter_daemon.valid_access_token(None, false, None).await });
-    tokio::task::yield_now().await;
-    delayed.release.send(()).unwrap();
+        let owner = answer(owner).await;
+        let Response::Error { kind, message } = &owner else {
+            panic!("the rejection is the owner's answer: {owner:?}")
+        };
+        assert_eq!(*kind, ErrorKind::NotLoggedIn);
+        assert!(message.contains("400 Bad Request"), "{message}");
+        let waiter = answer(waiter).await;
+        assert!(
+            matches!(&waiter, Response::Error { kind: k, message: m } if k == kind && m == message),
+            "the waiter shares the owner's answer: {waiter:?}"
+        );
+        let sends = door.journal();
+        assert_eq!(sends.len(), 1, "{sends:?}");
+        assert_eq!(
+            (&sends[0]["method"], &sends[0]["status"]),
+            (&json!("POST"), &json!(400))
+        );
 
-    let owner_error = owner.await.unwrap().unwrap_err();
-    let waiter_error = waiter.await.unwrap().unwrap_err();
-    assert_eq!(waiter_error, owner_error);
-    assert!(owner_error.message.contains("400 Bad Request"));
-    {
-        let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.one().generations, before);
-        assert_eq!(
-            s.auth
-                .one()
-                .refresh_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("rt-old")
+        let late = door.request(check()).await;
+        let Response::Error { kind, message } = &late else {
+            panic!("a dead grant refuses the late caller: {late:?}")
+        };
+        assert_eq!(*kind, ErrorKind::NotLoggedIn);
+        assert!(
+            message.contains("token refresh disabled for test-user")
+                && message.contains("refresh token rejected with HTTP 400"),
+            "{message}"
         );
+        assert_eq!(door.journal().len(), 1, "no second POST");
+        let rails = match door.request(Request::DaemonStatus).await {
+            Response::DaemonStatus { rails, .. } => rails,
+            other => panic!("the daemon's status answered {other:?}"),
+        };
         assert_eq!(
-            s.auth
-                .one()
-                .access_token
-                .as_ref()
-                .map(auth::Secret::exposed_for_test),
-            Some("at-expired")
+            rails.refresh_failed.as_deref(),
+            Some("test-user: refresh token rejected with HTTP 400")
         );
-        assert!(s.auth.one().refresh_flight.is_none());
-    }
-    assert!(store.saves.lock().unwrap().is_empty());
-    delayed.server.await.unwrap();
+        let after = door.await_auth(|_| true).await;
+        assert_eq!(
+            (
+                after.logged_in,
+                after.username.clone(),
+                after.access_expires_in_seconds,
+                after.keyring.clone()
+            ),
+            (
+                before.logged_in,
+                before.username.clone(),
+                before.access_expires_in_seconds,
+                before.keyring.clone()
+            ),
+            "the session as it was"
+        );
+        assert!(credentials.saves.lock().unwrap().is_empty());
+        door.finish().await;
+    });
 }
 
-#[tokio::test]
-async fn logout_during_refresh_rejects_stale_completion_in_memory_and_keyring() {
-    let delayed =
-        delayed_token_response("200 OK", token_body("at-stale", "rt-stale", "stale-user")).await;
-    let (daemon, store, _log_path) = test_daemon(&delayed.base);
+/// A logout while the session's refresh is held rejects the refresh's
+/// completion when it lands: the caller is told the session changed, the
+/// session stays gone, and the keyring is cleared and never written.
+#[test]
+fn logout_during_refresh_rejects_stale_completion_in_memory_and_keyring() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let credentials = store.clone();
+    refresh_door(
+        "200 OK",
+        token_body("at-stale", "rt-stale", "test-user"),
+        &store,
+        None,
+    )
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let refresh = door.spawn_request(check());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        let logout = door.request(Request::AuthLogout { account: None }).await;
+        assert!(matches!(logout, Response::Ack { .. }), "{logout:?}");
+        release.send(()).unwrap();
 
-    let refresh_daemon = daemon.clone();
-    let refresh =
-        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
-    daemon.logout(None).unwrap();
-    delayed.release.send(()).unwrap();
-
-    assert_eq!(
-        refresh.await.unwrap().unwrap_err(),
-        SESSION_CHANGED_DURING_REFRESH
-    );
-    assert!(
-        daemon.shared.lock().unwrap().auth.by_account.is_empty(),
-        "the session is gone"
-    );
-    assert!(store.cleared.load(Ordering::SeqCst));
-    assert!(store.saves.lock().unwrap().is_empty());
-    delayed.server.await.unwrap();
+        let refused = answer(refresh).await;
+        let Response::Error { kind, message } = &refused else {
+            panic!("the stale completion is refused: {refused:?}")
+        };
+        assert_eq!(*kind, ErrorKind::NotLoggedIn);
+        assert_eq!(message, SESSION_CHANGED_DURING_REFRESH);
+        let after = door.await_auth(|_| true).await;
+        assert!(
+            !after.logged_in && after.accounts.is_empty(),
+            "the session is gone"
+        );
+        assert_eq!(
+            credentials.cleared.lock().unwrap().as_slice(),
+            ["test-user"]
+        );
+        assert!(credentials.saves.lock().unwrap().is_empty());
+        assert_eq!(door.journal_methods(), ["POST"]);
+        door.finish().await;
+    });
 }
 
+/// A component test: a re-login as the same account while its refresh
+/// is held. Through the door the exchange's POST would wait behind the
+/// held refresh on the token route's one permit, so no boundary
+/// interleaving lands the login before the release; the login completes
+/// here through the private `complete_login`.
 #[tokio::test]
 async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_completion() {
     // A re-login as the *same* account while its refresh is in flight:
     // the new session replaces the old one (generations advance), and
     // the stale completion is rejected. Another account's login would
     // not touch this session at all (see the two-session tests).
-    let delayed =
-        delayed_token_response("200 OK", token_body("at-stale", "rt-stale", "old-user")).await;
-    let (daemon, store, _log_path) = test_daemon(&delayed.base);
+    let (base, arrived, release, server) =
+        delayed_token_server("200 OK", token_body("at-stale", "rt-stale", "old-user")).await;
+    let (daemon, store, _log_path) = session_daemon(&base, None);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
     let refresh =
         tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
+    arrived.await.unwrap();
     let flow_generation = daemon.begin_auth_flow();
     let staged = daemon
         .stage_auth_flow(
@@ -818,7 +931,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         )
         .expect("current flow stages");
     assert!(daemon.complete_login(flow_generation, &staged, "u-old"));
-    delayed.release.send(()).unwrap();
+    release.send(()).unwrap();
 
     assert_eq!(
         refresh.await.unwrap().unwrap_err(),
@@ -854,62 +967,67 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         saved_refresh_tokens(&store.saves.lock().unwrap()),
         [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
     );
-    delayed.server.await.unwrap();
+    server.await.unwrap();
 }
 
 /// A refresh that renames the account updates the existing index
 /// mapping in place (the session carries its uuid, so `record_login`
 /// follows it) — never a second, uuid-less entry that would make both
 /// the username and uuid selectors ambiguous.
-#[tokio::test]
-async fn a_refresh_rename_updates_the_index_mapping_in_place() {
-    let delayed =
-        delayed_token_response("200 OK", token_body("at-new", "rt-new", "NewName#2")).await;
-    let (mut daemon, _, _log_path) = test_daemon(&delayed.base);
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
-    // As a completed login left things: indexed with the uuid, and the
-    // session carrying it.
-    {
-        let mut index = Index::load(&dir).unwrap();
-        index.record_login("old-user", "u-1", true, 1, &[]).unwrap();
-    }
-    daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
-
-    let refresh_daemon = daemon.clone();
-    let refresh =
-        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
-    delayed.arrived.await.unwrap();
-    delayed.release.send(()).unwrap();
-    assert_eq!(
-        refresh.await.unwrap().unwrap(),
-        ("at-new".into(), "NewName#2".into())
-    );
-
-    let index = Index::load(&dir).unwrap();
-    assert_eq!(index.entries().len(), 1, "one entry, moved — no twin");
-    let entry = index.get("NewName#2").expect("the entry follows the name");
-    assert_eq!(entry.uuid.as_deref(), Some("u-1"));
-    assert!(
-        daemon
-            .shared
-            .lock()
-            .unwrap()
-            .auth
-            .find("NewName#2")
-            .is_some_and(|x| x.uuid.as_deref() == Some("u-1")),
-        "the session moved with its uuid"
-    );
-    delayed.server.await.unwrap();
+#[test]
+fn a_refresh_rename_updates_the_index_mapping_in_place() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    Index::load(&store_dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1, &[])
+        .unwrap();
+    let dir = store_dir.to_path_buf();
+    refresh_door(
+        "200 OK",
+        token_body("at-new", "rt-new", "NewName#2"),
+        &store,
+        Some("u-1"),
+    )
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let refresh = door.spawn_request(check());
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("the refresh reached the server")
+            .unwrap();
+        release.send(()).unwrap();
+        assert_eq!(
+            stable(&answer(refresh).await).1.as_deref(),
+            Some("NewName#2")
+        );
+        let after = door.await_auth(saved).await;
+        assert_eq!(
+            after
+                .accounts
+                .iter()
+                .map(|a| a.username.as_str())
+                .collect::<Vec<_>>(),
+            ["NewName#2"],
+            "the session moved with the name"
+        );
+        let index = Index::load(&dir).unwrap();
+        assert_eq!(index.entries().len(), 1, "one entry, moved — no twin");
+        let entry = index.get("NewName#2").expect("the entry follows the name");
+        assert_eq!(entry.uuid.as_deref(), Some("u-1"));
+        door.finish().await;
+    });
 }
 
 // ---- multi-account step (2): the job's account is what runs ---------
 
+/// C51: a submit's account resolves against the live sessions. A
+/// component test: `resolve_account` as a function.
 #[test]
 fn submit_resolves_the_account_against_the_live_session() {
-    let (daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
-    // Session is "old-user" (test_daemon).
+    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", None);
+    // Session is "old-user" (session_daemon).
     assert_eq!(
         daemon.resolve_account("characters", None),
         Ok(Some("old-user".into()))
@@ -948,13 +1066,16 @@ fn submit_resolves_the_account_against_the_live_session() {
     assert!(err.message.contains("not logged in"), "{err}");
 }
 
+/// A job's token is its own account's, and none once that account has
+/// logged out. A component test: fabricated live tokens, their expiries
+/// from the clock's wall, read through `valid_access_token`.
 #[tokio::test]
 async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
-    let (daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
+    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", None);
     {
         let mut s = daemon.shared.lock().unwrap();
         s.auth.one_mut().access_token = Some("at-live".into());
-        s.auth.one_mut().access_expires_at = Some(SystemTime::now() + Duration::from_secs(3600));
+        s.auth.one_mut().access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
     }
     // The job's account has a session: its live token, no refresh.
     let (token, user) = daemon
@@ -969,7 +1090,7 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     daemon.shared.lock().unwrap().auth.replace(AuthSession {
         username: Some("new-user".into()),
         access_token: Some("at-new".into()),
-        access_expires_at: Some(SystemTime::now() + Duration::from_secs(3600)),
+        access_expires_at: Some(daemon.choke.wall() + Duration::from_secs(3600)),
         ..AuthSession::default()
     });
     let (token, _) = daemon
@@ -997,6 +1118,8 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     assert!(daemon.valid_access_token(None, false, None).await.is_ok());
 }
 
+/// A rename moves the session's key, so a later login replaces the one
+/// session. A component test: `Sessions` as a struct.
 #[test]
 fn session_keys_follow_renames_so_replace_finds_the_right_session() {
     let mut sessions = Sessions::with(AuthSession {
@@ -1037,12 +1160,14 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
     assert_ne!(after.generations.session, before.session);
 }
 
+/// A response is recorded under the job's account, and a job with none
+/// fails keeping its body (C144). A component test: `record` as a
+/// function.
 #[test]
 fn a_response_is_filed_under_the_job_account_not_the_session() {
-    let (mut daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
-    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
+    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", Some(&dir));
     // Session is "old-user"; the job was submitted as "A#1" (a login
     // happened in between). The body lands in A#1's file.
     daemon

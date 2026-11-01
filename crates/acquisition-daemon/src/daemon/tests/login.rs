@@ -248,11 +248,6 @@ fn login_registers_the_session_only_when_the_profile_uuid_lands() {
     });
 }
 
-/// The methods of a record of the wire, for the journal's comparison.
-fn wire_methods_of(wire: &[Sent]) -> Vec<String> {
-    wire.iter().map(|(method, _)| method.clone()).collect()
-}
-
 /// C50: a login whose profile fetch fails fails whole: no provisional
 /// identity — the staged tokens are dropped, no keyring entry is
 /// minted, the index is untouched, and the flow's terminal result is

@@ -620,7 +620,6 @@ impl Door {
     /// and the quiet would resolve early. Where nothing is held and the
     /// state must hold once the daemon has done all it can, the wait is
     /// [`Self::settle`]'s. Needs the door's own hook.
-    #[allow(dead_code)] // the sessions' and the cancel family's scenarios, round 4's last commit
     pub(super) async fn quiet(&self) {
         let (quiet, wake) = oneshot::channel();
         let previous = self.quiet.lock().unwrap().replace(quiet);
@@ -821,7 +820,6 @@ impl Door {
 
     /// Time passes by the scenario's hand: both faces move, every sleeper
     /// due wakes.
-    #[allow(dead_code)] // the cancel family's scenarios, round 4's last commit
     pub(super) fn advance(&self, duration: Duration) {
         self.clock.advance(duration);
     }
@@ -964,6 +962,12 @@ impl Drop for Door {
             panic!("a door scenario ends through `finish`, so its oracles run");
         }
     }
+}
+
+/// The methods of a record of the account server's wire ([`Door::sent`]),
+/// for the journal's comparison ([`Door::journal_methods`]).
+pub(super) fn wire_methods_of(wire: &[Sent]) -> Vec<String> {
+    wire.iter().map(|(method, _)| method.clone()).collect()
 }
 
 /// The authorize URL's callback, as the browser carries it back: the
