@@ -15,7 +15,7 @@ use crate::daemon::queue::{
     SUBMITTER_MAX_BYTES, door as kind_door,
 };
 use crate::daemon::*;
-use acquisition_store::jobs::{Persisted, PersistedRecord, daemon_db_path};
+use acquisition_store::jobs::daemon_db_path;
 
 // ---- admission (C127) ------------------------------------------------
 
@@ -1261,13 +1261,6 @@ fn queue_door(dir: &std::path::Path) -> DoorBuilder {
         Arc::new(RecordingCredentialStore::default()),
     )
     .jobs_db(JobDb::open(&daemon_db_path(dir)).unwrap())
-}
-
-/// Job `id` as an observer reads it from the ledger under `dir`, with no
-/// daemon answering (C45, the store's `Persisted` view): for a scenario's
-/// disk read once its door's `run` has returned.
-fn on_disk(dir: &std::path::Path, id: JobId) -> Option<PersistedRecord> {
-    Persisted::read_job(dir, id).expect("the ledger reads")
 }
 
 /// The refusal a request is answered with: its kind and its words.

@@ -1348,6 +1348,17 @@ pub(super) fn logged_in_sessions() -> Sessions {
     sessions
 }
 
+/// Job `id` as an observer reads it from the ledger under `dir`, with no
+/// daemon answering (C45, the store's `Persisted` view): a scenario's
+/// disk read, once its door's `run` has returned, on the directory whose
+/// `daemon.db` it gave the door; never while a daemon answers.
+pub(super) fn on_disk(
+    dir: &std::path::Path,
+    id: JobId,
+) -> Option<acquisition_store::jobs::PersistedRecord> {
+    acquisition_store::jobs::Persisted::read_job(dir, id).expect("the ledger reads")
+}
+
 /// One live session, `Alice#1234`, holding the access token
 /// `at-test.Alice#1234` until an hour past `clock`'s wall (as an install
 /// writes the expiry) and no refresh token: a job admitted for it sends at
