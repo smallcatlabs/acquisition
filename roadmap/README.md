@@ -418,8 +418,13 @@ under cold reviews), closed the same day (`LEDGER.md`): the admission
 table of 58 rows, the restored rows, the queue file and the rails, 37
 tests retired, its build reviewed, one fix round reviewed clean. Round
 0's baseline completed the same day (run 41265798977: 18 missed, twelve
-the listed exclusions at drifted lines, six in `policy.rs`). Next
-round 5c's brief, the sweep; then round 6 against the baseline; then
-#148; and Phase 3, the owner's league run, at his word, its first seat
-checking the words.
+the listed exclusions at drifted lines, six in `policy.rs`). Round
+5c, the sweep (`briefs/t5-r5c.md`, cut three times under cold reviews,
+C159 entered and narrowed to the owner's ruling), closed on 2026-11-01
+(`LEDGER.md`): the door serves a world, the last door-able tests
+through it, `ManualClock` retired, every ceiling `HANG`, the
+exempt-route set under one source, its oracle and check 11, its build
+reviewed, one fix round reviewed clean. Next round 6, the mutants
+against the baseline, its brief next; then #148; and Phase 3, the
+owner's league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
