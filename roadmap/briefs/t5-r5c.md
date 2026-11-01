@@ -1,8 +1,11 @@
 # t5-r5c — the sweep (#141, round 5c)
 
 The third of round 5's three parts (`t5-design.md` §4 round 5 as
-split on 2026-10-31; ruled 2026-10-31, C158). First draft. Written
-from one read-only inventory at `5c301c06` (the nine door-able tests
+split on 2026-10-31; ruled 2026-10-31, C158). Cut twice: the first
+draft (`4e6c330c`) was reviewed cold (`roadmap/reviews/t5-r5c-brief-
+4e6c330c.md`, the prompt beside); this cut answers its seven findings,
+each named at the foot, "Taken from the review", and narrows C159 to
+the owner's words. Written from one read-only inventory at `5c301c06` (the nine door-able tests
 of the other files, `ManualClock`'s 69 constructions, the waits left,
 the harness's duplicates, the exempt-route set's five copies), every
 line printed, re-anchored to the tree at 1092c57b (round 5b's
@@ -20,9 +23,9 @@ retired with its last construction; every literal ceiling is `HANG`
 and every sleep that stood for a state wait is an awaited state or
 named with the reason it stays; the harness's three duplicates are
 one; the routes whose first send carries no probe are declared in one
-place, every reader of the wire holds the daemon to it, and a check
-holds the four copies outside the daemon crate equal to it, the
-owner's ruling of 2026-10-31 entered in the registry. The stress test
+place, the daemon's wire oracle holds every lifetime to it, and a
+check holds the three copies outside the daemon crate equal to it,
+the owner's ruling of 2026-10-31 entered in the registry as C159. The stress test
 is named as the component it is (two fixtures the door's one server
 cannot host). The one production edit is a doc comment that named
 `ManualClock`; no word a user meets changes.
@@ -37,9 +40,12 @@ cannot host). The one production edit is a doc comment that named
   `restore()`); `t5-r4.md` Do 1 (`quiet`, `submit`, `held`).
 - `decisions/daemon.md`: C158, C45, C134 (a fault marker fails its
   job once; a faulted probe closes its route), C6, C83 (the world);
-  `decisions/network.md`: C32, C40, C42, C43 (the Pinned lines naming
-  tests this round moves by name: `dispatch.rs:303`, `quote.rs:16`,
-  `parents.rs:96` and `:14`, which keep their names), N16 (one HEAD at
+  `decisions/network.md`: C32 (its Pinned naming `dispatch.rs:303`),
+  C159; `decisions/plans.md` 11–13: C40, C42, C43 (naming `quote.rs:
+  16`, `parents.rs:96` and `:14`; the first and third keep their names
+  as scenarios, the second's holder becomes rows of the admission
+  table in `queue.rs`, and C42's Pinned line follows it at the close),
+  N16 (one HEAD at
   startup), N24 (a HEAD is uncounted); `AGENTS.md`: C1 (the client
   links the protocol and the store, never the daemon), C12, C153,
   C154; `tools/arch-check.sh` (check 5 walks the dev edges: a file
@@ -54,7 +60,12 @@ cannot host). The one production edit is a doc comment that named
   BoundSocket, store_dir)` (door.rs:437, never called) needs a
   `BoundSocket` that only `Listener::bind` produces (async, a tokio
   listener): it must bind inside `run`, before the daemon is built, as
-  `Server::own`'s closure runs.
+  `Server::own`'s closure runs; on Windows `Listener::bind` creates a
+  named pipe from its argument (`daemon/endpoint.rs:56`), whose name
+  the world derives as `\\.\pipe\...` (`world.rs:403`), so the door
+  binds a temporary socket path on Unix and a unique pipe name derived
+  from the test's directory on Windows (the three fault tests run on
+  both).
 - The exempt-route set: `NO_PROBE_ROUTES` (`routes.rs:154`,
   `["profile", "league"]`, `pub(super)`, read by `route_probes`
   165–167); `TOKEN_ROUTE` (`ratelimit/limiter.rs:38`, "oauth-token";
@@ -185,37 +196,40 @@ yet" until the round builds the oracle and the check:
 
 1. **The door's world.** `DoorBuilder::world(world: String, store_dir:
    PathBuf)`: the socket bound inside `run` before the daemon is
-   built (`Listener::bind` on a path under the test's own directory),
-   as `Server::own`'s closure runs; the first caller the three fault
-   tests. A fault marker and the rows of a previous lifetime are
-   persisted inputs the scenario stages before the door opens
-   (`fault.json` under the store dir; rows through the store's
-   `JobDb`), as 5b stages rows; after `run` returns, the marker's
-   absence and the rows' states are the observer's reads (the file
-   under the directory the test owns; `Persisted::read_job`).
+   built (`Listener::bind` on a temporary socket path on Unix and on
+   a unique named-pipe name derived from the test's directory on
+   Windows, as the world derives it), as `Server::own`'s closure runs;
+   the first caller the three fault tests. A fault marker and the rows
+   of a previous lifetime are persisted inputs the scenario stages
+   before the door opens (`fault.json` under the store dir; rows
+   through the store's `JobDb`), as 5b stages rows; after `run`
+   returns, the rows' states are the observer's reads
+   (`Persisted::read_job`). The marker's absence after the restore is
+   a component fact (`read_job` reads the ledger, never `fault.json`):
+   the three scenarios do not read it; it stays pinned by the
+   component test that checks the marker's removal after a successful
+   restore (`exit.rs:1665`), named as the holder in the C154 lines.
    - 1457: `.world`, `.jobs_db(JobDb::open(daemon_db_path(dir)))`,
      `.restore_jobs(Retention::default())`, `.restore_landed(false)`
      (the sleep rows must not run), `Server::Account(("GET", "/never",
      0))`; `List` for `[(1, Failed), (2, Waiting), (3, Waiting)]`,
      `Result { 1 }` carrying "interrupted by a fault" and "not
-     replayed"; after `run`, the marker absent; a second door on the
-     same directory (its own `run`, after the first's), `.restore_jobs`
-     again: `List` `[(2, Waiting), (3, Waiting)]`, `Result { 1 }`
-     unchanged.
+     replayed"; a second door on the same directory (its own `run`,
+     after the first's), `.restore_jobs` again: `List` `[(2, Waiting),
+     (3, Waiting)]`, `Result { 1 }` unchanged.
    - 1551: the seeded probe row 1 Running and fetch row 2 Waiting with
      the marker naming the probe; `.world`, `.jobs_db`, `.restore_jobs`
      (the dispatcher running); `await_terminal(2)` Failed carrying
      "route fetch" and "a probe on this route broke the daemon";
      `submit("fetch", None)` then `await_terminal` Failed carrying
-     "route fetch is degraded"; `journal()` and `sent()` empty; after
-     `run`, the marker absent.
+     "route fetch is degraded"; `journal()` and `sent()` empty.
    - 1603: as 1551 with `.rails(RailsConfig { state_path, ..tripwire_
      config() })` and `rails.json` seeded tripped; `DaemonStatus.rails.
      halted` `Some`; `await_terminal(2)` Failed with the route words;
      `settle`; `advance(PROBE_COOLDOWN + 1 s)` (the degraded route's
      cooldown, which nothing parks on); `ResetTripwire` acknowledged;
      `settle`; the journal empty; after `run`, row 2 Failed through
-     the observer's read and the marker absent.
+     the observer's read.
 
 2. **The other door-able tests.**
    - `parents.rs:14`: `Server::Mock`, `.store_dir`, `.sessions(live_
@@ -272,8 +286,9 @@ yet" until the round builds the oracle and the check:
 3. **`ManualClock` retired.** Every construction becomes
    `ParkingClock::new()` (the ten helpers one line each, the rest per
    site), `world_daemon_on`'s parameter `Arc<ParkingClock>`, the doc
-   mentions reworded (`dispatch.rs:2529`; `server.rs:677`, the one
-   production edit, a comment); the type and its `Clock` impl deleted
+   mentions reworded (`dispatch.rs:2529`; `harness.rs:74`, which
+   recalls the type by name; `server.rs:677`, the one production edit,
+   a comment); the type and its `Clock` impl deleted
    from the harness. The three tests that relied on the self-advancing
    sleep and stay off the door (`dispatch.rs` 371 and 472, `stress.rs:
    32`) gain the hand-driven loop beside their yield poll
@@ -289,9 +304,11 @@ yet" until the round builds the oracle and the check:
    rs` 628, 633, 659, 669); `ANSWERED_WITHIN` stays at 30 s with its
    doc corrected (the local kill is 120 s, `HANG`'s equal; the guard
    fires first by its own margin). The scenario sleeps: `exit.rs:126`'s
-   `settle()` retires (386 an awaited state through `wait_state`, 808
-   through `await_a_look`, 1629 and 1649 the door's `settle` once 1603
-   moves); `exit.rs:311` stays with its reason in a comment (its exact
+   `settle()` retires (386 is redundant: the job it precedes is already
+   Waiting, and the component's direct `pick_runnable` assertion is the
+   property, so the sleep goes with no replacement, its C154 line
+   naming that assertion; 808 through `await_a_look`; 1629 and 1649
+   the door's `settle` once 1603 moves); `exit.rs:311` stays with its reason in a comment (its exact
    signal is `quiet` on a door; its two users are component tests of
    the exit's park); `exit.rs:558` stays (a multi-thread component with
    workers blocked); `log.rs` 114–122's poll under `HANG`. The polls
@@ -317,23 +334,28 @@ yet" until the round builds the oracle and the check:
    declared route's or the token endpoint's first send in a lifetime
    is no HEAD, every other route's is one (the inventory's shape: every
    route into `seen`; on a first send, `assert_ne!` for an exempt
-   route, `assert_eq!` else). A gate check, `tools/exempt-check.sh`
-   (or a case of `tools/arch-check.sh`, the worker's call), run by
-   `tools/gate.sh` and `--docs`, extracts the literal set from the
-   client harness (`mod.rs` 718–721) and the two Python tools and holds
-   each equal to the composed set read from `routes.rs` and
-   `limiter.rs`; a breaker case (`tools/arch-check-breakers.sh`'s
-   shape) stages a drifted copy and sees the check fail. The registry
-   gains the owner's ruling of 2026-10-31 (the design's §5, "the
-   client keeps its copy under a check"), worded as a property in
-   `decisions/network.md`, under 800 bytes, its Pinned the oracle and
-   the check; the brief's draft (Input, below) passes `python3 -I
-   tools/bothy.py check` before this brief's commit. `dispatch.rs:303`
-   keeps pinning the mock's two declared routes; the oracle pins the
-   rule.
+   route, `assert_eq!` else). The three copies outside the daemon
+   crate (the client harness, `mod.rs` 718–721, and the two Python
+   tools) keep skipping the exempt routes as they do, under a gate
+   check, `tools/exempt-check.sh` (or a case of `tools/arch-check.sh`,
+   the worker's call), run by `tools/gate.sh` and `--docs`, which
+   extracts each copy's literal set and holds it equal to the composed
+   set read from `routes.rs` and `limiter.rs`; a breaker case
+   (`tools/arch-check-breakers.sh`'s shape) stages a drifted copy and
+   sees the check fail. C159 (entered at this brief's first cut,
+   narrowed at this one to the owner's ruling of 2026-10-31, the
+   design's §5: the client's copy under a check) is pinned by the
+   oracle and the check when built. `dispatch.rs:303` keeps pinning
+   the mock's two declared routes; the oracle pins the rule.
 
-7. **Retirements**, each with its C154 line: the nine tests by name
-   (eight moved, stress kept), `ManualClock` (held by `ParkingClock`
+7. **Retirements**, each with its C154 line: the nine door-able tests
+   in three kinds: seven moved as scenarios keeping their names
+   (`exit.rs` 1457, 1551, 1603; `parents.rs:14`; `dispatch.rs` 66 and
+   303; `quote.rs:16`; `dispatch.rs:224` an eighth if moved), one
+   folded into rows (`parents.rs:96`, held by the admission table's
+   rows named in the commit, C42's Pinned line following at the close),
+   one kept (`stress.rs:32`); the marker reads held by `exit.rs:1665`;
+   `ManualClock` (held by `ParkingClock`
    and the three loops), `test_daemon_scenario_at`, the sleeps and
    ceilings named in Do 4, the `TOKEN_HEADERS` copies, the oracle's
    literal (held by the constants and the check).
@@ -346,18 +368,19 @@ yet" until the round builds the oracle and the check:
 ## Done when
 
 - `grep -rn "ManualClock" crates/` finds nothing.
-- `grep -n "tokio::test" crates/acquisition-daemon/src/daemon/tests/{exit,parents,dispatch,quote,stress}.rs`
-  finds none of the eight moved tests' names and finds `stress.rs:32`'s,
-  quoted; each moved test keeps its name as a `#[test]` (the Pinned
-  lines of C32, C40, C42, C43 and C134 still name their holders).
+- `grep -n -A1 "tokio::test" crates/acquisition-daemon/src/daemon/tests/{exit,parents,dispatch,quote,stress}.rs`
+  (the attribute with the declaration under it) shows none of the
+  seven moved tests' names and shows `stress.rs:32`'s, quoted; each
+  moved test keeps its name as a `#[test]` (the Pinned lines of C32,
+  C40, C43 and C134 still name their holders; C42's names the rows).
 - `grep -rn "timeout(Duration::from_secs(" crates/acquisition-daemon/src/daemon/tests/`
   finds nothing; `grep -n "sleep(Duration::from_millis(" crates/acquisition-daemon/src/daemon/tests/*.rs`
-  finds only `exit.rs:311` and the poll intervals, each with its
-  comment, quoted.
+  finds only `exit.rs:311`, `exit.rs:558`'s thread sleep and the poll
+  intervals, each with its comment, quoted.
 - `grep -rn "test_daemon_scenario_at\|install_tokens_locked" crates/acquisition-daemon/src/daemon/tests/`
   finds nothing; `grep -rn "TOKEN_HEADERS\|TOKEN_RATE" crates/acquisition-daemon/src/daemon/tests/`
   finds one definition.
-- `grep -rn '"oauth-token" | "profile" | "league"' crates/acquisition-daemon/` finds nothing; the oracle's first-send assertion exists (quoted); `tools/exempt-check.sh` (or its case) runs in `tools/gate.sh` and its breaker fails on a drifted copy (the breaker's output quoted in the report); the registry line is in `decisions/network.md` and `python3 -I tools/bothy.py check` passes.
+- `grep -rn '"oauth-token" | "profile" | "league"' crates/acquisition-daemon/` finds nothing; the oracle's first-send assertion exists (quoted); `tools/exempt-check.sh` (or its case) runs in `tools/gate.sh` and its breaker fails on a drifted copy (the breaker's output quoted in the report); C159's Pinned names them at the close and `python3 -I tools/bothy.py check` passes.
 - `DoorBuilder::world` takes a world and a store directory and binds
   inside `run`; the three fault tests call it (quoted).
 - `git diff --stat <this brief's last cut> <head> -- crates/` lists
@@ -400,9 +423,29 @@ for the owner's review.
 ## Raised for review
 
 - The exempt-route ruling is the owner's of 2026-10-31 (the design's
-  §5), entered here with its pin; the check's shape (a gate script
-  over five copies) is this brief's, since two copies are Python
-  tools no Rust check reaches.
+  §5), entered as C159 at the first cut wider than his words and
+  narrowed at this cut; the check's shape (a gate script over three
+  copies) is this brief's, since two copies are Python tools no Rust
+  check reaches; the oracle's first-send assertion is the daemon
+  harness's alone.
 - The fault marker as a staged persisted input: a hook wrote it, not
   the store; the scenario stages it as it stages rows.
 - `ANSWERED_WITHIN` kept at 30 s against a local kill of 120 s.
+
+## Taken from the review
+
+The first review's seven (`t5-r5c-brief-4e6c330c.md`):
+
+1. C159 exceeded the ruling: narrowed to the daemon oracle's assertion
+   and the copies' checked equality (Do 6, the registry, Raised).
+2. The marker's absence is a component fact: held by `exit.rs:1665`,
+   not read by the scenarios (Do 1, Do 7).
+3. A Windows pipe needs its own name: the door binds a socket path on
+   Unix and a pipe name on Windows (Read, Do 1).
+4. `exit.rs:386`'s sleep is redundant, not replaced (Do 4).
+5. The nine tests in three kinds, C42's Pinned following the rows
+   (Do 7, done-when).
+6. The attribute grep with its declaration, the thread sleep allowed,
+   `harness.rs:74`'s mention (Do 3, done-when).
+7. C40, C42, C43 in `decisions/plans.md`; three external copies (Read,
+   Goal).
