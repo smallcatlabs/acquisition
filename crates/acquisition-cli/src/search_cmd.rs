@@ -152,14 +152,15 @@ pub struct SearchArgs {
     /// and examples (`--describe league,line,pseudo.total_res`; a block's
     /// name is one: `--describe computed`, and `--describe trade` what
     /// `--trade` makes of each clause of a site search; a category's id
-    /// is its row: `--describe accessory.ring`). `--describe '~resist'` is
+    /// is its row: `--describe accessory.ring`). `--describe=~resist` is
     /// a pattern, Rust regex syntax in any case: the entries whose name or
     /// definition it matches, and the categories whose id, text or rule
     /// does — whole when ten or fewer, their lines otherwise, counted per
-    /// pattern, so a list of several may answer more whole. Quote it, or
-    /// the shell reads `~resist` as a home directory; it takes the rest of
-    /// its value, commas and all, and a name after it is another
-    /// `--describe`. `--describe all` is every entry whole, over 150 KB.
+    /// pattern, so a list of several may answer more whole. After `=` no
+    /// shell reads `~` as a home directory; a pattern holding a space or
+    /// a character the shell reads is quoted as any argument is. It takes
+    /// the rest of its value, commas and all, and a name after it is
+    /// another `--describe`. `--describe all` is every entry whole, over 150 KB.
     /// `--json` is the same document.
     #[arg(long, value_name = "NAME,…", num_args = 0..=1)]
     pub describe: Option<Vec<String>>,
@@ -1824,7 +1825,9 @@ fn describe_list(values: &[String]) -> Vec<String> {
 }
 
 /// How a terminal asks what the document's `next` names.
-const DESCRIBE_SPELLED: &str = "at a terminal: `--describe <name>,…` names entries or blocks, `--describe '~<pattern>'` a pattern, quoted for the shell, `--describe all` everything";
+/// A static example, so in the portable form no declared shell expands or
+/// needs quoted (C156): `~` after `=` is no home directory anywhere.
+const DESCRIBE_SPELLED: &str = "at a terminal: `--describe <name>,…` names entries or blocks, `--describe=~<pattern>` a pattern, `--describe all` everything";
 
 fn describe_text(d: &Describe, totals: bool) -> String {
     let mut out = String::new();

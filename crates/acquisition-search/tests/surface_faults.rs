@@ -895,7 +895,9 @@ fn c53_a_pattern_that_matches_nothing_offers_the_index() {
     else {
         panic!("{e}");
     };
-    assert!(message.starts_with("`~qqqqq` matches nothing"), "{message}");
+    // the words are the describe golden's (C122); here, that the refusal
+    // names the pattern it was asked
+    assert!(message.contains("`~qqqqq`"), "{message}");
     assert_eq!(offers.len(), 1, "{e}");
     assert_eq!(offers[0].describe, Some(Vec::new()));
     assert!(offers[0].request.is_none());

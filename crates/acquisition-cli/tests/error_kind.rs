@@ -293,6 +293,41 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
     eprintln!("ran through: {shells:?}");
 }
 
+/// C156, the cold review of describe-slices (finding 1): the pattern
+/// example `--describe`'s help prints is the portable form,
+/// `--describe=~resist`, which no declared shell expands (`~` after `=`
+/// is no home directory) and none needs quoted. Run as the help prints
+/// it, unquoted, through every shell this machine has, the pattern
+/// reaches describe whole.
+#[test]
+fn c156_the_describe_pattern_example_runs_as_printed_through_each_shell() {
+    let scratch = harness::scratch("shells-describe");
+    let base = scratch.0.clone();
+    let example = "--describe=~resist";
+    let help = String::from_utf8(acq(&base, &["search", "--help"]).stdout).unwrap();
+    assert!(help.contains(&format!("`{example}`")), "{help}");
+    let mut wrong = Vec::new();
+    for shell in harness::shells_here() {
+        let mut cmd = harness::in_shell(
+            shell,
+            harness::acq_exe(),
+            &format!("--json search {example}"),
+            &base,
+        );
+        harness::isolate(&mut cmd, &base);
+        cmd.env("ACQ_NO_SPAWN", "1");
+        let out = cmd.output().unwrap();
+        let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_default();
+        if doc["patterns"][0]["pattern"] != "~resist" || !out.status.success() {
+            wrong.push(format!(
+                "{shell:?}: {example} answered {doc}{}",
+                String::from_utf8_lossy(&out.stderr)
+            ));
+        }
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
 /// C156, the review of #146's build, its first finding: a printed
 /// command that sets variables before `acq` sets them in the declared
 /// shell's own syntax, so the no-daemon remedy's line runs as printed in

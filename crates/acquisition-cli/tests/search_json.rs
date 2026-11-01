@@ -1206,7 +1206,7 @@ fn describe_at_a_terminal() {
         &[
             "more: This is the index, each entry by its name and one line",
             "~ and a pattern for the entries whose name or definition it matches (~resist)",
-            "`--describe '~<pattern>'` a pattern, quoted for the shell",
+            "`--describe=~<pattern>` a pattern",
             "`--describe all` everything",
             "pseudo.total_life",
             "accessory.ring",
@@ -1245,12 +1245,8 @@ fn describe_at_a_terminal() {
     assert_eq!(offers.len(), 1, "{e}");
     let line = harness::offered_line(&offers[0]);
     let index = sole_json(&run_printed(&base, &line));
-    assert!(
-        index["next"]
-            .as_str()
-            .is_some_and(|n| n.starts_with("This is the index")),
-        "{index}"
-    );
+    let bare = sole_json(&acq(&base, &["--json", "search", "--describe"]));
+    assert_eq!(index, bare);
     assert_eq!(harness::run_argv(&base, &offers[0], &["--json"]), index);
 
     // a pattern takes the rest of its value, its commas its own; a name

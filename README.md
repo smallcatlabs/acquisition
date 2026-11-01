@@ -188,7 +188,7 @@ acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--limit N] [--ex
 acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts, then ten characters: locations, ages and live items; --expand all
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
-acq search --describe [name,…|'~pattern'|all]   # the query language: an index, a slice by pattern, or entries whole
+acq search --describe[=name,…|=~pattern|=all]   # the query language: an index, a slice by pattern, or entries whole
 acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq web [--no-browser]   # the search as a page shaped like the trade site's, with item art, and the refresh loop to tick, plan and apply; loopback only, until Ctrl-C
