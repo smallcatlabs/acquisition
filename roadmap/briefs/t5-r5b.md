@@ -475,8 +475,8 @@ uploaded whatever the outcome): round 6's input, read then.
 
 - `grep -n "tokio::test" crates/acquisition-daemon/src/daemon/tests/queue.rs`
   finds only the component tests Do 4 names (1190, 1465, 1497, 1591,
-  1668, 1686, 1696 at `c03a11c5`'s names, and 986/1127's admissions if
-  kept), quoted; the tables and scenarios are `#[test]`s, each row and
+  1668, 1686, 1696 at `c03a11c5`'s names, and 986/1127's admissions as
+  one component test, named in the commit), quoted; the tables and scenarios are `#[test]`s, each row and
   scenario listed in the commit with the test it replaced.
 - `grep -n "assert_nothing_admitted\|live_daemon\|client_submit\|yield_now\|from_millis(100)\|logged_in(" crates/acquisition-daemon/src/daemon/tests/queue.rs`
   finds nothing but 1696's awaited state if it polls, quoted;
@@ -532,7 +532,8 @@ names the model the worker runs on.
 
 `TEMPLATE.md`, and: the row and scenario count by file and the tests
 retired; the test stage's seconds beside 24 and the two files' wall
-time before and after; 986/1127's decision; every agent-facing design
+time before and after; the name of 986/1127's component test; every
+agent-facing design
 decision the brief left open (the admission table's row shape and the
 restored-rows table's, the submit's wider form, the two-account
 sessions' home, `real_named`'s shape) for the owner's review.
@@ -562,8 +563,9 @@ The first review's twelve (`t5-r5b-brief-5c301c06.md`):
 1. `Provider::ggg()` carries the production URLs: a real-named mode on
    the fixture's base, as the old test builds it (Do 1, done-when).
 2. The live queue file read while the daemon answers widens C158: the
-   disk is read as C45's observer after `finish`; a seeding write is a
-   staged input (Do 1, Do 4, Do 5, done-when, Raised).
+   disk is read as C45's observer once the run is over (the third cut:
+   after `run` returns); a seeding write is a staged input (Do 1, Do
+   4, Do 5, done-when, Raised).
 3. A sleep submit is refused in real mode: the id check on the mock
    rows only (Do 2).
 4. 517's `settle` under a held send: `quiet` (Do 5).
@@ -591,3 +593,8 @@ The second review's four (`t5-r5b-brief-297a6566.md`):
    `account: None`; 986/1127's admissions stay a component test (Do 1,
    Do 4).
 4. The Goal's id check is the mock rows' (Goal).
+
+The third review's two remnants (`t5-r5b-brief-49d6e3f6.md`): the
+first review's recap said "after `finish`"; "if kept" and a
+"decision" for 986/1127 where Do 4 keeps them (Taken from the
+reviews, done-when, Report).
