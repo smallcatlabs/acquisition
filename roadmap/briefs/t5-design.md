@@ -319,8 +319,10 @@ retirement waits for its last user.
    Split on 2026-10-31 by the orchestrating session under the owner's
    grant of autonomy, for his re-read, from two inventories at
    `9736bdcf`: 5a the refresh and bearer families (`t5-r5a.md`); 5b
-   the door-able tests of the other files (34 of 118) and round 4's
-   narrowed private reads; 5c the sweep (`ManualClock`'s retirement as
+   `queue.rs` and `rails.rs` (`t5-r5b.md`; 37 door-able tests of 46 by
+   the inventories of 2026-10-31, which overturned the first count's
+   classes) and round 4's narrowed private reads of those two files;
+   5c the sweep, with the nine door-able tests of the other files (`ManualClock`'s retirement as
    a harness-level swap, four tests relying on its self-advancing
    sleep; the 14 sleeps, 19 ceilings and the polls left; the
    exempt-route check and its registry line). Two premises corrected
