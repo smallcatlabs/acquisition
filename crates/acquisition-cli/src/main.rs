@@ -1029,9 +1029,9 @@ fn fault_words(fault: &Fault) -> String {
             format!("{fault}; pick one with --account or ACQ_ACCOUNT")
         }
         Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
-        Fault::NoSyncPolicy { .. } => format!(
+        Fault::NoSyncPolicy { username } => format!(
             "{fault} — declare one first, e.g. `{}`",
-            plan_cmd::policy_set_line("", plan_cmd::POLICY_EXAMPLE)
+            plan_cmd::policy_set_line(username, plan_cmd::POLICY_EXAMPLE)
         ),
         Fault::NotCovered {
             covered, username, ..

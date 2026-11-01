@@ -91,14 +91,22 @@ pub(crate) const WRITTEN_VIA: &str = "cli";
 /// A shape hint for humans; the planner's strict parse is the authority.
 pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
 
-/// A printed `acq policy set`: `flags` after the verb, then the JSON as
-/// one word, quoted for the shell it will be pasted into (C156; the pipe
-/// the build first printed on Windows corrupted every character past
-/// ASCII under Windows PowerShell 5.1, the review of step words).
-pub(crate) fn policy_set_line(flags: &str, json: &str) -> String {
-    format!(
-        "acq policy set{flags} {}",
-        acquisition_search::answer::shell_quoted(json)
+/// A printed first `acq policy set`: as `account`, the create-only form
+/// (`--if-revision 0`, which lands only where no policy is stored:
+/// 8ae99e86), then the JSON as one word, every word quoted for the shell
+/// it will be pasted into (C156; the pipe the build first printed on
+/// Windows corrupted every character past ASCII under Windows PowerShell
+/// 5.1, the review of step words). The league seat's rerun (cli-opus-2
+/// call 22): the line named neither, so it could replace a policy and
+/// was refused with two accounts known.
+pub(crate) fn policy_set_line(account: &str, json: &str) -> String {
+    crate::printed_line(
+        &[
+            vec!["acq".to_string(), "policy".into(), "set".into()],
+            crate::option_words("--account", account),
+            vec!["--if-revision".into(), "0".into(), json.to_string()],
+        ]
+        .concat(),
     )
 }
 
@@ -110,7 +118,8 @@ const LIST_UP_TO: usize = 10;
 /// MCP's `sync_policy` document, `{"policy": row}`, row null when none is
 /// set (C149: a success is never a bare `null`).
 pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
-    let shown = cx.account()?.policy_shown()?;
+    let account = cx.account()?;
+    let shown = account.policy_shown()?;
     if json {
         println!("{}", serde_json::to_string_pretty(&shown)?);
         return Ok(());
@@ -119,7 +128,7 @@ pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
         None => {
             println!(
                 "no sync policy is set — write one with `{}`",
-                policy_set_line("", POLICY_EXAMPLE)
+                policy_set_line(&account.entry.username, POLICY_EXAMPLE)
             )
         }
         Some(shown) => {

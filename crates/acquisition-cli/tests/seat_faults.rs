@@ -2748,3 +2748,44 @@ fn a_saved_plans_next_step_names_the_account_as_the_index_spells_it_now() {
     let run = run_as_printed(&base, next);
     assert!(run.status.success(), "`{next}`: {}", text(&run));
 }
+
+/// The league seat's rerun (cli-opus-2 call 22): `policy show` with no
+/// policy stored offered `acq policy set '<json>'`, with no account and
+/// no revision: refused with two accounts known, and as typed with one a
+/// write that replaces whatever stands, the form the README's "A new
+/// league" warns against. It offers the create-only first write as the
+/// account it ran as, which runs as printed and lands as revision 1, and
+/// run again is refused, a policy now standing.
+#[test]
+fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
+    let scratch = harness::scratch("seat-first-policy");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    Index::load(&base.join("store").join("mock"))
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let out = acq(&base, &["policy", "show", "--account", "Alice#1234"]);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    let [offered] = &printed_in_line(&said, "no sync policy is set")[..] else {
+        panic!("one command offered: {said}");
+    };
+    assert!(
+        offered.contains("--account 'Alice#1234' --if-revision 0 "),
+        "{offered}"
+    );
+    let run = run_as_printed(&base, offered);
+    assert!(run.status.success(), "`{offered}`: {}", text(&run));
+    let shown = sole_json(&acq(
+        &base,
+        &["policy", "show", "--account", "Alice#1234", "--json"],
+    ));
+    assert_eq!(shown["policy"]["revision"], json!(1), "{shown}");
+    let again = run_as_printed(&base, offered);
+    assert!(
+        !again.status.success(),
+        "a create over a policy: {}",
+        text(&again)
+    );
+}
