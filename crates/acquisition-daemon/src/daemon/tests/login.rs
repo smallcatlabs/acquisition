@@ -19,7 +19,15 @@
 //! (the same account's staging window, which a client job through the
 //! door would wait out behind the held login profile on its scheduling
 //! key); the two callback tests on `wait_callback` (the listener's own
-//! reads).
+//! reads); `c144_a_forget_logs_only_the_clear_that_worked_as_cleared`
+//! (the daemon log, which the door does not read);
+//! `c144_restore_reads_through_the_credential_store_and_reports_a_failed_load`
+//! (`restore_sessions` as a function);
+//! `c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_restore`
+//! (a freeze between the profile's write and the landing);
+//! `c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark` (a
+//! store hook calling back into the daemon); and
+//! `the_retry_word_is_quoted_for_the_declared_shell` (a table).
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -984,44 +992,51 @@ async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_t
 
 // ---- C144: every credential-store result reaches the caller ----------
 
-/// A logged-in harness daemon whose credential store is `store`, holding
-/// test-user's entry, with an account index in a scratch directory.
-fn keyring_daemon(
-    store: RecordingCredentialStore,
-) -> (
-    Arc<Daemon>,
-    Arc<RecordingCredentialStore>,
-    TestPath,
-    TestPath,
-) {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    logged_in(&mut daemon);
+/// The keyring family's door: `store` holding `test-user`'s entry
+/// `rt-old`, and an account index in `store_dir` that knows `test-user`
+/// as `uuid-test-user` (the account server's uuid for it), persisted;
+/// the session live when `live`, else none.
+fn keyring_door(
+    server: Server,
+    store: &Arc<RecordingCredentialStore>,
+    store_dir: &std::path::Path,
+    live: bool,
+) -> DoorBuilder {
     store
         .entries
         .lock()
         .unwrap()
         .insert("test-user".into(), "rt-old".into());
-    let store = Arc::new(store);
-    let dir = TestPath::dir();
-    Index::load(&dir)
+    Index::load(store_dir)
         .unwrap()
-        .record_login("test-user", "u-1", true, 1, &[])
+        .record_login("test-user", "uuid-test-user", true, 1, &[])
         .unwrap();
-    let d = Arc::get_mut(&mut daemon).unwrap();
-    d.credential_store = store.clone();
-    d.store_dir = Some(dir.to_path_buf());
-    (daemon, store, dir, log_path)
+    let sessions = if live {
+        logged_in_sessions()
+    } else {
+        Sessions::default()
+    };
+    Door::open(server, Arc::new(ParkingClock::new()), store.clone())
+        .sessions(sessions)
+        .store_dir(store_dir.to_path_buf())
 }
 
-async fn logout_answer(daemon: &Arc<Daemon>, account: Option<&str>) -> Response {
-    daemon
-        .handle_request(
-            Request::AuthLogout {
-                account: account.map(str::to_string),
-            },
-            &mut None,
-        )
-        .await
+/// `AuthLogout` of `account` (the sole session's when `None`), as the
+/// CLI sends it.
+async fn logout(door: &mut Door, account: Option<&str>) -> Response {
+    door.request(Request::AuthLogout {
+        account: account.map(str::to_string),
+    })
+    .await
+}
+
+/// Whether the index on disk marks `account` persisted.
+fn persisted(store_dir: &std::path::Path, account: &str) -> bool {
+    Index::load(store_dir)
+        .unwrap()
+        .get(account)
+        .expect("the account is indexed")
+        .persisted
 }
 
 /// C144, issue #61: a logout whose keyring clear fails answers that on
@@ -1030,105 +1045,161 @@ async fn logout_answer(daemon: &Arc<Daemon>, account: Option<&str>) -> Response 
 /// answer success. The index marks the account not persisted either way,
 /// so no later start restores the session; the retry, a logout of the
 /// now not-live account, clears the entry once the keyring works.
-#[tokio::test]
-async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
-    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::failing(
+#[test]
+fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
+    let store = Arc::new(RecordingCredentialStore::failing(
         "clear",
         "keychain locked",
     ));
-
-    let answer = logout_answer(&daemon, None).await;
-    let Response::Error { kind, message } = &answer else {
-        panic!("the failed clear is the answer: {answer:?}");
-    };
-    assert_eq!(*kind, ErrorKind::Internal);
-    for fact in [
-        "logged out test-user (session dropped, not restored at start), but",
-        "its keyring entry could not be cleared: keychain locked",
-        "`acq auth logout --account test-user` tries again",
-    ] {
-        assert!(message.contains(fact), "{fact:?} in {message}");
-    }
-    assert!(
-        daemon
-            .shared
-            .lock()
-            .unwrap()
-            .auth
-            .find("test-user")
-            .is_none()
-    );
-    assert!(
-        !Index::load(&dir)
-            .unwrap()
-            .get("test-user")
-            .unwrap()
-            .persisted
-    );
-    assert!(store.entries.lock().unwrap().contains_key("test-user"));
-
-    // The keyring works again: the retry reaches the entry.
-    *store.fail_clear.lock().unwrap() = None;
-    assert!(matches!(
-        logout_answer(&daemon, Some("test-user")).await,
-        Response::Ack {
-            keyring: Some(KeyringOutcome::Cleared)
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let credentials = store.clone();
+    keyring_door(Server::None, &store, &store_dir, true).run(|mut door| async move {
+        let answer = logout(&mut door, None).await;
+        let Response::Error { kind, message } = &answer else {
+            panic!("the failed clear is the answer: {answer:?}");
+        };
+        assert_eq!(*kind, ErrorKind::Internal);
+        for fact in [
+            "logged out test-user (session dropped, not restored at start), but",
+            "its keyring entry could not be cleared: keychain locked",
+            "`acq auth logout --account test-user` tries again",
+        ] {
+            assert!(message.contains(fact), "{fact:?} in {message}");
         }
-    ));
-    assert!(store.entries.lock().unwrap().is_empty());
-    finish_harness(None, &log_path);
+        let after = door.await_auth(|_| true).await;
+        assert!(
+            !after.logged_in && after.accounts.is_empty(),
+            "the session is dropped: {after:?}"
+        );
+        assert!(!persisted(&dir, "test-user"));
+        assert!(
+            credentials
+                .entries
+                .lock()
+                .unwrap()
+                .contains_key("test-user")
+        );
+
+        // The keyring works again: the retry reaches the entry.
+        *credentials.fail_clear.lock().unwrap() = None;
+        let retry = logout(&mut door, Some("test-user")).await;
+        assert!(
+            matches!(
+                retry,
+                Response::Ack {
+                    keyring: Some(KeyringOutcome::Cleared)
+                }
+            ),
+            "{retry:?}"
+        );
+        assert!(credentials.entries.lock().unwrap().is_empty());
+        door.finish().await;
+    });
 }
 
 /// C144: a logout whose clear works is acknowledged with the keyring's
 /// outcome as data (the review of the h1 fix round, its fifth finding: no
 /// frontend reads it from a sentence), and the entry is gone.
-#[tokio::test]
-async fn a_logout_clears_the_keyring_entry_and_acks() {
-    let (daemon, store, _dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
-    assert!(matches!(
-        logout_answer(&daemon, None).await,
-        Response::Ack {
-            keyring: Some(KeyringOutcome::Cleared)
-        }
-    ));
-    assert!(store.entries.lock().unwrap().is_empty());
-    assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
-    finish_harness(None, &log_path);
+#[test]
+fn a_logout_clears_the_keyring_entry_and_acks() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let credentials = store.clone();
+    keyring_door(Server::None, &store, &store_dir, true).run(|mut door| async move {
+        let answer = logout(&mut door, None).await;
+        assert!(
+            matches!(
+                answer,
+                Response::Ack {
+                    keyring: Some(KeyringOutcome::Cleared)
+                }
+            ),
+            "{answer:?}"
+        );
+        assert!(credentials.entries.lock().unwrap().is_empty());
+        assert_eq!(
+            credentials.cleared.lock().unwrap().as_slice(),
+            ["test-user"]
+        );
+        door.finish().await;
+    });
 }
 
 /// C144, issue #61: forget clears the entry whether or not the index
 /// marks it persisted — a failed save or a failed logout clear leaves an
-/// entry the mark does not show — and its log says what the clear did:
-/// a failed clear is the answer, never "cleared".
-#[tokio::test]
-async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
-    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-    Index::load(&dir)
+/// entry the mark does not show — and a failed clear is the answer,
+/// never "cleared". What its log says of each clear is the component
+/// case beside this one.
+#[test]
+fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
+    let store = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let credentials = store.clone();
+    let door = keyring_door(Server::None, &store, &store_dir, false);
+    Index::load(&store_dir)
         .unwrap()
         .set_persisted("test-user", false)
         .unwrap();
+    door.run(|mut door| async move {
+        let answer = logout(&mut door, Some("test-user")).await;
+        assert!(
+            matches!(
+                answer,
+                Response::Ack {
+                    keyring: Some(KeyringOutcome::Cleared)
+                }
+            ),
+            "{answer:?}"
+        );
+        assert!(
+            credentials.entries.lock().unwrap().is_empty(),
+            "an unmarked entry is cleared"
+        );
+
+        credentials
+            .entries
+            .lock()
+            .unwrap()
+            .insert("test-user".into(), "rt-old".into());
+        *credentials.fail_clear.lock().unwrap() = Some("keychain locked".into());
+        let answer = logout(&mut door, Some("test-user")).await;
+        let Response::Error { kind, message } = &answer else {
+            panic!("the failed clear is the answer: {answer:?}");
+        };
+        assert_eq!(*kind, ErrorKind::Internal);
+        assert!(
+            message.contains("its keyring entry could not be cleared: keychain locked"),
+            "{message}"
+        );
+        door.finish().await;
+    });
+}
+
+/// C144, issue #61, the log's half of the forget above: only the clear
+/// that worked is logged as cleared. A component test: the daemon log has
+/// no boundary surface (the door reads no log).
+#[tokio::test]
+async fn c144_a_forget_logs_only_the_clear_that_worked_as_cleared() {
+    let (daemon, store, dir, log_path) = login_daemon("http://127.0.0.1:1");
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), "rt-old".into());
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", false, 1, &[])
+        .unwrap();
 
     daemon.logout(Some("test-user")).unwrap();
-    assert!(
-        store.entries.lock().unwrap().is_empty(),
-        "an unmarked entry is cleared"
-    );
-
     store
         .entries
         .lock()
         .unwrap()
         .insert("test-user".into(), "rt-old".into());
     *store.fail_clear.lock().unwrap() = Some("keychain locked".into());
-    let refusal = daemon.logout(Some("test-user")).unwrap_err();
-    assert_eq!(refusal.kind, ErrorKind::Internal);
-    assert!(
-        refusal
-            .message
-            .contains("its keyring entry could not be cleared: keychain locked"),
-        "{refusal}"
-    );
+    daemon.logout(Some("test-user")).unwrap_err();
     let log = std::fs::read_to_string(&log_path).unwrap();
     assert_eq!(
         log.matches("forgot account test-user (keyring entry cleared)")
@@ -1136,13 +1207,13 @@ async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
         1,
         "only the clear that worked is logged as cleared:\n{log}"
     );
-    finish_harness(None, &log_path);
 }
 
 /// C144, issue #61: restore reads through the credential store, so a load
 /// that fails reaches the keyring status `auth status` reports and the
 /// log, and the account is not restored; an entry the store holds comes
-/// back as a session; an entry it lacks is logged.
+/// back as a session; an entry it lacks is logged. A component test:
+/// `restore_sessions` as a function, over a directory and a store.
 #[test]
 fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
     let temp = tempfile::tempdir().unwrap();
@@ -1217,7 +1288,9 @@ fn staged_login(daemon: &Daemon, user: &str) -> u64 {
 /// over the directory afterwards — the restart — finds no session and
 /// reports the keyring healthy. The brief said "the keyring entry it saved
 /// is cleared back"; the tree says no entry is saved at all, which the
-/// assertion on the store's cleared list pins.
+/// assertion on the store's cleared list pins. A component test: the
+/// freeze must fall between the profile's write and the landing, a point
+/// no request reaches.
 #[cfg(unix)]
 #[tokio::test]
 async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_restore() {
@@ -1273,13 +1346,15 @@ async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_rest
 /// review of h1, its fourth finding: a re-login goes through the persist
 /// a refresh uses, so a re-login whose save fails clears the previous
 /// login's entry instead of leaving it behind while the index says the
-/// account is not persisted.
-#[tokio::test]
-async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
-    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+/// account is not persisted; the session's keyring word says why.
+#[test]
+fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
     Index::load(&store_dir)
         .unwrap()
-        .record_login("Alice#1", "u-a", true, 1, &[])
+        .record_login("Alice#1", "uuid-Alice#1", true, 1, &[])
         .unwrap();
     credentials
         .entries
@@ -1287,64 +1362,77 @@ async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
         .unwrap()
         .insert("Alice#1".into(), "rt-previous".into());
     *credentials.fail_save.lock().unwrap() = Some("keychain locked".into());
-
-    let generation = staged_login(&daemon, "Alice#1");
-    assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
-    assert!(
-        credentials.entries.lock().unwrap().is_empty(),
-        "the previous login's entry is cleared"
-    );
-    assert_eq!(credentials.cleared.lock().unwrap().as_slice(), ["Alice#1"]);
-    assert!(
-        !Index::load(&store_dir)
-            .unwrap()
-            .get("Alice#1")
-            .unwrap()
-            .persisted
-    );
-    assert_eq!(
-        daemon
-            .shared
-            .lock()
-            .unwrap()
-            .auth
-            .find("Alice#1")
-            .unwrap()
-            .keyring,
-        "unavailable: keychain locked"
-    );
+    let dir = store_dir.to_path_buf();
+    let store = credentials.clone();
+    logged_out(
+        Server::Account(("GET", "/never", 0)),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let landed = log_in(&mut door, "Alice#1").await;
+        assert_eq!(landed.login_ok.as_deref(), Some("Alice#1"), "{landed:?}");
+        assert!(
+            store.entries.lock().unwrap().is_empty(),
+            "the previous login's entry is cleared"
+        );
+        assert_eq!(store.cleared.lock().unwrap().as_slice(), ["Alice#1"]);
+        assert!(!persisted(&dir, "Alice#1"));
+        assert_eq!(
+            accounts(&landed),
+            [(
+                "Alice#1".to_string(),
+                "unavailable: keychain locked".to_string()
+            )]
+        );
+        door.finish().await;
+    });
 }
 
 /// C144 (a rename clears the entry it leaves behind), the review of h1,
 /// its fourth finding: a re-login under a renamed username moves the
 /// uuid's index entry to the new name and clears the entry under the
 /// name the index mapped the uuid to, which nothing could reach again.
-#[tokio::test]
-async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
-    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+/// The index knows the uuid the account server answers for the new name.
+#[test]
+fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
     Index::load(&store_dir)
         .unwrap()
-        .record_login("Old#1", "u-a", true, 1, &[])
+        .record_login("Old#1", "uuid-New#1", true, 1, &[])
         .unwrap();
     credentials
         .entries
         .lock()
         .unwrap()
         .insert("Old#1".into(), "rt-old".into());
-
-    let generation = staged_login(&daemon, "New#1");
-    assert!(daemon.complete_login(generation, "New#1", "u-a"));
-    assert_eq!(
-        entry_refresh_tokens(&credentials.entries.lock().unwrap()),
-        HashMap::from([("New#1".to_string(), "rt-New#1".to_string())]),
-        "one entry, under the new name"
-    );
-    assert_eq!(credentials.cleared.lock().unwrap().as_slice(), ["Old#1"]);
-    let index = Index::load(&store_dir).unwrap();
-    assert!(index.get("Old#1").is_none());
-    let entry = index.get("New#1").unwrap();
-    assert_eq!(entry.uuid.as_deref(), Some("u-a"));
-    assert!(entry.persisted);
+    let dir = store_dir.to_path_buf();
+    let store = credentials.clone();
+    logged_out(
+        Server::Account(("GET", "/never", 0)),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let landed = log_in(&mut door, "New#1").await;
+        assert_eq!(landed.login_ok.as_deref(), Some("New#1"), "{landed:?}");
+        assert_eq!(
+            entry_refresh_tokens(&store.entries.lock().unwrap()),
+            HashMap::from([("New#1".to_string(), "rt-New#1".to_string())]),
+            "one entry, under the new name"
+        );
+        assert_eq!(store.cleared.lock().unwrap().as_slice(), ["Old#1"]);
+        let index = Index::load(&dir).unwrap();
+        assert!(index.get("Old#1").is_none());
+        let entry = index.get("New#1").unwrap();
+        assert_eq!(entry.uuid.as_deref(), Some("uuid-New#1"));
+        assert!(entry.persisted);
+        door.finish().await;
+    });
 }
 
 /// C144 (no success the daemon did not earn), the review of h1, its
@@ -1356,39 +1444,39 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
 /// `off` — a success that says nothing was cleared, where the fix round
 /// answered an error and the build before it acknowledged "keyring
 /// cleared" over the entry still there. Forget answers the same.
-#[tokio::test]
-async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
-    let store = RecordingCredentialStore::default();
+#[test]
+fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
+    let store = Arc::new(RecordingCredentialStore::default());
     *store.keyring_off.lock().unwrap() = Some("disabled by ACQ_NO_KEYRING".into());
-    let (daemon, store, dir, log_path) = keyring_daemon(store);
-
-    for answer in [
-        logout_answer(&daemon, None).await,
-        logout_answer(&daemon, Some("test-user")).await,
-    ] {
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let credentials = store.clone();
+    keyring_door(Server::None, &store, &store_dir, true).run(|mut door| async move {
+        for account in [None, Some("test-user")] {
+            let answer = logout(&mut door, account).await;
+            assert!(
+                matches!(
+                    answer,
+                    Response::Ack {
+                        keyring: Some(KeyringOutcome::Off)
+                    }
+                ),
+                "a clear that did not happen is said as data: {answer:?}"
+            );
+        }
+        let after = door.await_auth(|_| true).await;
+        assert!(!after.logged_in && after.accounts.is_empty(), "{after:?}");
+        assert!(!persisted(&dir, "test-user"));
         assert!(
-            matches!(
-                answer,
-                Response::Ack {
-                    keyring: Some(KeyringOutcome::Off)
-                }
-            ),
-            "a clear that did not happen is said as data: {answer:?}"
+            credentials
+                .entries
+                .lock()
+                .unwrap()
+                .contains_key("test-user"),
+            "the entry a run with the keyring on saved is still there"
         );
-    }
-    assert!(daemon.shared.lock().unwrap().auth.by_account.is_empty());
-    assert!(
-        !Index::load(&dir)
-            .unwrap()
-            .get("test-user")
-            .unwrap()
-            .persisted
-    );
-    assert!(
-        store.entries.lock().unwrap().contains_key("test-user"),
-        "the entry a run with the keyring on saved is still there"
-    );
-    finish_harness(None, &log_path);
+        door.finish().await;
+    });
 }
 
 /// C144 (every result reaches the words), the review of h1, its fifth
@@ -1398,53 +1486,58 @@ async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
 /// stand, and the answer says so, where it used to claim the account
 /// would not be restored. Logout's index failure reaches its answer the
 /// same way: a logout whose clear worked but whose mark was not written
-/// is no `ack`.
+/// is no `ack`. The live session the logout drops comes from a login
+/// through the browser.
 #[cfg(unix)]
-#[tokio::test]
-async fn c144_forget_and_logout_say_what_the_index_write_did() {
-    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::failing(
+#[test]
+fn c144_forget_and_logout_say_what_the_index_write_did() {
+    let store = Arc::new(RecordingCredentialStore::failing(
         "clear",
         "keychain locked",
     ));
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-    let frozen = freeze(&dir);
-    let refusal = daemon.logout(Some("test-user")).unwrap_err();
-    drop(frozen);
-    assert_eq!(refusal.kind, ErrorKind::Internal);
-    let message = refusal.message;
-    assert!(!message.contains("not restored at start"), "{message}");
-    for fact in [
-        "forgot account test-user, but the account index could not mark it not persisted (",
-        "so a start may still try to restore it",
-        "its keyring entry could not be cleared: keychain locked",
-    ] {
-        assert!(message.contains(fact), "{fact:?} in {message}");
-    }
-    assert!(
-        Index::load(&dir)
-            .unwrap()
-            .get("test-user")
-            .unwrap()
-            .persisted
-    );
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let credentials = store.clone();
+    keyring_door(Server::Account(("GET", "/never", 0)), &store, &store_dir, false).run(
+        |mut door| async move {
+            let frozen = freeze(&dir);
+            let answer = logout(&mut door, Some("test-user")).await;
+            drop(frozen);
+            let Response::Error { kind, message } = &answer else {
+                panic!("the forget's failures are the answer: {answer:?}");
+            };
+            assert_eq!(*kind, ErrorKind::Internal);
+            assert!(!message.contains("not restored at start"), "{message}");
+            for fact in [
+                "forgot account test-user, but the account index could not mark it not persisted (",
+                "so a start may still try to restore it",
+                "its keyring entry could not be cleared: keychain locked",
+            ] {
+                assert!(message.contains(fact), "{fact:?} in {message}");
+            }
+            assert!(persisted(&dir, "test-user"));
 
-    // A live session whose clear works and whose mark cannot be written.
-    *store.fail_clear.lock().unwrap() = None;
-    logged_in_again(&daemon);
-    let frozen = freeze(&dir);
-    let answer = logout_answer(&daemon, None).await;
-    drop(frozen);
-    let Response::Error { kind, message } = &answer else {
-        panic!("an unwritten mark is not an ack: {answer:?}");
-    };
-    assert_eq!(*kind, ErrorKind::Internal);
-    assert!(
-        message.contains(
-            "logged out test-user (session dropped, keyring entry cleared), but the account index could not mark it not persisted ("
-        ),
-        "{message}"
+            // A live session whose clear works and whose mark cannot be
+            // written.
+            *credentials.fail_clear.lock().unwrap() = None;
+            let landed = log_in(&mut door, "test-user").await;
+            assert_eq!(landed.login_ok.as_deref(), Some("test-user"), "{landed:?}");
+            let frozen = freeze(&dir);
+            let answer = logout(&mut door, None).await;
+            drop(frozen);
+            let Response::Error { kind, message } = &answer else {
+                panic!("an unwritten mark is not an ack: {answer:?}");
+            };
+            assert_eq!(*kind, ErrorKind::Internal);
+            assert!(
+                message.contains(
+                    "logged out test-user (session dropped, keyring entry cleared), but the account index could not mark it not persisted ("
+                ),
+                "{message}"
+            );
+            door.finish().await;
+        },
     );
-    finish_harness(None, &log_path);
 }
 
 /// C144 (one critical section for a forget), the review of the h1 fix
@@ -1459,7 +1552,9 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
 /// saved, the account marked persisted, its session live — and the
 /// forget's late mark then said not persisted under a live session: a
 /// start would not restore the account the user had just logged in to,
-/// and the forget had acknowledged a logout that did not hold.
+/// and the forget had acknowledged a logout that did not hold. A
+/// component test: a store hook that calls back into the daemon at the
+/// clear.
 #[tokio::test]
 async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
     let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
@@ -1488,7 +1583,14 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
         }));
     }
 
-    let answer = logout_answer(&daemon, Some("Alice#1")).await;
+    let answer = daemon
+        .handle_request(
+            Request::AuthLogout {
+                account: Some("Alice#1".into()),
+            },
+            &mut None,
+        )
+        .await;
     if *deferred.lock().unwrap() {
         assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
     }
@@ -1516,63 +1618,55 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
     );
 }
 
-/// `test-user`'s session back in the daemon, as `logged_in` installs it.
-/// Unix-only, as its one caller is.
-#[cfg(unix)]
-fn logged_in_again(daemon: &Daemon) {
-    let mut s = daemon.shared.lock().unwrap();
-    s.auth.replace(AuthSession {
-        username: Some("test-user".into()),
-        refresh_token: Some("rt-old".into()),
-        keyring: "ok".into(),
-        ..AuthSession::default()
-    });
-}
-
 /// C135: a login's landing saves the staged access token and its expiry
 /// as unix seconds beside the refresh token, what the session it
-/// registers holds.
-#[tokio::test]
-async fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
-    let (daemon, credentials, _store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
-
-    let generation = staged_login(&daemon, "Alice#1");
-    assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
-    let expires = daemon
-        .shared
-        .lock()
-        .unwrap()
-        .auth
-        .find("Alice#1")
-        .unwrap()
-        .access_expires_at
-        .unwrap();
-    let secret = credentials.entries.lock().unwrap()["Alice#1"].clone();
-    let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), expires);
-    assert_eq!(
-        entry
-            .access_token
-            .as_ref()
-            .map(auth::Secret::exposed_for_test),
-        Some("at-x.Alice#1")
-    );
-    assert_eq!(
-        entry.access_expires_at,
-        Some(
-            expires
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-        )
-    );
-    assert_eq!(entry.refresh_token, "rt-Alice#1");
+/// registers holds: the saved expiry, read against the clock's wall, is
+/// the one `auth status` reports.
+#[test]
+fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let store = credentials.clone();
+    let parking = clock.clone();
+    logged_out(
+        Server::Account(("GET", "/never", 0)),
+        &clock,
+        &credentials,
+        &store_dir,
+    )
+    .run(|mut door| async move {
+        let landed = log_in(&mut door, "Alice#1").await;
+        assert_eq!(landed.login_ok.as_deref(), Some("Alice#1"), "{landed:?}");
+        let wall = parking.wall();
+        let secret = store.entries.lock().unwrap()["Alice#1"].clone();
+        let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), wall);
+        assert_eq!(
+            entry
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-Alice#1")
+        );
+        assert_eq!(entry.refresh_token, "rt-Alice#1");
+        let wall_seconds = wall
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let reported = landed
+            .access_expires_in_seconds
+            .expect("the session's expiry is reported");
+        assert_eq!(entry.access_expires_at, Some(wall_seconds + reported));
+        door.finish().await;
+    });
 }
 
 /// #16, C156 — the logout's retry word is quoted for the shell it will
 /// be pasted into by the same rules as the search crate's
 /// `shell_quoted`, whose twin this is (C1 keeps them two): every row of
 /// the one table both read, `shell-words.json`, for every shell
-/// `ACQ_SHELL` declares, and `shell_word` the environment's shell.
+/// `ACQ_SHELL` declares, and `shell_word` the environment's shell. A
+/// component test: a table.
 #[test]
 fn the_retry_word_is_quoted_for_the_declared_shell() {
     use crate::daemon::login::{
