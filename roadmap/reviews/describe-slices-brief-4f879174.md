@@ -1,0 +1,33 @@
+`roadmap/briefs/describe-slices.md` at `4f879174` (identical to the working copy): not buildable as drawn without the corrections below.
+
+Findings, most severe first:
+
+1. **Owner question / Do 1:** The brief requires the owner’s answer but omits recording the resulting compatibility ruling before implementation. `decisions/frontends.md:11` requires additive JSON changes; `AGENTS.md:50` requires rulings in `decisions/` before dependent code. **Smallest change:** add a first Do item recording the owner’s selected default and its compatibility exception in `decisions/frontends.md`; the other settlements can remain agent-facing design where they preserve named sections whole.
+
+2. **Do 4–5 / done-when 5:** Counting MCP-owned entries together with language entries contradicts the promised cross-surface document equality, particularly the `~a` pin. The MCP adds pricing, daemon and store entries at `crates/acquisition-mcp/src/main.rs:738`; `assert_spoken_as` requires identical keys, array lengths and numeric values at `crates/acquisition-mcp/tests/harness/mod.rs:368`. Removing the own sections still leaves different pattern counts and potentially different tiers. **Smallest change:** promise the same language matching rule, explicitly allow surface-dependent counts and tiers, and replace whole-document parity for patterns with own matches by assertions appropriate to each surface. Generic extra-entry pairs and returned positions can keep search ignorant of the MCP.
+
+3. **Do 4 / settlement 5:** Adding a `Way` variant alone cannot produce the specified describe offer with no readings through the proposed error path. `describe` currently returns `LanguageError` (`crates/acquisition-search/src/describe.rs:304`); `Offered` carries only an optional search `Request` and realm information (`error.rs:162`); every scope offer becomes a reading and only search requests become ways (`crates/acquisition-verbs/src/refusal.rs:299`). **Smallest change:** explicitly require a frontend-neutral describe remedy in the search error representation, its conversion to `Way`, and separation from readings; carry it through the describe return type. Require the terminal command’s `argv` and the MCP’s `{}` request, preserving existing realm behavior.
+
+4. **Do 1–3 / Goal:** Always-present `trade_rows` both breaks an existing reader and makes “the whole … byte for byte” impossible. The section test equates all serialized keys with `SECTIONS` at `crates/acquisition-search/tests/surface_faults.rs:555`; `SECTIONS` contains only askable sections (`describe.rs:74`). **Smallest change:** distinguish metadata keys from section keys in that existing test, and replace the byte promise with preservation of existing whole-document content plus additive metadata. Empty `Named` values/examples already skip serialization (`describe.rs:99`); skipping empty category `holds` is otherwise straightforward (`category.rs:1113`).
+
+5. **Do 1, 4–5 / settlement 4:** “Name one for its whole” does not work for category IDs returned as index lines. The resolver’s known-entry list excludes categories (`crates/acquisition-search/src/describe.rs:730`), and categories survive only when `category` or `categories` is named (`describe.rs:798`). **Smallest change:** explicitly add exact category-ID selection and a search-crate round-trip pin from a category line to its whole definition.
+
+6. **Do 4–5:** The new echoed `Matched.pattern` is payload, but the existing MCP prose walk would rewrite patterns containing CLI vocabulary. `Prose { all: true }` applies to describe (`crates/acquisition-mcp/src/main.rs:1617`); `pattern` is absent from the protected keys (`main.rs:1226`), so `~--count`, for example, reaches spelling at `main.rs:1308`. **Smallest change:** classify the echoed pattern as payload and add a spelling-boundary case proving it survives unchanged.
+
+7. **Do 3:** The migration list misses a test that would silently stop checking examples after the default becomes the index. `c97_describe_says_how_terms_compose_and_knows_the_words_it_prints` reads `describe(&[])` at `crates/acquisition-search/tests/surface_faults.rs:193`, then tolerates absent examples by flattening them at line 216. **Smallest change:** explicitly move this reader to `all` and retain a nonempty-example witness. Keep semantic pins in search and adapter wording in its single golden.
+
+8. **Owner question / Do 2–7:** The alternative answer cannot change “Do 1 and Do 6 alone.” Do 2 documents the new default, Do 3 pins it, and Do 5 sends the bare index offer back; today CLI text defaults to an index while JSON stays whole (`crates/acquisition-cli/src/search_cmd.rs:414`; `tests/seat_faults.rs:528`). **Smallest change:** state the defaults for each surface and format under both answers, then propagate the selected answer through help, pins, offers, tour and done-when conditions.
+
+9. **Do 3 / Goal / done-when 4:** Removing definition tails does not establish the claimed byte bound on every slice. `LISTED` bounds entity counts, not bytes (`crates/acquisition-store/src/bound.rs:16`), and settlement 4 allows several independently whole small matches to accumulate. Named blocks remain deliberately whole, and ordinary unknown names retain the complete word list (`crates/acquisition-search/src/describe.rs:772`). **Smallest change:** describe this as density control with measured byte limits for the named acceptance cases, rather than a universal construction guarantee; explicitly retain the named-block and ordinary-refusal exceptions.
+
+10. **Do 1 / Not in scope:** The assertion that searching the web code finds no describe use is false. `crates/acquisition-cli/src/web/form.rs:144` calls `describe(["trade"])` and consumes its catalogue. **Smallest change:** retain “no describe page,” name this existing reader, and require its named-trade behavior to remain intact.
+
+What I did not check and why:
+
+- Builds, tests, daemons, measurements and match counts were **not verified**, as requested. Gate results and Do 8 measurements are correctly report-only; future size literals need the prescribed post-edit command evidence.
+- Both `gh issue view … --json body,comments` calls failed to reach GitHub, so issue intent and comments were assessed from the brief’s account. That account explicitly acknowledges narrowing #154’s “whole” to two tiers.
+- Future fixture review cannot be established now. The quoted README pattern fits `readme_tour.rs`’s grammar, but that test checks the verb and flags, not execution of the pattern argument.
+
+Nitpicks: finding 10 only.
+
+The step may not start as drawn, even after the owner answers the default-shape question; correct the brief first and record the selected ruling before dependent code.
