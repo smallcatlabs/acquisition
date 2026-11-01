@@ -4,8 +4,10 @@ Phase 3's first seat: a blind agent at the league build's `acq` and
 `acq-mcp` before the owner's live run of League 3.30, the seat the
 `words` step (#20, #11, #101, #16, closed 2026-10-31) was waiting on.
 Run under the briefs (`audits/league-2026-11/seat/BRIEF-cli.md` and
-`audits/league-2026-11/seat/BRIEF-mcp.md` at `ea15df1d`, removed at
-the close as the seat skill's step 10 says), `PROMPT-cli.md`,
+`audits/league-2026-11/seat/BRIEF-mcp.md` at `ea15df1d`, removed as
+the seat skill's step 10 says; the staged removal rode in `93a0b7c0`,
+the round-3 review's commit, whose message does not name it),
+`PROMPT-cli.md`,
 `PROMPT-mcp.md` and `PROMPT-debrief.md`. Two
 sittings per run, the CLI door and the MCP door, each its own Opus
 runner; run 1 on 2026-11-01, the fix round
