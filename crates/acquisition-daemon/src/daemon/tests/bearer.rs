@@ -4,8 +4,10 @@
 //!
 //! C158, a scenario crosses the daemon's frontend boundary only: every
 //! scenario here is a door facing a server the scenario builds itself
-//! ([`Server::own`]), which answers by what was sent, never by position
-//! in a script, and records what the wire carried; the session the
+//! ([`Server::own`]), each as its own doc says: the bearer-aware server
+//! answers by the bearer sent and records nothing, the recording server
+//! answers by path and bearer and records every request, the Cloudflare
+//! server answers its first GET with a 401 by arrival; the session the
 //! provider will reject is seeded through the door's sessions with its
 //! expiry on the clock's wall, as an install writes it; a job is a
 //! client's submit awaited through the protocol; a restart is a second
