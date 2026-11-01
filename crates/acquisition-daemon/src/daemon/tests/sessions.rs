@@ -164,14 +164,19 @@ fn tokens(access_token: &str, refresh_token: &str, username: &str) -> auth::Toke
     }
 }
 
-/// The component tests' daemon, on the manual clock, journaling beside
-/// its log as every harness daemon does, saving into a recording
-/// credential store, recording into `store_dir` when given: its one
-/// session `old-user`'s, its access token expired at the clock's wall,
-/// its refresh token `rt-old`.
+/// The component tests' daemon, on the manual clock, saving into a
+/// recording credential store, recording into `store_dir` when given:
+/// its one session `old-user`'s, its access token expired at the clock's
+/// wall, its refresh token `rt-old`. With `journal`, it journals beside
+/// its log as every harness daemon does, and the test ends through
+/// `finish_harness`, so the journal written is read by the oracles;
+/// without, it writes none, for a test whose sends are fabricated
+/// (driven through the choke point on a route of the test's own), over
+/// which no oracle of the daemon's wire may run.
 fn session_daemon(
     base: &str,
     store_dir: Option<&std::path::Path>,
+    journal: bool,
 ) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, TestPath) {
     let clock = Arc::new(ManualClock::new());
     let expired = clock.wall();
@@ -184,7 +189,7 @@ fn session_daemon(
         .unwrap();
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
-            journal_path: Some(journal_of(&log_path)),
+            journal_path: journal.then(|| journal_of(&log_path)),
             ..RailsConfig::default()
         },
         clock.clone(),
@@ -330,7 +335,7 @@ fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
 /// the admission's refusals of the same realms.
 #[test]
 fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
-    let (daemon, _, _) = session_daemon("http://mock", None);
+    let (daemon, _, log_path) = session_daemon("http://mock", None, true);
     let route = |kind: &str, params: Value| daemon.route_for(kind, &params);
     for (kind, absent, explicit) in [
         ("characters", json!({}), json!({ "realm": "pc" })),
@@ -452,6 +457,7 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
         0,
         "refusals admit nothing"
     );
+    finish_harness(None, &log_path);
 }
 
 async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
@@ -479,7 +485,9 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
 /// A refresh needed by an API send completes before that send takes a
 /// gate slot, so the token request can use the slot that remains. A
 /// component test: the choke point and `execute_inner` are called
-/// directly, beside a held send on a route of the test's own.
+/// directly, beside a held send on a route of the test's own. Its daemon
+/// journals nothing: that send is fabricated (no probe precedes it), and
+/// the wire contract's oracles judge the daemon's own sends alone.
 #[tokio::test]
 async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -547,7 +555,7 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         hold.write_all(b"{}").await.unwrap();
     });
 
-    let (daemon, _, _log_path) = session_daemon(&base, None);
+    let (daemon, _, _log_path) = session_daemon(&base, None, false);
     let hold = {
         let daemon = daemon.clone();
         let url = format!("{base}/hold");
@@ -604,7 +612,7 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, _log_path) = session_daemon(&responses.base, None);
+    let (daemon, store, log_path) = session_daemon(&responses.base, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -673,17 +681,20 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
             .all(|body| body.contains("refresh_token=rt-old"))
     );
     assert_eq!(store.saves.lock().unwrap().len(), 1);
+    finish_harness(None, &log_path);
 }
 
 /// N2 with no waiter: an aborted refresh owner closes its flight, so a
-/// retry refreshes. A component test: the owner is aborted by the test,
-/// as above.
+/// retry refreshes, and that successful refresh keeps the session's
+/// generation and advances both token generations. A component test:
+/// the owner is aborted by the test, as above, and the generations have
+/// no boundary read.
 #[tokio::test]
 async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, _log_path) = session_daemon(&responses.base, None);
+    let (daemon, store, log_path) = session_daemon(&responses.base, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -721,6 +732,13 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
         .expect("retry after owner abandonment completed")
         .unwrap();
     assert_eq!(retry, ("at-retried".into(), "retry-user".into()));
+    // A successful refresh rotates the tokens within the session: the
+    // session's generation stays, both token generations advance (the
+    // property `successful_refresh_rotation_…`'s scenario cannot read).
+    let after = daemon.shared.lock().unwrap().auth.one().generations;
+    assert_eq!(after.session, before.session);
+    assert_ne!(after.access_token, before.access_token);
+    assert_ne!(after.refresh_token, before.refresh_token);
     responses.server.await.unwrap();
     let requests = responses.requests.lock().unwrap();
     assert_eq!(requests.len(), 2);
@@ -730,6 +748,7 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
             .all(|body| body.contains("refresh_token=rt-old"))
     );
     assert_eq!(store.saves.lock().unwrap().len(), 1);
+    finish_harness(None, &log_path);
 }
 
 /// A refresh that rotates the token persists the new one: one save, the
@@ -916,7 +935,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
     // not touch this session at all (see the two-session tests).
     let (base, arrived, release, server) =
         delayed_token_server("200 OK", token_body("at-stale", "rt-stale", "old-user")).await;
-    let (daemon, store, _log_path) = session_daemon(&base, None);
+    let (daemon, store, log_path) = session_daemon(&base, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
@@ -968,6 +987,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
     );
     server.await.unwrap();
+    finish_harness(None, &log_path);
 }
 
 /// A refresh that renames the account updates the existing index
@@ -1026,7 +1046,7 @@ fn a_refresh_rename_updates_the_index_mapping_in_place() {
 /// component test: `resolve_account` as a function.
 #[test]
 fn submit_resolves_the_account_against_the_live_session() {
-    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", None);
+    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", None, true);
     // Session is "old-user" (session_daemon).
     assert_eq!(
         daemon.resolve_account("characters", None),
@@ -1064,6 +1084,7 @@ fn submit_resolves_the_account_against_the_live_session() {
         .resolve_account("characters", Some("Other#1"))
         .unwrap_err();
     assert!(err.message.contains("not logged in"), "{err}");
+    finish_harness(None, &log_path);
 }
 
 /// A job's token is its own account's, and none once that account has
@@ -1071,7 +1092,7 @@ fn submit_resolves_the_account_against_the_live_session() {
 /// from the clock's wall, read through `valid_access_token`.
 #[tokio::test]
 async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
-    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", None);
+    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", None, true);
     {
         let mut s = daemon.shared.lock().unwrap();
         s.auth.one_mut().access_token = Some("at-live".into());
@@ -1116,6 +1137,7 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     assert!(err.message.contains("no session for \"old-user\""), "{err}");
     // The other session is untouched, and is now the sole one.
     assert!(daemon.valid_access_token(None, false, None).await.is_ok());
+    finish_harness(None, &log_path);
 }
 
 /// A rename moves the session's key, so a later login replaces the one
@@ -1167,7 +1189,7 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
 fn a_response_is_filed_under_the_job_account_not_the_session() {
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
-    let (daemon, _, _log_path) = session_daemon("http://127.0.0.1:1", Some(&dir));
+    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", Some(&dir), true);
     // Session is "old-user"; the job was submitted as "A#1" (a login
     // happened in between). The body lands in A#1's file.
     daemon
@@ -1205,5 +1227,6 @@ fn a_response_is_filed_under_the_job_account_not_the_session() {
             .any(|(_, m)| m.contains("no account"))
     );
     // The daemon holds the store open, and Windows removes no open file.
+    finish_harness(None, &log_path);
     drop(daemon);
 }

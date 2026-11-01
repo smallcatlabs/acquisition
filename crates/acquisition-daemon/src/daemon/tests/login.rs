@@ -18,8 +18,9 @@
 //! `c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token`
 //! (the same account's staging window, which a client job through the
 //! door would wait out behind the held login profile on its scheduling
-//! key); the two callback tests on `wait_callback` (the listener's own
-//! reads); `c144_a_forget_logs_only_the_clear_that_worked_as_cleared`
+//! key); `a_callback_connection_that_sends_nothing_does_not_block_the_login`
+//! and `a_callback_read_past_its_bound_is_dropped_and_the_flow_waits`
+//! (`wait_callback`, the callback listener's own reads); `c144_a_forget_logs_only_the_clear_that_worked_as_cleared`
 //! (the daemon log, which the door does not read);
 //! `c144_restore_reads_through_the_credential_store_and_reports_a_failed_load`
 //! (`restore_sessions` as a function);

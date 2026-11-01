@@ -641,13 +641,20 @@ impl Door {
             .redirect(reqwest::redirect::Policy::limited(1))
             .build()
             .expect("the browser builds");
-        let answered = tokio::time::timeout(HANG, client.get(url).send())
-            .await
-            .expect("the browser was answered")
-            .expect("the browser's request went through");
-        let status = answered.status();
-        let page = answered.text().await.expect("the page reads");
-        (status, page)
+        // A wait the scenario starts off the daemon is bounded whole:
+        // the answer and its page under one `HANG`, never by halves.
+        tokio::time::timeout(HANG, async {
+            let answered = client
+                .get(url)
+                .send()
+                .await
+                .expect("the browser's request went through");
+            let status = answered.status();
+            let page = answered.text().await.expect("the page reads");
+            (status, page)
+        })
+        .await
+        .expect("the browser was answered, its page read whole")
     }
 
     /// A protocol request on a connection of its own, spawned: a second
