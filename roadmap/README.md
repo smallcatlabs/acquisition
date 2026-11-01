@@ -400,8 +400,12 @@ reviewed, one fix round reviewed clean. Round 2, `Life` on the clock
 same day (`LEDGER.md`): its build reviewed, one fix round reviewed
 clean. Round 3, the families as tables (`briefs/t5-r3.md`, cut three
 times under cold reviews), closed the same day (`LEDGER.md`): 34 rows
-for 15 tests, its build reviewed, one fix round reviewed clean. Next
-round 4's brief, the sessions and the login as scenarios; then rounds
-5 and 6; then #148; and Phase 3, the owner's
-league run, at his word, its first seat checking the words.
+for 15 tests, its build reviewed, one fix round reviewed clean. Round
+4, the login and the sessions as scenarios (`briefs/t5-r4.md`, cut
+three times under cold reviews; the design's §4 narrowed by a dated
+line, the other files' private reads to round 5), closed the same day
+(`LEDGER.md`): 32 scenarios for 32 retired tests, the door's `quiet`
+and `browser`, its build reviewed, one fix round reviewed clean. Next
+round 5's brief, the sweep; then round 6; then #148; and Phase 3, the
+owner's league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
