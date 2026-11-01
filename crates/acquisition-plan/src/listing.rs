@@ -521,7 +521,8 @@ pub struct Counts {
     /// raw reading is `invalid_notes` and `residue`.
     pub by_game_statement: BTreeMap<String, usize>,
     /// Items whose note starts like a price (`~price`, `~b/o`, `~skip`)
-    /// and does not read as one: no effect, the tab's name applies.
+    /// and does not read as one: no effect, a hand row or its tab's name
+    /// applies, where either does.
     pub invalid_notes: usize,
     /// Items with a game-side price statement (exact or negotiable);
     /// public by construction.

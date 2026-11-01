@@ -378,7 +378,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             String::new()
         };
         out.push_str(&format!(
-            "in game also: {} (~skip), {} (no effect: the tab's name applies){listed}\n",
+            "in game also: {} (~skip), {} (no effect: a hand row or its tab's name applies, where either does){listed}\n",
             plural(skipped, "item skipped", "items skipped"),
             plural(
                 invalid,
@@ -1285,7 +1285,7 @@ mod tests {
         let text = render_status(&r, 8_000, false, "a");
         assert!(
             text.contains(
-                "in game also: 0 items skipped (~skip), 1 note starts like a price and does not read as one (no effect: the tab's name applies); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
+                "in game also: 0 items skipped (~skip), 1 note starts like a price and does not read as one (no effect: a hand row or its tab's name applies, where either does); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
             ),
             "{text}"
         );
