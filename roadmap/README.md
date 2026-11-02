@@ -578,8 +578,12 @@ amended at `baf625c9`). Its last round (`briefs/transport-seam-1b.md`),
 the transport crate with check 5's edges and check 13 retired, landed
 on 2026-11-01 as two commits from `24052df0`; reviewed cold, its fix
 round `22da60ae` (the edges by package id) reviewed clean. Step 1
-closed on 2026-11-01 (`LEDGER.md`). Next, step 2 of the design's §6,
-the in-process transports and the fixtures, after C160's first
-amendment is entered; it touches no production send and may run in
-either window beside the league; its brief takes the builder's
-transport option (step 1's Not in scope).
+closed on 2026-11-01 (`LEDGER.md`). Step 2, the in-process transports
+and the fixtures (`briefs/transport-seam-2.md`, cut four times under
+cold reviews), landed on 2026-11-02 as seven commits from `05fcb1d9`,
+this line's commit the last: the test transports and the counters
+before, the mock's answer, the door onto the transports, `beside` on
+the hook, the component fixtures and the spec, the occupancy
+exclusions and the hold's boundary rows, the counters after and the
+words. Its cold review is pending; then its close, and step 3, the
+deadline on the clock, after C160's second amendment.

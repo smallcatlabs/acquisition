@@ -1,7 +1,10 @@
 //! C158, the door: a daemon scenario crosses the daemon's frontend
 //! boundary only, and its time moves by its own hand or when nothing it
 //! started can run. A scenario is a plain `#[test]` that opens a door on
-//! a [`ParkingClock`] facing one fixture ([`Server`]) and runs through
+//! a [`ParkingClock`] facing one fixture ([`Server`]), an in-process
+//! transport of the test support's (C161, `crate::transport`): no
+//! provider exchange in a scenario is real I/O, and a request the
+//! fixture holds holds the clock. It runs through
 //! [`DoorBuilder::run`], which owns the runtime: it builds a
 //! current-thread runtime, constructs the fixture and the daemon inside
 //! it, spawns the dispatcher (and, when the scenario asks, the

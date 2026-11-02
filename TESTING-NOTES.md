@@ -207,9 +207,13 @@ its maximum, and the GETs per route exactly what the plans named.
 The user-agent is no journal field; the mock holds it instead. It
 answers 400 to any request the daemon sends (an API GET or HEAD, a
 token POST) that does not carry the registration's user-agent, written
-out in `mockggg.rs`, so every test that faces the mock, the journey
-included, fails on a change to either side (invariant 4). Beside it, the spec's
-table of the four sends
+out in `mockggg.rs`'s one `answer`, so every test that faces the mock,
+the journey included, fails on a change to either side (invariant 4).
+On the client harness's process tests the mock reads the wire; on the
+door's scenarios it reads the prepared request in-process (C161, the
+mock's in-process face), so there the check holds what the choke point
+prepares, not what reqwest sends. The wire half is the production
+transport's real-wiring tests': the spec's table of the four sends
 (`c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_prepared`)
 holds that the user-agent the choke point prepares reaches the wire
 through the production transport. A retry
