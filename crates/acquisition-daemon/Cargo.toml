@@ -33,6 +33,9 @@ acquisition-protocol = { path = "../acquisition-protocol" }
 acquisition-store = { path = "../acquisition-store" }
 # TLS is required by real-GGG mode (the default, C88); the mock peer stays loopback.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# The status and header types the choke point, the policy and the kinds name
+# (reqwest re-exports them); the version reqwest builds, no feature of its own.
+http = "1"
 # Linux: the Secret Service over D-Bus (zbus, pure Rust — nothing for the AppImage
 # to carry). async-io, not tokio: the daemon calls the keyring from inside its
 # runtime, and the crate's blocking bridge on tokio would enter a second one

@@ -108,7 +108,7 @@ impl Policy {
         })
     }
 
-    pub fn from_headers(headers: &reqwest::header::HeaderMap) -> Result<Policy, PolicyParseError> {
+    pub fn from_headers(headers: &http::header::HeaderMap) -> Result<Policy, PolicyParseError> {
         Policy::parse(|name| {
             headers
                 .get(name)
@@ -335,7 +335,7 @@ pub fn parse_retry_after(get: impl Fn(&str) -> Option<String>) -> RetryAfter {
     }
 }
 
-pub fn retry_after_from_headers(headers: &reqwest::header::HeaderMap) -> RetryAfter {
+pub fn retry_after_from_headers(headers: &http::header::HeaderMap) -> RetryAfter {
     parse_retry_after(|name| {
         headers.get(name).map(|value| {
             value
@@ -424,7 +424,7 @@ fn parse_state(header: &str, raw: &str) -> Result<Vec<WindowState>, PolicyParseE
 /// origin) and *what* it sent. A HEAD has no body, so for a probe these
 /// headers are the only evidence a failure leaves. Never `set-cookie`.
 /// A 3xx's `location` is kept with its query and fragment reduced (C130).
-pub fn response_headers_snapshot(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
+pub fn response_headers_snapshot(headers: &http::header::HeaderMap) -> serde_json::Value {
     const KEEP: &[&str] = &[
         "location",
         "retry-after",
@@ -520,8 +520,8 @@ pub(crate) fn redacted_location(location: &str) -> String {
 
 /// What stands for a 3xx's body wherever a caller would show one (C130):
 /// where it pointed, redacted. The body itself is never kept.
-pub(crate) fn redirect_evidence(headers: &reqwest::header::HeaderMap) -> String {
-    let target = match headers.get(reqwest::header::LOCATION).map(|v| v.to_str()) {
+pub(crate) fn redirect_evidence(headers: &http::header::HeaderMap) -> String {
+    let target = match headers.get(http::header::LOCATION).map(|v| v.to_str()) {
         Some(Ok(location)) => redacted_location(location),
         Some(Err(_)) => "<non-utf8>".into(),
         None => "no location".into(),
@@ -587,7 +587,7 @@ pub fn rate_words(rate: &serde_json::Value) -> String {
 /// The `X-Rate-Limit-*` (+ `Retry-After`) headers as a JSON object, raw:
 /// for the journal, job payloads and the dashboard. A log line renders
 /// it through [`rate_words`].
-pub fn rate_limit_snapshot(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
+pub fn rate_limit_snapshot(headers: &http::header::HeaderMap) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     for (name, value) in headers {
         let name = name.as_str();

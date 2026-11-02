@@ -47,6 +47,7 @@ dependencies = [
  "acquisition-store",
  "anyhow",
  "base64 0.23.1",
+ "http",
  "keyring",
  "proptest",
  "rand 0.9.5",

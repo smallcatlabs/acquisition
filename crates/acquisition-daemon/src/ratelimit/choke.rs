@@ -106,7 +106,7 @@ pub enum SendError {
 /// on the token path (`post_form`, C131); every other send returns it as
 /// `SendError::Protocol` with its body dropped.
 pub struct CompletedResponse {
-    pub status: reqwest::StatusCode,
+    pub status: http::StatusCode,
     pub rate: serde_json::Value,
     pub retry_after: RetryAfter,
     pub body: Result<String, String>,
@@ -531,7 +531,7 @@ impl ChokePoint {
         bearer: Option<&dyn Bearer>,
         since: Instant,
         wanted: Wanted<'_>,
-    ) -> Result<(reqwest::StatusCode, Policy, serde_json::Value), ProbeError> {
+    ) -> Result<(http::StatusCode, Policy, serde_json::Value), ProbeError> {
         if bearer.is_some()
             && let Err(reason) = self.admit_bearer_url(url)
         {
@@ -930,7 +930,7 @@ impl ChokePoint {
         endpoint: &str,
         method: &'static str,
         url: &str,
-        result: &Result<(reqwest::StatusCode, Result<String, String>), String>,
+        result: &Result<(http::StatusCode, Result<String, String>), String>,
         protocol_failure: Option<&str>,
         rate: &serde_json::Value,
         headers: &serde_json::Value,
@@ -1064,7 +1064,7 @@ impl ChokePoint {
 /// `response_headers_snapshot`) and its whole body; `None` for a 2xx or a
 /// send that never landed.
 fn verdict_of(
-    result: &Result<(reqwest::StatusCode, Result<String, String>), String>,
+    result: &Result<(http::StatusCode, Result<String, String>), String>,
     headers: &serde_json::Value,
 ) -> Option<Verdict> {
     let (status, body) = result.as_ref().ok()?;

@@ -1011,7 +1011,7 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
 /// halt the verdict set.
 fn cloudflare_failure(
     path: &str,
-    status: reqwest::StatusCode,
+    status: http::StatusCode,
     rate: &Value,
     verdict: Verdict,
     halt: Option<String>,
@@ -1041,7 +1041,7 @@ fn cloudflare_failure(
 /// not from the 300 characters another failure's text keeps. A block
 /// and an unreachable origin keep none of Cloudflare's page.
 pub(super) fn classify_api_body(
-    status: reqwest::StatusCode,
+    status: http::StatusCode,
     retry_after: &RetryAfter,
     path: &str,
     rate: Value,
