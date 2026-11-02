@@ -5,6 +5,7 @@
 
 use super::harness::*;
 use crate::daemon::*;
+use crate::transport::reply;
 
 const ACCESS_AT_LOGIN: &str = "at-login-q7Zr4n";
 const REFRESH_AT_LOGIN: &str = "rt-login-p3Xk8v";
@@ -16,58 +17,51 @@ const CODE: &str = "code-j5Ty1c";
 /// the login's tokens, a refresh grants fresh ones, the profile names
 /// the user, and the login's access token is rejected on the API's GET
 /// (401) while a probe passes. Every form a token POST carried is kept,
-/// so the test knows the verifier the daemon made.
-async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
+/// so the test knows the verifier the daemon made. In-process (C161).
+fn token_aware_server() -> (InProcess, Arc<Mutex<Vec<String>>>) {
     let forms = Arc::new(Mutex::new(Vec::new()));
     let kept = forms.clone();
-    let task = tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let Some(request) = mockggg::read_request(&mut stream).await else {
-                continue;
-            };
-            let bearer = request
-                .headers
-                .get("authorization")
-                .and_then(|v| v.strip_prefix("Bearer "))
-                .unwrap_or("")
-                .to_string();
-            let api_headers = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
-            let (status, headers, body) = if request.path == "/token" {
-                kept.lock().unwrap().push(request.body.clone());
-                let (access, refresh) = if request.body.contains("grant_type=authorization_code") {
-                    (ACCESS_AT_LOGIN, REFRESH_AT_LOGIN)
-                } else {
-                    (ACCESS_REFRESHED, REFRESH_REFRESHED)
-                };
-                let body = json!({
-                    "access_token": access,
-                    "refresh_token": refresh,
-                    "expires_in": 3600,
-                    "username": "log-user",
-                })
-                .to_string();
-                ("200 OK", TOKEN_HEADERS, body)
-            } else if request.path == "/profile" {
-                let body = json!({ "uuid": "uuid-log-user", "name": "log-user" }).to_string();
-                ("200 OK", "", body)
-            } else if request.method == "HEAD" {
-                ("204 No Content", api_headers, String::new())
-            } else if bearer == ACCESS_AT_LOGIN {
-                (
-                    "401 Unauthorized",
-                    api_headers,
-                    r#"{"error":"expired"}"#.to_string(),
-                )
+    let transport = InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+        let bearer = request
+            .headers
+            .get("authorization")
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .unwrap_or("")
+            .to_string();
+        let api_headers = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+        let (status, headers, body) = if request.path == "/token" {
+            kept.lock().unwrap().push(request.body.clone());
+            let (access, refresh) = if request.body.contains("grant_type=authorization_code") {
+                (ACCESS_AT_LOGIN, REFRESH_AT_LOGIN)
             } else {
-                ("200 OK", api_headers, r#"{"characters":[]}"#.to_string())
+                (ACCESS_REFRESHED, REFRESH_REFRESHED)
             };
-            mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
-        }
+            let body = json!({
+                "access_token": access,
+                "refresh_token": refresh,
+                "expires_in": 3600,
+                "username": "log-user",
+            })
+            .to_string();
+            ("200 OK", TOKEN_HEADERS, body)
+        } else if request.path == "/profile" {
+            let body = json!({ "uuid": "uuid-log-user", "name": "log-user" }).to_string();
+            ("200 OK", "", body)
+        } else if request.method == "HEAD" {
+            ("204 No Content", api_headers, String::new())
+        } else if bearer == ACCESS_AT_LOGIN {
+            (
+                "401 Unauthorized",
+                api_headers,
+                r#"{"error":"expired"}"#.to_string(),
+            )
+        } else {
+            ("200 OK", api_headers, r#"{"characters":[]}"#.to_string())
+        };
+        let answer = reply(status, headers, &body);
+        async move { answer }
     });
-    (base, forms, task)
+    (transport, forms)
 }
 
 /// #113: the login (the code and verifier sent in the exchange, the
@@ -79,11 +73,12 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
 /// seen on the wire, so the paths ran.
 #[tokio::test]
 async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
-    let (base, forms, server) = token_aware_server().await;
+    let (transport, forms) = token_aware_server();
     let clock = Arc::new(ParkingClock::new());
     let (mut daemon, log_path) = test_daemon_with(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         clock.clone(),
         RailsConfig::default(),
     );
@@ -140,7 +135,6 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
         .unwrap();
     let (info, outcome) = wait_terminal(&daemon, second).await;
     assert_eq!(info.state, JobState::Done, "{outcome:?}");
-    server.abort();
 
     let forms = forms.lock().unwrap().clone();
     let exchange = forms
@@ -207,29 +201,21 @@ fn scenario_session(
 }
 
 /// A provider whose token endpoint answers every refresh with `status`,
-/// `headers` and `body`; any other request is a 200.
-async fn token_endpoint_answering(
+/// `headers` and `body`; any other request is a 200. In-process (C161).
+fn token_endpoint_answering(
     status: &'static str,
     headers: String,
     body: &'static str,
-) -> (String, tokio::task::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let task = tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let Some(request) = mockggg::read_request(&mut stream).await else {
-                continue;
-            };
-            let (status, body) = if request.path == "/token" {
-                (status, body)
-            } else {
-                ("200 OK", r#"{"characters":[]}"#)
-            };
-            mockggg::respond_with(&mut stream, status, "application/json", &headers, body).await;
-        }
-    });
-    (base, task)
+) -> InProcess {
+    InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+        let (status, body) = if request.path == "/token" {
+            (status, body)
+        } else {
+            ("200 OK", r#"{"characters":[]}"#)
+        };
+        let answer = reply(status, &headers, body);
+        async move { answer }
+    })
 }
 
 /// A session whose access token has expired asks `base`'s token endpoint
@@ -250,11 +236,12 @@ async fn refresh_answered_by_headers(
     headers: impl Into<String>,
     body: &'static str,
 ) -> (String, ()) {
-    let (base, server) = token_endpoint_answering(status, headers.into(), body).await;
+    let transport = token_endpoint_answering(status, headers.into(), body);
     let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon_at(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         clock.clone(),
         RailsConfig::default(),
         test_log_path(),
@@ -273,7 +260,6 @@ async fn refresh_answered_by_headers(
         .unwrap();
     let (info, _) = wait_terminal(&daemon, job).await;
     assert_eq!(info.state, JobState::Failed, "the refresh failed the job");
-    server.abort();
     let log = std::fs::read_to_string(&*log_path).unwrap();
     finish_harness(dispatcher, &log_path);
     (log, ())
@@ -368,27 +354,21 @@ async fn api_answered_by(
     get_rate: &'static str,
     body: &'static str,
 ) -> (String, JobState) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let Some(request) = mockggg::read_request(&mut stream).await else {
-                continue;
-            };
-            let rate = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
-            let (status, headers, body) = if request.method == "HEAD" {
-                ("204 No Content", format!("{rate}{head_extra}"), "")
-            } else {
-                (status, get_rate.to_string(), body)
-            };
-            mockggg::respond_with(&mut stream, status, "application/json", &headers, body).await;
-        }
+    let transport = InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+        let rate = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
+        let (status, headers, body) = if request.method == "HEAD" {
+            ("204 No Content", format!("{rate}{head_extra}"), "")
+        } else {
+            (status, get_rate.to_string(), body)
+        };
+        let answer = reply(status, &headers, body);
+        async move { answer }
     });
     let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon_at(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         clock.clone(),
         RailsConfig::default(),
         test_log_path(),
@@ -405,7 +385,6 @@ async fn api_answered_by(
         )
         .unwrap();
     let (info, _) = wait_terminal(&daemon, job).await;
-    server.abort();
     let log = std::fs::read_to_string(&*log_path).unwrap();
     finish_harness(dispatcher, &log_path);
     (log, info.state)

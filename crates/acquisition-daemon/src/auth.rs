@@ -764,10 +764,24 @@ mod tests {
         );
     }
 
+    use crate::rails::Rails;
     use crate::ratelimit::{ALWAYS_WANTED, EndpointState};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
+    use crate::testing::ParkingClock;
+    use crate::transport::{BASE, Hold, InProcess, Reply, ScriptedResponse};
+    use std::sync::Arc;
     use tokio::sync::{mpsc, oneshot};
+
+    /// A choke point on a parking clock over `transport` (C161: the token
+    /// request's tests are in-process), rails off, the fixture's base its
+    /// API origin.
+    fn choke_over(transport: InProcess) -> ChokePoint {
+        ChokePoint::with_transport(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            BASE,
+            Box::new(transport),
+        )
+    }
 
     /// The keyring the daemon saves into is the one it loads from. Every
     /// call makes a fresh `Entry`, as `keyring_save` and `keyring_load` do,
@@ -805,27 +819,27 @@ mod tests {
 
     #[tokio::test]
     async fn oauth_clean_200_waits_for_body_completion_before_recording_success() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let mut request = [0; 4096];
-            let _ = stream.read(&mut request).await.unwrap();
-            let response = concat!(
-                "HTTP/1.1 200 OK\r\n",
-                "X-Rate-Limit-Policy: token-request-limit\r\n",
-                "X-Rate-Limit-Rules: Ip\r\n",
-                "X-Rate-Limit-Ip: 60:30:30\r\n",
-                "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-                "Content-Type: application/json\r\n",
-                "Content-Length: 100\r\n",
-                "Connection: close\r\n\r\n",
-                "{}"
-            );
-            stream.write_all(response.as_bytes()).await.unwrap();
-        });
-        let choke = ChokePoint::new();
-        let provider = Provider::mock(&base);
+        let response = concat!(
+            "HTTP/1.1 200 OK\r\n",
+            "X-Rate-Limit-Policy: token-request-limit\r\n",
+            "X-Rate-Limit-Rules: Ip\r\n",
+            "X-Rate-Limit-Ip: 60:30:30\r\n",
+            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
+            "Content-Type: application/json\r\n",
+            "Content-Length: 100\r\n",
+            "Connection: close\r\n\r\n",
+            "{}"
+        );
+        let token = ScriptedResponse {
+            method: "POST",
+            path: "/token",
+            status: "",
+            headers: String::new(),
+            body: response.into(),
+        };
+        let (transport, record) = crate::transport::scripted(&Hold::new(), vec![token.into()]);
+        let choke = choke_over(transport);
+        let provider = Provider::mock(BASE);
 
         let error = refresh(&choke, &provider, &"rt-test".into(), ALWAYS_WANTED)
             .await
@@ -838,25 +852,29 @@ mod tests {
         let send = choke.recent_sends().pop().unwrap();
         assert!(!send.ok);
         assert!(send.outcome.contains("body transfer failure"));
-        server.await.unwrap();
+        assert!(record.ends.whole() && record.ends.faults().is_empty());
     }
 
     #[tokio::test]
     async fn code_exchange_and_refresh_serialize_across_token_policy_discovery() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
         let (arrived_tx, mut arrived_rx) = mpsc::unbounded_channel();
         let (release_first, release_first_rx) = oneshot::channel();
         let (release_second, release_second_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let releases = [release_first_rx, release_second_rx];
-            let mut handlers = Vec::new();
-            for (index, release) in releases.into_iter().enumerate() {
-                let (mut stream, _) = listener.accept().await.unwrap();
-                let request = crate::mockggg::read_request(&mut stream).await.unwrap();
-                assert_eq!(request.method, "POST", "token traffic must not HEAD-probe");
-                arrived_tx.send(request.body).unwrap();
-                handlers.push(tokio::spawn(async move {
+        // Each grant's head answered as it arrives, its body withheld
+        // until its release; a request that is not a POST fails.
+        let releases = std::sync::Mutex::new(std::collections::VecDeque::from([
+            release_first_rx,
+            release_second_rx,
+        ]));
+        let index = std::sync::atomic::AtomicUsize::new(0);
+        let transport =
+            InProcess::new(&Hold::new(), move |request: crate::mockggg::HttpRequest| {
+                let answer = if request.method != "POST" {
+                    Reply::Failed("token traffic must not HEAD-probe".into())
+                } else {
+                    let index = index.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    arrived_tx.send(request.body.clone()).unwrap();
+                    let release = releases.lock().unwrap().pop_front().expect("two grants");
                     let body = serde_json::json!({
                         "access_token": format!("at-{index}"),
                         "refresh_token": format!("rt-{index}"),
@@ -864,7 +882,7 @@ mod tests {
                         "username": "test-user",
                     })
                     .to_string();
-                    let headers = format!(
+                    let response = format!(
                         concat!(
                             "HTTP/1.1 200 OK\r\n",
                             "X-Rate-Limit-Policy: token-request-limit\r\n",
@@ -873,23 +891,19 @@ mod tests {
                             "X-Rate-Limit-Ip-State: {}:30:0\r\n",
                             "Content-Type: application/json\r\n",
                             "Content-Length: {}\r\n",
-                            "Connection: close\r\n\r\n"
+                            "Connection: close\r\n\r\n{}"
                         ),
                         index + 1,
                         body.len(),
+                        body,
                     );
-                    stream.write_all(headers.as_bytes()).await.unwrap();
-                    release.await.unwrap();
-                    stream.write_all(body.as_bytes()).await.unwrap();
-                }));
-            }
-            for handler in handlers {
-                handler.await.unwrap();
-            }
-        });
+                    Reply::Held(response, release)
+                };
+                async move { answer }
+            });
 
-        let choke = std::sync::Arc::new(ChokePoint::new());
-        let provider = std::sync::Arc::new(Provider::mock(&base));
+        let choke = std::sync::Arc::new(choke_over(transport));
+        let provider = std::sync::Arc::new(Provider::mock(BASE));
         let exchange = {
             let choke = choke.clone();
             let provider = provider.clone();
@@ -945,6 +959,5 @@ mod tests {
             choke.endpoint_state("oauth-token"),
             EndpointState::Policy("token-request-limit".into())
         );
-        server.await.unwrap();
     }
 }

@@ -600,10 +600,11 @@ fn c158_the_token_table_through_the_door() {
 /// `Location` carry the sentinel leaves none of it in the log.
 #[tokio::test]
 async fn a_token_3xx_keeps_its_target_out_of_the_daemon_log() {
-    let (base, requests, server) = scripted_server(vec![token_3xx()]).await;
+    let (transport, requests, ends) = scripted_transport(vec![token_3xx()]);
     let (mut daemon, log_path) = test_daemon_with(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),
     );
@@ -618,7 +619,7 @@ async fn a_token_3xx_keeps_its_target_out_of_the_daemon_log() {
         !log.contains(C130_TOKEN_SENTINEL),
         "the daemon log kept it: {log}"
     );
-    server.await.unwrap();
+    assert_whole(&ends);
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
@@ -631,11 +632,12 @@ async fn a_token_3xx_keeps_its_target_out_of_the_daemon_log() {
 /// property, and the door takes its store as an argument.
 #[tokio::test]
 async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
-    let (base, requests, server) =
-        scripted_server(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
+    let (transport, requests, ends) =
+        scripted_transport(vec![token_answer("200 OK", TOKEN_HEADERS, None)]);
     let (daemon, log_path) = test_daemon_with(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),
     );
@@ -657,7 +659,7 @@ async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
         )],
         "the rotated refresh token is saved into the test store"
     );
-    server.await.unwrap();
+    assert_whole(&ends);
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
@@ -1182,11 +1184,12 @@ fn the_printed_retry_runs_after_a_rename_whose_index_write_failed() {
 /// blocking thread, is a staging point no surface reaches.
 #[tokio::test]
 async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
-    let (base, requests, server) =
-        scripted_server(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
+    let (transport, requests, ends) =
+        scripted_transport(vec![token_answer("200 OK", TOKEN_HEADERS, None)]);
     let (mut daemon, log_path) = test_daemon_with(
         Boundary::Function,
-        Provider::mock(&base),
+        Provider::mock(BASE),
+        transport,
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),
     );
@@ -1256,7 +1259,7 @@ async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
         Some("rt-rotated"),
         "the refresh's save landed before the logout"
     );
-    server.await.unwrap();
+    assert_whole(&ends);
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }

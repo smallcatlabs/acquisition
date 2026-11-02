@@ -70,9 +70,10 @@ async fn saving_daemon() -> (
     String,
     TestPath,
 ) {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (transport, record) = account_transport(("GET", "/never", 0));
+    let (sent_log, base) = (record.sent, BASE.to_string());
     let (mut daemon, log_path) =
-        test_daemon(Boundary::Workers, &base, Arc::new(ParkingClock::new()));
+        test_daemon(Boundary::Workers, transport, Arc::new(ParkingClock::new()));
     logged_in(&mut daemon);
     let store = Arc::new(RecordingCredentialStore::default());
     let held = hold_the_next_save(&store);
@@ -230,11 +231,8 @@ async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() 
 /// registered. Released, the first login registers its session.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands() {
-    let (daemon, log_path) = test_daemon(
-        Boundary::Workers,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log_path) =
+        test_daemon(Boundary::Workers, refused(), Arc::new(ParkingClock::new()));
     let store = Arc::new(RecordingCredentialStore::default());
     let mut held = hold_the_next_save(&store);
     let store_dir = TestPath::dir();
@@ -328,8 +326,7 @@ async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands()
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
     let clock = Arc::new(ParkingClock::new());
-    let (mut daemon, log_path) =
-        test_daemon(Boundary::Workers, "http://127.0.0.1:1", clock.clone());
+    let (mut daemon, log_path) = test_daemon(Boundary::Workers, refused(), clock.clone());
     logged_in(&mut daemon);
     let store = Arc::new(RecordingCredentialStore::default());
     store
@@ -487,11 +484,12 @@ fn landing_panic_child(dir: &std::path::Path) -> ! {
         .build()
         .unwrap();
     runtime.block_on(async {
-        let (base, _sent, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+        let (transport, _record) = account_transport(("GET", "/never", 0));
         let clock = Arc::new(ParkingClock::new());
         let (mut daemon, _log_path) = test_daemon_at(
             Boundary::Child,
-            Provider::mock(&base),
+            Provider::mock(BASE),
+            transport,
             clock,
             RailsConfig::default(),
             TestPath::file_in(dir, "daemon.log"),
@@ -579,8 +577,7 @@ async fn restoring_daemon() -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
 async fn restoring_daemon_on(
     clock: Arc<ParkingClock>,
 ) -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
-    let (mut daemon, log_path) =
-        test_daemon(Boundary::Workers, "http://127.0.0.1:1", clock.clone());
+    let (mut daemon, log_path) = test_daemon(Boundary::Workers, refused(), clock.clone());
     let dir = TestPath::dir();
     Index::load(&dir)
         .unwrap()

@@ -49,8 +49,9 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
 /// the queue's etas are forward simulations rather than zeros.
 async fn learned_daemon() -> Arc<Daemon> {
     let clock = Arc::new(ParkingClock::new());
-    let base = mockggg::start_with_clock(clock.clone(), 1).await.unwrap();
-    let (daemon, _log_path) = test_daemon(Boundary::Function, &base, clock);
+    let (transport, _mock) = crate::transport::mock(&Hold::new(), clock.clone());
+    let base = BASE;
+    let (daemon, _log_path) = test_daemon(Boundary::Function, transport, clock);
     for route in ["fetch", "fetch@alice"] {
         daemon
             .choke

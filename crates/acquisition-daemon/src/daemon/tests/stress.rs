@@ -5,6 +5,25 @@
 
 use super::harness::*;
 use crate::daemon::*;
+use acquisition_transport::{Answer, Pending, Prepared, Transport};
+
+/// The stress test's one transport: a request on the token route to the
+/// delayed token transport, every other to the mock's in-process face.
+struct ByPath {
+    token: InProcess,
+    api: InProcess,
+}
+
+impl Transport for ByPath {
+    fn send(&self, request: Prepared) -> Pending<'_, Result<Answer, String>> {
+        let token = url::Url::parse(&request.url).is_ok_and(|url| url.path() == "/token");
+        if token {
+            self.token.send(request)
+        } else {
+            self.api.send(request)
+        }
+    }
+}
 
 async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
     tokio::time::timeout(HANG, async {
@@ -32,9 +51,11 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
 /// cancellation under the limit, against the counting mock. A component
 /// test (C158): it needs the mock and a held token server at once, which
 /// the door's one `Server` cannot host (an `Own` relay holding the token
-/// POST in front of the mock is a twin not drawn), so it joins the two by
-/// the provider's token URL set by hand and seeds the session and its
-/// expiry under `shared`. Its private reads, by their twins at the
+/// POST in front of the mock is a twin not drawn), so it joins the two in
+/// one transport of its own, by path ([`ByPath`]: the token route to the
+/// delayed token transport, every other to the mock's in-process face,
+/// both on one hold), and seeds the session and its expiry under
+/// `shared`. Its private reads, by their twins at the
 /// boundary: the send counts (the journal, `Dashboard.sends`), the
 /// occupancy (`DaemonStatus.in_flight`), the policies (`Dashboard.
 /// policies`), the probes (`List`) and the refresh token (the credential
@@ -43,14 +64,19 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
 #[tokio::test]
 async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_the_limit() {
     let clock = Arc::new(ParkingClock::new());
-    let api_base = mockggg::start_with_clock(clock.clone(), 1).await.unwrap();
-    let (token_base, token_arrived, release_token, token_server) =
-        delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
-    let (mut daemon, log_path) = test_daemon(Boundary::Fixtures, &api_base, clock.clone());
+    let hold = Hold::new();
+    let (api, _mock) = crate::transport::mock(&hold, clock.clone());
+    let (token, record) = crate::transport::delayed_token(
+        &hold,
+        "200 OK",
+        token_body("at-new", "rt-rotated", "test-user"),
+    );
+    let (token_arrived, release_token, token_ends) = (record.arrived, record.release, record.ends);
+    let (mut daemon, log_path) =
+        test_daemon(Boundary::Fixtures, ByPath { token, api }, clock.clone());
     let credential_store = Arc::new(RecordingCredentialStore::default());
     let daemon_mut = Arc::get_mut(&mut daemon).unwrap();
     daemon_mut.credential_store = credential_store.clone();
-    daemon_mut.provider.token_url = format!("{token_base}/token");
     {
         let mut shared = daemon.shared.lock().unwrap();
         shared.auth.one_mut().refresh_token = Some("rt-old".into());
@@ -151,7 +177,7 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
             "shared-refresh API caller {id}: {outcome:?}"
         );
     }
-    token_server.await.unwrap();
+    assert_whole(&token_ends);
 
     // The clock crosses the 5-per-10 s window the first five fetches
     // fill, which parks the sixth until a slot frees.

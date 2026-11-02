@@ -53,9 +53,7 @@ fn login_tokens(access: &str, user: &str) -> auth::TokenResponse {
 /// A daemon wired for the login's component tests: a recording
 /// credential store, a scratch store directory, no session, on the
 /// manual clock.
-fn login_daemon(
-    base: &str,
-) -> (
+fn login_daemon() -> (
     Arc<Daemon>,
     Arc<RecordingCredentialStore>,
     TestPath,
@@ -71,11 +69,12 @@ fn login_daemon(
         .open(&log_path)
         .unwrap();
     let daemon = Daemon::builder(
-        Provider::mock(base),
+        Provider::mock(BASE),
         Arc::new(ParkingClock::new()),
         credentials.clone(),
         log,
     )
+    .transport(Box::new(refused()))
     .store_dir(store_dir.to_path_buf())
     .log_path(log_path.to_str().map(str::to_string))
     .build();
@@ -436,7 +435,7 @@ fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
 /// staging slot).
 #[tokio::test]
 async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
-    let (daemon, credentials, _store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, _store_dir, _log_path) = login_daemon();
 
     let g1 = daemon.begin_auth_flow();
     daemon
@@ -938,9 +937,10 @@ fn an_out_of_range_expires_in_is_a_token_error() {
 /// not draw.
 #[tokio::test]
 async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token() {
-    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (transport, record) = account_transport(("GET", "/never", 0));
+    let sent_log = record.sent;
     let (mut daemon, log_path) =
-        test_daemon(Boundary::Function, &base, Arc::new(ParkingClock::new()));
+        test_daemon(Boundary::Function, transport, Arc::new(ParkingClock::new()));
     logged_in(&mut daemon);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
@@ -1217,7 +1217,7 @@ fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
 /// no boundary surface (the door reads no log).
 #[tokio::test]
 async fn c144_a_forget_logs_only_the_clear_that_worked_as_cleared() {
-    let (daemon, store, dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, store, dir, log_path) = login_daemon();
     store
         .entries
         .lock()
@@ -1330,7 +1330,7 @@ fn staged_login(daemon: &Daemon, user: &str) -> u64 {
 #[cfg(unix)]
 #[tokio::test]
 async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_restore() {
-    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon();
     let generation = staged_login(&daemon, "Alice#1");
     let frozen = freeze(&store_dir);
     assert!(
@@ -1593,7 +1593,7 @@ fn c144_forget_and_logout_say_what_the_index_write_did() {
 /// clear.
 #[tokio::test]
 async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
-    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon();
     Index::load(&store_dir)
         .unwrap()
         .record_login("Alice#1", "u-a", true, 1, &[])

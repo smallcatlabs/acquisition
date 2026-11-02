@@ -101,20 +101,24 @@ const NO_HOLD: (&str, &str, usize) = ("GET", "/never", 0);
 /// never send is on its record rather than lost in a panicked task. Token
 /// requests whose grant it cannot read (an empty body; a refresh grant
 /// with no token) are each answered and recorded, the account unread. A
-/// component test of the fixture alone: no daemon sends such a request,
-/// and the door does not expose the fixture's base to a scenario's own
-/// client.
+/// component test of the account transport alone, called directly: no
+/// daemon sends such a request.
 #[tokio::test]
 async fn the_account_bait_records_a_request_it_cannot_read() {
-    let (base, sent_log, _arrived, _release) = account_server(NO_HOLD).await;
-    let client = reqwest::Client::new();
-    for body in ["", "grant_type=refresh_token"] {
-        let answer =
-            tokio::time::timeout(HANG, client.post(format!("{base}/token")).body(body).send())
-                .await
-                .expect("the bait answered")
-                .expect("the bait's answer arrived");
-        assert!(answer.status().is_success(), "{body:?}: {answer:?}");
+    use acquisition_transport::{Prepared, Transport};
+    let (bait, record) = account_transport(NO_HOLD);
+    let sent_log = record.sent;
+    for form in [
+        None,
+        Some(vec![("grant_type".into(), "refresh_token".into())]),
+    ] {
+        let mut post = Prepared::new(http::Method::POST, &format!("{BASE}/token"), "the-bait");
+        post.form = form;
+        let answer = tokio::time::timeout(HANG, bait.send(post))
+            .await
+            .expect("the bait answered")
+            .expect("the bait's answer arrived");
+        assert!(answer.status.is_success(), "{}", answer.status);
     }
     assert_eq!(
         sent_log.lock().unwrap().as_slice(),
@@ -817,11 +821,8 @@ fn c127_a_sleep_within_the_bound_is_admitted_and_done() {
 /// runs on real time and an `apply`'s children reach the wire).
 #[tokio::test]
 async fn c127_a_large_plan_and_params_and_actions_at_their_bounds_are_admitted() {
-    let (daemon, log_path) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log_path) =
+        test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let mut jobs = vec![
         json!({ "kind": "stashes", "params": { "realm": "pc", "league": "Standard" } }),
         json!({ "kind": "characters", "params": { "realm": "pc" } }),
@@ -933,10 +934,12 @@ fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
 /// each at submit). A component test: `route_for` is a function.
 #[test]
 fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
-    let (daemon, _) = test_daemon(
+    let (daemon, _) = test_daemon_with(
         Boundary::Function,
-        "http://mock",
+        Provider::mock("http://mock"),
+        refused(),
         Arc::new(ParkingClock::new()),
+        RailsConfig::default(),
     );
     assert_eq!(
         daemon
@@ -1221,10 +1224,12 @@ fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
 /// holds before and after any tightening of the segment rule.
 #[test]
 fn c127_legitimate_values_render_to_these_wire_paths() {
-    let (daemon, _) = test_daemon(
+    let (daemon, _) = test_daemon_with(
         Boundary::Function,
-        "https://api.pathofexile.com",
+        Provider::mock("https://api.pathofexile.com"),
+        refused(),
         Arc::new(ParkingClock::new()),
+        RailsConfig::default(),
     );
     let table = [
         (
@@ -1342,9 +1347,9 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
 
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
 /// to a throwaway in-memory one), restored from it like `run` does.
-fn persisting_daemon(base: &str, db_path: &std::path::Path) -> (Arc<Daemon>, TestPath) {
+fn persisting_daemon(db_path: &std::path::Path) -> (Arc<Daemon>, TestPath) {
     let (mut daemon, log_path) =
-        test_daemon(Boundary::Function, base, Arc::new(ParkingClock::new()));
+        test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     Arc::get_mut(&mut daemon).unwrap().jobs_db = Mutex::new(JobDb::open(db_path).unwrap());
     daemon.restore_jobs(Retention::default()).unwrap();
     (daemon, log_path)
@@ -1400,7 +1405,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     // dispatcher runs — the running state is written the way
     // `process` writes it — so nothing of this lifetime survives the
     // drop to write behind lifetime 2's back.
-    let (daemon, log1) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log1) = persisting_daemon(&db);
     let done = daemon
         .submit(
             "sleep".into(),
@@ -1446,7 +1451,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     // Lifetime 2: the running job is re-queued, the waiting one kept
     // with its reprioritization, ids continue, and the finished job's
     // result is still answerable over the protocol.
-    let (daemon, log2) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log2) = persisting_daemon(&db);
     let jobs = daemon.shared.lock().unwrap().list(&daemon);
     let summary: Vec<(JobId, JobState, Priority)> =
         jobs.iter().map(|j| (j.id, j.state, j.priority)).collect();
@@ -1497,7 +1502,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     dispatcher.abort();
     // Lifetime 3 has nothing to restore.
     drop(daemon);
-    let (daemon, log3) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log3) = persisting_daemon(&db);
     assert!(daemon.shared.lock().unwrap().jobs.is_empty());
     for p in [log1, log2, log3] {
         finish_harness(None, &p);
@@ -1701,7 +1706,7 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
 #[tokio::test]
 async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
     let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap();
@@ -1729,7 +1734,7 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
 #[tokio::test]
 async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     let id = daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap();
@@ -1806,7 +1811,7 @@ async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
             .unwrap();
         other.upsert(&recent(14)).unwrap();
     }
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     let in_memory = || {
         let mut ids: Vec<JobId> = daemon.shared.lock().unwrap().jobs.keys().copied().collect();
         ids.sort_unstable();
@@ -1862,7 +1867,7 @@ async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
 #[tokio::test]
 async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
     let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     let id = daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap();
@@ -1883,7 +1888,7 @@ async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     break_queue(&db);
     let err = daemon.restore_jobs(Retention::default()).unwrap_err();
     assert!(err.to_string().contains("could not read"), "{err:#}");
@@ -1900,7 +1905,7 @@ async fn a_broken_queue_is_fatal_to_restore() {
 #[tokio::test]
 async fn a_transition_that_cannot_persist_does_not_run() {
     let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let (daemon, log) = persisting_daemon(&db);
     let id = daemon
         .submit(
             "sleep".into(),

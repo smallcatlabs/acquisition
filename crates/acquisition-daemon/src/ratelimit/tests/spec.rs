@@ -13,6 +13,7 @@
 
 use super::*;
 use crate::testing::{HANG, ParkingClock};
+use crate::transport::{self, BASE, Hold, InProcess, Reply};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
@@ -25,12 +26,93 @@ const NO_BEARER_API: &str = "http://127.0.0.1:9";
 /// hand): nothing passes between a send and the check after it, so a
 /// wait the limiter computes is exact. Rails disabled, as
 /// `ChokePoint::new` builds them; production keeps that constructor.
+/// Over the refusing transport (C161): a send is refused in-process, in
+/// the test support's words, wherever it is addressed. Every choke point
+/// the spec builds is in-process ([`parked_over`]) except the real-wiring
+/// tests of the production transport, which build theirs by name.
 fn parked_choke() -> ChokePoint {
-    ChokePoint::with_clock_and_rails(
+    parked_over(transport::refusing(&Hold::new()))
+}
+
+/// [`parked_choke`] over `transport`.
+fn parked_over(transport: InProcess) -> ChokePoint {
+    ChokePoint::with_transport(
         Arc::new(ParkingClock::new()),
         Arc::new(Rails::disabled()),
         NO_BEARER_API,
+        Box::new(transport),
     )
+}
+
+/// One path's answer on the spec's in-process server ([`answering`]),
+/// run once, when its request arrives: in the send's first poll.
+type Answer1 = Box<dyn FnOnce() -> Pending<'static, Reply> + Send>;
+
+/// `response`'s bytes, answered at once.
+fn answer(response: String) -> Answer1 {
+    Box::new(move || Box::pin(async move { Reply::Bytes(response) }))
+}
+
+/// The arrival announced on `arrived`, then `response`'s head at once
+/// and its body withheld until `release` fires.
+fn held_body(
+    response: String,
+    arrived: oneshot::Sender<()>,
+    release: oneshot::Receiver<()>,
+) -> Answer1 {
+    Box::new(move || {
+        let _ = arrived.send(());
+        Box::pin(async move { Reply::Held(response, release) })
+    })
+}
+
+/// The arrival announced on `arrived`, then `response` whole once
+/// `release` fires.
+fn held_whole(
+    response: String,
+    arrived: oneshot::Sender<()>,
+    release: oneshot::Receiver<()>,
+) -> Answer1 {
+    Box::new(move || {
+        let _ = arrived.send(());
+        Box::pin(async move {
+            let _ = release.await;
+            Reply::Bytes(response)
+        })
+    })
+}
+
+/// The spec's in-process server (C161), at [`BASE`]: each request
+/// answered once by the answer `paths` names for its path, run in the
+/// send's first poll; a path it does not name, or a second request on
+/// one, refused in words that name it. The requests it took, as
+/// "<method> <path>", in order, come back.
+fn answering(paths: Vec<(&'static str, Answer1)>) -> (InProcess, Arc<Mutex<Vec<String>>>) {
+    let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+    let took = seen.clone();
+    let paths = Mutex::new(paths.into_iter().collect::<HashMap<_, _>>());
+    let transport = InProcess::new(&Hold::new(), move |request: crate::mockggg::HttpRequest| {
+        took.lock()
+            .unwrap()
+            .push(format!("{} {}", request.method, request.path));
+        let answer = paths.lock().unwrap().remove(request.path.as_str());
+        match answer {
+            Some(answer) => answer(),
+            None => {
+                let words = format!(
+                    "the spec's server answers each of its paths once, and {} {} came",
+                    request.method, request.path
+                );
+                Box::pin(async move { Reply::Failed(words) }) as Pending<'static, Reply>
+            }
+        }
+    });
+    (transport, seen)
+}
+
+/// The URL of `path` on the spec's in-process server.
+fn at(path: &str) -> String {
+    format!("{BASE}{path}")
 }
 
 /// A row of the pacing table.
@@ -93,6 +175,8 @@ fn retry(raw: Option<&str>) -> RetryAfter {
     })
 }
 
+/// A real listener answering one request with `response`, for the
+/// real-wiring tests of the production transport alone (C161).
 async fn serve_one_raw(response: String) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/test", listener.local_addr().unwrap());
@@ -1937,7 +2021,11 @@ async fn full_200_with_truncated_body_is_network_after_observing_policy() {
         "{}",
     );
     let (url, server) = serve_one_raw(raw).await;
-    let choke = parked_choke();
+    let choke = ChokePoint::with_clock_and_rails(
+        Arc::new(ParkingClock::new()),
+        Arc::new(Rails::disabled()),
+        NO_BEARER_API,
+    );
 
     let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
     assert!(matches!(result, Err(SendError::Transport(_))));
@@ -1962,15 +2050,17 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
         2,
         "{}",
     );
-    let (url, server) = serve_one_raw(raw).await;
+    let (served, seen) = answering(vec![("/test", answer(raw))]);
+    let url = at("/test");
     let rails = Arc::new(Rails::with_config(RailsConfig {
         tripwire: true,
         ..RailsConfig::default()
     }));
-    let choke = ChokePoint::with_clock_and_rails(
+    let choke = ChokePoint::with_transport(
         Arc::new(ParkingClock::new()),
         rails.clone(),
         NO_BEARER_API,
+        Box::new(served),
     );
 
     let landed = choke
@@ -1978,11 +2068,11 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
         .await
         .unwrap();
     assert_eq!(landed.status.as_u16(), 429);
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["GET /test"]);
     assert!(rails.halted().unwrap().contains("429 on GET /test"));
 
-    // No listener behind this URL: a send would fail as a transport
-    // error, so a `Halted` result proves nothing was attempted.
+    // Nothing answers this URL: a send would fail as a transport error,
+    // so a `Halted` result proves nothing was attempted.
     let unreachable = "http://127.0.0.1:9/never";
     let refused = choke
         .get(route, unreachable, choke.now(), ALWAYS_WANTED)
@@ -2023,47 +2113,30 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     // A HEAD holds the exclusive reservation while its response is
     // delayed; an ordinary GET parks in the gate behind it. The trip
     // happens while it is parked; it must come out as Halted unsent.
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
     let (head_arrived_tx, head_arrived) = oneshot::channel();
     let (release_tx, release) = oneshot::channel();
-    let hits = Arc::new(Mutex::new(Vec::new()));
-    let seen = hits.clone();
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let mut request = [0; 4096];
-        let n = stream.read(&mut request).await.unwrap();
-        seen.lock().unwrap().push(
-            String::from_utf8_lossy(&request[..n])
-                .lines()
-                .next()
-                .unwrap()
-                .to_string(),
-        );
-        head_arrived_tx.send(()).unwrap();
-        release.await.unwrap();
-        let raw = raw_response(
-            "204 No Content",
-            &full_rate_headers("parked-policy", None),
-            0,
-            "",
-        );
-        stream.write_all(raw.as_bytes()).await.unwrap();
-        // No second accept: a GET reaching the server would hang, and the
-        // test's timeout would fail it.
-    });
+    let raw = raw_response(
+        "204 No Content",
+        &full_rate_headers("parked-policy", None),
+        0,
+        "",
+    );
+    // The probe's path alone: a GET reaching the server is refused, and
+    // would come back as no `Halted`.
+    let (served, hits) = answering(vec![("/probe", held_whole(raw, head_arrived_tx, release))]);
     let rails = Arc::new(Rails::with_config(RailsConfig {
         tripwire: true,
         ..RailsConfig::default()
     }));
-    let choke = Arc::new(ChokePoint::with_clock_and_rails(
+    let choke = Arc::new(ChokePoint::with_transport(
         Arc::new(ParkingClock::new()),
         rails.clone(),
         NO_BEARER_API,
+        Box::new(served),
     ));
 
     let head_choke = choke.clone();
-    let head_url = format!("{base}/probe");
+    let head_url = at("/probe");
     let head = tokio::spawn(async move {
         head_choke
             .head("parked", &head_url, None, head_choke.now(), ALWAYS_WANTED)
@@ -2074,7 +2147,7 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     // Polled once, the GET runs to the gate and registers there: a
     // parked sender waits on the gate's grant, no clock sleep, so nothing
     // counts it and no sleep is owed for it to arrive.
-    let get_url = format!("{base}/data");
+    let get_url = at("/data");
     let mut get = std::pin::pin!(choke.get("parked", &get_url, choke.now(), ALWAYS_WANTED));
     let first = std::future::poll_fn(|cx| std::task::Poll::Ready(get.as_mut().poll(cx))).await;
     assert!(first.is_pending(), "the GET must be parked behind the HEAD");
@@ -2105,11 +2178,10 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
         .expect("halted");
     assert!(matches!(refused, SendError::Halted(_)), "{refused}");
     assert_eq!(
-        hits.lock().unwrap().len(),
-        1,
+        *hits.lock().unwrap(),
+        ["HEAD /probe"],
         "only the HEAD reached the server"
     );
-    server.await.unwrap();
 }
 
 /// A landed response with no usable policy headers is paced like a lost
@@ -2186,7 +2258,17 @@ fn headerless_counted_response_paces_as_if_counted() {
 #[tokio::test]
 async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
     let route = "origin-503";
-    let choke = parked_choke();
+    // Rung 10's shape: an HTML error page, no X-Rate-Limit-* at all.
+    let body = "<html><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></html>";
+    let (served, seen) = answering(vec![(
+        "/test",
+        answer(format!(
+            "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )),
+    )]);
+    let url = at("/test");
+    let choke = parked_over(served);
     choke
         .limiter
         .lock()
@@ -2206,19 +2288,12 @@ async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
         .unwrap();
     assert!(choke.check(route).is_ok());
 
-    // Rung 10's shape: an HTML error page, no X-Rate-Limit-* at all.
-    let body = "<html><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></html>";
-    let (url, server) = serve_one_raw(format!(
-        "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    ))
-    .await;
     let completed = choke
         .get(route, &url, choke.now(), ALWAYS_WANTED)
         .await
         .expect("landed");
     assert_eq!(completed.status.as_u16(), 503);
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["GET /test"]);
     // Assumed counted: 2/2 in the 10 s window, saturated, so the next
     // send waits the period + the 5 s bucket + 1 s from the last hit, which
     // landed now: no time passes on the parking clock.
@@ -2715,27 +2790,43 @@ fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
 /// read a HEAD's record (#86's mutants run).
 #[tokio::test]
 async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
-    let choke = parked_choke();
-    let (url, server) = serve_one_raw(raw_response("200 OK", "", 0, "")).await;
+    let (served, seen) = answering(vec![
+        ("/headerless", answer(raw_response("200 OK", "", 0, ""))),
+        (
+            "/refused",
+            answer(raw_response(
+                "403 Forbidden",
+                &full_rate_headers("p", None),
+                0,
+                "",
+            )),
+        ),
+    ]);
+    let choke = parked_over(served);
     let _ = choke
-        .head("headerless-head", &url, None, choke.now(), ALWAYS_WANTED)
+        .head(
+            "headerless-head",
+            &at("/headerless"),
+            None,
+            choke.now(),
+            ALWAYS_WANTED,
+        )
         .await;
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["HEAD /headerless"]);
     let send = record_of(&choke, "headerless-head");
     assert!(!send.ok, "{send:?}");
     assert!(send.outcome.contains("protocol failure"), "{send:?}");
 
-    let (url, server) = serve_one_raw(raw_response(
-        "403 Forbidden",
-        &full_rate_headers("p", None),
-        0,
-        "",
-    ))
-    .await;
     let _ = choke
-        .head("refused-head", &url, None, choke.now(), ALWAYS_WANTED)
+        .head(
+            "refused-head",
+            &at("/refused"),
+            None,
+            choke.now(),
+            ALWAYS_WANTED,
+        )
         .await;
-    server.await.unwrap();
+    assert_eq!(seen.lock().unwrap().len(), 2);
     let send = record_of(&choke, "refused-head");
     assert!(!send.ok, "{send:?}");
     assert_eq!(send.outcome, "403 Forbidden", "{send:?}");
@@ -2746,7 +2837,11 @@ async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
 #[tokio::test]
 async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
     let route = "malformed-truncated";
-    let choke = parked_choke();
+    let choke = ChokePoint::with_clock_and_rails(
+        Arc::new(ParkingClock::new()),
+        Arc::new(Rails::disabled()),
+        NO_BEARER_API,
+    );
     let established_raw = serde_json::json!({ "source": "established" });
     choke
         .limiter
@@ -2776,8 +2871,8 @@ async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
 #[tokio::test]
 async fn complete_malformed_200_is_protocol() {
     let route = "malformed-complete";
-    let (url, server) = serve_one_raw(raw_response("200 OK", "", 2, "{}")).await;
-    let choke = parked_choke();
+    let (served, seen) = answering(vec![("/test", answer(raw_response("200 OK", "", 2, "{}")))]);
+    let (url, choke) = (at("/test"), parked_over(served));
 
     assert!(matches!(
         choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
@@ -2786,7 +2881,7 @@ async fn complete_malformed_200_is_protocol() {
     let send = choke.recent_sends().pop().unwrap();
     assert!(!send.ok);
     assert!(send.outcome.contains("protocol failure"));
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["GET /test"]);
 }
 
 /// C131's limit: a GET's protocol failure keeps nothing. A 200 carrying
@@ -2797,8 +2892,9 @@ async fn complete_malformed_200_is_protocol() {
 async fn a_headerless_get_2xx_keeps_nothing_and_takes_no_hold() {
     let route = "headerless-get";
     let body = r#"{"access_token":"at-x","refresh_token":"rt-x","expires_in":3600,"username":"u"}"#;
-    let (url, server) = serve_one_raw(raw_response("200 OK", "", body.len(), body)).await;
-    let choke = parked_choke();
+    let response = raw_response("200 OK", "", body.len(), body);
+    let (served, seen) = answering(vec![("/test", answer(response))]);
+    let (url, choke) = (at("/test"), parked_over(served));
 
     assert!(matches!(
         choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
@@ -2806,7 +2902,7 @@ async fn a_headerless_get_2xx_keeps_nothing_and_takes_no_hold() {
     ));
     assert_eq!(choke.check(route), Ok(()), "a GET takes no hold");
     assert!(!choke.recent_sends().pop().unwrap().ok);
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["GET /test"]);
 }
 
 /// A server that answers its first request with what `first` builds from
@@ -3059,7 +3155,11 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
             "{}",
         );
         let (url, server) = serve_one_raw(raw).await;
-        let choke = parked_choke();
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            NO_BEARER_API,
+        );
 
         let response = choke
             .get(&route, &url, choke.now(), ALWAYS_WANTED)
@@ -3090,41 +3190,28 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
 
 #[tokio::test]
 async fn common_gate_caps_gets_until_response_bodies_complete() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
     let (arrived_tx, mut arrived_rx) = mpsc::unbounded_channel();
     let mut release_senders = Vec::new();
-    let mut release_receivers = Vec::new();
-    for _ in 0..3 {
-        let (sender, receiver) = oneshot::channel();
+    let mut paths = Vec::new();
+    for (index, path) in ["/0", "/1", "/2"].into_iter().enumerate() {
+        let (sender, release) = oneshot::channel();
         release_senders.push(Some(sender));
-        release_receivers.push(receiver);
+        let arrived = arrived_tx.clone();
+        let headers = full_rate_headers(&format!("body-policy-{index}"), None);
+        let response = raw_response("200 OK", &headers, 2, "{}");
+        let held: Answer1 = Box::new(move || {
+            arrived.send(index).unwrap();
+            Box::pin(async move { Reply::Held(response, release) })
+        });
+        paths.push((path, held));
     }
-    let server = tokio::spawn(async move {
-        let mut handlers = Vec::new();
-        for (index, release) in release_receivers.into_iter().enumerate() {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let mut request = [0; 4096];
-            let _ = stream.read(&mut request).await.unwrap();
-            arrived_tx.send(index).unwrap();
-            handlers.push(tokio::spawn(async move {
-                let headers = full_rate_headers(&format!("body-policy-{index}"), None);
-                let response = raw_response("200 OK", &headers, 2, "");
-                stream.write_all(response.as_bytes()).await.unwrap();
-                release.await.unwrap();
-                stream.write_all(b"{}").await.unwrap();
-            }));
-        }
-        for handler in handlers {
-            handler.await.unwrap();
-        }
-    });
+    let (served, seen) = answering(paths);
 
-    let choke = Arc::new(parked_choke());
+    let choke = Arc::new(parked_over(served));
     let sends: Vec<_> = (0..3)
         .map(|index| {
             let choke = choke.clone();
-            let url = format!("{base}/{index}");
+            let url = at(&format!("/{index}"));
             tokio::spawn(async move {
                 choke
                     .get(&format!("route-{index}"), &url, choke.now(), ALWAYS_WANTED)
@@ -3152,44 +3239,40 @@ async fn common_gate_caps_gets_until_response_bodies_complete() {
     for send in sends {
         send.await.unwrap().unwrap();
     }
-    server.await.unwrap();
+    assert_eq!(seen.lock().unwrap().len(), 3);
 }
 
 #[tokio::test]
 async fn head_waits_exclusively_for_an_incomplete_get_body() {
-    let get_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let get_url = format!("http://{}/get", get_listener.local_addr().unwrap());
+    let (get_url, head_url) = (at("/get"), at("/head"));
     let (get_arrived_tx, get_arrived) = oneshot::channel();
     let (release_get, release_get_rx) = oneshot::channel();
-    let get_server = tokio::spawn(async move {
-        let (mut stream, _) = get_listener.accept().await.unwrap();
-        let mut request = [0; 4096];
-        let _ = stream.read(&mut request).await.unwrap();
-        let response = raw_response("200 OK", &full_rate_headers("ordinary-policy", None), 2, "");
-        stream.write_all(response.as_bytes()).await.unwrap();
-        get_arrived_tx.send(()).unwrap();
-        release_get_rx.await.unwrap();
-        stream.write_all(b"{}").await.unwrap();
-    });
-
-    let head_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let head_url = format!("http://{}/head", head_listener.local_addr().unwrap());
+    let get_answer = raw_response(
+        "200 OK",
+        &full_rate_headers("ordinary-policy", None),
+        2,
+        "{}",
+    );
     let (head_arrived_tx, head_arrived) = oneshot::channel();
-    let head_server = tokio::spawn(async move {
-        let (mut stream, _) = head_listener.accept().await.unwrap();
-        let request = crate::mockggg::read_request(&mut stream).await.unwrap();
-        assert_eq!(request.method, "HEAD");
+    let head_answer = raw_response(
+        "204 No Content",
+        &full_rate_headers("head-policy", None),
+        0,
+        "",
+    );
+    let head: Answer1 = Box::new(move || {
         head_arrived_tx.send(()).unwrap();
-        let response = raw_response(
-            "204 No Content",
-            &full_rate_headers("head-policy", None),
-            0,
-            "",
-        );
-        stream.write_all(response.as_bytes()).await.unwrap();
+        Box::pin(async move { Reply::Bytes(head_answer) })
     });
+    let (served, seen) = answering(vec![
+        (
+            "/get",
+            held_body(get_answer, get_arrived_tx, release_get_rx),
+        ),
+        ("/head", head),
+    ]);
 
-    let choke = Arc::new(parked_choke());
+    let choke = Arc::new(parked_over(served));
     let get = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -3222,42 +3305,58 @@ async fn head_waits_exclusively_for_an_incomplete_get_body() {
 
     get.await.unwrap().unwrap();
     head.await.unwrap().unwrap();
-    get_server.await.unwrap();
-    head_server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["GET /get", "HEAD /head"]);
 }
 
 #[tokio::test]
 async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
-    async fn held_get(
+    /// A GET on `path` whose head is answered at once and whose body is
+    /// held: its URL, its arrival, its release and its answer.
+    fn held_get(
+        path: &'static str,
         policy: &'static str,
     ) -> (
         String,
         oneshot::Receiver<()>,
         oneshot::Sender<()>,
-        tokio::task::JoinHandle<()>,
+        (&'static str, Answer1),
     ) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let url = format!("http://{}/get", listener.local_addr().unwrap());
         let (arrived_tx, arrived) = oneshot::channel();
         let (release, release_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = crate::mockggg::read_request(&mut stream).await.unwrap();
-            assert_eq!(request.method, "GET");
-            let response = raw_response("200 OK", &full_rate_headers(policy, None), 2, "");
-            stream.write_all(response.as_bytes()).await.unwrap();
-            arrived_tx.send(()).unwrap();
-            release_rx.await.unwrap();
-            stream.write_all(b"{}").await.unwrap();
-        });
-        (url, arrived, release, server)
+        let response = raw_response("200 OK", &full_rate_headers(policy, None), 2, "{}");
+        let answer = held_body(response, arrived_tx, release_rx);
+        (at(path), arrived, release, (path, answer))
     }
 
-    let (first_url, first_arrived, release_first, first_server) =
-        held_get("writer-first-policy").await;
-    let (second_url, second_arrived, release_second, second_server) =
-        held_get("writer-second-policy").await;
-    let choke = Arc::new(parked_choke());
+    let (first_url, first_arrived, release_first, first_answer) =
+        held_get("/first", "writer-first-policy");
+    let (second_url, second_arrived, release_second, second_answer) =
+        held_get("/second", "writer-second-policy");
+    let (later_url, later_arrived, release_later, later_answer) =
+        held_get("/later", "writer-later-policy");
+    let (canceled_arrived_tx, canceled_arrived) = oneshot::channel();
+    let (_never, never) = oneshot::channel();
+    let canceled_answer = held_whole(String::new(), canceled_arrived_tx, never);
+    let (head_arrived_tx, head_arrived) = oneshot::channel();
+    let (release_head, release_head_rx) = oneshot::channel();
+    let head_answer = held_whole(
+        raw_response(
+            "204 No Content",
+            &full_rate_headers("writer-head-policy", None),
+            0,
+            "",
+        ),
+        head_arrived_tx,
+        release_head_rx,
+    );
+    let (served, seen) = answering(vec![
+        first_answer,
+        second_answer,
+        later_answer,
+        ("/canceled", canceled_answer),
+        ("/head", head_answer),
+    ]);
+    let choke = Arc::new(parked_over(served));
     let first = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -3282,8 +3381,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
     first_arrived.await.unwrap();
     second_arrived.await.unwrap();
 
-    let canceled_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let canceled_url = format!("http://{}/get", canceled_listener.local_addr().unwrap());
+    let canceled_url = at("/canceled");
     let canceled = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -3297,9 +3395,9 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
                 .await
         })
     };
-    let mut canceled_accept = Box::pin(canceled_listener.accept());
+    let mut canceled_arrived = Box::pin(canceled_arrived);
     assert!(
-        tokio::time::timeout(Duration::from_millis(50), &mut canceled_accept)
+        tokio::time::timeout(Duration::from_millis(50), &mut canceled_arrived)
             .await
             .is_err(),
         "ordinary send bypassed the full gate before cancellation"
@@ -3309,26 +3407,9 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         Err(error) => assert!(error.is_cancelled()),
         Ok(_) => panic!("canceled gate waiter completed normally"),
     }
-    drop(canceled_accept);
+    drop(canceled_arrived);
 
-    let head_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let head_url = format!("http://{}/head", head_listener.local_addr().unwrap());
-    let (head_arrived_tx, head_arrived) = oneshot::channel();
-    let (release_head, release_head_rx) = oneshot::channel();
-    let head_server = tokio::spawn(async move {
-        let (mut stream, _) = head_listener.accept().await.unwrap();
-        let request = crate::mockggg::read_request(&mut stream).await.unwrap();
-        assert_eq!(request.method, "HEAD");
-        head_arrived_tx.send(()).unwrap();
-        release_head_rx.await.unwrap();
-        let response = raw_response(
-            "204 No Content",
-            &full_rate_headers("writer-head-policy", None),
-            0,
-            "",
-        );
-        stream.write_all(response.as_bytes()).await.unwrap();
-    });
+    let head_url = at("/head");
     let head = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -3351,8 +3432,6 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         "HEAD overlapped the two live ordinary bodies"
     );
 
-    let (later_url, later_arrived, release_later, later_server) =
-        held_get("writer-later-policy").await;
     let later = {
         let choke = choke.clone();
         tokio::spawn(async move {
@@ -3406,10 +3485,10 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
     first.await.unwrap().unwrap();
     second.await.unwrap().unwrap();
     later.await.unwrap().unwrap();
-    first_server.await.unwrap();
-    second_server.await.unwrap();
-    head_server.await.unwrap();
-    later_server.await.unwrap();
+    assert_eq!(
+        *seen.lock().unwrap(),
+        ["GET /first", "GET /second", "HEAD /head", "GET /later"]
+    );
 }
 
 #[test]
@@ -3645,7 +3724,11 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
 /// mutants run; no row read either through the choke point).
 #[tokio::test]
 async fn the_choke_point_reports_policyless_and_degraded_routes() {
-    let choke = parked_choke();
+    let (served, seen) = answering(vec![(
+        "/test",
+        answer(raw_response("403 Forbidden", "", 0, "")),
+    )]);
+    let (url, choke) = (at("/test"), parked_over(served));
     {
         let mut limiter = choke.limiter.lock().unwrap();
         limiter.declare_policyless("profile");
@@ -3662,11 +3745,10 @@ async fn the_choke_point_reports_policyless_and_degraded_routes() {
     }
     assert_eq!(choke.policyless_endpoints(), ["profile".to_string()]);
 
-    let (url, server) = serve_one_raw(raw_response("403 Forbidden", "", 0, "")).await;
     let _ = choke
         .head("refused-head", &url, None, choke.now(), ALWAYS_WANTED)
         .await;
-    server.await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), ["HEAD /test"]);
     let degraded = choke.degraded_endpoints();
     assert_eq!(degraded.len(), 1, "{degraded:?}");
     assert_eq!(degraded[0].endpoint, "refused-head");

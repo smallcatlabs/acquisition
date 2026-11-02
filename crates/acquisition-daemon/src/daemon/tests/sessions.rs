@@ -40,6 +40,7 @@ use super::door::*;
 use super::harness::*;
 use crate::daemon::refresh::{REFRESH_OWNER_ABANDONED, SESSION_CHANGED_DURING_REFRESH};
 use crate::daemon::*;
+use crate::transport::{Reply, reply};
 use tokio::sync::oneshot;
 
 /// C51: a bare name two live sessions share is refused, never guessed
@@ -92,62 +93,57 @@ fn a_selector_matching_several_sessions_is_ambiguous() {
     assert!(sessions.matching("carol").unwrap().is_none());
 }
 struct AbandonThenSuccessTokenResponses {
-    base: String,
     first_arrived: oneshot::Receiver<()>,
     release_first: oneshot::Sender<()>,
     requests: Arc<Mutex<Vec<String>>>,
-    server: tokio::task::JoinHandle<()>,
 }
 
-async fn abandon_then_success_token_responses(
+/// Two refreshes answered with `success_body`: the first held, its
+/// arrival announced, until `release_first` fires (the release kept by
+/// the fixture, so it stands when the first request's future is
+/// dropped); the second answered at once. Each request's form is
+/// recorded; a request that is not a `POST /token` is a fault that fails
+/// it. In-process (C161).
+fn abandon_then_success_token_responses(
     success_body: String,
-) -> AbandonThenSuccessTokenResponses {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
+) -> (InProcess, AbandonThenSuccessTokenResponses) {
     let (first_arrived_tx, first_arrived) = oneshot::channel();
     let (release_first, release_first_rx) = oneshot::channel();
+    let first = Mutex::new(Some(first_arrived_tx));
+    let release = Arc::new(tokio::sync::Mutex::new(release_first_rx));
     let requests = Arc::new(Mutex::new(Vec::new()));
     let captured = requests.clone();
-    let server = tokio::spawn(async move {
-        let headers = TOKEN_HEADERS;
-
-        let (mut first, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut first).await.unwrap();
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.path, "/token");
-        captured.lock().unwrap().push(request.body);
-        first_arrived_tx.send(()).unwrap();
-        release_first_rx.await.unwrap();
-        mockggg::respond_with(
-            &mut first,
-            "200 OK",
-            "application/json",
-            headers,
-            &success_body,
-        )
-        .await;
-
-        let (mut second, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut second).await.unwrap();
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.path, "/token");
-        captured.lock().unwrap().push(request.body);
-        mockggg::respond_with(
-            &mut second,
-            "200 OK",
-            "application/json",
-            headers,
-            &success_body,
-        )
-        .await;
+    let transport = InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+        let token = (request.method.as_str(), request.path.as_str()) == ("POST", "/token");
+        if token {
+            captured.lock().unwrap().push(request.body.clone());
+        }
+        let arrived = first.lock().unwrap().take();
+        let (release, answer) = (
+            release.clone(),
+            reply("200 OK", TOKEN_HEADERS, &success_body),
+        );
+        let words = format!(
+            "the token fixture answers POST /token, and {} {} came",
+            request.method, request.path
+        );
+        async move {
+            if !token {
+                return Reply::Failed(words);
+            }
+            if let Some(arrived) = arrived {
+                arrived.send(()).unwrap();
+                let _ = (&mut *release.lock().await).await;
+            }
+            answer
+        }
     });
-    AbandonThenSuccessTokenResponses {
-        base,
+    let responses = AbandonThenSuccessTokenResponses {
         first_arrived,
         release_first,
         requests,
-        server,
-    }
+    };
+    (transport, responses)
 }
 
 fn tokens(access_token: &str, refresh_token: &str, username: &str) -> auth::TokenResponse {
@@ -170,6 +166,7 @@ fn tokens(access_token: &str, refresh_token: &str, username: &str) -> auth::Toke
 /// which no oracle of the daemon's wire may run.
 fn session_daemon(
     base: &str,
+    transport: InProcess,
     store_dir: Option<&std::path::Path>,
     journal: bool,
 ) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, TestPath) {
@@ -191,6 +188,7 @@ fn session_daemon(
     ));
     let credentials = Arc::new(RecordingCredentialStore::default());
     let mut builder = Daemon::builder(Provider::mock(base), clock, credentials.clone(), log)
+        .transport(Box::new(transport))
         .rails(rails)
         .log_path(log_path.to_str().map(str::to_string))
         .events_capacity(16)
@@ -330,7 +328,7 @@ fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
 /// the admission's refusals of the same realms.
 #[test]
 fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
-    let (daemon, _, log_path) = session_daemon("http://mock", None, true);
+    let (daemon, _, log_path) = session_daemon("http://mock", refused(), None, true);
     let route = |kind: &str, params: Value| daemon.route_for(kind, &params);
     for (kind, absent, explicit) in [
         ("characters", json!({}), json!({ "realm": "pc" })),
@@ -485,67 +483,82 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
 /// the wire contract's oracles judge the daemon's own sends alone.
 #[tokio::test]
 async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
     let (hold_arrived_tx, hold_arrived) = oneshot::channel();
     let (release_hold, release_hold_rx) = oneshot::channel();
     let (token_arrived_tx, token_arrived) = oneshot::channel();
-    let server = tokio::spawn(async move {
-        let (mut hold, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut hold).await.unwrap();
-        assert_eq!(request.path, "/hold");
-        let headers = concat!(
-            "HTTP/1.1 200 OK\r\n",
-            "X-Rate-Limit-Policy: hold-policy\r\n",
-            "X-Rate-Limit-Rules: Ip\r\n",
-            "X-Rate-Limit-Ip: 60:30:30\r\n",
-            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
-            "Content-Type: application/json\r\n",
-            "Content-Length: 2\r\n",
-            "Connection: close\r\n\r\n",
-        );
-        hold.write_all(headers.as_bytes()).await.unwrap();
-        hold_arrived_tx.send(()).unwrap();
-
-        let (mut token, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut token).await.unwrap();
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.path, "/token");
-        token_arrived_tx.send(()).unwrap();
-        let token_headers = TOKEN_HEADERS;
-        mockggg::respond_with(
-            &mut token,
-            "200 OK",
-            "application/json",
-            token_headers,
-            &token_body("at-live", "rt-rotated", "test-user"),
-        )
-        .await;
-
-        let (mut api, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut api).await.unwrap();
-        assert_eq!(request.method, "GET");
-        assert_eq!(request.path, "/character");
-        let api_headers = concat!(
-            "X-Rate-Limit-Policy: character-list-request-limit\r\n",
-            "X-Rate-Limit-Rules: Account\r\n",
-            "X-Rate-Limit-Account: 2:10:60,5:300:300\r\n",
-            "X-Rate-Limit-Account-State: 1:10:0,1:300:0\r\n",
-        );
-        mockggg::respond_with(
-            &mut api,
-            "200 OK",
-            "application/json",
-            api_headers,
-            r#"{"characters":[]}"#,
-        )
-        .await;
-
-        release_hold_rx.await.unwrap();
-        hold.write_all(b"{}").await.unwrap();
+    // The three requests in the order they must come, each answered as
+    // it arrives: the held send's head at once, its body on the release;
+    // then the refresh; then the API's GET. A request out of that order
+    // is refused in words that name it. In-process (C161).
+    type Step = Box<dyn FnOnce() -> Reply + Send>;
+    let steps: Vec<(&str, &str, Step)> = vec![
+        (
+            "GET",
+            "/hold",
+            Box::new(move || {
+                let head = concat!(
+                    "HTTP/1.1 200 OK\r\n",
+                    "X-Rate-Limit-Policy: hold-policy\r\n",
+                    "X-Rate-Limit-Rules: Ip\r\n",
+                    "X-Rate-Limit-Ip: 60:30:30\r\n",
+                    "X-Rate-Limit-Ip-State: 1:30:0\r\n",
+                    "Content-Type: application/json\r\n",
+                    "Content-Length: 2\r\n",
+                    "Connection: close\r\n\r\n{}",
+                );
+                hold_arrived_tx.send(()).unwrap();
+                Reply::Held(head.to_string(), release_hold_rx)
+            }),
+        ),
+        (
+            "POST",
+            "/token",
+            Box::new(move || {
+                token_arrived_tx.send(()).unwrap();
+                reply(
+                    "200 OK",
+                    TOKEN_HEADERS,
+                    &token_body("at-live", "rt-rotated", "test-user"),
+                )
+            }),
+        ),
+        (
+            "GET",
+            "/character",
+            Box::new(|| {
+                let api_headers = concat!(
+                    "X-Rate-Limit-Policy: character-list-request-limit\r\n",
+                    "X-Rate-Limit-Rules: Account\r\n",
+                    "X-Rate-Limit-Account: 2:10:60,5:300:300\r\n",
+                    "X-Rate-Limit-Account-State: 1:10:0,1:300:0\r\n",
+                );
+                reply("200 OK", api_headers, r#"{"characters":[]}"#)
+            }),
+        ),
+    ];
+    let steps = Mutex::new(std::collections::VecDeque::from(steps));
+    let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+    let took = seen.clone();
+    let transport = InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+        took.lock()
+            .unwrap()
+            .push(format!("{} {}", request.method, request.path));
+        let answer = match steps.lock().unwrap().pop_front() {
+            Some((method, path, step))
+                if (method, path) == (&request.method[..], &request.path[..]) =>
+            {
+                step()
+            }
+            _ => Reply::Failed(format!(
+                "the fixture expected its three requests in order, and {} {} came",
+                request.method, request.path
+            )),
+        };
+        async move { answer }
     });
 
-    let (daemon, _, _log_path) = session_daemon(&base, None, false);
+    let base = BASE;
+    let (daemon, _, _log_path) = session_daemon(BASE, transport, None, false);
     let hold = {
         let daemon = daemon.clone();
         let url = format!("{base}/hold");
@@ -588,7 +601,10 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
     ));
     release_hold.send(()).unwrap();
     hold.await.unwrap().unwrap();
-    server.await.unwrap();
+    assert_eq!(
+        *seen.lock().unwrap(),
+        ["GET /hold", "POST /token", "GET /character"]
+    );
 }
 
 /// N2, an owner that leaves without publishing: a refresh owner aborted
@@ -599,10 +615,9 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
 /// joined are read from the flight's receiver count.
 #[tokio::test]
 async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
-    let responses =
-        abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
-            .await;
-    let (daemon, store, log_path) = session_daemon(&responses.base, None, true);
+    let (transport, responses) =
+        abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"));
+    let (daemon, store, log_path) = session_daemon(BASE, transport, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -662,7 +677,6 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
         .expect("retry after owner abandonment completed")
         .unwrap();
     assert_eq!(retry, ("at-retried".into(), "retry-user".into()));
-    responses.server.await.unwrap();
     let requests = responses.requests.lock().unwrap();
     assert_eq!(requests.len(), 2);
     assert!(
@@ -681,10 +695,9 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
 /// no boundary read.
 #[tokio::test]
 async fn abandoned_refresh_owner_without_waiters_allows_retry() {
-    let responses =
-        abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
-            .await;
-    let (daemon, store, log_path) = session_daemon(&responses.base, None, true);
+    let (transport, responses) =
+        abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"));
+    let (daemon, store, log_path) = session_daemon(BASE, transport, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -729,7 +742,6 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     assert_eq!(after.session, before.session);
     assert_ne!(after.access_token, before.access_token);
     assert_ne!(after.refresh_token, before.refresh_token);
-    responses.server.await.unwrap();
     let requests = responses.requests.lock().unwrap();
     assert_eq!(requests.len(), 2);
     assert!(
@@ -923,9 +935,13 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
     // the new session replaces the old one (generations advance), and
     // the stale completion is rejected. Another account's login would
     // not touch this session at all (see the two-session tests).
-    let (base, arrived, release, server) =
-        delayed_token_server("200 OK", token_body("at-stale", "rt-stale", "old-user")).await;
-    let (daemon, store, log_path) = session_daemon(&base, None, true);
+    let (transport, record) = crate::transport::delayed_token(
+        &Hold::new(),
+        "200 OK",
+        token_body("at-stale", "rt-stale", "old-user"),
+    );
+    let (arrived, release, ends) = (record.arrived, record.release, record.ends);
+    let (daemon, store, log_path) = session_daemon(BASE, transport, None, true);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
@@ -976,7 +992,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         saved_refresh_tokens(&store.saves.lock().unwrap()),
         [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
     );
-    server.await.unwrap();
+    assert_whole(&ends);
     finish_harness(None, &log_path);
 }
 
@@ -1036,7 +1052,7 @@ fn a_refresh_rename_updates_the_index_mapping_in_place() {
 /// component test: `resolve_account` as a function.
 #[test]
 fn submit_resolves_the_account_against_the_live_session() {
-    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", None, true);
+    let (daemon, _, log_path) = session_daemon(BASE, refused(), None, true);
     // Session is "old-user" (session_daemon).
     assert_eq!(
         daemon.resolve_account("characters", None),
@@ -1082,7 +1098,7 @@ fn submit_resolves_the_account_against_the_live_session() {
 /// from the clock's wall, read through `valid_access_token`.
 #[tokio::test]
 async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
-    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", None, true);
+    let (daemon, _, log_path) = session_daemon(BASE, refused(), None, true);
     {
         let mut s = daemon.shared.lock().unwrap();
         s.auth.one_mut().access_token = Some("at-live".into());
@@ -1179,7 +1195,7 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
 fn a_response_is_filed_under_the_job_account_not_the_session() {
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
-    let (daemon, _, log_path) = session_daemon("http://127.0.0.1:1", Some(&dir), true);
+    let (daemon, _, log_path) = session_daemon(BASE, refused(), Some(&dir), true);
     // Session is "old-user"; the job was submitted as "A#1" (a login
     // happened in between). The body lands in A#1's file.
     daemon

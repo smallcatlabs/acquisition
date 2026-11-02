@@ -10,14 +10,14 @@ use crate::daemon::*;
 /// The check of a send no test cancels (C25).
 pub(super) use crate::ratelimit::ALWAYS_WANTED;
 use crate::ratelimit::Clock;
+use acquisition_transport::Transport;
 use std::collections::HashSet;
 use std::future::Future;
-use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::oneshot;
 
 pub(super) use crate::testing::{HANG, MANUAL_WALL_ORIGIN, ParkingClock};
 pub(super) use crate::transport::{
-    Received, ScriptedResponse, Sent, TOKEN_HEADERS, UNREAD_ACCOUNT,
+    BASE, Ends, Hold, InProcess, Received, ScriptedResponse, Sent, TOKEN_HEADERS, UNREAD_ACCOUNT,
 };
 
 pub(super) struct NoopCredentialStore;
@@ -309,66 +309,6 @@ pub(super) fn token_answer(
     }
 }
 
-/// [`scripted_server_received`] for a caller that reads the methods alone.
-pub(super) async fn scripted_server(
-    responses: Vec<ScriptedResponse>,
-) -> (String, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
-    let (base, methods, _, task) = scripted_server_received(responses).await;
-    (base, methods, task)
-}
-
-/// A server answering `responses` in order, one connection each, each
-/// request's method and path asserted against its response's; it records
-/// the methods (what the journal is held equal to) and each request whole
-/// ([`Received`]), in order.
-pub(super) async fn scripted_server_received(
-    responses: Vec<ScriptedResponse>,
-) -> (
-    String,
-    Arc<Mutex<Vec<String>>>,
-    Arc<Mutex<Vec<Received>>>,
-    tokio::task::JoinHandle<()>,
-) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let requests = Arc::new(Mutex::new(Vec::new()));
-    let captured = requests.clone();
-    let received: Arc<Mutex<Vec<Received>>> = Arc::default();
-    let whole = received.clone();
-    let task = tokio::spawn(async move {
-        for response in responses {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = mockggg::read_request(&mut stream).await.unwrap();
-            assert_eq!(request.method, response.method);
-            assert_eq!(request.path, response.path);
-            whole.lock().unwrap().push(Received {
-                method: request.method.clone(),
-                path: request.path.clone(),
-                bearer: request
-                    .headers
-                    .get("authorization")
-                    .and_then(|value| value.strip_prefix("Bearer "))
-                    .map(str::to_string),
-                body: request.body.clone(),
-            });
-            captured.lock().unwrap().push(request.method);
-            if response.status.is_empty() {
-                let _ = stream.write_all(response.body.as_bytes()).await;
-                continue;
-            }
-            mockggg::respond_with(
-                &mut stream,
-                response.status,
-                "application/json",
-                &response.headers,
-                &response.body,
-            )
-            .await;
-        }
-    });
-    (base, requests, received, task)
-}
-
 /// A token body as GGG answers a grant: the two tokens, an hour's
 /// lifetime and the account's name.
 pub(super) fn token_body(access_token: &str, refresh_token: &str, username: &str) -> String {
@@ -379,37 +319,6 @@ pub(super) fn token_body(access_token: &str, refresh_token: &str, username: &str
         "username": username,
     })
     .to_string()
-}
-
-/// One refresh of `rt-old`, held: `arrived` fires when its `POST /token`
-/// is in (the grant and the token checked), and it is answered `status`
-/// with `body` and the token route's rate headers when `release` fires.
-pub(super) async fn delayed_token_server(
-    status: &'static str,
-    body: String,
-) -> (
-    String,
-    oneshot::Receiver<()>,
-    oneshot::Sender<()>,
-    tokio::task::JoinHandle<()>,
-) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let (arrived_tx, arrived_rx) = oneshot::channel();
-    let (release_tx, release_rx) = oneshot::channel();
-    let task = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let request = mockggg::read_request(&mut stream).await.unwrap();
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.path, "/token");
-        assert!(request.body.contains("grant_type=refresh_token"));
-        assert!(request.body.contains("refresh_token=rt-old"));
-        arrived_tx.send(()).unwrap();
-        release_rx.await.unwrap();
-        let headers = TOKEN_HEADERS;
-        mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
-    });
-    (base, arrived_rx, release_tx, task)
 }
 
 /// C158, which boundary keeps a component test off the door: the value
@@ -438,19 +347,56 @@ pub(super) enum Boundary {
     Fixtures,
 }
 
-/// A harness daemon facing the mock at `base`, built for a component test
-/// that says which `boundary` keeps it off the door.
+/// A harness daemon facing `transport` (C161: an in-process fixture of
+/// the test support's, answering at [`BASE`]) on the mock provider's
+/// name, built for a component test that says which `boundary` keeps it
+/// off the door.
 pub(super) fn test_daemon(
     boundary: Boundary,
-    base: &str,
+    transport: impl Transport + 'static,
     clock: Arc<dyn Clock>,
 ) -> (Arc<Daemon>, TestPath) {
     test_daemon_with(
         boundary,
-        Provider::mock(base),
+        Provider::mock(BASE),
+        transport,
         clock,
         RailsConfig::default(),
     )
+}
+
+/// The refusing transport on a hold of the test's own: a component
+/// daemon that sends nothing, or whose every send must fail as a connect
+/// nothing answers would.
+pub(super) fn refused() -> InProcess {
+    crate::transport::refusing(&Hold::new())
+}
+
+/// The scripted transport on a hold of the test's own, the responses in
+/// order: the transport, the methods it received (what the journal is
+/// held equal to) and its ends ([`assert_whole`]).
+pub(super) fn scripted_transport(
+    responses: Vec<ScriptedResponse>,
+) -> (InProcess, Arc<Mutex<Vec<String>>>, Ends) {
+    let script = responses.into_iter().map(Into::into).collect();
+    let (transport, record) = crate::transport::scripted(&Hold::new(), script);
+    (transport, record.wire, record.ends)
+}
+
+/// The account transport on a hold of the test's own
+/// ([`crate::transport::account`]): the request numbered `held.2` of
+/// those on `held`'s method and path held behind its barriers.
+pub(super) fn account_transport(
+    held: (&'static str, &'static str, usize),
+) -> (InProcess, crate::transport::AccountRecord) {
+    crate::transport::account(&Hold::new(), held)
+}
+
+/// A fixture asked whole and without a fault (a request it did not
+/// expect): what a component test awaited a scripted server's end for.
+pub(super) fn assert_whole(ends: &Ends) {
+    assert!(ends.whole(), "the fixture was asked whole");
+    assert_eq!(ends.faults(), Vec::<String>::new(), "the fixture's faults");
 }
 
 /// A path in a folder of the test's own: the folder is a
@@ -537,12 +483,14 @@ pub(super) fn journal_of(log_path: &std::path::Path) -> PathBuf {
 pub(super) fn test_daemon_with(
     boundary: Boundary,
     provider: Provider,
+    transport: impl Transport + 'static,
     clock: Arc<dyn Clock>,
     config: RailsConfig,
 ) -> (Arc<Daemon>, TestPath) {
     test_daemon_at(
         boundary,
         provider,
+        transport,
         clock,
         config,
         test_log_path(),
@@ -552,10 +500,13 @@ pub(super) fn test_daemon_with(
 
 /// [`test_daemon_with`], its log (and the journal beside it) at
 /// `log_path`, which a child process names inside its own directory, and
-/// its sessions `sessions`, as the daemon's builder takes them.
+/// its sessions `sessions`, as the daemon's builder takes them. The
+/// daemon carries its sends through `transport` (the builder's test-only
+/// option, C161).
 pub(super) fn test_daemon_at(
     _boundary: Boundary,
     provider: Provider,
+    transport: impl Transport + 'static,
     clock: Arc<dyn Clock>,
     config: RailsConfig,
     log_path: TestPath,
@@ -576,6 +527,7 @@ pub(super) fn test_daemon_at(
         .unwrap();
     let credentials: Arc<dyn CredentialStore> = Arc::new(RecordingCredentialStore::default());
     let daemon = Daemon::builder(provider, clock, credentials, log)
+        .transport(Box::new(transport))
         .rails(rails)
         .sessions(sessions)
         .log_path(log_path.to_str().map(str::to_string))
@@ -1083,37 +1035,6 @@ pub(super) fn tripwire_config() -> RailsConfig {
     }
 }
 
-pub(super) async fn token_server_answering(
-    statuses: Vec<&'static str>,
-) -> (String, Arc<Mutex<Vec<String>>>, tokio::task::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let requests = Arc::new(Mutex::new(Vec::new()));
-    let captured = requests.clone();
-    let task = tokio::spawn(async move {
-        for status in statuses {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = mockggg::read_request(&mut stream).await.unwrap();
-            assert_eq!(request.path, "/token");
-            captured.lock().unwrap().push(request.body.clone());
-            let headers = TOKEN_HEADERS;
-            let body = if status.starts_with("200") {
-                json!({
-                    "access_token": "at-new",
-                    "refresh_token": "rt-rotated",
-                    "expires_in": 3600,
-                    "username": "test-user",
-                })
-                .to_string()
-            } else {
-                r#"{"error":"invalid_grant"}"#.to_string()
-            };
-            mockggg::respond_with(&mut stream, status, "application/json", headers, &body).await;
-        }
-    });
-    (base, requests, task)
-}
-
 /// Session in memory, and a fresh recording store in place of whatever
 /// the test's daemon held: these tests must never touch the real keychain
 /// (slow, and may prompt).
@@ -1207,111 +1128,6 @@ impl Drop for WithMode<'_> {
 #[cfg(unix)]
 pub(super) fn freeze(dir: &std::path::Path) -> WithMode<'_> {
     with_mode(dir, 0o555)
-}
-
-/// A server for the cancel scenarios and the logins that answers by what
-/// was sent, each connection on its own task: `POST /token` with the
-/// grant's account's tokens (a refresh grant's account is its token's,
-/// `rt-old` being `test-user`'s and `rt-<name>` `<name>`'s; a code
-/// grant's is its code, so a login's browser carries `code=<name>`; the
-/// tokens answered are `at-<name>` and `rt-<name>`), and `GET /profile`
-/// with the bearer's account, `uuid-<name>`, without rate headers as GGG
-/// serves it. Every request is recorded before it is answered, one whose
-/// grant cannot be read as [`UNREAD_ACCOUNT`]'s. Of the requests
-/// matching `hold`'s method and path, the one numbered `hold.2` (from 0)
-/// is held: `arrived` fires when it is in, and it is answered when
-/// `release` fires.
-pub(super) async fn account_server(
-    hold: (&'static str, &'static str, usize),
-) -> (
-    String,
-    Arc<Mutex<Vec<Sent>>>,
-    oneshot::Receiver<()>,
-    oneshot::Sender<()>,
-) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let sent: Arc<Mutex<Vec<Sent>>> = Arc::default();
-    let (arrived_tx, arrived_rx) = oneshot::channel();
-    let (release_tx, release_rx) = oneshot::channel::<()>();
-    let held = Arc::new(Mutex::new(Some((arrived_tx, release_rx))));
-    let matched = Arc::new(AtomicU64::new(0));
-    let recorded = sent.clone();
-    tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let recorded = recorded.clone();
-            let held = held.clone();
-            let matched = matched.clone();
-            tokio::spawn(async move {
-                let Some(request) = mockggg::read_request(&mut stream).await else {
-                    return;
-                };
-                // The bait's rule: the record comes first, whatever the
-                // request holds. The account is read without indexing, a
-                // field the grant lacks reading as `UNREAD_ACCOUNT`, so a
-                // request the daemon should never send is on the record,
-                // never a panic in this detached task.
-                let account = if request.path == "/token" {
-                    let grant: HashMap<String, String> =
-                        url::form_urlencoded::parse(request.body.as_bytes())
-                            .into_owned()
-                            .collect();
-                    let field = |name: &str| grant.get(name).map(String::as_str);
-                    match (field("grant_type"), field("code"), field("refresh_token")) {
-                        (Some("authorization_code"), Some(code), _) => code.to_string(),
-                        (Some("refresh_token"), _, Some("rt-old")) => "test-user".to_string(),
-                        (Some("refresh_token"), _, Some(token)) => {
-                            token.trim_start_matches("rt-").to_string()
-                        }
-                        _ => UNREAD_ACCOUNT.to_string(),
-                    }
-                } else {
-                    request
-                        .headers
-                        .get("authorization")
-                        .map(|bearer| bearer.trim_start_matches("Bearer at-").to_string())
-                        .unwrap_or_default()
-                };
-                recorded
-                    .lock()
-                    .unwrap()
-                    .push((request.method.clone(), account.clone()));
-                if (request.method.as_str(), request.path.as_str()) == (hold.0, hold.1)
-                    && matched.fetch_add(1, Ordering::SeqCst) == hold.2 as u64
-                {
-                    let taken = held.lock().unwrap().take();
-                    if let Some((arrived, release)) = taken {
-                        arrived.send(()).unwrap();
-                        let _ = release.await;
-                    }
-                }
-                if request.path == "/token" {
-                    let body = json!({
-                        "access_token": format!("at-{account}"),
-                        "refresh_token": format!("rt-{account}"),
-                        "expires_in": 3600,
-                        "username": account,
-                    })
-                    .to_string();
-                    let headers = TOKEN_HEADERS;
-                    mockggg::respond_with(
-                        &mut stream,
-                        "200 OK",
-                        "application/json",
-                        headers,
-                        &body,
-                    )
-                    .await;
-                } else {
-                    let body = json!({ "uuid": format!("uuid-{account}"), "name": account });
-                    mockggg::respond(&mut stream, "200 OK", "application/json", &body.to_string())
-                        .await;
-                }
-            });
-        }
-    });
-    (base, sent, arrived_rx, release_tx)
 }
 
 pub(super) fn sent(account: &str, method: &str) -> Sent {

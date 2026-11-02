@@ -103,11 +103,7 @@ async fn a_cancelled_parent_cannot_gain_children() {
     // The race: cancel() enumerates children while the fan-out loop
     // keeps submitting. submit_child now refuses under the same lock
     // cancel takes.
-    let (daemon, log) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let parent = daemon
         .submit(
             "stash".into(),
@@ -129,11 +125,7 @@ async fn a_cancelled_parent_cannot_gain_children() {
 
 #[tokio::test]
 async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
-    let (daemon, log) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let parent = daemon
         .submit(
             "stash".into(),
@@ -165,11 +157,7 @@ async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
 
 #[tokio::test]
 async fn cancelled_children_do_not_make_a_parent_successful() {
-    let (daemon, log) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let parent = daemon
         .submit(
             "stash".into(),
@@ -199,11 +187,7 @@ async fn a_cancellation_pending_at_finish_wins_the_terminal_state() {
     // computes an outcome, releases the lock, and a cancel lands
     // before finish takes the final lock. The stale success must not
     // be written.
-    let (daemon, log) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let id = daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
         .unwrap();

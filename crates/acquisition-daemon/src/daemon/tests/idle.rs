@@ -8,11 +8,7 @@ use crate::daemon::*;
 
 #[tokio::test]
 async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
-    let (daemon, log) = test_daemon(
-        Boundary::Function,
-        "http://127.0.0.1:1",
-        Arc::new(ParkingClock::new()),
-    );
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let id = daemon
         .submit("fetch".into(), json!({}), 0, "t".into(), None)
         .unwrap();
@@ -52,7 +48,8 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
     let clock = Arc::new(ParkingClock::new());
     let (daemon, log) = test_daemon_with(
         Boundary::Clock,
-        Provider::mock("http://127.0.0.1:1"),
+        Provider::mock(BASE),
+        refused(),
         clock.clone(),
         tripwire_config(),
     );
@@ -141,16 +138,16 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
             body: r#"{"items":["done"]}"#.into(),
         },
     ];
-    let (base, requests, server) = scripted_server(responses).await;
+    let (transport, requests, ends) = scripted_transport(responses);
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path) = test_daemon(Boundary::Clock, &base, clock.clone());
+    let (daemon, log_path) = test_daemon(Boundary::Clock, transport, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = daemon
         .submit("fetch".into(), json!({}), 0, "test".into(), None)
         .unwrap();
     let (info, _) = wait_terminal(&daemon, id).await;
     assert_eq!(info.state, JobState::Done);
-    server.await.unwrap();
+    assert_whole(&ends);
 
     // A knob shorter than the window: the default hour outlasts every
     // policy window, so the clause this test stages shows only under a
@@ -177,7 +174,7 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
 #[test]
 fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log) = test_daemon(Boundary::Clock, "http://127.0.0.1:1", clock.clone());
+    let (daemon, log) = test_daemon(Boundary::Clock, refused(), clock.clone());
     assert_eq!(
         IDLE_SHUTDOWN,
         Duration::from_secs(3600),
