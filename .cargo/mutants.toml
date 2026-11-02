@@ -64,14 +64,4 @@ exclude_re = [
     # differ only in the degraded reason's words, and a HEAD response
     # carries no body for the client to fail on.
     'choke\.rs:611:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
-    # The count the door's park hook reads (C160), replaced with one send
-    # always in flight: listed by function, never the line, the pattern
-    # naming only the two replacements that read a send at rest. The hook
-    # takes every park for a send's and moves no time, so every scenario
-    # that needs an advance stalls, and the run is killed at its timeout
-    # before a completed result, though the pin's failure prints at once:
-    # `c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send`
-    # in `daemon/tests/dispatch.rs`. Listed, they are not run.
-    'replace SendGate::occupancy -> \(usize, usize\) with \(1, [01]\)$',
-    'replace ChokePoint::actual_send_occupancy -> \(usize, usize\) with \(1, [01]\)$',
 ]

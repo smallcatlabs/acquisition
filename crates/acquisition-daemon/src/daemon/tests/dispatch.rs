@@ -2544,15 +2544,16 @@ fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
     });
 }
 
-/// C160, the hook's own instrument: the count the door's park hook reads
-/// to tell a send in flight from a stuck park is zero at rest and one
-/// under a held send, beside its bound: `SendGate::occupancy` on a gate
-/// of its own, then `ChokePoint::actual_send_occupancy` on the daemon's,
-/// at rest and while the account server holds a profile `GET`. A mutant
-/// that replaces either count stalls every scenario that needs an
-/// advance (the hook reads every park as held by a send), so the weekly
-/// mutants run lists the four by function and this pin tells them apart
-/// at once (`.cargo/mutants.toml`). A component test of the hook's input
+/// C160's former instrument, now `daemon status`'s count alone: the gate's
+/// occupancy, which `DaemonStatus` and `Dashboard` report as `in_flight`
+/// (`server.rs`'s two reads), is zero at rest and one under a held send, beside its bound:
+/// `SendGate::occupancy` on a gate of its own, then
+/// `ChokePoint::actual_send_occupancy` on the daemon's, at rest and while
+/// the account transport holds a profile `GET`. The door's park hook no
+/// longer reads it (it reads the transports' hold, C160 as amended), so a
+/// mutant that replaces either count with a send always in flight fails
+/// these assertions at rest at once and stalls nothing; the weekly
+/// mutants run no longer lists them. A component test of the count
 /// (`door.daemon()`), on the door's runtime.
 #[test]
 fn c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send() {

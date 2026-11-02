@@ -1285,6 +1285,13 @@ impl Door {
         .await
     }
 
+    /// The requests this door's transports hold now, the hook's input
+    /// (C160 as amended): for the hook's own pins, never a scenario's
+    /// assertion.
+    pub(super) fn transport_holds(&self) -> usize {
+        self.hold.count()
+    }
+
     /// The park hook's counters as they stand, shared: for a component
     /// test of the hook's rule, read from another thread while the
     /// runtime parks. A scenario asserts nothing of them.
@@ -1593,4 +1600,214 @@ fn c160_a_wait_on_a_door_beside_another_fails_at_the_park() {
         words.contains(&format!("awaiting job {parked}'s end")),
         "{words}"
     );
+}
+
+/// How a row's GET is answered by [`hold_rows_server`].
+enum Shape {
+    /// Held before its headers until its release.
+    Whole(oneshot::Receiver<()>),
+    /// Its headers at once, its body withheld until its release.
+    Body(oneshot::Receiver<()>),
+}
+
+/// The rows' own transport: every `HEAD` a 204 naming a policy of its
+/// path's own, and each path's `GET` answered as its [`Shape`] says, its
+/// arrival announced on `arrived` in the send's first poll.
+fn hold_rows_server(
+    shapes: Vec<(&'static str, Shape)>,
+    arrived: tokio::sync::mpsc::UnboundedSender<&'static str>,
+) -> Server {
+    let shapes = Mutex::new(shapes.into_iter().collect::<HashMap<_, _>>());
+    Server::own(move |request: HttpRequest| {
+        let rate = |path: &str| {
+            format!(
+                "X-Rate-Limit-Policy: row{}\r\nX-Rate-Limit-Rules: Account\r\n\
+                 X-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n",
+                path.replace('/', "-")
+            )
+        };
+        let headers = rate(&request.path);
+        let taken = (request.method == "GET")
+            .then(|| shapes.lock().unwrap().remove_entry(request.path.as_str()))
+            .flatten();
+        let (shape, path) = match taken {
+            Some((path, shape)) => (Some(shape), path),
+            None => (None, ""),
+        };
+        if shape.is_some() {
+            arrived.send(path).unwrap();
+        }
+        let bytes = crate::mockggg::response_text("200 OK", "application/json", &headers, "{}");
+        async move {
+            match shape {
+                None => transport::reply("204 No Content", &headers, ""),
+                Some(Shape::Whole(release)) => {
+                    let _ = release.await;
+                    Reply::Bytes(bytes)
+                }
+                Some(Shape::Body(release)) => Reply::Held(bytes, release),
+            }
+        }
+    })
+}
+
+/// A row's `GET`s, by path, each with its shape, and their releases in
+/// the order the row fires them.
+type Shapes = (Vec<(&'static str, Shape)>, Vec<oneshot::Sender<()>>);
+
+/// One row of [`c160_the_transports_hold_holds_the_clock_through_the_door`].
+struct HoldRow {
+    name: &'static str,
+    /// The `GET`s sent, made fresh for the row's door.
+    shapes: fn() -> Shapes,
+    /// The requests held once every held `GET` has arrived.
+    held: usize,
+}
+
+/// C160 as amended, the hold's boundary rows through the door: a request a
+/// test transport holds holds the scenario's clock, from the send's first
+/// poll to its body's end. Each row probes its routes (`HEAD`), sends its
+/// `GET`s on the daemon's choke point, and, once every held one has
+/// arrived, parks a 30 s sleep on the clock: at the next park (`quiet`)
+/// the clock has not moved, the door's transports hold the row's count,
+/// and a `settle` begun before stays pending; each release lets one go,
+/// and only when the last body ends does `settle` resolve, the clock
+/// still where it was, then the sleep's deadline is reached. Two requests
+/// held at once (headers withheld) hold the clock until both end; a
+/// release fired before the request's first poll leaks no hold and
+/// nothing waits; a body withheld after its headers holds the clock and
+/// keeps `settle` pending until its release. A dropped send or body is
+/// the transports' component case
+/// (`the_hold_spans_a_withheld_body_and_goes_on_a_drop`): no frontend
+/// request drops one.
+#[test]
+fn c160_the_transports_hold_holds_the_clock_through_the_door() {
+    let rows = [
+        HoldRow {
+            name: "two requests held at once",
+            shapes: || {
+                let (a, a_rx) = oneshot::channel();
+                let (b, b_rx) = oneshot::channel();
+                (
+                    vec![("/a", Shape::Whole(a_rx)), ("/b", Shape::Whole(b_rx))],
+                    vec![a, b],
+                )
+            },
+            held: 2,
+        },
+        HoldRow {
+            name: "a release fired before the request's first poll",
+            shapes: || {
+                let (early, early_rx) = oneshot::channel();
+                early.send(()).unwrap();
+                (vec![("/a", Shape::Whole(early_rx))], Vec::new())
+            },
+            held: 0,
+        },
+        HoldRow {
+            name: "a body withheld after its headers",
+            shapes: || {
+                let (body, body_rx) = oneshot::channel();
+                (vec![("/a", Shape::Body(body_rx))], vec![body])
+            },
+            held: 1,
+        },
+    ];
+    for row in rows {
+        let name = row.name;
+        let (shapes, releases) = (row.shapes)();
+        let paths: Vec<&'static str> = shapes.iter().map(|(path, _)| *path).collect();
+        let (arrived_tx, mut arrived) = tokio::sync::mpsc::unbounded_channel();
+        Door::open(
+            hold_rows_server(shapes, arrived_tx),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|door| async move {
+            let (daemon, clock) = (door.daemon().clone(), door.clock());
+            for path in &paths {
+                let (route, url) = (
+                    format!("row{}", path.replace('/', "-")),
+                    format!("{}{path}", transport::BASE),
+                );
+                daemon
+                    .choke
+                    .head(&route, &url, None, daemon.choke.now(), ALWAYS_WANTED)
+                    .await
+                    .expect("the row's probe");
+            }
+            let sends: Vec<_> = paths
+                .iter()
+                .map(|path| {
+                    let daemon = daemon.clone();
+                    let (route, url) = (
+                        format!("row{}", path.replace('/', "-")),
+                        format!("{}{path}", transport::BASE),
+                    );
+                    tokio::spawn(async move {
+                        daemon
+                            .choke
+                            .get(&route, &url, daemon.choke.now(), ALWAYS_WANTED)
+                            .await
+                            .map(|response| response.status.as_u16())
+                    })
+                })
+                .collect();
+            for _ in 0..paths.len() {
+                tokio::time::timeout(HANG, arrived.recv())
+                    .await
+                    .expect("the row's GET arrived")
+                    .expect("the row's transport announces each GET");
+            }
+            let origin = clock.now();
+            let sleeper = tokio::spawn({
+                let clock = clock.clone();
+                async move { clock.sleep(Duration::from_secs(30)).await }
+            });
+            {
+                let settle = door.settle();
+                tokio::pin!(settle);
+                let mut releases = releases.into_iter();
+                loop {
+                    tokio::select! {
+                        biased;
+                        () = &mut settle => panic!("{name}: settled under a held request"),
+                        () = door.quiet() => {}
+                    }
+                    let held = door.transport_holds();
+                    assert_eq!(
+                        clock.now(),
+                        origin,
+                        "{name}: the clock moved under {held} held"
+                    );
+                    assert_eq!(clock.sleepers(), 1, "{name}: the sleep is parked");
+                    let Some(release) = releases.next() else {
+                        assert_eq!(
+                            held, 0,
+                            "{name}: no hold leaks once every request is answered"
+                        );
+                        break;
+                    };
+                    assert!(
+                        (1..=row.held).contains(&held),
+                        "{name}: {held} held, the row holds {}",
+                        row.held
+                    );
+                    release.send(()).unwrap();
+                }
+                settle.await;
+            }
+            assert_eq!(clock.now(), origin, "{name}: settled, not advanced");
+            assert_eq!(door.transport_holds(), 0, "{name}: every hold released");
+            tokio::time::timeout(HANG, sleeper)
+                .await
+                .expect("the sleep's deadline was reached")
+                .unwrap();
+            assert_eq!(clock.now() - origin, Duration::from_secs(30), "{name}");
+            for send in sends {
+                assert_eq!(send.await.unwrap().ok(), Some(200), "{name}");
+            }
+            door.finish().await;
+        });
+    }
 }
