@@ -54,7 +54,7 @@ exclude_re = [
     # A HEAD's body that fails to transfer: both arms fail the probe and
     # differ only in the degraded reason's words, and a HEAD response
     # carries no body for the client to fail on.
-    'choke\.rs:604:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
+    'choke\.rs:611:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
     # The count the door's park hook reads (C160), replaced with one send
     # always in flight: listed by function, never the line, the pattern
     # naming only the two replacements that read a send at rest. The hook

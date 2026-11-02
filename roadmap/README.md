@@ -509,7 +509,22 @@ cold (two P2), its fix round `68cb9448` reviewed (one P2), its tail
 `68b9feb1` read by the orchestrating session; closed on 2026-11-01
 (`LEDGER.md`), the weekly mutants run dispatched on the tag
 `151-stuck-verdict-after`, whose compare against `t5-round6-after` is
-#151's close. The residue step (`briefs/time-residue.md`, cut three
+#151's close, read on 2026-11-02 (run 41360883538, the compare at
+`e812a0d7`): of the 48 moved mutants 36 are caught, the four of class
+(b) are removals, and eleven still time out (the stress mutant as
+expected, and ten under which four door scenarios hang, each a mutant
+that breaks a send's completion or a probe's setup, so the hook holds
+for a send that will never land: `a_head_429_that_fails_setup_holds_the_next_probe`
+under four, `a_blocked_probe_is_no_probe_failure` under three,
+`a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header` under two,
+`observe_landed` and `sleep_until` hanging component tests); the
+timeouts 67 against the baseline's 62 and t5's 107, the shards 87 to
+118 minutes against the baseline's 66 to 106. #151 stays open on that
+remainder, which is the transport seam's to settle (an in-process
+transport can say that nothing is in flight at the fixture while
+occupancy is held); the two "missed" were the listed `head` exclusion
+at a line the stuck-verdict step moved, now at 611 (the commit
+carrying this line). The residue step (`briefs/time-residue.md`, cut three
 times under cold reviews) closed on 2026-11-01 (`LEDGER.md`): the
 spec on the crate's one clock, the client's one ceiling, the boundary
 as a value with a census at zero "neither" (#152 closed), the mock's
