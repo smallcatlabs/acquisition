@@ -9,9 +9,10 @@
 //! is a property source, not a template (C22): its properties hold here
 //! with the three adaptations that entry records.
 //!
-//! `ChokePoint` is invariant 1 made structural: it privately owns the
-//! workspace's only `reqwest::Client`, so nothing can send a request
-//! without first asking the limiter, and every response is observed by it.
+//! `ChokePoint` is invariant 1 made structural: it privately owns the one
+//! transport, which privately owns the workspace's only HTTP client (C161),
+//! so nothing can send a request without first asking the limiter, and
+//! every response is observed by it.
 //!
 //! Endpoints are discovered by a HEAD probe before their first real send
 //! (N16's sanctioned pattern; N24: HEADs report the policy without counting),

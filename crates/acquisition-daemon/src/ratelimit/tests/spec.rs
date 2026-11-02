@@ -2304,6 +2304,169 @@ async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
     );
 }
 
+/// A transport that keeps every request it is handed and answers each a
+/// 200 carrying full policy headers and `{}` (C161: the choke point over
+/// another transport, through `with_transport`).
+#[derive(Clone, Default)]
+struct Recording(Arc<Mutex<Vec<Prepared>>>);
+
+impl Transport for Recording {
+    fn send(&self, request: Prepared) -> Pending<'_, Result<Answer, String>> {
+        self.0.lock().unwrap().push(request);
+        Box::pin(async {
+            Ok(Answer {
+                status: http::StatusCode::OK,
+                headers: header_map(&full_rate_headers("recorded-policy", None)),
+                body: Box::pin(async { Ok("{}".to_string()) }),
+            })
+        })
+    }
+}
+
+/// Raw `Name: value` lines, as `full_rate_headers` writes them, as a map.
+fn header_map(raw: &str) -> http::HeaderMap {
+    raw.split("\r\n")
+        .filter_map(|line| line.split_once(": "))
+        .map(|(name, value)| {
+            (
+                http::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                http::HeaderValue::from_str(value).unwrap(),
+            )
+        })
+        .collect()
+}
+
+/// The `lost-send` policy, one hit of two in its 10 s window, learned on
+/// `route` at the choke point's now.
+fn establish_one_of_two(choke: &ChokePoint, route: &str) {
+    choke
+        .limiter
+        .lock()
+        .unwrap()
+        .observe(
+            route,
+            parse(&[
+                ("x-rate-limit-policy", "lost-send-policy"),
+                ("x-rate-limit-rules", "account"),
+                ("x-rate-limit-account", "2:10:60"),
+                ("x-rate-limit-account-state", "1:10:0"),
+            ]),
+            serde_json::Value::Null,
+            false,
+            choke.now(),
+        )
+        .unwrap();
+}
+
+/// C161: a bearer that is no valid header value fails where reqwest's
+/// builder error failed it, at the send under the permit, and goes on as
+/// any send that landed no answer: the transport is never called, and the
+/// words are the daemon's, naming no token text. The GET is journaled
+/// counted as a transport failure and the next send on its route is paced
+/// as after a lost send; the HEAD is journaled uncounted, degrades its
+/// route as a failed probe, and notes no lost send.
+#[tokio::test]
+async fn a_bearer_that_is_no_header_value_fails_at_the_send_in_the_daemons_words() {
+    use crate::auth::INVALID_BEARER;
+    use crate::rails::RailsConfig;
+    struct Unwritable;
+    impl Bearer for Unwritable {
+        fn token(&self) -> Option<crate::auth::Secret> {
+            Some("c161-token\ntext".into())
+        }
+        fn rejected(&self, _token: &crate::auth::Secret) {}
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let journal = temp.path().join("c161-journal.jsonl");
+    let rails = Arc::new(Rails::with_config(RailsConfig {
+        journal_path: Some(journal.clone()),
+        ..RailsConfig::default()
+    }));
+    let recording = Recording::default();
+    let choke = ChokePoint::with_transport(
+        Arc::new(ParkingClock::new()),
+        rails,
+        NO_BEARER_API,
+        Box::new(recording.clone()),
+    );
+    let url = format!("{NO_BEARER_API}/profile");
+
+    // The GET row.
+    establish_one_of_two(&choke, "c161-get");
+    let refused = choke
+        .get_bearer("c161-get", &url, &Unwritable, choke.now(), ALWAYS_WANTED)
+        .await
+        .err()
+        .expect("a transport failure");
+    assert!(
+        matches!(&refused, SendError::Transport(words) if words == INVALID_BEARER),
+        "{refused}"
+    );
+    let wait = choke.check("c161-get").unwrap_err();
+    assert_eq!(
+        wait,
+        Duration::from_secs(10 + 5 + 1),
+        "the failed send is paced as a lost one, got {wait:?}"
+    );
+    assert_eq!(
+        record_of(&choke, "c161-get").outcome,
+        format!("error: {INVALID_BEARER}")
+    );
+
+    // The HEAD row, on the same choke point.
+    establish_one_of_two(&choke, "c161-head");
+    let probe = choke
+        .head(
+            "c161-head",
+            &url,
+            Some(&Unwritable as &dyn Bearer),
+            choke.now(),
+            ALWAYS_WANTED,
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            &probe,
+            ProbeError::Failed { status: None, halted: false, reason }
+                if reason.contains(&format!("HEAD failed: {INVALID_BEARER}"))
+        ),
+        "{probe}"
+    );
+    assert!(
+        matches!(
+            choke.endpoint_state("c161-head"),
+            EndpointState::Degraded { .. }
+        ),
+        "a failed probe degrades its route"
+    );
+    assert_eq!(
+        record_of(&choke, "c161-head").outcome,
+        format!("error: {INVALID_BEARER}")
+    );
+
+    assert!(
+        recording.0.lock().unwrap().is_empty(),
+        "the transport was called"
+    );
+    let text = std::fs::read_to_string(&journal).unwrap();
+    let lines: Vec<serde_json::Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(lines.len(), 3, "the header and one line a send: {text}");
+    for (line, method, counted) in [(&lines[1], "GET", true), (&lines[2], "HEAD", false)] {
+        assert_eq!(line["method"], method, "{text}");
+        assert_eq!(line["counted"], counted, "{method}: {text}");
+        assert_eq!(line["status"], serde_json::Value::Null, "{method}: {text}");
+        assert_eq!(line["error"], INVALID_BEARER, "{method}: {text}");
+    }
+    assert!(
+        !text.contains("c161-token"),
+        "the journal named the token: {text}"
+    );
+}
+
 /// The one send record the choke point holds for `endpoint`.
 fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
     let mut records: Vec<SendRecord> = choke

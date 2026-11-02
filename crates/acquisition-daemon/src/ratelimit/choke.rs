@@ -1,10 +1,18 @@
-//! The choke point: the one HTTP client, the bearer a send carries, the
+//! The choke point: the one transport, the bearer a send carries, the
 //! send errors and the classification of a landed response, and every send
 //! through the limiter and the gate.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::*;
+
+// The production transport is this child's, private to the choke point
+// (C161); the neutral types go to the crate.
+#[path = "transport.rs"]
+mod transport;
+#[cfg(test)]
+pub(crate) use transport::Pending;
+pub(crate) use transport::{Answer, Prepared, Transport};
 
 // ---- the choke point ------------------------------------------------------
 
@@ -195,10 +203,10 @@ const SEND_HISTORY: usize = 100;
 /// of a path, so it gets one probe and one policy, and a per-tab route can
 /// never turn into a probe per tab (the shape of the 2024 incident, N2).
 pub struct ChokePoint {
-    // Private on purpose: this is the only reqwest client in the workspace,
-    // so every HTTP request must come through a method that consults the
-    // limiter and reports the response back to it.
-    http: reqwest::Client,
+    // Private on purpose: the transport privately owns the workspace's
+    // only HTTP client (C161), so every HTTP request must come through a
+    // method that consults the limiter and reports the response back to it.
+    transport: Box<dyn Transport>,
     pub(super) limiter: Mutex<Limiter>,
     gate: SendGate,
     sends: Mutex<VecDeque<SentAt>>,
@@ -227,22 +235,6 @@ const HALT_POLL: Duration = Duration::from_secs(1);
 /// harness's pacing oracle reads it so).
 pub(crate) const PACING_FLOOR: Duration = Duration::from_millis(50);
 
-fn build_client() -> reqwest::Client {
-    // The user-agent goes on the client itself so no request — token
-    // exchange included — can be sent without it (`AGENTS.md` invariant 4).
-    // C130: no redirect is followed. A 3xx lands as the response it is,
-    // observed and journaled with its `location`; a followed 307 would
-    // re-send a token request's form body wherever `Location` points, as
-    // a second send under this one's permit and journal line.
-    reqwest::Client::builder()
-        .user_agent(crate::provider::USER_AGENT)
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(REQUEST_TIMEOUT)
-        .build()
-        .expect("reqwest client builds")
-}
-
 impl Default for ChokePoint {
     fn default() -> Self {
         ChokePoint::new()
@@ -260,7 +252,7 @@ impl ChokePoint {
 
     pub fn with_rails(rails: Arc<Rails>) -> Self {
         ChokePoint {
-            http: build_client(),
+            transport: Box::new(transport::Production::new()),
             limiter: Mutex::new(Limiter::new()),
             gate: SendGate::new(),
             sends: Mutex::new(VecDeque::new()),
@@ -278,7 +270,7 @@ impl ChokePoint {
         api_base: &str,
     ) -> Self {
         ChokePoint {
-            http: build_client(),
+            transport: Box::new(transport::Production::new()),
             limiter: Mutex::new(Limiter::new()),
             gate: SendGate::new(),
             sends: Mutex::new(VecDeque::new()),
@@ -286,6 +278,20 @@ impl ChokePoint {
             rails,
             bearer_origin: url::Url::parse(api_base).ok().map(|base| base.origin()),
         }
+    }
+
+    /// The daemon's choke point over another transport, for a test: a
+    /// shipped daemon holds the production one alone.
+    #[cfg(test)]
+    pub(crate) fn with_transport(
+        clock: Arc<dyn Clock>,
+        rails: Arc<Rails>,
+        api_base: &str,
+        transport: Box<dyn Transport>,
+    ) -> Self {
+        let mut choke = ChokePoint::with_clock_and_rails(clock, rails, api_base);
+        choke.transport = transport;
+        choke
     }
 
     /// C128 — A bearer goes only to the provider's API origin: scheme, host
@@ -561,11 +567,15 @@ impl ChokePoint {
             None => None,
         };
         let wait = self.now().saturating_duration_since(since);
-        let mut req = self.http.head(url);
-        if let Some(token) = &token {
-            req = token.authorize(req);
-        }
-        let sent = req.send().await.map_err(|error| error.to_string());
+        let mut request = Prepared::new(http::Method::HEAD, url);
+        let authorized = match &token {
+            Some(token) => token.authorize(&mut request.headers),
+            None => Ok(()),
+        };
+        let sent = match authorized {
+            Ok(()) => self.transport.send(request).await,
+            Err(error) => Err(error),
+        };
         let (policy, retry_after, raw, headers) = sent.as_ref().map_or_else(
             |_| {
                 (
@@ -575,15 +585,15 @@ impl ChokePoint {
                     serde_json::Value::Null,
                 )
             },
-            |response| {
+            |answer| {
                 (
-                    Some(Policy::from_headers(response.headers())),
-                    retry_after_from_headers(response.headers()),
-                    rate_limit_snapshot(response.headers()),
-                    if response.status().is_success() {
+                    Some(Policy::from_headers(&answer.headers)),
+                    retry_after_from_headers(&answer.headers),
+                    rate_limit_snapshot(&answer.headers),
+                    if answer.status.is_success() {
                         serde_json::Value::Null
                     } else {
-                        response_headers_snapshot(response.headers())
+                        response_headers_snapshot(&answer.headers)
                     },
                 )
             },
@@ -592,11 +602,7 @@ impl ChokePoint {
         // permit live through the complete exchange even for a malformed
         // server response that does carry one.
         let completed = match sent {
-            Ok(response) => {
-                let status = response.status();
-                let body = response.text().await.map_err(|error| error.to_string());
-                Ok((status, body))
-            }
+            Ok(answer) => Ok((answer.status, answer.body.await)),
             Err(error) => Err(error),
         };
         let outcome: Result<Policy, String> = match &completed {
@@ -752,13 +758,13 @@ impl ChokePoint {
     fn observe(
         &self,
         endpoint: &str,
-        result: &Result<reqwest::Response, String>,
+        result: &Result<Answer, String>,
         retry_after: &RetryAfter,
         counted: bool,
     ) -> Result<(), PolicyObservationError> {
         if let Ok(r) = result {
-            let policy = Policy::from_headers(r.headers());
-            let raw = rate_limit_snapshot(r.headers());
+            let policy = Policy::from_headers(&r.headers);
+            let raw = rate_limit_snapshot(&r.headers);
             let mut limiter = self.limiter.lock().unwrap();
             let observation = limiter.observe_landed(
                 endpoint,
@@ -767,7 +773,7 @@ impl ChokePoint {
                     retry_after,
                     raw,
                     counted,
-                    status: r.status().as_u16(),
+                    status: r.status.as_u16(),
                     now: self.now(),
                 },
             );
@@ -795,13 +801,13 @@ impl ChokePoint {
         endpoint: &str,
         method: &'static str,
         url: &str,
-        result: Result<reqwest::Response, String>,
+        result: Result<Answer, String>,
         counted: bool,
         wait: Duration,
         keep_protocol_body: bool,
     ) -> Result<CompletedResponse, SendError> {
-        let retry_after = result.as_ref().map_or(RetryAfter::Missing, |response| {
-            retry_after_from_headers(response.headers())
+        let retry_after = result.as_ref().map_or(RetryAfter::Missing, |answer| {
+            retry_after_from_headers(&answer.headers)
         });
         let observation = self.observe(endpoint, &result, &retry_after, counted);
         if counted && result.is_err() {
@@ -813,31 +819,28 @@ impl ChokePoint {
                 .unwrap()
                 .note_lost_send(endpoint, self.now());
         }
-        let status = result
-            .as_ref()
-            .ok()
-            .map(|response| response.status().as_u16());
+        let status = result.as_ref().ok().map(|answer| answer.status.as_u16());
         let rate = result
             .as_ref()
-            .map(|response| rate_limit_snapshot(response.headers()))
+            .map(|answer| rate_limit_snapshot(&answer.headers))
             .unwrap_or(serde_json::Value::Null);
         let headers = result
             .as_ref()
             .ok()
-            .filter(|response| !response.status().is_success())
-            .map(|response| response_headers_snapshot(response.headers()))
+            .filter(|answer| !answer.status.is_success())
+            .map(|answer| response_headers_snapshot(&answer.headers))
             .unwrap_or(serde_json::Value::Null);
         let result = match result {
-            Ok(response) => {
-                let status = response.status();
+            Ok(answer) => {
+                let status = answer.status;
                 // C130: a 3xx's body echoes its target, query and all, and
                 // every caller turns a non-2xx body into failure or refusal
                 // text. It is drained, so the permit spans the whole
                 // exchange, and replaced here, once, by where it pointed.
                 let redirect = status
                     .is_redirection()
-                    .then(|| redirect_evidence(response.headers()));
-                let body = response.text().await.map_err(|error| error.to_string());
+                    .then(|| redirect_evidence(&answer.headers));
+                let body = answer.body.await;
                 Ok((status, body.map(|body| redirect.unwrap_or(body))))
             }
             Err(error) => Err(error),
@@ -995,13 +998,14 @@ impl ChokePoint {
     ) -> Result<CompletedResponse, SendError> {
         let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
-        let result = self
-            .http
-            .post(url)
-            .form(params)
-            .send()
-            .await
-            .map_err(|e| e.to_string());
+        let mut request = Prepared::new(http::Method::POST, url);
+        request.form = Some(
+            params
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect(),
+        );
+        let result = self.transport.send(request).await;
         self.finish_send(route, "POST", url, result, true, wait, true)
             .await
     }
@@ -1024,11 +1028,11 @@ impl ChokePoint {
             return Err(SendError::StaleBearer);
         };
         let wait = self.now().saturating_duration_since(since);
-        let result = token
-            .authorize(self.http.get(url))
-            .send()
-            .await
-            .map_err(|e| e.to_string());
+        let mut request = Prepared::new(http::Method::GET, url);
+        let result = match token.authorize(&mut request.headers) {
+            Ok(()) => self.transport.send(request).await,
+            Err(error) => Err(error),
+        };
         let response = self
             .finish_send(route, "GET", url, result, true, wait, false)
             .await;
@@ -1054,7 +1058,10 @@ impl ChokePoint {
     ) -> Result<CompletedResponse, SendError> {
         let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
-        let result = self.http.get(url).send().await.map_err(|e| e.to_string());
+        let result = self
+            .transport
+            .send(Prepared::new(http::Method::GET, url))
+            .await;
         self.finish_send(route, "GET", url, result, true, wait, false)
             .await
     }

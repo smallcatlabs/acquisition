@@ -51,6 +51,11 @@ pub fn pkce_pair() -> (Secret, String) {
 #[serde(transparent)]
 pub struct Secret(String);
 
+/// A bearer that cannot be written as a header: the send fails in these
+/// words, which are the daemon's and carry no token text.
+pub(crate) const INVALID_BEARER: &str =
+    "the access token is not a valid HTTP header value; nothing was sent";
+
 impl Secret {
     /// The text: read here alone, where a header, a form or a keyring
     /// write is built from it.
@@ -58,10 +63,17 @@ impl Secret {
         &self.0
     }
 
-    /// `request` carrying this token as its bearer: reqwest's own header,
-    /// marked sensitive.
-    pub fn authorize(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request.bearer_auth(self.expose())
+    /// This token as the bearer in a prepared request's `headers`:
+    /// `Authorization: Bearer <token>`, marked sensitive, as reqwest's
+    /// `bearer_auth` writes it. A token that is no valid header value is
+    /// a send failure in words that name no token text, and nothing is
+    /// sent.
+    pub fn authorize(&self, headers: &mut http::HeaderMap) -> Result<(), String> {
+        let mut value = http::HeaderValue::from_str(&format!("Bearer {}", self.expose()))
+            .map_err(|_| INVALID_BEARER.to_string())?;
+        value.set_sensitive(true);
+        headers.insert(http::header::AUTHORIZATION, value);
+        Ok(())
     }
 
     /// The text, for a test that asserts on what the wire or the keyring
