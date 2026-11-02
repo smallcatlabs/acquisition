@@ -208,7 +208,11 @@ The user-agent is no journal field; the mock holds it instead. It
 answers 400 to any request the daemon sends (an API GET or HEAD, a
 token POST) that does not carry the registration's user-agent, written
 out in `mockggg.rs`, so every test that faces the mock, the journey
-included, fails on a change to either side (invariant 4). A retry
+included, fails on a change to either side (invariant 4). Beside it, the spec's
+table of the four sends
+(`c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_prepared`)
+holds that the user-agent the choke point prepares reaches the wire
+through the production transport. A retry
 through a Cloudflare block is out of the journey's reach: the mock
 never serves a block, and a rule over inputs that never carry the case
 pins nothing.

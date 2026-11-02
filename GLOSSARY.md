@@ -54,6 +54,8 @@ new text uses that word rather than "door".
 - **facet**: one of the two things a league's sync policy covers, its
   tabs or its characters; in the counts view, one field counted on its
   own rather than crossed with another.
+- **fixture** (in the daemon's tests): a test's stand-in for GGG,
+  answering what a transport carries to it.
 - **fold**: what a phase close does to its ledger lines (many into
   one); in the web form, the turning of submitted fields into one
   trade request.
@@ -122,6 +124,9 @@ new text uses that word rather than "door".
   stage of its build.
 - **tail** (a round): the fix round after a step's first fix round.
 - **tail** (of a ledger): its newest rows, the ones read first.
+- **transport**: what carries a prepared request to the provider, or
+  to a fixture under a test, and answers; the choke point prepares the
+  request and classifies the answer (C161, one transport seam).
 - **world**: one store directory, which one daemon locks and serves and
   whose socket is derived from it; a mock world is one made under
   scratch for an agent's session.

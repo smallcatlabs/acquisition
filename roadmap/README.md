@@ -552,4 +552,9 @@ word: the seam's build briefs from the design's §6, steps 1 to 3, each
 Opus-built and reviewed cold, in the window he names beside the
 league; then the login flow as a machine; and Phase 3, the owner's
 league run, at his word. A fresh orchestrating session starts from
-this paragraph, the design brief and #151.
+this paragraph, the design brief and #151. Step 1, the seam with no
+behaviour change (`briefs/transport-seam-1.md`, cut twice under cold
+reviews), landed on 2026-11-01 as five commits from `6ca5b9a3`, this
+line's commit the last: `http` named where its types are, the seam and
+the one client behind it, the two-run table, check 13 and its breakers,
+the words; its cold review is pending.
