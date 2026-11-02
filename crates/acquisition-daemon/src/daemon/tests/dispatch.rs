@@ -18,35 +18,38 @@ use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 use crate::ratelimit::Clock;
+use crate::transport::{Reply, reply};
 use std::future::Future;
 use std::pin::Pin;
 
-async fn saturated_probe_server() -> (String, tokio::task::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let task = tokio::spawn(async move {
-        for (path, policy) in [
-            ("/character", "character-test-policy"),
-            ("/stash/Standard", "stash-list-test-policy"),
-        ] {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = mockggg::read_request(&mut stream).await.unwrap();
-            assert_eq!(request.method, "HEAD");
-            assert_eq!(request.path, path);
-            let headers = format!(
-                "X-Rate-Limit-Policy: {policy}\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 1:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n"
-            );
-            mockggg::respond_with(
-                &mut stream,
-                "204 No Content",
-                "application/json",
-                &headers,
-                "",
-            )
-            .await;
-        }
-    });
-    (base, task)
+/// Two probes answered saturated, `/character`'s then `/stash/Standard`'s,
+/// each a window of one hit already spent; a request off that order is
+/// refused in words that name it. The requests seen come back in
+/// `seen`.
+fn saturated_probe_server(seen: Arc<Mutex<Vec<String>>>) -> Server {
+    let order = Arc::new(Mutex::new(std::collections::VecDeque::from([
+        ("/character", "character-test-policy"),
+        ("/stash/Standard", "stash-list-test-policy"),
+    ])));
+    Server::own(move |request: mockggg::HttpRequest| {
+        seen.lock()
+            .unwrap()
+            .push(format!("{} {}", request.method, request.path));
+        let next = order.lock().unwrap().pop_front();
+        let answer = match next {
+            Some((path, policy)) if request.method == "HEAD" && request.path == path => {
+                let headers = format!(
+                    "X-Rate-Limit-Policy: {policy}\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 1:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n"
+                );
+                reply("204 No Content", &headers, "")
+            }
+            _ => Reply::Failed(format!(
+                "the probe server expected its two HEADs, and {} {} came",
+                request.method, request.path
+            )),
+        };
+        async move { answer }
+    })
 }
 
 fn fetch_payload_marker(outcome: &Outcome) -> &str {
@@ -138,16 +141,11 @@ fn dispatcher_auth_waits_do_not_cap_independent_job_progress() {
 /// independent job runs, so no park moves time under it.
 #[test]
 fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
-    let probes: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>> = Arc::default();
-    let server = probes.clone();
+    let probes: Arc<Mutex<Vec<String>>> = Arc::default();
     let clock = Arc::new(ParkingClock::new());
     let parking = clock.clone();
     Door::open(
-        Server::own(move || async move {
-            let (base, task) = saturated_probe_server().await;
-            *server.lock().unwrap() = Some(task);
-            base
-        }),
+        saturated_probe_server(probes.clone()),
         clock,
         Arc::new(RecordingCredentialStore::default()),
     )
@@ -171,11 +169,11 @@ fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
                 .await
                 .unwrap();
         }
-        let task = probes.lock().unwrap().take().expect("the probe server");
-        tokio::time::timeout(HANG, task)
-            .await
-            .expect("the probe server answered both")
-            .unwrap();
+        assert_eq!(
+            *probes.lock().unwrap(),
+            ["HEAD /character", "HEAD /stash/Standard"],
+            "the probe server answered both"
+        );
 
         let characters = daemon
             .submit("characters".into(), json!({}), 0, "test".into(), None)
@@ -2121,10 +2119,13 @@ fn wire_rows() -> Vec<Row> {
     // carries its cause's words, never the server's port.
     let ggg = ScriptedResponse::full("GET", "200 OK", None, "").headers;
     // A 200 whose body is cut short of its `Content-Length` is a transport
-    // failure, in the transport path's words, never bad JSON: the body is
-    // read before anything classifies it
+    // failure, in the transport's words, never bad JSON: the body is read
+    // before anything classifies it
     // (`body_read_transport_failure_is_not_recast_as_bad_json`). The send
-    // is journaled not ok, with its status.
+    // is journaled not ok, with its status. The words are the test
+    // transport's (C161: no scenario's exchange is real I/O); reqwest's
+    // own words for a cut body are held where reqwest runs, by the spec's
+    // real-wiring `truncated_429_and_500_keep_status_and_record_transfer_evidence`.
     rows.push(Row {
         name: "a_200_cut_short_is_a_transport_failure_not_bad_json".into(),
         script: vec![
@@ -2136,7 +2137,7 @@ fn wire_rows() -> Vec<Row> {
         steps: fetched(Failed),
         jobs: vec![
             Job::fetch(Failed)
-                .carries(&["GET http://", "/fetch failed: ", "error decoding response body"])
+                .carries(&["GET http://", "/fetch failed: ", crate::transport::SHORT_BODY])
                 .lacks(&["bad JSON"]),
             Job::probe(Done),
         ],
@@ -2161,7 +2162,10 @@ fn wire_rows() -> Vec<Row> {
         jobs: vec![
             Job::fetch(Failed).carries(&[
                 "returned 500",
-                "a body read transport failure: error decoding response body",
+                &format!(
+                    "a body read transport failure: {}",
+                    crate::transport::SHORT_BODY
+                ),
             ]),
             Job::probe(Done),
         ],

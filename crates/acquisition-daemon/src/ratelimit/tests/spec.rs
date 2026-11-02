@@ -3071,6 +3071,19 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
         assert!(!send.ok);
         assert!(send.outcome.starts_with(status_line));
         assert!(send.outcome.contains("body transfer failure"));
+        // reqwest's own words for a cut body, which a job's failure
+        // carries to a user: held here, where reqwest runs (C161: the
+        // door's scenarios meet the test transport's words instead).
+        let words = "error decoding response body";
+        assert!(
+            response
+                .body
+                .as_ref()
+                .is_err_and(|error| error.contains(words)),
+            "{:?}",
+            response.body
+        );
+        assert!(send.outcome.contains(words), "{}", send.outcome);
         server.await.unwrap();
     }
 }

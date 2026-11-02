@@ -20,6 +20,7 @@
 use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
+use crate::transport::{Reply, reply};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{mpsc, oneshot};
 
@@ -53,43 +54,34 @@ fn api_headers(policy: &str) -> String {
 /// script: a stale bearer gets 401 on any route (on GETs only when
 /// `probe_checks_bearer` is false — whether GGG's HEAD checks the
 /// bearer is unobserved, so both shapes are driven), the token
-/// endpoint rotates to a fresh one, everything else succeeds. Bound and
-/// spawned inside the door's runtime ([`Server::own`]), it runs until
-/// the runtime ends; its base URL comes back. Scenario tests assert
+/// endpoint rotates to a fresh one, everything else succeeds. The
+/// scenario's own transport ([`Server::own`]). Scenario tests assert
 /// invariants over the journal, so the server must not encode the
 /// expected sequence.
-async fn bearer_aware_server(
+fn bearer_aware_server(
     stale_bearer: &'static str,
     fresh_bearer: &'static str,
     probe_checks_bearer: bool,
-) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let Some(request) = mockggg::read_request(&mut stream).await else {
-                continue;
-            };
-            let bearer = bearer_of(&request);
-            let api = api_headers("scenario-policy");
-            let (status, headers, body) = if request.path == "/token" {
-                rotated(fresh_bearer)
-            } else if bearer == stale_bearer && (probe_checks_bearer || request.method != "HEAD") {
-                (
-                    "401 Unauthorized",
-                    api,
-                    r#"{"error":"expired"}"#.to_string(),
-                )
-            } else if request.method == "HEAD" {
-                ("204 No Content", api, String::new())
-            } else {
-                ("200 OK", api, r#"{"characters":[]}"#.to_string())
-            };
-            mockggg::respond_with(&mut stream, status, "application/json", &headers, &body).await;
-        }
-    });
-    base
+) -> Server {
+    Server::own(move |request: mockggg::HttpRequest| {
+        let bearer = bearer_of(&request);
+        let api = api_headers("scenario-policy");
+        let (status, headers, body) = if request.path == "/token" {
+            rotated(fresh_bearer)
+        } else if bearer == stale_bearer && (probe_checks_bearer || request.method != "HEAD") {
+            (
+                "401 Unauthorized",
+                api,
+                r#"{"error":"expired"}"#.to_string(),
+            )
+        } else if request.method == "HEAD" {
+            ("204 No Content", api, String::new())
+        } else {
+            ("200 OK", api, r#"{"characters":[]}"#.to_string())
+        };
+        let answer = reply(status, &headers, &body);
+        async move { answer }
+    })
 }
 
 /// `scenario-user` holding `at-old`, issued an hour before it expires on
@@ -154,7 +146,7 @@ fn rejected_access_token_scenario(probe_checks_bearer: bool, methods: [&str; 4])
     let clock = Arc::new(ParkingClock::new());
     let sessions = stale_session(&clock);
     Door::open(
-        Server::own(move || bearer_aware_server("at-old", "at-new", probe_checks_bearer)),
+        bearer_aware_server("at-old", "at-new", probe_checks_bearer),
         clock,
         Arc::new(NoopCredentialStore),
     )
@@ -249,15 +241,13 @@ struct Recording {
 /// method, bearer, and whether this server had already *answered* a 401
 /// by then — and a GET carrying the stale bearer is announced on `held`
 /// and held until `release`, then answered 401. The token endpoint
-/// rotates to the fresh bearer. Bound and spawned inside the door's
-/// runtime; the scenario's halves come back through `recording`.
-async fn bearer_recording_server(
+/// rotates to the fresh bearer. The scenario's own transport; its halves
+/// come back through `recording`.
+fn bearer_recording_server(
     stale_bearer: &'static str,
     fresh_bearer: &'static str,
     recording: oneshot::Sender<Recording>,
-) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
+) -> Server {
     let arrivals: Arc<Mutex<Vec<Arrival>>> = Arc::default();
     let holding = Arc::new(AtomicBool::new(false));
     let (held_tx, held) = mpsc::unbounded_channel();
@@ -269,60 +259,54 @@ async fn bearer_recording_server(
         held,
         release,
     });
-    tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let arrivals = arrivals.clone();
-            let holding = holding.clone();
-            let held_tx = held_tx.clone();
-            let answered_401 = answered_401.clone();
-            let mut released = released.clone();
-            tokio::spawn(async move {
-                let Some(request) = mockggg::read_request(&mut stream).await else {
-                    return;
-                };
-                let bearer = bearer_of(&request);
-                let api = api_headers(&format!("scenario{}", request.path.replace('/', "-")));
-                let held_phase = holding.load(Ordering::SeqCst);
-                let (status, headers, body) = if request.path == "/token" {
-                    rotated(fresh_bearer)
-                } else {
-                    if held_phase {
-                        arrivals.lock().unwrap().push((
-                            request.method.clone(),
-                            bearer.clone(),
-                            answered_401.load(Ordering::SeqCst),
-                        ));
-                    }
-                    if request.method == "HEAD" {
-                        ("204 No Content", api, String::new())
-                    } else if held_phase && bearer == stale_bearer {
-                        let _ = held_tx.send(());
-                        while !*released.borrow_and_update() {
-                            if released.changed().await.is_err() {
-                                return;
-                            }
-                        }
-                        answered_401.store(true, Ordering::SeqCst);
-                        (
-                            "401 Unauthorized",
-                            api,
-                            r#"{"error":"expired"}"#.to_string(),
-                        )
-                    } else {
-                        (
-                            "200 OK",
-                            api,
-                            r#"{"characters":[],"stashes":[]}"#.to_string(),
-                        )
-                    }
-                };
-                mockggg::respond_with(&mut stream, status, "application/json", &headers, &body)
-                    .await;
-            });
+    Server::own(move |request: mockggg::HttpRequest| {
+        let bearer = bearer_of(&request);
+        let api = api_headers(&format!("scenario{}", request.path.replace('/', "-")));
+        let held_phase = holding.load(Ordering::SeqCst);
+        if request.path != "/token" && held_phase {
+            arrivals.lock().unwrap().push((
+                request.method.clone(),
+                bearer.clone(),
+                answered_401.load(Ordering::SeqCst),
+            ));
         }
-    });
-    base
+        let held = request.path != "/token"
+            && request.method != "HEAD"
+            && held_phase
+            && bearer == stale_bearer;
+        if held {
+            let _ = held_tx.send(());
+        }
+        let (answered_401, mut released) = (answered_401.clone(), released.clone());
+        let method = request.method.clone();
+        let path = request.path.clone();
+        async move {
+            let (status, headers, body) = if path == "/token" {
+                rotated(fresh_bearer)
+            } else if method == "HEAD" {
+                ("204 No Content", api, String::new())
+            } else if held {
+                while !*released.borrow_and_update() {
+                    if released.changed().await.is_err() {
+                        return Reply::Failed("the held request's release was dropped".into());
+                    }
+                }
+                answered_401.store(true, Ordering::SeqCst);
+                (
+                    "401 Unauthorized",
+                    api,
+                    r#"{"error":"expired"}"#.to_string(),
+                )
+            } else {
+                (
+                    "200 OK",
+                    api,
+                    r#"{"characters":[],"stashes":[]}"#.to_string(),
+                )
+            };
+            reply(status, &headers, &body)
+        }
+    })
 }
 
 /// C87 under the gate. Three jobs on three routes hold the same valid
@@ -347,7 +331,7 @@ fn rejected_bearer_under_the_gate(
     let sessions = stale_session(&clock);
     let (recording, recorded) = oneshot::channel();
     Door::open(
-        Server::own(move || bearer_recording_server("at-old", "at-new", recording)),
+        bearer_recording_server("at-old", "at-new", recording),
         clock,
         Arc::new(NoopCredentialStore),
     )
@@ -543,7 +527,7 @@ fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
     let clock = Arc::new(ParkingClock::new());
     let sessions = stale_session(&clock);
     Door::open(
-        Server::own(|| bearer_aware_server("at-old", "at-new", true)),
+        bearer_aware_server("at-old", "at-new", true),
         clock,
         Arc::new(NoopCredentialStore),
     )
@@ -598,42 +582,34 @@ fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
 /// A server whose first GET is Cloudflare's 401 in GGG's place (it
 /// carries `cf-mitigated`, and no GGG header) and every later GET a
 /// 200; HEAD 204, the token endpoint rotating. It records each request's
-/// method and bearer into `wire`. Bound and spawned inside the door's
-/// runtime.
-async fn cloudflare_401_server(wire: Arc<Mutex<Vec<(String, String)>>>) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move {
-        let mut gets = 0;
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let Some(request) = mockggg::read_request(&mut stream).await else {
-                continue;
-            };
-            wire.lock()
-                .unwrap()
-                .push((request.method.clone(), bearer_of(&request)));
-            let api = api_headers("scenario-policy");
-            let (status, headers, body) = if request.path == "/token" {
-                rotated("at-new")
-            } else if request.method == "HEAD" {
-                ("204 No Content", api, String::new())
+/// method and bearer into `wire`. The scenario's own transport.
+fn cloudflare_401_server(wire: Arc<Mutex<Vec<(String, String)>>>) -> Server {
+    let gets = Arc::new(Mutex::new(0));
+    Server::own(move |request: mockggg::HttpRequest| {
+        wire.lock()
+            .unwrap()
+            .push((request.method.clone(), bearer_of(&request)));
+        let api = api_headers("scenario-policy");
+        let (status, headers, body) = if request.path == "/token" {
+            rotated("at-new")
+        } else if request.method == "HEAD" {
+            ("204 No Content", api, String::new())
+        } else {
+            let mut gets = gets.lock().unwrap();
+            *gets += 1;
+            if *gets == 1 {
+                (
+                    "401 Unauthorized",
+                    "cf-mitigated: challenge\r\n".to_string(),
+                    "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>".to_string(),
+                )
             } else {
-                gets += 1;
-                if gets == 1 {
-                    (
-                        "401 Unauthorized",
-                        "cf-mitigated: challenge\r\n".to_string(),
-                        "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>".to_string(),
-                    )
-                } else {
-                    ("200 OK", api, r#"{"characters":[]}"#.to_string())
-                }
-            };
-            mockggg::respond_with(&mut stream, status, "application/json", &headers, &body).await;
-        }
-    });
-    base
+                ("200 OK", api, r#"{"characters":[]}"#.to_string())
+            }
+        };
+        let answer = reply(status, &headers, &body);
+        async move { answer }
+    })
 }
 
 /// C129 over C87: a 401 that Cloudflare gave in GGG's place (it carries
@@ -650,7 +626,7 @@ fn a_cloudflare_401_on_the_get_keeps_the_access_token() {
     let wire: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
     let recorded = wire.clone();
     Door::open(
-        Server::own(move || cloudflare_401_server(recorded)),
+        cloudflare_401_server(recorded),
         clock,
         Arc::new(NoopCredentialStore),
     )
@@ -751,7 +727,7 @@ fn a_token_rejected_is_not_restored_after_a_restart() {
         );
         let lifetime = |clock: &Arc<ParkingClock>| {
             Door::open(
-                Server::own(move || bearer_aware_server("at-kept", "at-new", probe_checks_bearer)),
+                bearer_aware_server("at-kept", "at-new", probe_checks_bearer),
                 clock.clone(),
                 store.clone(),
             )

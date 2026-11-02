@@ -19,20 +19,20 @@
 //! that restores as a start does ([`DoorBuilder::restore`]), serves a
 //! world whose directory holds what a previous lifetime left
 //! ([`DoorBuilder::world`]), reads the
-//! journal ([`Door::journal`]) and what a scripted server received
+//! journal ([`Door::journal`]) and what a scripted transport received
 //! ([`Door::received`]), moves
 //! the clock by its own hand where it means to ([`Door::advance`],
 //! [`Door::laptop_sleep`]) and ends through the oracles
 //! ([`Door::finish`]). It never polls and never yields: the runtime parks
 //! whenever nothing can run, and the hook then moves the clock to its
-//! next deadline unless a send or a blocking task is in flight. A
-//! scenario that waits on something outside the daemon that neither
-//! count sees (a browser's callback, a request to its own server before
-//! it reaches the wire) holds the clock across that wait
+//! next deadline unless a fixture's transport holds a request or a
+//! blocking task is in flight. A scenario that waits on something
+//! outside the daemon that neither count sees (a browser's callback to
+//! the daemon's own listener) holds the clock across that wait
 //! ([`Door::hold_clock`]), so the hook moves no deadline, the idle
 //! deadline of [`DoorBuilder::life`] among them, under it. C160, the
-//! verdict: a park at which nothing is parked on the clock and no send,
-//! blocking task or hold is pending is one nothing the hook accounts for
+//! verdict: a park at which nothing is parked on the clock and no held
+//! request, blocking task or hold is pending is one nothing the hook accounts for
 //! can wake, so a door wait pending there fails at that park, naming
 //! what it waited for, with `HANG` the backstop behind it for a wait the
 //! hook does not read (a door opened [`DoorBuilder::beside`] another).
@@ -61,51 +61,50 @@
 use super::harness::*;
 use crate::daemon::server::InFlight;
 use crate::daemon::*;
+use crate::mockggg::HttpRequest;
 use crate::ratelimit::Clock;
+use crate::transport::{self, Ends, Hold, InProcess, Reply};
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::oneshot;
 
-/// What the daemon faces: one of the harness's fixtures, each as it
-/// stands, constructed inside the door's runtime.
+/// What the daemon faces (C161): one of the test support's in-process
+/// transports (`crate::transport`), answering at its base, every request
+/// it holds a hold the park hook sees.
 pub(super) enum Server {
-    /// [`scripted_server`]: one connection per response, in order.
+    /// The scripted transport: one response per request, in order.
     Script(Vec<ScriptedResponse>),
-    /// [`account_server`], answering by account, holding the request
+    /// The account transport, answering by account, holding the request
     /// `hold` names.
     Account((&'static str, &'static str, usize)),
-    /// One of the two token servers.
+    /// One of the token transports.
     Token(Token),
-    /// The stateful mock ([`mockggg::start_with_clock`]) on the door's
-    /// clock.
+    /// The stateful mock's in-process face, on the door's clock.
     Mock,
-    /// A server the scenario builds itself ([`Server::own`]): the closure
-    /// runs inside the door's runtime before the daemon is built, binds
-    /// and spawns there, and answers the server's base URL. What the
-    /// server records and the barriers it holds are the scenario's own,
-    /// captured before (an `Arc`, a oneshot); the door reads nothing of
-    /// it and awaits nothing of it at [`Door::finish`].
+    /// A transport the scenario builds itself ([`Server::own`]): its
+    /// closure answers each request. What it records and the barriers it
+    /// holds are the scenario's own, captured before (an `Arc`, a
+    /// oneshot); the door reads nothing of it and awaits nothing of it
+    /// at [`Door::finish`].
     Own(OwnServer),
-    /// No server: a base nothing listens on.
+    /// No fixture: the refusing transport.
     None,
 }
 
-/// [`Server::Own`]'s builder: run once, inside the door's runtime, it
-/// answers the base URL of the server it bound. Not `Send`: the door's
-/// runtime is one thread, and the closure runs on it.
-pub(super) type OwnServer = Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = String>>>>;
+/// [`Server::Own`]'s transport, built on the door's hold.
+pub(super) type OwnServer = Box<dyn FnOnce(&Hold) -> InProcess>;
 
 impl Server {
-    /// [`Server::Own`] from an async closure: `build` binds the
-    /// scenario's listener and spawns its server inside the door's
-    /// runtime, answering the base URL.
-    pub(super) fn own<F, Fut>(build: F) -> Server
+    /// [`Server::Own`] from a closure answering each request, as
+    /// [`InProcess::new`] takes it: what it records before its first
+    /// await is recorded in the send's first poll, and the hold spans
+    /// the request it answers like any fixture's.
+    pub(super) fn own<F, Fut>(respond: F) -> Server
     where
-        F: FnOnce() -> Fut + 'static,
-        Fut: Future<Output = String> + 'static,
+        F: Fn(HttpRequest) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Reply> + Send + 'static,
     {
-        Server::Own(Box::new(move || Box::pin(build())))
+        Server::Own(Box::new(move |hold| InProcess::new(hold, respond)))
     }
 }
 
@@ -120,10 +119,10 @@ impl Drop for ClockHold {
     }
 }
 
-/// The token server a scenario holds a refresh at (a scripted token
+/// The token transport a scenario holds a refresh at (a scripted token
 /// answer is [`Server::Script`]'s, through [`token_answer`]).
 pub(super) enum Token {
-    /// [`delayed_token_server`]: one refresh of `rt-old`, answered on
+    /// [`transport::delayed_token`]: one refresh of `rt-old`, answered on
     /// release with the status and the body given (a grant's body is
     /// [`token_body`]'s).
     Delayed(&'static str, String),
@@ -134,11 +133,12 @@ pub(super) enum Token {
 #[allow(dead_code)] // the fields the later rounds' scenarios read
 pub(super) enum Fixture {
     Script {
-        /// The methods the server received, in order.
+        /// The methods the transport received, in order.
         wire: Arc<Mutex<Vec<String>>>,
         /// Each request whole, in order ([`Door::received`]).
         received: Arc<Mutex<Vec<Received>>>,
-        server: tokio::task::JoinHandle<()>,
+        /// Its faults and its end, the script answered whole.
+        ends: Ends,
     },
     Account {
         sent: Arc<Mutex<Vec<Sent>>>,
@@ -148,9 +148,11 @@ pub(super) enum Fixture {
     Delayed {
         arrived: Option<oneshot::Receiver<()>>,
         release: Option<oneshot::Sender<()>>,
-        server: tokio::task::JoinHandle<()>,
+        /// Its faults and its end, the refresh answered.
+        ends: Ends,
     },
-    Mock,
+    /// The mock's state, which [`Door::browser`] reads its pages from.
+    Mock(mockggg::Mock),
     Own,
     None,
 }
@@ -162,8 +164,9 @@ pub(super) enum Fixture {
 pub(super) struct Counters {
     /// Parks that moved the clock to its next deadline.
     pub(super) advances: usize,
-    /// Parks that found a send in flight and left the clock.
-    pub(super) held_by_send: usize,
+    /// Parks that found a request a test transport holds and left the
+    /// clock.
+    pub(super) held_by_transport: usize,
     /// Parks that found a blocking task in flight and left the clock.
     pub(super) held_by_blocking: usize,
     /// Parks that found the scenario holding the clock
@@ -184,9 +187,9 @@ pub(super) struct Counters {
 
 /// C158, the park hook: run at every park of the door's current-thread
 /// runtime, which parks only when no task is runnable. It moves the
-/// clock to its next deadline unless a send is in flight (the gate's
-/// occupancy, from just before dispatch until the body completes) or a
-/// blocking task is (`Daemon::blocking`'s count, a landing or the idle
+/// clock to its next deadline unless a test transport holds a request
+/// (C160 as amended: the door's [`Hold`], from the send's first poll
+/// until its body completes or it is dropped) or a blocking task is (`Daemon::blocking`'s count, a landing or the idle
 /// verdict on its thread): then the park is the wire's or the blocking
 /// thread's, and time must not move under it; nor while the scenario
 /// holds the clock across a wait of its own ([`Door::hold_clock`]).
@@ -204,6 +207,8 @@ pub(super) struct Counters {
 struct IdleHook {
     clock: Arc<ParkingClock>,
     daemon: Arc<Daemon>,
+    /// The requests the door's transports hold.
+    hold: Hold,
     /// Shared with the door, which reads them ([`Door::counters`]).
     counters: Arc<Mutex<Counters>>,
     /// The scenario's holds ([`Door::hold_clock`]).
@@ -240,7 +245,7 @@ impl Counters {
     fn print(&self, what: &str) {
         let Counters {
             advances,
-            held_by_send,
+            held_by_transport,
             held_by_blocking,
             held_by_scenario,
             nothing_parked,
@@ -249,7 +254,7 @@ impl Counters {
             quiets,
         } = self;
         eprintln!(
-            "door-counters {} {what} advances={advances} held_by_send={held_by_send} \
+            "door-counters {} {what} advances={advances} held_by_transport={held_by_transport} \
              held_by_blocking={held_by_blocking} held_by_scenario={held_by_scenario} \
              settles={settles} quiets={quiets} nothing_parked={nothing_parked} stuck={stuck}",
             scenario_name()
@@ -273,9 +278,9 @@ impl IdleHook {
         } else if self.holds.load(Ordering::SeqCst) > 0 {
             counters.held_by_scenario += 1;
             "held_by_scenario"
-        } else if self.daemon.choke.actual_send_occupancy().0 > 0 {
-            counters.held_by_send += 1;
-            "held_by_send"
+        } else if self.hold.count() > 0 {
+            counters.held_by_transport += 1;
+            "held_by_transport"
         } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
             counters.held_by_blocking += 1;
             "held_by_blocking"
@@ -377,6 +382,8 @@ pub(super) struct Door {
     counters: Arc<Mutex<Counters>>,
     /// The scenario's holds on the clock, which the hook reads.
     holds: Arc<AtomicUsize>,
+    /// The requests the door's transports hold, which the hook reads.
+    hold: Hold,
     /// The scenario's wait for a settled runtime, which the hook wakes.
     settle: SettleSlot,
     /// The scenario's wait for a quiet runtime, which the hook wakes.
@@ -570,6 +577,7 @@ impl DoorBuilder {
             *slot.lock().unwrap() = Some(IdleHook {
                 clock: door.clock.clone(),
                 daemon: door.daemon.clone(),
+                hold: door.hold.clone(),
                 counters: counters.clone(),
                 holds: door.holds.clone(),
                 settle: door.settle.clone(),
@@ -610,47 +618,48 @@ impl DoorBuilder {
         door
     }
 
-    /// The fixture, then the daemon on the clock, journaling to a scratch
-    /// path, its dispatcher spawned. Inside the runtime: the servers bind
-    /// their listeners on it.
+    /// The fixture's transport on the door's hold, then the daemon on the
+    /// clock over it, journaling to a scratch path, its dispatcher
+    /// spawned.
     async fn build(self) -> Door {
-        let (base, fixture) = match self.server {
+        let hold = Hold::new();
+        let (transport, fixture) = match self.server {
             Server::Script(script) => {
-                let (base, wire, received, server) = scripted_server_received(script).await;
+                let script = script.into_iter().map(Into::into).collect();
+                let (transport, record) = transport::scripted(&hold, script);
                 let fixture = Fixture::Script {
-                    wire,
-                    received,
-                    server,
+                    wire: record.wire,
+                    received: record.received,
+                    ends: record.ends,
                 };
-                (base, fixture)
+                (transport, fixture)
             }
-            Server::Account(hold) => {
-                let (base, sent, arrived, release) = account_server(hold).await;
+            Server::Account(held) => {
+                let (transport, record) = transport::account(&hold, held);
                 let fixture = Fixture::Account {
-                    sent,
-                    arrived: Some(arrived),
-                    release: Some(release),
+                    sent: record.sent,
+                    arrived: Some(record.arrived),
+                    release: Some(record.release),
                 };
-                (base, fixture)
+                (transport, fixture)
             }
             Server::Token(Token::Delayed(status, body)) => {
-                let (base, arrived, release, server) = delayed_token_server(status, body).await;
+                let (transport, record) = transport::delayed_token(&hold, status, body);
                 let fixture = Fixture::Delayed {
-                    arrived: Some(arrived),
-                    release: Some(release),
-                    server,
+                    arrived: Some(record.arrived),
+                    release: Some(record.release),
+                    ends: record.ends,
                 };
-                (base, fixture)
+                (transport, fixture)
             }
             Server::Mock => {
-                let base = mockggg::start_with_clock(self.clock.clone(), 1)
-                    .await
-                    .expect("the mock starts");
-                (base, Fixture::Mock)
+                let (transport, mock) = transport::mock(&hold, self.clock.clone());
+                (transport, Fixture::Mock(mock))
             }
-            Server::Own(build) => (build().await, Fixture::Own),
-            Server::None => ("http://127.0.0.1:1".to_string(), Fixture::None),
+            Server::Own(build) => (build(&hold), Fixture::Own),
+            Server::None => (transport::refusing(&hold), Fixture::None),
         };
+        let base = transport::BASE;
         let clock: Arc<dyn Clock> = self.clock.clone();
         let log_path = test_log_path();
         let journal = journal_of(&log_path);
@@ -675,12 +684,13 @@ impl DoorBuilder {
         let provider = if self.real_named {
             Provider {
                 name: acquisition_protocol::provider::GGG,
-                ..Provider::mock(&base)
+                ..Provider::mock(base)
             }
         } else {
-            Provider::mock(&base)
+            Provider::mock(base)
         };
         let mut builder = Daemon::builder(provider, clock, self.credentials, log)
+            .transport(Box::new(transport))
             .rails(rails)
             .sessions(self.sessions)
             .restore_landed(self.restore_landed)
@@ -737,6 +747,7 @@ impl DoorBuilder {
             leave,
             counters: Arc::default(),
             holds: Arc::default(),
+            hold,
             settle: Arc::default(),
             quiet: Arc::default(),
             stuck: Arc::default(),
@@ -798,13 +809,13 @@ impl Door {
 
     /// C158: the runtime settled. Resolves at the first park at which the
     /// hook would move the clock or find nothing parked: no task can run,
-    /// no send and no blocking task is in flight, and the scenario does
-    /// not hold the clock. That park moves nothing; the scenario resumes
+    /// no transport holds a request, no blocking task is in flight, and
+    /// the scenario does not hold the clock. That park moves nothing; the scenario resumes
     /// in its place. For a state that must hold once the daemon has done
     /// all it can without time moving (a halted daemon's sibling left
-    /// waiting), never a sleep that stands for it. Under a send the
-    /// scenario holds at its own fixture it never resolves (the held send
-    /// leaves the clock, and settling waits on it): that wait is
+    /// waiting), never a sleep that stands for it. Under a request the
+    /// scenario holds at its own fixture it never resolves (the held
+    /// request leaves the clock, and settling waits on it): that wait is
     /// [`Self::quiet`]'s. Needs the door's own hook: a door opened
     /// [`DoorBuilder::beside`] another has none.
     pub(super) async fn settle(&self) {
@@ -818,18 +829,19 @@ impl Door {
     }
 
     /// C158: the runtime quiet. Resolves at the next park, at which no
-    /// task can run, whatever holds the clock (a send, a blocking task,
-    /// a hold of the scenario's); that park moves nothing, and the
-    /// scenario resumes in its place. The rule: a scenario calls it only
-    /// after the arrival barrier of a request it holds at its own
-    /// fixture has fired (`Fixture::Account`'s or `Fixture::Delayed`'s
-    /// `arrived`), never before. Under that held send every task the
-    /// daemon runs for a request has either answered or parked on what
-    /// it waits for (the refresh flight's result, the gate's queue), so
-    /// the park is the runtime's own word that the waiters joined and a
-    /// parked job reached the gate, never a count of receivers. Before an
-    /// arrival a park may be a socket read's on the way to the fixture,
-    /// and the quiet would resolve early. Where nothing is held and the
+    /// task can run, whatever holds the clock (a request a transport
+    /// holds, a blocking task, a hold of the scenario's); that park moves
+    /// nothing, and the scenario resumes in its place. The rule: a
+    /// scenario whose assertion depends on a request having reached its
+    /// fixture calls it only after that request's arrival barrier has
+    /// fired (`Fixture::Account`'s or `Fixture::Delayed`'s `arrived`),
+    /// never before: a park on the way to the transport (a pacing sleep,
+    /// a credential read on its blocking thread) still resolves it first.
+    /// Under that held request every task the daemon runs for a request
+    /// has either answered or parked on what it waits for (the refresh
+    /// flight's result, the gate's queue), so the park is the runtime's
+    /// own word that the waiters joined and a parked job reached the
+    /// gate, never a count of receivers. Where nothing is held and the
     /// state must hold once the daemon has done all it can, the wait is
     /// [`Self::settle`]'s. Needs the door's own hook.
     pub(super) async fn quiet(&self) {
@@ -842,22 +854,42 @@ impl Door {
             .expect("the park hook woke the quiet");
     }
 
-    /// The browser, as the user's: a `GET` of `url` under
-    /// [`Self::hold_clock`] (the daemon's callback listener is a wait no
-    /// count of the daemon's sees), following one redirect (the mock's
-    /// `/approve` answers one, to the daemon's callback), its last answer
-    /// read as the user reads the page: the status and the body.
+    /// The browser, as the user's: a `GET` of `url`, following one
+    /// redirect (the mock's `/approve` answers one, to the daemon's
+    /// callback), its last answer read as the user reads the page: the
+    /// status and the body. A page of the mock's (`url` at the fixture's
+    /// base) is read from the door's mock in-process
+    /// ([`transport::mock_page`]); a page of the daemon's callback
+    /// listener is a real `GET`, under [`Self::hold_clock`], since that
+    /// listener is a wait no count of the hook's sees.
     pub(super) async fn browser(&self, url: &str) -> (reqwest::StatusCode, String) {
+        let mut url = url.to_string();
+        let mut redirects = 1;
+        if url.starts_with(transport::BASE) {
+            let Fixture::Mock(mock) = &self.fixture else {
+                panic!("the browser reads a page of the fixture's base from the mock alone")
+            };
+            let (status, headers, page) =
+                transport::mock_page(mock, &url).expect("the mock's page reads");
+            if !status.is_redirection() {
+                return (status, page);
+            }
+            url = headers[reqwest::header::LOCATION]
+                .to_str()
+                .expect("the redirect's target reads")
+                .to_string();
+            redirects = 0;
+        }
         let _hold = self.hold_clock();
         let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::limited(1))
+            .redirect(reqwest::redirect::Policy::limited(redirects))
             .build()
             .expect("the browser builds");
         // A wait the scenario starts off the daemon is bounded whole:
         // the answer and its page under one `HANG`, never by halves.
         tokio::time::timeout(HANG, async {
             let answered = client
-                .get(url)
+                .get(&url)
                 .send()
                 .await
                 .expect("the browser's request went through");
@@ -879,10 +911,12 @@ impl Door {
 
     /// C158: hold the clock until the guard drops: while it stands, the
     /// park hook moves no deadline. For a wait of the scenario's own that
-    /// neither the gate's occupancy nor the blocking count sees (a
-    /// browser's callback to the daemon's listener, a request on its way
-    /// to the scenario's own server), so the time the scenario reads is
-    /// the time it moved, not the time the hook found parked beside it.
+    /// neither the transports' hold nor the blocking count sees: a real
+    /// `GET` to the daemon's callback listener ([`Self::browser`]'s, or a
+    /// scenario's hand-rolled one), so the time the scenario reads is the
+    /// time it moved, not the time the hook found parked beside it; or a
+    /// scenario's deliberate freeze of the clock while work runs beside
+    /// parked waits.
     pub(super) fn hold_clock(&self) -> ClockHold {
         self.holds.fetch_add(1, Ordering::SeqCst);
         ClockHold(self.holds.clone())
@@ -1095,8 +1129,8 @@ impl Door {
 
     /// The held request's two barriers, taken once: `arrived` fires when
     /// the request the fixture holds is in, and the request is answered
-    /// when `release` fires. The account server's hold or the delayed
-    /// token server's refresh.
+    /// when `release` fires. The account transport's hold or the delayed
+    /// token transport's refresh.
     pub(super) fn held(&mut self) -> (oneshot::Receiver<()>, oneshot::Sender<()>) {
         let (Fixture::Account {
             arrived, release, ..
@@ -1105,7 +1139,7 @@ impl Door {
             arrived, release, ..
         }) = &mut self.fixture
         else {
-            panic!("only the account server and the delayed token server hold a request")
+            panic!("only the account and the delayed token transports hold a request")
         };
         (
             arrived.take().expect("the arrival, taken once"),
@@ -1113,17 +1147,17 @@ impl Door {
         )
     }
 
-    /// What the account server received so far, in order: each request's
+    /// What the account transport received so far, in order: each request's
     /// method and the account it named (a grant's, or a bearer's). The
     /// wire, read at the fixture, which the journal is held against.
     pub(super) fn sent(&self) -> Vec<Sent> {
         let Fixture::Account { sent, .. } = &self.fixture else {
-            panic!("only the account server records the accounts sent for")
+            panic!("only the account transport records the accounts sent for")
         };
         sent.lock().unwrap().clone()
     }
 
-    /// What the scripted server received so far, in order, each request
+    /// What the scripted transport received so far, in order, each request
     /// whole: its method, path, bearer and body ([`Received`]). The wire,
     /// read at the fixture: a token's value is a boundary property only
     /// through a send that carries it (a grant in a `POST /token`'s body,
@@ -1131,7 +1165,7 @@ impl Door {
     /// names.
     pub(super) fn received(&self) -> Vec<Received> {
         let Fixture::Script { received, .. } = &self.fixture else {
-            panic!("only the scripted server records each request whole")
+            panic!("only the scripted transport records each request whole")
         };
         received.lock().unwrap().clone()
     }
@@ -1200,14 +1234,16 @@ impl Door {
 
     /// The teardown, run always: the lifecycle's driver, if it has not
     /// left, is aborted (and the dispatcher, as always, by the oracles'
-    /// teardown); a server that answers a script is
-    /// awaited to its end (its assertions are the scenario's), the
-    /// journal must exist, and the oracles the server kind selects run:
-    /// the contract oracle with "never over the limit" against the mock,
-    /// with "pacing follows responses" otherwise, exact since the door's
-    /// clock is manual; a script's journal is held equal to its wire too.
-    /// A server's end fails at the park where nothing the hook accounts
-    /// for can bring it (C160), `HANG` the backstop behind that verdict.
+    /// teardown); a scripted transport is awaited until its script has
+    /// been asked whole, and the delayed token transport until its refresh
+    /// was answered, each then found without a fault (a request it did
+    /// not expect); the journal must exist, and the oracles the fixture
+    /// kind selects run: the contract oracle with "never over the limit"
+    /// against the mock, with "pacing follows responses" otherwise, exact
+    /// since the door's clock is manual; a script's journal is held equal
+    /// to its wire too. A fixture's end fails at the park where nothing
+    /// the hook accounts for can bring it (C160), `HANG` the backstop
+    /// behind that verdict.
     pub(super) async fn finish(mut self) {
         self.finished = true;
         if let Some(life) = self.life.take() {
@@ -1215,20 +1251,22 @@ impl Door {
         }
         let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
         let wire = match &mut self.fixture {
-            Fixture::Script { wire, server, .. } => {
-                let awaiting = "awaiting the scripted server's end, its script answered whole";
-                let ceiling = "the script was answered whole";
-                or_stuck(stuck, counters, awaiting.into(), ceiling, server)
-                    .await
-                    .expect("the scripted server's assertions held");
+            Fixture::Script { wire, ends, .. } => {
+                let awaiting = "awaiting the scripted transport's end, its script asked whole";
+                let ceiling = "the script was asked whole";
+                or_stuck(stuck, counters, awaiting.into(), ceiling, ends.answered()).await;
+                assert_eq!(ends.faults(), Vec::<String>::new(), "the script's faults");
                 Some(wire.lock().unwrap().clone())
             }
-            Fixture::Delayed { server, .. } => {
-                let awaiting = "awaiting the token server's end, its refresh answered";
-                let ceiling = "the token server was answered whole";
-                or_stuck(stuck, counters, awaiting.into(), ceiling, server)
-                    .await
-                    .expect("the token server's assertions held");
+            Fixture::Delayed { ends, .. } => {
+                let awaiting = "awaiting the token transport's end, its refresh answered";
+                let ceiling = "the token transport was answered whole";
+                or_stuck(stuck, counters, awaiting.into(), ceiling, ends.answered()).await;
+                assert_eq!(
+                    ends.faults(),
+                    Vec::<String>::new(),
+                    "the token fixture's faults"
+                );
                 None
             }
             _ => None,
@@ -1240,7 +1278,7 @@ impl Door {
         if let Some(wire) = wire {
             assert_journal_matches_wire(&self.log_path, &wire);
         }
-        if matches!(self.fixture, Fixture::Mock) {
+        if matches!(self.fixture, Fixture::Mock(_)) {
             finish_harness_mock(self.dispatcher.take(), &self.log_path);
         } else {
             finish_harness(self.dispatcher.take(), &self.log_path);
@@ -1259,8 +1297,8 @@ impl Drop for Door {
 /// C160, a door wait: `wait` raced against the park hook's verdict, the
 /// wait polled first (`biased`), so a wait the same park answers wins.
 /// The verdict's arm panics naming what was awaited and the counters: the
-/// park found nothing parked on the clock, no send, no blocking task and
-/// no hold, so nothing the hook accounts for can bring the answer. `HANG`
+/// park found nothing parked on the clock, no request a transport holds,
+/// no blocking task and no hold, so nothing the hook accounts for can bring the answer. `HANG`
 /// stays around both as the backstop a wait outside the accounting can
 /// still reach (a door opened [`DoorBuilder::beside`] another, whose slot
 /// no hook reads), panicking with `ceiling`.
@@ -1289,14 +1327,15 @@ async fn or_stuck<T>(
             let counters = *counters.lock().unwrap();
             panic!(
                 "the daemon can be woken by nothing the hook accounts for: nothing parked on \
-                 its clock, no send, no blocking task, no hold; {awaiting} ({counters:?})"
+                 its clock, no request a transport holds, no blocking task, no hold; {awaiting} \
+                 ({counters:?})"
             )
         }
         Err(_) => panic!("{ceiling}"),
     }
 }
 
-/// The methods of a record of the account server's wire ([`Door::sent`]),
+/// The methods of a record of the account transport's wire ([`Door::sent`]),
 /// for the journal's comparison ([`Door::journal_methods`]).
 pub(super) fn wire_methods_of(wire: &[Sent]) -> Vec<String> {
     wire.iter().map(|(method, _)| method.clone()).collect()
@@ -1358,7 +1397,7 @@ pub(super) fn stray_callbacks(authorize_url: &str) -> [String; 4] {
 /// halts it, the first job waiting with its retry spent; a second job
 /// submitted after the halt waits in the queue, the pick passing it over
 /// while halted, and the scenario awaits that job's end. Nothing is parked
-/// on the clock and no send, blocking task or hold is pending, so the
+/// on the clock and no held request, blocking task or hold is pending, so the
 /// wait's verdict arm panics out of `run` (the scenario is awaited inside
 /// `block_on`): its words name the verdict and the job, and the counters
 /// show the one stuck park and no advance since the wait began. No

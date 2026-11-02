@@ -1192,6 +1192,11 @@ struct Builder {
     store_dir: Option<PathBuf>,
     events_capacity: usize,
     exit: Exit,
+    /// C161: the transport the choke point carries its sends through, for
+    /// a test: an in-process fixture's. A shipped daemon's is the
+    /// production one alone.
+    #[cfg(test)]
+    transport: Option<Box<dyn acquisition_transport::Transport>>,
 }
 
 impl Daemon {
@@ -1220,6 +1225,8 @@ impl Daemon {
             store_dir: None,
             events_capacity: 256,
             exit: Exit::default(),
+            #[cfg(test)]
+            transport: None,
         }
     }
 }
@@ -1302,6 +1309,15 @@ impl Builder {
         self
     }
 
+    /// C161: the choke point's transport, for a test (the door's
+    /// fixtures and the component constructors'); the production one by
+    /// default.
+    #[cfg(test)]
+    fn transport(mut self, transport: Box<dyn acquisition_transport::Transport>) -> Builder {
+        self.transport = Some(transport);
+        self
+    }
+
     /// The daemon.
     fn build(self) -> Arc<Daemon> {
         let rails = self.rails.unwrap_or_else(|| {
@@ -1310,6 +1326,14 @@ impl Builder {
                 self.clock.clone(),
             ))
         });
+        #[cfg(test)]
+        let choke = match self.transport {
+            Some(transport) => {
+                ChokePoint::with_transport(self.clock, rails, &self.provider.api_base, transport)
+            }
+            None => ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base),
+        };
+        #[cfg(not(test))]
         let choke = ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base);
         Daemon::declare_route_knowledge(&choke);
         let jobs_db = match self.jobs_db {

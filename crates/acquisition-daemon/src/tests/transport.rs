@@ -692,12 +692,28 @@ pub(crate) fn answering_token(
 /// too (the registration's user-agent checked there, so both faces run
 /// it), its rate-limit counters on `clock` and its windows GGG's (the
 /// divisor 1, the test's). The answer comes back whole, its body ready.
-pub(crate) fn mock(hold: &Hold, clock: Arc<dyn Clock>) -> InProcess {
+/// The mock's state comes back beside it, for the pages a browser reads
+/// ([`mock_page`]).
+pub(crate) fn mock(hold: &Hold, clock: Arc<dyn Clock>) -> (InProcess, mockggg::Mock) {
     let mock = mockggg::Mock::new(clock, 1);
-    InProcess::new(hold, move |request: HttpRequest| {
+    let state = mock.clone();
+    let transport = InProcess::new(hold, move |request: HttpRequest| {
         let answer = Reply::Bytes(mock.answer(&request).text());
         async move { answer }
-    })
+    });
+    (transport, state)
+}
+
+/// A page of the mock's, as a browser reads it in-process: `url` (at
+/// [`BASE`]) asked of `mock` with no user-agent of the registration's,
+/// its status, headers and body.
+pub(crate) fn mock_page(
+    mock: &mockggg::Mock,
+    url: &str,
+) -> Result<(StatusCode, HeaderMap, String), String> {
+    let request = http_request(Prepared::new(http::Method::GET, url, "the-browser"))?;
+    let (status, headers, body) = read_response(&mock.answer(&request).text(), false)?;
+    Ok((status, headers, body?))
 }
 
 #[cfg(test)]
@@ -1073,7 +1089,7 @@ mod tests {
     async fn the_mocks_in_process_face_answers_as_its_tcp_face() {
         let hold = Hold::new();
         let clock: Arc<dyn Clock> = Arc::new(crate::testing::ParkingClock::new());
-        let in_process = mock(&hold, clock.clone());
+        let (in_process, _) = mock(&hold, clock.clone());
         let bare = Prepared::new(
             http::Method::GET,
             &format!("{BASE}/fetch"),
@@ -1098,7 +1114,7 @@ mod tests {
         assert_eq!(wire.status().as_u16(), 400);
 
         let fresh = || -> Arc<dyn Clock> { Arc::new(crate::testing::ParkingClock::new()) };
-        let in_process = mock(&hold, fresh());
+        let (in_process, _) = mock(&hold, fresh());
         let answer = in_process
             .send(Prepared::new(
                 http::Method::GET,

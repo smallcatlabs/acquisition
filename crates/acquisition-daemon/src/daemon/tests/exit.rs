@@ -19,6 +19,7 @@ use super::harness::*;
 use crate::daemon::life::{Cause, Effect, Event, Life, State, Timer};
 use crate::daemon::server::{InFlight, LifeProbe};
 use crate::daemon::*;
+use crate::transport::{Reply, reply};
 
 /// Long enough for the drains that must finish, short beside a hold the
 /// drain must not wait out (the limiter's 30 s). Virtual: on the
@@ -695,22 +696,25 @@ fn exit_waits_for_a_login_code_exchange() {
     let parking = clock.clone();
     let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
     let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
-    // The scenario's own server, which holds the exchange: bound and
-    // spawned inside the door's runtime; its barriers are the scenario's.
-    let (served_tx, served) = tokio::sync::oneshot::channel();
-    let own = Server::own(move || async move {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = mockggg::read_request(&mut stream).await.unwrap();
-            assert_eq!(
-                (request.method.as_str(), request.path.as_str()),
-                ("POST", "/token")
-            );
-            assert!(request.body.contains("grant_type=authorization_code"));
-            arrived_tx.send(()).unwrap();
-            release_rx.await.unwrap();
+    let (answered_tx, answered) = tokio::sync::oneshot::channel();
+    // The scenario's own transport, which holds the exchange; its barriers
+    // are the scenario's. One request is expected: the exchange, its
+    // barriers taken once, anything else refused in words that say so.
+    let barriers = Mutex::new(Some((arrived_tx, release_rx, answered_tx)));
+    let own = Server::own(move |request: mockggg::HttpRequest| {
+        let exchange = (request.method.as_str(), request.path.as_str()) == ("POST", "/token")
+            && request.body.contains("grant_type=authorization_code");
+        let taken = barriers.lock().unwrap().take().filter(|_| exchange);
+        let words = format!(
+            "the scenario's server holds one code exchange, and {} {} came",
+            request.method, request.path
+        );
+        async move {
+            let Some((arrived, release, answered)) = taken else {
+                return Reply::Failed(words);
+            };
+            arrived.send(()).unwrap();
+            let _ = release.await;
             let body = json!({
                 "access_token": "at-new",
                 "refresh_token": "rt-new",
@@ -718,21 +722,19 @@ fn exit_waits_for_a_login_code_exchange() {
                 "username": "test-user",
             })
             .to_string();
-            let headers = TOKEN_HEADERS;
-            mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
-        });
-        served_tx.send(server).unwrap();
-        base
+            let _ = answered.send(());
+            reply("200 OK", TOKEN_HEADERS, &body)
+        }
     });
     Door::open(own, clock, Arc::new(RecordingCredentialStore::default()))
         .exit_bound(HELD)
         .life(IDLE_SHUTDOWN)
         .run(|mut door| async move {
             let clock = parking;
-            let server = served.await.expect("the door built the scenario's server");
 
-            // The callback and the exchange's way to the wire are waits no
-            // count of the daemon's sees: the clock is held across them.
+            // The callback is a real GET to the daemon's own listener, a
+            // wait no count of the hook's sees: the clock is held across
+            // it, until the exchange it starts has reached the transport.
             let hold = door.hold_clock();
             let url = match door.request(Request::AuthStart).await {
                 Response::AuthUrl { authorize_url } => authorize_url,
@@ -772,7 +774,7 @@ fn exit_waits_for_a_login_code_exchange() {
                 "the login queued its profile job: {jobs:?}"
             );
             assert_eq!(profiles[0].state, JobState::Waiting, "{jobs:?}");
-            tokio::time::timeout(HANG, server)
+            tokio::time::timeout(HANG, answered)
                 .await
                 .expect("the token server was answered")
                 .unwrap();
