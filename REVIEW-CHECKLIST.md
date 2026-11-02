@@ -19,7 +19,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 | **A stress that never reaches what it claims.** Concurrent refresh never happened; the N6 stress ran the mock on real time and the daemon on a manual clock | N6; TESTING-NOTES | a held response as the barrier; one `Clock` for mock and daemon (`MockPolicy`, `start_with_clock`); the C87 concurrent half checked at the server (`rejected_access_token_*`) |
 | **A rail a hint undid.** A met ceiling was a flag `reset-tripwire` cleared, one send out per reset | platforms | `the_ceiling_counts_every_method_and_halts_at_its_number` (`rails.rs`); `a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset` |
 | **A rule that pins a property the product lacks.** The 401 rule ran over journals none of which carried a 401; the first that did showed the bearer re-sent | TESTING-NOTES | C87; a breaker on each side of every journal invariant |
-| **The transport crate's public API hands out reqwest.** A `pub use`, a public type alias or a public field of a reqwest type gives the daemon a second client the dependency guard cannot see | #160, transport-seam-1b | review: the crate's doc lists its public items, every one read at any change to the crate |
+| **The transport crate's public API hands out reqwest.** A `pub use`, a public type alias or a public field of a reqwest type gives the daemon a second client the dependency guard cannot see. No timer bounds a send but the choke point's deadline on the daemon's clock (C161), so a timeout added to the client is a finding | #160, transport-seam-1b | review: the crate's doc lists its public items, every one read at any change to the crate |
 
 ## Store and plans
 

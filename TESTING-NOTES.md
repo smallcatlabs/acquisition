@@ -114,7 +114,10 @@ About half the register's entries have a journal invariant. The rest:
 1. **Not on the wire**: reporting, persistence, config, job identity,
    the reason a job was refused. A rewrite may change all of it.
 2. **Absence**: a line-based oracle cannot see a send that never
-   completes; the answer is the client's timeouts.
+   completes; the answer is the send's deadline on the daemon's clock
+   (C161), whose expiry the wire table forces: a send cut before its
+   answer is a line with no status, one cut during its body a line with
+   its status.
 3. **Vacuous offline**: *never over the limit* and *same-name policies
    share counters* are real only live or against a mock that keeps
    counters; a scripted server echoes whatever the script names, so

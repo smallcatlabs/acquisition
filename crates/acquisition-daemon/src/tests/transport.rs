@@ -2,7 +2,7 @@
 //! the transport seam (`acquisition_transport::Transport`), so a provider
 //! exchange in a door scenario or a component daemon is no real I/O. Each
 //! is an [`InProcess`] transport over a fixture's answer: the scripted
-//! one ([`scripted`]: the full, raw and silent forms), the account
+//! one ([`scripted`]: the full, raw, silent and delayed forms), the account
 //! fixture ([`account`]), the two token fixtures ([`delayed_token`],
 //! [`answering_token`]), the stateful mock's in-process face ([`mock`]),
 //! the refusing one ([`refusing`]) and a scenario's own
@@ -21,7 +21,8 @@
 //! covers (C21). A fixture that answers its headers and holds its body
 //! behind a release ([`Reply::Held`]) keeps the hold through the body. A
 //! silent reply, before its headers or after them, holds nothing and
-//! never completes.
+//! never completes by itself: the choke point's deadline cuts it (C161),
+//! and a delayed one ([`Reply::Delayed`]) holds nothing while it waits.
 //!
 //! Every transport answers at [`BASE`]; a request to another origin is
 //! refused as a connect nothing answers would be, recorded nowhere.

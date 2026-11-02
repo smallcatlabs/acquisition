@@ -588,6 +588,10 @@ exclusions and the hold's boundary rows, the counters after and the
 words. Reviewed cold (three P3: the raw form cut text by a byte
 length, two summaries wider than their evidence), its fix round
 `b79e36f8` read by the orchestrating session and not reviewed a third
-time. Step 2 closed on 2026-11-02 (`LEDGER.md`). Next, step 3, the
-deadline on the clock, after C160's second amendment, in the window the
-owner names (it touches the production path); then the rung.
+time. Step 2 closed on 2026-11-02 (`LEDGER.md`). Step 3, the
+deadline on the clock (`briefs/transport-seam-3.md`, cut three times
+under cold reviews, after C160's second amendment), landed on
+2026-11-02 as four commits from `a91658a5`, this line's commit the
+last: the deadline on the choke point's clock over the four sends, the
+client without timeouts, the expiry as wire-table rows, the words. Its
+review is pending; then the rung, the owner's live run.
