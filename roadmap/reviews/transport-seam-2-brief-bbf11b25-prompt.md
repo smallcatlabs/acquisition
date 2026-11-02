@@ -1,0 +1,17 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/transport-seam-2.md, as cut a second time at bbf11b25, step 2 of the transport seam's build (the in-process transports and the fixtures). Read it with `git show bbf11b25`. One cold review before it (of f1154aab, saved verbatim at roadmap/reviews/transport-seam-2-brief-f1154aab.md with its prompt beside) found six findings; this cut answers them, and the brief's foot ("Taken from the reviews") says how. Read the file as it stands too. The design it comes from is roadmap/briefs/transport-seam-design.md (§1, §2, §3, §5, §6 step 2; §7 ruled by the owner); the rulings are C161 in decisions/network.md and C160 in decisions/daemon.md as amended at e1244232; step 1 closed at ac4642f5 (roadmap/briefs/transport-seam-1.md, transport-seam-1b.md; the neutral types in crates/acquisition-transport/src/lib.rs). Read; do not build or run anything; the tree is read-only to you.
+
+Your lens, in this order:
+0. Is each of the first review's six findings answered in substance (in particular 1, 3 and 4: every component caller of a TCP fixture moved before its helper retires, each commit compiling; finish's completion checks kept)?
+1. Is the brief buildable as drawn against the tree? Every file:line it cites, read against the file (crates/acquisition-daemon/src/daemon/tests/door.rs, harness.rs, dispatch.rs, log.rs, sessions.rs, bearer.rs, exit.rs, crates/acquisition-daemon/src/auth.rs, ratelimit/tests/spec.rs, mockggg.rs, daemon.rs, .cargo/mutants.toml); the counts (the Server kinds, Server::own's calls and binds, the spec's thirteen binds and who reaches them, hold_clock's and beside's callers).
+2. The mechanism bet (the design's §5): a hold taken in a request's first poll and released by a guard at the body's end or on drop, read by the park hook in place of the gate's occupancy. Is there a park between dispatch and the transport's first poll, or between the body's end and the permit's release, where the hook would now advance the clock or call the scenario stuck where today it held? Does the order of the hook's branches (door.rs 264–313) still give the verdict only when nothing is pending?
+3. The commit order and dead code: does every commit compile and stay clippy-clean under `--all-targets -D warnings` with what it adds (the transports in Do 1, the builder option in Do 3, the constructors' option in Do 5), and is each commit's gate green on its own tree?
+4. What moves and what must not change: the oracles (journal against the fixture's record), the two wire-table rows that carry reqwest's words, the spec's kept real-wiring tests, the client harness, the mock's TCP face; anything the brief changes that it does not name.
+5. `beside`'s registration and the two `occupancy` exclusions' retirement onto the `c160_` pin: is each holder real at the commit that retires, by C154?
+6. Done-when: each line checkable from the commits, their tree or their messages.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- Findings, most severe first, each: the Do or done-when number, what is wrong in one sentence, the concrete reading (file:line), and the smallest change to the brief sufficient.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether the step may start as drawn, in one line.
