@@ -199,14 +199,16 @@ if ! table=$(jq -r '
 fi
 # Who links an HTTP client, read whole from the resolve (C161, C1 as
 # amended): every package in the graph, member or not, with an edge to a
-# package named reqwest, one line per edge kind, `<kind> <name>`, sorted.
-# The member table above holds closures, never a third-party package's
-# own edges, so this is the one reader of reverse edges; `entered_by`
-# below refuses an empty answer, since reqwest has a dependent in every
-# build that sends.
+# package named reqwest (any version), one line per edge kind, `<kind>
+# <name> <id>`, sorted. The dependent is its package id, never its name
+# alone: a package outside the workspace may share a member's name (#160's
+# fix round). The member table above holds closures, never a third-party
+# package's own edges, so this is the one reader of reverse edges;
+# `entered_by` below refuses an empty answer, since reqwest has a
+# dependent in every build that sends.
 if ! http_dependents=$(jq -r '
     ([.packages[] | {key: .id, value: .name}] | from_entries) as $name
-    | [.resolve.nodes[] as $n | $n.deps[] | select($name[.pkg] == "reqwest") | .dep_kinds[] | "\(.kind // "normal")\t\($name[$n.id])"]
+    | [.resolve.nodes[] as $n | $n.deps[] | select($name[.pkg] == "reqwest") | .dep_kinds[] | "\(.kind // "normal")\t\($name[$n.id])\t\($n.id)"]
     | unique | .[]' "$meta"); then
   echo 'EDGE    jq failed reading the dependents of reqwest'
   rm -f "$meta"; exit 1
@@ -306,12 +308,22 @@ allow() {  # allow <package> <kind> <name>...: refuse any other direct dependenc
     fail=1; edge_bad=1
   fi
 }
+member_id() {  # member_id <member>: its package id, from its own closure row
+  local k m n mi di
+  while IFS=$'\t' read -r k m n mi di _; do
+    [[ $k == closure && $m == "$1" && $mi == "$di" ]] && { printf '%s\n' "$mi"; return; }
+  done <<<"$table"
+}
+# The transport edges' helpers (`only_self`'s allow-list, `no_member`,
+# `entered_by`) identify a package by its id, never its name alone.
 only_self() {  # only_self <package> <why> [<member>...]: no other member reaches it, at any depth, but those named
-  local pkg=$1 why=$2 k m n mi di path bad='' seen=' '
-  shift 2; local also=" $* "
+  local pkg=$1 why=$2 k m n mi di path bad='' seen=' ' id allowed=' ' a
+  shift 2
   named "$pkg"
+  id=$(member_id "$pkg")
+  for a in "$@"; do named "$a"; allowed+="$(member_id "$a") "; done
   while IFS=$'\t' read -r k m n mi di path; do
-    [[ $k == closure && $n == "$pkg" && $m != "$pkg" && $also != *" $m "* && $seen != *" $m "* ]] && { bad+="$m "; seen+="$m "; }
+    [[ $k == closure && $di == "$id" && $mi != "$id" && $allowed != *" $mi "* && $seen != *" $m "* ]] && { bad+="$m "; seen+="$m "; }
   done <<<"$table"
   if [[ -n $bad ]]; then
     printf 'EDGE    %-22s is linked by %s— %s\n' "$pkg" "$bad" "$why"
@@ -320,11 +332,12 @@ only_self() {  # only_self <package> <why> [<member>...]: no other member reache
   fi
 }
 no_member() {  # no_member <package> <why>: it reaches no other workspace member, at any depth
-  local pkg=$1 why=$2 k m n mi di path members=' ' bad=''
+  local pkg=$1 why=$2 k m n mi di path members=' ' bad='' id
   named "$pkg"
-  while IFS=$'\t' read -r k m _; do [[ $k == closure ]] && members+="$m "; done <<<"$table"
+  id=$(member_id "$pkg")
+  while IFS=$'\t' read -r k m n mi di _; do [[ $k == closure && $mi == "$di" ]] && members+="$mi "; done <<<"$table"
   while IFS=$'\t' read -r k m n mi di path; do
-    [[ $k == closure && $m == "$pkg" && $n != "$pkg" && $members == *" $n "* && " $bad" != *" $n "* ]] && bad+="$n "
+    [[ $k == closure && $mi == "$id" && $di != "$id" && $members == *" $di "* && " $bad" != *" $n "* ]] && bad+="$n "
   done <<<"$table"
   if [[ -n $bad ]]; then
     printf 'EDGE    %-22s links %s— %s\n' "$pkg" "$bad" "$why"
@@ -333,13 +346,15 @@ no_member() {  # no_member <package> <why>: it reaches no other workspace member
   fi
 }
 entered_by() {  # entered_by <name> <package> <dev package> <why>: every normal or build edge to it is the package's, every dev edge the dev package's
-  local name=$1 pkg=$2 dev=$3 why=$4 kind who bad='' linked=0
-  while IFS=$'\t' read -r kind who; do
+  local name=$1 pkg=$2 dev=$3 why=$4 kind who wid bad='' linked=0 pid did
+  named "$pkg"; named "$dev"
+  pid=$(member_id "$pkg"); did=$(member_id "$dev")
+  while IFS=$'\t' read -r kind who wid; do
     [[ -z $kind ]] && continue
     if [[ $kind == dev ]]; then
-      [[ $who == "$dev" ]] || bad+="$who (dev) "
+      [[ $wid == "$did" ]] || bad+="$who (dev, $wid) "
     else
-      [[ $who == "$pkg" ]] && linked=1 || bad+="$who ($kind) "
+      [[ $wid == "$pid" ]] && linked=1 || bad+="$who ($kind, $wid) "
     fi
   done <<<"$http_dependents"
   if ((linked == 0)); then

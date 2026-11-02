@@ -27,7 +27,7 @@
 # C161; check 13 retired onto them, #160) refuse reqwest declared by a
 # second member, by the daemon again, through an alias the workspace
 # declares and the daemon inherits, or through a non-member crate the
-# daemon links; a member but the daemon linking the transport crate; and
+# daemon links, one of them named as the transport crate is; a member but the daemon linking the transport crate; and
 # the transport crate linking a member.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
@@ -77,6 +77,7 @@ crate dup1    duplicate-helper 0.1.0 ""
 crate dup2    duplicate-helper 0.2.0 "\n[dependencies]\nacquisition-protocol = { path = \"$root/crates/acquisition-protocol\" }\n"
 crate devonly devonly          0.1.0 ""
 crate outside outside          0.1.0 "\n[dev-dependencies]\ndevonly = { path = \"$scratch/x/devonly\" }\n"
+crate impostor  acquisition-transport 0.9.0 "\n[dependencies]\nreqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n"
 crate httpbridge http-bridge   0.1.0 "\n[dependencies]\nreqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n"
 
 # ---- edits ---------------------------------------------------------------
@@ -189,11 +190,12 @@ p.write_text(s.replace(a, 'web = { package = "reqwest", version = "0.12",'))
 PY
 }
 run_case 'the transport edges as they stand'                     pass   'reqwest only through transport' none
-run_case 'a second member declares reqwest'                      refuse 'reqwest                is linked by acquisition-client (normal)' adddep crates/acquisition-client/Cargo.toml "$REQWEST_DEP"
-run_case 'the daemon declares reqwest again'                     refuse 'reqwest                is linked by acquisition-daemon (normal)' adddep crates/acquisition-daemon/Cargo.toml "$REQWEST_DEP"
+run_case 'a second member declares reqwest'                      refuse 'reqwest                is linked by acquisition-client (normal, ' adddep crates/acquisition-client/Cargo.toml "$REQWEST_DEP"
+run_case 'the daemon declares reqwest again'                     refuse 'reqwest                is linked by acquisition-daemon (normal, ' adddep crates/acquisition-daemon/Cargo.toml "$REQWEST_DEP"
 run_case 'a workspace reqwest alias beside the dev name (Cargo refuses it first)' refuse 'cargo metadata failed' inherited
-run_case 'a workspace reqwest alias, the dev name aliased alike' refuse 'reqwest                is linked by acquisition-daemon (normal)' inherited_alike
-run_case 'the daemon links a non-member crate that links reqwest' refuse 'reqwest                is linked by http-bridge (normal)' adddep crates/acquisition-daemon/Cargo.toml "http-bridge = { path = \"$scratch/x/httpbridge\" }"
+run_case 'a workspace reqwest alias, the dev name aliased alike' refuse 'reqwest                is linked by acquisition-daemon (normal, ' inherited_alike
+run_case 'the daemon links a non-member crate that links reqwest' refuse 'reqwest                is linked by http-bridge (normal, ' adddep crates/acquisition-daemon/Cargo.toml "http-bridge = { path = \"$scratch/x/httpbridge\" }"
+run_case 'the daemon links a non-member named acquisition-transport' refuse 'reqwest                is linked by acquisition-transport (normal, path+file://' adddep crates/acquisition-daemon/Cargo.toml "transport_bridge = { package = \"acquisition-transport\", path = \"$scratch/x/impostor\" }"
 run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
 run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
 run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
