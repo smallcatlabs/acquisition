@@ -162,7 +162,8 @@ now ends at the deadline instead of hanging to the ceiling.
   after a 500's head keeping the 500 first and naming the body's
   failure (status precedence, the deadline's words in the existing
   precedence case or a row beside it); the send's future dropped
-  mid-exchange (as a cancel drops it) releasing the transport's hold
+  mid-exchange (the component test drops the polled future directly; a
+  protocol cancel stops a job only at admission) releasing the transport's hold
   and the permit.
 - The real-wiring case: a TCP listener that reads one request and never
   answers. The production transport sends to it from a choke point on a
@@ -253,7 +254,13 @@ now ends at the deadline instead of hanging to the ceiling.
      its completion waits. These are the crate's
      `the_production_transport_sends_the_prepared_user_agent_not_its_default`
      (217, awaiting the transport directly) and the spec's six kept
-     real-wiring tests (named in `b79e36f8`'s message; the preparation
+     real-wiring tests (`c27557ea`'s inventory:
+     `full_200_with_truncated_body_is_network_after_observing_policy`,
+     `c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_prepared`,
+     `malformed_200_with_truncated_body_is_network_and_preserves_policy`,
+     `a_3xx_is_one_send_one_journal_line_and_no_second_request`,
+     `truncated_429_and_500_keep_status_and_record_transfer_evidence`,
+     `c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_server`; the preparation
      table at 2667 sends on a parking clock nobody advances, so the new
      deadline cannot fire there). No elapsed-time assertion is added: the
      ceiling is a hang's bound (C137), and each test's own assertions are
@@ -413,3 +420,9 @@ The first review's four (`transport-seam-3-brief-db356fd4.md`):
 4. The deadline's words do reach a user through a job's failure: the
    goldens stay unchanged because none runs a send to its expiry (Done
    when).
+
+The second review's two nits (`transport-seam-3-brief-3c1612fc.md`),
+fixed in a documents-only cut with no further review: the drop case is
+the component test dropping the polled future, a protocol cancel
+stopping a job only at admission; the six kept real-wiring tests named
+by test from `c27557ea`'s inventory.
