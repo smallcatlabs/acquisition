@@ -213,6 +213,16 @@ Each in his words, with the commit that landed it.
   commits on main, answers the build's reviews by one rule each, every
   narrowing dated and every agent-facing choice listed for his later
   read, and pushes at the step's close (the commit carrying this line).
+- 2026-11-01, the road after the retrospective: "Let's use opus 5.5
+  for these unless you see a strong argument for the need for Fable or
+  for extending this session. Let's do this work in series, not
+  parallel, so keep things simple." The residue step (Opus), then the
+  transport seam's design brief (Fable's, by the roles: it carries a
+  ruling on invariant 1's structural form, the choke point's private
+  client), its build (Opus), then the login flow as a machine under
+  C157 (Opus); the choke point's admission loop as a machine parked
+  under a trigger (`decisions/daemon.md`, "Not doing"). One step at a
+  time in the daemon (the commit carrying this line).
 
 ## Roles
 
@@ -499,7 +509,13 @@ cold (two P2), its fix round `68cb9448` reviewed (one P2), its tail
 `68b9feb1` read by the orchestrating session; closed on 2026-11-01
 (`LEDGER.md`), the weekly mutants run dispatched on the tag
 `151-stuck-verdict-after`, whose compare against `t5-round6-after` is
-#151's close. Next after it: the residue step
-(the limiter spec's real clock, the client's ceilings, the mock's window
-on the isolation list, the `Boundary` value for #152); then Phase 3, the
-owner's league run, at his word.
+#151's close. The residue step (`briefs/time-residue.md`, cut three
+times under cold reviews) closed on 2026-11-01 (`LEDGER.md`): the
+spec on the crate's one clock, the client's one ceiling, the boundary
+as a value with a census at zero "neither" (#152 closed), the mock's
+window divisor for a user with the harness leaving it unset on the
+measurement that found the suite throughput-bound (the retrospective
+corrected in place). Next, in series at the owner's word of 2026-11-01:
+the transport seam's design brief (a Fable design, a ruling on the
+choke point's client), its build, then the login flow as a machine;
+and Phase 3, the owner's league run, at his word.

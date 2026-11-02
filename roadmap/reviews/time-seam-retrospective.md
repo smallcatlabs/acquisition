@@ -346,6 +346,15 @@ mock window set by the isolation list (the mock already reads
 18.5 s to whatever the trade captures cost; the golden already masks
 the wait's seconds and asserts only that a wait appeared.
 
+(Corrected 2026-11-01 by the residue step's measurement, `2afd10b8`:
+with the mock's windows divided by ten the rehearsal's wait went and
+the wall did not move, 23.13 s to 23.24 s, because the suite is
+throughput-bound on this machine, about 205 test-seconds over ten
+threads; the rehearsal does not set the wall. The knob landed for a
+user, the harness leaves it unset, `2d855904`, and E3 stays open for
+the rehearsal alone on #131. The premise of this paragraph and of §10's
+row E3 was wrong.)
+
 The other costs, in the seat's own words:
 
 - **Flakes on a starved runner.** None of #70's class since
