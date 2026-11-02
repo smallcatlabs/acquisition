@@ -1126,13 +1126,41 @@ mod tests {
     /// floored at one second, the hit counts kept; anything else is
     /// refused at start in words that say the form.
     /// A test's mock takes its windows from the test, never from the
-    /// environment: with `ACQ_MOCK_WINDOW_DIVISOR=10` in this process, an
-    /// in-process mock built with the divisor 1 answers GGG's windows.
+    /// environment: run as a child of this test binary with
+    /// `ACQ_MOCK_WINDOW_DIVISOR=10` in its environment (the variable is
+    /// never set in a test's own process), an in-process mock built with
+    /// the divisor 1 answers GGG's windows. The child's half is
+    /// [`an_in_process_mock_under_the_variable_answers_ggg_windows`].
+    #[test]
+    fn an_in_process_mocks_windows_are_the_tests_not_the_environments() {
+        let module = module_path!()
+            .split_once("::")
+            .map_or(module_path!(), |(_, rest)| rest);
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                format!("{module}::an_in_process_mock_under_the_variable_answers_ggg_windows"),
+                "--exact".into(),
+                "--ignored".into(),
+                "--nocapture".into(),
+                "--test-threads=1".into(),
+            ])
+            .env(WINDOW_DIVISOR, "10")
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success() && String::from_utf8_lossy(&child.stdout).contains("1 passed"),
+            "the child, under {WINDOW_DIVISOR}=10: {}\n{}\n{}",
+            child.status,
+            String::from_utf8_lossy(&child.stdout),
+            String::from_utf8_lossy(&child.stderr)
+        );
+    }
+
+    /// The child's half of the test above, run only by it (`--ignored`),
+    /// with the variable its parent supplied.
     #[tokio::test]
-    async fn an_in_process_mocks_windows_are_the_tests_not_the_environments() {
-        // SAFETY: set before the mock starts, in this test's own process
-        // (nextest runs a process per test); only `start` reads it.
-        unsafe { std::env::set_var(WINDOW_DIVISOR, "10") };
+    #[ignore = "a child of an_in_process_mocks_windows_are_the_tests_not_the_environments"]
+    async fn an_in_process_mock_under_the_variable_answers_ggg_windows() {
         let base = start_with_clock(Arc::new(SystemClock), 1).await.unwrap();
         let answer = reqwest::Client::new()
             .get(format!("{base}/fetch"))
