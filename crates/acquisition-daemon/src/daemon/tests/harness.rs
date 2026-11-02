@@ -894,8 +894,9 @@ fn probe_exempt(route: &str) -> bool {
 /// that, unless the 429 was also headerless and counted and the longer
 /// hold below applies. After a headerless counted response the hit is
 /// assumed counted and the hold may reach the longest window period of
-/// the route's last known policy plus the same pad. Everything else goes
-/// out at once.
+/// the route's last known policy plus the same pad; so too after a
+/// counted send lost in transport, with no status (C19: a send lost in
+/// transport is paced as if counted). Everything else goes out at once.
 /// Runs over every journal a scripted server's or a serverless daemon
 /// writes (`finish_harness`), so a rewrite that paces slower (or stops
 /// pacing) fails here without any test naming the numbers.
@@ -903,9 +904,10 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
     let pad = full_hold_ms();
     let mut last_on_route: HashMap<String, &Value> = HashMap::new();
     let mut longest_period_ms: HashMap<String, u64> = HashMap::new();
+    // C19: a counted send whose answer carried no rate headers, or that
+    // was lost in transport and carried no answer at all.
     let headerless = |send: &Value| {
         send["counted"] == true
-            && send["status"].as_u64().is_some()
             && send["rate"]
                 .as_object()
                 .is_none_or(|rate| !rate.keys().any(|k| k.starts_with("x-rate-limit-")))
@@ -933,7 +935,7 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
                 let ceiling = headerless_ceiling.unwrap_or(0);
                 assert!(
                     wait <= ceiling,
-                    "after a headerless counted response the next send on {route} \
+                    "after a headerless or lost counted send the next send on {route} \
                          waited {wait} ms; allowed at most {ceiling}: {send}"
                 );
             }

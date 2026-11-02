@@ -76,12 +76,32 @@ use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::oneshot;
 
+/// The scripted transport over `steps` on `hold`, its delays slept on
+/// `clock`, and the fixture the door reads at its end.
+fn scripted_fixture(
+    hold: &Hold,
+    clock: Arc<dyn Clock>,
+    steps: Vec<transport::Scripted>,
+) -> (InProcess, Fixture) {
+    let (transport, record) = transport::scripted_on(hold, clock, steps);
+    let fixture = Fixture::Script {
+        wire: record.wire,
+        received: record.received,
+        ends: record.ends,
+    };
+    (transport, fixture)
+}
+
 /// What the daemon faces (C161): one of the test support's in-process
 /// transports (`crate::transport`), answering at its base, every request
 /// it holds a hold the park hook sees.
 pub(super) enum Server {
     /// The scripted transport: one response per request, in order.
     Script(Vec<ScriptedResponse>),
+    /// The scripted transport over its steps, the silent and delayed
+    /// forms among them (`transport::Scripted`), a delay slept on the
+    /// door's clock.
+    Steps(Vec<transport::Scripted>),
     /// The account transport, answering by account, holding the request
     /// `hold` names.
     Account((&'static str, &'static str, usize)),
@@ -673,16 +693,12 @@ impl DoorBuilder {
     async fn build(self) -> Door {
         let hold = Hold::new();
         let (transport, fixture) = match self.server {
-            Server::Script(script) => {
-                let script = script.into_iter().map(Into::into).collect();
-                let (transport, record) = transport::scripted(&hold, script);
-                let fixture = Fixture::Script {
-                    wire: record.wire,
-                    received: record.received,
-                    ends: record.ends,
-                };
-                (transport, fixture)
-            }
+            Server::Script(script) => scripted_fixture(
+                &hold,
+                self.clock.clone(),
+                script.into_iter().map(Into::into).collect(),
+            ),
+            Server::Steps(steps) => scripted_fixture(&hold, self.clock.clone(), steps),
             Server::Account(held) => {
                 let (transport, record) = transport::account(&hold, held);
                 let fixture = Fixture::Account {

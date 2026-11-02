@@ -17,8 +17,8 @@
 use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
-use crate::ratelimit::Clock;
-use crate::transport::{Reply, reply};
+use crate::ratelimit::{Clock, REQUEST_TIMEOUT, body_expired, send_expired};
+use crate::transport::{Reply, Scripted, reply};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -1156,7 +1156,9 @@ fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() 
 /// `Request::List` lists them), ends as [`Job`] says; the journal's sends
 /// are the row's as [`journal_projection`] reads them; each fragment of
 /// `forbids` is absent from every surface it names; and the parking
-/// clock moved at most `virtual_at_most` over the row. What the daemon's
+/// clock moved at most `virtual_at_most` over the row. A step of the
+/// script `quiet` names answers in one of the scripted transport's quiet
+/// forms ([`Quiet`]). What the daemon's
 /// status and dashboard answer mid-row is asserted by the step that reads
 /// it ([`Step`]).
 #[derive(Default)]
@@ -1165,6 +1167,8 @@ struct Row {
     /// row replaced, that test's name, then the case.
     name: String,
     script: Vec<ScriptedResponse>,
+    /// The script's steps, by place, answered quietly.
+    quiet: Vec<(usize, Quiet)>,
     /// The daemon starts with `test-user`'s session
     /// ([`logged_in_sessions`]), else with one empty session.
     logged_in: bool,
@@ -1173,6 +1177,16 @@ struct Row {
     journal: Vec<Value>,
     forbids: Vec<Forbid>,
     virtual_at_most: Option<Duration>,
+}
+
+/// How a step of a row's script answers when it does not answer at once
+/// (C161: the send's deadline cuts it on the door's clock).
+enum Quiet {
+    /// Silent before its headers (`Scripted::Silent`).
+    Silent,
+    /// Its head after this long on the door's clock, then a silent body
+    /// (`Scripted::Delayed`).
+    Delayed(Duration),
 }
 
 /// One step of a row, through the door, as a frontend takes it.
@@ -1986,6 +2000,79 @@ fn wire_rows() -> Vec<Row> {
         ],
         ..Row::default()
     });
+    // C161: a send's deadline is the choke point's, on the door's clock,
+    // one instant REQUEST_TIMEOUT from the send's dispatch, over its answer
+    // and its body; the hook moves the clock to it, so its expiry is a row.
+    // C19 for the first: a GET silent before its headers is cut at its
+    // dispatch plus 60 s and fails its job in the deadline's words, a send
+    // lost in transport, with no status; it is noted as lost on the
+    // probe's established policy (`1:10:60`), so the next job, picked at
+    // the cut (one job per route at a time), is held as if the lost send
+    // counted: the window full from the cut, the 10 s period, the 5 s
+    // initial-window bucket and the 1 s buffer, measured from its pick at
+    // the cut, as the headerless 503's is from the 503.
+    rows.push(Row {
+        name: "a_send_silent_before_its_headers_is_cut_at_its_deadline_and_paced_as_lost".into(),
+        script: vec![
+            ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status: "204 No Content",
+                headers: policy.into(),
+                body: String::new(),
+            },
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["never"]}"#),
+            ScriptedResponse {
+                method: "GET",
+                path: "/fetch",
+                status: "200 OK",
+                headers: policy.replace("0:10:0", "1:10:0"),
+                body: r#"{"items":["done"]}"#.into(),
+            },
+        ],
+        quiet: vec![(1, Quiet::Silent)],
+        steps: vec![
+            Step::Send(vec![submit("fetch"), submit("fetch")]),
+            Step::Await(vec![(0, Failed), (1, Done)]),
+        ],
+        jobs: vec![
+            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &send_expired()]),
+            Job::fetch(Done).marker("done"),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", null, false, true, 0, null]),
+            json!(["GET", "/fetch", 200, true, true, 16_000, null]),
+        ],
+        virtual_at_most: Some(REQUEST_TIMEOUT + Duration::from_secs(16)),
+        ..Row::default()
+    });
+    // C161: one instant for the whole exchange, no fresh budget for the
+    // body. The GET's head comes 20 s after its dispatch on the door's
+    // clock (the transport holds nothing while it waits, so the hook moves
+    // to it), then its body never completes: the send is cut at its
+    // dispatch plus 60 s, not 80, keeps its status, and fails its job in
+    // the body's words. The bound refuses a cut at 80 s.
+    rows.push(Row {
+        name: "a_body_silent_after_a_late_head_is_cut_at_the_sends_one_deadline".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["never"]}"#),
+        ],
+        quiet: vec![(1, Quiet::Delayed(Duration::from_secs(20)))],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &body_expired()]),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, false, true, 0, null]),
+        ],
+        virtual_at_most: Some(REQUEST_TIMEOUT),
+        ..Row::default()
+    });
     // C26: a 403 or a 503 is never retried and never waited on (invariant
     // 3). The third case is rung 10's live 503 (2026-08-24), an origin
     // page, named as such and still never retried.
@@ -2207,6 +2294,7 @@ fn c158_the_wire_table_through_the_door() {
         let Row {
             name,
             script,
+            quiet,
             logged_in,
             steps,
             jobs,
@@ -2224,8 +2312,19 @@ fn c158_the_wire_table_through_the_door() {
             .iter()
             .any(|step| matches!(step, Step::SecondLifetime { .. }))
             .then(|| state.join("rails.json"));
+        let script = script
+            .into_iter()
+            .enumerate()
+            .map(|(place, response)| {
+                match quiet.iter().find(|(at, _)| *at == place).map(|(_, q)| q) {
+                    None => response.into(),
+                    Some(Quiet::Silent) => Scripted::Silent(response.method, response.path),
+                    Some(Quiet::Delayed(after)) => Scripted::Delayed(*after, response),
+                }
+            })
+            .collect();
         let mut door = Door::open(
-            Server::Script(script),
+            Server::Steps(script),
             clock,
             Arc::new(RecordingCredentialStore::default()),
         )
