@@ -35,7 +35,9 @@
 //! request, blocking task or hold is pending is one nothing the hook accounts for
 //! can wake, so a door wait pending there fails at that park, naming
 //! what it waited for, with `HANG` the backstop behind it for a wait the
-//! hook does not read (a door opened [`DoorBuilder::beside`] another).
+//! hook does not read; a door opened [`DoorBuilder::beside`] another
+//! registers with the first door's hook, so its waits have the verdict
+//! too.
 //!
 //! What stays off the door, each a component test that says which
 //! boundary it needs (`roadmap/briefs/t5-design.md` §2.6): several
@@ -186,31 +188,48 @@ pub(super) struct Counters {
 }
 
 /// C158, the park hook: run at every park of the door's current-thread
-/// runtime, which parks only when no task is runnable. It moves the
-/// clock to its next deadline unless a test transport holds a request
-/// (C160 as amended: the door's [`Hold`], from the send's first poll
-/// until its body completes or it is dropped) or a blocking task is (`Daemon::blocking`'s count, a landing or the idle
-/// verdict on its thread): then the park is the wire's or the blocking
-/// thread's, and time must not move under it; nor while the scenario
-/// holds the clock across a wait of its own ([`Door::hold_clock`]).
-/// When the scenario awaits a quiet runtime ([`Door::quiet`]), the park
-/// wakes it before anything else is asked, whatever holds the clock, and
-/// moves nothing. When the scenario awaits a settled runtime
-/// ([`Door::settle`]), a park that would move the clock wakes the
-/// scenario instead and moves nothing. C160: a park that finds none of
-/// these and nothing parked on the clock is one nothing the hook accounts
-/// for can wake, and fails the door wait pending there (the verdict,
-/// [`Door::await_job`] and its siblings). Tokio's paused clock
+/// runtime, which parks only when no task is runnable. It reads every
+/// door registered on the runtime, the first and any opened
+/// [`DoorBuilder::beside`] it ([`Accounting`]). It moves the clock to
+/// its next deadline unless a test transport holds a request (C160 as
+/// amended: a door's [`Hold`], from the send's first poll until its body
+/// completes or it is dropped) or a blocking task is
+/// (`Daemon::blocking`'s count, a landing or the idle verdict on its
+/// thread): then the park is the fixture's or the blocking thread's, and
+/// time must not move under it; nor while a scenario holds the clock
+/// across a wait of its own ([`Door::hold_clock`]). When a scenario
+/// awaits a quiet runtime ([`Door::quiet`]), the park wakes it before
+/// anything else is asked, whatever holds the clock, and moves nothing.
+/// When a scenario awaits a settled runtime ([`Door::settle`]), a park
+/// that would move the clock wakes the scenario instead and moves
+/// nothing. C160: a park that finds none of these and nothing parked on
+/// the clock is one nothing the hook accounts for can wake, and fails
+/// every door wait pending there (the verdict, [`Door::await_job`] and
+/// its siblings). Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
 struct IdleHook {
     clock: Arc<ParkingClock>,
+    /// The doors the hook accounts for: the first, and any opened beside
+    /// it, each registered whole before it waits on anything.
+    doors: Doors,
+    /// Shared with the doors, which read them ([`Door::counters`]).
+    counters: Arc<Mutex<Counters>>,
+    /// [`COUNTERS_VAR`] set: every park that did not advance the clock is
+    /// printed.
+    print: bool,
+}
+
+/// One door's accounting, as the park hook reads it (C160): its daemon's
+/// blocking count, its transports' hold, its scenario's holds, and its
+/// `quiet`, `settle` and stuck slots.
+struct Accounting {
+    /// Which door, so its `finish` unregisters it alone.
+    door: usize,
     daemon: Arc<Daemon>,
     /// The requests the door's transports hold.
     hold: Hold,
-    /// Shared with the door, which reads them ([`Door::counters`]).
-    counters: Arc<Mutex<Counters>>,
     /// The scenario's holds ([`Door::hold_clock`]).
     holds: Arc<AtomicUsize>,
     /// The scenario's wait for a settled runtime ([`Door::settle`]).
@@ -219,10 +238,10 @@ struct IdleHook {
     quiet: SettleSlot,
     /// The door wait pending, which a stuck park fails (C160).
     stuck: SettleSlot,
-    /// [`COUNTERS_VAR`] set: every park that did not advance the clock is
-    /// printed.
-    print: bool,
 }
+
+/// The doors registered with a runtime's park hook.
+type Doors = Arc<Mutex<Vec<Accounting>>>;
 
 /// Test support, no knob: when set, the hook prints to stderr, at the
 /// park itself, one line for every park that did not advance the clock,
@@ -268,23 +287,28 @@ type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
 
 impl IdleHook {
     fn on_idle(&mut self) {
+        let doors = self.doors.lock().unwrap();
         let mut counters = self.counters.lock().unwrap();
-        let branch = if let Some(quiet) = self.quiet.lock().unwrap().take() {
+        let branch = if let Some(quiet) = doors.iter().find_map(|d| d.quiet.lock().unwrap().take())
+        {
             // Before the holds: a quiet park is the runtime's, whatever
             // holds the clock; it moves nothing.
             let _ = quiet.send(());
             counters.quiets += 1;
             "quiet"
-        } else if self.holds.load(Ordering::SeqCst) > 0 {
+        } else if doors.iter().any(|d| d.holds.load(Ordering::SeqCst) > 0) {
             counters.held_by_scenario += 1;
             "held_by_scenario"
-        } else if self.hold.count() > 0 {
+        } else if doors.iter().any(|d| d.hold.count() > 0) {
             counters.held_by_transport += 1;
             "held_by_transport"
-        } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
+        } else if doors
+            .iter()
+            .any(|d| d.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0)
+        {
             counters.held_by_blocking += 1;
             "held_by_blocking"
-        } else if let Some(settled) = self.settle.lock().unwrap().take() {
+        } else if let Some(settled) = doors.iter().find_map(|d| d.settle.lock().unwrap().take()) {
             // Tokio runs a task an `on_thread_park` hook wakes instead of
             // parking, so the scenario resumes with nothing else runnable.
             let _ = settled.send(());
@@ -298,13 +322,18 @@ impl IdleHook {
             // so nothing it knows of can wake the daemon; a door wait
             // pending here will not be answered.
             counters.nothing_parked += 1;
-            match self.stuck.lock().unwrap().take() {
-                Some(stuck) => {
+            let stuck: Vec<_> = doors
+                .iter()
+                .filter_map(|d| d.stuck.lock().unwrap().take())
+                .collect();
+            if stuck.is_empty() {
+                "nothing_parked"
+            } else {
+                for stuck in stuck {
                     let _ = stuck.send(());
-                    counters.stuck += 1;
-                    "stuck"
                 }
-                None => "nothing_parked",
+                counters.stuck += 1;
+                "stuck"
             }
         };
         if self.print {
@@ -378,8 +407,14 @@ pub(super) struct Door {
     /// recorded leave.
     life: Option<tokio::task::JoinHandle<()>>,
     leave: Option<oneshot::Receiver<Option<InFlight>>>,
-    /// The park hook's counters, which the hook writes.
+    /// The park hook's counters, which the hook writes (the first door's,
+    /// shared by a door beside it).
     counters: Arc<Mutex<Counters>>,
+    /// This door's number among the doors the hook accounts for.
+    id: usize,
+    /// The doors the runtime's hook accounts for, this one among them
+    /// from its build to its `finish`.
+    doors: Doors,
     /// The scenario's holds on the clock, which the hook reads.
     holds: Arc<AtomicUsize>,
     /// The requests the door's transports hold, which the hook reads.
@@ -574,15 +609,11 @@ impl DoorBuilder {
         runtime.block_on(async {
             let mut door = self.build().await;
             let counters = door.counters.clone();
+            door.register();
             *slot.lock().unwrap() = Some(IdleHook {
                 clock: door.clock.clone(),
-                daemon: door.daemon.clone(),
-                hold: door.hold.clone(),
+                doors: door.doors.clone(),
                 counters: counters.clone(),
-                holds: door.holds.clone(),
-                settle: door.settle.clone(),
-                quiet: door.quiet.clone(),
-                stuck: door.stuck.clone(),
                 print: std::env::var_os(COUNTERS_VAR).is_some(),
             });
             if restore {
@@ -598,24 +629,36 @@ impl DoorBuilder {
         })
     }
 
-    /// A second door, opened inside a first door's scenario on the
-    /// runtime that scenario runs on (a second `run` would nest one
-    /// runtime in another): the fixture and the daemon built as
-    /// [`Self::run`] builds them, the dispatcher spawned, and no park hook
-    /// of its own, since the first door's hook holds the runtime and
-    /// reads the first daemon's counts alone. For a second lifetime read
-    /// while the first is live (a restart's view of the same rails
-    /// state path, C129): a daemon that is asked, sends nothing and is
-    /// finished in the scenario, never one with work that sleeps or
-    /// sends, which the hook would not see. [`Door::settle`] is the first
-    /// door's; this door's waits have no verdict (C160) and keep `HANG`.
-    pub(super) async fn beside(self) -> Door {
-        let restore = self.restore;
-        let mut door = self.build().await;
-        if restore {
-            door.await_restored().await;
+    /// A second door, opened inside `first`'s scenario on the runtime
+    /// that scenario runs on (a second `run` would nest one runtime in
+    /// another): the fixture and the daemon built as [`Self::run`] builds
+    /// them, the dispatcher spawned, on `first`'s clock ([`Door::clock`];
+    /// a door opened on another is refused, before anything is built, in
+    /// words that say so). It has no hook of its own: it registers its
+    /// whole accounting with the hook `first` runs under before any
+    /// restore wait (its daemon's blocking count, its transports' hold,
+    /// its scenario's holds, its `quiet`, `settle` and stuck slots) and
+    /// unregisters at its [`Door::finish`], so its waits gain the
+    /// verdict (C160) like `first`'s, `HANG` the backstop behind it. For
+    /// a second lifetime read while the first is live (a restart's view
+    /// of the same rails state path, C129, or of the same queue file).
+    pub(super) fn beside<'a>(self, first: &'a Door) -> impl Future<Output = Door> + 'a {
+        assert!(
+            Arc::ptr_eq(&self.clock, &first.clock),
+            "a door beside another runs on the first door's clock (`Door::clock`), so the \
+             hook that moves it accounts for both; this one was opened on another clock"
+        );
+        async move {
+            let restore = self.restore;
+            let mut door = self.build().await;
+            door.counters = first.counters.clone();
+            door.doors = first.doors.clone();
+            door.register();
+            if restore {
+                door.await_restored().await;
+            }
+            door
         }
-        door
     }
 
     /// The fixture's transport on the door's hold, then the daemon on the
@@ -746,6 +789,8 @@ impl DoorBuilder {
             life,
             leave,
             counters: Arc::default(),
+            id: NEXT_DOOR.fetch_add(1, Ordering::SeqCst),
+            doors: Arc::default(),
             holds: Arc::default(),
             hold,
             settle: Arc::default(),
@@ -787,7 +832,30 @@ fn door_endpoint(store_dir: &std::path::Path) -> (PathBuf, Option<TestPath>) {
     (PathBuf::from(name), None)
 }
 
+/// The doors' numbers, one per door built.
+static NEXT_DOOR: AtomicUsize = AtomicUsize::new(0);
+
 impl Door {
+    /// This door's accounting, registered with the hook its runtime runs
+    /// under.
+    fn register(&self) {
+        self.doors.lock().unwrap().push(Accounting {
+            door: self.id,
+            daemon: self.daemon.clone(),
+            hold: self.hold.clone(),
+            holds: self.holds.clone(),
+            settle: self.settle.clone(),
+            quiet: self.quiet.clone(),
+            stuck: self.stuck.clone(),
+        });
+    }
+
+    /// The door's clock, which a door opened beside it runs on
+    /// ([`DoorBuilder::beside`]).
+    pub(super) fn clock(&self) -> Arc<ParkingClock> {
+        self.clock.clone()
+    }
+
     /// A protocol request through `handle_request`, the path every
     /// frontend's frame takes, with the door's own events receiver.
     pub(super) async fn request(&mut self, req: Request) -> Response {
@@ -816,8 +884,7 @@ impl Door {
     /// waiting), never a sleep that stands for it. Under a request the
     /// scenario holds at its own fixture it never resolves (the held
     /// request leaves the clock, and settling waits on it): that wait is
-    /// [`Self::quiet`]'s. Needs the door's own hook: a door opened
-    /// [`DoorBuilder::beside`] another has none.
+    /// [`Self::quiet`]'s.
     pub(super) async fn settle(&self) {
         let (settled, wake) = oneshot::channel();
         let previous = self.settle.lock().unwrap().replace(settled);
@@ -843,7 +910,7 @@ impl Door {
     /// own word that the waiters joined and a parked job reached the
     /// gate, never a count of receivers. Where nothing is held and the
     /// state must hold once the daemon has done all it can, the wait is
-    /// [`Self::settle`]'s. Needs the door's own hook.
+    /// [`Self::settle`]'s.
     pub(super) async fn quiet(&self) {
         let (quiet, wake) = oneshot::channel();
         let previous = self.quiet.lock().unwrap().replace(quiet);
@@ -1283,6 +1350,10 @@ impl Door {
         } else {
             finish_harness(self.dispatcher.take(), &self.log_path);
         }
+        self.doors
+            .lock()
+            .unwrap()
+            .retain(|door| door.door != self.id);
     }
 }
 
@@ -1300,8 +1371,7 @@ impl Drop for Door {
 /// park found nothing parked on the clock, no request a transport holds,
 /// no blocking task and no hold, so nothing the hook accounts for can bring the answer. `HANG`
 /// stays around both as the backstop a wait outside the accounting can
-/// still reach (a door opened [`DoorBuilder::beside`] another, whose slot
-/// no hook reads), panicking with `ceiling`.
+/// still reach, panicking with `ceiling`.
 async fn or_stuck<T>(
     stuck: SettleSlot,
     counters: Arc<Mutex<Counters>>,
@@ -1449,5 +1519,78 @@ fn c160_a_wait_the_daemon_will_never_answer_fails_at_the_park() {
         (after.stuck, after.advances),
         (before.stuck + 1, before.advances),
         "one stuck park and no advance since the wait began: {before:?} then {after:?}"
+    );
+}
+
+/// C160 through a door opened beside another: its waits have the verdict
+/// too, since it registers its accounting with the hook the first door's
+/// runtime runs under. The halted daemon of the pin above, staged on the
+/// door beside (its tripwire's 429 halts it, its second job waits in the
+/// queue), the first door facing nothing: the beside door's wait on that
+/// job fails at the park where nothing either door accounts for is
+/// pending, in the verdict's words naming the job, never at `HANG`. And a
+/// door opened beside another on a clock of its own is refused before
+/// anything is built, in words that say why.
+#[test]
+fn c160_a_wait_on_a_door_beside_another_fails_at_the_park() {
+    let clock = Arc::new(ParkingClock::new());
+    let shared = clock.clone();
+    let parked_job: Arc<Mutex<Option<JobId>>> = Arc::default();
+    let reads = parked_job.clone();
+    let ended = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        Door::open(
+            Server::None,
+            clock,
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|door| async move {
+            let elsewhere = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                drop(
+                    Door::open(
+                        Server::None,
+                        Arc::new(ParkingClock::new()),
+                        Arc::new(RecordingCredentialStore::default()),
+                    )
+                    .beside(&door),
+                )
+            }));
+            let refused = elsewhere.expect_err("a door beside another on its own clock is refused");
+            let words = refused.downcast_ref::<&str>().copied().unwrap_or_default();
+            assert!(words.contains("runs on the first door's clock"), "{words}");
+
+            let script = vec![
+                ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+                ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+            ];
+            let mut beside = Door::open(
+                Server::Script(script),
+                shared,
+                Arc::new(RecordingCredentialStore::default()),
+            )
+            .rails(tripwire_config())
+            .beside(&door)
+            .await;
+            let first = beside.submit("fetch", None).await;
+            beside
+                .await_job(first, |job| {
+                    job.retries == 1 && job.state == JobState::Waiting
+                })
+                .await;
+            let parked = beside.submit("fetch", None).await;
+            *reads.lock().unwrap() = Some(parked);
+            beside.await_terminal(parked).await;
+            panic!("the halted daemon beside ended job {parked}");
+        });
+    }));
+    let panic = ended.expect_err("the wait on the halted daemon beside failed");
+    let words = panic.downcast_ref::<String>().cloned().unwrap_or_default();
+    let parked = parked_job.lock().unwrap().expect("the scenario ran");
+    assert!(
+        words.contains("the daemon can be woken by nothing the hook accounts for"),
+        "{words}"
+    );
+    assert!(
+        words.contains(&format!("awaiting job {parked}'s end")),
+        "{words}"
     );
 }

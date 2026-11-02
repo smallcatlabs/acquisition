@@ -1124,7 +1124,7 @@ fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() 
         .store_dir(dir)
         .jobs_db(JobDb::open(&path).unwrap())
         .restore_jobs(Retention::default())
-        .beside()
+        .beside(&door)
         .await;
         match restarted.request(Request::List).await {
             Response::Jobs { jobs } => assert!(jobs.is_empty(), "no job restored: {jobs:?}"),
@@ -2297,14 +2297,14 @@ fn c158_the_wire_table_through_the_door() {
                     Step::SecondLifetime { halted } => {
                         let mut second = Door::open(
                             Server::None,
-                            Arc::new(ParkingClock::new()),
+                            door.clock(),
                             Arc::new(RecordingCredentialStore::default()),
                         )
                         .rails(RailsConfig {
                             state_path: state_path.clone(),
                             ..RailsConfig::default()
                         })
-                        .beside()
+                        .beside(&door)
                         .await;
                         let read = halted_of(second.request(Request::DaemonStatus).await);
                         second.finish().await;
