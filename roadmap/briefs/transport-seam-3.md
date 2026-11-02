@@ -1,7 +1,10 @@
 # transport-seam-3 — the deadline onto the clock (C161, C160 as amended twice; step 3 of the design's §6)
 
-The first cut, written by the orchestrating session (Opus) on
-2026-11-02 from the ruled design (`roadmap/briefs/transport-seam-design.md`,
+The second cut: the first (`db356fd4`) was reviewed cold
+(`roadmap/reviews/transport-seam-3-brief-db356fd4.md`, the prompt
+beside: four findings), answered as listed at the foot under "Taken
+from the reviews". The first cut was written by the orchestrating
+session (Opus) on 2026-11-02 from the ruled design (`roadmap/briefs/transport-seam-design.md`,
 §2, §3, §5, §6 step 3, §7) and a re-read of the tree at `4f372d1c`,
 every line number below from it. Step 2 closed at `a76bc94f`
 (`roadmap/LEDGER.md`). C160's second amendment is entered at
@@ -191,10 +194,14 @@ now ends at the deadline instead of hanging to the ceiling.
      REQUEST_TIMEOUT`, immediately before the transport is called. It
      bounds the transport's answer, and then, in `head` and in
      `finish_send`, the body's await, under the same instant.
-   - An answer cut becomes `Err` in the send's words, which flows through
-     `finish_send` as any transport failure does: observed, the lost send
-     noted, journaled, classified `Network`. A body cut becomes the body's
-     `Err` in the body's words, the status kept. `finish_send` gains the
+   - In `post_form` and the two GETs, an answer cut becomes `Err` in the
+     send's words, which flows through `finish_send` as any transport
+     failure does: observed, the lost send noted (counted sends alone,
+     823–831), journaled, classified `Network`. In `head` it takes the
+     probe's own path, unchanged: an uncounted probe failure ("HEAD
+     failed: …"), observed by `observe_probe` and recorded by its own
+     `record_completed` call (680–700), no lost send. A body cut becomes
+     the body's `Err` in the body's words, the status kept. `finish_send` gains the
      instant, or the body arrives already bounded; the build picks one
      and says which.
    - Nothing else in the send's order moves: admission, the token read
@@ -203,6 +210,28 @@ now ends at the deadline instead of hanging to the ceiling.
    - The component cases of Input land here, in the spec over
      `parked_over` and in `responses.rs`. The four sends' case may run the
      seam table over a silent transport.
+   - `c160_the_transports_hold_holds_the_clock_through_the_door`
+     (`door.rs` 1690) asserts `clock.sleepers() == 1` while its requests
+     are held (1789). Every held send now parks its deadline on the same
+     clock, so the count becomes the test's own sleep plus one per send
+     not yet ended (three, then fewer, in the two-request row; two in the
+     held-body row). The test is adapted in this commit to count the
+     sends' deadlines, and it keeps its assertions that the hold is seen,
+     `settle` stays pending under a hold, and the clock does not move.
+   - Every other test that reads the parking clock's queue is checked the
+     same way, for a send in flight at the read, whose deadline now joins
+     it. That means a sleeper count, a next deadline, or a hand advance to
+     the next deadline: `git grep -n "sleepers()\|next_deadline()\|advance_to_next()"
+     -- crates/acquisition-daemon/src`, 20 lines at `4f372d1c`. A hand
+     advance that could reach a held send's deadline would cut it.
+     - Read at this cut and found clear: `dispatch.rs` 191 and 205 (the jobs
+       at their rate waits) and `exit.rs` 641 (a job held after its 429).
+       `await_a_look`'s callers, `exit.rs` 560, 820 and 1389, wait on the
+       drain's look behind a held lock or a staged login, with no send in
+       flight. `drive_drain` advances only with nothing in flight.
+     - Still to confirm in the build: `advance_until`'s callers
+       (`harness.rs` 591–600; called at `dispatch.rs` 410 and 599, `stress.rs` 184) and `dispatch.rs` 2524.
+     - The report lists each reader and what was adapted.
 2. **The client without timeouts.**
    - `build_client` loses `.connect_timeout` and `.timeout`, and
      `Production::new` loses its two `Duration`s. Its one caller,
@@ -218,6 +247,17 @@ now ends at the deadline instead of hanging to the ceiling.
      client's two timeouts; held by the deadline and that test (the
      production transport's cut), and by the component case of the four
      sends.
+   - Every kept TCP test whose exchange reqwest's timeout bounded gains an
+     outer ceiling, `HANG` in the daemon's tests and a named ceiling of the
+     same value in the transport crate's one test, around the exchange and
+     its completion waits. These are the crate's
+     `the_production_transport_sends_the_prepared_user_agent_not_its_default`
+     (217, awaiting the transport directly) and the spec's six kept
+     real-wiring tests (named in `b79e36f8`'s message; the preparation
+     table at 2667 sends on a parking clock nobody advances, so the new
+     deadline cannot fire there). No elapsed-time assertion is added: the
+     ceiling is a hang's bound (C137), and each test's own assertions are
+     unchanged.
    - This and Do 1 may be one commit if the tree needs it. Do 1 alone
      leaves reqwest's 60 s racing the clock's.
 3. **The scripted transport's delayed form and the two door rows.**
@@ -286,8 +326,12 @@ the last.
   `CONNECT_TIMEOUT`'s and the client timeouts' holders.
 - The deadline's words are in a commit message, for the close's list; no
   golden or reference changed (`git diff --stat` over the range, empty
-  for `CLI-REFERENCE.md`, `MCP-REFERENCE.md` and every golden), since
-  no frontend prints a send's error.
+  for `CLI-REFERENCE.md`, `MCP-REFERENCE.md` and every golden). The
+  deadline's words do reach a user: a job's failure wraps a transport
+  error ("GET <url> failed: …", `kinds.rs` 855–856) and the CLI prints a
+  failed job's error. The goldens stay unchanged because none of their
+  cases runs a send to its expiry; every other failure's words are
+  unchanged.
 - The gate's exit status per stage on each commit's tree, the breakers'
   last line, and each case of Do 1 to Do 3 seen failing first, are
   execution evidence in the worker's report; the orchestrating session
@@ -353,3 +397,19 @@ Raised for review, at least:
 - any caller of `within_on` whose behaviour the shared race changed;
 - any test that waited on reqwest's timeout and now needed a change;
 - any word a test asserted that changed.
+
+## Taken from the reviews
+
+The first review's four (`transport-seam-3-brief-db356fd4.md`):
+
+1. A door test counted one sleeper while sends were held, which the
+   deadlines break: adapted in Do 1, and every test reading the parking
+   clock's queue checked for a send in flight, the ones read at this cut
+   listed (Do 1).
+2. The kept TCP tests lose their hang bound with reqwest's timeouts:
+   an outer ceiling around each, no elapsed-time assertion (Do 2).
+3. A cut HEAD does not pass through `finish_send`: the probe's own path
+   kept, uncounted, no lost send (Do 1).
+4. The deadline's words do reach a user through a job's failure: the
+   goldens stay unchanged because none runs a send to its expiry (Done
+   when).
