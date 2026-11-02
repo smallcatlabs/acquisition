@@ -568,4 +568,9 @@ behaviour change (`briefs/transport-seam-1.md`, cut twice under cold
 reviews), landed on 2026-11-01 as five commits from `6ca5b9a3`, this
 line's commit the last: `http` named where its types are, the seam and
 the one client behind it, the two-run table, check 13 and its breakers,
-the words; its cold review is pending.
+the words; reviewed cold, its fix round `3365183b..7c1c9626` reviewed in
+turn, whose finding went to the owner (#160, "(b) Own crate", C1
+amended at `baf625c9`). Its last round (`briefs/transport-seam-1b.md`),
+the transport crate with check 5's edges and check 13 retired, landed
+on 2026-11-01 as two commits from `24052df0`, this line's commit the
+last; its cold review is pending.

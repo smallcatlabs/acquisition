@@ -30,8 +30,16 @@
 //! on #160, and by no check: the daemon's choke point is the one caller of
 //! [`Production::new`]; and this crate's public API exports no reqwest
 //! item, no re-export, alias or type naming it, so the client stays
-//! reachable only through [`Transport`]. The user-agent has two readers of the
-//! one constant, both given by the daemon: the prepared request, so every
+//! reachable only through [`Transport`]. The public items, every one read
+//! at any change to this crate (`REVIEW-CHECKLIST.md`, network): [`Pending`]
+//! (a boxed future); [`Prepared`] with its fields `method`, `url`, `headers`
+//! and `form` and [`Prepared::new`]; [`Answer`] with its fields `status`,
+//! `headers` and `body`; [`Transport`] and its `send`; [`Production`] (no
+//! public field) and [`Production::new`]. Each names `http`'s types and
+//! std's, none of reqwest's.
+//!
+//! The user-agent has two readers of the one constant, both given by the
+//! daemon: the prepared request, so every
 //! send is shaped with it where it is shaped, and the client's default,
 //! kept because reqwest sends a client's default on an HTTPS proxy's
 //! `CONNECT`, which no request header reaches. The client follows no

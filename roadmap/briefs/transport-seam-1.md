@@ -19,6 +19,13 @@ doing" list, at `10d1dfc3`); C160's two amendments wait for steps 2 and
 series). It touches the send path the owner's league run goes through,
 so it runs in the window he names (the design's §5, first risk).
 
+Dated 2026-11-01, after the build: Do 2's module-tree privacy of the
+production transport and Do 4's check 13 were settled by the round
+`briefs/transport-seam-1b.md` (#160, the owner's "(b) Own crate"): the
+transport is its own crate, `crates/acquisition-transport`, check 13 is
+retired onto check 5's edges, and the production transport's one caller
+and its crate's export of no reqwest item are held by review.
+
 ## Goal
 
 When this step is done, every request the daemon sends to the provider
