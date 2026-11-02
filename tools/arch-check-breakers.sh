@@ -23,11 +23,12 @@
 # test module, under a test attribute that is no module and through an
 # import of the timer module (alone, or in a tokio group) or of the crate
 # renamed, and the
-# blocking case (§10) a second blocking task. The transport cases (§13)
-# write `reqwest` in the same places the timer cases write a timer, and
-# bind the crate to another name: in a source, in a root group inside the
-# transport's own file, in the daemon's manifest, or through an alias the
-# workspace declares and the daemon inherits.
+# blocking case (§10) a second blocking task. The transport edges (§5,
+# C161; check 13 retired onto them, #160) refuse reqwest declared by a
+# second member, by the daemon again, through an alias the workspace
+# declares and the daemon inherits, or through a non-member crate the
+# daemon links; a member but the daemon linking the transport crate; and
+# the transport crate linking a member.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -53,7 +54,7 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
        crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
        crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs
-       crates/acquisition-daemon/src/ratelimit/transport.rs)
+       crates/acquisition-transport/Cargo.toml)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -76,6 +77,7 @@ crate dup1    duplicate-helper 0.1.0 ""
 crate dup2    duplicate-helper 0.2.0 "\n[dependencies]\nacquisition-protocol = { path = \"$root/crates/acquisition-protocol\" }\n"
 crate devonly devonly          0.1.0 ""
 crate outside outside          0.1.0 "\n[dev-dependencies]\ndevonly = { path = \"$scratch/x/devonly\" }\n"
+crate httpbridge http-bridge   0.1.0 "\n[dependencies]\nreqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n"
 
 # ---- edits ---------------------------------------------------------------
 adddep() {  # adddep <manifest> <line> [<table, default [dependencies]>]
@@ -132,7 +134,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|REQWEST|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -171,6 +173,30 @@ run_case 'plan links client directly'                            refuse 'acquisi
 # such — the edge is unreachable by construction, not by the rule.
 run_case 'store links client directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-store/Cargo.toml "$CP"
 run_case 'store links daemon directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-store/Cargo.toml "$DP"
+echo '== the code: the one HTTP client'"'"'s crate (C161, C1 as amended, #160)'
+REQWEST_DEP='reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }'
+TP='acquisition-transport = { path = "../acquisition-transport" }'
+inherited() { adddep Cargo.toml 'web = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls"] }' '[workspace.dependencies]' && adddep crates/acquisition-daemon/Cargo.toml 'web = { workspace = true }'; }
+# The alias beside the dev-dependency's own name is Cargo's refusal (one
+# package, two names); with the dev name aliased alike it passes Cargo,
+# and the rule must refuse it.
+inherited_alike() {
+  inherited && python3 - <<'PY'
+import pathlib
+p = pathlib.Path('crates/acquisition-daemon/Cargo.toml'); s = p.read_text(); a = 'reqwest = { version = "0.12",'
+assert s.count(a) == 1, 'the dev-dependency line not found once'
+p.write_text(s.replace(a, 'web = { package = "reqwest", version = "0.12",'))
+PY
+}
+run_case 'the transport edges as they stand'                     pass   'reqwest only through transport' none
+run_case 'a second member declares reqwest'                      refuse 'reqwest                is linked by acquisition-client (normal)' adddep crates/acquisition-client/Cargo.toml "$REQWEST_DEP"
+run_case 'the daemon declares reqwest again'                     refuse 'reqwest                is linked by acquisition-daemon (normal)' adddep crates/acquisition-daemon/Cargo.toml "$REQWEST_DEP"
+run_case 'a workspace reqwest alias beside the dev name (Cargo refuses it first)' refuse 'cargo metadata failed' inherited
+run_case 'a workspace reqwest alias, the dev name aliased alike' refuse 'reqwest                is linked by acquisition-daemon (normal)' inherited_alike
+run_case 'the daemon links a non-member crate that links reqwest' refuse 'reqwest                is linked by http-bridge (normal)' adddep crates/acquisition-daemon/Cargo.toml "http-bridge = { path = \"$scratch/x/httpbridge\" }"
+run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
+run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
+run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
 run_case 'the store links tokio through a [dependencies.tokio] table' refuse 'acquisition-store      links tokio' adddep crates/acquisition-store/Cargo.toml 'workspace = true' '[dependencies.tokio]'
 
 echo '== the code: the search crate'"'"'s edges (C89)'
@@ -306,24 +332,6 @@ run_case 'the timer module imported, its sleep called bare'        refuse "TIMER
 run_case 'the timer module in a tokio group, its timeout called'  refuse "TIMER   $KINDS:$appended imports tokio's timers" in_tests "$KINDS" '\nuse tokio::{sync, time};\nasync fn zz() { let _ = time::timeout(std::time::Duration::ZERO, async {}).await; }\n'
 run_case 'the tokio crate renamed, a timer through the alias'     refuse "TIMER   $KINDS:$appended renames the tokio crate" in_tests "$KINDS" '\nuse tokio as runtime;\nasync fn zz() { runtime::time::sleep(std::time::Duration::ZERO).await; }\n'
 run_case 'a second blocking task'                                refuse "BLOCKING $KINDS:$appended spawns a blocking task outside Daemon::blocking" in_tests "$KINDS" '\nfn zz() { let _ = tokio::task::spawn_blocking(|| ()); }\n'
-
-echo '== the code: every request the daemon sends crosses the one transport (C161)'
-CLIENT_NEW='reqwest::Client::new()'
-run_case 'reqwest as it stands'                                  pass   'ok      transport' none
-run_case 'reqwest in a production line of another file'          refuse "REQWEST $KINDS:$appended names reqwest outside" in_tests "$KINDS" "\nfn zz() { let _ = $CLIENT_NEW; }\n"
-run_case 'reqwest before the tail test module, the module kept'  refuse "REQWEST $AUTH:$tail_at names reqwest outside" drift "$AUTH" "$TAIL" "fn zz() { let _ = $CLIENT_NEW; }
-$TAIL"
-run_case 'reqwest under a test attribute that is no module'      refuse "REQWEST $KINDS:$((appended + 1)) names reqwest outside" in_tests "$KINDS" "\n#[cfg(test)]\nfn zz() { let _ = $CLIENT_NEW; }\n"
-run_case 'the reqwest crate renamed in a source'                 refuse "REQWEST $KINDS:$appended binds the reqwest crate as web" in_tests "$KINDS" '\nuse reqwest as web;\nfn zz() { let _ = web::Client::new(); }\n'
-run_case 'the reqwest dependency renamed in the manifest'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as web' drift crates/acquisition-daemon/Cargo.toml 'reqwest = { version = "0.12",' 'web = { package = "reqwest", version = "0.12",'
-TRANSPORT=crates/acquisition-daemon/src/ratelimit/transport.rs
-REQWEST_DEP='reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }'
-inherited() { adddep Cargo.toml 'web = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls"] }' '[workspace.dependencies]' && drift crates/acquisition-daemon/Cargo.toml "$REQWEST_DEP" 'web = { workspace = true }'; }
-group_at=$(grep -n -m1 -F '/// A future the choke point awaits' "$TRANSPORT" | cut -d: -f1)
-run_case 'the reqwest alias inherited from the workspace'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as web' inherited
-run_case 'reqwest bound in a root group in the transport file'   refuse "REQWEST $TRANSPORT:$group_at binds the reqwest crate as web" drift "$TRANSPORT" '/// A future the choke point awaits' 'pub(crate) use {http::Method as M2, reqwest as web};
-/// A future the choke point awaits'
-run_case 'a file whose test module does not close it'            refuse "REQWEST $AUTH:$tail_at opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line" in_tests "$AUTH" '\nfn zz() {}\n'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

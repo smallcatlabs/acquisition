@@ -4,6 +4,7 @@ members = [
     "crates/acquisition-protocol",
     "crates/acquisition-client",
     "crates/acquisition-daemon",
+    "crates/acquisition-transport",
     "crates/acquisition-store",
     "crates/acquisition-plan",
     "crates/acquisition-search",

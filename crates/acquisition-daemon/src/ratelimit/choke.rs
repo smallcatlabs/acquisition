@@ -1,18 +1,17 @@
-//! The choke point: the one transport, the bearer a send carries, the
-//! send errors and the classification of a landed response, and every send
-//! through the limiter and the gate.
+//! The choke point: the one transport (the transport crate's, C161), the
+//! bearer a send carries, the send errors and the classification of a
+//! landed response, and every send through the limiter and the gate.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::*;
 
-// The production transport is this child's, private to the choke point
-// (C161); the neutral types go to the crate.
-#[path = "transport.rs"]
-mod transport;
+// The seam's neutral types, for the crate and its test transports; the
+// production transport is the transport crate's, built here alone (C161,
+// the owner's ruling on #160: review holds it).
 #[cfg(test)]
-pub(crate) use transport::Pending;
-pub(crate) use transport::{Answer, Prepared, Transport};
+pub(crate) use acquisition_transport::Pending;
+pub(crate) use acquisition_transport::{Answer, Prepared, Transport};
 
 // ---- the choke point ------------------------------------------------------
 
@@ -203,9 +202,10 @@ const SEND_HISTORY: usize = 100;
 /// of a path, so it gets one probe and one policy, and a per-tab route can
 /// never turn into a probe per tab (the shape of the 2024 incident, N2).
 pub struct ChokePoint {
-    // Private on purpose: the transport privately owns the workspace's
-    // only HTTP client (C161), so every HTTP request must come through a
-    // method that consults the limiter and reports the response back to it.
+    // Private on purpose: the transport (the transport crate's, C161)
+    // privately owns the workspace's only HTTP client, so every HTTP
+    // request must come through a method that consults the limiter and
+    // reports the response back to it.
     transport: Box<dyn Transport>,
     pub(super) limiter: Mutex<Limiter>,
     gate: SendGate,
@@ -235,6 +235,16 @@ const HALT_POLL: Duration = Duration::from_secs(1);
 /// harness's pacing oracle reads it so).
 pub(crate) const PACING_FLOOR: Duration = Duration::from_millis(50);
 
+/// The one production transport, with the registration's user-agent as
+/// its client's default (invariant 4) and both timeouts.
+fn production() -> acquisition_transport::Production {
+    acquisition_transport::Production::new(
+        crate::provider::USER_AGENT,
+        CONNECT_TIMEOUT,
+        REQUEST_TIMEOUT,
+    )
+}
+
 impl Default for ChokePoint {
     fn default() -> Self {
         ChokePoint::new()
@@ -252,7 +262,7 @@ impl ChokePoint {
 
     pub fn with_rails(rails: Arc<Rails>) -> Self {
         ChokePoint {
-            transport: Box::new(transport::Production::new()),
+            transport: Box::new(production()),
             limiter: Mutex::new(Limiter::new()),
             gate: SendGate::new(),
             sends: Mutex::new(VecDeque::new()),
@@ -270,7 +280,7 @@ impl ChokePoint {
         api_base: &str,
     ) -> Self {
         ChokePoint {
-            transport: Box::new(transport::Production::new()),
+            transport: Box::new(production()),
             limiter: Mutex::new(Limiter::new()),
             gate: SendGate::new(),
             sends: Mutex::new(VecDeque::new()),
@@ -567,7 +577,7 @@ impl ChokePoint {
             None => None,
         };
         let wait = self.now().saturating_duration_since(since);
-        let mut request = Prepared::new(http::Method::HEAD, url);
+        let mut request = Prepared::new(http::Method::HEAD, url, crate::provider::USER_AGENT);
         let authorized = match &token {
             Some(token) => token.authorize(&mut request.headers),
             None => Ok(()),
@@ -998,7 +1008,7 @@ impl ChokePoint {
     ) -> Result<CompletedResponse, SendError> {
         let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
-        let mut request = Prepared::new(http::Method::POST, url);
+        let mut request = Prepared::new(http::Method::POST, url, crate::provider::USER_AGENT);
         request.form = Some(
             params
                 .iter()
@@ -1028,7 +1038,7 @@ impl ChokePoint {
             return Err(SendError::StaleBearer);
         };
         let wait = self.now().saturating_duration_since(since);
-        let mut request = Prepared::new(http::Method::GET, url);
+        let mut request = Prepared::new(http::Method::GET, url, crate::provider::USER_AGENT);
         let result = match token.authorize(&mut request.headers) {
             Ok(()) => self.transport.send(request).await,
             Err(error) => Err(error),
@@ -1060,7 +1070,11 @@ impl ChokePoint {
         let wait = self.now().saturating_duration_since(since);
         let result = self
             .transport
-            .send(Prepared::new(http::Method::GET, url))
+            .send(Prepared::new(
+                http::Method::GET,
+                url,
+                crate::provider::USER_AGENT,
+            ))
             .await;
         self.finish_send(route, "GET", url, result, true, wait, false)
             .await

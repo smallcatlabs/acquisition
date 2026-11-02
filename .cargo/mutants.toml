@@ -10,12 +10,21 @@
 # a test, or listed below with its reason or issue. A mutant that hangs the
 # suite (a gate that never grants) is reported as a timeout, and counts as
 # caught.
+#
+# The production transport (C161, its own crate since #160) is examined
+# too, and judged by the daemon's tests beside its own: the daemon's spec
+# holds its real-wiring tests (the seam's table on the wire, the 3xx, the
+# truncated bodies). `test_package`, cargo-mutants 27.1.0's option for
+# testing other packages, runs both packages' tests for the baseline and
+# for every mutant, the daemon's mutants included.
 
 examine_globs = [
     "crates/acquisition-daemon/src/ratelimit.rs",
     "crates/acquisition-daemon/src/ratelimit/*.rs",
     "crates/acquisition-daemon/src/gate.rs",
+    "crates/acquisition-transport/src/lib.rs",
 ]
+test_package = ["acquisition-daemon", "acquisition-transport"]
 test_tool = "nextest"
 
 # The mutants the daemon's tests cannot tell apart, each with its reason.

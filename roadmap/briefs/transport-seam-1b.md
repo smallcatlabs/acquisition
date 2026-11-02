@@ -27,9 +27,14 @@ private `reqwest::Client` live in a crate of their own,
 `crates/acquisition-transport`, beside the neutral types the choke
 point and the test transports share (`Prepared`, `Answer`, `Transport`,
 `Pending`); the daemon links that crate and has no normal or build
-dependency on reqwest, so no source in the daemon's production build can
-name reqwest under any spelling, which the compiler refuses rather than
-a reader of text; and check 5 of `tools/arch-check.sh`, which reads
+dependency on reqwest, so the daemon has no dependency through which
+its sources can name reqwest except what the transport crate's public
+API exports, and that API exports none, held by review as the owner
+ruled for `Production`'s construction (Settled in the round, 2026-11-01:
+the first cut said no source could name reqwest under any spelling,
+which the compiler refused; a `pub use reqwest as web;` in the
+transport crate builds and reaches the client from the daemon, #160);
+and check 5 of `tools/arch-check.sh`, which reads
 cargo's resolved graph, holds the edges: reqwest enters the workspace's
 production graph through the transport crate alone, the transport crate
 links no workspace crate, and no workspace crate but the daemon links

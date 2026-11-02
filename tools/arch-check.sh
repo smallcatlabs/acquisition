@@ -11,7 +11,10 @@
 #      blindness to everything above it, the planner's and the client's
 #      independence from the daemon, the daemon's from the client, the
 #      planner and any frontend, and the daemon named by no package but
-#      itself — each forbidden edge refused at any depth.
+#      itself — each forbidden edge refused at any depth; and the one HTTP
+#      client's crate (C161): reqwest linked in a normal or build edge by
+#      the transport crate alone, which links no member and which no
+#      member but the daemon links.
 #
 #   7. One reader of a group's meaning: outside the search crate's modules
 #      that build, print and validate the query tree, and the one that
@@ -46,12 +49,9 @@
 #      path, an import, a `time::` path an import makes), only inside
 #      `impl Clock for SystemClock` and inside a file's tail test module.
 #
-#  13. Every request the daemon sends crosses the one transport (C161):
-#      the reqwest crate is bound to its own name alone (Cargo's resolved
-#      dependency, every `use` tree read whole), and under
-#      `crates/acquisition-daemon/src`, outside `tests/` and comment
-#      lines, the word `reqwest` stands only in `ratelimit/transport.rs`
-#      and inside a file's tail test module.
+#  13. Retired (#160): reqwest in the one transport's file is now held
+#      by check 5's transport edges and by the daemon having no normal
+#      dependency on reqwest, which the compiler holds.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -197,6 +197,20 @@ if ! table=$(jq -r '
   echo 'EDGE    jq failed reading the dependency graph'
   rm -f "$meta"; exit 1
 fi
+# Who links an HTTP client, read whole from the resolve (C161, C1 as
+# amended): every package in the graph, member or not, with an edge to a
+# package named reqwest, one line per edge kind, `<kind> <name>`, sorted.
+# The member table above holds closures, never a third-party package's
+# own edges, so this is the one reader of reverse edges; `entered_by`
+# below refuses an empty answer, since reqwest has a dependent in every
+# build that sends.
+if ! http_dependents=$(jq -r '
+    ([.packages[] | {key: .id, value: .name}] | from_entries) as $name
+    | [.resolve.nodes[] as $n | $n.deps[] | select($name[.pkg] == "reqwest") | .dep_kinds[] | "\(.kind // "normal")\t\($name[$n.id])"]
+    | unique | .[]' "$meta"); then
+  echo 'EDGE    jq failed reading the dependents of reqwest'
+  rm -f "$meta"; exit 1
+fi
 rm -f "$meta"
 # The two answers must agree row by row, by identity and by name: the
 # table's rows, projected to (member id, kind, dep id, member, name) and
@@ -292,15 +306,48 @@ allow() {  # allow <package> <kind> <name>...: refuse any other direct dependenc
     fail=1; edge_bad=1
   fi
 }
-only_self() {  # only_self <package> <why>: no other member reaches it, at any depth
+only_self() {  # only_self <package> <why> [<member>...]: no other member reaches it, at any depth, but those named
   local pkg=$1 why=$2 k m n mi di path bad='' seen=' '
+  shift 2; local also=" $* "
   named "$pkg"
   while IFS=$'\t' read -r k m n mi di path; do
-    [[ $k == closure && $n == "$pkg" && $m != "$pkg" && $seen != *" $m "* ]] && { bad+="$m "; seen+="$m "; }
+    [[ $k == closure && $n == "$pkg" && $m != "$pkg" && $also != *" $m "* && $seen != *" $m "* ]] && { bad+="$m "; seen+="$m "; }
   done <<<"$table"
   if [[ -n $bad ]]; then
     printf 'EDGE    %-22s is linked by %s— %s\n' "$pkg" "$bad" "$why"
     for m in $bad; do printf '          %s\n' "$(path_to "$m" "$pkg")"; done
+    fail=1; edge_bad=1
+  fi
+}
+no_member() {  # no_member <package> <why>: it reaches no other workspace member, at any depth
+  local pkg=$1 why=$2 k m n mi di path members=' ' bad=''
+  named "$pkg"
+  while IFS=$'\t' read -r k m _; do [[ $k == closure ]] && members+="$m "; done <<<"$table"
+  while IFS=$'\t' read -r k m n mi di path; do
+    [[ $k == closure && $m == "$pkg" && $n != "$pkg" && $members == *" $n "* && " $bad" != *" $n "* ]] && bad+="$n "
+  done <<<"$table"
+  if [[ -n $bad ]]; then
+    printf 'EDGE    %-22s links %s— %s\n' "$pkg" "$bad" "$why"
+    for n in $bad; do printf '          %s\n' "$(path_to "$pkg" "$n")"; done
+    fail=1; edge_bad=1
+  fi
+}
+entered_by() {  # entered_by <name> <package> <dev package> <why>: every normal or build edge to it is the package's, every dev edge the dev package's
+  local name=$1 pkg=$2 dev=$3 why=$4 kind who bad='' linked=0
+  while IFS=$'\t' read -r kind who; do
+    [[ -z $kind ]] && continue
+    if [[ $kind == dev ]]; then
+      [[ $who == "$dev" ]] || bad+="$who (dev) "
+    else
+      [[ $who == "$pkg" ]] && linked=1 || bad+="$who ($kind) "
+    fi
+  done <<<"$http_dependents"
+  if ((linked == 0)); then
+    printf 'EDGE    %-22s is linked by no %s in a normal edge — the graph was not read, or the one client left its crate (%s)\n' "$name" "$pkg" "$why"
+    fail=1; edge_bad=1
+  fi
+  if [[ -n $bad ]]; then
+    printf 'EDGE    %-22s is linked by %s— %s\n' "$name" "$bad" "$why"
     fail=1; edge_bad=1
   fi
 }
@@ -319,6 +366,13 @@ forbid acquisition-search 'the search links the store, and the planner once a qu
 forbid acquisition-store 'the store links no daemon, no client, no protocol, no planner, no search and no HTTP client (C41, C89; the split, §2.1)' \
   acquisition-daemon acquisition-client acquisition-protocol acquisition-plan acquisition-search reqwest tokio
 allow acquisition-protocol normal serde serde_json
+# C161, C1 as amended (#160): the one HTTP client lives in the transport
+# crate, which links no workspace crate and is linked by the daemon alone,
+# so reqwest enters the production graph through it alone; the daemon's
+# tests that drive a real socket take reqwest as the one dev edge.
+entered_by reqwest acquisition-transport acquisition-daemon 'reqwest is linked in a normal or build edge by acquisition-transport alone, the one production transport, and as a dev-dependency by the daemon'"'"'s tests alone; send through the choke point, which owns that transport (C161, C1)'
+no_member acquisition-transport 'the transport crate links no workspace crate: the daemon gives it the user-agent and the timeouts (C1, C161)'
+only_self acquisition-transport 'no package but acquisition-daemon links the transport crate, whose one caller is the choke point (C1, C161)' acquisition-daemon
 allow acquisition-protocol dev    serde serde_json
 allow acquisition-protocol build  sha2
 if grep -rqE 'Annotations|annotations_path' crates/acquisition-daemon/src crates/acquisition-protocol/src crates/acquisition-client/src; then
@@ -340,7 +394,7 @@ if grep -rqE "$doors" crates/acquisition-cli/src crates/acquisition-mcp/src; the
   fail=1; edge_bad=1
 fi
 if ((edge_bad == 0)); then
-  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only (C1, C34, C39, C41, C46, C89, §2.1)'
+  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only, reqwest only through transport, transport ∌ members, nothing ∌ transport but the daemon (C1, C34, C39, C41, C46, C89, C161, §2.1)'
 fi
 
 # ---- 7. a group's meaning has one reader ---------------------------------
@@ -638,14 +692,14 @@ PY
 ); then fail=1; fi
 printf '%s\n' "$exempt"
 
-# ---- the tail test module: one reader for checks 12 and 13 -------------
-# A file's tail test module, as checks 12 and 13 both exempt it: a line
+# ---- the tail test module: check 12's reader ---------------------------
+# A file's tail test module, as check 12 exempts it: a line
 # `#[cfg(test)]` at column zero whose next line is `mod <ident> {` at
 # column zero, closed by the first later line that is exactly `}`, which
 # must be the file's last non-blank line. No brace is counted for the
 # module, so a brace in a string cannot move its end; a file where that
 # line is not the last, or where two such modules open, is refused as
-# unrecognised. Printed as Python source, which each check's reader runs
+# unrecognised. Printed as Python source, which check 12's reader runs
 # before its own.
 tail_reader() {
   cat <<'PY'
@@ -755,135 +809,5 @@ print(f"ok      {'timers':<13} {n} daemon source files outside tests/: tokio's t
 PY
 )"); then fail=1; fi
 printf '%s\n' "$timers"
-
-# ---- 13. every request the daemon sends crosses the one transport ------
-# C161: the choke point privately owns the one transport, which privately
-# owns the one HTTP client, so every request the daemon sends is prepared
-# by the choke point, under the limiter and the gate (invariant 1). The
-# module tree keeps the production transport's type and constructor
-# behind the choke point; this check keeps the client's crate in that
-# one file, so a second sender is a check failure rather than a review
-# finding. The rule is on the name the crate is bound to, resolved, never
-# on a spelling: the crate is bound to `reqwest` and to no other name,
-# so the word `reqwest` is every way to reach it. The manifest side reads
-# Cargo's resolved view (`cargo metadata --no-deps`): the daemon's
-# dependency on the package `reqwest` carries no rename, whether written
-# in its own table, a target's, or inherited from the workspace. The
-# source side reads every `use` item whole, from `use` to its `;` across
-# lines, as a tree, in every daemon source file outside `tests/`
-# directories (transport.rs and tail test modules included): no path
-# that ends at the crate's root (`reqwest`, or `self` inside a
-# `reqwest::{…}` subtree, at any depth of a group) is bound with `as` to
-# another name, and no `extern crate reqwest as …`; a `use` item the tree
-# reader cannot read is refused. With the name so fixed, outside comment
-# lines the word `reqwest` stands only in `ratelimit/transport.rs` and
-# inside a file's tail test module (the reader above); a file that
-# reader cannot recognise is refused.
-deps=$(mktemp)
-if ! cargo metadata --format-version 1 --no-deps --offline >"$deps" 2>/dev/null \
-   && ! cargo metadata --format-version 1 --no-deps >"$deps"; then
-  echo 'REQWEST cargo metadata failed — the daemon'"'"'s dependencies could not be read (C161)'
-  fail=1
-fi
-if ! transport=$(python3 -I -c "$(tail_reader)
-$(cat <<'PY'
-import glob, json, re, sys
-HOME = "crates/acquisition-daemon/src/ratelimit/transport.rs"
-WORDS = "send through the choke point, which owns the one transport, or move the test into the file's tail test module (C161)"
-WORD = re.compile(r"\breqwest\b")
-EXTERN = re.compile(r"\bextern\s+crate\s+reqwest\s+as\b")
-USE = re.compile(r"(?m)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\b([^;]*);")
-TOKEN = re.compile(r"\s*(::|[{},*]|r#[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)")
-RENAMED = "the reqwest crate is bound to its own name alone, so every way to reach it spells `reqwest`, which this check reads; name the crate as itself (C161)"
-
-def bindings(tree):
-    """Every (path, alias) a use tree binds, its groups flattened."""
-    tokens, at = [], 0
-    while at < len(tree.rstrip()):
-        m = TOKEN.match(tree, at)
-        if not m:
-            raise ValueError(tree[at:at + 20])
-        tokens.append(m.group(1).removeprefix("r#")); at = m.end()
-    out = []
-    def walk(i, prefix):
-        path = list(prefix)
-        while True:
-            t = tokens[i]
-            if t == "::":
-                i += 1
-            elif t == "{":
-                i += 1
-                while tokens[i] != "}":
-                    i = walk(i, path)
-                    if tokens[i] == ",":
-                        i += 1
-                return i + 1
-            elif t == "*":
-                out.append((path + ["*"], None)); return i + 1
-            elif t in ",}":
-                raise ValueError(t)
-            else:
-                path.append(t); i += 1
-                if i < len(tokens) and tokens[i] == "::":
-                    continue
-                if i < len(tokens) and tokens[i] == "as":
-                    out.append((path, tokens[i + 1])); return i + 2
-                out.append((path, None)); return i
-    end = walk(0, [])
-    if end != len(tokens):
-        raise ValueError(tokens[end])
-    return out
-
-bad = []; n = 0; modules = 0; home = 0
-packages = json.load(open(sys.argv[1]))["packages"]
-daemon = [p for p in packages if p["name"] == "acquisition-daemon"]
-if len(daemon) != 1:
-    bad.append(f"REQWEST cargo metadata names {len(daemon)} acquisition-daemon packages, where the check reads one (C161)")
-for dep in (daemon[0]["dependencies"] if len(daemon) == 1 else []):
-    if dep["name"] == "reqwest" and dep.get("rename"):
-        bad.append(f"REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as {dep['rename']}: {RENAMED}")
-for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=True)):
-    if "/tests/" in path:
-        continue
-    n += 1
-    lines = open(path, encoding="utf-8").read().splitlines()
-    code = ["" if l.lstrip().startswith("//") else l for l in lines]
-    text = "\n".join(code)
-    for m in USE.finditer(text):
-        at = text.count("\n", 0, m.start()) + 1
-        try:
-            bound = bindings(m.group(1))
-        except (ValueError, IndexError):
-            bad.append(f"REQWEST {path}:{at} holds a use item the check cannot read as a tree, so a binding of the reqwest crate in it could not be seen; write it as a plain use tree (C161)")
-            continue
-        for names, alias in bound:
-            if alias not in (None, "_") and names in (["reqwest"], ["reqwest", "self"]):
-                bad.append(f"REQWEST {path}:{at} binds the reqwest crate as {alias}: {RENAMED}")
-    for at, line in enumerate(code, 1):
-        if EXTERN.search(line):
-            bad.append(f"REQWEST {path}:{at} binds the reqwest crate as another name: {RENAMED}")
-    exempt, refusal = tail_module(path, lines, code, "REQWEST", "the lines naming reqwest", "C161")
-    if refusal:
-        bad.append(refusal)
-        continue
-    modules += exempt is not None
-    for at, line in enumerate(code, 1):
-        if exempt and exempt[0] <= at <= exempt[1]:
-            continue
-        if WORD.search(line):
-            if path == HOME:
-                home += 1
-            else:
-                bad.append(f"REQWEST {path}:{at} names reqwest outside {HOME}, the one production transport's file: {WORDS}")
-if home == 0:
-    bad.append(f"REQWEST {HOME} names no reqwest, where the one production transport holds the one client (C161)")
-if bad:
-    print("\n".join(bad))
-    sys.exit(1)
-print(f"ok      {'transport':<13} {n} daemon source files outside tests/: reqwest bound to its own name alone, in the manifest and every use tree, and named only in {HOME} ({home} lines) and {modules} tail test modules (C161)")
-PY
-)" "$deps"); then fail=1; fi
-rm -f "$deps"
-printf '%s\n' "$transport"
 
 exit $fail

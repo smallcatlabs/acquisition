@@ -31,8 +31,9 @@ serde_json.workspace = true
 anyhow.workspace = true
 acquisition-protocol = { path = "../acquisition-protocol" }
 acquisition-store = { path = "../acquisition-store" }
-# TLS is required by real-GGG mode (the default, C88); the mock peer stays loopback.
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# The one production transport, which alone links an HTTP client (C1 as
+# amended, C161, #160): the daemon names no reqwest in its production build.
+acquisition-transport = { path = "../acquisition-transport" }
 # The status and header types the choke point, the policy and the kinds name
 # (reqwest re-exports them); the version reqwest builds, no feature of its own.
 http = "1"
@@ -48,6 +49,11 @@ url = "2"
 
 
 [dev-dependencies]
+# The tests that drive a real socket (the browser's GET, the callback
+# GETs, the account bait): reqwest as the transport crate declares it, so
+# the test build's feature graph is the plain build's (C84). Never a
+# normal dependency: tools/arch-check.sh check 5 refuses it.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 # the generated properties over the input no one here controls (#85): the
 # rate-limit headers and the frame reader; the plan's and the search's
 # version, so the test build's feature graph is unchanged (C84)

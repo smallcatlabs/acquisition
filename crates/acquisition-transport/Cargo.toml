@@ -1,0 +1,23 @@
+[package]
+name = "acquisition-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+# The one production transport and the neutral types of C161's seam
+# (#160, the owner's "(b) Own crate"; C1 as amended): the one HTTP client
+# lives here, so the daemon, which alone links this crate, names none.
+# It links no workspace crate; tools/arch-check.sh check 5 refuses any
+# other member reaching reqwest except through it, and any member but the
+# daemon linking it. reqwest's features are the daemon's as they were, so
+# the graph builds nothing new (C84).
+
+[dependencies]
+http = "1"
+# TLS is required by real-GGG mode (the default, C88); the mock peer stays loopback.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tokio.workspace = true
