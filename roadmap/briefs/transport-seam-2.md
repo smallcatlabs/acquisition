@@ -1,6 +1,9 @@
 # transport-seam-2 — the in-process transports and the fixtures (C161, C160 as amended; step 2 of the design's §6)
 
-The first cut, written by the orchestrating session (Opus) on 2026-11-01
+The second cut: the first (`f1154aab`) was reviewed cold
+(`roadmap/reviews/transport-seam-2-brief-f1154aab.md`, the prompt
+beside: six findings), answered as listed at the foot under "Taken from
+the reviews". The first cut was written by the orchestrating session (Opus) on 2026-11-01
 from the ruled design (`roadmap/briefs/transport-seam-design.md`, §2, §3,
 §5's last item, §6 step 2) and a re-read of the tree at `e1244232`,
 every line number below from it. The design's line numbers were
@@ -89,6 +92,23 @@ the hook's verdict reaches the scenarios where a send never completes.
   pacing oracle `assert_pacing_follows_responses` (999), the answering
   token server `token_server_answering` (1135, bind 1138), the account
   server `account_server` (1282, bind 1290).
+- **Every caller of a TCP fixture** (`grep -rn "mockggg::start\|scripted_server(\|scripted_server_received(\|token_server_answering(\|delayed_token_server(\|account_server(" crates/acquisition-daemon/src/daemon/tests`),
+  outside the helpers' own definitions: the door's kinds (`door.rs` 619,
+  628, 637, 646, and `harness.rs:365`, `scripted_server`'s call of the
+  received form); `scripted_server` at `dispatch.rs` 398, 495, 630 and
+  688, `exit.rs:614`, `idle.rs:144`, `refresh.rs` 603, 635 and 1186;
+  `token_server_answering` at `dispatch.rs:436`; `delayed_token_server`
+  at `sessions.rs:927` and `stress.rs:48`; `account_server` at
+  `credentials.rs` 73 and 490, `exit.rs` 286 and 793, `queue.rs:109`
+  (the account bait, a test of the fixture itself, sending with its own
+  reqwest client) and `login.rs:941`; the TCP mock started directly at
+  `list.rs:52`, `quote.rs:129` and `stress.rs:46` (the stress test's two
+  fixtures, the mock and the delayed token server, on one daemon).
+  `sessions.rs` builds through its own `session_daemon` (171, calling
+  `Daemon::builder` at 193), not the harness's constructors. The mock's
+  own TCP test (`mockggg.rs`'s tail module,
+  `an_in_process_mock_under_the_variable_answers_ggg_windows` at 1163)
+  tests the TCP face and stays.
 - The component fixtures behind the constructors: `log.rs` 20
   (`token_aware_server`, bind 21), 211 (`token_endpoint_answering`, bind
   216), 365 (`api_answered_by`, bind 371); `sessions.rs` 102
@@ -206,9 +226,12 @@ In this order, one commit each, each gated on its own tree.
    run the TCP face. The in-process mock transport in the test support:
    the prepared request turned into an `HttpRequest` (method, path and
    query, lowercased headers, the form as the body), `answer` called,
-   the answer returned with its body ready. The mock's own unit tests
-   and the client harness's process tests are the evidence the TCP face
-   answers as before; no golden moves.
+   the answer returned with its body ready, pinned in this commit by a
+   component test beside it (a request without the registration's
+   user-agent answered 400 in-process as on the wire; one route's
+   answer equal on both faces), so it lands with a caller. The mock's
+   own TCP test and the client harness's process tests are the evidence
+   the TCP face answers as before; no golden moves.
 
 3. **The door onto the transports.** The six `Server` kinds build their
    transports (`Script`, `Account`, `Token`, `Mock`, `own`, `None` as the
@@ -231,13 +254,26 @@ In this order, one commit each, each gated on its own tree.
    transport, a pacing sleep or a credential read, still resolves it
    first) and loses its socket half. The two wire-table rows that carry
    reqwest's "error decoding response body" (2129–2170) carry the test
-   transport's words instead; reqwest's words for a cut body stay held
-   by the spec's kept real-wiring tests
-   (`truncated_429_and_500_keep_status_and_record_transfer_evidence`,
-   `full_200_with_truncated_body_is_network_after_observing_policy`),
-   which the message names. The TCP scripted, account and token servers
-   and `Server::own`'s listeners retire here, with their binds: the C154
-   lines name each, held by its transport and the oracles over it.
+   transport's words instead. Those two rows were the only pins of
+   reqwest's own words for a cut body ("error decoding response body",
+   which a job's failure carries to a user); the pin moves, not goes:
+   the kept real-wiring test
+   `truncated_429_and_500_keep_status_and_record_transfer_evidence`
+   gains an assertion of those words on its outcome, beside its
+   behaviour, in this commit, and the message says the words are
+   reqwest's, held where reqwest runs. The door's own fixtures move
+   here: the kinds' TCP starts at `door.rs` 619–646 and
+   `Server::own`'s five listeners retire, the C154 lines naming each,
+   held by its transport. `finish`'s completion checks move with them:
+   where it awaits the scripted server's whole script (`door.rs:1218`)
+   and the delayed token server's completion (1226), it asserts the
+   scripted transport exhausted (no response left unasked) and the
+   delayed exchange completed, the holders named in the retirement
+   lines, since the journal's comparison (`harness.rs:881`) reads only
+   what arrived. The shared TCP helpers (`scripted_server`,
+   `scripted_server_received`, `token_server_answering`,
+   `delayed_token_server`, `account_server`) stay in this commit for
+   their component callers, which move in Do 5.
 
 4. **`beside` with the hook.** `beside` takes the first door's clock
    (a `beside` on another clock refused, in words that say so) and
@@ -250,9 +286,18 @@ In this order, one commit each, each gated on its own tree.
    doc's and C160's "no hook" sentences are already gone from the
    registry; the doc follows.
 
-5. **The component fixtures and the spec.** `log.rs`'s three and
-   `sessions.rs`'s two listeners become transports through the
-   component constructors' option; `auth.rs`'s two token tests move to a
+5. **The component fixtures and the spec.** Every component caller
+   of a TCP fixture in Read's list moves to its transport through the
+   component constructors' option (or `session_daemon`'s, which gains
+   the same option), `log.rs`'s three and `sessions.rs`'s two listeners
+   with them; the account bait (`queue.rs:109`) becomes a test of the
+   account transport called directly; the stress test's two fixtures,
+   the mock and the delayed token exchange, are routed through one
+   transport the test builds (by path: the token route to the delayed
+   token transport, every other to the mock), its doc's reason for
+   staying off the door unchanged; `list.rs` and `quote.rs` take the
+   in-process mock. Then the shared TCP helpers retire, each with its
+   C154 line; `auth.rs`'s two token tests move to a
    parking clock through `with_transport` (the crate's last
    `ChokePoint::new()` in a test gone; `grep -rn "ChokePoint::new()"
    crates/acquisition-daemon/src --include='*.rs'` then prints no test
@@ -276,9 +321,15 @@ In this order, one commit each, each gated on its own tree.
    (the clock held until both bodies end); a release fired before the
    request's first poll (no hold leaks, nothing waits); a body held
    behind a release after its headers (the clock held and `settle`
-   pending until the release); a request whose future a cancel drops
-   (its hold gone with it, the scenario proceeds). The silent body's row
-   is step 3's.
+   pending until the release). The drop is a component case, not a
+   door row: a protocol cancel sets `cancel_requested` (`queue.rs:633`)
+   and is honoured at admission (`choke.rs`'s admission loops), never
+   during the exchange, so no frontend request drops a transport future;
+   the case polls a transport's send once (the hold taken), then drops
+   the future, and drops an answer's pending body after the headers,
+   and asserts the hold released each time. Cancellation's own
+   behaviour is unchanged and stays pinned where it is. The silent
+   body's row is step 3's.
 
 7. **The counters after, and the words.** The same counters run as
    Input's, after: totals per counter, `held_by_send` gone from the
@@ -311,8 +362,11 @@ the last.
 - `grep -rn "TcpListener::bind" crates/acquisition-daemon/src --include='*.rs'`
   prints only: the spec's kept real-wiring tests (each carrying the
   sentence), `login.rs` 646 and 684, the mock's listener in `mockggg.rs`,
-  and any listener a kept test needs; the messages carry a C154 line for
-  every retired listener, each naming its holder.
+  and any listener a kept test needs; and the caller grep of Read
+  (`mockggg::start` and the five helper names under `daemon/tests/`)
+  prints nothing, the helpers gone; the messages carry a C154 line for
+  every retired listener and helper, each naming its holder, `finish`'s
+  completion checks among them.
 - `door.rs`'s hook reads no `actual_send_occupancy`; `Counters` has
   `held_by_transport` and no `held_by_send`; `hold_clock` names two
   reasons and `quiet` one precondition half.
@@ -323,9 +377,10 @@ the last.
   clock; a `c160_` case on a `beside` wait.
 - `.cargo/mutants.toml` has no `occupancy` exclusion; two retirement
   lines name the `c160_` pin.
-- The boundary rows of Do 6 exist as a `c160_` table; the two
-  wire-table rows carry the test transport's words, and the message
-  names the spec tests holding reqwest's.
+- The boundary rows of Do 6 exist as a `c160_` table and the drop as a
+  component case; the two wire-table rows carry the test transport's
+  words, and `truncated_429_and_500_keep_status_and_record_transfer_evidence`
+  asserts reqwest's "error decoding response body".
 - `auth.rs`'s two token tests build no `ChokePoint::new()`.
 - The counters before and after, the spec's inventory, and the census
   after are in the messages; no golden, reference or README line changed.
@@ -383,3 +438,27 @@ how. Raised for review, at least: any scenario that needed a
 `hold_clock` or a `quiet` it did not need before; any fixture whose
 logic could not move behind the trait unchanged; any word a moved test
 asserted that changed.
+
+## Taken from the reviews
+
+The first review's six (`transport-seam-2-brief-f1154aab.md`):
+
+1. The shared TCP helpers retired in Do 3 before their component
+   callers could move: Do 3 retires the door's own listeners, Do 5 moves
+   every component caller and then retires the helpers (Read, Do 3,
+   Do 5).
+2. A protocol cancel cannot drop a transport future: the drop is a
+   component case that drops a polled send and a pending body;
+   cancellation's behaviour unchanged (Do 6, Done when).
+3. The callers were not inventoried: every caller listed by grep,
+   `session_daemon`, the three direct mock starts, the stress test's two
+   fixtures through one transport, the mock's TCP test kept, a caller
+   check beside the bind check (Read, Do 5, Done when).
+4. `finish`'s completion checks lost their holder: the scripted
+   transport's exhaustion and the delayed exchange's completion asserted
+   at `finish`, named in the retirement lines (Do 3).
+5. The mock transport had no caller in Do 2: a component test beside it
+   (Do 2).
+6. The kept spec tests held the behaviour, not reqwest's words: the
+   words' assertion moves to the kept truncated-body test (Do 3, Done
+   when).
