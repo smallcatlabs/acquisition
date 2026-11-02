@@ -123,7 +123,7 @@ use crate::ratelimit::{
     Bearer, ChokePoint, Clock, EndpointState, ProbeError, RetryAfter, SendError, SystemClock,
     url_path,
 };
-use crate::ratelimit::{endpoint_key, split_endpoint_key};
+use crate::ratelimit::{Expired, endpoint_key, split_endpoint_key, within_on};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
     CLIENT_KINDS, Children, JobId, JobInfo, JobState, MAX_429_RETRIES, MOCK_ONLY_KINDS, Outcome,
@@ -1003,32 +1003,6 @@ impl Connections {
         let word = self.0.load(ordering);
         self.0
             .store((word & !Self::OPEN) | (open & Self::OPEN), ordering);
-    }
-}
-
-/// A bound that expired before its future was ready ([`within_on`]): the
-/// daemon's own, since tokio's `Elapsed` is built only by tokio.
-#[derive(Debug)]
-struct Expired;
-
-/// C160 — every tokio timer in the daemon sleeps through its one `Clock`:
-/// `future` raced against `bound` on `clock`, `biased` so the future is
-/// polled first and one ready at its bound's instant wins, as tokio's
-/// `timeout` has it. The bound's sleep is polled outside the task's
-/// cooperative budget, as tokio's `timeout` polls its timer, so a future
-/// that spends the whole budget on every poll never holds an expired
-/// bound back (the system clock's sleep spends that budget). For a bound
-/// that holds no daemon (the login's callback reads); a daemon's own is
-/// [`Daemon::within`].
-async fn within_on<T>(
-    clock: &dyn Clock,
-    bound: Duration,
-    future: impl std::future::Future<Output = T>,
-) -> Result<T, Expired> {
-    tokio::select! {
-        biased;
-        done = future => Ok(done),
-        () = tokio::task::unconstrained(clock.sleep(bound)) => Err(Expired),
     }
 }
 

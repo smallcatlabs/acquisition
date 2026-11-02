@@ -2604,38 +2604,44 @@ const SEAM_BEARER: &str = "Bearer c128-token";
 /// Each row of the seam's table sent through `choke`, its URL on `base`,
 /// each landing the 200 its transport answers.
 async fn send_the_seam_table(choke: &ChokePoint, base: &str) {
-    let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
     for row in SEAM_TABLE {
-        let url = format!("{base}{}", row.path);
-        let landed = match (row.method, row.bearer) {
-            ("HEAD", _) => choke
-                .head(
-                    row.route,
-                    &url,
-                    Some(&bearer as &dyn Bearer),
-                    choke.now(),
-                    ALWAYS_WANTED,
-                )
-                .await
-                .map(|(status, _, _)| status.as_u16())
-                .map_err(|error| error.to_string()),
-            ("POST", _) => choke
-                .post_form(row.route, &url, row.form, choke.now(), ALWAYS_WANTED)
-                .await
-                .map(|landed| landed.status.as_u16())
-                .map_err(|error| error.to_string()),
-            (_, true) => choke
-                .get_bearer(row.route, &url, &bearer, choke.now(), ALWAYS_WANTED)
-                .await
-                .map(|landed| landed.status.as_u16())
-                .map_err(|error| error.to_string()),
-            (_, false) => choke
-                .get(row.route, &url, choke.now(), ALWAYS_WANTED)
-                .await
-                .map(|landed| landed.status.as_u16())
-                .map_err(|error| error.to_string()),
-        };
+        let landed = send_seam_row(choke, row, base).await;
         assert_eq!(landed, Ok(200), "{} {}", row.method, row.route);
+    }
+}
+
+/// One row of the seam's table sent through `choke`, its URL on `base`:
+/// the status it landed with, or its failure in words.
+async fn send_seam_row(choke: &ChokePoint, row: &SeamRow, base: &str) -> Result<u16, String> {
+    let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+    let url = format!("{base}{}", row.path);
+    match (row.method, row.bearer) {
+        ("HEAD", _) => choke
+            .head(
+                row.route,
+                &url,
+                Some(&bearer as &dyn Bearer),
+                choke.now(),
+                ALWAYS_WANTED,
+            )
+            .await
+            .map(|(status, _, _)| status.as_u16())
+            .map_err(|error| error.to_string()),
+        ("POST", _) => choke
+            .post_form(row.route, &url, row.form, choke.now(), ALWAYS_WANTED)
+            .await
+            .map(|landed| landed.status.as_u16())
+            .map_err(|error| error.to_string()),
+        (_, true) => choke
+            .get_bearer(row.route, &url, &bearer, choke.now(), ALWAYS_WANTED)
+            .await
+            .map(|landed| landed.status.as_u16())
+            .map_err(|error| error.to_string()),
+        (_, false) => choke
+            .get(row.route, &url, choke.now(), ALWAYS_WANTED)
+            .await
+            .map(|landed| landed.status.as_u16())
+            .map_err(|error| error.to_string()),
     }
 }
 
@@ -2771,6 +2777,176 @@ async fn c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_p
         }
     }
     assert_eq!(seam_records(&choke), in_process);
+}
+
+/// A choke point on `clock` over `transport`, a bearer admitted at
+/// [`BASE`] (C128): the deadline's cases move the clock by hand.
+fn parked_on(clock: &Arc<ParkingClock>, transport: InProcess) -> Arc<ChokePoint> {
+    Arc::new(ChokePoint::with_transport(
+        clock.clone(),
+        Arc::new(Rails::disabled()),
+        BASE,
+        Box::new(transport),
+    ))
+}
+
+/// Under the hang ceiling, until `clock` has `count` sleeps parked.
+async fn parked(clock: &ParkingClock, count: usize) {
+    tokio::time::timeout(HANG, async {
+        while clock.sleepers() != count {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the sleeps parked");
+}
+
+/// C161, the deadline's expiry (C137, forced by moving the clock): each
+/// send of the seam's table, its transport silent before its headers, is
+/// cut at exactly its dispatch plus `REQUEST_TIMEOUT` on the choke
+/// point's clock, not a moment before. It fails in the deadline's words
+/// (the HEAD within the probe's own failure), its record says so, and
+/// its permit is released at the cut.
+#[tokio::test]
+async fn c161_each_send_is_cut_at_its_deadline_and_releases_its_permit() {
+    for row in SEAM_TABLE {
+        let name = format!("{} {}", row.method, row.route);
+        let clock = Arc::new(ParkingClock::new());
+        let choke = parked_on(
+            &clock,
+            InProcess::new(&Hold::new(), |_| async { Reply::Silent }),
+        );
+        let dispatch = clock.now();
+        let send = tokio::spawn({
+            let choke = choke.clone();
+            async move { send_seam_row(&choke, row, BASE).await }
+        });
+        parked(&clock, 1).await;
+        let deadline = dispatch + REQUEST_TIMEOUT;
+        assert_eq!(clock.next_deadline(), Some(deadline), "{name}");
+        assert_eq!(choke.actual_send_occupancy().0, 1, "{name}: the permit");
+
+        clock.advance_to(deadline - Duration::from_millis(1));
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+        assert!(!send.is_finished(), "{name}: cut before its deadline");
+
+        clock.advance_to(deadline);
+        let failed = tokio::time::timeout(HANG, send)
+            .await
+            .expect("the deadline cut the send")
+            .unwrap();
+        let words = if row.method == "HEAD" {
+            format!("HEAD failed: {}", send_expired())
+        } else {
+            send_expired()
+        };
+        let error = failed.expect_err("the send was cut");
+        assert!(error.contains(&words), "{name}: {error}");
+        assert_eq!(
+            record_of(&choke, row.route).outcome,
+            format!("error: {}", send_expired()),
+            "{name}"
+        );
+        assert_eq!(choke.actual_send_occupancy().0, 0, "{name}: the permit");
+        assert_eq!(clock.sleepers(), 0, "{name}: the deadline's sleep");
+    }
+}
+
+/// C161 with D8's precedence: a 500 whose body never completes is cut at
+/// the send's one deadline and keeps its status first, the body's failure
+/// in the deadline's words beside it, and its permit goes at the cut.
+#[tokio::test]
+async fn c161_a_silent_body_after_a_500_keeps_its_status() {
+    let clock = Arc::new(ParkingClock::new());
+    let head = raw_response(
+        "500 Internal Server Error",
+        &full_rate_headers("silent-body-policy", None),
+        2,
+        "",
+    );
+    let choke = parked_on(
+        &clock,
+        InProcess::new(&Hold::new(), move |_| {
+            let head = head.clone();
+            async move { Reply::SilentBody(head) }
+        }),
+    );
+    let dispatch = clock.now();
+    let send = tokio::spawn({
+        let choke = choke.clone();
+        async move {
+            choke
+                .get("silent-body", &at("/fetch"), choke.now(), ALWAYS_WANTED)
+                .await
+        }
+    });
+    parked(&clock, 1).await;
+    assert_eq!(clock.next_deadline(), Some(dispatch + REQUEST_TIMEOUT));
+    clock.advance_to(dispatch + REQUEST_TIMEOUT);
+    let landed = tokio::time::timeout(HANG, send)
+        .await
+        .expect("the deadline cut the body")
+        .unwrap()
+        .expect("a 500 keeps its status");
+    assert_eq!(landed.status.as_u16(), 500);
+    assert_eq!(landed.body, Err(body_expired()));
+    assert_eq!(
+        record_of(&choke, "silent-body").outcome,
+        format!(
+            "500 Internal Server Error; body transfer failure: {}",
+            body_expired()
+        )
+    );
+    assert_eq!(choke.actual_send_occupancy().0, 0, "the permit");
+}
+
+/// C161 with C21: a send dropped mid-exchange, its future polled until
+/// its request is held and then dropped (a protocol cancel stops a job
+/// only at admission, so the component test drops it directly), lets go
+/// of the transport's hold, the gate's permit and the deadline's sleep,
+/// before its headers and during its body alike.
+#[tokio::test]
+async fn c161_a_dropped_send_releases_its_hold_its_permit_and_its_deadline() {
+    let response = raw_response(
+        "200 OK",
+        &full_rate_headers("dropped-policy", None),
+        2,
+        "{}",
+    );
+    for (name, held) in [
+        ("before its headers", held_whole as fn(_, _, _) -> Answer1),
+        ("during its body", held_body),
+    ] {
+        let clock = Arc::new(ParkingClock::new());
+        let hold = Hold::new();
+        let (arrived_tx, arrived) = oneshot::channel();
+        let (_release, release_rx) = oneshot::channel();
+        let answer = Mutex::new(Some(held(response.clone(), arrived_tx, release_rx)));
+        let choke = parked_on(
+            &clock,
+            InProcess::new(&hold, move |_| {
+                let answer = answer.lock().unwrap().take().expect("one request");
+                answer()
+            }),
+        );
+        let url = at("/fetch");
+        let mut send = Box::pin(choke.get("dropped", &url, choke.now(), ALWAYS_WANTED));
+        tokio::select! {
+            biased;
+            _ = &mut send => panic!("{name}: the send ended"),
+            _ = arrived => {}
+        }
+        // The first poll took the hold and parked the deadline.
+        assert_eq!(clock.sleepers(), 1, "{name}: the deadline's sleep");
+        assert_eq!(hold.count(), 1, "{name}: the hold");
+        assert_eq!(choke.actual_send_occupancy().0, 1, "{name}: the permit");
+        drop(send);
+        assert_eq!(hold.count(), 0, "{name}: the hold");
+        assert_eq!(choke.actual_send_occupancy().0, 0, "{name}: the permit");
+        assert_eq!(clock.sleepers(), 0, "{name}: the deadline's sleep");
+    }
 }
 
 /// The one send record the choke point holds for `endpoint`.

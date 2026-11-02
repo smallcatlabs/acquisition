@@ -224,6 +224,23 @@ pub struct ChokePoint {
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// A send the deadline cut before any answer: its transport failure.
+pub(crate) fn send_expired() -> String {
+    format!(
+        "the send did not complete within {} s",
+        REQUEST_TIMEOUT.as_secs()
+    )
+}
+
+/// A send the deadline cut during its body: its body failure, under the
+/// status that landed.
+pub(crate) fn body_expired() -> String {
+    format!(
+        "the body did not complete within {} s",
+        REQUEST_TIMEOUT.as_secs()
+    )
+}
+
 /// Longest uninterrupted wait inside the choke point's admission loops, so a
 /// halt that happens while a task is parked in a hold is honored within
 /// about this long rather than at the end of the hold.
@@ -351,6 +368,29 @@ impl ChokePoint {
     /// Sleep until `deadline` on the clock's `now` face (`Clock::sleep_until`).
     pub(crate) async fn sleep_until(&self, deadline: Instant) {
         self.clock.sleep_until(deadline).await;
+    }
+
+    /// C161 — `request` carried by the transport, and its answer bounded by
+    /// the send's `deadline` on the clock: one cut before any answer is a
+    /// transport failure in [`send_expired`]'s words, the transport's
+    /// future dropped at the cut, which closes its connection.
+    async fn carry(&self, request: Prepared, deadline: Instant) -> Result<Answer, String> {
+        by_on(&*self.clock, deadline, self.transport.send(request))
+            .await
+            .unwrap_or_else(|Expired| Err(send_expired()))
+    }
+
+    /// C161 — an answer's body, bounded by the same `deadline` as its
+    /// answer, so no second budget opens: one cut is a body failure in
+    /// [`body_expired`]'s words, the status kept by the caller.
+    async fn body_by(
+        &self,
+        body: acquisition_transport::Pending<'static, Result<String, String>>,
+        deadline: Instant,
+    ) -> Result<String, String> {
+        by_on(&*self.clock, deadline, body)
+            .await
+            .unwrap_or_else(|Expired| Err(body_expired()))
     }
 
     /// See `Limiter::declare_policyless`.
@@ -582,8 +622,10 @@ impl ChokePoint {
             Some(token) => token.authorize(&mut request.headers),
             None => Ok(()),
         };
+        // C161: the send's one deadline, taken as it is handed over.
+        let deadline = self.now() + REQUEST_TIMEOUT;
         let sent = match authorized {
-            Ok(()) => self.transport.send(request).await,
+            Ok(()) => self.carry(request, deadline).await,
             Err(error) => Err(error),
         };
         let (policy, retry_after, raw, headers) = sent.as_ref().map_or_else(
@@ -612,7 +654,7 @@ impl ChokePoint {
         // permit live through the complete exchange even for a malformed
         // server response that does carry one.
         let completed = match sent {
-            Ok(answer) => Ok((answer.status, answer.body.await)),
+            Ok(answer) => Ok((answer.status, self.body_by(answer.body, deadline).await)),
             Err(error) => Err(error),
         };
         let outcome: Result<Policy, String> = match &completed {
@@ -812,6 +854,7 @@ impl ChokePoint {
         method: &'static str,
         url: &str,
         result: Result<Answer, String>,
+        deadline: Instant,
         counted: bool,
         wait: Duration,
         keep_protocol_body: bool,
@@ -822,8 +865,9 @@ impl ChokePoint {
         let observation = self.observe(endpoint, &result, &retry_after, counted);
         if counted && result.is_err() {
             // L0 rail 3: a request that failed in transport may still have
-            // been counted server-side (a timeout after the server answered
-            // is the obvious case). Pace the next send as if it was.
+            // been counted server-side (the deadline's cut after the server
+            // answered is the obvious case, C161). Pace the next send as if
+            // it was (C19).
             self.limiter
                 .lock()
                 .unwrap()
@@ -850,7 +894,7 @@ impl ChokePoint {
                 let redirect = status
                     .is_redirection()
                     .then(|| redirect_evidence(&answer.headers));
-                let body = answer.body.await;
+                let body = self.body_by(answer.body, deadline).await;
                 Ok((status, body.map(|body| redirect.unwrap_or(body))))
             }
             Err(error) => Err(error),
@@ -1015,8 +1059,9 @@ impl ChokePoint {
                 .map(|(name, value)| (name.to_string(), value.to_string()))
                 .collect(),
         );
-        let result = self.transport.send(request).await;
-        self.finish_send(route, "POST", url, result, true, wait, true)
+        let deadline = self.now() + REQUEST_TIMEOUT;
+        let result = self.carry(request, deadline).await;
+        self.finish_send(route, "POST", url, result, deadline, true, wait, true)
             .await
     }
 
@@ -1039,12 +1084,13 @@ impl ChokePoint {
         };
         let wait = self.now().saturating_duration_since(since);
         let mut request = Prepared::new(http::Method::GET, url, crate::provider::USER_AGENT);
+        let deadline = self.now() + REQUEST_TIMEOUT;
         let result = match token.authorize(&mut request.headers) {
-            Ok(()) => self.transport.send(request).await,
+            Ok(()) => self.carry(request, deadline).await,
             Err(error) => Err(error),
         };
         let response = self
-            .finish_send(route, "GET", url, result, true, wait, false)
+            .finish_send(route, "GET", url, result, deadline, true, wait, false)
             .await;
         // C129: a 401 Cloudflare gave in GGG's place is no rejection of
         // the bearer, as on the probe: the token GGG never judged stands.
@@ -1068,15 +1114,10 @@ impl ChokePoint {
     ) -> Result<CompletedResponse, SendError> {
         let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
-        let result = self
-            .transport
-            .send(Prepared::new(
-                http::Method::GET,
-                url,
-                crate::provider::USER_AGENT,
-            ))
-            .await;
-        self.finish_send(route, "GET", url, result, true, wait, false)
+        let request = Prepared::new(http::Method::GET, url, crate::provider::USER_AGENT);
+        let deadline = self.now() + REQUEST_TIMEOUT;
+        let result = self.carry(request, deadline).await;
+        self.finish_send(route, "GET", url, result, deadline, true, wait, false)
             .await
     }
 }

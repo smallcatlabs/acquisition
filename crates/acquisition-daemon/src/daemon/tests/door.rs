@@ -1674,7 +1674,8 @@ struct HoldRow {
 /// test transport holds holds the scenario's clock, from the send's first
 /// poll to its body's end. Each row probes its routes (`HEAD`), sends its
 /// `GET`s on the daemon's choke point, and, once every held one has
-/// arrived, parks a 30 s sleep on the clock: at the next park (`quiet`)
+/// arrived, parks a 30 s sleep on the clock beside each send's deadline
+/// (C161, counted while the send has not ended): at the next park (`quiet`)
 /// the clock has not moved, the door's transports hold the row's count,
 /// and a `settle` begun before stays pending; each release lets one go,
 /// and only when the last body ends does `settle` resolve, the clock
@@ -1786,7 +1787,14 @@ fn c160_the_transports_hold_holds_the_clock_through_the_door() {
                         origin,
                         "{name}: the clock moved under {held} held"
                     );
-                    assert_eq!(clock.sleepers(), 1, "{name}: the sleep is parked");
+                    // The sleep, and each send not yet ended: its
+                    // deadline parks on the same clock (C161).
+                    let in_flight = sends.iter().filter(|send| !send.is_finished()).count();
+                    assert_eq!(
+                        clock.sleepers(),
+                        1 + in_flight,
+                        "{name}: the sleep and {in_flight} sends' deadlines are parked"
+                    );
                     let Some(release) = releases.next() else {
                         assert_eq!(
                             held, 0,

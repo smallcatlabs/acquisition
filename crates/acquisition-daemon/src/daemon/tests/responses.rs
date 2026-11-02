@@ -112,22 +112,32 @@ fn body_read_transport_failure_is_not_recast_as_bad_json() {
     assert!(!message.contains("bad JSON"));
 }
 
+/// A 500's status comes first whatever cut its body: a reset, or the
+/// send's deadline (C161) in its words.
 #[test]
 fn http_status_keeps_precedence_over_error_body_transport_failure() {
-    let error = classify_api_body(
-        reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-        &RetryAfter::Missing,
-        "/character",
-        Value::Null,
-        Err("body reset".into()),
-        Some(Verdict::of(500, &Value::Null, None)),
-    )
-    .unwrap_err();
-    let ApiError::Other(message) = error else {
-        panic!("HTTP failure used the wrong error kind")
-    };
-    assert!(message.contains("returned 500 Internal Server Error"));
-    assert!(message.contains("body read transport failure: body reset"));
+    for cause in ["body reset".to_string(), crate::ratelimit::body_expired()] {
+        let error = classify_api_body(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            &RetryAfter::Missing,
+            "/character",
+            Value::Null,
+            Err(cause.clone()),
+            Some(Verdict::of(500, &Value::Null, None)),
+        )
+        .unwrap_err();
+        let ApiError::Other(message) = error else {
+            panic!("HTTP failure used the wrong error kind")
+        };
+        assert!(
+            message.starts_with("GET /character returned 500 Internal Server Error"),
+            "{message}"
+        );
+        assert!(
+            message.contains(&format!("body read transport failure: {cause}")),
+            "{message}"
+        );
+    }
 }
 
 #[test]
