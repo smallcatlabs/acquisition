@@ -1,9 +1,9 @@
 # transport-seam-2 — the in-process transports and the fixtures (C161, C160 as amended; step 2 of the design's §6)
 
-The second cut: the first (`f1154aab`) was reviewed cold
-(`roadmap/reviews/transport-seam-2-brief-f1154aab.md`, the prompt
-beside: six findings), answered as listed at the foot under "Taken from
-the reviews". The first cut was written by the orchestrating session (Opus) on 2026-11-01
+The third cut: the first (`f1154aab`) and the second (`bbf11b25`)
+were reviewed cold (`roadmap/reviews/transport-seam-2-brief-<sha>.md`,
+the prompt beside: six findings, then one), answered as listed at the
+foot under "Taken from the reviews". The first cut was written by the orchestrating session (Opus) on 2026-11-01
 from the ruled design (`roadmap/briefs/transport-seam-design.md`, §2, §3,
 §5's last item, §6 step 2) and a re-read of the tree at `e1244232`,
 every line number below from it. The design's line numbers were
@@ -132,7 +132,14 @@ the hook's verdict reaches the scenarios where a send never completes.
   3226, 3272 and 3301 (inside the test around `held_get`, 3218), and
   3840–3841 (C128's). The tests that stay TCP for good carry the
   sentence "A real-wiring test of the production transport" (1928, 2589,
-  2744, 2865, 3046, 3836).
+  2744, 2865, 3046, 3836). A bind is not the whole of the spec's real
+  I/O: `parked_choke` (28) builds the production transport with the API
+  base `NO_BEARER_API` (22, `http://127.0.0.1:9`, a port nothing listens
+  on), so a test that sends through it connects for real and is refused
+  (`transport_failure_on_an_established_policy_paces_as_if_counted`, its
+  GET at 2259 and HEAD at 2294); `parked_choke()` is called 14 times and
+  `with_clock_and_rails(` written 7 times in the spec (`grep -c`), each
+  a production transport, `with_transport(` twice.
 - `crates/acquisition-daemon/src/mockggg.rs`: `start` (646) and
   `start_with_clock` (657, the listener, the clock, the window divisor),
   `handle` (681–972: the user-agent check 691–706, the routes, the
@@ -304,7 +311,14 @@ In this order, one commit each, each gated on its own tree.
    line). The spec's binds, inventoried by test in the message first
    (Input), then moved to in-process transports except the six kept
    real-wiring tests; a moved test keeps its name and its assertions,
-   its server's raw bytes kept as the raw form.
+   its server's raw bytes kept as the raw form. The rule is by
+   construction, not by bind: every choke point the spec builds outside
+   the six kept tests takes an in-process transport. `parked_choke`
+   builds over the refusing transport (or one the test passes), so a
+   send to a port nothing listens on is refused in-process with the
+   test support's words, and a test that asserted reqwest's connect
+   words (none does at `e1244232`) says so; each kept test builds its
+   production choke point by name.
 
 6. **The exclusions and the boundary rows.** The two `occupancy -> (1,
    _)` exclusions leave `.cargo/mutants.toml`, each retired onto the
@@ -364,7 +378,9 @@ the last.
   sentence), `login.rs` 646 and 684, the mock's listener in `mockggg.rs`,
   and any listener a kept test needs; and the caller grep of Read
   (`mockggg::start` and the five helper names under `daemon/tests/`)
-  prints nothing, the helpers gone; the messages carry a C154 line for
+  prints nothing, the helpers gone; in the spec, `with_clock_and_rails(`
+  (the production transport) appears only inside the six kept tests,
+  and `parked_choke` takes an in-process transport; the messages carry a C154 line for
   every retired listener and helper, each naming its holder, `finish`'s
   completion checks among them.
 - `door.rs`'s hook reads no `actual_send_occupancy`; `Counters` has
@@ -462,3 +478,9 @@ The first review's six (`transport-seam-2-brief-f1154aab.md`):
 6. The kept spec tests held the behaviour, not reqwest's words: the
    words' assertion moves to the kept truncated-body test (Do 3, Done
    when).
+
+The second review's one (`transport-seam-2-brief-bbf11b25.md`): a spec
+test sends real I/O to a port with no listener, which no bind or caller
+inventory sees: the rule is by construction, every choke point the spec
+builds outside the kept tests over an in-process transport, and the
+done-when reads the constructions (Read, Do 5, Done when).
