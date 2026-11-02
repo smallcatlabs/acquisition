@@ -16,7 +16,9 @@ daemon links it), the crate's row in `AGENTS.md`, the file's budget
 16,600 bytes, and the README's rulings list. This round builds it, and
 with it step 1 is ready to close. To be reviewed cold before the worker
 reads it. Opus builds it: the worker that built step 1, which holds its
-context.
+context. Reviewed cold once (`roadmap/reviews/transport-seam-1b-brief-77240c34.md`:
+buildable as drawn, one citation nit, fixed in a documents-only cut with
+no further review).
 
 ## Goal
 
@@ -46,7 +48,7 @@ spelling is to be added for it.
   `AGENTS.md` C1 and the crate table (the transport crate's row);
   `decisions/network.md` C161 (26: its *Pinned* names check 13 today),
   C130, C150; `AGENTS.md` C122 (one test binary per crate, the layout
-  check 8 holds), C84 and the `features` stage (`tools/gate.sh` 33–37,
+  check 8 holds), `decisions/daemon.md` C84 and the `features` stage (`tools/gate.sh` 33–37,
   164–227: the plain build's and the test build's feature graphs
   compared package by package).
 - #160 and its comment: the three spellings, the two shapes, what (b)
