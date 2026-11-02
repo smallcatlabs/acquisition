@@ -25,7 +25,9 @@
 # renamed, and the
 # blocking case (§10) a second blocking task. The transport cases (§13)
 # write `reqwest` in the same places the timer cases write a timer, and
-# rename the crate in a source or in the daemon's manifest.
+# bind the crate to another name: in a source, in a root group inside the
+# transport's own file, in the daemon's manifest, or through an alias the
+# workspace declares and the daemon inherits.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -50,7 +52,8 @@ done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
        crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
-       crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs)
+       crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs
+       crates/acquisition-daemon/src/ratelimit/transport.rs)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -311,8 +314,15 @@ run_case 'reqwest in a production line of another file'          refuse "REQWEST
 run_case 'reqwest before the tail test module, the module kept'  refuse "REQWEST $AUTH:$tail_at names reqwest outside" drift "$AUTH" "$TAIL" "fn zz() { let _ = $CLIENT_NEW; }
 $TAIL"
 run_case 'reqwest under a test attribute that is no module'      refuse "REQWEST $KINDS:$((appended + 1)) names reqwest outside" in_tests "$KINDS" "\n#[cfg(test)]\nfn zz() { let _ = $CLIENT_NEW; }\n"
-run_case 'the reqwest crate renamed in a source'                 refuse "REQWEST $KINDS:$appended renames the reqwest crate" in_tests "$KINDS" '\nuse reqwest as web;\nfn zz() { let _ = web::Client::new(); }\n'
-run_case 'the reqwest dependency renamed in the manifest'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml declares reqwest as web' drift crates/acquisition-daemon/Cargo.toml 'reqwest = { version = "0.12",' 'web = { package = "reqwest", version = "0.12",'
+run_case 'the reqwest crate renamed in a source'                 refuse "REQWEST $KINDS:$appended binds the reqwest crate as web" in_tests "$KINDS" '\nuse reqwest as web;\nfn zz() { let _ = web::Client::new(); }\n'
+run_case 'the reqwest dependency renamed in the manifest'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as web' drift crates/acquisition-daemon/Cargo.toml 'reqwest = { version = "0.12",' 'web = { package = "reqwest", version = "0.12",'
+TRANSPORT=crates/acquisition-daemon/src/ratelimit/transport.rs
+REQWEST_DEP='reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }'
+inherited() { adddep Cargo.toml 'web = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls"] }' '[workspace.dependencies]' && drift crates/acquisition-daemon/Cargo.toml "$REQWEST_DEP" 'web = { workspace = true }'; }
+group_at=$(grep -n -m1 -F '/// A future the choke point awaits' "$TRANSPORT" | cut -d: -f1)
+run_case 'the reqwest alias inherited from the workspace'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as web' inherited
+run_case 'reqwest bound in a root group in the transport file'   refuse "REQWEST $TRANSPORT:$group_at binds the reqwest crate as web" drift "$TRANSPORT" '/// A future the choke point awaits' 'pub(crate) use {http::Method as M2, reqwest as web};
+/// A future the choke point awaits'
 run_case 'a file whose test module does not close it'            refuse "REQWEST $AUTH:$tail_at opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line" in_tests "$AUTH" '\nfn zz() {}\n'
 
 echo '== the code: shapes that must pass'

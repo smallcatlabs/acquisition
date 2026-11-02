@@ -47,10 +47,11 @@
 #      `impl Clock for SystemClock` and inside a file's tail test module.
 #
 #  13. Every request the daemon sends crosses the one transport (C161):
-#      under `crates/acquisition-daemon/src`, outside `tests/` and
-#      comment lines, the word `reqwest` stands only in
-#      `ratelimit/transport.rs` and inside a file's tail test module, and
-#      the crate is never renamed, in a source or in the manifest.
+#      the reqwest crate is bound to its own name alone (Cargo's resolved
+#      dependency, every `use` tree read whole), and under
+#      `crates/acquisition-daemon/src`, outside `tests/` and comment
+#      lines, the word `reqwest` stands only in `ratelimit/transport.rs`
+#      and inside a file's tail test module.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -762,32 +763,105 @@ printf '%s\n' "$timers"
 # module tree keeps the production transport's type and constructor
 # behind the choke point; this check keeps the client's crate in that
 # one file, so a second sender is a check failure rather than a review
-# finding. Under `crates/acquisition-daemon/src`, outside its `tests/`
-# directories and comment lines, the word `reqwest` stands only in
-# `ratelimit/transport.rs` and inside a file's tail test module (the
-# reader above). The crate is never renamed there (no `use reqwest as
-# …`, no `self as …` in a `use reqwest::{…}` group, no `extern crate
-# reqwest as …`, read as check 12 reads tokio's), and the daemon's
-# manifest declares it under its own name: a dependency entry with
-# `package = "reqwest"` under another name is a rename the word could
-# not see.
+# finding. The rule is on the name the crate is bound to, resolved, never
+# on a spelling: the crate is bound to `reqwest` and to no other name,
+# so the word `reqwest` is every way to reach it. The manifest side reads
+# Cargo's resolved view (`cargo metadata --no-deps`): the daemon's
+# dependency on the package `reqwest` carries no rename, whether written
+# in its own table, a target's, or inherited from the workspace. The
+# source side reads every `use` item whole, from `use` to its `;` across
+# lines, as a tree, in every daemon source file outside `tests/`
+# directories (transport.rs and tail test modules included): no path
+# that ends at the crate's root (`reqwest`, or `self` inside a
+# `reqwest::{…}` subtree, at any depth of a group) is bound with `as` to
+# another name, and no `extern crate reqwest as …`; a `use` item the tree
+# reader cannot read is refused. With the name so fixed, outside comment
+# lines the word `reqwest` stands only in `ratelimit/transport.rs` and
+# inside a file's tail test module (the reader above); a file that
+# reader cannot recognise is refused.
+deps=$(mktemp)
+if ! cargo metadata --format-version 1 --no-deps --offline >"$deps" 2>/dev/null \
+   && ! cargo metadata --format-version 1 --no-deps >"$deps"; then
+  echo 'REQWEST cargo metadata failed — the daemon'"'"'s dependencies could not be read (C161)'
+  fail=1
+fi
 if ! transport=$(python3 -I -c "$(tail_reader)
 $(cat <<'PY'
-import glob, re, sys, tomllib
+import glob, json, re, sys
 HOME = "crates/acquisition-daemon/src/ratelimit/transport.rs"
-MANIFEST = "crates/acquisition-daemon/Cargo.toml"
 WORDS = "send through the choke point, which owns the one transport, or move the test into the file's tail test module (C161)"
 WORD = re.compile(r"\breqwest\b")
-GROUP = re.compile(r"\buse\s+(?:::)?reqwest::\{")
-RENAME = re.compile(r"\b(?:use\s+(?:::)?reqwest|extern\s+crate\s+reqwest)\s+as\b")
-RENAMED = "reqwest is never renamed in the daemon, so every use of it spells `reqwest`, which this check reads; name the crate as itself (C161)"
+EXTERN = re.compile(r"\bextern\s+crate\s+reqwest\s+as\b")
+USE = re.compile(r"(?m)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?use\b([^;]*);")
+TOKEN = re.compile(r"\s*(::|[{},*]|r#[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)")
+RENAMED = "the reqwest crate is bound to its own name alone, so every way to reach it spells `reqwest`, which this check reads; name the crate as itself (C161)"
+
+def bindings(tree):
+    """Every (path, alias) a use tree binds, its groups flattened."""
+    tokens, at = [], 0
+    while at < len(tree.rstrip()):
+        m = TOKEN.match(tree, at)
+        if not m:
+            raise ValueError(tree[at:at + 20])
+        tokens.append(m.group(1).removeprefix("r#")); at = m.end()
+    out = []
+    def walk(i, prefix):
+        path = list(prefix)
+        while True:
+            t = tokens[i]
+            if t == "::":
+                i += 1
+            elif t == "{":
+                i += 1
+                while tokens[i] != "}":
+                    i = walk(i, path)
+                    if tokens[i] == ",":
+                        i += 1
+                return i + 1
+            elif t == "*":
+                out.append((path + ["*"], None)); return i + 1
+            elif t in ",}":
+                raise ValueError(t)
+            else:
+                path.append(t); i += 1
+                if i < len(tokens) and tokens[i] == "::":
+                    continue
+                if i < len(tokens) and tokens[i] == "as":
+                    out.append((path, tokens[i + 1])); return i + 2
+                out.append((path, None)); return i
+    end = walk(0, [])
+    if end != len(tokens):
+        raise ValueError(tokens[end])
+    return out
+
 bad = []; n = 0; modules = 0; home = 0
+packages = json.load(open(sys.argv[1]))["packages"]
+daemon = [p for p in packages if p["name"] == "acquisition-daemon"]
+if len(daemon) != 1:
+    bad.append(f"REQWEST cargo metadata names {len(daemon)} acquisition-daemon packages, where the check reads one (C161)")
+for dep in (daemon[0]["dependencies"] if len(daemon) == 1 else []):
+    if dep["name"] == "reqwest" and dep.get("rename"):
+        bad.append(f"REQWEST crates/acquisition-daemon/Cargo.toml binds reqwest as {dep['rename']}: {RENAMED}")
 for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=True)):
     if "/tests/" in path:
         continue
     n += 1
     lines = open(path, encoding="utf-8").read().splitlines()
     code = ["" if l.lstrip().startswith("//") else l for l in lines]
+    text = "\n".join(code)
+    for m in USE.finditer(text):
+        at = text.count("\n", 0, m.start()) + 1
+        try:
+            bound = bindings(m.group(1))
+        except (ValueError, IndexError):
+            bad.append(f"REQWEST {path}:{at} holds a use item the check cannot read as a tree, so a binding of the reqwest crate in it could not be seen; write it as a plain use tree (C161)")
+            continue
+        for names, alias in bound:
+            if alias not in (None, "_") and names in (["reqwest"], ["reqwest", "self"]):
+                bad.append(f"REQWEST {path}:{at} binds the reqwest crate as {alias}: {RENAMED}")
+    for at, line in enumerate(code, 1):
+        if EXTERN.search(line):
+            bad.append(f"REQWEST {path}:{at} binds the reqwest crate as another name: {RENAMED}")
     exempt, refusal = tail_module(path, lines, code, "REQWEST", "the lines naming reqwest", "C161")
     if refusal:
         bad.append(refusal)
@@ -796,39 +870,20 @@ for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=
     for at, line in enumerate(code, 1):
         if exempt and exempt[0] <= at <= exempt[1]:
             continue
-        renamed = bool(RENAME.search(line))
-        if GROUP.search(line):
-            # The group whole, to its closing brace, its members read for `self as`.
-            group, depth = "", 0
-            for body in code[at - 1:]:
-                group += body + "\n"
-                depth += body.count("{") - body.count("}")
-                if depth <= 0 and "{" in group:
-                    break
-            renamed = renamed or bool(re.search(r"(?<![\w:])self\s+as\b", group[GROUP.search(group).end():]))
-        if renamed:
-            bad.append(f"REQWEST {path}:{at} renames the reqwest crate: {RENAMED}")
-        elif WORD.search(line):
+        if WORD.search(line):
             if path == HOME:
                 home += 1
             else:
                 bad.append(f"REQWEST {path}:{at} names reqwest outside {HOME}, the one production transport's file: {WORDS}")
-with open(MANIFEST, "rb") as f:
-    manifest = tomllib.load(f)
-tables = [manifest.get(k, {}) for k in ("dependencies", "dev-dependencies", "build-dependencies")]
-tables += [t.get(k, {}) for t in manifest.get("target", {}).values() for k in ("dependencies", "dev-dependencies", "build-dependencies")]
-for table in tables:
-    for name, entry in table.items():
-        if isinstance(entry, dict) and entry.get("package") == "reqwest" and name != "reqwest":
-            bad.append(f"REQWEST {MANIFEST} declares reqwest as {name}: {RENAMED}")
 if home == 0:
     bad.append(f"REQWEST {HOME} names no reqwest, where the one production transport holds the one client (C161)")
 if bad:
     print("\n".join(bad))
     sys.exit(1)
-print(f"ok      {'transport':<13} {n} daemon source files outside tests/: reqwest named only in {HOME} ({home} lines) and {modules} tail test modules, never renamed (C161)")
+print(f"ok      {'transport':<13} {n} daemon source files outside tests/: reqwest bound to its own name alone, in the manifest and every use tree, and named only in {HOME} ({home} lines) and {modules} tail test modules (C161)")
 PY
-)"); then fail=1; fi
+)" "$deps"); then fail=1; fi
+rm -f "$deps"
 printf '%s\n' "$transport"
 
 exit $fail
