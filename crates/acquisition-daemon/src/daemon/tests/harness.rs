@@ -16,6 +16,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::oneshot;
 
 pub(super) use crate::testing::{HANG, MANUAL_WALL_ORIGIN, ParkingClock};
+pub(super) use crate::transport::{
+    Received, ScriptedResponse, Sent, TOKEN_HEADERS, UNREAD_ACCOUNT,
+};
 
 pub(super) struct NoopCredentialStore;
 
@@ -181,18 +184,6 @@ pub(super) fn harness_credentials(daemon: &Daemon) -> &RecordingCredentialStore 
         .expect("the harness daemon's credential store is the test's recorder")
 }
 
-/// One answer of a [`scripted_server`]. A response whose `status` is
-/// empty is written as its `body` gives it, the whole response as given
-/// ([`ScriptedResponse::raw`]).
-pub(super) struct ScriptedResponse {
-    pub(super) method: &'static str,
-    /// The request path this response answers; the server asserts it.
-    pub(super) path: &'static str,
-    pub(super) status: &'static str,
-    pub(super) headers: String,
-    pub(super) body: String,
-}
-
 impl ScriptedResponse {
     /// A GGG response on `/fetch`, with the full rate-limit header set.
     pub(super) fn full(
@@ -288,21 +279,6 @@ impl ScriptedResponse {
         }
     }
 
-    /// A response to a `GET /fetch` written exactly as given, status
-    /// line, headers and body: a body cut short of its `Content-Length`,
-    /// a body that is not JSON (`roadmap/briefs/t5-design.md` §3, the
-    /// wire twins of round 3).
-    #[allow(dead_code)] // the wire twins, round 3
-    pub(super) fn raw(response: &str) -> Self {
-        ScriptedResponse {
-            method: "GET",
-            path: "/fetch",
-            status: "",
-            headers: String::new(),
-            body: response.into(),
-        }
-    }
-
     pub(super) fn malformed_head_429() -> Self {
         ScriptedResponse {
             method: "HEAD",
@@ -330,31 +306,6 @@ pub(super) fn token_answer(
         body: body
             .map(str::to_string)
             .unwrap_or_else(|| token_body("at-new", "rt-rotated", "test-user")),
-    }
-}
-
-/// The token route's rate headers as GGG answers a grant (N33).
-pub(super) const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
-
-/// One request as a scripted server received it: the method, the path,
-/// the bearer its `Authorization` header carried (without `Bearer `) and
-/// the body. What a send carried on the wire, which the journal never
-/// keeps (it names no token and no grant).
-#[derive(Debug, Clone)]
-pub(super) struct Received {
-    pub(super) method: String,
-    pub(super) path: String,
-    pub(super) bearer: Option<String>,
-    pub(super) body: String,
-}
-
-impl Received {
-    /// The refresh grant a token `POST` carried: its form body's
-    /// `refresh_token`, or `None` for any other request.
-    pub(super) fn grant(&self) -> Option<String> {
-        url::form_urlencoded::parse(self.body.as_bytes())
-            .find(|(name, _)| name == "refresh_token")
-            .map(|(_, token)| token.into_owned())
     }
 }
 
@@ -1257,15 +1208,6 @@ impl Drop for WithMode<'_> {
 pub(super) fn freeze(dir: &std::path::Path) -> WithMode<'_> {
     with_mode(dir, 0o555)
 }
-
-/// The account [`account_server`] records for a token request whose grant
-/// it cannot read (no `grant_type`, or no `code` or `refresh_token` for
-/// it): the request is on the record all the same.
-pub(super) const UNREAD_ACCOUNT: &str = "?";
-
-/// One send as the account server saw it: the method, and the account it
-/// was for (the token POST's grant, or the GET's bearer).
-pub(super) type Sent = (String, String);
 
 /// A server for the cancel scenarios and the logins that answers by what
 /// was sent, each connection on its own task: `POST /token` with the

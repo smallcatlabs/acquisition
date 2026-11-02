@@ -43,3 +43,6 @@ pub mod ratelimit;
 #[cfg(test)]
 #[path = "tests/testing.rs"]
 pub(crate) mod testing;
+#[cfg(test)]
+#[path = "tests/transport.rs"]
+pub(crate) mod transport;

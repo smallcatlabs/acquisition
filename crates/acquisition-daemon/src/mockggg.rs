@@ -1105,11 +1105,22 @@ pub async fn respond_with(
     extra_headers: &str,
     body: &str,
 ) {
-    let response = format!(
+    let response = response_text(status, content_type, extra_headers, body);
+    let _ = stream.write_all(response.as_bytes()).await;
+}
+
+/// A response as [`respond_with`] writes it on the wire, whole: what an
+/// in-process face of a fixture answers as the same bytes.
+pub(crate) fn response_text(
+    status: &str,
+    content_type: &str,
+    extra_headers: &str,
+    body: &str,
+) -> String {
+    format!(
         "HTTP/1.1 {status}\r\nContent-Type: {content_type}; charset=utf-8\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
-    );
-    let _ = stream.write_all(response.as_bytes()).await;
+    )
 }
 
 pub fn urlencode(s: &str) -> String {
