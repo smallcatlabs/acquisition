@@ -531,9 +531,12 @@ under four, `a_blocked_probe_is_no_probe_failure` under three,
 `observe_landed` and `sleep_until` hanging component tests); the
 timeouts 67 against the baseline's 62 and t5's 107, the shards 87 to
 118 minutes against the baseline's 66 to 106. #151 stays open on that
-remainder, which is the transport seam's to settle (an in-process
-transport can say that nothing is in flight at the fixture while
-occupancy is held); the two "missed" were the listed `head` exclusion
+remainder. (Corrected the same day by the transport seam's design, its
+third review: the three scenarios called door waits are component tests
+that drive their own clocks or poll, so no verdict races them, and the
+design promises no holder for any of the eleven; what remains on #151
+is an inventory the seam build's close reads by its compare, nothing
+promised.) The two "missed" were the listed `head` exclusion
 at a line the stuck-verdict step moved, now at 611 (the commit
 carrying this line). The residue step (`briefs/time-residue.md`, cut three
 times under cold reviews) closed on 2026-11-01 (`LEDGER.md`): the
