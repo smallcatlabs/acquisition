@@ -223,6 +223,17 @@ Each in his words, with the commit that landed it.
   C157 (Opus); the choke point's admission loop as a machine parked
   under a trigger (`decisions/daemon.md`, "Not doing"). One step at a
   time in the daemon (the commit carrying this line).
+- 2026-11-01, the transport seam's design (`briefs/transport-seam-design.md`
+  §7, cut six times under five cold reviews): "Accept as drafted."
+  C161 entered (every request the daemon sends to the provider crosses
+  one transport seam behind the choke point, which prepares it, owns
+  its deadline on the daemon's clock and classifies the answer; a door
+  scenario's transport is in-process), the "Not doing" line on a
+  request timeout's expiry removed with it, C160 amended twice, each
+  before the step that depends on it; the connect timeout as (a), one
+  deadline on the clock over the whole exchange; the timing his, steps
+  1 and 3 before Phase 3 starts with the rung after, or both after the
+  run (the commit carrying this line).
 
 ## Roles
 
@@ -530,7 +541,12 @@ spec on the crate's one clock, the client's one ceiling, the boundary
 as a value with a census at zero "neither" (#152 closed), the mock's
 window divisor for a user with the harness leaving it unset on the
 measurement that found the suite throughput-bound (the retrospective
-corrected in place). Next, in series at the owner's word of 2026-11-01:
-the transport seam's design brief (a Fable design, a ruling on the
-choke point's client), its build, then the login flow as a machine;
-and Phase 3, the owner's league run, at his word.
+corrected in place). The transport seam's design
+(`briefs/transport-seam-design.md`, a Fable design cut six times under
+five cold reviews) was ruled on 2026-11-01 ("Accept as drafted", the
+rulings list): C161 entered ahead of its code. Next, in series at his
+word: the seam's build briefs from the design's §6, steps 1 to 3, each
+Opus-built and reviewed cold, in the window he names beside the
+league; then the login flow as a machine; and Phase 3, the owner's
+league run, at his word. A fresh orchestrating session starts from
+this paragraph, the design brief and #151.

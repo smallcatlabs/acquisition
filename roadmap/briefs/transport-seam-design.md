@@ -362,7 +362,7 @@ doing").
 | `quiet` (835) | a precondition sentence with two halves | the same wait; the socket half goes (a park on the way to the fixture is no longer a socket read's), the arrival half stays: a scenario whose assertion depends on a request having reached its fixture calls `quiet` after that request's barrier, since a park on the way to the transport (a pacing sleep, a credential read) still resolves it first | the socket half; held by the record in the transport's first poll |
 | `settle` (810) | unchanged | unchanged | nothing |
 | `beside` (604) | no hook; `HANG` only; one caller shares the first door's clock (`dispatch.rs:1122`), one builds its own (`2296`) | takes the first door's clock and hook (a `beside` on another clock is refused), registers its whole accounting with the running hook before any restore wait (its daemon's blocking count, its holds, its `quiet`, `settle` and stuck slots) and unregisters at `finish`; the second caller moved onto the shared clock; its waits gain the verdict, `HANG` stays the backstop | "a `beside` door has no hook" in C160 and the module doc; held by the registration and a `c160_` case on a beside wait |
-| the "Not doing" line on a request timeout's expiry | structural | removed when C<next> is entered, before step 1 | the line; held by the expiry rows and C<next> |
+| the "Not doing" line on a request timeout's expiry | structural | removed when C161 is entered, before step 1 | the line; held by the expiry rows and C161 |
 | #151's remainder (the compare of `73f182bd`, the issue's comment of 2026-11-02, the saved runs under `runs/`): of the 48 mutations that moved to timeout at t5's close, eleven still time out after C160, and under every one of them a component test off the door hangs, each a test that says so: `setup_after_probe_429`, `degrade_for` and the two `parse_retry_after` caps under `a_head_429_that_fails_setup_holds_the_next_probe` (`dispatch.rs:377`), which awaits its first terminal result before it drives its clock; `head`'s `delete !`, `\|\| with &&` and `record_completed -> ()` under `a_blocked_probe_is_no_probe_failure` (477), whose condition loop yields with no verdict slot; the two `verdict_of` mutations under `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header` (622), whose `wait_terminal` is the harness's polling helper; `Limiter::observe_landed`'s `== with !=`; and `finish_send`'s `&& with \|\|` (`choke.rs:807`, a lost send noted after every counted answer) under the stress test (`stress.rs:96`, which awaits its routes' establishment before it drives its clock). Two more time out that were not of the 48: `head`'s 401 guard `== with !=` (`choke.rs:701`) under the two concurrent bearer scenarios, whose arrival waits are plain `timeout(HANG, …)` reads (`bearer.rs:394`) that install no verdict slot while their terminal waits (376, 409) race it, and `ChokePoint::sleep_until -> ()`, which spins the lifecycle's driver, which no count can see | each breaks a send's completion, a probe's setup or the pacing, so the wait ends only at the mutants runner's cut | this design claims none of them: a component test's wait is not the door's, and a plain timeout read is outside the verdict; the fixture-side hold tells a send in flight from one the daemon will never complete only where a door wait races the verdict. The close's compare names each caught or still hanging; a holder, if one appears, is named per mutation then, in C154's form | nothing here |
 | the login's exchange and refresh | through `post_form` | unchanged | nothing |
 | the callback listener (`login.rs:23`) | TCP, on the clock | unchanged; outside invariant 1 (C130); its two component tests stay | nothing |
@@ -496,7 +496,7 @@ Each a build brief from `briefs/TEMPLATE.md`, Opus-built, gated,
 committed on `main`, reviewed cold, in series; no step needs a later
 one, and a retirement waits for its holder.
 
-1. **The seam, no behaviour change**, after C<next> is entered and the
+1. **The seam, no behaviour change**, after C161 is entered and the
    "Not doing" line removed (§7): the boundary it draws is this step's.
    `Prepared`, `Answer`, the
    `Transport` trait and the reqwest transport in `ratelimit/transport.rs`;
@@ -564,9 +564,14 @@ the client harness's process boundary.
 
 ## 7. Drafts for the owner
 
-Each is his; nothing below is entered until he rules.
+Each is his; nothing below is entered until he rules. (Ruled
+2026-11-01, "Accept as drafted", (a) for the connect timeout: C161
+entered in `decisions/network.md` at the foot of its rulings, the "Not
+doing" line on a request timeout's expiry removed with it, C160's two
+amendments each before the step that depends on it, the deadline's
+words listed for his read; the commit carrying this line.)
 
-- **C<next> — Every request the daemon sends to the provider crosses
+- **C161, now C161 — Every request the daemon sends to the provider crosses
   one transport seam behind the choke point, which prepares it, owns
   its deadline on the daemon's clock and classifies the answer, while a
   transport only carries it; a door scenario's transport is in-process,
@@ -599,12 +604,12 @@ Each is his; nothing below is entered until he rules.
   and a hold of the scenario's", and "a `beside` door has no hook and
   keeps the ceiling" goes. Before step 3: "reqwest's timeouts, the one
   timer off the clock, sit inside occupancy" becomes "a send's deadline
-  is the choke point's, on its clock (C<next>)". The pins named at each
+  is the choke point's, on its clock (C161)". The pins named at each
   close.
 - **The "Not doing" line** on virtualising a request timeout's expiry
-  (`decisions/daemon.md`): removed in the commit that enters C<next>,
+  (`decisions/daemon.md`): removed in the commit that enters C161,
   before step 1, since the two cannot stand together, that commit
-  naming C<next> as what holds it (bothy refuses a struck-through line;
+  naming C161 as what holds it (bothy refuses a struck-through line;
   the history is the commit's).
 - **`CONNECT_TIMEOUT`, two shapes, his pick:** (a) one deadline on the
   clock, `REQUEST_TIMEOUT` from dispatch over the whole exchange, and
@@ -687,7 +692,7 @@ The first review's ten (`transport-seam-design-855ddcf6.md`):
    exclusions named, the mechanism after the bold, 797 bytes (§7).
 7. The C160 amendments were deferred to the closes against "rulings
    first": each entered before the step that depends on it, the "Not
-   doing" line removed with C<next> (§3, §6, §7).
+   doing" line removed with C161 (§3, §6, §7).
 8. "Unchanged" conflated the journal's fields, its words and the
    fixture's evidence: the two phases' field and word behaviour stated,
    the oracle described as journal against the transport's input with
