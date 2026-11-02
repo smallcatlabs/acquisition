@@ -1925,6 +1925,8 @@ fn response_classification_precedence_is_status_network_then_protocol() {
     );
 }
 
+/// A real-wiring test of the production transport, which stays TCP for
+/// good (C161).
 #[tokio::test]
 async fn full_200_with_truncated_body_is_network_after_observing_policy() {
     let route = "full-truncated";
@@ -2467,6 +2469,226 @@ async fn a_bearer_that_is_no_header_value_fails_at_the_send_in_the_daemons_words
     );
 }
 
+/// One send of the seam's table: what the choke point is asked to send,
+/// and what the request it prepares must carry. Every row but the
+/// unauthenticated GET carries `CountingBearer`'s token.
+struct SeamRow {
+    route: &'static str,
+    method: &'static str,
+    path: &'static str,
+    bearer: bool,
+    form: &'static [(&'static str, &'static str)],
+}
+
+const SEAM_TABLE: &[SeamRow] = &[
+    SeamRow {
+        route: "c161-bearer-get",
+        method: "GET",
+        path: "/character",
+        bearer: true,
+        form: &[],
+    },
+    SeamRow {
+        route: "c161-bearer-head",
+        method: "HEAD",
+        path: "/stash/Standard",
+        bearer: true,
+        form: &[],
+    },
+    SeamRow {
+        route: "oauth-token",
+        method: "POST",
+        path: "/oauth/token",
+        bearer: false,
+        form: &[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", "c161-refresh"),
+        ],
+    },
+    SeamRow {
+        route: "c161-plain-get",
+        method: "GET",
+        path: "/fetch",
+        bearer: false,
+        form: &[],
+    },
+];
+
+/// The bearer header `CountingBearer` writes.
+const SEAM_BEARER: &str = "Bearer c128-token";
+
+/// Each row of the seam's table sent through `choke`, its URL on `base`,
+/// each landing the 200 its transport answers.
+async fn send_the_seam_table(choke: &ChokePoint, base: &str) {
+    let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+    for row in SEAM_TABLE {
+        let url = format!("{base}{}", row.path);
+        let landed = match (row.method, row.bearer) {
+            ("HEAD", _) => choke
+                .head(
+                    row.route,
+                    &url,
+                    Some(&bearer as &dyn Bearer),
+                    choke.now(),
+                    ALWAYS_WANTED,
+                )
+                .await
+                .map(|(status, _, _)| status.as_u16())
+                .map_err(|error| error.to_string()),
+            ("POST", _) => choke
+                .post_form(row.route, &url, row.form, choke.now(), ALWAYS_WANTED)
+                .await
+                .map(|landed| landed.status.as_u16())
+                .map_err(|error| error.to_string()),
+            (_, true) => choke
+                .get_bearer(row.route, &url, &bearer, choke.now(), ALWAYS_WANTED)
+                .await
+                .map(|landed| landed.status.as_u16())
+                .map_err(|error| error.to_string()),
+            (_, false) => choke
+                .get(row.route, &url, choke.now(), ALWAYS_WANTED)
+                .await
+                .map(|landed| landed.status.as_u16())
+                .map_err(|error| error.to_string()),
+        };
+        assert_eq!(landed, Ok(200), "{} {}", row.method, row.route);
+    }
+}
+
+/// The choke point's record of each send, oldest first, without its URL
+/// (whose base differs between the runs) or its age.
+fn seam_records(choke: &ChokePoint) -> Vec<(String, String, String, bool)> {
+    let mut records: Vec<_> = choke
+        .recent_sends()
+        .into_iter()
+        .map(|send| (send.method, send.endpoint, send.outcome, send.ok))
+        .collect();
+    records.reverse();
+    records
+}
+
+/// C161: every send the choke point makes is a request it prepares, and
+/// the production transport carries it to the wire as prepared. One table
+/// of the four sends (a bearer GET, a HEAD with a bearer, the token POST
+/// with its form, an unauthenticated GET), each row's method, path,
+/// user-agent, bearer and form, run twice. In-process, a recording
+/// transport through `with_transport` holds that the choke point writes
+/// the user-agent and the bearer onto the prepared request itself, the
+/// bearer's value marked sensitive. On the wire, the production transport
+/// against a listener that reads each request whole holds that what was
+/// prepared is what arrives, the POST's form encoded as a form. The choke
+/// point records the same sends in both runs. A real-wiring test of the
+/// production transport, which stays TCP for good (C161).
+#[tokio::test]
+async fn c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_prepared() {
+    use http::header::{AUTHORIZATION, USER_AGENT};
+
+    // In-process: what the choke point prepared.
+    let recording = Recording::default();
+    let choke = ChokePoint::with_transport(
+        Arc::new(ParkingClock::new()),
+        Arc::new(Rails::disabled()),
+        NO_BEARER_API,
+        Box::new(recording.clone()),
+    );
+    send_the_seam_table(&choke, NO_BEARER_API).await;
+    let in_process = seam_records(&choke);
+    let prepared = std::mem::take(&mut *recording.0.lock().unwrap());
+    assert_eq!(prepared.len(), SEAM_TABLE.len());
+    for (row, request) in SEAM_TABLE.iter().zip(&prepared) {
+        let name = format!("{} {}", row.method, row.route);
+        assert_eq!(request.method.as_str(), row.method, "{name}");
+        assert_eq!(url_path(&request.url), row.path, "{name}");
+        assert_eq!(
+            request
+                .headers
+                .get(USER_AGENT)
+                .and_then(|value| value.to_str().ok()),
+            Some(crate::provider::USER_AGENT),
+            "{name}: the prepared request carries the registration's user-agent"
+        );
+        let bearer = request.headers.get(AUTHORIZATION);
+        assert_eq!(
+            bearer.and_then(|value| value.to_str().ok()),
+            row.bearer.then_some(SEAM_BEARER),
+            "{name}"
+        );
+        assert!(
+            bearer.is_none_or(|value| value.is_sensitive()),
+            "{name}: the bearer is not marked sensitive"
+        );
+        let form: Vec<(&str, &str)> = request
+            .form
+            .iter()
+            .flatten()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(form, row.form, "{name}");
+    }
+
+    // On the wire: what the production transport carried.
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let kept = received.clone();
+    let server = tokio::spawn(async move {
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let request = crate::mockggg::read_request(&mut stream).await.unwrap();
+            let body = if request.method == "HEAD" { "" } else { "{}" };
+            kept.lock().unwrap().push(request);
+            let answer = raw_response(
+                "200 OK",
+                &full_rate_headers("recorded-policy", None),
+                2,
+                body,
+            );
+            stream.write_all(answer.as_bytes()).await.unwrap();
+        }
+    });
+    let choke = ChokePoint::with_clock_and_rails(
+        Arc::new(ParkingClock::new()),
+        Arc::new(Rails::disabled()),
+        &base,
+    );
+    send_the_seam_table(&choke, &base).await;
+    server.abort();
+    let received = std::mem::take(&mut *received.lock().unwrap());
+    assert_eq!(received.len(), SEAM_TABLE.len());
+    for (row, request) in SEAM_TABLE.iter().zip(&received) {
+        let name = format!("{} {}", row.method, row.route);
+        assert_eq!(request.method, row.method, "{name}");
+        assert_eq!(request.path, row.path, "{name}");
+        assert_eq!(
+            request.headers.get("user-agent").map(String::as_str),
+            Some(crate::provider::USER_AGENT),
+            "{name}"
+        );
+        assert_eq!(
+            request.headers.get("authorization").map(String::as_str),
+            row.bearer.then_some(SEAM_BEARER),
+            "{name}"
+        );
+        let form: Vec<(String, String)> = url::form_urlencoded::parse(request.body.as_bytes())
+            .into_owned()
+            .collect();
+        let expected: Vec<(String, String)> = row
+            .form
+            .iter()
+            .map(|(name, value)| (name.to_string(), value.to_string()))
+            .collect();
+        assert_eq!(form, expected, "{name}");
+        if !row.form.is_empty() {
+            assert_eq!(
+                request.headers.get("content-type").map(String::as_str),
+                Some("application/x-www-form-urlencoded"),
+                "{name}"
+            );
+        }
+    }
+    assert_eq!(seam_records(&choke), in_process);
+}
+
 /// The one send record the choke point holds for `endpoint`.
 fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
     let mut records: Vec<SendRecord> = choke
@@ -2510,6 +2732,8 @@ async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
     assert_eq!(send.outcome, "403 Forbidden", "{send:?}");
 }
 
+/// A real-wiring test of the production transport, which stays TCP for
+/// good (C161).
 #[tokio::test]
 async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
     let route = "malformed-truncated";
@@ -2628,6 +2852,9 @@ fn redirect_response(status: &str, location: &str) -> String {
 /// one line whose headers keep the `location` with its query reduced to a
 /// mark. A bearer GET whose 302 points at another port, or at another
 /// path on its own origin, sends nothing more.
+///
+/// A real-wiring test of the production transport, which stays TCP for
+/// good (C161).
 #[tokio::test]
 async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
     use crate::rails::RailsConfig;
@@ -2807,6 +3034,8 @@ fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
     assert_eq!(redacted_location(&at_bound), at_bound);
 }
 
+/// A real-wiring test of the production transport, which stays TCP for
+/// good (C161).
 #[tokio::test]
 async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
     for (status_line, status, retry_after) in [
@@ -3594,6 +3823,9 @@ impl Bearer for CountingBearer {
 /// reaches the foreign server or the API's own listener (the other host
 /// name and the other scheme point at it). The same bearer to the API
 /// origin still goes out, carrying the token.
+///
+/// A real-wiring test of the production transport, which stays TCP for
+/// good (C161).
 #[tokio::test]
 async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_server() {
     let api = TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -149,3 +149,44 @@ fn build_client() -> reqwest::Client {
         .build()
         .expect("reqwest client builds")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpListener;
+
+    /// Invariant 4 through the seam: the user-agent the production
+    /// transport sends is the prepared request's, not the client's
+    /// default. The choke point writes the same constant in both places,
+    /// so the spec's table cannot tell them apart on the wire; here the
+    /// prepared value differs and the listener reads it. A real-wiring
+    /// test of the production transport, which stays TCP for good (C161).
+    #[tokio::test]
+    async fn the_production_transport_sends_the_prepared_user_agent_not_its_default() {
+        const AGENT: &str = "c161-distinct-agent";
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/agent", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let request = crate::mockggg::read_request(&mut stream).await.unwrap();
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .await
+                .unwrap();
+            request
+        });
+        let mut request = Prepared::new(Method::GET, &url);
+        request
+            .headers
+            .insert(USER_AGENT, HeaderValue::from_static(AGENT));
+        let answer = Production::new().send(request).await.unwrap();
+        assert_eq!(answer.status, StatusCode::OK);
+        assert_eq!(answer.body.await.unwrap(), "");
+        let received = server.await.unwrap();
+        assert_eq!(
+            received.headers.get("user-agent").map(String::as_str),
+            Some(AGENT)
+        );
+    }
+}
