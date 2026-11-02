@@ -23,7 +23,9 @@
 # test module, under a test attribute that is no module and through an
 # import of the timer module (alone, or in a tokio group) or of the crate
 # renamed, and the
-# blocking case (§10) a second blocking task.
+# blocking case (§10) a second blocking task. The transport cases (§13)
+# write `reqwest` in the same places the timer cases write a timer, and
+# rename the crate in a source or in the daemon's manifest.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -127,7 +129,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|REQWEST|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -301,6 +303,17 @@ run_case 'the timer module imported, its sleep called bare'        refuse "TIMER
 run_case 'the timer module in a tokio group, its timeout called'  refuse "TIMER   $KINDS:$appended imports tokio's timers" in_tests "$KINDS" '\nuse tokio::{sync, time};\nasync fn zz() { let _ = time::timeout(std::time::Duration::ZERO, async {}).await; }\n'
 run_case 'the tokio crate renamed, a timer through the alias'     refuse "TIMER   $KINDS:$appended renames the tokio crate" in_tests "$KINDS" '\nuse tokio as runtime;\nasync fn zz() { runtime::time::sleep(std::time::Duration::ZERO).await; }\n'
 run_case 'a second blocking task'                                refuse "BLOCKING $KINDS:$appended spawns a blocking task outside Daemon::blocking" in_tests "$KINDS" '\nfn zz() { let _ = tokio::task::spawn_blocking(|| ()); }\n'
+
+echo '== the code: every request the daemon sends crosses the one transport (C161)'
+CLIENT_NEW='reqwest::Client::new()'
+run_case 'reqwest as it stands'                                  pass   'ok      transport' none
+run_case 'reqwest in a production line of another file'          refuse "REQWEST $KINDS:$appended names reqwest outside" in_tests "$KINDS" "\nfn zz() { let _ = $CLIENT_NEW; }\n"
+run_case 'reqwest before the tail test module, the module kept'  refuse "REQWEST $AUTH:$tail_at names reqwest outside" drift "$AUTH" "$TAIL" "fn zz() { let _ = $CLIENT_NEW; }
+$TAIL"
+run_case 'reqwest under a test attribute that is no module'      refuse "REQWEST $KINDS:$((appended + 1)) names reqwest outside" in_tests "$KINDS" "\n#[cfg(test)]\nfn zz() { let _ = $CLIENT_NEW; }\n"
+run_case 'the reqwest crate renamed in a source'                 refuse "REQWEST $KINDS:$appended renames the reqwest crate" in_tests "$KINDS" '\nuse reqwest as web;\nfn zz() { let _ = web::Client::new(); }\n'
+run_case 'the reqwest dependency renamed in the manifest'        refuse 'REQWEST crates/acquisition-daemon/Cargo.toml declares reqwest as web' drift crates/acquisition-daemon/Cargo.toml 'reqwest = { version = "0.12",' 'web = { package = "reqwest", version = "0.12",'
+run_case 'a file whose test module does not close it'            refuse "REQWEST $AUTH:$tail_at opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line" in_tests "$AUTH" '\nfn zz() {}\n'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

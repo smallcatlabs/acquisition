@@ -46,6 +46,12 @@
 #      path, an import, a `time::` path an import makes), only inside
 #      `impl Clock for SystemClock` and inside a file's tail test module.
 #
+#  13. Every request the daemon sends crosses the one transport (C161):
+#      under `crates/acquisition-daemon/src`, outside `tests/` and
+#      comment lines, the word `reqwest` stands only in
+#      `ratelimit/transport.rs` and inside a file's tail test module, and
+#      the crate is never renamed, in a source or in the manifest.
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -631,6 +637,36 @@ PY
 ); then fail=1; fi
 printf '%s\n' "$exempt"
 
+# ---- the tail test module: one reader for checks 12 and 13 -------------
+# A file's tail test module, as checks 12 and 13 both exempt it: a line
+# `#[cfg(test)]` at column zero whose next line is `mod <ident> {` at
+# column zero, closed by the first later line that is exactly `}`, which
+# must be the file's last non-blank line. No brace is counted for the
+# module, so a brace in a string cannot move its end; a file where that
+# line is not the last, or where two such modules open, is refused as
+# unrecognised. Printed as Python source, which each check's reader runs
+# before its own.
+tail_reader() {
+  cat <<'PY'
+import re
+def tail_module(path, lines, code, tag, exempts, ruling):
+    """The file's tail test module as (first line, last line), or None,
+    and a refusal when the file is unrecognised; `code` is `lines` with
+    comment lines blanked."""
+    opens = [at for at in range(1, len(code)) if code[at - 1] == "#[cfg(test)]" and re.fullmatch(r"mod [A-Za-z_][A-Za-z0-9_]* \{", code[at])]
+    if len(opens) > 1:
+        return None, f"{tag} {path}:{opens[1]} opens a second #[cfg(test)] module, where the check recognises one tail test module a file: {exempts} it exempts cannot be told apart from production's, so the file is unrecognised; keep one test module at the file's end ({ruling})"
+    if not opens:
+        return None, None
+    start = opens[0]
+    close = next((at for at in range(start + 2, len(code) + 1) if code[at - 1] == "}"), None)
+    last = max(at for at, line in enumerate(lines, 1) if line.strip())
+    if close is None or close != last:
+        return None, f"{tag} {path}:{start} opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line: an item after it would pass for a test's, so the file is unrecognised; end the file with its tail test module ({ruling})"
+    return (start, close), None
+PY
+}
+
 # ---- 12. every tokio timer in the daemon sleeps through its clock ------
 # C160: a door scenario's park hook moves virtual time, and fails a door
 # wait, by what it accounts for: the daemon's clock's sleepers among
@@ -639,13 +675,9 @@ printf '%s\n' "$exempt"
 # under `crates/acquisition-daemon/src`, outside its `tests/` directories
 # and comment lines, tokio's timers are named only inside `impl Clock for
 # SystemClock` in `ratelimit.rs` (the span found by brace depth, as
-# check 10 finds `fn blocking`'s) and inside a file's tail test module:
-# a line `#[cfg(test)]` at column zero whose next line is `mod <ident> {`
-# at column zero, closed by the first later line that is exactly `}`,
-# which must be the file's last non-blank line. No brace is counted for
-# the module, so a brace in a string cannot move its end; a file where
-# that line is not the last, or where two such modules open, is refused
-# as unrecognised. A `#[cfg(test)]` on any other item exempts nothing.
+# check 10 finds `fn blocking`'s) and inside a file's tail test module,
+# as the reader above recognises it; a file it cannot recognise is
+# refused. A `#[cfg(test)]` on any other item exempts nothing.
 # Every spelling is read, the import as well as the call: a line naming
 # `tokio::time` (a path, `use tokio::time;`, `use tokio::time::{…}`, `use
 # tokio::time as …`), a `use tokio::{…}` group whose members name `time`
@@ -655,7 +687,8 @@ printf '%s\n' "$exempt"
 # …`, no `self as …` in a `use tokio::{…}` group, no `extern crate tokio
 # as …`), so with its root unaliased those three readers cover every path
 # a timer can take, and the check holds under any spelling.
-if ! timers=$(python3 -I - <<'PY'
+if ! timers=$(python3 -I -c "$(tail_reader)
+$(cat <<'PY'
 import glob, re, sys
 CLOCK = "crates/acquisition-daemon/src/ratelimit.rs"
 WORDS = "sleep through the daemon's Clock, `choke.sleep` or `choke.sleep_until`, removing any import of tokio's timers, or move the test into the file's tail test module (C160)"
@@ -672,20 +705,11 @@ for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=
     n += 1
     lines = open(path, encoding="utf-8").read().splitlines()
     code = ["" if l.lstrip().startswith("//") else l for l in lines]
-    # The tail test module, by the lines that open and close it.
-    opens = [at for at in range(1, len(code)) if code[at - 1] == "#[cfg(test)]" and re.fullmatch(r"mod [A-Za-z_][A-Za-z0-9_]* \{", code[at])]
-    exempt = None
-    if len(opens) > 1:
-        bad.append(f"TIMER   {path}:{opens[1]} opens a second #[cfg(test)] module, where the check recognises one tail test module a file: the timers it exempts cannot be told apart from production's, so the file is unrecognised; keep one test module at the file's end (C160)")
+    exempt, refusal = tail_module(path, lines, code, "TIMER  ", "the timers", "C160")
+    if refusal:
+        bad.append(refusal)
         continue
-    if opens:
-        start = opens[0]
-        close = next((at for at in range(start + 2, len(code) + 1) if code[at - 1] == "}"), None)
-        last = max(at for at, line in enumerate(lines, 1) if line.strip())
-        if close is None or close != last:
-            bad.append(f"TIMER   {path}:{start} opens a #[cfg(test)] module whose closing brace at column zero is not the file's last line: an item after it would pass for a test's, so the file is unrecognised; end the file with its tail test module (C160)")
-            continue
-        exempt = (start, close); modules += 1
+    modules += exempt is not None
     if path == CLOCK:
         for at, line in enumerate(code, 1):
             if re.match(r"impl Clock for SystemClock\b", line):
@@ -728,7 +752,83 @@ if bad:
     sys.exit(1)
 print(f"ok      {'timers':<13} {n} daemon source files outside tests/: tokio's timers, under any spelling, only in {CLOCK}:{span[0]}-{span[1]}, impl Clock for SystemClock, and {modules} tail test modules (C160)")
 PY
-); then fail=1; fi
+)"); then fail=1; fi
 printf '%s\n' "$timers"
+
+# ---- 13. every request the daemon sends crosses the one transport ------
+# C161: the choke point privately owns the one transport, which privately
+# owns the one HTTP client, so every request the daemon sends is prepared
+# by the choke point, under the limiter and the gate (invariant 1). The
+# module tree keeps the production transport's type and constructor
+# behind the choke point; this check keeps the client's crate in that
+# one file, so a second sender is a check failure rather than a review
+# finding. Under `crates/acquisition-daemon/src`, outside its `tests/`
+# directories and comment lines, the word `reqwest` stands only in
+# `ratelimit/transport.rs` and inside a file's tail test module (the
+# reader above). The crate is never renamed there (no `use reqwest as
+# …`, no `self as …` in a `use reqwest::{…}` group, no `extern crate
+# reqwest as …`, read as check 12 reads tokio's), and the daemon's
+# manifest declares it under its own name: a dependency entry with
+# `package = "reqwest"` under another name is a rename the word could
+# not see.
+if ! transport=$(python3 -I -c "$(tail_reader)
+$(cat <<'PY'
+import glob, re, sys, tomllib
+HOME = "crates/acquisition-daemon/src/ratelimit/transport.rs"
+MANIFEST = "crates/acquisition-daemon/Cargo.toml"
+WORDS = "send through the choke point, which owns the one transport, or move the test into the file's tail test module (C161)"
+WORD = re.compile(r"\breqwest\b")
+GROUP = re.compile(r"\buse\s+(?:::)?reqwest::\{")
+RENAME = re.compile(r"\b(?:use\s+(?:::)?reqwest|extern\s+crate\s+reqwest)\s+as\b")
+RENAMED = "reqwest is never renamed in the daemon, so every use of it spells `reqwest`, which this check reads; name the crate as itself (C161)"
+bad = []; n = 0; modules = 0; home = 0
+for path in sorted(glob.glob("crates/acquisition-daemon/src/**/*.rs", recursive=True)):
+    if "/tests/" in path:
+        continue
+    n += 1
+    lines = open(path, encoding="utf-8").read().splitlines()
+    code = ["" if l.lstrip().startswith("//") else l for l in lines]
+    exempt, refusal = tail_module(path, lines, code, "REQWEST", "the lines naming reqwest", "C161")
+    if refusal:
+        bad.append(refusal)
+        continue
+    modules += exempt is not None
+    for at, line in enumerate(code, 1):
+        if exempt and exempt[0] <= at <= exempt[1]:
+            continue
+        renamed = bool(RENAME.search(line))
+        if GROUP.search(line):
+            # The group whole, to its closing brace, its members read for `self as`.
+            group, depth = "", 0
+            for body in code[at - 1:]:
+                group += body + "\n"
+                depth += body.count("{") - body.count("}")
+                if depth <= 0 and "{" in group:
+                    break
+            renamed = renamed or bool(re.search(r"(?<![\w:])self\s+as\b", group[GROUP.search(group).end():]))
+        if renamed:
+            bad.append(f"REQWEST {path}:{at} renames the reqwest crate: {RENAMED}")
+        elif WORD.search(line):
+            if path == HOME:
+                home += 1
+            else:
+                bad.append(f"REQWEST {path}:{at} names reqwest outside {HOME}, the one production transport's file: {WORDS}")
+with open(MANIFEST, "rb") as f:
+    manifest = tomllib.load(f)
+tables = [manifest.get(k, {}) for k in ("dependencies", "dev-dependencies", "build-dependencies")]
+tables += [t.get(k, {}) for t in manifest.get("target", {}).values() for k in ("dependencies", "dev-dependencies", "build-dependencies")]
+for table in tables:
+    for name, entry in table.items():
+        if isinstance(entry, dict) and entry.get("package") == "reqwest" and name != "reqwest":
+            bad.append(f"REQWEST {MANIFEST} declares reqwest as {name}: {RENAMED}")
+if home == 0:
+    bad.append(f"REQWEST {HOME} names no reqwest, where the one production transport holds the one client (C161)")
+if bad:
+    print("\n".join(bad))
+    sys.exit(1)
+print(f"ok      {'transport':<13} {n} daemon source files outside tests/: reqwest named only in {HOME} ({home} lines) and {modules} tail test modules, never renamed (C161)")
+PY
+)"); then fail=1; fi
+printf '%s\n' "$transport"
 
 exit $fail
