@@ -81,8 +81,12 @@ async fn token_aware_server() -> (String, Arc<Mutex<Vec<String>>>, tokio::task::
 async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     let (base, forms, server) = token_aware_server().await;
     let clock = Arc::new(ParkingClock::new());
-    let (mut daemon, log_path) =
-        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
+    let (mut daemon, log_path) = test_daemon_with(
+        Boundary::Function,
+        Provider::mock(&base),
+        clock.clone(),
+        RailsConfig::default(),
+    );
     let store_dir = TestPath::dir();
     Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
     daemon.shared.lock().unwrap().auth.by_account.clear();
@@ -249,6 +253,7 @@ async fn refresh_answered_by_headers(
     let (base, server) = token_endpoint_answering(status, headers.into(), body).await;
     let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon_at(
+        Boundary::Function,
         Provider::mock(&base),
         clock.clone(),
         RailsConfig::default(),
@@ -382,6 +387,7 @@ async fn api_answered_by(
     });
     let clock = Arc::new(ParkingClock::new());
     let (daemon, log_path) = test_daemon_at(
+        Boundary::Function,
         Provider::mock(&base),
         clock.clone(),
         RailsConfig::default(),

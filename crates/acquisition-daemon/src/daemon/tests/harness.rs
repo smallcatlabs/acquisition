@@ -461,8 +461,45 @@ pub(super) async fn delayed_token_server(
     (base, arrived_rx, release_tx, task)
 }
 
-pub(super) fn test_daemon(base: &str, clock: Arc<dyn Clock>) -> (Arc<Daemon>, TestPath) {
-    test_daemon_with(Provider::mock(base), clock, RailsConfig::default())
+/// C158, which boundary keeps a component test off the door: the value
+/// the three constructors take first, so the census
+/// (`tools/daemon-tests-census.py`) reads it where the test builds its
+/// daemon, never a sentence. One variant per boundary C158 and the door's
+/// module doc name, and two the tests showed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Boundary {
+    /// Several workers: the park hook fires per worker and never means
+    /// all are idle.
+    Workers,
+    /// A child process.
+    Child,
+    /// The daemon's own frontend or callback socket, which no scripted
+    /// GGG server stands in for.
+    #[cfg_attr(not(unix), allow(dead_code))] // its tests, the listener's, are Unix's alone
+    Socket,
+    /// A function or a table: the test builds a daemon only to call one,
+    /// or to read or stage state no frontend reaches (an internal, a file
+    /// the daemon writes that no frontend reads).
+    Function,
+    /// A hand-driven clock the test reads or moves itself.
+    Clock,
+    /// Two fixtures at once, which the door's one `Server` cannot host.
+    Fixtures,
+}
+
+/// A harness daemon facing the mock at `base`, built for a component test
+/// that says which `boundary` keeps it off the door.
+pub(super) fn test_daemon(
+    boundary: Boundary,
+    base: &str,
+    clock: Arc<dyn Clock>,
+) -> (Arc<Daemon>, TestPath) {
+    test_daemon_with(
+        boundary,
+        Provider::mock(base),
+        clock,
+        RailsConfig::default(),
+    )
 }
 
 /// A path in a folder of the test's own: the folder is a
@@ -547,11 +584,13 @@ pub(super) fn journal_of(log_path: &std::path::Path) -> PathBuf {
 /// daemon never writes the developer's keychain unless its test names
 /// the OS store. One empty session ([`test_daemon_at`] takes others).
 pub(super) fn test_daemon_with(
+    boundary: Boundary,
     provider: Provider,
     clock: Arc<dyn Clock>,
     config: RailsConfig,
 ) -> (Arc<Daemon>, TestPath) {
     test_daemon_at(
+        boundary,
         provider,
         clock,
         config,
@@ -564,6 +603,7 @@ pub(super) fn test_daemon_with(
 /// `log_path`, which a child process names inside its own directory, and
 /// its sessions `sessions`, as the daemon's builder takes them.
 pub(super) fn test_daemon_at(
+    _boundary: Boundary,
     provider: Provider,
     clock: Arc<dyn Clock>,
     config: RailsConfig,

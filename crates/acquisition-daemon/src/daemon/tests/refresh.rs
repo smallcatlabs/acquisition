@@ -602,6 +602,7 @@ fn c158_the_token_table_through_the_door() {
 async fn a_token_3xx_keeps_its_target_out_of_the_daemon_log() {
     let (base, requests, server) = scripted_server(vec![token_3xx()]).await;
     let (mut daemon, log_path) = test_daemon_with(
+        Boundary::Function,
         Provider::mock(&base),
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),
@@ -633,6 +634,7 @@ async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
     let (base, requests, server) =
         scripted_server(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
     let (daemon, log_path) = test_daemon_with(
+        Boundary::Function,
         Provider::mock(&base),
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),
@@ -1183,6 +1185,7 @@ async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
     let (base, requests, server) =
         scripted_server(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
     let (mut daemon, log_path) = test_daemon_with(
+        Boundary::Function,
         Provider::mock(&base),
         Arc::new(ParkingClock::new()),
         RailsConfig::default(),

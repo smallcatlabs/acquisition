@@ -127,7 +127,7 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
 async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     let clock = Arc::new(ParkingClock::new());
     let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, log_path) = test_daemon(&base, clock);
+    let (daemon, log_path) = test_daemon(Boundary::Function, &base, clock);
     daemon.shared.lock().unwrap().auth.rename("", "Alice#1234");
     daemon
         .choke

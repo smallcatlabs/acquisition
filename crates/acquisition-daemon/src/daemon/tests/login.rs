@@ -939,7 +939,8 @@ fn an_out_of_range_expires_in_is_a_token_error() {
 #[tokio::test]
 async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ParkingClock::new()));
+    let (mut daemon, log_path) =
+        test_daemon(Boundary::Function, &base, Arc::new(ParkingClock::new()));
     logged_in(&mut daemon);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 

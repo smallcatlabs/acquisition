@@ -10,7 +10,8 @@ use crate::daemon::*;
 /// C83: a diagnostic over the cap is rotated to `<name>.1`; when it
 /// cannot be renamed (a directory that refuses new entries) it is
 /// truncated in place and the loss is named — the bound holds either
-/// way (review 2026-09-11); under the cap nothing happens.
+/// way (review 2026-09-11); under the cap nothing happens. A component
+/// test: the bound as a function over a directory, no daemon built.
 #[cfg(unix)]
 #[test]
 fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {

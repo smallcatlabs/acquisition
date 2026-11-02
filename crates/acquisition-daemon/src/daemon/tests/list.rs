@@ -50,7 +50,7 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
 async fn learned_daemon() -> Arc<Daemon> {
     let clock = Arc::new(ParkingClock::new());
     let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
-    let (daemon, _log_path) = test_daemon(&base, clock);
+    let (daemon, _log_path) = test_daemon(Boundary::Function, &base, clock);
     for route in ["fetch", "fetch@alice"] {
         daemon
             .choke

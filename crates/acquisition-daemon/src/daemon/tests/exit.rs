@@ -28,9 +28,13 @@ const BOUND: Duration = Duration::from_secs(3);
 /// A logged-in harness daemon on a parking clock nothing drives (a
 /// deadline already due is ready at once; any other parks until the test
 /// moves the clock), its queue on a file-backed `daemon.db`, its exit
-/// bounded by `bound`.
-fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, TestPath, TestPath) {
-    exit_daemon_on(base, bound, Arc::new(ParkingClock::new()))
+/// bounded by `bound`, built for a test that says its `boundary`.
+fn exit_daemon(
+    boundary: Boundary,
+    base: &str,
+    bound: Duration,
+) -> (Arc<Daemon>, TestPath, TestPath) {
+    exit_daemon_on(boundary, base, bound, Arc::new(ParkingClock::new()))
 }
 
 /// A client's submit, as `Request::Submit` carries it.
@@ -75,12 +79,13 @@ fn journal_methods(door: &Door) -> Vec<String> {
 
 /// [`exit_daemon`] on `clock`.
 fn exit_daemon_on(
+    boundary: Boundary,
     base: &str,
     bound: Duration,
     clock: Arc<dyn crate::ratelimit::Clock>,
 ) -> (Arc<Daemon>, TestPath, TestPath) {
     let db = test_db_path();
-    let (mut daemon, log_path) = test_daemon(base, clock);
+    let (mut daemon, log_path) = test_daemon(boundary, base, clock);
     logged_in(&mut daemon);
     let d = Arc::get_mut(&mut daemon).unwrap();
     d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
@@ -280,7 +285,7 @@ struct Parked {
 async fn park_a_job_at_the_token_route() -> Parked {
     let (base, sent_log, arrived, release) = account_server(("POST", "/token", 1)).await;
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path, db) = exit_daemon_on(&base, BOUND, clock.clone());
+    let (daemon, log_path, db) = exit_daemon_on(Boundary::Function, &base, BOUND, clock.clone());
     daemon.shared.lock().unwrap().auth.by_account.insert(
         "other".into(),
         AuthSession {
@@ -479,7 +484,7 @@ fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
 #[test]
 fn the_idle_verdict_holds_while_a_login_is_pending() {
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", clock.clone());
+    let (daemon, log_path) = test_daemon(Boundary::Clock, "http://127.0.0.1:1", clock.clone());
     let knob = Duration::from_secs(60);
     clock.advance(knob);
     assert!(daemon.is_idle(knob), "nothing holds the daemon");
@@ -495,7 +500,7 @@ fn the_idle_verdict_holds_while_a_login_is_pending() {
 /// exit's private deadline, an instant on the daemon's clock.
 #[tokio::test]
 async fn a_second_begin_exit_returns_at_once() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, "http://127.0.0.1:1", BOUND);
     assert!(daemon.begin_exit("test: the first cause"));
     let deadline = *daemon.exit.deadline.get().expect("the bound is armed");
     assert!(!daemon.begin_exit("test: the second cause"));
@@ -523,7 +528,12 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     let bound = Duration::from_millis(300);
     let grace = Duration::from_millis(200);
     let clock = Arc::new(ParkingClock::new());
-    let (mut daemon, log_path, _db) = exit_daemon_on("http://127.0.0.1:1", bound, clock.clone());
+    let (mut daemon, log_path, _db) = exit_daemon_on(
+        Boundary::Workers,
+        "http://127.0.0.1:1",
+        bound,
+        clock.clone(),
+    );
     let (ended_tx, ended_rx) = std::sync::mpsc::channel();
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
@@ -607,7 +617,7 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
     ])
     .await;
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path, db) = exit_daemon_on(&base, BOUND, clock.clone());
+    let (daemon, log_path, db) = exit_daemon_on(Boundary::Clock, &base, BOUND, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = submit_for(&daemon, "fetch", json!({}), None);
     tokio::time::timeout(HANG, async {
@@ -782,7 +792,7 @@ fn exit_waits_for_a_login_code_exchange() {
 async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path, _db) = exit_daemon_on(&base, HELD, clock.clone());
+    let (daemon, log_path, _db) = exit_daemon_on(Boundary::Function, &base, HELD, clock.clone());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let generation = daemon.begin_auth_flow();
     daemon
@@ -840,7 +850,11 @@ async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
 /// as a lost login's (C50), and the drain does not stall to its bound.
 #[test]
 fn a_login_whose_profile_job_waits_is_not_held_by_the_drain() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (daemon, log_path) = test_daemon(
+        Boundary::Function,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     let generation = daemon.begin_auth_flow();
     daemon
         .stage_auth_flow(
@@ -1090,7 +1104,8 @@ fn table() -> Vec<Row> {
 }
 
 /// C157: the daemon's lifecycle, one row per transition, with no clock:
-/// its run time is the runner's report, asserted by nothing (C137).
+/// its run time is the runner's report, asserted by nothing (C137). A
+/// component test: the machine as a table, no daemon built.
 #[test]
 fn c157_the_lifecycle_is_a_table_of_event_scripts() {
     for row in table() {
@@ -1107,6 +1122,7 @@ fn c157_the_lifecycle_is_a_table_of_event_scripts() {
 }
 
 /// Every row has a name of its own, so a failure names one transition.
+/// A component test: the table's names, no daemon built.
 #[test]
 fn every_row_of_the_lifecycle_table_is_named_once() {
     let rows = table();
@@ -1131,7 +1147,7 @@ fn every_row_of_the_lifecycle_table_is_named_once() {
 /// and the log.
 #[tokio::test]
 async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, "http://127.0.0.1:1", BOUND);
     let (life, leave) = spawn_life(&daemon, Duration::ZERO);
     let cut = tokio::time::timeout(HANG, leave)
         .await
@@ -1157,7 +1173,7 @@ async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
 /// after the first busy verdict, before any re-judge.
 #[tokio::test]
 async fn c3_a_connection_holds_a_daemon_under_the_idle_knob_at_zero() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, "http://127.0.0.1:1", BOUND);
     daemon.connections.store(1, Ordering::SeqCst);
     let _ = daemon.life_probe.set(LifeProbe::default());
     let probe = daemon.life_probe.get().unwrap();
@@ -1194,7 +1210,7 @@ fn connect(daemon: &Daemon, closes: bool) {
 /// component test (C158): the admission is forced between the verdict and
 /// the claim through the driver's probe.
 async fn an_admission_before_the_claim_begins_no_exit(closes: bool) {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, "http://127.0.0.1:1", BOUND);
     let _ = daemon.life_probe.set(LifeProbe {
         hold_idle: true,
         ..LifeProbe::default()
@@ -1241,7 +1257,7 @@ async fn c157_an_idle_verdict_overtaken_by_a_connection_that_closed_begins_no_ex
 /// through the driver's probe.
 #[tokio::test]
 async fn c157_a_connection_admitted_after_the_idle_claim_meets_the_exit() {
-    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, "http://127.0.0.1:1", BOUND);
     let _ = daemon.life_probe.set(LifeProbe {
         hold_claim: true,
         ..LifeProbe::default()
@@ -1291,7 +1307,8 @@ async fn c157_a_connection_admitted_after_the_idle_claim_meets_the_exit() {
 /// row on disk.
 #[tokio::test]
 async fn c137_the_drain_bound_at_zero_cuts_what_is_in_flight() {
-    let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", Duration::ZERO);
+    let (daemon, log_path, db) =
+        exit_daemon(Boundary::Function, "http://127.0.0.1:1", Duration::ZERO);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = submit_for(&daemon, "sleep", json!({ "seconds": 60 }), None);
     wait_state(&daemon, id, JobState::Running).await;
@@ -1333,7 +1350,12 @@ async fn c137_the_drain_bound_at_zero_cuts_what_is_in_flight() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn c133_a_signal_stops_admission_while_shared_is_held() {
     let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path, _db) = exit_daemon_on("http://127.0.0.1:1", BOUND, clock.clone());
+    let (daemon, log_path, _db) = exit_daemon_on(
+        Boundary::Workers,
+        "http://127.0.0.1:1",
+        BOUND,
+        clock.clone(),
+    );
     let (held_tx, held_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
     let holder = {
@@ -1403,7 +1425,11 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
 /// the component test's below, which reads the rows through a connection
 /// of its own between lifetimes and refuses a write with a trigger.
 fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, TestPath) {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (mut daemon, log_path) = test_daemon(
+        Boundary::Function,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
         d.world = Some(dir.display().to_string());
@@ -1782,6 +1808,8 @@ fn run_panic_hook_child(at: &str) -> (TestPath, std::process::ExitStatus) {
 /// place and the words, writes the marker naming the job (and nothing
 /// else), and ends the process: tokio's catch of a task's panic never
 /// runs. A panic outside any job is logged the same and leaves no marker.
+/// A component test (C158): a child process, this test's own binary,
+/// whose end is the property.
 #[test]
 fn a_panic_is_logged_marks_its_job_and_ends_the_process() {
     if let Some(dir) = std::env::var_os(HOOK_CHILD_DIR) {
@@ -1852,7 +1880,11 @@ fn accept_failures(log_path: &std::path::Path) -> Vec<String> {
 #[tokio::test]
 async fn a_listener_error_is_served_through() {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (daemon, log_path) = test_daemon(
+        Boundary::Socket,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("listener.sock");
     let (listener, bound) = crate::daemon::endpoint::Listener::bind(&path)
@@ -1897,7 +1929,11 @@ async fn a_listener_error_is_served_through() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_run_of_listener_errors_logs_a_bounded_number_of_lines() {
-    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (daemon, log_path) = test_daemon(
+        Boundary::Socket,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     let mut errors: std::collections::VecDeque<std::io::Error> = (0..1000)
         .map(|_| std::io::Error::other("too many open files"))
         .collect();

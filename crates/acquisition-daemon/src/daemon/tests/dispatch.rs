@@ -397,7 +397,7 @@ async fn a_head_429_that_fails_setup_holds_the_next_probe() {
         ];
         let (base, requests, server) = scripted_server(responses).await;
         let clock = Arc::new(ParkingClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock.clone());
+        let (daemon, log_path) = test_daemon(Boundary::Function, &base, clock.clone());
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         let first = daemon
             .submit("fetch".into(), json!({}), 0, "test".into(), None)
@@ -440,7 +440,8 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
     };
     assert!(provider.is_real());
     let clock = Arc::new(ParkingClock::new());
-    let (mut daemon, log_path) = test_daemon_with(provider, clock, RailsConfig::default());
+    let (mut daemon, log_path) =
+        test_daemon_with(Boundary::Function, provider, clock, RailsConfig::default());
     logged_in(&mut daemon);
     let outcome = daemon
         .execute_inner(1, "whoami", json!({}), None, None, daemon.choke.now())
@@ -498,7 +499,7 @@ async fn a_blocked_probe_is_no_probe_failure() {
         ])
         .await;
         let clock = Arc::new(ParkingClock::new());
-        let (daemon, log_path) = test_daemon(&base, clock.clone());
+        let (daemon, log_path) = test_daemon(Boundary::Function, &base, clock.clone());
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         let id = daemon
             .submit("fetch".into(), json!({}), 0, "test".into(), None)
@@ -634,6 +635,7 @@ async fn a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header() {
         let state = TestPath::dir();
         let state_path = state.join("c129-rails.json");
         let (daemon, log_path) = test_daemon_with(
+            Boundary::Function,
             Provider::mock(&base),
             Arc::new(ParkingClock::new()),
             RailsConfig {
@@ -688,7 +690,7 @@ async fn a_get_3xx_keeps_its_target_out_of_the_daemon_log() {
         c130_redirect(),
     ])
     .await;
-    let (daemon, log_path) = test_daemon(&base, Arc::new(ParkingClock::new()));
+    let (daemon, log_path) = test_daemon(Boundary::Function, &base, Arc::new(ParkingClock::new()));
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let id = daemon
         .submit("fetch".into(), json!({}), 0, "test".into(), None)
@@ -966,7 +968,11 @@ fn kept_failure(outcome: &Outcome) -> (&str, &Value) {
 /// fetched body as its payload, so the send is not wasted.
 #[test]
 fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (mut daemon, log_path) = test_daemon(
+        Boundary::Function,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     let dir = TestPath::dir();
     Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
     let params = json!({ "league": "Standard" });
@@ -1019,7 +1025,11 @@ fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
 /// account file is created for a response nothing can be recorded under.
 #[test]
 fn c144_a_kind_the_store_cannot_place_fails_the_job_naming_the_kind() {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ParkingClock::new()));
+    let (mut daemon, log_path) = test_daemon(
+        Boundary::Function,
+        "http://127.0.0.1:1",
+        Arc::new(ParkingClock::new()),
+    );
     let dir = TestPath::dir();
     Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
     let params = json!({ "league": "Standard", "id": "t1" });
@@ -2587,7 +2597,8 @@ fn c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send() {
 /// C158, the parking clock: each sleeper wakes at its own deadline, in
 /// deadline order, never a summed overshoot; `advance` moves both
 /// faces, the monotonic and the wall; a dropped sleep is not counted
-/// among the sleepers.
+/// among the sleepers. A component test: the test clock itself, no
+/// daemon built.
 #[tokio::test]
 async fn the_parking_clock_wakes_each_sleeper_at_its_own_deadline() {
     let clock = Arc::new(ParkingClock::new());

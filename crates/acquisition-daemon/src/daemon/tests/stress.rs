@@ -46,7 +46,7 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
     let api_base = mockggg::start_with_clock(clock.clone()).await.unwrap();
     let (token_base, token_arrived, release_token, token_server) =
         delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
-    let (mut daemon, log_path) = test_daemon(&api_base, clock.clone());
+    let (mut daemon, log_path) = test_daemon(Boundary::Fixtures, &api_base, clock.clone());
     let credential_store = Arc::new(RecordingCredentialStore::default());
     let daemon_mut = Arc::get_mut(&mut daemon).unwrap();
     daemon_mut.credential_store = credential_store.clone();
