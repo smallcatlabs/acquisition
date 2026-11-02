@@ -52,7 +52,7 @@ budget() {
     printf 'ok      %-18s %7d / %7d bytes\n' "$file" "$size" "$limit"
   fi
 }
-budget AGENTS.md 16300
+budget AGENTS.md 16600
 
 # ---- 2. the decision registry ------------------------------------------
 # Every decision is one bullet under a length limit (a narrative cannot fit,

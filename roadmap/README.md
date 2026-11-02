@@ -234,6 +234,17 @@ Each in his words, with the commit that landed it.
   deadline on the clock over the whole exchange; the timing his, steps
   1 and 3 before Phase 3 starts with the rung after, or both after the
   run (the commit carrying this line).
+- 2026-11-01, #160 (check 13 held `reqwest` to one file by spelling, and
+  each review round found another spelling): "(b) Own crate." The one
+  production transport and its private client move to a crate of their
+  own, `acquisition-transport`, which alone links an HTTP client and
+  which only the daemon links; check 5's edges hold it and check 13
+  retires, held by them. C1 amended to name the crate and its edges, a
+  row in `AGENTS.md`'s crate table, and the file's budget raised to
+  16,600 bytes ("Raise to 16,600"). Said with the packet and taken: the
+  production transport's constructor is then that crate's public API,
+  so "only the choke point builds it" is held by review, not by the
+  module tree (the commit carrying this line).
 
 ## Roles
 

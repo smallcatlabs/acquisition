@@ -77,6 +77,7 @@ As few as possible, each a property, never a mechanism.
 | --- | --- | --- |
 | `acquisition-protocol` | the daemon contract shared by frontends | `decisions/daemon.md` |
 | `acquisition-daemon` (`acqd`) | the only GGG sender: daemon, limiter, gate and providers | `decisions/daemon.md`, `decisions/network.md` |
+| `acquisition-transport` | the one HTTP client, behind the choke point's transport seam (C161) | `decisions/network.md` |
 | `acquisition-client` | the IPC client, daemon discovery and connection policies | `decisions/daemon.md` |
 | `acquisition-store` | facts, intent and world storage, neutral read snapshots, the search read (`corpus.rs`) and the world (`world.rs`) | `decisions/store.md`, `decisions/daemon.md` |
 | `acquisition-plan` | offline refresh planning and pricing | `decisions/plans.md`, `decisions/pricing.md` |
@@ -98,7 +99,7 @@ The rulings every area must know. Each area's own are in its file, one
 bullet per ruling in the form `tools/bothy.py`'s docstring states;
 tests and docs cite rulings by id.
 
-- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate and the store, nothing else; the store links none of the workspace crates; the protocol crate links serde alone; the verbs crate holds what needs the daemon and the store together and links client, protocol, store, planner and search; a frontend links those and the verbs crate as it needs them, never the daemon; nothing below the verbs crate links it, and neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/arch-check.sh` (the edges).
+- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate, the store and the transport crate, nothing else; the transport crate alone links an HTTP client, links no workspace crate, and only the daemon links it; the store links none of the workspace crates; the protocol crate links serde alone; the verbs crate holds what needs the daemon and the store together and links client, protocol, store, planner and search; a frontend links those and the verbs crate as it needs them, never the daemon; nothing below the verbs crate links it, and neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/arch-check.sh` (the edges).
 - **C2 — The daemon owns shared state; clients talk to it over local IPC.** *Why:* invariant 1 becomes structural. *Pinned:* nothing yet.
 - **C4 — API requests are jobs, not calls.** A job has an id, a state and a priority. *Why:* a rate-limit wait can reach 300 s, which a blocking call cannot represent across three frontends. *Pinned:* nothing yet.
 - **C12 — A frontend consumes exactly two surfaces: the daemon protocol and the store's read API.** A third channel is a protocol or store change, ruled first. *Why:* the contract stays in two places, enforced by what a frontend links. *Pinned:* `acquisition-protocol/tests/wire.rs`.
