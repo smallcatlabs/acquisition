@@ -273,6 +273,7 @@ them.
 | `ACQ_MAX_SENDS=<n>` | off | rail 5: halt after `n` real sends this lifetime, not persisted | [rails.rs][rails] |
 | `ACQ_JOURNAL=<path>` | `<log dir>/sends.jsonl`, bounded; `0` disables | rail 4: one JSON line per send, never a token or body | [rails.rs][rails] |
 | `ACQ_MOCK_DEGRADED_HEAD=1` | off | the mock answers HEAD as GGG did in a December 2023 regression | [mockggg.rs][mock] |
+| `ACQ_MOCK_WINDOW_DIVISOR=<n>` | 1 | the mock's rate-limit windows and restrictions divided by `n`, each at least a second, the request counts kept; for a test run that would otherwise wait them out; anything but a whole number of 1 or more stops the daemon's start | [mockggg.rs][mock] |
 
 [provider]: crates/acquisition-protocol/src/provider.rs
 [cli]: crates/acquisition-cli/src/main.rs

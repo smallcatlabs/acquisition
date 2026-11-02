@@ -12,7 +12,8 @@
 //! every knob once: every `ACQ_*` the process holds removed by prefix, so
 //! a new knob reaches no test daemon without a list kept in step, then
 //! the world, the runtime and log directories under the scratch, no
-//! keyring, no journal, a short idle shutdown and the mock provider.
+//! keyring, no journal, a short idle shutdown, the mock provider and its
+//! windows shortened.
 //! [`isolate`] applies it to a child; [`session`] applies it to the test's
 //! own process under the one lock, for the files that drive a `Client` or
 //! a `Frontend` in-process. A daemon is always started from the explicit
@@ -157,7 +158,11 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// widened to 60 s, so a starved runner
 /// cannot fail a healthy path (C137, the deadline's contract is its
 /// expiry behaviour); a test that pins one sets its own value after this
-/// list. `MSYSTEM` is removed, so the commands a child prints are quoted
+/// list. The mock's rate-limit windows are a tenth of GGG's
+/// (`ACQ_MOCK_WINDOW_DIVISOR`), so no test waits out a real window by
+/// accident; a test whose property needs a window to outlast it sets 1
+/// on its own daemon ([`start_daemon_with`], applied after this list).
+/// `MSYSTEM` is removed, so the commands a child prints are quoted
 /// for the platform's declared shell, PowerShell on Windows, whatever
 /// shell runs the tests (C156: CI's Windows gate runs under Git Bash); a
 /// test of the Git Bash quoting sets it after this list.
@@ -182,6 +187,7 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
         ("ACQ_STARTUP_WITHIN", "60".into()),
         ("ACQ_ANNOTATION_WAIT", "60".into()),
         ("ACQ_STORE_WAIT", "60".into()),
+        ("ACQ_MOCK_WINDOW_DIVISOR", "10".into()),
     ] {
         list.push((key.into(), Some(value)));
     }

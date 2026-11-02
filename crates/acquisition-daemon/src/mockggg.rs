@@ -61,8 +61,9 @@ struct MockPolicy {
     /// or `Ip` (shared by everyone behind this mock, like the real token
     /// endpoint — N33).
     scope: &'static str,
-    /// `(max_hits, period, restriction)` per window, initial first (N23).
-    windows: &'static [(u32, u64, u64)],
+    /// `(max_hits, period, restriction)` per window, initial first (N23),
+    /// in seconds once divided ([`MockPolicy::divided`]).
+    windows: Vec<(u32, u64, u64)>,
     hits: VecDeque<Instant>,
     restricted_until: Option<Instant>,
 }
@@ -80,10 +81,21 @@ impl MockPolicy {
         MockPolicy {
             name,
             scope,
-            windows,
+            windows: windows.to_vec(),
             hits: VecDeque::new(),
             restricted_until: None,
         }
+    }
+
+    /// Every window's period and restriction divided by `divisor`, each
+    /// floored at one second; the hit counts kept. At 1, the windows as
+    /// the table writes them.
+    fn divided(mut self, divisor: u64) -> Self {
+        for window in &mut self.windows {
+            window.1 = (window.1 / divisor).max(1);
+            window.2 = (window.2 / divisor).max(1);
+        }
+        self
     }
 
     fn hits_within(&self, period: u64, now: Instant) -> u32 {
@@ -154,8 +166,36 @@ impl MockPolicy {
 
 /// Live policy instances keyed by `"<path key>"` for `Ip` rules and
 /// `"<path key>\n<username>"` for `Account` rules, created on first use
-/// from `policy_template`.
-type Policies = Arc<Mutex<HashMap<String, MockPolicy>>>;
+/// from `policy_template`, divided by the start's window divisor.
+struct PolicyBook {
+    divisor: u64,
+    live: Mutex<HashMap<String, MockPolicy>>,
+}
+
+type Policies = Arc<PolicyBook>;
+
+/// The knob that shortens the mock's rate-limit windows, for a test run
+/// that would otherwise wait them out in real time.
+const WINDOW_DIVISOR: &str = "ACQ_MOCK_WINDOW_DIVISOR";
+
+/// `ACQ_MOCK_WINDOW_DIVISOR=<n>`, read once at the mock's start: every
+/// policy's period and restriction divided by `n`, each floored at one
+/// second, and nothing else. Unset, 1: the windows as GGG's. A value that
+/// is not a whole number of 1 or more is refused, in words that say the
+/// form, and the mock does not start.
+fn window_divisor(value: Option<&std::ffi::OsStr>) -> Result<u64> {
+    let Some(value) = value else {
+        return Ok(1);
+    };
+    match value.to_str().and_then(|v| v.parse::<u64>().ok()) {
+        Some(n) if n >= 1 => Ok(n),
+        _ => anyhow::bail!(
+            "{WINDOW_DIVISOR}={} is refused: it takes a whole number of 1 or more, \
+             the divisor of the mock's rate-limit windows (unset, 1)",
+            value.to_string_lossy()
+        ),
+    }
+}
 
 /// The mock's policy table. Real shapes from the first capture (N23):
 /// `/character` is the real character-list policy; `/fetch` borrows its
@@ -216,8 +256,10 @@ fn apply_policy(
         ("Account", Some(user)) => format!("{path_key}\n{user}"),
         _ => path_key.to_string(),
     };
-    let mut policies = policies.lock().unwrap();
-    policies.entry(key).or_insert(template).request(counts, now)
+    let mut live = policies.live.lock().unwrap();
+    live.entry(key)
+        .or_insert_with(|| template.divided(policies.divisor))
+        .request(counts, now)
 }
 
 /// The mock account's stash tree, shaped like the real API answered on
@@ -611,7 +653,10 @@ pub(crate) async fn start_with_clock(clock: Arc<dyn Clock>) -> Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
     let codes: Arc<Mutex<HashMap<String, PendingCode>>> = Arc::default();
-    let policies: Policies = Arc::default();
+    let policies: Policies = Arc::new(PolicyBook {
+        divisor: window_divisor(std::env::var_os(WINDOW_DIVISOR).as_deref())?,
+        live: Mutex::default(),
+    });
     tokio::spawn(async move {
         loop {
             let Ok((stream, _)) = listener.accept().await else {
@@ -1070,6 +1115,36 @@ pub fn urlencode(s: &str) -> String {
 mod tests {
     use super::*;
     use acquisition_protocol::realm::Realm;
+
+    /// `ACQ_MOCK_WINDOW_DIVISOR`: unset is 1, the windows as GGG's; a
+    /// whole number of 1 or more divides each period and restriction,
+    /// floored at one second, the hit counts kept; anything else is
+    /// refused at start in words that say the form.
+    #[test]
+    fn the_window_divisor_defaults_to_one_divides_and_refuses_a_bad_value() {
+        use std::ffi::OsStr;
+        assert_eq!(window_divisor(None).unwrap(), 1);
+        assert_eq!(window_divisor(Some(OsStr::new("10"))).unwrap(), 10);
+        for bad in ["0", "-1", "ten", "1.5", ""] {
+            let words = window_divisor(Some(OsStr::new(bad)))
+                .unwrap_err()
+                .to_string();
+            assert_eq!(
+                words,
+                format!(
+                    "ACQ_MOCK_WINDOW_DIVISOR={bad} is refused: it takes a whole number of 1 or more, \
+                     the divisor of the mock's rate-limit windows (unset, 1)"
+                ),
+            );
+        }
+        let stash = policy_template("/stash").unwrap();
+        assert_eq!(stash.windows, [(10, 15, 60), (30, 60, 300)]);
+        assert_eq!(stash.divided(1).windows, [(10, 15, 60), (30, 60, 300)]);
+        let stash = policy_template("/stash").unwrap().divided(10);
+        assert_eq!(stash.windows, [(10, 1, 6), (30, 6, 30)]);
+        let token = policy_template("/token").unwrap().divided(100);
+        assert_eq!(token.windows, [(60, 1, 1)]);
+    }
 
     /// The mock reads realm segments the way the documented API does: pc
     /// by omission, a legal segment before the league or name, and no
