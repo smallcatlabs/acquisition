@@ -657,60 +657,117 @@ pub async fn start() -> Result<String> {
 pub(crate) async fn start_with_clock(clock: Arc<dyn Clock>, divisor: u64) -> Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
-    let codes: Arc<Mutex<HashMap<String, PendingCode>>> = Arc::default();
-    let policies: Policies = Arc::new(PolicyBook {
-        divisor,
-        live: Mutex::default(),
-    });
+    let mock = Mock::new(clock, divisor);
     tokio::spawn(async move {
         loop {
             let Ok((stream, _)) = listener.accept().await else {
                 break;
             };
-            tokio::spawn(handle(
-                stream,
-                codes.clone(),
-                policies.clone(),
-                clock.clone(),
-            ));
+            tokio::spawn(handle(stream, mock.clone()));
         }
     });
     Ok(base)
 }
 
-async fn handle(
-    mut stream: TcpStream,
-    codes: Arc<Mutex<HashMap<String, PendingCode>>>,
-    policies: Policies,
-    clock: Arc<dyn Clock>,
-) {
+/// The mock's TCP face: a request read, answered, and the answer written.
+async fn handle(mut stream: TcpStream, mock: Mock) {
     let Some(req) = read_request(&mut stream).await else {
         return;
     };
-    // Invariant 4, held where GGG would see it: every request the daemon
-    // sends carries the registration's user-agent, written out here rather
-    // than read from `provider::USER_AGENT`, so a change to either side is
-    // refused by every test that faces the mock. The two pages the browser
-    // opens are outside the daemon's boundary (invariant 1) and carry the
-    // browser's own.
-    if !matches!(req.path.as_str(), "/authorize" | "/approve")
-        && req.headers.get("user-agent").map(String::as_str) != Some(REGISTERED_USER_AGENT)
-    {
-        respond(
-            &mut stream,
-            "400 Bad Request",
-            "application/json",
-            &json!({ "error": "the request does not carry the registration's user-agent" })
-                .to_string(),
-        )
-        .await;
-        return;
+    let answer = mock.answer(&req);
+    let _ = stream.write_all(answer.text().as_bytes()).await;
+}
+
+/// The mock's state, shared by its faces: the codes it issued, its
+/// policies' windows, and the clock they run on.
+#[derive(Clone)]
+pub(crate) struct Mock {
+    codes: Arc<Mutex<HashMap<String, PendingCode>>>,
+    policies: Policies,
+    clock: Arc<dyn Clock>,
+}
+
+/// One answer of the mock: its status, its content type (none for the
+/// approval's redirect, which carries a bare head), its extra headers
+/// (zero or more whole `Name: value\r\n` lines) and its body.
+pub(crate) struct MockAnswer {
+    status: &'static str,
+    content_type: Option<&'static str>,
+    headers: String,
+    body: String,
+}
+
+impl MockAnswer {
+    fn of(status: &'static str, content_type: &'static str, headers: &str, body: &str) -> Self {
+        MockAnswer {
+            status,
+            content_type: Some(content_type),
+            headers: headers.to_string(),
+            body: body.to_string(),
+        }
     }
-    match (req.method.as_str(), req.path.as_str()) {
-        ("GET", "/authorize") => {
-            let client_id = req.query.get("client_id").cloned().unwrap_or_default();
-            let page = format!(
-                "<h1>Fake GGG OAuth</h1>\
+
+    fn plain(status: &'static str, content_type: &'static str, body: &str) -> Self {
+        MockAnswer::of(status, content_type, "", body)
+    }
+
+    /// The answer as the TCP face writes it.
+    pub(crate) fn text(&self) -> String {
+        match self.content_type {
+            Some(content_type) => {
+                response_text(self.status, content_type, &self.headers, &self.body)
+            }
+            None => format!(
+                "HTTP/1.1 {}\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n",
+                self.status, self.headers
+            ),
+        }
+    }
+}
+
+impl Mock {
+    /// The mock's state with its rate-limit counters on `clock`, its
+    /// windows divided by `divisor` ([`start_with_clock`]).
+    pub(crate) fn new(clock: Arc<dyn Clock>, divisor: u64) -> Self {
+        Mock {
+            codes: Arc::default(),
+            policies: Arc::new(PolicyBook {
+                divisor,
+                live: Mutex::default(),
+            }),
+            clock,
+        }
+    }
+
+    /// The mock's answer to `req`, whichever face read it: the TCP face's
+    /// [`handle`], or an in-process transport in the daemon's tests.
+    pub(crate) fn answer(&self, req: &HttpRequest) -> MockAnswer {
+        let Mock {
+            codes,
+            policies,
+            clock,
+        } = self;
+        // Invariant 4, held where GGG would see it: every request the daemon
+        // sends carries the registration's user-agent, written out here rather
+        // than read from `provider::USER_AGENT`, so a change to either side is
+        // refused by every test that faces the mock. The two pages the browser
+        // opens are outside the daemon's boundary (invariant 1) and carry the
+        // browser's own.
+        if !matches!(req.path.as_str(), "/authorize" | "/approve")
+            && req.headers.get("user-agent").map(String::as_str) != Some(REGISTERED_USER_AGENT)
+        {
+            return MockAnswer::plain(
+                "400 Bad Request",
+                "application/json",
+                &json!({ "error": "the request does not carry the registration's user-agent" })
+                    .to_string(),
+            );
+        }
+        match (req.method.as_str(), req.path.as_str()) {
+            ("GET", "/authorize") => {
+                let client_id = req.query.get("client_id").cloned().unwrap_or_default();
+                let page = format!(
+                    "<h1>Fake GGG OAuth</h1>\
                  <p>This is Acquisition's mock provider — no real accounts here.</p>\
                  <p>Authorize <b>{client_id}</b> as:</p>\
                  <form action=\"/approve\" method=\"get\">\
@@ -718,256 +775,214 @@ async fn handle(
                  <input name=\"user\" value=\"{USERNAME}\"> <button>Log in</button>\
                  </form>\
                  <p><a href=\"/approve?{}\">…or just authorize as {USERNAME}</a></p>",
-                req.raw_query,
-                hidden = req
+                    req.raw_query,
+                    hidden = req
+                        .query
+                        .iter()
+                        .map(|(k, v)| format!(
+                            "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
+                            html_escape(k),
+                            html_escape(v)
+                        ))
+                        .collect::<String>(),
+                );
+                MockAnswer::plain("200 OK", "text/html", &page)
+            }
+            ("GET", "/approve") => {
+                let (Some(redirect_uri), Some(state), Some(challenge)) = (
+                    req.query.get("redirect_uri"),
+                    req.query.get("state"),
+                    req.query.get("code_challenge"),
+                ) else {
+                    return MockAnswer::plain("400 Bad Request", "text/plain", "missing params");
+                };
+                // `user` is the login page's field (any name); scripted logins
+                // pass it on the approve URL. Default: the mock account.
+                let username = req
                     .query
-                    .iter()
-                    .map(|(k, v)| format!(
-                        "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
-                        html_escape(k),
-                        html_escape(v)
-                    ))
-                    .collect::<String>(),
-            );
-            respond(&mut stream, "200 OK", "text/html", &page).await;
-        }
-        ("GET", "/approve") => {
-            let (Some(redirect_uri), Some(state), Some(challenge)) = (
-                req.query.get("redirect_uri"),
-                req.query.get("state"),
-                req.query.get("code_challenge"),
-            ) else {
-                respond(
-                    &mut stream,
-                    "400 Bad Request",
-                    "text/plain",
-                    "missing params",
-                )
-                .await;
-                return;
-            };
-            // `user` is the login page's field (any name); scripted logins
-            // pass it on the approve URL. Default: the mock account.
-            let username = req
-                .query
-                .get("user")
-                .filter(|u| !u.trim().is_empty())
-                .cloned()
-                .unwrap_or_else(|| USERNAME.to_string());
-            let code = auth::random_token("code");
-            codes.lock().unwrap().insert(
-                code.clone(),
-                PendingCode {
-                    challenge: challenge.clone(),
-                    redirect_uri: redirect_uri.clone(),
-                    username,
-                },
-            );
-            let location = format!("{redirect_uri}?code={code}&state={}", urlencode(state));
-            let head = format!(
-                "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-            );
-            let _ = stream.write_all(head.as_bytes()).await;
-        }
-        // Fake data endpoints mirroring GGG's `GET /character` (same job code
-        // path in mock and real mode) plus `/fetch`, each behind its own
-        // truthfully simulated rate-limit policy.
-        ("GET" | "HEAD", path)
-            if path == "/character"
-                || path == "/fetch"
-                || path == "/account/leagues"
-                || path == "/profile"
-                || path.starts_with("/character/")
-                || path.starts_with("/stash/") =>
-        {
-            // A realm a family does not take is a route GGG does not have.
-            let Some(DataRoute {
-                policy_key,
-                realm,
-                parts,
-            }) = classify_data_path(path)
-            else {
-                respond(
-                    &mut stream,
-                    "404 Not Found",
-                    "application/json",
-                    &json!({ "error": "Resource not found" }).to_string(),
-                )
-                .await;
-                return;
-            };
-            let bearer_user = req
-                .headers
-                .get("authorization")
-                .and_then(|v| v.strip_prefix("Bearer "))
-                .and_then(|t| token_user(t.trim()))
-                .map(str::to_string);
-            let authed = bearer_user.is_some();
-            if policy_key != "/fetch" && !authed {
-                respond(
-                    &mut stream,
-                    "401 Unauthorized",
-                    "application/json",
-                    &json!({ "error": "no bearer token" }).to_string(),
-                )
-                .await;
-                return;
-            }
-            // `/profile` as GGG serves it (2026-08-30): HEAD is refused
-            // outright, GET carries no `X-Rate-Limit-*` at all.
-            if policy_key == "/profile" {
-                if req.method == "HEAD" {
-                    respond(
-                        &mut stream,
-                        "403 Forbidden",
-                        "application/json",
-                        &json!({ "error": "forbidden" }).to_string(),
-                    )
-                    .await;
-                    return;
+                    .get("user")
+                    .filter(|u| !u.trim().is_empty())
+                    .cloned()
+                    .unwrap_or_else(|| USERNAME.to_string());
+                let code = auth::random_token("code");
+                codes.lock().unwrap().insert(
+                    code.clone(),
+                    PendingCode {
+                        challenge: challenge.clone(),
+                        redirect_uri: redirect_uri.clone(),
+                        username,
+                    },
+                );
+                let location = format!("{redirect_uri}?code={code}&state={}", urlencode(state));
+                MockAnswer {
+                    status: "302 Found",
+                    content_type: None,
+                    headers: format!("Location: {location}\r\n"),
+                    body: String::new(),
                 }
-                let body = profile_body(bearer_user.as_deref());
-                respond(&mut stream, "200 OK", "application/json", &body.to_string()).await;
-                return;
             }
-            // HEAD is uncounted (N24) except on `/account/leagues`, where
-            // GGG counts it (first contact 2026-08-30).
-            let head_counts = policy_key == "/account/leagues";
-            let (ok, extra) = apply_policy(
-                &policies,
-                policy_key,
-                bearer_user.as_deref(),
-                req.method == "GET" || head_counts,
-                clock.now(),
-            );
-            if req.method == "HEAD" {
-                // ACQ_MOCK_DEGRADED_HEAD=1 reproduces the Dec-2023 regression
-                // (N20): policy name present, every other header missing.
-                let extra = if std::env::var_os("ACQ_MOCK_DEGRADED_HEAD").is_some() {
-                    extra
-                        .lines()
-                        .filter(|l| l.starts_with("X-Rate-Limit-Policy"))
-                        .map(|l| format!("{l}\r\n"))
-                        .collect()
-                } else {
-                    extra
-                };
-                // A counted HEAD is answered 200 where the free ones are
-                // 204 — the one tell observed on `/account/leagues`.
-                let status = if head_counts {
-                    "200 OK"
-                } else {
-                    "204 No Content"
-                };
-                respond_with(&mut stream, status, "application/json", &extra, "").await;
-                return;
-            }
-            if !ok {
-                respond_with(
-                    &mut stream,
-                    "429 Too Many Requests",
-                    "application/json",
-                    &extra,
-                    &json!({ "error": "rate limited" }).to_string(),
-                )
-                .await;
-                return;
-            }
-            // The mock account's stashes live on pc, as the owner's do:
-            // a console listing is empty and a console tab is 404. Tab
-            // and item ids are GGG-unique, so the mock never reuses pc's
-            // under another realm.
-            let body = if policy_key == "/stash/tab" {
-                match mock_stash(parts[0], parts[1], parts.get(2).copied())
-                    .filter(|_| realm == acquisition_protocol::realm::Realm::Pc)
-                {
-                    Some(v) => v,
-                    None => {
-                        respond(
-                            &mut stream,
-                            "404 Not Found",
-                            "application/json",
-                            &json!({ "error": "no such stash" }).to_string(),
-                        )
-                        .await;
-                        return;
-                    }
-                }
-            } else if policy_key == "/stash" {
-                if realm != acquisition_protocol::realm::Realm::Pc {
-                    json!({ "stashes": [] })
-                } else if let Some(list) = mock_stash_list(parts[0]) {
-                    list
-                } else {
-                    // the mock's convention for a league it does not
-                    // list (`MOCK_LEAGUES`), never GGG's recorded answer
-                    respond(
-                        &mut stream,
+            // Fake data endpoints mirroring GGG's `GET /character` (same job code
+            // path in mock and real mode) plus `/fetch`, each behind its own
+            // truthfully simulated rate-limit policy.
+            ("GET" | "HEAD", path)
+                if path == "/character"
+                    || path == "/fetch"
+                    || path == "/account/leagues"
+                    || path == "/profile"
+                    || path.starts_with("/character/")
+                    || path.starts_with("/stash/") =>
+            {
+                // A realm a family does not take is a route GGG does not have.
+                let Some(DataRoute {
+                    policy_key,
+                    realm,
+                    parts,
+                }) = classify_data_path(path)
+                else {
+                    return MockAnswer::plain(
                         "404 Not Found",
                         "application/json",
-                        &json!({ "error": "no such league" }).to_string(),
-                    )
-                    .await;
-                    return;
+                        &json!({ "error": "Resource not found" }).to_string(),
+                    );
+                };
+                let bearer_user = req
+                    .headers
+                    .get("authorization")
+                    .and_then(|v| v.strip_prefix("Bearer "))
+                    .and_then(|t| token_user(t.trim()))
+                    .map(str::to_string);
+                let authed = bearer_user.is_some();
+                if policy_key != "/fetch" && !authed {
+                    return MockAnswer::plain(
+                        "401 Unauthorized",
+                        "application/json",
+                        &json!({ "error": "no bearer token" }).to_string(),
+                    );
                 }
-            } else if policy_key == "/character/name" {
-                mock_character(realm, parts[0])
-            } else if req.path == "/account/leagues" {
-                mock_league_list()
-            } else if policy_key == "/character" {
-                mock_character_list(realm)
-            } else {
-                json!({
-                    "items": [
-                        { "name": "Headhunter", "type": "Leather Belt" },
-                        { "name": "Tabula Rasa", "type": "Simple Robe" },
-                    ],
-                })
-            };
-            respond_with(
-                &mut stream,
-                "200 OK",
-                "application/json",
-                &extra,
-                &body.to_string(),
-            )
-            .await;
-        }
-        ("POST", "/token") => {
-            let (ok, extra) = apply_policy(&policies, "/token", None, true, clock.now());
-            if !ok {
-                respond_with(
-                    &mut stream,
-                    "429 Too Many Requests",
-                    "application/json",
-                    &extra,
-                    &json!({ "error": "rate limited" }).to_string(),
-                )
-                .await;
-                return;
-            }
-            let form: HashMap<String, String> = url::form_urlencoded::parse(req.body.as_bytes())
-                .into_owned()
-                .collect();
-            let reply = token_reply(&form, &codes);
-            match reply {
-                Ok(body) => {
-                    respond_with(&mut stream, "200 OK", "application/json", &extra, &body).await;
+                // `/profile` as GGG serves it (2026-08-30): HEAD is refused
+                // outright, GET carries no `X-Rate-Limit-*` at all.
+                if policy_key == "/profile" {
+                    if req.method == "HEAD" {
+                        return MockAnswer::plain(
+                            "403 Forbidden",
+                            "application/json",
+                            &json!({ "error": "forbidden" }).to_string(),
+                        );
+                    }
+                    let body = profile_body(bearer_user.as_deref());
+                    return MockAnswer::plain("200 OK", "application/json", &body.to_string());
                 }
-                Err(msg) => {
-                    let body = json!({ "error": msg }).to_string();
-                    respond_with(
-                        &mut stream,
-                        "400 Bad Request",
+                // HEAD is uncounted (N24) except on `/account/leagues`, where
+                // GGG counts it (first contact 2026-08-30).
+                let head_counts = policy_key == "/account/leagues";
+                let (ok, extra) = apply_policy(
+                    policies,
+                    policy_key,
+                    bearer_user.as_deref(),
+                    req.method == "GET" || head_counts,
+                    clock.now(),
+                );
+                if req.method == "HEAD" {
+                    // ACQ_MOCK_DEGRADED_HEAD=1 reproduces the Dec-2023 regression
+                    // (N20): policy name present, every other header missing.
+                    let extra = if std::env::var_os("ACQ_MOCK_DEGRADED_HEAD").is_some() {
+                        extra
+                            .lines()
+                            .filter(|l| l.starts_with("X-Rate-Limit-Policy"))
+                            .map(|l| format!("{l}\r\n"))
+                            .collect()
+                    } else {
+                        extra
+                    };
+                    // A counted HEAD is answered 200 where the free ones are
+                    // 204 — the one tell observed on `/account/leagues`.
+                    let status = if head_counts {
+                        "200 OK"
+                    } else {
+                        "204 No Content"
+                    };
+                    return MockAnswer::of(status, "application/json", &extra, "");
+                }
+                if !ok {
+                    return MockAnswer::of(
+                        "429 Too Many Requests",
                         "application/json",
                         &extra,
-                        &body,
-                    )
-                    .await;
+                        &json!({ "error": "rate limited" }).to_string(),
+                    );
+                }
+                // The mock account's stashes live on pc, as the owner's do:
+                // a console listing is empty and a console tab is 404. Tab
+                // and item ids are GGG-unique, so the mock never reuses pc's
+                // under another realm.
+                let body = if policy_key == "/stash/tab" {
+                    match mock_stash(parts[0], parts[1], parts.get(2).copied())
+                        .filter(|_| realm == acquisition_protocol::realm::Realm::Pc)
+                    {
+                        Some(v) => v,
+                        None => {
+                            return MockAnswer::plain(
+                                "404 Not Found",
+                                "application/json",
+                                &json!({ "error": "no such stash" }).to_string(),
+                            );
+                        }
+                    }
+                } else if policy_key == "/stash" {
+                    if realm != acquisition_protocol::realm::Realm::Pc {
+                        json!({ "stashes": [] })
+                    } else if let Some(list) = mock_stash_list(parts[0]) {
+                        list
+                    } else {
+                        // the mock's convention for a league it does not
+                        // list (`MOCK_LEAGUES`), never GGG's recorded answer
+                        return MockAnswer::plain(
+                            "404 Not Found",
+                            "application/json",
+                            &json!({ "error": "no such league" }).to_string(),
+                        );
+                    }
+                } else if policy_key == "/character/name" {
+                    mock_character(realm, parts[0])
+                } else if req.path == "/account/leagues" {
+                    mock_league_list()
+                } else if policy_key == "/character" {
+                    mock_character_list(realm)
+                } else {
+                    json!({
+                        "items": [
+                            { "name": "Headhunter", "type": "Leather Belt" },
+                            { "name": "Tabula Rasa", "type": "Simple Robe" },
+                        ],
+                    })
+                };
+                MockAnswer::of("200 OK", "application/json", &extra, &body.to_string())
+            }
+            ("POST", "/token") => {
+                let (ok, extra) = apply_policy(policies, "/token", None, true, clock.now());
+                if !ok {
+                    return MockAnswer::of(
+                        "429 Too Many Requests",
+                        "application/json",
+                        &extra,
+                        &json!({ "error": "rate limited" }).to_string(),
+                    );
+                }
+                let form: HashMap<String, String> =
+                    url::form_urlencoded::parse(req.body.as_bytes())
+                        .into_owned()
+                        .collect();
+                let reply = token_reply(&form, codes);
+                match reply {
+                    Ok(body) => MockAnswer::of("200 OK", "application/json", &extra, &body),
+                    Err(msg) => {
+                        let body = json!({ "error": msg }).to_string();
+                        MockAnswer::of("400 Bad Request", "application/json", &extra, &body)
+                    }
                 }
             }
+            _ => MockAnswer::plain("404 Not Found", "text/plain", "not found"),
         }
-        _ => respond(&mut stream, "404 Not Found", "text/plain", "not found").await,
     }
 }
 

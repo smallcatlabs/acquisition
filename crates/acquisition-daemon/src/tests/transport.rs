@@ -4,8 +4,9 @@
 //! is an [`InProcess`] transport over a fixture's answer: the scripted
 //! one ([`scripted`]: the full, raw and silent forms), the account
 //! fixture ([`account`]), the two token fixtures ([`delayed_token`],
-//! [`answering_token`]), the refusing one ([`refusing`]) and a scenario's
-//! own ([`InProcess::new`] over its closure). Every answer is the bytes a
+//! [`answering_token`]), the stateful mock's in-process face ([`mock`]),
+//! the refusing one ([`refusing`]) and a scenario's own
+//! ([`InProcess::new`] over its closure). Every answer is the bytes a
 //! TCP fixture would have written (`mockggg::response_text`), read back
 //! as a client reads them: the status line, the headers, and a body cut
 //! at its `Content-Length`; a body shorter than its length fails in this
@@ -29,6 +30,7 @@
 //! cross-cutting ones are `AGENTS.md`'s.
 
 use crate::mockggg::{self, HttpRequest};
+use crate::ratelimit::Clock;
 use acquisition_transport::{Answer, Pending, Prepared, Transport};
 use http::StatusCode;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
@@ -685,6 +687,19 @@ pub(crate) fn answering_token(
     (transport, record)
 }
 
+/// The stateful mock's in-process face: the request handed to
+/// `mockggg::Mock::answer`, the one function its TCP face answers through
+/// too (the registration's user-agent checked there, so both faces run
+/// it), its rate-limit counters on `clock` and its windows GGG's (the
+/// divisor 1, the test's). The answer comes back whole, its body ready.
+pub(crate) fn mock(hold: &Hold, clock: Arc<dyn Clock>) -> InProcess {
+    let mock = mockggg::Mock::new(clock, 1);
+    InProcess::new(hold, move |request: HttpRequest| {
+        let answer = Reply::Bytes(mock.answer(&request).text());
+        async move { answer }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1047,5 +1062,69 @@ mod tests {
         record.ends.answered().await;
         assert_eq!(record.bodies.lock().unwrap().len(), 2);
         assert!(record.ends.faults().is_empty());
+    }
+
+    /// The mock's in-process face answers as its TCP face does, through
+    /// the one `answer`: a request without the registration's user-agent
+    /// is answered 400 in-process as on the wire, and a route's answer
+    /// (`GET /fetch`, its status, every header and its body) is the same
+    /// on both faces of two mocks at the same state.
+    #[tokio::test]
+    async fn the_mocks_in_process_face_answers_as_its_tcp_face() {
+        let hold = Hold::new();
+        let clock: Arc<dyn Clock> = Arc::new(crate::testing::ParkingClock::new());
+        let in_process = mock(&hold, clock.clone());
+        let bare = Prepared::new(
+            http::Method::GET,
+            &format!("{BASE}/fetch"),
+            "not-the-registration",
+        );
+        let answer = in_process.send(bare).await.unwrap();
+        assert_eq!(answer.status, StatusCode::BAD_REQUEST);
+        assert!(
+            answer
+                .body
+                .await
+                .unwrap()
+                .contains("the registration's user-agent"),
+        );
+        let base = mockggg::start_with_clock(clock, 1).await.unwrap();
+        let wire = reqwest::Client::new()
+            .get(format!("{base}/fetch"))
+            .header("user-agent", "not-the-registration")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(wire.status().as_u16(), 400);
+
+        let fresh = || -> Arc<dyn Clock> { Arc::new(crate::testing::ParkingClock::new()) };
+        let in_process = mock(&hold, fresh());
+        let answer = in_process
+            .send(Prepared::new(
+                http::Method::GET,
+                &format!("{BASE}/fetch"),
+                crate::provider::USER_AGENT,
+            ))
+            .await
+            .unwrap();
+        let base = mockggg::start_with_clock(fresh(), 1).await.unwrap();
+        let wire = reqwest::Client::new()
+            .get(format!("{base}/fetch"))
+            .header("user-agent", crate::provider::USER_AGENT)
+            .send()
+            .await
+            .unwrap();
+        let sorted = |headers: &HeaderMap| {
+            let mut pairs: Vec<(String, String)> = headers
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_str().unwrap().to_string()))
+                .collect();
+            pairs.sort();
+            pairs
+        };
+        assert_eq!(answer.status.as_u16(), wire.status().as_u16());
+        assert_eq!(sorted(&answer.headers), sorted(wire.headers()));
+        assert!(answer.headers.contains_key("x-rate-limit-account"));
+        assert_eq!(answer.body.await.unwrap(), wire.text().await.unwrap());
     }
 }
