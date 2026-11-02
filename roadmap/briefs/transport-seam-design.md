@@ -23,13 +23,13 @@ at `e812a0d7`; line numbers are that commit's. The last push's CI on
 "Gate (Linux)" --limit 1`: 41367513039; `"Gate (Windows)"`:
 41367512967). A design brief: §7 is the owner's to rule, and the build
 briefs of §6 follow his word, one at a time, each reviewed cold. Cut
-four times: the first cut (`855ddcf6`), the second (`74423db0`) and
-the third (`94339bf3`) each reviewed cold
+five times: the first cut (`855ddcf6`), the second (`74423db0`), the
+third (`94339bf3`) and the fourth (`3f0b778c`) each reviewed cold
 (`roadmap/reviews/transport-seam-design-<sha>.md`, the prompt beside);
-this cut answers the third review's four findings, each at "Taken from
-the reviews" at the foot, where the earlier rounds' are too; the third
-cut took the orchestrating session's input on #151's compare, read on
-2026-11-02 (`73f182bd`), and this one withdraws what it claimed of it.
+this cut answers the fourth review's one finding, each round's answers
+at "Taken from the reviews" at the foot. The third cut took the
+orchestrating session's input on #151's compare, read on 2026-11-02
+(`73f182bd`); the fourth withdrew what it claimed of it.
 
 ## 1. What the tree says
 
@@ -360,7 +360,7 @@ doing").
 | `settle` (810) | unchanged | unchanged | nothing |
 | `beside` (604) | no hook; `HANG` only; one caller shares the first door's clock (`dispatch.rs:1122`), one builds its own (`2296`) | takes the first door's clock and hook (a `beside` on another clock is refused), registers its whole accounting with the running hook before any restore wait (its daemon's blocking count, its holds, its `quiet`, `settle` and stuck slots) and unregisters at `finish`; the second caller moved onto the shared clock; its waits gain the verdict, `HANG` stays the backstop | "a `beside` door has no hook" in C160 and the module doc; held by the registration and a `c160_` case on a beside wait |
 | the "Not doing" line on a request timeout's expiry | structural | removed when C<next> is entered, before step 1 | the line; held by the expiry rows and C<next> |
-| #151's remainder (the compare of `73f182bd`, the issue's comment of 2026-11-02): ten mutations under which three component tests off the door hang, each a test that says so (`dispatch.rs` 387, 477 and 622: `setup_after_probe_429`, `degrade_for` and the two `parse_retry_after` caps under `a_head_429_that_fails_setup_holds_the_next_probe`, which awaits its first terminal result before it drives its clock; `head`'s `delete !`, `\|\| with &&` and `record_completed -> ()` under `a_blocked_probe_is_no_probe_failure`, whose condition loop yields with no verdict slot; the two `verdict_of` mutations under `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header`, whose `wait_terminal` is the harness's polling helper), and `head`'s 401 guard `== with !=` (`choke.rs:701`) under the two concurrent bearer scenarios, whose arrival waits are plain `timeout(HANG, …)` reads (`bearer.rs:394`) that install no verdict slot | each breaks a send's completion or a probe's setup, so the wait ends only at the mutants runner's cut | this design claims none of them: a component test's wait is not the door's, and a plain timeout read is outside the verdict; the fixture-side hold tells a send in flight from one the daemon will never complete only where a door wait races the verdict. The close's compare names each caught or still hanging; a holder, if one appears, is named per mutation then, in C154's form | nothing here; `Limiter::observe_landed`'s `== with !=` and `ChokePoint::sleep_until -> ()` hang component tests too, the second by spinning the lifecycle's driver, which no count can see |
+| #151's remainder (the compare of `73f182bd`, the issue's comment of 2026-11-02, the saved runs under `runs/`): of the 48 mutations that moved to timeout at t5's close, eleven still time out after C160, and under every one of them a component test off the door hangs, each a test that says so: `setup_after_probe_429`, `degrade_for` and the two `parse_retry_after` caps under `a_head_429_that_fails_setup_holds_the_next_probe` (`dispatch.rs:387`), which awaits its first terminal result before it drives its clock; `head`'s `delete !`, `\|\| with &&` and `record_completed -> ()` under `a_blocked_probe_is_no_probe_failure` (477), whose condition loop yields with no verdict slot; the two `verdict_of` mutations under `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header` (622), whose `wait_terminal` is the harness's polling helper; `Limiter::observe_landed`'s `== with !=`; and `finish_send`'s `&& with \|\|` (`choke.rs:807`, a lost send noted after every counted answer) under the stress test (`stress.rs:96`, which awaits its routes' establishment before it drives its clock). Two more time out that were not of the 48: `head`'s 401 guard `== with !=` (`choke.rs:701`) under the two concurrent bearer scenarios, whose arrival waits are plain `timeout(HANG, …)` reads (`bearer.rs:394`) that install no verdict slot while their terminal waits (376, 409) race it, and `ChokePoint::sleep_until -> ()`, which spins the lifecycle's driver, which no count can see | each breaks a send's completion, a probe's setup or the pacing, so the wait ends only at the mutants runner's cut | this design claims none of them: a component test's wait is not the door's, and a plain timeout read is outside the verdict; the fixture-side hold tells a send in flight from one the daemon will never complete only where a door wait races the verdict. The close's compare names each caught or still hanging; a holder, if one appears, is named per mutation then, in C154's form | nothing here |
 | the login's exchange and refresh | through `post_form` | unchanged | nothing |
 | the callback listener (`login.rs:23`) | TCP, on the clock | unchanged; outside invariant 1 (C130); its two component tests stay | nothing |
 | the client harness's servers | none; `acqd` spawned in mock mode over its TCP mock | unchanged | nothing |
@@ -647,9 +647,11 @@ Each is his; nothing below is entered until he rules.
   no feature; it is named here because it is the line that lets check
   13 hold `reqwest` to one file.
 - #151 stays open on the timeouts its compare left (`73f182bd`); this
-  design claims none of them (§3): the three tests that hang are
-  component tests and the fourth wait is a plain timeout read, none a
-  door wait the verdict races. The close's compare says what moved.
+  design claims none of them (§3): under the eleven of the original 48
+  a component test hangs, and under the two others a plain timeout read
+  or a spinning driver, none a door wait the verdict races, though the
+  bearer scenarios' terminal waits do race it and may yet benefit. The
+  close's compare says what moved.
 - The retrospective's §3 row calls the request-timeout line "structural,
   not a choice"; this design makes it a choice, and step 3 corrects the
   row in place, dated, as the README's rule for dated evidence allows.
@@ -730,3 +732,10 @@ The third review's four (`transport-seam-design-94339bf3.md`):
    a door scenario" (§8).
 4. `Server::None`'s fourteen occurrences: thirteen selections and the
    match arm (§3).
+
+The fourth review's one (`transport-seam-design-3f0b778c.md`):
+
+1. The #151 inventory omitted `finish_send`'s `&& with ||` under the
+   stress test and did not tell the original eleven from the two added
+   cases: both named, the eleven and the two apart, no holder promised
+   (§3, §8).
