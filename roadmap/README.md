@@ -585,5 +585,9 @@ this line's commit the last: the test transports and the counters
 before, the mock's answer, the door onto the transports, `beside` on
 the hook, the component fixtures and the spec, the occupancy
 exclusions and the hold's boundary rows, the counters after and the
-words. Its cold review is pending; then its close, and step 3, the
-deadline on the clock, after C160's second amendment.
+words. Reviewed cold (three P3: the raw form cut text by a byte
+length, two summaries wider than their evidence), its fix round
+`b79e36f8` read by the orchestrating session and not reviewed a third
+time. Step 2 closed on 2026-11-02 (`LEDGER.md`). Next, step 3, the
+deadline on the clock, after C160's second amendment, in the window the
+owner names (it touches the production path); then the rung.
