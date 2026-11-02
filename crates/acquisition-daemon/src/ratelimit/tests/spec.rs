@@ -2338,9 +2338,9 @@ fn header_map(raw: &str) -> http::HeaderMap {
         .collect()
 }
 
-/// The `lost-send` policy, one hit of two in its 10 s window, learned on
-/// `route` at the choke point's now.
-fn establish_one_of_two(choke: &ChokePoint, route: &str) {
+/// `policy`, one hit of two in its 10 s window, learned on `route` at
+/// the choke point's now.
+fn establish_one_of_two(choke: &ChokePoint, route: &str, policy: &'static str) {
     choke
         .limiter
         .lock()
@@ -2348,7 +2348,7 @@ fn establish_one_of_two(choke: &ChokePoint, route: &str) {
         .observe(
             route,
             parse(&[
-                ("x-rate-limit-policy", "lost-send-policy"),
+                ("x-rate-limit-policy", policy),
                 ("x-rate-limit-rules", "account"),
                 ("x-rate-limit-account", "2:10:60"),
                 ("x-rate-limit-account-state", "1:10:0"),
@@ -2394,7 +2394,7 @@ async fn a_bearer_that_is_no_header_value_fails_at_the_send_in_the_daemons_words
     let url = format!("{NO_BEARER_API}/profile");
 
     // The GET row.
-    establish_one_of_two(&choke, "c161-get");
+    establish_one_of_two(&choke, "c161-get", "c161-get-policy");
     let refused = choke
         .get_bearer("c161-get", &url, &Unwritable, choke.now(), ALWAYS_WANTED)
         .await
@@ -2415,8 +2415,12 @@ async fn a_bearer_that_is_no_header_value_fails_at_the_send_in_the_daemons_words
         format!("error: {INVALID_BEARER}")
     );
 
-    // The HEAD row, on the same choke point.
-    establish_one_of_two(&choke, "c161-head");
+    // The HEAD row, on the same choke point, its policy its own and shared
+    // with a peer route: a lost send noted for the HEAD would fill the
+    // policy's window, and the peer's next send would wait.
+    establish_one_of_two(&choke, "c161-head", "c161-head-policy");
+    establish_one_of_two(&choke, "c161-head-peer", "c161-head-policy");
+    assert_eq!(choke.check("c161-head-peer"), Ok(()));
     let probe = choke
         .head(
             "c161-head",
@@ -2441,6 +2445,11 @@ async fn a_bearer_that_is_no_header_value_fails_at_the_send_in_the_daemons_words
             EndpointState::Degraded { .. }
         ),
         "a failed probe degrades its route"
+    );
+    assert_eq!(
+        choke.check("c161-head-peer"),
+        Ok(()),
+        "the failed HEAD was paced as a lost send: its policy's peer waits"
     );
     assert_eq!(
         record_of(&choke, "c161-head").outcome,
