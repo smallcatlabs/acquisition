@@ -56,10 +56,13 @@
 //! limiter's spec with `tests/main.rs`. A `#[tokio::test]` never uses the
 //! door: its runtime would nest.
 //!
-//! What the door does not promise: a server that never answers. A silent
-//! request holds its send permit through its real timeout, so the hook
-//! leaves virtual time beside it and the scenario waits the real
-//! timeout (the "Not doing" line of 2026-10-31).
+//! What the door does not promise yet: a fixture that never answers. A
+//! silent reply (`Scripted::Silent`, `Scripted::SilentBody`) holds no
+//! hold, so the hook moves virtual time beside it, but nothing cuts the
+//! send: the in-process transport has no timeout, and the request's
+//! deadline on the daemon's clock is the seam's next step (C161). Its
+//! send holds its permit, and a door wait on it can end only by the
+//! verdict or at `HANG`.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 

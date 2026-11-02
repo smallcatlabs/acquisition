@@ -237,7 +237,9 @@ async fn answered(reply: Reply, head: bool, held: Held) -> Result<Answer, String
 /// A response's bytes read as a client reads them: the status line, the
 /// headers, and the body cut at its `Content-Length` (none under a HEAD,
 /// to the end without a length); a body shorter than its length is a
-/// body failure in [`SHORT_BODY`]'s words, the head landed.
+/// body failure in [`SHORT_BODY`]'s words, the head landed. The length
+/// counts bytes: the body is cut as bytes, then read as text, lossily
+/// as a client reads it, never text cut at a byte count.
 fn read_response(
     bytes: &str,
     head: bool,
@@ -261,11 +263,12 @@ fn read_response(
         .get(http::header::CONTENT_LENGTH)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<usize>().ok());
+    let rest = rest.as_bytes();
     let body = match length {
         _ if head => Ok(String::new()),
         Some(length) if rest.len() < length => Err(SHORT_BODY.to_string()),
-        Some(length) => Ok(rest[..length].to_string()),
-        None => Ok(rest.to_string()),
+        Some(length) => Ok(String::from_utf8_lossy(&rest[..length]).into_owned()),
+        None => Ok(String::from_utf8_lossy(rest).into_owned()),
     };
     Ok((status, headers, body))
 }
@@ -914,10 +917,22 @@ mod tests {
             *record.wire.lock().unwrap(),
             ["HEAD", "GET", "GET", "GET", "POST", "GET"]
         );
-        let received = record.received.lock().unwrap();
+        let received = record.received.lock().unwrap().clone();
         assert_eq!(received[1].path, "/fetch");
         assert_eq!(received[1].bearer.as_deref(), Some("at-1"));
         assert_eq!(received[0].bearer, None);
+
+        // The raw form's length counts bytes: a length that ends inside a
+        // character cuts the bytes there, read as a client reads text.
+        let (cut, _) = scripted(
+            &hold,
+            vec![ScriptedResponse::raw("HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\né").into()],
+        );
+        let answer = cut
+            .send(prepared(http::Method::GET, "/fetch"))
+            .await
+            .unwrap();
+        assert_eq!(answer.body.await.unwrap(), "\u{FFFD}");
     }
 
     /// A form travels as the wire carries it, so `Received::grant` reads
