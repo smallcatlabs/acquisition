@@ -218,10 +218,11 @@ pub struct ChokePoint {
     bearer_origin: Option<url::Origin>,
 }
 
-/// Connect and whole-request (headers + body) timeouts on the one client
-/// (L0 rail 3): a hung send must fail as a transport error instead of
-/// holding its permit and scheduling key forever.
-pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// C161 — a send's deadline, the choke point's, on its clock: one instant
+/// per send, this long after the prepared request is handed to the
+/// transport, over the answer and then the body (L0 rail 3's bound: a hung
+/// send fails as a transport error instead of holding its permit and
+/// scheduling key forever). The one client keeps no timeout of its own.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// A send the deadline cut before any answer: its transport failure.
@@ -253,13 +254,10 @@ const HALT_POLL: Duration = Duration::from_secs(1);
 pub(crate) const PACING_FLOOR: Duration = Duration::from_millis(50);
 
 /// The one production transport, with the registration's user-agent as
-/// its client's default (invariant 4) and both timeouts.
+/// its client's default (invariant 4) and no timeout (the deadline is the
+/// choke point's, [`REQUEST_TIMEOUT`]).
 fn production() -> acquisition_transport::Production {
-    acquisition_transport::Production::new(
-        crate::provider::USER_AGENT,
-        CONNECT_TIMEOUT,
-        REQUEST_TIMEOUT,
-    )
+    acquisition_transport::Production::new(crate::provider::USER_AGENT)
 }
 
 impl Default for ChokePoint {

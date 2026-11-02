@@ -175,6 +175,16 @@ fn retry(raw: Option<&str>) -> RetryAfter {
     })
 }
 
+/// `exchange` under the hang ceiling (C137: a hang's bound, never a
+/// measure): a real-wiring test's whole exchange and its completion
+/// waits, since the production client keeps no timeout and the choke
+/// point's deadline is on a clock such a test moves by hand, if at all.
+async fn within_hang<T>(exchange: impl std::future::Future<Output = T>) -> T {
+    tokio::time::timeout(HANG, exchange)
+        .await
+        .expect("the real-wiring exchange hung")
+}
+
 /// A real listener answering one request with `response`, for the
 /// real-wiring tests of the production transport alone (C161).
 async fn serve_one_raw(response: String) -> (String, tokio::task::JoinHandle<()>) {
@@ -2013,31 +2023,34 @@ fn response_classification_precedence_is_status_network_then_protocol() {
 /// good (C161).
 #[tokio::test]
 async fn full_200_with_truncated_body_is_network_after_observing_policy() {
-    let route = "full-truncated";
-    let raw = raw_response(
-        "200 OK",
-        &full_rate_headers("full-truncated-policy", None),
-        100,
-        "{}",
-    );
-    let (url, server) = serve_one_raw(raw).await;
-    let choke = ChokePoint::with_clock_and_rails(
-        Arc::new(ParkingClock::new()),
-        Arc::new(Rails::disabled()),
-        NO_BEARER_API,
-    );
+    within_hang(async {
+        let route = "full-truncated";
+        let raw = raw_response(
+            "200 OK",
+            &full_rate_headers("full-truncated-policy", None),
+            100,
+            "{}",
+        );
+        let (url, server) = serve_one_raw(raw).await;
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            NO_BEARER_API,
+        );
 
-    let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
-    assert!(matches!(result, Err(SendError::Transport(_))));
-    assert_eq!(
-        choke.endpoint_state(route),
-        EndpointState::Policy("full-truncated-policy".into()),
-        "landed Full headers must update policy before body transfer fails"
-    );
-    let send = choke.recent_sends().pop().unwrap();
-    assert!(!send.ok);
-    assert!(send.outcome.contains("body transfer failure"));
-    server.await.unwrap();
+        let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
+        assert!(matches!(result, Err(SendError::Transport(_))));
+        assert_eq!(
+            choke.endpoint_state(route),
+            EndpointState::Policy("full-truncated-policy".into()),
+            "landed Full headers must update policy before body transfer fails"
+        );
+        let send = choke.recent_sends().pop().unwrap();
+        assert!(!send.ok);
+        assert!(send.outcome.contains("body transfer failure"));
+        server.await.unwrap();
+    })
+    .await;
 }
 
 #[tokio::test]
@@ -2671,112 +2684,115 @@ fn seam_records(choke: &ChokePoint) -> Vec<(String, String, String, bool)> {
 /// production transport, which stays TCP for good (C161).
 #[tokio::test]
 async fn c161_each_send_is_prepared_by_the_choke_point_and_reaches_the_wire_as_prepared() {
-    use http::header::{AUTHORIZATION, USER_AGENT};
+    within_hang(async {
+        use http::header::{AUTHORIZATION, USER_AGENT};
 
-    // In-process: what the choke point prepared.
-    let recording = Recording::default();
-    let choke = ChokePoint::with_transport(
-        Arc::new(ParkingClock::new()),
-        Arc::new(Rails::disabled()),
-        NO_BEARER_API,
-        Box::new(recording.clone()),
-    );
-    send_the_seam_table(&choke, NO_BEARER_API).await;
-    let in_process = seam_records(&choke);
-    let prepared = std::mem::take(&mut *recording.0.lock().unwrap());
-    assert_eq!(prepared.len(), SEAM_TABLE.len());
-    for (row, request) in SEAM_TABLE.iter().zip(&prepared) {
-        let name = format!("{} {}", row.method, row.route);
-        assert_eq!(request.method.as_str(), row.method, "{name}");
-        assert_eq!(url_path(&request.url), row.path, "{name}");
-        assert_eq!(
-            request
-                .headers
-                .get(USER_AGENT)
-                .and_then(|value| value.to_str().ok()),
-            Some(crate::provider::USER_AGENT),
-            "{name}: the prepared request carries the registration's user-agent"
+        // In-process: what the choke point prepared.
+        let recording = Recording::default();
+        let choke = ChokePoint::with_transport(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            NO_BEARER_API,
+            Box::new(recording.clone()),
         );
-        let bearer = request.headers.get(AUTHORIZATION);
-        assert_eq!(
-            bearer.and_then(|value| value.to_str().ok()),
-            row.bearer.then_some(SEAM_BEARER),
-            "{name}"
-        );
-        assert!(
-            bearer.is_none_or(|value| value.is_sensitive()),
-            "{name}: the bearer is not marked sensitive"
-        );
-        let form: Vec<(&str, &str)> = request
-            .form
-            .iter()
-            .flatten()
-            .map(|(name, value)| (name.as_str(), value.as_str()))
-            .collect();
-        assert_eq!(form, row.form, "{name}");
-    }
-
-    // On the wire: what the production transport carried.
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    let received = Arc::new(Mutex::new(Vec::new()));
-    let kept = received.clone();
-    let server = tokio::spawn(async move {
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let request = crate::mockggg::read_request(&mut stream).await.unwrap();
-            let body = if request.method == "HEAD" { "" } else { "{}" };
-            kept.lock().unwrap().push(request);
-            let answer = raw_response(
-                "200 OK",
-                &full_rate_headers("recorded-policy", None),
-                2,
-                body,
-            );
-            stream.write_all(answer.as_bytes()).await.unwrap();
-        }
-    });
-    let choke = ChokePoint::with_clock_and_rails(
-        Arc::new(ParkingClock::new()),
-        Arc::new(Rails::disabled()),
-        &base,
-    );
-    send_the_seam_table(&choke, &base).await;
-    server.abort();
-    let received = std::mem::take(&mut *received.lock().unwrap());
-    assert_eq!(received.len(), SEAM_TABLE.len());
-    for (row, request) in SEAM_TABLE.iter().zip(&received) {
-        let name = format!("{} {}", row.method, row.route);
-        assert_eq!(request.method, row.method, "{name}");
-        assert_eq!(request.path, row.path, "{name}");
-        assert_eq!(
-            request.headers.get("user-agent").map(String::as_str),
-            Some(crate::provider::USER_AGENT),
-            "{name}"
-        );
-        assert_eq!(
-            request.headers.get("authorization").map(String::as_str),
-            row.bearer.then_some(SEAM_BEARER),
-            "{name}"
-        );
-        let form: Vec<(String, String)> = url::form_urlencoded::parse(request.body.as_bytes())
-            .into_owned()
-            .collect();
-        let expected: Vec<(String, String)> = row
-            .form
-            .iter()
-            .map(|(name, value)| (name.to_string(), value.to_string()))
-            .collect();
-        assert_eq!(form, expected, "{name}");
-        if !row.form.is_empty() {
+        send_the_seam_table(&choke, NO_BEARER_API).await;
+        let in_process = seam_records(&choke);
+        let prepared = std::mem::take(&mut *recording.0.lock().unwrap());
+        assert_eq!(prepared.len(), SEAM_TABLE.len());
+        for (row, request) in SEAM_TABLE.iter().zip(&prepared) {
+            let name = format!("{} {}", row.method, row.route);
+            assert_eq!(request.method.as_str(), row.method, "{name}");
+            assert_eq!(url_path(&request.url), row.path, "{name}");
             assert_eq!(
-                request.headers.get("content-type").map(String::as_str),
-                Some("application/x-www-form-urlencoded"),
+                request
+                    .headers
+                    .get(USER_AGENT)
+                    .and_then(|value| value.to_str().ok()),
+                Some(crate::provider::USER_AGENT),
+                "{name}: the prepared request carries the registration's user-agent"
+            );
+            let bearer = request.headers.get(AUTHORIZATION);
+            assert_eq!(
+                bearer.and_then(|value| value.to_str().ok()),
+                row.bearer.then_some(SEAM_BEARER),
                 "{name}"
             );
+            assert!(
+                bearer.is_none_or(|value| value.is_sensitive()),
+                "{name}: the bearer is not marked sensitive"
+            );
+            let form: Vec<(&str, &str)> = request
+                .form
+                .iter()
+                .flatten()
+                .map(|(name, value)| (name.as_str(), value.as_str()))
+                .collect();
+            assert_eq!(form, row.form, "{name}");
         }
-    }
-    assert_eq!(seam_records(&choke), in_process);
+
+        // On the wire: what the production transport carried.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let kept = received.clone();
+        let server = tokio::spawn(async move {
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let request = crate::mockggg::read_request(&mut stream).await.unwrap();
+                let body = if request.method == "HEAD" { "" } else { "{}" };
+                kept.lock().unwrap().push(request);
+                let answer = raw_response(
+                    "200 OK",
+                    &full_rate_headers("recorded-policy", None),
+                    2,
+                    body,
+                );
+                stream.write_all(answer.as_bytes()).await.unwrap();
+            }
+        });
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            &base,
+        );
+        send_the_seam_table(&choke, &base).await;
+        server.abort();
+        let received = std::mem::take(&mut *received.lock().unwrap());
+        assert_eq!(received.len(), SEAM_TABLE.len());
+        for (row, request) in SEAM_TABLE.iter().zip(&received) {
+            let name = format!("{} {}", row.method, row.route);
+            assert_eq!(request.method, row.method, "{name}");
+            assert_eq!(request.path, row.path, "{name}");
+            assert_eq!(
+                request.headers.get("user-agent").map(String::as_str),
+                Some(crate::provider::USER_AGENT),
+                "{name}"
+            );
+            assert_eq!(
+                request.headers.get("authorization").map(String::as_str),
+                row.bearer.then_some(SEAM_BEARER),
+                "{name}"
+            );
+            let form: Vec<(String, String)> = url::form_urlencoded::parse(request.body.as_bytes())
+                .into_owned()
+                .collect();
+            let expected: Vec<(String, String)> = row
+                .form
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect();
+            assert_eq!(form, expected, "{name}");
+            if !row.form.is_empty() {
+                assert_eq!(
+                    request.headers.get("content-type").map(String::as_str),
+                    Some("application/x-www-form-urlencoded"),
+                    "{name}"
+                );
+            }
+        }
+        assert_eq!(seam_records(&choke), in_process);
+    })
+    .await;
 }
 
 /// A choke point on `clock` over `transport`, a bearer admitted at
@@ -2949,6 +2965,60 @@ async fn c161_a_dropped_send_releases_its_hold_its_permit_and_its_deadline() {
     }
 }
 
+/// C161, the deadline on the wire: the production transport sends to a
+/// listener that reads the request whole and never answers, from a choke
+/// point on a parking clock the test moves to the send's deadline by
+/// hand. The send fails in the deadline's words, its permit goes, and the
+/// listener's next read is the end of the stream: the transport's future,
+/// dropped at the cut, closed its connection, as reqwest's own timer did
+/// before the deadline was the choke point's. A real-wiring test of the
+/// production transport, which stays TCP for good; bounded by `HANG`
+/// alone, since nothing else would end a send that is never cut.
+#[tokio::test]
+async fn c161_the_deadline_closes_the_production_transports_connection() {
+    within_hang(async {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/silent", listener.local_addr().unwrap());
+        let (arrived_tx, arrived) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let request = crate::mockggg::read_request(&mut stream).await.unwrap();
+            arrived_tx.send(request.path).unwrap();
+            let mut next = [0u8; 64];
+            stream.read(&mut next).await
+        });
+        let clock = Arc::new(ParkingClock::new());
+        let choke = Arc::new(ChokePoint::with_clock_and_rails(
+            clock.clone(),
+            Arc::new(Rails::disabled()),
+            NO_BEARER_API,
+        ));
+        let dispatch = clock.now();
+        let send = tokio::spawn({
+            let choke = choke.clone();
+            async move { choke.get("silent", &url, choke.now(), ALWAYS_WANTED).await }
+        });
+        assert_eq!(arrived.await.unwrap(), "/silent");
+        parked(&clock, 1).await;
+        assert_eq!(clock.next_deadline(), Some(dispatch + REQUEST_TIMEOUT));
+        assert_eq!(choke.actual_send_occupancy().0, 1, "the permit");
+        clock.advance_to(dispatch + REQUEST_TIMEOUT);
+        let cut = send.await.unwrap();
+        assert!(
+            matches!(&cut, Err(SendError::Transport(words)) if *words == send_expired()),
+            "{:?}",
+            cut.map(|landed| landed.status)
+        );
+        assert_eq!(choke.actual_send_occupancy().0, 0, "the permit");
+        assert_eq!(
+            server.await.unwrap().unwrap(),
+            0,
+            "the listener's next read is the end of the stream"
+        );
+    })
+    .await;
+}
+
 /// The one send record the choke point holds for `endpoint`.
 fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
     let mut records: Vec<SendRecord> = choke
@@ -3012,36 +3082,39 @@ async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
 /// good (C161).
 #[tokio::test]
 async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
-    let route = "malformed-truncated";
-    let choke = ChokePoint::with_clock_and_rails(
-        Arc::new(ParkingClock::new()),
-        Arc::new(Rails::disabled()),
-        NO_BEARER_API,
-    );
-    let established_raw = serde_json::json!({ "source": "established" });
-    choke
-        .limiter
-        .lock()
-        .unwrap()
-        .observe(
-            route,
-            parse(&with_state(CHAR_LIST, "1:10:0,1:300:0")),
-            established_raw.clone(),
-            false,
-            Instant::now(),
-        )
-        .unwrap();
-    let (url, server) = serve_one_raw(raw_response("200 OK", "", 100, "{}")).await;
+    within_hang(async {
+        let route = "malformed-truncated";
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            NO_BEARER_API,
+        );
+        let established_raw = serde_json::json!({ "source": "established" });
+        choke
+            .limiter
+            .lock()
+            .unwrap()
+            .observe(
+                route,
+                parse(&with_state(CHAR_LIST, "1:10:0,1:300:0")),
+                established_raw.clone(),
+                false,
+                Instant::now(),
+            )
+            .unwrap();
+        let (url, server) = serve_one_raw(raw_response("200 OK", "", 100, "{}")).await;
 
-    let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
-    assert!(matches!(result, Err(SendError::Transport(_))));
-    let status = choke.policy_statuses().pop().unwrap();
-    assert_eq!(status.headers, established_raw);
-    assert_eq!(
-        choke.endpoint_state(route),
-        EndpointState::Policy("character-list-request-limit".into())
-    );
-    server.await.unwrap();
+        let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
+        assert!(matches!(result, Err(SendError::Transport(_))));
+        let status = choke.policy_statuses().pop().unwrap();
+        assert_eq!(status.headers, established_raw);
+        assert_eq!(
+            choke.endpoint_state(route),
+            EndpointState::Policy("character-list-request-limit".into())
+        );
+        server.await.unwrap();
+    })
+    .await;
 }
 
 #[tokio::test]
@@ -3138,121 +3211,124 @@ fn redirect_response(status: &str, location: &str) -> String {
 /// good (C161).
 #[tokio::test]
 async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
-    use crate::rails::RailsConfig;
-    use std::sync::atomic::Ordering;
-    const SECRET: &str = "c130-sentinel-code";
+    within_hang(async {
+        use crate::rails::RailsConfig;
+        use std::sync::atomic::Ordering;
+        const SECRET: &str = "c130-sentinel-code";
 
-    for (method, status_line, status) in [
-        ("POST", "307 Temporary Redirect", 307),
-        ("GET", "302 Found", 302),
-    ] {
-        let (base, requests, server) = counting_server(|base| {
-            redirect_response(status_line, &format!("{base}/elsewhere?code={SECRET}"))
-        })
-        .await;
-        let temp = tempfile::tempdir().unwrap();
-        let journal = temp.path().join("c130-journal.jsonl");
-        let rails = Arc::new(Rails::with_config(RailsConfig {
-            journal_path: Some(journal.clone()),
-            ..RailsConfig::default()
-        }));
-        let choke =
-            ChokePoint::with_clock_and_rails(Arc::new(ParkingClock::new()), rails, NO_BEARER_API);
-
-        let url = format!("{base}/start");
-        let landed = match method {
-            "POST" => {
-                choke
-                    .post_form(
-                        "oauth-token",
-                        &url,
-                        &[
-                            ("grant_type", "refresh_token"),
-                            ("refresh_token", "c130-rt"),
-                        ],
-                        choke.now(),
-                        ALWAYS_WANTED,
-                    )
-                    .await
-            }
-            _ => {
-                choke
-                    .get("c130-get", &url, choke.now(), ALWAYS_WANTED)
-                    .await
-            }
-        };
-        assert_eq!(
-            requests.load(Ordering::SeqCst),
-            1,
-            "a {status} on {method} reached the server more than once: the redirect was followed"
-        );
-        let landed = landed.unwrap_or_else(|error| panic!("{method} {status}: {error}"));
-        assert_eq!(landed.status.as_u16(), status, "{method}");
-        let sends = choke.recent_sends();
-        assert_eq!(sends.len(), 1, "{method}: one send recorded");
-        assert!(!sends[0].ok, "{method}: a 3xx is not a success");
-
-        let text = std::fs::read_to_string(&journal).unwrap();
-        let lines: Vec<serde_json::Value> = text
-            .lines()
-            .map(|line| serde_json::from_str(line).unwrap())
-            .collect();
-        assert_eq!(lines.len(), 2, "the header and one send: {text}");
-        assert_eq!(lines[1]["method"], method);
-        assert_eq!(lines[1]["status"], status);
-        assert_eq!(
-            lines[1]["headers"]["location"],
-            format!("{base}/elsewhere?…"),
-            "{text}"
-        );
-        assert!(!text.contains(SECRET), "the journal kept the query: {text}");
-        server.abort();
-    }
-
-    // The bearer arm: a 302 to another port of the same host (the residual
-    // past C128's check, which judges only the URL a caller hands in), and
-    // to another path of the API origin itself.
-    let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let foreign_port = foreign.local_addr().unwrap().port();
-    for elsewhere in ["foreign", "own"] {
-        let (base, requests, server) = counting_server(|base| {
-            let location = match elsewhere {
-                "foreign" => format!("http://127.0.0.1:{foreign_port}/x"),
-                _ => format!("{base}/x"),
-            };
-            redirect_response("302 Found", &location)
-        })
-        .await;
-        let choke = ChokePoint::with_clock_and_rails(
-            Arc::new(ParkingClock::new()),
-            Arc::new(Rails::disabled()),
-            &base,
-        );
-        let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
-        let landed = choke
-            .get_bearer(
-                "c130-bearer",
-                &format!("{base}/profile"),
-                &bearer,
-                choke.now(),
-                ALWAYS_WANTED,
-            )
+        for (method, status_line, status) in [
+            ("POST", "307 Temporary Redirect", 307),
+            ("GET", "302 Found", 302),
+        ] {
+            let (base, requests, server) = counting_server(|base| {
+                redirect_response(status_line, &format!("{base}/elsewhere?code={SECRET}"))
+            })
             .await;
-        assert_eq!(
-            requests.load(Ordering::SeqCst),
-            1,
-            "a bearer GET's 302 to the {elsewhere} location was followed"
-        );
-        assert!(
-            tokio::time::timeout(Duration::from_millis(200), foreign.accept())
-                .await
-                .is_err(),
-            "a bearer GET's 302 to the {elsewhere} location reached the foreign port"
-        );
-        assert_eq!(landed.expect("the 302 lands").status.as_u16(), 302);
-        assert_eq!(choke.recent_sends().len(), 1, "{elsewhere}: one send");
-        server.abort();
-    }
+            let temp = tempfile::tempdir().unwrap();
+            let journal = temp.path().join("c130-journal.jsonl");
+            let rails = Arc::new(Rails::with_config(RailsConfig {
+                journal_path: Some(journal.clone()),
+                ..RailsConfig::default()
+            }));
+            let choke =
+                ChokePoint::with_clock_and_rails(Arc::new(ParkingClock::new()), rails, NO_BEARER_API);
+
+            let url = format!("{base}/start");
+            let landed = match method {
+                "POST" => {
+                    choke
+                        .post_form(
+                            "oauth-token",
+                            &url,
+                            &[
+                                ("grant_type", "refresh_token"),
+                                ("refresh_token", "c130-rt"),
+                            ],
+                            choke.now(),
+                            ALWAYS_WANTED,
+                        )
+                        .await
+                }
+                _ => {
+                    choke
+                        .get("c130-get", &url, choke.now(), ALWAYS_WANTED)
+                        .await
+                }
+            };
+            assert_eq!(
+                requests.load(Ordering::SeqCst),
+                1,
+                "a {status} on {method} reached the server more than once: the redirect was followed"
+            );
+            let landed = landed.unwrap_or_else(|error| panic!("{method} {status}: {error}"));
+            assert_eq!(landed.status.as_u16(), status, "{method}");
+            let sends = choke.recent_sends();
+            assert_eq!(sends.len(), 1, "{method}: one send recorded");
+            assert!(!sends[0].ok, "{method}: a 3xx is not a success");
+
+            let text = std::fs::read_to_string(&journal).unwrap();
+            let lines: Vec<serde_json::Value> = text
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            assert_eq!(lines.len(), 2, "the header and one send: {text}");
+            assert_eq!(lines[1]["method"], method);
+            assert_eq!(lines[1]["status"], status);
+            assert_eq!(
+                lines[1]["headers"]["location"],
+                format!("{base}/elsewhere?…"),
+                "{text}"
+            );
+            assert!(!text.contains(SECRET), "the journal kept the query: {text}");
+            server.abort();
+        }
+
+        // The bearer arm: a 302 to another port of the same host (the residual
+        // past C128's check, which judges only the URL a caller hands in), and
+        // to another path of the API origin itself.
+        let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let foreign_port = foreign.local_addr().unwrap().port();
+        for elsewhere in ["foreign", "own"] {
+            let (base, requests, server) = counting_server(|base| {
+                let location = match elsewhere {
+                    "foreign" => format!("http://127.0.0.1:{foreign_port}/x"),
+                    _ => format!("{base}/x"),
+                };
+                redirect_response("302 Found", &location)
+            })
+            .await;
+            let choke = ChokePoint::with_clock_and_rails(
+                Arc::new(ParkingClock::new()),
+                Arc::new(Rails::disabled()),
+                &base,
+            );
+            let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+            let landed = choke
+                .get_bearer(
+                    "c130-bearer",
+                    &format!("{base}/profile"),
+                    &bearer,
+                    choke.now(),
+                    ALWAYS_WANTED,
+                )
+                .await;
+            assert_eq!(
+                requests.load(Ordering::SeqCst),
+                1,
+                "a bearer GET's 302 to the {elsewhere} location was followed"
+            );
+            assert!(
+                tokio::time::timeout(Duration::from_millis(200), foreign.accept())
+                    .await
+                    .is_err(),
+                "a bearer GET's 302 to the {elsewhere} location reached the foreign port"
+            );
+            assert_eq!(landed.expect("the 302 lands").status.as_u16(), 302);
+            assert_eq!(choke.recent_sends().len(), 1, "{elsewhere}: one send");
+            server.abort();
+        }
+    })
+    .await;
 }
 
 #[test]
@@ -3319,49 +3395,52 @@ fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
 /// good (C161).
 #[tokio::test]
 async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
-    for (status_line, status, retry_after) in [
-        ("429 Too Many Requests", 429, Some(0)),
-        ("500 Internal Server Error", 500, None),
-    ] {
-        let route = format!("truncated-{status}");
-        let raw = raw_response(
-            status_line,
-            &full_rate_headers(&format!("policy-{status}"), retry_after),
-            100,
-            "{}",
-        );
-        let (url, server) = serve_one_raw(raw).await;
-        let choke = ChokePoint::with_clock_and_rails(
-            Arc::new(ParkingClock::new()),
-            Arc::new(Rails::disabled()),
-            NO_BEARER_API,
-        );
+    within_hang(async {
+        for (status_line, status, retry_after) in [
+            ("429 Too Many Requests", 429, Some(0)),
+            ("500 Internal Server Error", 500, None),
+        ] {
+            let route = format!("truncated-{status}");
+            let raw = raw_response(
+                status_line,
+                &full_rate_headers(&format!("policy-{status}"), retry_after),
+                100,
+                "{}",
+            );
+            let (url, server) = serve_one_raw(raw).await;
+            let choke = ChokePoint::with_clock_and_rails(
+                Arc::new(ParkingClock::new()),
+                Arc::new(Rails::disabled()),
+                NO_BEARER_API,
+            );
 
-        let response = choke
-            .get(&route, &url, choke.now(), ALWAYS_WANTED)
-            .await
-            .expect("non-2xx status keeps precedence over body failure");
-        assert_eq!(response.status.as_u16(), status);
-        assert!(response.body.is_err());
-        let send = choke.recent_sends().pop().unwrap();
-        assert!(!send.ok);
-        assert!(send.outcome.starts_with(status_line));
-        assert!(send.outcome.contains("body transfer failure"));
-        // reqwest's own words for a cut body, which a job's failure
-        // carries to a user: held here, where reqwest runs (C161: the
-        // door's scenarios meet the test transport's words instead).
-        let words = "error decoding response body";
-        assert!(
-            response
-                .body
-                .as_ref()
-                .is_err_and(|error| error.contains(words)),
-            "{:?}",
-            response.body
-        );
-        assert!(send.outcome.contains(words), "{}", send.outcome);
-        server.await.unwrap();
-    }
+            let response = choke
+                .get(&route, &url, choke.now(), ALWAYS_WANTED)
+                .await
+                .expect("non-2xx status keeps precedence over body failure");
+            assert_eq!(response.status.as_u16(), status);
+            assert!(response.body.is_err());
+            let send = choke.recent_sends().pop().unwrap();
+            assert!(!send.ok);
+            assert!(send.outcome.starts_with(status_line));
+            assert!(send.outcome.contains("body transfer failure"));
+            // reqwest's own words for a cut body, which a job's failure
+            // carries to a user: held here, where reqwest runs (C161: the
+            // door's scenarios meet the test transport's words instead).
+            let words = "error decoding response body";
+            assert!(
+                response
+                    .body
+                    .as_ref()
+                    .is_err_and(|error| error.contains(words)),
+                "{:?}",
+                response.body
+            );
+            assert!(send.outcome.contains(words), "{}", send.outcome);
+            server.await.unwrap();
+        }
+    })
+    .await;
 }
 
 #[tokio::test]
@@ -4108,107 +4187,111 @@ impl Bearer for CountingBearer {
 /// good (C161).
 #[tokio::test]
 async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_server() {
-    let api = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let api_port = api.local_addr().unwrap().port();
-    let foreign_port = foreign.local_addr().unwrap().port();
-    let choke = ChokePoint::with_clock_and_rails(
-        Arc::new(ParkingClock::new()),
-        Arc::new(Rails::disabled()),
-        &format!("http://127.0.0.1:{api_port}"),
-    );
-    let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
-    let off_origin = [
-        format!("http://127.0.0.1:{foreign_port}/profile"),
-        format!("http://localhost:{api_port}/profile"),
-        format!("https://127.0.0.1:{api_port}/profile"),
-    ];
-    for url in &off_origin {
-        let get = tokio::time::timeout(
-            HANG,
-            choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED),
-        )
-        .await
-        .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
-        assert!(
-            matches!(&get, Err(SendError::OffOrigin(_))),
-            "a bearer GET to {url}: {:?}",
-            get.as_ref().err()
+    within_hang(async {
+        let api = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let api_port = api.local_addr().unwrap().port();
+        let foreign_port = foreign.local_addr().unwrap().port();
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(ParkingClock::new()),
+            Arc::new(Rails::disabled()),
+            &format!("http://127.0.0.1:{api_port}"),
         );
-        // The refusal names the origin it refused (#86's mutants run).
-        let refused = url::Url::parse(url).unwrap().origin().ascii_serialization();
-        let words = get
-            .as_ref()
-            .err()
-            .map(ToString::to_string)
-            .unwrap_or_default();
-        assert!(words.contains(&refused), "{words:?} names no {refused}");
-        let head = tokio::time::timeout(
-            HANG,
-            choke.head(
-                "c128",
-                url,
-                Some(&bearer as &dyn Bearer),
-                choke.now(),
-                ALWAYS_WANTED,
-            ),
-        )
-        .await
-        .unwrap_or_else(|_| panic!("a bearer HEAD to {url} was not refused before sending"));
-        assert!(
-            matches!(&head, Err(ProbeError::OffOrigin(_))),
-            "a bearer HEAD to {url}: {:?}",
-            head.as_ref().err()
-        );
-    }
-    assert_eq!(
-        bearer.0.load(std::sync::atomic::Ordering::SeqCst),
-        0,
-        "the token was read for a send that was refused"
-    );
-    for (name, listener) in [("the foreign server", &foreign), ("the API's", &api)] {
-        assert!(
-            tokio::time::timeout(Duration::from_millis(200), listener.accept())
-                .await
-                .is_err(),
-            "a refused send reached {name} listener"
-        );
-    }
-    assert!(
-        choke.recent_sends().is_empty(),
-        "a refused send was recorded"
-    );
-
-    // The control: the API origin admits the same bearer.
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = api.accept().await.unwrap();
-        let mut request = [0; 4096];
-        let n = stream.read(&mut request).await.unwrap();
-        let request = String::from_utf8_lossy(&request[..n]).to_ascii_lowercase();
-        stream
-            .write_all(
-                raw_response("200 OK", &full_rate_headers("c128-policy", None), 2, "{}").as_bytes(),
+        let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+        let off_origin = [
+            format!("http://127.0.0.1:{foreign_port}/profile"),
+            format!("http://localhost:{api_port}/profile"),
+            format!("https://127.0.0.1:{api_port}/profile"),
+        ];
+        for url in &off_origin {
+            let get = tokio::time::timeout(
+                HANG,
+                choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED),
             )
             .await
-            .unwrap();
-        request
-    });
-    let landed = choke
-        .get_bearer(
-            "c128-control",
-            &format!("http://127.0.0.1:{api_port}/profile"),
-            &bearer,
-            choke.now(),
-            ALWAYS_WANTED,
-        )
-        .await
-        .expect("a bearer GET to the API origin goes out");
-    assert_eq!(landed.status.as_u16(), 200);
-    let request = server.await.unwrap();
-    assert!(
-        request.contains("authorization: bearer c128-token"),
-        "the API origin's send carried no bearer: {request}"
-    );
+            .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
+            assert!(
+                matches!(&get, Err(SendError::OffOrigin(_))),
+                "a bearer GET to {url}: {:?}",
+                get.as_ref().err()
+            );
+            // The refusal names the origin it refused (#86's mutants run).
+            let refused = url::Url::parse(url).unwrap().origin().ascii_serialization();
+            let words = get
+                .as_ref()
+                .err()
+                .map(ToString::to_string)
+                .unwrap_or_default();
+            assert!(words.contains(&refused), "{words:?} names no {refused}");
+            let head = tokio::time::timeout(
+                HANG,
+                choke.head(
+                    "c128",
+                    url,
+                    Some(&bearer as &dyn Bearer),
+                    choke.now(),
+                    ALWAYS_WANTED,
+                ),
+            )
+            .await
+            .unwrap_or_else(|_| panic!("a bearer HEAD to {url} was not refused before sending"));
+            assert!(
+                matches!(&head, Err(ProbeError::OffOrigin(_))),
+                "a bearer HEAD to {url}: {:?}",
+                head.as_ref().err()
+            );
+        }
+        assert_eq!(
+            bearer.0.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the token was read for a send that was refused"
+        );
+        for (name, listener) in [("the foreign server", &foreign), ("the API's", &api)] {
+            assert!(
+                tokio::time::timeout(Duration::from_millis(200), listener.accept())
+                    .await
+                    .is_err(),
+                "a refused send reached {name} listener"
+            );
+        }
+        assert!(
+            choke.recent_sends().is_empty(),
+            "a refused send was recorded"
+        );
+
+        // The control: the API origin admits the same bearer.
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = api.accept().await.unwrap();
+            let mut request = [0; 4096];
+            let n = stream.read(&mut request).await.unwrap();
+            let request = String::from_utf8_lossy(&request[..n]).to_ascii_lowercase();
+            stream
+                .write_all(
+                    raw_response("200 OK", &full_rate_headers("c128-policy", None), 2, "{}")
+                        .as_bytes(),
+                )
+                .await
+                .unwrap();
+            request
+        });
+        let landed = choke
+            .get_bearer(
+                "c128-control",
+                &format!("http://127.0.0.1:{api_port}/profile"),
+                &bearer,
+                choke.now(),
+                ALWAYS_WANTED,
+            )
+            .await
+            .expect("a bearer GET to the API origin goes out");
+        assert_eq!(landed.status.as_u16(), 200);
+        let request = server.await.unwrap();
+        assert!(
+            request.contains("authorization: bearer c128-token"),
+            "the API origin's send carried no bearer: {request}"
+        );
+    })
+    .await;
 }
 
 // ---- generated header sets (#85) ------------------------------------------
