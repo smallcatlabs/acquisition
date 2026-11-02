@@ -244,7 +244,11 @@ Each in his words, with the commit that landed it.
   16,600 bytes ("Raise to 16,600"). Said with the packet and taken: the
   production transport's constructor is then that crate's public API,
   so "only the choke point builds it" is held by review, not by the
-  module tree (the commit carrying this line).
+  module tree (`baf625c9`). His words in the orchestrating session the
+  same day: "The crate, by the graph." The round's build found the
+  crate's public API could re-export reqwest unseen by the graph; held
+  by review beside `Production`'s construction, a `REVIEW-CHECKLIST.md`
+  row, the orchestrating session's call, listed at step 1's close.
 
 ## Roles
 
@@ -572,5 +576,10 @@ the words; reviewed cold, its fix round `3365183b..7c1c9626` reviewed in
 turn, whose finding went to the owner (#160, "(b) Own crate", C1
 amended at `baf625c9`). Its last round (`briefs/transport-seam-1b.md`),
 the transport crate with check 5's edges and check 13 retired, landed
-on 2026-11-01 as two commits from `24052df0`, this line's commit the
-last; its cold review is pending.
+on 2026-11-01 as two commits from `24052df0`; reviewed cold, its fix
+round `22da60ae` (the edges by package id) reviewed clean. Step 1
+closed on 2026-11-01 (`LEDGER.md`). Next, step 2 of the design's §6,
+the in-process transports and the fixtures, after C160's first
+amendment is entered; it touches no production send and may run in
+either window beside the league; its brief takes the builder's
+transport option (step 1's Not in scope).
