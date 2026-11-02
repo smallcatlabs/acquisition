@@ -33,10 +33,12 @@ one function its TCP face and its in-process face share. `beside` takes
 the first door's clock and hook, so its waits gain the verdict. The two
 `occupancy` exclusions in `.cargo/mutants.toml` retire onto the `c160_`
 count pin, which fails at once once the hook no longer reads the count.
-The only sockets left in the daemon's tests are the real-wiring tests
-of the production transport (the spec's six, the crate's one), the
+The only provider or callback TCP left in the daemon's tests is the
+real-wiring tests of the production transport (the spec's six, the
+crate's one), the mock's own TCP test (`mockggg.rs`'s tail module), the
 login's callback listener and its two component tests, and the
-browser's one GET to the daemon's callback.
+browser's one GET to the daemon's callback; the frontend plane's
+sockets (C9's endpoint) are not this step's.
 
 Why it matters: a real socket in a scenario was the one wait the hook
 could not see (C161's *Why*). This step removes it, so step 3 can put
@@ -137,7 +139,8 @@ the hook's verdict reaches the scenarios where a send never completes.
   base `NO_BEARER_API` (22, `http://127.0.0.1:9`, a port nothing listens
   on), so a test that sends through it connects for real and is refused
   (`transport_failure_on_an_established_policy_paces_as_if_counted`, its
-  GET at 2259 and HEAD at 2294); `parked_choke()` is called 14 times and
+  GET at 2259 and HEAD at 2294); `parked_choke()` occurs 14 times (the
+  definition and thirteen calls) and
   `with_clock_and_rails(` written 7 times in the spec (`grep -c`), each
   a production transport, `with_transport(` twice.
 - `crates/acquisition-daemon/src/mockggg.rs`: `start` (646) and
@@ -375,7 +378,8 @@ the last.
   released by a guard on body completion or drop.
 - `grep -rn "TcpListener::bind" crates/acquisition-daemon/src --include='*.rs'`
   prints only: the spec's kept real-wiring tests (each carrying the
-  sentence), `login.rs` 646 and 684, the mock's listener in `mockggg.rs`,
+  sentence), `login.rs` 646 and 684 and the callback listener itself
+  (`daemon/login.rs:23`, production), the mock's listener in `mockggg.rs`,
   and any listener a kept test needs; and the caller grep of Read
   (`mockggg::start` and the five helper names under `daemon/tests/`)
   prints nothing, the helpers gone; in the spec, `with_clock_and_rails(`
@@ -478,6 +482,11 @@ The first review's six (`transport-seam-2-brief-f1154aab.md`):
 6. The kept spec tests held the behaviour, not reqwest's words: the
    words' assertion moves to the kept truncated-body test (Do 3, Done
    when).
+
+The third review's two nits (`transport-seam-2-brief-aba6a164.md`),
+fixed in a documents-only cut with no further review: the mock's TCP
+test and the production callback bind named among the kept sockets; 14
+occurrences of `parked_choke()`, thirteen of them calls.
 
 The second review's one (`transport-seam-2-brief-bbf11b25.md`): a spec
 test sends real I/O to a port with no listener, which no bind or caller
