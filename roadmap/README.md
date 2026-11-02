@@ -593,5 +593,8 @@ deadline on the clock (`briefs/transport-seam-3.md`, cut three times
 under cold reviews, after C160's second amendment), landed on
 2026-11-02 as four commits from `a91658a5`, this line's commit the
 last: the deadline on the choke point's clock over the four sends, the
-client without timeouts, the expiry as wire-table rows, the words. Its
-review is pending; then the rung, the owner's live run.
+client without timeouts, the expiry as wire-table rows, the words.
+Reviewed cold, no findings. Step 3 closed on 2026-11-02 (`LEDGER.md`).
+Next, the rung: the owner's live run under the live-run skill, from
+his terminal; then the seam's close (the design's §6 item 4: the
+mutants after-run, #151's open timeouts named caught or not).
