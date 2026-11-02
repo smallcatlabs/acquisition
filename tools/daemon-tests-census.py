@@ -7,6 +7,7 @@ door or says which boundary keeps it off (#152). Report-only, not a
 gate stage until a second census wants one (evidence before ceremony).
 
 Usage: python3 -I tools/daemon-tests-census.py [--all] [DIR]
+       python3 -I tools/daemon-tests-census.py --self-test
 
 DIR defaults to the daemon's test directory; another (an exported tree)
 gives the census at another commit. Each test that says neither is
@@ -19,7 +20,9 @@ The rules:
   included.
 - A test is an attributed function, counted once: `#[test]` or
   `#[tokio::test]` (with any arguments), with only other attributes
-  between it and the `fn`. No case loop is expanded: the census counts
+  between it and the `fn`; each attribute is read whole, from its `#[`
+  to the `]` that balances it, however many lines it spans
+  (`--self-test` runs the reader over a sample holding both spellings). No case loop is expanded: the census counts
   tests, never rows.
 - What a test reaches is its body and every function of the same file
   its body calls, followed to any depth, cycle-safe (each function
@@ -144,9 +147,9 @@ def param_name(param):
 
 
 class File:
-    def __init__(self, path):
+    def __init__(self, path, text=None):
         self.path = path
-        self.text = open(path, encoding="utf-8").read()
+        self.text = open(path, encoding="utf-8").read() if text is None else text
         self.lines = self.text.splitlines()
         self.code = blank(self.text)
         self.fns = {}  # name -> (params, body start, body end)
@@ -170,20 +173,39 @@ class File:
     def line_of(self, offset):
         return self.text.count("\n", 0, offset) + 1
 
+    def attributes(self):
+        """{first line: last line} of each attribute, 0-based, read whole:
+        from its `#[` to the `]` that balances it, across lines."""
+        spans, code = {}, self.code.splitlines()
+        at = 0
+        while at < len(code):
+            if ATTR.match(code[at]):
+                depth, end = 0, at
+                for end in range(at, len(code)):
+                    depth += code[end].count("[") - code[end].count("]")
+                    if depth <= 0:
+                        break
+                spans[at] = end
+                at = end + 1
+            else:
+                at += 1
+        return spans
+
     def tests(self):
         """(name, line, own doc) for each attributed test function."""
-        found = []
-        for at, line in enumerate(self.lines):
-            if not ATTR_TEST.match(line) or line.lstrip().startswith("//"):
+        found, code, spans = [], self.code.splitlines(), self.attributes()
+        inside = {k for start, end in spans.items() for k in range(start, end + 1)}
+        for at, end in spans.items():
+            if not ATTR_TEST.match(code[at]):
                 continue
-            k = at + 1
-            while k < len(self.lines) and ATTR.match(self.lines[k]):
-                k += 1
-            m = FN.search(self.code.splitlines()[k]) if k < len(self.lines) else None
+            k = end + 1
+            while k in spans:
+                k = spans[k] + 1
+            m = FN.search(code[k]) if k < len(code) else None
             if not m:
                 continue
             doc, d = [], at - 1
-            while d >= 0 and (self.lines[d].lstrip().startswith("///") or ATTR.match(self.lines[d])):
+            while d >= 0 and (self.lines[d].lstrip().startswith("///") or d in inside):
                 if self.lines[d].lstrip().startswith("///"):
                     doc.insert(0, self.lines[d].lstrip()[3:])
                 d -= 1
@@ -229,7 +251,39 @@ class File:
         return door, values
 
 
+SAMPLE = '''\
+/// A component test: its attribute spans three lines.
+#[tokio::test(
+    flavor = "multi_thread"
+)]
+async fn spanning() {}
+
+#[test]
+fn single() {}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[allow(
+    dead_code
+)]
+async fn single_with_arguments() {}
+'''
+
+
+def self_test():
+    """The reader over `SAMPLE`: an attribute spanning lines, a bare one
+    and one with arguments under others, each counted once, by name."""
+    f = File("sample.rs", SAMPLE)
+    found = {name: doc for name, _, doc in f.tests()}
+    expected = {"spanning", "single", "single_with_arguments"}
+    ok = set(found) == expected and bool(SENTENCE.search(found.get("spanning", "")))
+    print(f"self-test: found {sorted(found)}, expected {sorted(expected)}: {'ok' if ok else 'FAILED'}")
+    return 0 if ok else 1
+
+
 def main(argv):
+    if "--self-test" in argv:
+        return self_test()
     show_all = "--all" in argv
     rest = [a for a in argv if a != "--all"]
     root = rest[0] if rest else "crates/acquisition-daemon/src/daemon/tests"

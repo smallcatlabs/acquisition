@@ -643,7 +643,7 @@ impl DoorBuilder {
                 (base, fixture)
             }
             Server::Mock => {
-                let base = mockggg::start_with_clock(self.clock.clone())
+                let base = mockggg::start_with_clock(self.clock.clone(), 1)
                     .await
                     .expect("the mock starts");
                 (base, Fixture::Mock)

@@ -45,13 +45,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
     let scratch = harness::scratch("newleague");
     let base = scratch.0.clone();
     let (knob, journal) = harness::journal_on(&base);
-    // The mock's windows as GGG's, over the isolation list's tenth: the
-    // plan below must meet a full stash window and quote a wait, which a
-    // tenth of the window drains before the plan reads it.
-    let (mut daemon, pid) = harness::start_daemon_with(
-        &base,
-        &[(knob, journal.as_str()), ("ACQ_MOCK_WINDOW_DIVISOR", "1")],
-    );
+    let (mut daemon, pid) = harness::start_daemon_with(&base, &[(knob, journal.as_str())]);
     let _login = harness::login_as_mock(&base, &[]);
 
     // Standard synced first, as the owner's store will be: the journey's

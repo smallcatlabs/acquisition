@@ -43,7 +43,7 @@ async fn wait_for_refresh_waiters(daemon: &Daemon, expected_at_least: usize) {
 #[tokio::test]
 async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_the_limit() {
     let clock = Arc::new(ParkingClock::new());
-    let api_base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let api_base = mockggg::start_with_clock(clock.clone(), 1).await.unwrap();
     let (token_base, token_arrived, release_token, token_server) =
         delayed_token_server("200 OK", token_body("at-new", "rt-rotated", "test-user")).await;
     let (mut daemon, log_path) = test_daemon(Boundary::Fixtures, &api_base, clock.clone());

@@ -640,21 +640,26 @@ fn mock_stash(league: &str, id: &str, sub: Option<&str>) -> Option<serde_json::V
 }
 
 /// Start the provider on an ephemeral port; returns its base URL.
-/// Start the mock on the system clock (the daemon's default provider).
+/// Start the mock on the system clock (the daemon's default provider),
+/// its windows divided by `ACQ_MOCK_WINDOW_DIVISOR`, the one place the
+/// environment is read for them.
 pub async fn start() -> Result<String> {
-    start_with_clock(Arc::new(SystemClock)).await
+    let divisor = window_divisor(std::env::var_os(WINDOW_DIVISOR).as_deref())?;
+    start_with_clock(Arc::new(SystemClock), divisor).await
 }
 
 /// Start the mock with its rate-limit counters on `clock`. A test that
 /// drives the daemon on a manual clock must give the mock the same one,
 /// or the mock's windows expire in real time while the limiter's expire in
-/// virtual time and every hold looks like a violation.
-pub(crate) async fn start_with_clock(clock: Arc<dyn Clock>) -> Result<String> {
+/// virtual time and every hold looks like a violation. Its windows are
+/// divided by `divisor`, the caller's, never the environment's: a test's
+/// mock takes its windows from the test (1, GGG's).
+pub(crate) async fn start_with_clock(clock: Arc<dyn Clock>, divisor: u64) -> Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
     let codes: Arc<Mutex<HashMap<String, PendingCode>>> = Arc::default();
     let policies: Policies = Arc::new(PolicyBook {
-        divisor: window_divisor(std::env::var_os(WINDOW_DIVISOR).as_deref())?,
+        divisor,
         live: Mutex::default(),
     });
     tokio::spawn(async move {
@@ -1120,6 +1125,27 @@ mod tests {
     /// whole number of 1 or more divides each period and restriction,
     /// floored at one second, the hit counts kept; anything else is
     /// refused at start in words that say the form.
+    /// A test's mock takes its windows from the test, never from the
+    /// environment: with `ACQ_MOCK_WINDOW_DIVISOR=10` in this process, an
+    /// in-process mock built with the divisor 1 answers GGG's windows.
+    #[tokio::test]
+    async fn an_in_process_mocks_windows_are_the_tests_not_the_environments() {
+        // SAFETY: set before the mock starts, in this test's own process
+        // (nextest runs a process per test); only `start` reads it.
+        unsafe { std::env::set_var(WINDOW_DIVISOR, "10") };
+        let base = start_with_clock(Arc::new(SystemClock), 1).await.unwrap();
+        let answer = reqwest::Client::new()
+            .get(format!("{base}/fetch"))
+            .header("user-agent", REGISTERED_USER_AGENT)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(
+            answer.headers()["x-rate-limit-account"],
+            "5:10:60,30:300:300"
+        );
+    }
+
     #[test]
     fn the_window_divisor_defaults_to_one_divides_and_refuses_a_bad_value() {
         use std::ffi::OsStr;
