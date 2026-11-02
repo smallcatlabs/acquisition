@@ -23,11 +23,13 @@ at `e812a0d7`; line numbers are that commit's. The last push's CI on
 "Gate (Linux)" --limit 1`: 41367513039; `"Gate (Windows)"`:
 41367512967). A design brief: §7 is the owner's to rule, and the build
 briefs of §6 follow his word, one at a time, each reviewed cold. Cut
-three times: the first cut (`855ddcf6`) and the second (`74423db0`)
-each reviewed cold (`roadmap/reviews/transport-seam-design-<sha>.md`,
-the prompt beside); this cut answers the second review's five findings
-and takes the orchestrating session's input on #151's compare, read on
-2026-11-02 (`73f182bd`), each at "Taken from the reviews" at the foot.
+four times: the first cut (`855ddcf6`), the second (`74423db0`) and
+the third (`94339bf3`) each reviewed cold
+(`roadmap/reviews/transport-seam-design-<sha>.md`, the prompt beside);
+this cut answers the third review's four findings, each at "Taken from
+the reviews" at the foot, where the earlier rounds' are too; the third
+cut took the orchestrating session's input on #151's compare, read on
+2026-11-02 (`73f182bd`), and this one withdraws what it claimed of it.
 
 ## 1. What the tree says
 
@@ -348,7 +350,7 @@ doing").
 | the account server (1290) and the two token servers (445, 1138) | TCP, barriers | the same logic behind the transport; a held request holds the clock | 3 listeners; held by the transport's hold |
 | `Server::own` (seven calls over five binds: `dispatch.rs` 25, `bearer.rs` 66, 259, 604, `exit.rs` 702) | a listener the scenario binds inside the runtime | a transport the scenario builds, its barriers its own | 5 listeners; held by the closure form |
 | the component fixtures (`log.rs` 21, 216, 371; `sessions.rs` 105, 488) | listeners behind `test_daemon*` | transports behind the same constructors, through the builder's transport option | 5 listeners; held by the builder's option (`login.rs`'s two binds are the callback's and stay) |
-| `Server::None` (14 sites) | a port nothing listens on | the refusing transport | the base `http://127.0.0.1:1`; held by the refusing transport |
+| `Server::None` (fourteen occurrences, thirteen selections; the match arm `door.rs:652` the fourteenth) | a port nothing listens on | the refusing transport | the base `http://127.0.0.1:1`; held by the refusing transport |
 | the stateful mock (`mockggg.rs`) | one TCP face | `answer` plus the TCP wrapper; the listener kept for the shipped daemon; the in-process face for `Server::Mock` | nothing |
 | the spec's servers (12 binds) | raw TCP responses | in-process raw answers, except the real-wiring tests named in §2, which stay TCP on a hand-driven clock | the binds the build's inventory by test moves (step 2 counts them before it moves any); held by the in-process raw form and the kept tests |
 | `auth.rs`'s two token tests (796, 834, on `SystemClock`) | TCP, `ChokePoint::new()` | in-process on a parking clock through `with_transport` | 2 listeners and the spec's last system clocks; held by the parking clock |
@@ -358,7 +360,7 @@ doing").
 | `settle` (810) | unchanged | unchanged | nothing |
 | `beside` (604) | no hook; `HANG` only; one caller shares the first door's clock (`dispatch.rs:1122`), one builds its own (`2296`) | takes the first door's clock and hook (a `beside` on another clock is refused), registers its whole accounting with the running hook before any restore wait (its daemon's blocking count, its holds, its `quiet`, `settle` and stuck slots) and unregisters at `finish`; the second caller moved onto the shared clock; its waits gain the verdict, `HANG` stays the backstop | "a `beside` door has no hook" in C160 and the module doc; held by the registration and a `c160_` case on a beside wait |
 | the "Not doing" line on a request timeout's expiry | structural | removed when C<next> is entered, before step 1 | the line; held by the expiry rows and C<next> |
-| #151's remainder: the ten mutants under which three door scenarios still hang after C160 (the compare of `73f182bd`, the issue's comment of 2026-11-02: `setup_after_probe_429`, `degrade_for` and the two `parse_retry_after` caps under `a_head_429_that_fails_setup_holds_the_next_probe`; `head`'s `delete !` and `\|\| with &&` and `record_completed -> ()` under `a_blocked_probe_is_no_probe_failure`; the two `verdict_of` mutants under `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header`) | each breaks a send's completion or a probe's setup, so the gate's occupancy stays held, the hook rightly moves no time and calls nothing stuck, and reqwest's real timeout ends the wait | the fixture has answered and released its hold, nothing is parked and the daemon's own side never completes: the park finds nothing the hook accounts for and the verdict fires at once; the fixture-side hold is what tells a send in flight from one the daemon will never complete | those timeouts, each named at the close in C154's form, `retired <mutant> timeout; held by the verdict`, as the compare proves them caught; `Limiter::observe_landed`'s `== with !=` and `ChokePoint::sleep_until -> ()` hang component tests off the door, the second by spinning the lifecycle's driver, which no count can see, and stay |
+| #151's remainder (the compare of `73f182bd`, the issue's comment of 2026-11-02): ten mutations under which three component tests off the door hang, each a test that says so (`dispatch.rs` 387, 477 and 622: `setup_after_probe_429`, `degrade_for` and the two `parse_retry_after` caps under `a_head_429_that_fails_setup_holds_the_next_probe`, which awaits its first terminal result before it drives its clock; `head`'s `delete !`, `\|\| with &&` and `record_completed -> ()` under `a_blocked_probe_is_no_probe_failure`, whose condition loop yields with no verdict slot; the two `verdict_of` mutations under `a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header`, whose `wait_terminal` is the harness's polling helper), and `head`'s 401 guard `== with !=` (`choke.rs:701`) under the two concurrent bearer scenarios, whose arrival waits are plain `timeout(HANG, …)` reads (`bearer.rs:394`) that install no verdict slot | each breaks a send's completion or a probe's setup, so the wait ends only at the mutants runner's cut | this design claims none of them: a component test's wait is not the door's, and a plain timeout read is outside the verdict; the fixture-side hold tells a send in flight from one the daemon will never complete only where a door wait races the verdict. The close's compare names each caught or still hanging; a holder, if one appears, is named per mutation then, in C154's form | nothing here; `Limiter::observe_landed`'s `== with !=` and `ChokePoint::sleep_until -> ()` hang component tests too, the second by spinning the lifecycle's driver, which no count can see |
 | the login's exchange and refresh | through `post_form` | unchanged | nothing |
 | the callback listener (`login.rs:23`) | TCP, on the clock | unchanged; outside invariant 1 (C130); its two component tests stay | nothing |
 | the client harness's servers | none; `acqd` spawned in mock mode over its TCP mock | unchanged | nothing |
@@ -382,10 +384,6 @@ In C154's form, each at the step that holds it:
 - retired the hook's occupancy read and its `held_by_send` count; held
   by the transport's hold on a request in flight, first poll to body's
   end, counted as the scenario's.
-- retired the ten door-scenario timeouts #151 leaves open; held by the
-  verdict reading the transport's hold, each named at the close as the
-  compare proves it caught, and the two component-test timeouts named
-  as what the seam does not reach.
 - retired the two `occupancy -> (1, _)` exclusions; held by the
   `c160_` count pin's assertions, which fail at once once the hook no
   longer reads the count.
@@ -465,7 +463,8 @@ What must not change, and what pins it:
   402, timeout to caught 36, timeout to timeout 67, the shards 87 to
   119 minutes). This step's baseline is that run; its after-run is
   dispatched at the close on a tag, and the compare names each of
-  #151's ten door-scenario timeouts caught or still hanging.
+  #151's open timeouts caught or still hanging, with no holder promised
+  for any of them here (§3).
 - **The client harness's servers** stay TCP: they spawn a real `acqd`
   whose mock keeps its listener. Nothing there moves, and nothing there
   gains virtual time; that is the process boundary the retrospective
@@ -476,9 +475,9 @@ What must not change, and what pins it:
 - **The one mechanism bet**: a transport's hold on a request in flight
   as the hook's accounting in place of occupancy. The spike precedent
   (`4-0-spike.md`) says a count the door keeps is wrong once two park;
-  this count is kept by the transport in its first poll and released
-  at the answer or at the observed release, so a park between them sees
-  the hold. Step 2 measures it before it asserts it, as #151 did: the
+  this count is kept by the transport over the one lifetime §2 defines,
+  from its first poll to the body's end or the future's drop, so a park
+  anywhere in that span sees the hold. Step 2 measures it before it asserts it, as #151 did: the
   hook's counters printed per scenario under `ACQ_DOOR_COUNTERS`, every
   passing scenario at zero `nothing_parked`; and it pins the boundary
   cases by row: two requests held at once; a release before the first
@@ -537,10 +536,12 @@ one, and a retirement waits for its holder.
    (`c158_the_wire_table_through_the_door`): a silent script, the send
    failed at 60 virtual seconds, journaled as a transport failure, and
    the next send on the route held as a lost send (C19); and headers
-   answered 20 virtual seconds after dispatch then a silent body, cut
-   at dispatch plus 60, the status kept and the outcome a body failure,
-   the row refusing a cut at dispatch plus 80 (a fresh budget opened
-   for the body); the pacing oracle's new case
+   answered 20 virtual seconds after dispatch (the script's delayed
+   form: the transport sleeps on the daemon's clock, holding nothing, so
+   the hook advances to the headers) then a silent body, cut at dispatch
+   plus 60, the status kept and the outcome a body failure, the row
+   refusing a cut at dispatch plus 80 (a fresh budget opened for the
+   body); the pacing oracle's new case
    for the first; a component row each for status precedence, the
    permit's release at the cut and the transport future dropped on a
    cancel; the real-wiring test that the expiry closes the connection;
@@ -548,7 +549,8 @@ one, and a retirement waits for its holder.
    ("structural, not a choice") corrected in place, dated. The failure's
    words listed at the close. Then the rung.
 4. **The close.** The mutants after-run against the baseline named in
-   §5, no new survivor in the scope, #151's ten named caught or not;
+   §5, no new survivor in the scope, #151's open timeouts each named
+   caught or not;
    the ledger row; the hook's counters per scenario before and after;
    `held_by_send` gone from the output.
 
@@ -566,16 +568,16 @@ Each is his; nothing below is entered until he rules.
   its deadline on the daemon's clock and classifies the answer, while a
   transport only carries it; a door scenario's transport is in-process,
   so no provider exchange in a scenario is real I/O.** In production
-  the transport is the one HTTP client, owned privately through the
-  choke point; what invariant 1 leaves outside stays outside; a
-  real-wiring test of it keeps its listener; a test transport holds the
-  clock from a request's first poll to its body's end. *Why:* a real
-  socket inside a scenario was the one wait the park hook could not
-  see. *Pinned:* nothing yet (check 13 of `tools/arch-check.sh` and the
-  wire table's expiry rows, when built).
+  it is the one HTTP client, privately owned; what invariant 1 leaves
+  outside stays outside; a real-wiring test of it keeps its listener; a
+  test transport holds the clock while a fixture holds a request, first
+  poll to body's end, and a silent part holds nothing. *Why:* a real
+  socket in a scenario was the one wait the park hook could not see.
+  *Pinned:* nothing yet (check 13 of `tools/arch-check.sh` and the wire
+  table's expiry rows, when built).
 
-  For `decisions/network.md`, the choke point's file. 781 bytes
-  (`wc -c` on the line, 782 with its newline); staged under the next id
+  For `decisions/network.md`, the choke point's file. 787 bytes
+  (`wc -c` on the line, 788 with its newline); staged under the next id
   in a copy-backed `decisions/network.md` at the foot of its rulings,
   `python3 -I tools/bothy.py check` passed ("161 decisions in 10 files")
   and `tools/docs-check.sh` passed with its note that the id is uncited,
@@ -627,8 +629,8 @@ Each is his; nothing below is entered until he rules.
   registry check of §7. The one mechanism bet, the transport's hold in
   place of occupancy, is measured in step 2 before it is asserted (§5).
 - Where the two seats of the retrospective want different things: the
-  agentic developer wants no real I/O inside a scenario and the timeout
-  as a row, which this design gives whole; the agentic user wants the
+  agentic developer wants no real provider I/O inside a door scenario
+  and the timeout as a row, which this design gives whole; the agentic user wants the
   production send path left as it was and its failure words stable,
   which steps 1 and 3 touch twice. The design pays the user's side with
   the order of §6, the real-wiring tests and the rung, and with the
@@ -644,9 +646,10 @@ Each is his; nothing below is entered until he rules.
 - `http` as a direct dependency is a mechanism, not a ruling, and adds
   no feature; it is named here because it is the line that lets check
   13 hold `reqwest` to one file.
-- #151 stays open on the ten door-scenario timeouts its compare left
-  (`73f182bd`); this design claims them for the verdict by mechanism
-  and proves none here: the close's compare does, one line each.
+- #151 stays open on the timeouts its compare left (`73f182bd`); this
+  design claims none of them (§3): the three tests that hang are
+  component tests and the fourth wait is a plain timeout read, none a
+  door wait the verdict races. The close's compare says what moved.
 - The retrospective's §3 row calls the request-timeout line "structural,
   not a choice"; this design makes it a choice, and step 3 corrects the
   row in place, dated, as the README's rule for dated evidence allows.
@@ -708,6 +711,22 @@ the orchestrating session's input of 2026-11-02:
    door scenario's transport is in-process, the real-wiring test keeps
    its listener, the browser's GET named (§2, §7); 781 bytes.
 5. One duplicated sentence deleted (§2).
-6. #151's compare (`73f182bd`): the ten door-scenario timeouts that the
-   fixture-side hold retires, the two component ones that stay, the
-   baseline now read (§3, §4, §5, §6, §8).
+6. #151's compare (`73f182bd`): the baseline now read, and a claim
+   that the fixture-side hold retires ten timeouts, withdrawn by the
+   third review (§3, §4, §5, §6, §8).
+
+The third review's four (`transport-seam-design-94339bf3.md`):
+
+1. The #151 claim named three door scenarios that are component tests
+   and a verdict their waits never race, and omitted `head`'s 401 guard
+   under the bearer scenarios' plain timeout reads: the row is an
+   inventory with no holder promised, the retirement struck, the close's
+   compare left to say what moved (§3, §4, §5, §6, §8).
+2. §5 released the hold at the answer where §2 carries it through the
+   body, and the ruling lacked the silent-phase exception: one lifetime,
+   §2's, named from §5; the ruling qualified, 787 bytes; the header
+   delay's mechanism named in the row (§5, §6, §7).
+3. "No real I/O inside a scenario" in §8: "no real provider I/O inside
+   a door scenario" (§8).
+4. `Server::None`'s fourteen occurrences: thirteen selections and the
+   match arm (§3).
