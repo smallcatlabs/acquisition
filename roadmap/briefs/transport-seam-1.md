@@ -1,6 +1,9 @@
 # transport-seam-1 — the seam, no behaviour change (C161, step 1 of the design's §6)
 
-The first cut, written by the orchestrating session (Opus) on 2026-11-01
+The second cut: the first (`dad73240`) was reviewed cold
+(`roadmap/reviews/transport-seam-1-brief-dad73240.md`, the prompt
+beside: five findings), answered as listed at the foot under "Taken from
+the reviews". Written by the orchestrating session (Opus) on 2026-11-01
 from the ruled design (`roadmap/briefs/transport-seam-design.md`, §6
 step 1; §7 ruled that day, "Accept as drafted", C161 entered at
 `10d1dfc3`) and a re-read of the tree at `10d1dfc3`, every line number
@@ -60,9 +63,8 @@ to reqwest.
   proxy variables route the one client). `AGENTS.md`: invariant 1 (one
   choke point, one gate), 4 (the user-agent), 5 (refresh tokens never
   in plaintext on disk); C1, C154 (retirement lines), C153 (a finding
-  joins an existing surface first). `decisions/daemon.md`: C144 (a
-  token response's `Debug` names neither token), C84 (the artifact
-  mismatch; the `features` stage).
+  joins an existing surface first). `decisions/daemon.md`: C84 (the
+  artifact mismatch; the `features` stage).
 - `crates/acquisition-daemon/src/ratelimit/choke.rs`:
   `CompletedResponse` (108–120, `status: reqwest::StatusCode` at 109);
   `classify_response` (155–180, D8's precedence); `ChokePoint` (197–211,
@@ -92,8 +94,11 @@ to reqwest.
   `bearer_auth`, which marks the header sensitive); the token request,
   `exchange_code` (198) and `refresh` (227) through `token_request`
   (246, its `post_form` at 255), whose form carries the code, the
-  verifier or the refresh token as `&str` already exposed. `Secret`'s
-  `Debug` (88) and C144's `Debug` at 165–179.
+  verifier or the refresh token as `&str` already exposed. The
+  credential discipline (#113, a log safe by construction): `Secret`'s
+  doc (38–49: built and read in this module alone, a placeholder under
+  `Debug` and `Display`), its `Debug` (87–91), and the token response's
+  `Debug` naming neither token (165–179).
 - `crates/acquisition-daemon/src/ratelimit/policy.rs`: the five
   functions taking `&reqwest::header::HeaderMap` (`Policy::from_headers`
   111, `retry_after_from_headers` 338, `response_headers_snapshot` 427,
@@ -198,14 +203,14 @@ In this order, one commit each, each gated on its own tree.
    reqwest already builds; the `features` stage is the proof), and every
    production `reqwest::StatusCode`, `reqwest::header::HeaderMap` and
    `reqwest::header::LOCATION` named as `http`'s: `choke.rs` 109, 534,
-   933 and 1067, `policy.rs` 111, 338, 427, 523 and 524, `kinds.rs` 1014
-   and 1044. The same types, so nothing else moves; tests are left as
+   933 and 1067, `policy.rs` 111, 338, 427, 523, 524 and 590, `kinds.rs`
+   1014 and 1044. The same types, so nothing else moves; tests are left as
    they are (`responses.rs` names `reqwest::StatusCode` and compiles
    unchanged). After this commit the measure above prints 8 lines,
    `choke.rs` 7 and `auth.rs` 1.
 
 2. **The seam.** `crates/acquisition-daemon/src/ratelimit/transport.rs`,
-   declared beside `choke` in `ratelimit.rs`, holding:
+   a child module of `choke` (below), holding:
    - **`Prepared`**, the request as a value: the method (`http::Method`:
      GET, HEAD or POST), the URL as the string the caller gave (so a URL
      that does not parse fails inside the production transport with
@@ -214,8 +219,8 @@ In this order, one commit each, each gated on its own tree.
      request from `provider::USER_AGENT`; the bearer, where there is one,
      by `Secret::authorize` into the headers. If `Prepared` has a
      `Debug`, it prints no form value and no header value marked
-     sensitive (C144's discipline: a test failure or a log line names no
-     token).
+     sensitive (the credential discipline of `auth.rs` 38–49, #113: a
+     test failure or a log line names no token).
    - **`Answer`**: the status (`http::StatusCode`), the response headers
      (`http::HeaderMap`), and the body as a future that completes later
      with the text or the failure's words (`Result<String, String>`).
@@ -226,8 +231,9 @@ In this order, one commit each, each gated on its own tree.
      or a transport failure's words (`Result<Answer, String>`), as a
      future the choke point awaits under its permit. The trait is
      object-safe, so the choke point holds `Box<dyn Transport>` (or an
-     `Arc`), and visible to the crate, since step 2's transports live in
-     `src/tests/`.
+     `Arc`). `Prepared`, `Answer` and `Transport` are the neutral types,
+     visible to the crate, since step 2's transports live in `src/tests/`;
+     nothing neutral sends anything.
    - **The production transport**: the one `reqwest::Client`, built by
      `build_client` moved here unchanged (its user-agent from the same
      constant, kept for the HTTPS proxy's `CONNECT`, which a request
@@ -238,11 +244,21 @@ In this order, one commit each, each gated on its own tree.
      the body bytes and the content type are reqwest's as today) and
      maps reqwest's errors with `to_string()`, the transport failure's
      and the body's, so every word a failed send carries is the word it
-     carries today. The type and its client are visible to the
-     `ratelimit` module alone and constructed only by the choke point's
-     constructors: the choke point owns the transport privately and the
-     transport owns the client privately (invariant 1's structural form,
-     C161).
+     carries today. **Only the choke point can construct it or reach
+     its client**, by the module tree, so the compiler holds it: the
+     file `ratelimit/transport.rs` is a child module of `choke` (declared
+     in `choke.rs`, a `#[path]` keeping the file where the mutants glob
+     `ratelimit/*.rs` examines it), the production type and its
+     constructor are private to `choke` and its child, the client is a
+     private field, and the module exports no client, no constructor or
+     factory of one and no alias of a reqwest type (the neutral types
+     are re-exported by `choke` to the crate). A sibling of `choke`
+     (`limiter`, `policy`, the spec) or any file outside `ratelimit`
+     that names the production type fails to compile. The choke point
+     owns the transport privately and the transport owns the client
+     privately (invariant 1's structural form, C161); check 13 keeps the
+     word in the file, the module tree keeps the file's sender behind
+     the choke point.
    - The module doc carries the mechanism, headed by C161 (the ruling's
      words stay the registry's): what a transport is, why the body is a
      future, the user-agent's two readers, what step 2 and step 3 will
@@ -270,16 +286,25 @@ In this order, one commit each, each gated on its own tree.
    `bearer_auth` does; the token's text is still read in `auth.rs`
    alone. **The one change of words** this step may make: a token that
    is no valid header value. Today reqwest records it as a builder
-   error and the send fails at `send()` under the permit, journaled as a
-   transport failure in reqwest's words and, being counted, noted as a
-   lost send (807–815). The new path fails at the same point with the
-   same journal, the same lost-send note and the same `SendError`, in
-   the daemon's words naming no token text; pinned by a component case
-   through `with_transport` (the transport never called, the journal's
-   `error` the daemon's words, the next send on the route paced as
-   after a lost send), the words listed at the close. If the worker
-   finds reqwest's words reachable without copying them by hand, the
-   words stay reqwest's and the case says so.
+   error and the send fails at `send()` under the permit, the failure in
+   reqwest's words; each of the two bearer paths then goes on as it
+   does for any send that landed no answer, and keeps doing so:
+   - `get_bearer` (1027–1031): through `finish_send`, journaled
+     `counted` as a transport failure, noted as a lost send (807–815),
+     `SendError::Transport` to the caller;
+   - `head` (564–568): `HEAD failed: <words>` as the probe's outcome
+     (618), the route observed as a failed probe and degraded (660–665),
+     journaled with `counted` false (679), so no lost send is noted, and
+     `ProbeError::Failed` with no status to the caller (720–724).
+   The new path fails at the same point on each, with everything above
+   unchanged but the words after the failure's own prefix, which are
+   the daemon's and name no token text. Pinned by one component case
+   through `with_transport`, a row per path: the transport never called;
+   the GET's journal line counted, its `error` the daemon's words, the
+   next send on its route paced as after a lost send; the HEAD's line
+   uncounted, the route degraded, no lost send noted. The words listed
+   at the close. If the worker finds reqwest's words reachable without
+   copying them by hand, the words stay reqwest's and the case says so.
 
    Comments that name the client follow it: `ratelimit.rs` 12–14 (the
    choke point privately owns the transport, which privately owns the
@@ -314,6 +339,19 @@ In this order, one commit each, each gated on its own tree.
    inventory of the spec's binds reads it from the test. One new test
    function, or two if the worker finds the runs read better apart; no
    new file (C153).
+
+   The table's wire run cannot tell a forwarded user-agent from the
+   client's default, since both are `provider::USER_AGENT` and reqwest
+   fills an absent request header from the client's (the locked
+   reqwest's `async_impl/client.rs`, the default headers inserted only
+   where the request has none). So one more real-wiring case, in
+   `transport.rs`'s own tail test module (the one place the production
+   type is in reach of a test): a `Prepared` whose user-agent is a value
+   distinct from the client's default, sent through the production
+   transport to a TCP listener, the listener reading that value and not
+   the default. The in-process run holds what the TCP run cannot: that
+   the choke point writes the user-agent and the bearer onto the
+   prepared request itself, the bearer marked sensitive.
 
 4. **Check 13.** In `tools/arch-check.sh`, in check 12's shape and
    reusing its reader of a file's tail test module: under
@@ -379,8 +417,13 @@ last, which names the execution evidence and where it lives.
   prints `auth.rs` lines only).
 - `spec.rs` holds the two-run table of Do 3, with the five kept wire
   tests each carrying their sentence, and the component case of the
-  invalid header value; the message names the words that case pins, or
-  says reqwest's words were kept.
+  invalid header value with its GET and HEAD rows; the message names
+  the words that case pins, or says reqwest's words were kept;
+  `transport.rs`'s tail test module holds the distinct user-agent case.
+- `transport.rs` is declared as a child of `choke`; the production
+  type, its constructor and its client are visible to `choke` alone; no
+  item of the module names a reqwest type in a signature visible outside
+  it (read from the file).
 - `tools/arch-check-breakers.sh` holds the seven cases of Do 4 in Do 4's
   commit; C161's *Pinned* names check 13.
 - `GLOSSARY.md` has the two lines; `TESTING-NOTES.md` its sentence;
@@ -460,5 +503,24 @@ and after (the 20 lines, then 8, then the `transport.rs` lines); the
 in-process run seen failing and how; the invalid-header case's words.
 Raised for review, at least: any send whose `Prepared` could not be
 built where its reqwest request was built; any word a failed send
-carries that changed; whether check 13 should also refuse a `pub` item
-of `transport.rs` that names `reqwest`.
+carries that changed; any place the module tree did not let the
+production transport stay private to `choke`.
+
+## Taken from the reviews
+
+The first review's five (`transport-seam-1-brief-dad73240.md`):
+
+1. A sibling of `choke` could construct the production transport and
+   send through it without the word `reqwest`: the file a child module
+   of `choke`, the type, its constructor and its client private to it,
+   nothing of reqwest exported, settled now (Do 2, Done when).
+2. The invalid-token path covered the GET alone: the HEAD's path named
+   (uncounted, degraded, no lost send), a row each in the component case
+   (Do 2, Done when).
+3. The wire run's user-agent is masked by the client's identical
+   default: a case in `transport.rs`'s tail test module with a distinct
+   prepared value; what the in-process run adds named (Do 3, Done when).
+4. `policy.rs:590` missing from Do 1's list: added; 20 before, 8 after
+   Do 1 (Do 1).
+5. The secret-formatting discipline cited as C144: cited as `auth.rs`'s
+   #113 docs (Read, Do 2).
