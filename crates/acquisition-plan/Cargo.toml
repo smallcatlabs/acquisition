@@ -24,4 +24,4 @@ sha2 = "0.11"
 tempfile.workspace = true
 # the write tests' second connection, holding the intent file's lock
 # across a racing write as the store's own lock tests do
-rusqlite = "0.32"
+rusqlite = "0.41"

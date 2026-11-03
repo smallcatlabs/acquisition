@@ -1296,36 +1296,38 @@ fn c35_a_create_attempted_between_the_gates_two_reads_cannot_commit_or_cause_a_r
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path().to_path_buf();
     let path = base.join("u-race.annotations.db");
-    let loser = Connection::open(&path).unwrap();
+    let mut loser = Connection::open(&path).unwrap();
     let fired = Arc::new(AtomicBool::new(false));
     let committed = Arc::new(AtomicU32::new(0));
     let (winner_path, fired_in, committed_in) = (path.clone(), fired.clone(), committed.clone());
-    loser.authorizer(Some(move |ctx: AuthContext<'_>| {
-        if let AuthAction::Read { table_name, .. } = ctx.action
-            && table_name == "sqlite_master"
-            && !fired_in.swap(true, Ordering::SeqCst)
-        {
-            // The winner, between the loser's two reads: a short
-            // busy timeout, since under the fixed gate its commit
-            // waits on the loser's snapshot and must give up.
-            let winner = Connection::open(&winner_path).unwrap();
-            winner
-                .busy_timeout(std::time::Duration::from_millis(200))
-                .unwrap();
-            let create = (|| -> rusqlite::Result<()> {
-                winner.execute_batch("BEGIN IMMEDIATE")?;
-                winner.execute_batch(SCHEMA)?;
-                winner.pragma_update(None, "user_version", SCHEMA_VERSION)?;
-                winner.execute_batch("COMMIT")
-            })();
-            if create.is_ok() {
-                committed_in.fetch_add(1, Ordering::SeqCst);
-            } else {
-                let _ = winner.execute_batch("ROLLBACK");
+    loser
+        .authorizer(Some(move |ctx: AuthContext<'_>| {
+            if let AuthAction::Read { table_name, .. } = ctx.action
+                && table_name == "sqlite_master"
+                && !fired_in.swap(true, Ordering::SeqCst)
+            {
+                // The winner, between the loser's two reads: a short
+                // busy timeout, since under the fixed gate its commit
+                // waits on the loser's snapshot and must give up.
+                let winner = Connection::open(&winner_path).unwrap();
+                winner
+                    .busy_timeout(std::time::Duration::from_millis(200))
+                    .unwrap();
+                let create = (|| -> rusqlite::Result<()> {
+                    winner.execute_batch("BEGIN IMMEDIATE")?;
+                    winner.execute_batch(SCHEMA)?;
+                    winner.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+                    winner.execute_batch("COMMIT")
+                })();
+                if create.is_ok() {
+                    committed_in.fetch_add(1, Ordering::SeqCst);
+                } else {
+                    let _ = winner.execute_batch("ROLLBACK");
+                }
             }
-        }
-        Authorization::Allow
-    }));
+            Authorization::Allow
+        }))
+        .unwrap();
     let opened = Annotations::init(loser, path.clone());
     assert!(fired.load(Ordering::SeqCst), "the staging never fired");
     match opened {

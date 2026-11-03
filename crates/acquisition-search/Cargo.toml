@@ -39,7 +39,7 @@ proptest = "1.11.0"
 tempfile.workspace = true
 # invariant 6's dump of every table; the store's own version and features,
 # so the test build links the one SQLite the store does (C84)
-rusqlite = { version = "0.32", features = ["bundled", "hooks"] }
+rusqlite = { version = "0.41", features = ["bundled", "hooks"] }
 
 [build-dependencies]
 # the build a basis names is a digest of sources (build.rs, C98)
