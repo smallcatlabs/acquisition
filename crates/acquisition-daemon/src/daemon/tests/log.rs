@@ -3,6 +3,7 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 use crate::transport::reply;
@@ -18,10 +19,10 @@ const CODE: &str = "code-j5Ty1c";
 /// the user, and the login's access token is rejected on the API's GET
 /// (401) while a probe passes. Every form a token POST carried is kept,
 /// so the test knows the verifier the daemon made. In-process (C161).
-fn token_aware_server() -> (InProcess, Arc<Mutex<Vec<String>>>) {
+fn token_aware_server() -> (Server, Arc<Mutex<Vec<String>>>) {
     let forms = Arc::new(Mutex::new(Vec::new()));
     let kept = forms.clone();
-    let transport = InProcess::new(&Hold::new(), move |request: mockggg::HttpRequest| {
+    let server = Server::own(move |request: mockggg::HttpRequest| {
         let bearer = request
             .headers
             .get("authorization")
@@ -61,7 +62,7 @@ fn token_aware_server() -> (InProcess, Arc<Mutex<Vec<String>>>) {
         let answer = reply(status, headers, &body);
         async move { answer }
     });
-    (transport, forms)
+    (server, forms)
 }
 
 /// #113: the login (the code and verifier sent in the exchange, the
@@ -70,117 +71,85 @@ fn token_aware_server() -> (InProcess, Arc<Mutex<Vec<String>>>) {
 /// narrowed), and the refresh the next send makes (the refresh token
 /// sent, fresh tokens installed and saved), and then the whole log: no
 /// token, no code and no verifier anywhere in it. Each value is first
-/// seen on the wire, so the paths ran.
-#[tokio::test]
-async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
-    let (transport, forms) = token_aware_server();
-    let clock = Arc::new(ParkingClock::new());
-    let (mut daemon, log_path) = test_daemon_with(
-        Boundary::Function,
-        Provider::mock(BASE),
-        transport,
-        clock.clone(),
-        RailsConfig::default(),
-    );
+/// seen on the wire, so the paths ran. Through the door, logged out, the
+/// login a browser's; a component case of the log file, which no
+/// frontend reads.
+#[test]
+fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
+    let (server, forms) = token_aware_server();
     let store_dir = TestPath::dir();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
-    daemon.shared.lock().unwrap().auth.by_account.clear();
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    Door::open(
+        server,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(Sessions::default())
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        // The login.
+        let authorize = match door.request(Request::AuthStart).await {
+            Response::AuthUrl { authorize_url } => authorize_url,
+            other => panic!("a login's start answered {other:?}"),
+        };
+        let (status, page) = door.browser(&code_callback(&authorize, CODE)).await;
+        assert!(status.is_success(), "{page}");
+        door.await_auth(|answer| answer.login_ok.is_some()).await;
 
-    // The login.
-    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
-    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
-    let callback = format!(
-        "{}?code={CODE}&state={}",
-        query["redirect_uri"], query["state"]
-    );
-    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
-    tokio::time::timeout(HANG, async {
-        loop {
-            if let Response::Auth {
-                login_ok: Some(_), ..
-            } = daemon.auth_status()
-            {
-                break;
-            }
-            // The poll's interval: a component test on a plain runtime has no
-            // park hook to wake it when the state it waits for holds.
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("the login finished");
+        // A send under the login's bearer, rejected.
+        let first = door.submit("characters", Some("log-user")).await;
+        let (info, _) = door.await_terminal(first).await;
+        assert_eq!(info.state, JobState::Failed, "the 401 fails the job");
+        // The next send refreshes first.
+        let second = door.submit("characters", Some("log-user")).await;
+        let (info, outcome) = door.await_terminal(second).await;
+        assert_eq!(info.state, JobState::Done, "{outcome:?}");
 
-    // A send under the login's bearer, rejected.
-    let first = daemon
-        .submit(
-            "characters".into(),
-            json!({}),
-            0,
-            "test".into(),
-            Some("log-user".into()),
-        )
-        .unwrap();
-    let (info, _) = wait_terminal(&daemon, first).await;
-    assert_eq!(info.state, JobState::Failed, "the 401 fails the job");
-    // The next send refreshes first.
-    let second = daemon
-        .submit(
-            "characters".into(),
-            json!({}),
-            0,
-            "test".into(),
-            Some("log-user".into()),
-        )
-        .unwrap();
-    let (info, outcome) = wait_terminal(&daemon, second).await;
-    assert_eq!(info.state, JobState::Done, "{outcome:?}");
-
-    let forms = forms.lock().unwrap().clone();
-    let exchange = forms
-        .iter()
-        .find(|form| form.contains("grant_type=authorization_code"))
-        .expect("the code exchange was sent");
-    assert!(exchange.contains(&format!("code={CODE}")), "{exchange}");
-    let verifier = exchange
-        .split('&')
-        .find_map(|pair| pair.strip_prefix("code_verifier="))
-        .expect("the exchange carries the verifier")
-        .to_string();
-    assert!(
-        forms
+        let forms = forms.lock().unwrap().clone();
+        let exchange = forms
             .iter()
-            .any(|form| form.contains(&format!("refresh_token={REFRESH_AT_LOGIN}"))),
-        "the refresh was sent: {forms:?}"
-    );
-    assert!(
-        harness_credentials(&daemon)
-            .entries
-            .lock()
-            .unwrap()
-            .get("log-user")
-            .is_some_and(|secret| secret.contains(REFRESH_REFRESHED)),
-        "the refreshed tokens were saved"
-    );
+            .find(|form| form.contains("grant_type=authorization_code"))
+            .expect("the code exchange was sent");
+        assert!(exchange.contains(&format!("code={CODE}")), "{exchange}");
+        let verifier = exchange
+            .split('&')
+            .find_map(|pair| pair.strip_prefix("code_verifier="))
+            .expect("the exchange carries the verifier")
+            .to_string();
+        assert!(
+            forms
+                .iter()
+                .any(|form| form.contains(&format!("refresh_token={REFRESH_AT_LOGIN}"))),
+            "the refresh was sent: {forms:?}"
+        );
+        assert!(
+            harness_credentials(door.daemon())
+                .entries
+                .lock()
+                .unwrap()
+                .get("log-user")
+                .is_some_and(|secret| secret.contains(REFRESH_REFRESHED)),
+            "the refreshed tokens were saved"
+        );
 
-    let log = std::fs::read_to_string(&*log_path).unwrap();
-    assert!(
-        log.contains("logged in as log-user")
-            && log.contains("rejected (401)")
-            && log.contains("access token refreshed for log-user"),
-        "the log saw the three paths: {log}"
-    );
-    for (what, needle) in [
-        ("the login's access token", ACCESS_AT_LOGIN),
-        ("the login's refresh token", REFRESH_AT_LOGIN),
-        ("the refreshed access token", ACCESS_REFRESHED),
-        ("the refreshed refresh token", REFRESH_REFRESHED),
-        ("the login's code", CODE),
-        ("the login's verifier", verifier.as_str()),
-    ] {
-        assert!(!log.contains(needle), "{what} is in the log:\n{log}");
-    }
-    finish_harness(dispatcher, &log_path);
+        let log = door.log_text();
+        assert!(
+            log.contains("logged in as log-user")
+                && log.contains("rejected (401)")
+                && log.contains("access token refreshed for log-user"),
+            "the log saw the three paths: {log}"
+        );
+        for (what, needle) in [
+            ("the login's access token", ACCESS_AT_LOGIN),
+            ("the login's refresh token", REFRESH_AT_LOGIN),
+            ("the refreshed access token", ACCESS_REFRESHED),
+            ("the refreshed refresh token", REFRESH_REFRESHED),
+            ("the login's code", CODE),
+            ("the login's verifier", verifier.as_str()),
+        ] {
+            assert!(!log.contains(needle), "{what} is in the log:\n{log}");
+        }
+        door.finish().await;
+    });
 }
 
 /// `scenario-user`'s one session, as a grant leaves it: `access` until

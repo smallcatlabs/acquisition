@@ -1312,6 +1312,12 @@ impl Door {
         std::fs::read_to_string(journal_of(&self.log_path)).expect("the door's journal reads")
     }
 
+    /// The daemon's log, its whole text as it stands: what a fragment the
+    /// log must not keep is read against.
+    pub(super) fn log_text(&self) -> String {
+        std::fs::read_to_string(&*self.log_path).expect("the door's daemon log reads")
+    }
+
     /// Time passes by the scenario's hand: both faces move, every sleeper
     /// due wakes.
     pub(super) fn advance(&self, duration: Duration) {
