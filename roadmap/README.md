@@ -604,4 +604,10 @@ first attempt changed the driver (`64a8d669`, C135's lifetime with no
 token POST; `1f31a394`, a run refused while an earlier queue waits on
 disk). The seam closed on 2026-11-03 (`LEDGER.md`): the mutants
 after-run's seven survivors fixed in `d831658c`, #151's thirteen open
-timeouts each still timing out, and #151 open.
+timeouts each still timing out, and #151 open. The owner restated
+#151's close condition the same day ("Accept it"): the sixteen named in
+`briefs/151-component-waits.md` caught in a Weekly after-run. That step
+(the brief cut three times under cold reviews; C160's third amendment
+at `514fdeb9`) closed on 2026-11-03 (`LEDGER.md`): 16 of 16 caught
+locally, its build reviewed, one fix round. Next, the Weekly on a tag
+and its compare against `41567365592`; #151 closes on it.
