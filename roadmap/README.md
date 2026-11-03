@@ -595,6 +595,12 @@ under cold reviews, after C160's second amendment), landed on
 last: the deadline on the choke point's clock over the four sends, the
 client without timeouts, the expiry as wire-table rows, the words.
 Reviewed cold, no findings. Step 3 closed on 2026-11-02 (`LEDGER.md`).
-Next, the rung: the owner's live run under the live-run skill, from
-his terminal; then the seam's close (the design's §6 item 4: the
-mutants after-run, #151's open timeouts named caught or not).
+The rung, the owner's live run from his terminal, passed on
+2026-11-03 at `1f31a394` (`RUN-LEDGER.md`, the two rows of that date:
+a first attempt stopped by the driver's own check, a leftover queue
+and an expired refresh token, recovered by hand; then the pass, 25
+sends through the seam's production transport). Its rehearsal and its
+first attempt changed the driver (`64a8d669`, C135's lifetime with no
+token POST; `1f31a394`, a run refused while an earlier queue waits on
+disk). Next, the seam's close (the design's §6 item 4: the mutants
+after-run, #151's open timeouts named caught or not).
