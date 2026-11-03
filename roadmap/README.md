@@ -602,5 +602,6 @@ and an expired refresh token, recovered by hand; then the pass, 25
 sends through the seam's production transport). Its rehearsal and its
 first attempt changed the driver (`64a8d669`, C135's lifetime with no
 token POST; `1f31a394`, a run refused while an earlier queue waits on
-disk). Next, the seam's close (the design's §6 item 4: the mutants
-after-run, #151's open timeouts named caught or not).
+disk). The seam closed on 2026-11-03 (`LEDGER.md`): the mutants
+after-run's seven survivors fixed in `d831658c`, #151's thirteen open
+timeouts each still timing out, and #151 open.
