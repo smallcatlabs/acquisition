@@ -260,33 +260,7 @@ fn production() -> acquisition_transport::Production {
     acquisition_transport::Production::new(crate::provider::USER_AGENT)
 }
 
-impl Default for ChokePoint {
-    fn default() -> Self {
-        ChokePoint::new()
-    }
-}
-
 impl ChokePoint {
-    /// Same construction in mock and real mode: the limiter starts empty and
-    /// learns policies from responses. Rails are disabled and no API origin
-    /// is known, so no bearer is sent anywhere (C128); the daemon uses
-    /// `with_clock_and_rails`.
-    pub fn new() -> Self {
-        ChokePoint::with_rails(Arc::new(Rails::disabled()))
-    }
-
-    pub fn with_rails(rails: Arc<Rails>) -> Self {
-        ChokePoint {
-            transport: Box::new(production()),
-            limiter: Mutex::new(Limiter::new()),
-            gate: SendGate::new(),
-            sends: Mutex::new(VecDeque::new()),
-            clock: Arc::new(SystemClock),
-            rails,
-            bearer_origin: None,
-        }
-    }
-
     /// The daemon's choke point: its clock, its rails, and the provider's
     /// API base, whose origin is the only one a bearer goes to (C128).
     pub(crate) fn with_clock_and_rails(

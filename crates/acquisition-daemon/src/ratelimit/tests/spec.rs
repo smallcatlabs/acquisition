@@ -24,8 +24,7 @@ const NO_BEARER_API: &str = "http://127.0.0.1:9";
 
 /// A choke point on a parking clock (C158, time moves by the test's own
 /// hand): nothing passes between a send and the check after it, so a
-/// wait the limiter computes is exact. Rails disabled, as
-/// `ChokePoint::new` builds them; production keeps that constructor.
+/// wait the limiter computes is exact. Rails disabled.
 /// Over the refusing transport (C161): a send is refused in-process, in
 /// the test support's words, wherever it is addressed. Every choke point
 /// the spec builds is in-process ([`parked_over`]) except the real-wiring
@@ -2825,6 +2824,7 @@ async fn parked(clock: &ParkingClock, count: usize) {
 /// its permit is released at the cut.
 #[tokio::test]
 async fn c161_each_send_is_cut_at_its_deadline_and_releases_its_permit() {
+    let bound = format!("within {} s", REQUEST_TIMEOUT.as_secs());
     for row in SEAM_TABLE {
         let name = format!("{} {}", row.method, row.route);
         let clock = Arc::new(ParkingClock::new());
@@ -2860,6 +2860,7 @@ async fn c161_each_send_is_cut_at_its_deadline_and_releases_its_permit() {
         };
         let error = failed.expect_err("the send was cut");
         assert!(error.contains(&words), "{name}: {error}");
+        assert!(words.ends_with(&bound), "{name}: the words name the bound");
         assert_eq!(
             record_of(&choke, row.route).outcome,
             format!("error: {}", send_expired()),
@@ -2908,6 +2909,8 @@ async fn c161_a_silent_body_after_a_500_keeps_its_status() {
         .expect("a 500 keeps its status");
     assert_eq!(landed.status.as_u16(), 500);
     assert_eq!(landed.body, Err(body_expired()));
+    let bound = format!("within {} s", REQUEST_TIMEOUT.as_secs());
+    assert!(body_expired().ends_with(&bound), "the words name the bound");
     assert_eq!(
         record_of(&choke, "silent-body").outcome,
         format!(
