@@ -4179,12 +4179,24 @@ impl Bearer for CountingBearer {
     fn rejected(&self, _token: &crate::auth::Secret) {}
 }
 
+/// `send`'s answer at its first poll, polled once with a waker that does
+/// nothing: `None` if it pends there.
+fn at_first_poll<T>(send: impl std::future::Future<Output = T>) -> Option<T> {
+    let send = std::pin::pin!(send);
+    match send.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
+        std::task::Poll::Ready(answer) => Some(answer),
+        std::task::Poll::Pending => None,
+    }
+}
+
 /// C128: a bearer goes only to the provider's API origin. A GET or a HEAD
 /// carrying one to another port, another host name or another scheme is
 /// refused before any permit, the token is never read, and no connection
 /// reaches the foreign server or the API's own listener (the other host
-/// name and the other scheme point at it). The same bearer to the API
-/// origin still goes out, carrying the token.
+/// name and the other scheme point at it). The refusal is the send's
+/// answer at its first poll: a send that pends there has waited on
+/// something, a permit or the wire. The same bearer to the API origin
+/// still goes out, carrying the token.
 ///
 /// A real-wiring test of the production transport, which stays TCP for
 /// good (C161).
@@ -4207,12 +4219,11 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
             format!("https://127.0.0.1:{api_port}/profile"),
         ];
         for url in &off_origin {
-            let get = tokio::time::timeout(
-                HANG,
-                choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED),
-            )
-            .await
-            .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
+            let get =
+                at_first_poll(choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED))
+                    .unwrap_or_else(|| {
+                        panic!("a bearer GET to {url} was not refused at its first poll")
+                    });
             assert!(
                 matches!(&get, Err(SendError::OffOrigin(_))),
                 "a bearer GET to {url}: {:?}",
@@ -4226,18 +4237,14 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
                 .map(ToString::to_string)
                 .unwrap_or_default();
             assert!(words.contains(&refused), "{words:?} names no {refused}");
-            let head = tokio::time::timeout(
-                HANG,
-                choke.head(
-                    "c128",
-                    url,
-                    Some(&bearer as &dyn Bearer),
-                    choke.now(),
-                    ALWAYS_WANTED,
-                ),
-            )
-            .await
-            .unwrap_or_else(|_| panic!("a bearer HEAD to {url} was not refused before sending"));
+            let head = at_first_poll(choke.head(
+                "c128",
+                url,
+                Some(&bearer as &dyn Bearer),
+                choke.now(),
+                ALWAYS_WANTED,
+            ))
+            .unwrap_or_else(|| panic!("a bearer HEAD to {url} was not refused at its first poll"));
             assert!(
                 matches!(&head, Err(ProbeError::OffOrigin(_))),
                 "a bearer HEAD to {url}: {:?}",
