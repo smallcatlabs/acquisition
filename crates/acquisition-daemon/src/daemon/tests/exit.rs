@@ -265,42 +265,48 @@ fn exit_waits_for_a_refresh_and_installs_the_token() {
     });
 }
 
-/// Two accounts, with `other`'s refresh held on the wire and
-/// `test-user`'s profile job parked Running behind it at the token
-/// route's gate. Returns the parked job, `other`'s job whose POST is held,
-/// and what was sent before the park, with the parking clock the drain is
-/// driven on.
+/// The exit pair's door: the account server holding `other`'s second
+/// token POST, the two refresh-due accounts (`test-user` and `other`),
+/// the queue on the file-backed `daemon.db` at `db`, the exit bounded by
+/// [`BOUND`] and the lifecycle's driver running.
+fn token_route_door(db: &std::path::Path) -> DoorBuilder {
+    Door::open(
+        Server::Account(("POST", "/token", 1)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(two_accounts())
+    .jobs_db(JobDb::open(db).unwrap())
+    .exit_bound(BOUND)
+    .life(IDLE_SHUTDOWN)
+}
+
+/// `other`'s refresh held on the wire and `test-user`'s profile job
+/// parked Running behind it at the token route's gate: the parked job,
+/// `other`'s job whose POST is held, what was sent before the park and
+/// the held POST's release.
 struct Parked {
-    clock: Arc<ParkingClock>,
-    daemon: Arc<Daemon>,
-    log_path: TestPath,
-    db: TestPath,
-    dispatcher: tokio::task::JoinHandle<()>,
-    sent_log: Arc<Mutex<Vec<Sent>>>,
     release: tokio::sync::oneshot::Sender<()>,
     parked: JobId,
     first: JobId,
     warmed: Vec<Sent>,
 }
 
-async fn park_a_job_at_the_token_route() -> Parked {
-    let (transport, record) = account_transport(("POST", "/token", 1));
-    let (sent_log, arrived, release) = (record.sent, record.arrived, record.release);
-    let clock = Arc::new(ParkingClock::new());
-    let (daemon, log_path, db) =
-        exit_daemon_on(Boundary::Function, transport, BOUND, clock.clone());
-    daemon.shared.lock().unwrap().auth.by_account.insert(
-        "other".into(),
-        AuthSession {
-            username: Some("other".into()),
-            refresh_token: Some("rt-other".into()),
-            ..Default::default()
-        },
+/// [`Parked`], staged through `door` ([`token_route_door`]): `other`'s
+/// first job refreshes and ends Done, its access token is then dropped
+/// (as an expiry would), so its next job refreshes again and that POST
+/// is held; `test-user`'s job, admitted Running, owns its own refresh
+/// and waits behind it at the gate. The runtime quiet under the held
+/// POST is the park's word that the parked refresh reached the gate.
+async fn park_a_job_at_the_token_route(door: &mut Door) -> Parked {
+    let (arrived, release) = door.held();
+    let warm = submitted(
+        door.request(submit_request("profile", json!({}), Some("other")))
+            .await,
     );
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-    let warm = submit_for(&daemon, "profile", json!({}), Some("other"));
-    wait_state(&daemon, warm, JobState::Done).await;
-    daemon
+    door.await_job(warm, |job| job.state == JobState::Done)
+        .await;
+    door.daemon()
         .shared
         .lock()
         .unwrap()
@@ -308,33 +314,27 @@ async fn park_a_job_at_the_token_route() -> Parked {
         .find_mut("other")
         .unwrap()
         .access_token = None;
-    let first = submit_for(&daemon, "profile", json!({}), Some("other"));
-    arrived.await.unwrap();
-    let parked = submit_for(&daemon, "profile", json!({}), Some("test-user"));
-    wait_state(&daemon, parked, JobState::Running).await;
-    // Long enough for the parked refresh to reach the gate's queue. It
-    // stays a sleep: the exact signal is the door's `quiet` (the runtime
-    // parked under the held POST), and this fixture's two users are
-    // component tests of the exit's park on a plain runtime, which has no
-    // park hook.
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    let first = submitted(
+        door.request(submit_request("profile", json!({}), Some("other")))
+            .await,
+    );
+    door.await_behind_own_holds("awaiting other's second refresh at the server", arrived)
+        .await
+        .unwrap();
+    let parked = submitted(
+        door.request(submit_request("profile", json!({}), Some("test-user")))
+            .await,
+    );
+    door.await_job(parked, |job| job.state == JobState::Running)
+        .await;
+    door.quiet().await;
     let warmed = vec![
         sent("other", "POST"),
         sent("other", "GET"),
         sent("other", "POST"),
     ];
-    assert_eq!(
-        sent_log.lock().unwrap().as_slice(),
-        warmed,
-        "the parked refresh has sent nothing"
-    );
+    assert_eq!(door.sent(), warmed, "the parked refresh has sent nothing");
     Parked {
-        clock,
-        daemon,
-        log_path,
-        db,
-        dispatcher,
-        sent_log,
         release,
         parked,
         first,
@@ -346,64 +346,72 @@ async fn park_a_job_at_the_token_route() -> Parked {
 /// another account's refresh at the token route's gate, is turned away
 /// by the exit and returns to waiting with no retry spent, in memory and
 /// on disk. The held POST, already on the wire, lands; the job it was
-/// for is turned away before its GET. Nothing more is sent. A component
-/// test (C158): it stages the park through the daemon's internals and
-/// reads `active_jobs`' outcome in memory and the rows on disk.
-#[tokio::test]
-async fn exit_turns_away_a_job_parked_past_running() {
-    let p = park_a_job_at_the_token_route().await;
-    assert!(p.daemon.begin_exit("test: exit"));
-    let drain = spawn_drain(&p.daemon);
-    p.release.send(()).unwrap();
-    let cut = drive_drain(&p.clock, &p.daemon, drain).await.unwrap();
-    assert_eq!(cut, None, "nothing was cut");
+/// for is turned away before its GET. Nothing more is sent. Through the
+/// door, a component test (C158): it stages the park through the
+/// daemon's internals and reads the jobs in memory, the rows on disk and
+/// what the bound cut.
+#[test]
+fn exit_turns_away_a_job_parked_past_running() {
+    let db = test_db_path();
+    let rows = db.to_path_buf();
+    token_route_door(&db).run(|mut door| async move {
+        let p = park_a_job_at_the_token_route(&mut door).await;
+        door.stop();
+        p.release.send(()).unwrap();
+        let cut = door.await_leave().await;
+        assert_eq!(cut, None, "nothing was cut");
 
-    for id in [p.parked, p.first] {
-        let info = p.daemon.shared.lock().unwrap().jobs[&id].info.clone();
-        assert_eq!(info.state, JobState::Waiting, "job {id} in memory");
-        assert_eq!(info.retries, 0, "job {id}: no retry spent");
-        let row = row_of(&p.db, id);
-        assert_eq!(row.state, JobState::Waiting.to_string(), "job {id} on disk");
-        assert_eq!(row.retries, 0, "job {id} on disk");
-        assert_eq!(row.outcome, None, "job {id} on disk");
-    }
-    assert_eq!(
-        p.sent_log.lock().unwrap().as_slice(),
-        p.warmed,
-        "nothing was sent after the exit began"
-    );
-    assert_journal_matches_wire(&p.log_path, &wire_methods(&p.sent_log));
-    finish_harness(p.dispatcher, &p.log_path);
+        for id in [p.parked, p.first] {
+            let info = door.daemon().shared.lock().unwrap().jobs[&id].info.clone();
+            assert_eq!(info.state, JobState::Waiting, "job {id} in memory");
+            assert_eq!(info.retries, 0, "job {id}: no retry spent");
+            let row = row_of(&rows, id);
+            assert_eq!(row.state, JobState::Waiting.to_string(), "job {id} on disk");
+            assert_eq!(row.retries, 0, "job {id} on disk");
+            assert_eq!(row.outcome, None, "job {id} on disk");
+        }
+        assert_eq!(
+            door.sent(),
+            p.warmed,
+            "nothing was sent after the exit began"
+        );
+        assert_eq!(door.journal_methods(), wire_methods_of(&door.sent()));
+        door.finish().await;
+    });
 }
 
 /// C133: the dispatcher starts nothing while the daemon exits. A job the
 /// exit turned away is not picked again (the drain would spin, a queue
 /// write per pass), and a job queued afterwards, even one of a kind that
-/// never sends, is not started. A component test (C158): the job queued
-/// after the stop is an internal submit, which the protocol refuses, and
-/// the pick is read directly.
-#[tokio::test]
-async fn a_turned_away_job_is_not_picked_again_while_exiting() {
-    let p = park_a_job_at_the_token_route().await;
-    assert!(p.daemon.begin_exit("test: exit"));
-    let drain = spawn_drain(&p.daemon);
-    p.release.send(()).unwrap();
-    assert_eq!(drive_drain(&p.clock, &p.daemon, drain).await.unwrap(), None);
-    assert_eq!(state_of(&p.daemon, p.parked), JobState::Waiting);
+/// never sends, is not started, the runtime settled with the dispatcher
+/// live. Through the door, a component test (C158): the job queued after
+/// the stop is an internal submit, which the protocol refuses, and the
+/// pick is read directly.
+#[test]
+fn a_turned_away_job_is_not_picked_again_while_exiting() {
+    let db = test_db_path();
+    token_route_door(&db).run(|mut door| async move {
+        let p = park_a_job_at_the_token_route(&mut door).await;
+        door.stop();
+        p.release.send(()).unwrap();
+        assert_eq!(door.await_leave().await, None);
+        assert_eq!(state_of(door.daemon(), p.parked), JobState::Waiting);
 
-    let local = submit_for(&p.daemon, "sleep", json!({ "seconds": 0 }), None);
-    assert!(
-        p.daemon.pick_runnable().is_empty(),
-        "the pick takes nothing"
-    );
-    assert_eq!(state_of(&p.daemon, local), JobState::Waiting);
-    let log = std::fs::read_to_string(&p.log_path).unwrap();
-    for id in [p.parked, local] {
-        let runs = log.matches(&format!("job {id} -> running")).count();
-        assert!(runs <= 1, "job {id} ran {runs} times:\n{log}");
-    }
-    assert_journal_matches_wire(&p.log_path, &wire_methods(&p.sent_log));
-    finish_harness(p.dispatcher, &p.log_path);
+        let local = submit_for(door.daemon(), "sleep", json!({ "seconds": 0 }), None);
+        door.settle().await;
+        assert!(
+            door.daemon().pick_runnable().is_empty(),
+            "the pick takes nothing"
+        );
+        assert_eq!(state_of(door.daemon(), local), JobState::Waiting);
+        let log = door.log_text();
+        for id in [p.parked, local] {
+            let runs = log.matches(&format!("job {id} -> running")).count();
+            assert!(runs <= 1, "job {id} ran {runs} times:\n{log}");
+        }
+        assert_eq!(door.journal_methods(), wire_methods_of(&door.sent()));
+        door.finish().await;
+    });
 }
 
 /// C133: a job whose task does not end is cut at the bound. Through the

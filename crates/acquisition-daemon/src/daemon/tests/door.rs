@@ -1120,19 +1120,21 @@ impl Door {
 
     /// C133: the exit's leave, observed: the lifecycle's driver reached
     /// its last act, which a running daemon performs by ending the
-    /// process. Nothing comes back: what the drain cut is read through
-    /// the protocol (a cut job is still Running, a clean one is Done) and
-    /// the journal. Needs [`DoorBuilder::life`]. Fails at the park where
-    /// nothing the hook accounts for can bring the leave (C160), `HANG`
-    /// the backstop behind that verdict.
-    pub(super) async fn await_leave(&mut self) {
+    /// process. What the bound cut comes back as the leave recorded it
+    /// (`None`, nothing cut), for a component test of the drain; a
+    /// scenario reads the cut through the protocol (a cut job is still
+    /// Running, a clean one is Done) and the journal. Needs
+    /// [`DoorBuilder::life`]. Fails at the park where nothing the hook
+    /// accounts for can bring the leave (C160), `HANG` the backstop
+    /// behind that verdict.
+    pub(super) async fn await_leave(&mut self) -> Option<InFlight> {
         let leave = self
             .leave
             .take()
             .expect("the door runs the lifecycle's driver (`DoorBuilder::life`), once");
         self.or_stuck("awaiting the exit's leave".into(), "the exit left", leave)
             .await
-            .expect("the driver reached its leave");
+            .expect("the driver reached its leave")
     }
 
     /// Job `id` as `Status` reads it, the first time `predicate` holds:
