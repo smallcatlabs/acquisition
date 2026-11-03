@@ -609,5 +609,6 @@ timeouts each still timing out, and #151 open. The owner restated
 `briefs/151-component-waits.md` caught in a Weekly after-run. That step
 (the brief cut three times under cold reviews; C160's third amendment
 at `514fdeb9`) closed on 2026-11-03 (`LEDGER.md`): 16 of 16 caught
-locally, its build reviewed, one fix round. Next, the Weekly on a tag
-and its compare against `41567365592`; #151 closes on it.
+locally, its build reviewed, one fix round. The Weekly after-run
+`41652559158` on the tag `151-component-waits-after` showed each of the
+sixteen caught, and #151 closed on 2026-11-03.
