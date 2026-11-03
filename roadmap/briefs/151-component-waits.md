@@ -6,12 +6,12 @@ saved logs (`runs/transport-seam-after/`, Weekly `41567365592` on the tag
 `transport-seam-after` at `a6e34e8e`) and a read of the tree at
 `f84960ff`. Every line number is `f84960ff`'s except the mutants' in the
 Input table, which are the after-run's (`choke.rs` moved by 26 lines at
-`d831658c`; the measure's patterns are `f84960ff`'s). Cut twice: the
-first cut (`d5dffbac`) was reviewed cold
-(`roadmap/reviews/151-component-waits-brief-d5dffbac.md`, seven
-findings, the prompt beside); this cut answers all seven, listed at the
-foot under "Taken from the review". To be reviewed cold again before a
-worker reads it. The worker runs on Opus 5.5. Its one ruling (Do 1) is
+`d831658c`; the measure's patterns are `f84960ff`'s). Cut three times: the
+first cut (`d5dffbac`) and the second (`3530b90c`) were each reviewed
+cold (`roadmap/reviews/151-component-waits-brief-<sha>.md`, seven
+findings then three, the prompts beside); this cut answers the second's
+three, listed at the foot under "Taken from the review" with the
+first's seven. Not reviewed a third time unless the owner asks. The worker runs on Opus 5.5. Its one ruling (Do 1) is
 the owner's, given on 2026-11-03 ("Accept it") and in #151's body the
 same day.
 
@@ -144,10 +144,16 @@ may find others):
   from calling the park stuck (door.rs 328). Under `policy_state_key`'s
   mutants, collapsed serialization may admit one GET and keep the
   second from arriving while the first is held. A count holds the
-  clock; it does not keep the runtime from parking.
+  clock; it does not keep the runtime from parking. (c) and (c′) can
+  hold at once: the transport-hold test's row arrivals are a raw read
+  (door.rs 1780), and its first GET can stay held behind its release
+  (1666), keeping the count the hook checks first above zero. There,
+  registering a verdict slot alone leaves the wait hanging.
 - **(d) A test on a multi-thread runtime,** where the hook fires per
-  worker and never means every worker is idle: `credentials.rs` 402
-  (`multi_thread`, 4 workers).
+  worker and never means every worker is idle, so no park-based verdict
+  exists: `credentials.rs` 402 (`multi_thread`, 4 workers). A
+  wait-specific signal may still reach it, such as a channel or event
+  that resolves or closes when what it waits for can no longer come.
 
 **The measure** is a local cargo-mutants run over the sixteen. Each
 must come back caught, and the run's log names each failing test. On
@@ -221,8 +227,9 @@ records the command it used in the report.
    never returns:
    - the line, and the helper or loop it is in;
    - which kind it is, (a) to (d) above, or a new one;
-   - for a door wait, whether it has no verdict slot (c) or a verdict
-     the hook's accounting held off (c′), and which count;
+   - for a door wait, two columns read apart: whether the wait has a
+     verdict slot (c), and whether the hook's accounting held the
+     verdict off (c′), with the count; both may be true;
    - the remedy proposed (Do 4), with the exact signal it reads, and
      whether it can be built in tests, test support and tools alone.
 
@@ -257,9 +264,12 @@ records the command it used in the report.
      the door's own wait that does.
    - **(c′)** A door wait whose verdict the accounting holds off: the
      hold is released or told apart where the mutant leaves it, by a
-     shape approved at Do 3.
-   - **(d)** A multi-thread test, and any wait no exact signal reaches,
-     stops the step (Do 3); it is not built around.
+     shape approved at Do 3. Where (c) and (c′) both hold, the remedy
+     answers both: a slot alone does not repair a held arrival barrier.
+   - **(d)** A multi-thread test has no park-based verdict. It gets a
+     wait-specific signal (Do 3 proposes it, the session approves it).
+     A wait no exact signal reaches stops the step (Do 3); it is not
+     built around.
 
    Production sources are not touched. A test whose assertions change
    says so in its doc where its meaning changes.
@@ -292,11 +302,11 @@ records the command it used in the report.
 
 ## Not in scope
 
-- **The other timeouts.** Sixty-one in the after-run, less
-  `sleep_until`'s, are promised nothing. Most are broad breaks (the gate
+- **The other timeouts.** Sixty in the after-run, besides the sixteen
+  and `sleep_until`'s, are promised nothing. Most are broad breaks (the gate
   never grants, the endpoint keys collapse, the policy parse returns a
   constant): the sweep, less the seventeen, gives 54 that name four cut
-  tests and 7 that name one to three. Some share tests with the
+  tests and 6 that name one to three. Some share tests with the
   sixteen. `get_bearer`'s 401 guard (`choke.rs:1096:42` at the
   after-run) names the bearer and stress tests, so this step may change
   its outcome. The final measure lists any of them it happens to catch,
@@ -307,8 +317,8 @@ records the command it used in the report.
   workflow is unchanged.
 - **Lowering `HANG`, or a wall bound in its place.** C137 rules it out.
 - **The multi-thread verdict.** A park signal for several workers is a
-  design of its own (`door.rs`'s doc, "several workers"). If (d) is not
-  empty, the step stops at Do 3.
+  design of its own (`door.rs`'s doc, "several workers"). A (d) test
+  gets a wait-specific signal or stops the step at Do 3.
 - **Any production change,** including one that would make a mutant
   easier to see.
 
@@ -352,3 +362,13 @@ The first cut's review (`roadmap/reviews/151-component-waits-brief-d5dffbac.md`)
    cases extended.
 7. "The other 61 each hang four or more" is corrected, and the other
    timeouts are promised nothing.
+
+The second cut's review (`roadmap/reviews/151-component-waits-brief-3530b90c.md`):
+
+1. (d) was a known stop drawn as an unknown: it now rules out only a
+   park-based verdict and takes a wait-specific signal approved at
+   Do 3, stopping only where no exact signal reaches the wait.
+2. (c) and (c′) are read as two columns that can both hold, and the
+   remedy answers both where they do.
+3. The other timeouts are sixty, 54 naming four cut tests and 6 naming
+   one to three.
