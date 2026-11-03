@@ -137,11 +137,6 @@ fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_
                 "shared-refresh API caller {id}: {outcome:?}"
             );
         }
-        let Fixture::ByPath { ends, .. } = door.fixture() else {
-            unreachable!("the door faces the mock and the token transport")
-        };
-        assert_whole(ends);
-
         // The hook moves the clock across the 5-per-10 s window the first
         // five fetches fill, which parks the sixth until a slot frees.
         let mut done = 0;

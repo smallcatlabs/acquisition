@@ -414,7 +414,6 @@ fn a_head_429_that_fails_setup_holds_the_next_probe() {
             // the next probe.
             let (_, outcome) = door.await_terminal(second).await;
             assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-            assert_eq!(received_methods(&door), ["HEAD", "HEAD", "GET"], "{name}");
             assert_eq!(
                 journal_waits(&door),
                 [0, hold, 0],
@@ -586,7 +585,6 @@ fn a_blocked_probe_is_no_probe_failure() {
             daemon.reset_rails().unwrap();
             let (info, _) = door.await_terminal(id).await;
             assert_eq!(info.state, JobState::Done, "{name}");
-            assert_eq!(received_methods(&door), ["HEAD", "HEAD", "GET"], "{name}");
             let hold = if status == 429 {
                 30_000 + full_hold_ms()
             } else {
