@@ -40,7 +40,10 @@
 //! what it waited for, with `HANG` the backstop behind it for a wait the
 //! hook does not read; a door opened [`DoorBuilder::beside`] another
 //! registers with the first door's hook, so its waits have the verdict
-//! too.
+//! too. C160 as amended: a wait that declares the transports' holds its
+//! own ([`Door::await_behind_own_holds`], an arrival barrier behind a
+//! request only the scenario releases) fails also at the park where
+//! those holds are all that is pending, the clock unmoved.
 //!
 //! What stays off the door, each a component test that says which
 //! boundary it needs (`roadmap/briefs/t5-design.md` §2.6): several
@@ -231,7 +234,10 @@ pub(super) struct Counters {
 /// nothing. C160: a park that finds none of these and nothing parked on
 /// the clock is one nothing the hook accounts for can wake, and fails
 /// every door wait pending there (the verdict, [`Door::await_job`] and
-/// its siblings). Tokio's paused clock
+/// its siblings); a park that finds a transport's hold and nothing else
+/// (no hold of the scenario's, no blocking task) fails a wait that
+/// declared those holds its own ([`Door::await_behind_own_holds`], C160
+/// as amended) and moves nothing. Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
@@ -263,7 +269,7 @@ struct Accounting {
     /// The scenario's wait for a quiet runtime ([`Door::quiet`]).
     quiet: SettleSlot,
     /// The door wait pending, which a stuck park fails (C160).
-    stuck: SettleSlot,
+    stuck: StuckSlot,
 }
 
 /// The doors registered with a runtime's park hook.
@@ -308,8 +314,21 @@ impl Counters {
 }
 
 /// Where [`Door::settle`] and [`Door::quiet`] leave their wakers for the
-/// park hook, and a door wait its verdict's.
+/// park hook.
 type SettleSlot = Arc<Mutex<Option<oneshot::Sender<()>>>>;
+
+/// Where a door wait leaves its verdict's sender for the park hook
+/// ([`or_stuck`]).
+type StuckSlot = Arc<Mutex<Option<Stuck>>>;
+
+/// A door wait pending, as the park hook reads it (C160): the verdict's
+/// sender, which carries the requests the transports held at the stuck
+/// park, and whether the wait declared those holds its own
+/// ([`Door::await_behind_own_holds`]).
+struct Stuck {
+    verdict: oneshot::Sender<usize>,
+    own_holds: bool,
+}
 
 impl IdleHook {
     fn on_idle(&mut self) {
@@ -326,8 +345,38 @@ impl IdleHook {
             counters.held_by_scenario += 1;
             "held_by_scenario"
         } else if doors.iter().any(|d| d.hold.count() > 0) {
-            counters.held_by_transport += 1;
-            "held_by_transport"
+            // C160 as amended: a wait that declares the transports' holds
+            // its own fails where they are all that is pending (no hold
+            // of the scenario's, checked above, and no blocking task);
+            // the clock stays, as under any transport hold.
+            let held: usize = doors.iter().map(|d| d.hold.count()).sum();
+            let blocking = doors
+                .iter()
+                .any(|d| d.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0);
+            let declared: Vec<_> = if blocking {
+                Vec::new()
+            } else {
+                doors
+                    .iter()
+                    .filter_map(|d| {
+                        let mut slot = d.stuck.lock().unwrap();
+                        slot.as_ref()
+                            .is_some_and(|stuck| stuck.own_holds)
+                            .then(|| slot.take())
+                            .flatten()
+                    })
+                    .collect()
+            };
+            if declared.is_empty() {
+                counters.held_by_transport += 1;
+                "held_by_transport"
+            } else {
+                for stuck in declared {
+                    let _ = stuck.verdict.send(held);
+                }
+                counters.stuck += 1;
+                "stuck_behind_own_holds"
+            }
         } else if doors
             .iter()
             .any(|d| d.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0)
@@ -356,7 +405,7 @@ impl IdleHook {
                 "nothing_parked"
             } else {
                 for stuck in stuck {
-                    let _ = stuck.send(());
+                    let _ = stuck.verdict.send(0);
                 }
                 counters.stuck += 1;
                 "stuck"
@@ -450,7 +499,7 @@ pub(super) struct Door {
     /// The scenario's wait for a quiet runtime, which the hook wakes.
     quiet: SettleSlot,
     /// The door wait pending, which the hook fails at a stuck park.
-    stuck: SettleSlot,
+    stuck: StuckSlot,
     finished: bool,
     /// The world's endpoint ([`DoorBuilder::world`]) and, on Unix, the
     /// folder its socket is in: held open while the door stands.
@@ -1307,6 +1356,33 @@ impl Door {
         .await
     }
 
+    /// C160 as amended, a wait behind the scenario's own holds: `wait`
+    /// (an arrival barrier, a fixture's announcement) raced against the
+    /// verdict, which comes at the stuck park and also at a park where
+    /// the requests the door's transports hold are all that is pending:
+    /// no hold of the scenario's, no blocking task. The declaration is
+    /// the scenario's: every request its fixtures hold there is one only
+    /// it releases, so nothing else can bring `wait`. A false one (a
+    /// held request the daemon would have answered by itself) names the
+    /// scenario. The clock never moves under the holds; `HANG` is the
+    /// backstop behind the verdict.
+    pub(super) async fn await_behind_own_holds<T>(
+        &self,
+        awaiting: &str,
+        wait: impl Future<Output = T>,
+    ) -> T {
+        let ceiling = format!("the wait was answered ({awaiting})");
+        or_stuck_declaring(
+            self.stuck.clone(),
+            self.counters.clone(),
+            true,
+            awaiting.to_string(),
+            &ceiling,
+            wait,
+        )
+        .await
+    }
+
     /// The requests this door's transports hold now, the hook's input
     /// (C160 as amended): for the hook's own pins, never a scenario's
     /// assertion.
@@ -1402,31 +1478,56 @@ impl Drop for Door {
 /// stays around both as the backstop a wait outside the accounting can
 /// still reach, panicking with `ceiling`.
 async fn or_stuck<T>(
-    stuck: SettleSlot,
+    stuck: StuckSlot,
     counters: Arc<Mutex<Counters>>,
     awaiting: String,
     ceiling: &str,
     wait: impl Future<Output = T>,
 ) -> T {
+    or_stuck_declaring(stuck, counters, false, awaiting, ceiling, wait).await
+}
+
+/// [`or_stuck`], the wait declaring the transports' holds its own or not
+/// (`own_holds`, C160 as amended): a declaring wait fails at the stuck
+/// park too, and at a park where the requests the transports hold are
+/// all that is pending, its words naming how many were held. A false
+/// declaration (a held request the daemon would have released by
+/// itself) names the scenario.
+async fn or_stuck_declaring<T>(
+    stuck: StuckSlot,
+    counters: Arc<Mutex<Counters>>,
+    own_holds: bool,
+    awaiting: String,
+    ceiling: &str,
+    wait: impl Future<Output = T>,
+) -> T {
     let (verdict, stuck_rx) = oneshot::channel();
-    let previous = stuck.lock().unwrap().replace(verdict);
+    let previous = stuck.lock().unwrap().replace(Stuck { verdict, own_holds });
     assert!(previous.is_none(), "one door wait at a time");
     let raced = tokio::time::timeout(HANG, async {
         tokio::select! {
             biased;
-            done = wait => Some(done),
-            Ok(()) = stuck_rx => None,
+            done = wait => Ok(done),
+            Ok(held) = stuck_rx => Err(held),
         }
     })
     .await;
     stuck.lock().unwrap().take();
     match raced {
-        Ok(Some(done)) => done,
-        Ok(None) => {
+        Ok(Ok(done)) => done,
+        Ok(Err(0)) => {
             let counters = *counters.lock().unwrap();
             panic!(
                 "the daemon can be woken by nothing the hook accounts for: nothing parked on \
                  its clock, no request a transport holds, no blocking task, no hold; {awaiting} \
+                 ({counters:?})"
+            )
+        }
+        Ok(Err(held)) => {
+            let counters = *counters.lock().unwrap();
+            panic!(
+                "the daemon can be woken by nothing but the requests the scenario holds: \
+                 {held} held by its transports, no blocking task, no hold; {awaiting} \
                  ({counters:?})"
             )
         }
@@ -1776,11 +1877,16 @@ fn c160_the_transports_hold_holds_the_clock_through_the_door() {
                     })
                 })
                 .collect();
+            // Each arrival behind the row's own holds (C160 as amended):
+            // a GET that cannot reach the transport while the others are
+            // held fails at that park.
             for _ in 0..paths.len() {
-                tokio::time::timeout(HANG, arrived.recv())
-                    .await
-                    .expect("the row's GET arrived")
-                    .expect("the row's transport announces each GET");
+                door.await_behind_own_holds(
+                    &format!("{name}: awaiting the row's GETs"),
+                    arrived.recv(),
+                )
+                .await
+                .expect("the row's transport announces each GET");
             }
             let origin = clock.now();
             let sleeper = tokio::spawn({
@@ -1840,4 +1946,79 @@ fn c160_the_transports_hold_holds_the_clock_through_the_door() {
             door.finish().await;
         });
     }
+}
+
+/// C160 as amended, a wait that declares the transports' holds its own:
+/// one `GET` held before its headers by the scenario's own fixture, its
+/// release kept and never fired, and a wait behind it on an answer
+/// nothing will bring. The wait fails at the park where that hold is all
+/// that is pending, in words naming the one request held and what was
+/// awaited, and the clock has not moved; the arrival barrier awaited the
+/// same way before it is answered, the request reaching the transport by
+/// itself. No duration is asserted (C137): the verdict's own words say it
+/// was not `HANG`.
+#[test]
+fn c160_a_wait_behind_its_own_holds_fails_where_they_are_all_that_is_pending() {
+    let (release, release_rx) = oneshot::channel();
+    let (arrived_tx, mut arrived) = tokio::sync::mpsc::unbounded_channel();
+    type Seen = (Arc<Mutex<Counters>>, Counters);
+    let seen: Arc<Mutex<Option<Seen>>> = Arc::default();
+    let reads = seen.clone();
+    let ended = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        Door::open(
+            hold_rows_server(vec![("/a", Shape::Whole(release_rx))], arrived_tx),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|door| async move {
+            let (daemon, clock) = (door.daemon().clone(), door.clock());
+            let url = format!("{}/a", transport::BASE);
+            daemon
+                .choke
+                .head("row-a", &url, None, daemon.choke.now(), ALWAYS_WANTED)
+                .await
+                .expect("the row's probe");
+            let _send = tokio::spawn(async move {
+                daemon
+                    .choke
+                    .get("row-a", &url, daemon.choke.now(), ALWAYS_WANTED)
+                    .await
+                    .map(|response| response.status.as_u16())
+            });
+            door.await_behind_own_holds("awaiting the held GET's arrival", arrived.recv())
+                .await
+                .expect("the transport announces the GET");
+            let counters = door.counters();
+            let before = *counters.lock().unwrap();
+            let origin = clock.now();
+            *reads.lock().unwrap() = Some((counters, before));
+            door.await_behind_own_holds(
+                "awaiting an answer only the held GET's release could bring",
+                std::future::pending::<()>(),
+            )
+            .await;
+            drop(release);
+            panic!(
+                "a wait on nothing was answered at {:?}",
+                clock.now() - origin
+            );
+        });
+    }));
+    let panic = ended.expect_err("the wait behind the scenario's own hold failed");
+    let words = panic.downcast_ref::<String>().cloned().unwrap_or_default();
+    let (counters, before) = seen.lock().unwrap().take().expect("the scenario ran");
+    assert!(
+        words.contains("nothing but the requests the scenario holds: 1 held"),
+        "{words}"
+    );
+    assert!(
+        words.contains("awaiting an answer only the held GET's release could bring"),
+        "{words}"
+    );
+    let after = *counters.lock().unwrap();
+    assert_eq!(
+        (after.stuck, after.advances),
+        (before.stuck + 1, before.advances),
+        "one stuck park and no advance since the wait began: {before:?} then {after:?}"
+    );
 }

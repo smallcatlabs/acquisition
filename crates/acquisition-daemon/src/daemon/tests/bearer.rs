@@ -375,9 +375,8 @@ fn rejected_bearer_under_the_gate(
         // runtime quiet, every task parked on what it waits for (the
         // third send at the gate or its probe at the exclusive permit).
         for _ in 0..2 {
-            tokio::time::timeout(HANG, held.recv())
+            door.await_behind_own_holds("awaiting two GETs held at the server", held.recv())
                 .await
-                .expect("two GETs reached the server")
                 .expect("the server announces each held GET");
         }
         door.quiet().await;
