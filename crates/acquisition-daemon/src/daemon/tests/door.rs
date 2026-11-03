@@ -75,6 +75,7 @@ use crate::daemon::*;
 use crate::mockggg::HttpRequest;
 use crate::ratelimit::Clock;
 use crate::transport::{self, Ends, Hold, InProcess, Reply};
+use acquisition_transport::{Answer, Pending, Prepared, Transport};
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::oneshot;
@@ -112,6 +113,11 @@ pub(super) enum Server {
     Token(Token),
     /// The stateful mock's in-process face, on the door's clock.
     Mock,
+    /// The token transport on the token route and the stateful mock's
+    /// in-process face on every other path, on the door's clock, both on
+    /// the door's hold ([`ByPath`]): a refresh held in front of the
+    /// counting mock.
+    ByPath(Token),
     /// A transport the scenario builds itself ([`Server::own`]): its
     /// closure answers each request. What it records and the barriers it
     /// holds are the scenario's own, captured before (an `Arc`, a
@@ -124,6 +130,24 @@ pub(super) enum Server {
 
 /// [`Server::Own`]'s transport, built on the door's hold.
 pub(super) type OwnServer = Box<dyn FnOnce(&Hold) -> InProcess>;
+
+/// [`Server::ByPath`]'s one transport: a request on the token route to
+/// the token transport, every other to the mock's in-process face.
+struct ByPath {
+    token: InProcess,
+    api: InProcess,
+}
+
+impl Transport for ByPath {
+    fn send(&self, request: Prepared) -> Pending<'_, Result<Answer, String>> {
+        let token = url::Url::parse(&request.url).is_ok_and(|url| url.path() == "/token");
+        if token {
+            self.token.send(request)
+        } else {
+            self.api.send(request)
+        }
+    }
+}
 
 impl Server {
     /// [`Server::Own`] from a closure answering each request, as
@@ -184,6 +208,15 @@ pub(super) enum Fixture {
     },
     /// The mock's state, which [`Door::browser`] reads its pages from.
     Mock(mockggg::Mock),
+    /// [`Server::ByPath`]'s: the mock's state and the token transport's
+    /// barriers and ends, as [`Fixture::Mock`] and [`Fixture::Delayed`]
+    /// hold them.
+    ByPath {
+        mock: mockggg::Mock,
+        arrived: Option<oneshot::Receiver<()>>,
+        release: Option<oneshot::Sender<()>>,
+        ends: Ends,
+    },
     Own,
     None,
 }
@@ -741,13 +774,16 @@ impl DoorBuilder {
     /// spawned.
     async fn build(self) -> Door {
         let hold = Hold::new();
+        let boxed = |(transport, fixture): (InProcess, Fixture)| -> (Box<dyn Transport>, Fixture) {
+            (Box::new(transport), fixture)
+        };
         let (transport, fixture) = match self.server {
-            Server::Script(script) => scripted_fixture(
+            Server::Script(script) => boxed(scripted_fixture(
                 &hold,
                 self.clock.clone(),
                 script.into_iter().map(Into::into).collect(),
-            ),
-            Server::Steps(steps) => scripted_fixture(&hold, self.clock.clone(), steps),
+            )),
+            Server::Steps(steps) => boxed(scripted_fixture(&hold, self.clock.clone(), steps)),
             Server::Account(held) => {
                 let (transport, record) = transport::account(&hold, held);
                 let fixture = Fixture::Account {
@@ -755,7 +791,7 @@ impl DoorBuilder {
                     arrived: Some(record.arrived),
                     release: Some(record.release),
                 };
-                (transport, fixture)
+                boxed((transport, fixture))
             }
             Server::Token(Token::Delayed(status, body)) => {
                 let (transport, record) = transport::delayed_token(&hold, status, body);
@@ -764,14 +800,26 @@ impl DoorBuilder {
                     release: Some(record.release),
                     ends: record.ends,
                 };
-                (transport, fixture)
+                boxed((transport, fixture))
             }
             Server::Mock => {
                 let (transport, mock) = transport::mock(&hold, self.clock.clone());
-                (transport, Fixture::Mock(mock))
+                boxed((transport, Fixture::Mock(mock)))
             }
-            Server::Own(build) => (build(&hold), Fixture::Own),
-            Server::None => (transport::refusing(&hold), Fixture::None),
+            Server::ByPath(Token::Delayed(status, body)) => {
+                let (api, mock) = transport::mock(&hold, self.clock.clone());
+                let (token, record) = transport::delayed_token(&hold, status, body);
+                let fixture = Fixture::ByPath {
+                    mock,
+                    arrived: Some(record.arrived),
+                    release: Some(record.release),
+                    ends: record.ends,
+                };
+                let transport: Box<dyn Transport> = Box::new(ByPath { token, api });
+                (transport, fixture)
+            }
+            Server::Own(build) => boxed((build(&hold), Fixture::Own)),
+            Server::None => boxed((transport::refusing(&hold), Fixture::None)),
         };
         let base = transport::BASE;
         let clock: Arc<dyn Clock> = self.clock.clone();
@@ -804,7 +852,7 @@ impl DoorBuilder {
             Provider::mock(base)
         };
         let mut builder = Daemon::builder(provider, clock, self.credentials, log)
-            .transport(Box::new(transport))
+            .transport(transport)
             .rails(rails)
             .sessions(self.sessions)
             .restore_landed(self.restore_landed)
@@ -1004,7 +1052,7 @@ impl Door {
         let mut url = url.to_string();
         let mut redirects = 1;
         if url.starts_with(transport::BASE) {
-            let Fixture::Mock(mock) = &self.fixture else {
+            let (Fixture::Mock(mock) | Fixture::ByPath { mock, .. }) = &self.fixture else {
                 panic!("the browser reads a page of the fixture's base from the mock alone")
             };
             let (status, headers, page) =
@@ -1135,11 +1183,30 @@ impl Door {
     /// hook accounts for can end the job (C160), `HANG` the backstop
     /// behind that verdict.
     pub(super) async fn await_terminal(&mut self, id: JobId) -> (JobInfo, Outcome) {
+        self.await_terminal_declaring(id, false).await
+    }
+
+    /// [`Self::await_terminal`] behind the scenario's own holds (C160 as
+    /// amended, [`Self::await_behind_own_holds`]): it fails also at a
+    /// park where the requests the door's transports hold are all that
+    /// is pending. For a job whose end no held request of the daemon's
+    /// own making stands between: every request a fixture holds there is
+    /// one only the scenario releases (the delayed token transport's
+    /// refresh, before its release).
+    pub(super) async fn await_terminal_behind_own_holds(
+        &mut self,
+        id: JobId,
+    ) -> (JobInfo, Outcome) {
+        self.await_terminal_declaring(id, true).await
+    }
+
+    async fn await_terminal_declaring(&mut self, id: JobId, own_holds: bool) -> (JobInfo, Outcome) {
         let mut events = self.daemon.events.subscribe();
         let (stuck, counters) = (self.stuck.clone(), self.counters.clone());
-        or_stuck(
+        or_stuck_declaring(
             stuck,
             counters,
+            own_holds,
             format!("awaiting job {id}'s end"),
             "the job ended",
             async {
@@ -1275,9 +1342,12 @@ impl Door {
         }
         | Fixture::Delayed {
             arrived, release, ..
+        }
+        | Fixture::ByPath {
+            arrived, release, ..
         }) = &mut self.fixture
         else {
-            panic!("only the account and the delayed token transports hold a request")
+            panic!("only the account and the token transports hold a request")
         };
         (
             arrived.take().expect("the arrival, taken once"),
@@ -1430,7 +1500,7 @@ impl Door {
                 assert_eq!(ends.faults(), Vec::<String>::new(), "the script's faults");
                 Some(wire.lock().unwrap().clone())
             }
-            Fixture::Delayed { ends, .. } => {
+            Fixture::Delayed { ends, .. } | Fixture::ByPath { ends, .. } => {
                 let awaiting = "awaiting the token transport's end, its refresh answered";
                 let ceiling = "the token transport was answered whole";
                 or_stuck(stuck, counters, awaiting.into(), ceiling, ends.answered()).await;
@@ -1450,7 +1520,7 @@ impl Door {
         if let Some(wire) = wire {
             assert_journal_matches_wire(&self.log_path, &wire);
         }
-        if matches!(self.fixture, Fixture::Mock(_)) {
+        if matches!(self.fixture, Fixture::Mock(_) | Fixture::ByPath { .. }) {
             finish_harness_mock(self.dispatcher.take(), &self.log_path);
         } else {
             finish_harness(self.dispatcher.take(), &self.log_path);

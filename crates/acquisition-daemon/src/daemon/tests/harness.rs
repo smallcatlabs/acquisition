@@ -325,7 +325,7 @@ pub(super) fn token_body(access_token: &str, refresh_token: &str, username: &str
 /// the three constructors take first, so the census
 /// (`tools/daemon-tests-census.py`) reads it where the test builds its
 /// daemon, never a sentence. One variant per boundary C158 and the door's
-/// module doc name, and two the tests showed.
+/// module doc name, and one the tests showed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Boundary {
     /// Several workers: the park hook fires per worker and never means
@@ -343,8 +343,6 @@ pub(super) enum Boundary {
     Function,
     /// A hand-driven clock the test reads or moves itself.
     Clock,
-    /// Two fixtures at once, which the door's one `Server` cannot host.
-    Fixtures,
 }
 
 /// A harness daemon facing `transport` (C161: an in-process fixture of
@@ -578,25 +576,6 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
     })
     .await
     .expect("dispatcher completed the scripted job")
-}
-
-/// C158, a component test's hand on its parking clock where the daemon
-/// waits on it (a landed 429's hold, a full window): until `reached`
-/// holds, the clock moves to its earliest parked deadline, then the test
-/// yields so what woke runs. Each sleeper wakes at its own deadline, so a
-/// hold reads on the journal exactly as long as it was; nothing parked,
-/// nothing moves. The shape of the scenario's park hook, by the test's
-/// hand, for a test on a plain runtime, which has no hook. Under the hang
-/// ceiling.
-pub(super) async fn advance_until(clock: &ParkingClock, mut reached: impl FnMut() -> bool) {
-    tokio::time::timeout(HANG, async {
-        while !reached() {
-            clock.advance_to_next();
-            tokio::task::yield_now().await;
-        }
-    })
-    .await
-    .expect("the state was reached as the clock moved");
 }
 
 /// The bound of a drain a test holds open and releases: far past
