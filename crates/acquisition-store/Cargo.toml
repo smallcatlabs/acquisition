@@ -13,7 +13,7 @@ anyhow.workspace = true
 # `hooks` is for one test alone (the authorizer-staged first-open pin), but
 # a dev-dependency feature unifies into every `cargo test` build and gave the
 # frontends two forms (C84); compiled in always, so one build writes one binary.
-rusqlite = { version = "0.32", features = ["bundled", "hooks"] }
+rusqlite = { version = "0.41", features = ["bundled", "hooks"] }
 directories = "6"
 # the world's short id (world.rs): twelve hex digits of the canonical root's SHA-256
 sha2 = "0.11"
