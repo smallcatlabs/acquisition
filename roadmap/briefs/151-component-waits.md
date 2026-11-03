@@ -4,11 +4,16 @@ Written by the orchestrating session on 2026-11-03, after the transport
 seam's close (`LEDGER.md`, the row of that date), from the after-run's
 saved logs (`runs/transport-seam-after/`, Weekly `41567365592` on the tag
 `transport-seam-after` at `a6e34e8e`) and a read of the tree at
-`f84960ff`, every line number below from it except the mutants' in the
-Input table, which are the after-run's at `a6e34e8e` (`choke.rs` moved by
-26 lines at `d831658c`; the measure's patterns are `f84960ff`'s). To be reviewed cold before a
-worker reads it. The worker runs on Opus 5.5. Its one ruling (Do 1) is the owner's, given on
-2026-11-03 ("Accept it") and in #151's body the same day.
+`f84960ff`. Every line number is `f84960ff`'s except the mutants' in the
+Input table, which are the after-run's (`choke.rs` moved by 26 lines at
+`d831658c`; the measure's patterns are `f84960ff`'s). Cut twice: the
+first cut (`d5dffbac`) was reviewed cold
+(`roadmap/reviews/151-component-waits-brief-d5dffbac.md`, seven
+findings, the prompt beside); this cut answers all seven, listed at the
+foot under "Taken from the review". To be reviewed cold again before a
+worker reads it. The worker runs on Opus 5.5. Its one ruling (Do 1) is
+the owner's, given on 2026-11-03 ("Accept it") and in #151's body the
+same day.
 
 ## Goal
 
@@ -101,31 +106,48 @@ and `acquisition-daemon/src/` dropped):
 
 These are #151's thirteen open timeouts less `ChokePoint::sleep_until
 -> ()`, plus the four that moved from caught to timeout at the seam's
-close (`admit_bearer_url`'s two, `policy_state_key`'s two). The design's
-§3 row placed `head`'s 401 guard under the two bearer scenarios'
-"plain `timeout(HANG, …)` reads (`bearer.rs:394`)". The logs show
-those scenarios are door tests (`Door::open`, bearer.rs 333), so the
-worker reads why the verdict did not fire there.
+close (`admit_bearer_url`'s two, `policy_state_key`'s two).
 
-**The classes the tests fall in**, from their headers, to be confirmed
-by Do 3:
+**The cut list is a floor, not the inventory.** The runner runs four
+tests at once, and a run cut with four hung tests ran no further:
+under `observe_landed`'s mutant the saved log
+(`mutants-shard-*/log/*limiter.rs_line_545_col_26.log`) ends at 78 of
+327 tests, with 249 never started. Do 3 finds the rest.
 
-- **(a) An answer due at once.** The C128 test is a real-wiring TCP test
-  that waits under `tokio::time::timeout(HANG, …)` for a refusal made
-  before any send. Under the mutant, the bearer goes out to a listener
-  nobody reads.
-- **(b) A component test on a plain `#[tokio::test]` runtime.** Its
-  wait is `wait_terminal` or `advance_until`, which spin. This class is
-  `dispatch.rs` 375, 484 and 629, `exit.rs` 353 and 386, and
-  `stress.rs` 65. Each test's doc says why it stays off the door.
-- **(c) A door test.** Its wait has the verdict, but the verdict did not
-  fire: `bearer.rs` 474 and 486, and `door.rs` 1707. The likely cause is
-  a hold the hook counts (a held request) that the mutant never
-  releases. That is the design's "a fixture-side hold tells a send in
-  flight from one the daemon will never complete only where a door wait
-  races the verdict".
+**The waits, as read from the tree** (to be confirmed by Do 3, which
+may find others):
+
+- **(a) An answer due at once.** The C128 test (spec.rs 4192) waits
+  under `tokio::time::timeout(HANG, …)` for a refusal. The refusal
+  comes before the first await in `get_bearer` (choke.rs 1052) and
+  `head` (563); under the mutant, the bearer goes out to a listener
+  that nobody reads.
+- **(b) A component test's own polling wait,** on a plain
+  `#[tokio::test]` runtime with no park hook:
+  - `wait_terminal` (harness.rs 568), a yield loop under `HANG`;
+  - `advance_until` (591), the same, moving the clock each pass;
+  - `exit.rs`'s `wait_state` (114), a 5 ms sleep loop under `HANG`;
+  - `dispatch.rs`'s own condition loops;
+  - the stress test's wait on its refresh flight.
+
+  The tests are `dispatch.rs` 375, 484 and 629, `exit.rs` 353 and 386,
+  and `stress.rs` 65. Each test's doc says why it stays off the door.
+- **(c) A door test's wait that has no verdict.** C160's verdict races
+  only a wait raced through `or_stuck` (door.rs 1411), which installs
+  the verdict's slot. The bearer scenarios' arrival barrier
+  (bearer.rs 378) and the transport-hold test's row arrivals (door.rs
+  1780) are plain `tokio::time::timeout(HANG, …)` reads, so no verdict
+  can fire there. This is what the design's §3 row said of
+  `bearer.rs:394`.
+- **(c′) A door wait whose verdict the hook's accounting holds off.** A
+  request the fixture holds keeps the hook from moving the clock and
+  from calling the park stuck (door.rs 328). Under `policy_state_key`'s
+  mutants, collapsed serialization may admit one GET and keep the
+  second from arriving while the first is held. A count holds the
+  clock; it does not keep the runtime from parking.
 - **(d) A test on a multi-thread runtime,** where the hook fires per
-  worker and never means every worker is idle: `credentials.rs` 402.
+  worker and never means every worker is idle: `credentials.rs` 402
+  (`multi_thread`, 4 workers).
 
 **The measure** is a local cargo-mutants run over the sixteen. Each
 must come back caught, and the run's log names each failing test. On
@@ -153,6 +175,16 @@ cargo mutants -o "$SCRATCH/mutants-151" \
 The step changes no production source, so the lines hold; a pattern
 that lists nothing has met an edit the step should not have made.
 
+**The diagnostic run** goes past the four-at-once floor. For one
+mutant, cargo-mutants passes what follows `--` to its test tool,
+nextest here (`.cargo/mutants.toml`), so nextest's filter rides there
+(or the worker runs nextest by hand over a copy of the
+tree with the mutant's diff applied, from the measure's `diff/`). It
+excludes, by name, each test already found hung under that mutant, and
+repeats until the run completes, every test either passing or failing.
+The union of the excluded tests is that mutant's inventory. The worker
+records the command it used in the report.
+
 **The last push's CI:** `Gate (Linux)` run `41581867229` and `Gate
 (Windows)` run `41581867250`, both on `f84960ff`, both `success`.
 
@@ -177,86 +209,106 @@ that lists nothing has met an edit the step should not have made.
    - each timeout of the after-run, with the tests its log names as cut;
    - each shard's minutes by outcome and phase, from `outcomes.json`.
 
-   Both print by default after the existing sections. Its self-test, if
-   it has one, gains a case per addition. This is tooling, in its own
-   commit.
+   Both print by default after the existing sections. Its check,
+   `tools/mutants-compare-breakers.sh`, builds fixtures with a
+   nonexistent `log/x.log` and empty `phase_results` (line 80). Its
+   fixtures gain a log with `SIGTERM` lines and phase durations, a case
+   asserts each new section, and the check runs green. This is tooling,
+   in its own commit.
 3. **Diagnose before building, then stop.** Run the measure on the
-   tree as it is, and record every test each of the sixteen hangs
-   locally, which may be more than the cut named. For each hung test,
-   find the wait that never returns:
-   - the line;
-   - which class it falls in, (a) to (d);
-   - for a door test, which count kept the hook from parking.
+   tree as it is, then the diagnostic run for each of the sixteen until
+   its inventory is complete. For each hung test, find the wait that
+   never returns:
+   - the line, and the helper or loop it is in;
+   - which kind it is, (a) to (d) above, or a new one;
+   - for a door wait, whether it has no verdict slot (c) or a verdict
+     the hook's accounting held off (c′), and which count;
+   - the remedy proposed (Do 4), with the exact signal it reads, and
+     whether it can be built in tests, test support and tools alone.
 
-   Return the table to the orchestrating session, with the shape
-   proposed for each class (Do 4), before any test changes. The session
-   approves it or answers within the round; this is the step's one
-   agent-facing design decision. Where a class has two defensible
-   shapes and the smaller is not obvious, as (c) or (d) may, the session
-   asks a Fable oracle for the recommendation before answering, and
-   records it as a dated bullet in its close.
+   Return the table to the orchestrating session before any test
+   changes. The session approves it or answers within the round; this
+   is the step's one agent-facing design decision. Where a kind has two
+   defensible shapes and the smaller is not obvious, as (b kept off),
+   (c′) or (d) may, the session asks a Fable oracle for the
+   recommendation before answering, and records it as a dated bullet
+   in its close. A remedy that needs a production edit, or a wait no
+   exact signal reaches, stops the step here: the session brings it to
+   the owner.
 4. **Fail fast, by the first rule that fits.** Each rule names a signal
-   that is exact, never a wall bound shorter than `HANG` or a count of
-   yields:
+   that is exact: never a wall bound shorter than `HANG`, a count of
+   yields, or an inference from the clock alone.
    - **(a)** An answer due at once is asserted ready at its first poll
      (`FutureExt::now_or_never`, or polling once by hand), so a send
      that would go out fails the assertion with the request still
      pending.
    - **(b)** A component test that can move onto the door moves (C158).
-     Its waits then have the verdict. Its doc's reason for staying off
-     is either gone, say why, or stands, and then the next rule applies.
+     Its waits then go through `or_stuck`. Its doc's reason for staying
+     off is either gone, say why, or stands, and then the next rule
+     applies.
    - **(b, kept off)** A component test that must stay off gets waits
-     that end where nothing can answer them: for example, an
-     `advance_until` that fails once the clock has no next deadline and
-     the awaited state has not changed since the last advance. That is
-     the clock's own signal, read the way the hook reads it, and Do 3
-     proposes the exact shape.
-   - **(c)** A door test whose verdict a hold kept off: the hold is
-     released or told apart where the mutant leaves it, or the test is
-     named with its class.
-   - **(d)** A multi-thread test, and any test no exact signal reaches,
-     is named with its class in the report. Its mutant then stays a
-     timeout, and the orchestrating session brings it to the owner as
-     an exception beside `sleep_until`'s.
+     that end on an observation that nothing can answer them: the
+     runtime parked with everything that could wake it accounted for,
+     as the door's hook reads it, or a signal specific to that wait.
+     An empty clock is not such a signal: a task a sleeper woke may
+     still be waiting to run (testing.rs 69). Do 3 proposes the shape,
+     and the session approves it.
+   - **(c)** A door wait with no verdict slot goes through `or_stuck`, or
+     the door's own wait that does.
+   - **(c′)** A door wait whose verdict the accounting holds off: the
+     hold is released or told apart where the mutant leaves it, by a
+     shape approved at Do 3.
+   - **(d)** A multi-thread test, and any wait no exact signal reaches,
+     stops the step (Do 3); it is not built around.
 
    Production sources are not touched. A test whose assertions change
-   only says so in its doc where its meaning changes.
+   says so in its doc where its meaning changes.
 5. **Measure again.** Run the measure on the step's tree. Each of the
-   sixteen is caught, or is a (d) named in the report. Then run the
-   gate. The orchestrating session dispatches the Weekly on a tag at
-   the close and runs the compare.
+   sixteen is caught; a mutant that is not stops the step as
+   incomplete, for the owner's ruling. Then run the gate. The
+   orchestrating session dispatches the Weekly on a tag at the close
+   and runs the compare.
 
 ## Done when
 
 - `tools/mutants-compare.py` prints the cuts and the minutes. Its run
   over `runs/151-stuck-verdict-after` and `runs/transport-seam-after`
   prints, under the timeouts, the sixteen's rows as the Input table
-  has them.
-- The measure's run on the step's tree reports each of the sixteen
-  caught, except those the report names as (d). Its `caught.txt` is
-  quoted in the report, with the count.
+  has them, and `tools/mutants-compare-breakers.sh` asserts both new
+  sections and passes (CI runs it, `gate-linux.yml` 231; the worker runs
+  it by hand before the commit).
+- The step's last commit message carries the measure's outcome for each
+  of the sixteen (caught, with the count from the run's `caught.txt`)
+  and, for each, the tests that now fail under it.
+- Each test the step retires or replaces has a `retired X; held by Y`
+  line in the commit that does it (C154).
 - `git diff --stat` over the step's range touches no file under
   `crates/*/src/` outside a `tests/` directory, `tests.rs`, `testing.rs`
   or `transport.rs` (the test support), plus `tools/`.
-- No wait the step adds or changes is a wall bound below `HANG` or a
-  count of yields (a reviewer's grep: `timeout(` and `yield_now` in the
-  diff, each read).
+- No wait the step adds or changes is a wall bound below `HANG`, a count
+  of yields, or an empty-clock inference (a reviewer's grep: `timeout(`,
+  `yield_now` and `next_deadline` in the diff, each read).
 - The gate is green on the step's tree.
 
 ## Not in scope
 
-- **The other timeouts.** Sixty-one in the after-run are broad breaks:
-  the gate never grants, the endpoint keys collapse, the policy parse
-  returns a constant. Each hangs four or more tests at once, and none
-  moved at t5. They stay timeouts and are named in no closing condition.
+- **The other timeouts.** Sixty-one in the after-run, less
+  `sleep_until`'s, are promised nothing. Most are broad breaks (the gate
+  never grants, the endpoint keys collapse, the policy parse returns a
+  constant): the sweep, less the seventeen, gives 54 that name four cut
+  tests and 7 that name one to three. Some share tests with the
+  sixteen. `get_bearer`'s 401 guard (`choke.rs:1096:42` at the
+  after-run) names the bearer and stress tests, so this step may change
+  its outcome. The final measure lists any of them it happens to catch,
+  as a note, not a claim.
 - **`ChokePoint::sleep_until -> ()`.** It spins. Do 1 accepts it.
 - **Shard minutes.** More shards, a cached build per mutant, or a lower
   cargo-mutants timeout. Do 1 records minutes, not gates them, and the
   workflow is unchanged.
 - **Lowering `HANG`, or a wall bound in its place.** C137 rules it out.
 - **The multi-thread verdict.** A park signal for several workers is a
-  design of its own (`door.rs`'s doc, "several workers"), filed if (d)
-  is not empty.
+  design of its own (`door.rs`'s doc, "several workers"). If (d) is not
+  empty, the step stops at Do 3.
 - **Any production change,** including one that would make a mutant
   easier to see.
 
@@ -278,3 +330,25 @@ that lists nothing has met an edit the step should not have made.
 
 `TEMPLATE.md`'s, with the Do 3 table returned at the stop and again,
 as built, in item 3.
+
+## Taken from the review
+
+The first cut's review (`roadmap/reviews/151-component-waits-brief-d5dffbac.md`):
+
+1. The empty-clock shape for `advance_until` withdrawn; (b, kept off)
+   requires an observed park with full accounting, or a wait-specific
+   signal, approved at Do 3.
+2. The door tests split into (c), a wait with no verdict slot, and (c′),
+   a verdict the accounting holds off, each with its remedy.
+3. A mutant that stays a timeout stops the step as incomplete, for the
+   owner's ruling; done-when admits no exception.
+4. Do 3's inventory is completed by repeated diagnostic runs that
+   exclude the tests already found hung, and the waits read from the
+   tree name `wait_state`, dispatch's loops and the stress test's flight
+   wait.
+5. Completion is in the last commit's message, and each retirement has
+   a C154 line.
+6. `tools/mutants-compare-breakers.sh` is named, and its fixtures and
+   cases extended.
+7. "The other 61 each hang four or more" is corrected, and the other
+   timeouts are promised nothing.
