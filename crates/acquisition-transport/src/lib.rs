@@ -43,14 +43,13 @@
 //! send is shaped with it where it is shaped, and the client's default,
 //! kept because reqwest sends a client's default on an HTTPS proxy's
 //! `CONNECT`, which no request header reaches. The client follows no
-//! redirect (C130), keeps both timeouts the daemon gives it, and routes
-//! through the proxy variables as reqwest's default does (C150). Its
-//! failures, the send's and the body's, are reqwest's own words.
-//!
-//! What comes next: in-process transports for the daemon's tests, so a
-//! door scenario's provider exchange is no real I/O and a request held at
-//! its fixture holds the scenario's clock; then the request's deadline on
-//! the daemon's clock in place of the client's timeouts.
+//! redirect (C130), keeps no timeout, and routes through the proxy
+//! variables as reqwest's default does (C150). A send's deadline is the
+//! daemon's choke point's, on the daemon's clock, over the answer and the
+//! body (C161): it drops the transport's future at the cut, which closes
+//! the connection, so no timer here bounds a send. Its failures, the
+//! send's and the body's, are reqwest's own words; a cut's are the
+//! daemon's.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -58,7 +57,6 @@ use http::header::{HeaderMap, HeaderValue, USER_AGENT};
 use http::{Method, StatusCode};
 use std::future::Future;
 use std::pin::Pin;
-use std::time::Duration;
 
 /// A future the choke point awaits, boxed so [`Transport`] stays
 /// object-safe.
@@ -113,11 +111,11 @@ pub struct Production {
 }
 
 impl Production {
-    /// The one client, carrying `user_agent` as its default and the
-    /// connect and whole-request timeouts it is given.
-    pub fn new(user_agent: &'static str, connect: Duration, request: Duration) -> Self {
+    /// The one client, carrying `user_agent` as its default, with no
+    /// timeout of its own (the deadline is the choke point's, C161).
+    pub fn new(user_agent: &'static str) -> Self {
         Production {
-            client: build_client(user_agent, connect, request),
+            client: build_client(user_agent),
         }
     }
 }
@@ -147,7 +145,7 @@ impl Transport for Production {
     }
 }
 
-fn build_client(user_agent: &'static str, connect: Duration, request: Duration) -> reqwest::Client {
+fn build_client(user_agent: &'static str) -> reqwest::Client {
     // The user-agent goes on the client too, from the same constant the
     // prepared request reads: reqwest sends the client's default on an
     // HTTPS proxy's `CONNECT`, which no request header reaches
@@ -159,8 +157,6 @@ fn build_client(user_agent: &'static str, connect: Duration, request: Duration) 
     reqwest::Client::builder()
         .user_agent(user_agent)
         .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(connect)
-        .timeout(request)
         .build()
         .expect("reqwest client builds")
 }
@@ -168,8 +164,15 @@ fn build_client(user_agent: &'static str, connect: Duration, request: Duration) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
+
+    /// How long the test waits before it calls the exchange hung, never a
+    /// measure of it (C137): the daemon's tests' hang ceiling, its value
+    /// here since this crate links none of theirs. The client keeps no
+    /// timeout, so nothing else bounds a listener that stops answering.
+    const HANG: Duration = Duration::from_secs(120);
 
     /// The user-agent a request read off `stream` carries: its head read
     /// to the blank line, its header found case-blind.
@@ -198,6 +201,12 @@ mod tests {
     /// test of the production transport, which stays TCP for good (C161).
     #[tokio::test]
     async fn the_production_transport_sends_the_prepared_user_agent_not_its_default() {
+        tokio::time::timeout(HANG, sends_the_prepared_user_agent())
+            .await
+            .expect("the exchange hung");
+    }
+
+    async fn sends_the_prepared_user_agent() {
         const AGENT: &str = "c161-distinct-agent";
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/agent", listener.local_addr().unwrap());
@@ -214,14 +223,10 @@ mod tests {
         request
             .headers
             .insert(USER_AGENT, HeaderValue::from_static(AGENT));
-        let answer = Production::new(
-            "acquisition-test-default",
-            Duration::from_secs(10),
-            Duration::from_secs(60),
-        )
-        .send(request)
-        .await
-        .unwrap();
+        let answer = Production::new("acquisition-test-default")
+            .send(request)
+            .await
+            .unwrap();
         assert_eq!(answer.status, StatusCode::OK);
         assert_eq!(answer.body.await.unwrap(), "");
         assert_eq!(server.await.unwrap().as_deref(), Some(AGENT));

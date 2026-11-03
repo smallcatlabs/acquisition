@@ -2,7 +2,7 @@
 //! the transport seam (`acquisition_transport::Transport`), so a provider
 //! exchange in a door scenario or a component daemon is no real I/O. Each
 //! is an [`InProcess`] transport over a fixture's answer: the scripted
-//! one ([`scripted`]: the full, raw and silent forms), the account
+//! one ([`scripted`]: the full, raw, silent and delayed forms), the account
 //! fixture ([`account`]), the two token fixtures ([`delayed_token`],
 //! [`answering_token`]), the stateful mock's in-process face ([`mock`]),
 //! the refusing one ([`refusing`]) and a scenario's own
@@ -21,7 +21,8 @@
 //! covers (C21). A fixture that answers its headers and holds its body
 //! behind a release ([`Reply::Held`]) keeps the hold through the body. A
 //! silent reply, before its headers or after them, holds nothing and
-//! never completes.
+//! never completes by itself: the choke point's deadline cuts it (C161),
+//! and a delayed one ([`Reply::Delayed`]) holds nothing while it waits.
 //!
 //! Every transport answers at [`BASE`]; a request to another origin is
 //! refused as a connect nothing answers would be, recorded nowhere.
@@ -39,6 +40,7 @@ use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::sync::{Notify, oneshot};
 
 /// The origin every in-process fixture answers at: a name no resolver
@@ -103,6 +105,10 @@ pub(crate) enum Reply {
     /// The head as bytes, then a body that never completes and holds
     /// nothing.
     SilentBody(String),
+    /// The head as bytes once the wait (a sleep on a test clock) ends,
+    /// then a body that never completes; holds nothing while it waits or
+    /// after, so the park hook moves the clock to the wait's end.
+    Delayed(Pending<'static, ()>, String),
 }
 
 /// A response as the mock writes it: the status, `extra_headers` (zero or
@@ -219,6 +225,16 @@ async fn answered(reply: Reply, head: bool, held: Held) -> Result<Answer, String
                 body: Box::pin(std::future::pending()),
             });
         }
+        Reply::Delayed(wait, bytes) => {
+            drop(held);
+            wait.await;
+            let (status, headers, _) = read_response(&bytes, head)?;
+            return Ok(Answer {
+                status,
+                headers,
+                body: Box::pin(std::future::pending()),
+            });
+        }
     };
     let (status, headers, body) = read_response(&bytes, head)?;
     Ok(Answer {
@@ -323,6 +339,9 @@ pub(crate) enum Scripted {
     Silent(&'static str, &'static str),
     /// The response's head, then a silent body.
     SilentBody(ScriptedResponse),
+    /// The response's head after the delay, slept on the transport's
+    /// clock ([`scripted_on`]) holding nothing, then a silent body.
+    Delayed(Duration, ScriptedResponse),
 }
 
 impl From<ScriptedResponse> for Scripted {
@@ -420,8 +439,26 @@ pub(crate) struct ScriptRecord {
 /// A transport answering `script` in order, one request each, each
 /// request's method and path asserted against its step's (a mismatch, or
 /// a request past the script, a fault that fails the send); it records the
-/// methods and each request whole ([`Received`]), in order.
+/// methods and each request whole ([`Received`]), in order. A delayed
+/// step needs a clock, so it is a fault here ([`scripted_on`]).
 pub(crate) fn scripted(hold: &Hold, script: Vec<Scripted>) -> (InProcess, ScriptRecord) {
+    scripted_with(hold, None, script)
+}
+
+/// [`scripted`], its delayed steps slept on `clock`.
+pub(crate) fn scripted_on(
+    hold: &Hold,
+    clock: Arc<dyn Clock>,
+    script: Vec<Scripted>,
+) -> (InProcess, ScriptRecord) {
+    scripted_with(hold, Some(clock), script)
+}
+
+fn scripted_with(
+    hold: &Hold,
+    clock: Option<Arc<dyn Clock>>,
+    script: Vec<Scripted>,
+) -> (InProcess, ScriptRecord) {
     let ends = Ends::expecting(script.len());
     let record = ScriptRecord {
         wire: Arc::default(),
@@ -450,9 +487,9 @@ pub(crate) fn scripted(hold: &Hold, script: Vec<Scripted>) -> (InProcess, Script
             )),
             Some(step) => {
                 let (method, path) = match &step {
-                    Scripted::Response(response) | Scripted::SilentBody(response) => {
-                        (response.method, response.path)
-                    }
+                    Scripted::Response(response)
+                    | Scripted::SilentBody(response)
+                    | Scripted::Delayed(_, response) => (response.method, response.path),
                     Scripted::Silent(method, path) => (*method, *path),
                 };
                 ends.took();
@@ -466,6 +503,16 @@ pub(crate) fn scripted(hold: &Hold, script: Vec<Scripted>) -> (InProcess, Script
                         Scripted::Response(response) => Reply::Bytes(response.bytes()),
                         Scripted::Silent(..) => Reply::Silent,
                         Scripted::SilentBody(response) => Reply::SilentBody(response.bytes()),
+                        Scripted::Delayed(after, response) => match &clock {
+                            Some(clock) => {
+                                let clock = clock.clone();
+                                let wait = Box::pin(async move { clock.sleep(after).await });
+                                Reply::Delayed(wait, response.bytes())
+                            }
+                            None => ends.fault(format!(
+                                "the script's delayed step on {method} {path} has no clock to sleep on"
+                            )),
+                        },
                     }
                 }
             }
@@ -933,6 +980,68 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(answer.body.await.unwrap(), "\u{FFFD}");
+    }
+
+    /// The delayed form: the request recorded in its first poll, then a
+    /// sleep of the delay on the transport's clock holding nothing (the
+    /// clock's one sleeper, the hold zero), the head answered once the
+    /// clock reaches it and not before, its body silent and holding
+    /// nothing. Without a clock the step is a fault.
+    #[tokio::test]
+    async fn the_scripted_transports_delayed_form_answers_on_its_clock_holding_nothing() {
+        let hold = Hold::new();
+        let clock = Arc::new(crate::testing::ParkingClock::new());
+        let delayed = || {
+            Scripted::Delayed(
+                Duration::from_secs(20),
+                ScriptedResponse {
+                    method: "GET",
+                    path: "/fetch",
+                    status: "200 OK",
+                    headers: "X-Rate-Limit-Policy: p\r\n".into(),
+                    body: "{}".into(),
+                },
+            )
+        };
+        let (transport, record) = scripted_on(&hold, clock.clone(), vec![delayed()]);
+        let origin = clock.now();
+        let mut send = transport.send(prepared(http::Method::GET, "/fetch"));
+        assert!(poll_once(&mut send).is_pending());
+        assert_eq!(*record.wire.lock().unwrap(), ["GET"], "recorded at once");
+        assert_eq!(hold.count(), 0, "the delay holds nothing");
+        assert_eq!(clock.sleepers(), 1, "the delay sleeps on the clock");
+        assert_eq!(
+            clock.next_deadline(),
+            Some(origin + Duration::from_secs(20))
+        );
+
+        clock.advance_to(origin + Duration::from_secs(19));
+        assert!(
+            poll_once(&mut send).is_pending(),
+            "answered before its delay"
+        );
+        clock.advance_to(origin + Duration::from_secs(20));
+        let Poll::Ready(Ok(answer)) = poll_once(&mut send) else {
+            panic!("the head was not answered at its delay")
+        };
+        assert_eq!(answer.status, StatusCode::OK);
+        assert_eq!(answer.headers["x-rate-limit-policy"], "p");
+        let mut body = answer.body;
+        assert!(poll_once(&mut body).is_pending());
+        assert_eq!(hold.count(), 0, "a silent body holds nothing");
+        assert_eq!(clock.sleepers(), 0);
+        assert!(record.ends.whole() && record.ends.faults().is_empty());
+
+        let (clockless, record) = scripted(&hold, vec![delayed()]);
+        let words = clockless
+            .send(prepared(http::Method::GET, "/fetch"))
+            .await
+            .err();
+        assert_eq!(
+            words.as_deref(),
+            Some("the script's delayed step on GET /fetch has no clock to sleep on")
+        );
+        assert_eq!(record.ends.faults().len(), 1);
     }
 
     /// A form travels as the wire carries it, so `Received::grant` reads

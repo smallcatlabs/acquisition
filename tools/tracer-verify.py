@@ -20,7 +20,11 @@ plus GGG's timing bucket for the window's position (N11/N12: 5 s on a
 rule's first window, 60 s on the later ones — `bucket_for` in
 ratelimit/limiter.rs), so the run's first probe on a route must report 0 and a
 later probe may carry only the run's own earlier hits; each cycle's
-lifetime holds exactly its plan's GETs, its probes, and one token POST.
+lifetime holds exactly its plan's GETs, its probes, and the token POSTs
+the driver planned for it (C135: a lifetime refreshes only at its access
+token's expiry, so 0 or 1); a lifetime that is neither the login's nor
+a cycle's is a token read, the daemon the driver stopped once it had
+reported its token's expiry, and must have sent nothing.
 Exit 0 with a draft ledger row, or 1 listing what failed.
 
     tracer-verify.py --self-test
@@ -31,7 +35,8 @@ own hits inside a window pass; hits beyond ours in either window fail;
 the stash-list policy's second (60 s) window gets the 60 s bucket; and
 the mutations that must fail — a 3xx answer, a probe on one account
 covering a GET on another, a probe with no state header, an active
-restriction.
+restriction; a token read and a restored token pass, a token read that
+sent something and a refresh the driver did not plan fail.
 """
 
 import json
@@ -101,9 +106,14 @@ def read_cycles(path):
     with open(path) as f:
         for line in f:
             if line.strip():
-                c, lt, logical, probes, ceiling, quote = line.rstrip("\n").split("\t")
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) == 6:
+                    # A bundle from before C135's rows: every lifetime refreshed.
+                    fields.insert(5, "1")
+                c, lt, logical, probes, ceiling, posts, quote = fields
                 cycles.append({"cycle": int(c), "lifetime": int(lt), "logical": int(logical),
-                               "probes": int(probes), "ceiling": int(ceiling), "quote": quote})
+                               "probes": int(probes), "ceiling": int(ceiling), "posts": int(posts),
+                               "quote": quote})
     return cycles
 
 
@@ -127,7 +137,9 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
     lifetimes = read_lifetimes(journal, offset)
     cycles = read_cycles(rows_path)
     fail, totals = [], []
-    expected = login_lifetime + len(cycles)
+    by_lifetime = {c["lifetime"]: f"cycle {c['cycle']}" for c in cycles}
+    # The last cycle's lifetime counts the token reads before it.
+    expected = cycles[-1]["lifetime"] if cycles else login_lifetime
     if mode == "mock" and len(lifetimes) == expected + 1 and not lifetimes[-1]["sends"]:
         # Mock mode ends with a throwaway daemon for the logout; it sends nothing.
         lifetimes.pop()
@@ -142,7 +154,7 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
     if not lifetimes or all(lt.get("headerless") for lt in lifetimes):
         fail.append("no open header in this run's journal: no daemon said which contract and acqd it was (C84)")
     for i, lt in enumerate(lifetimes, 1):
-        label = "login" if (login_lifetime and i == 1) else f"cycle {i - login_lifetime}"
+        label = "login" if (login_lifetime and i == 1) else by_lifetime.get(i, "token read")
         if lt.get("headerless"):
             fail.append(f"lifetime {i}: {len(lt['sends'])} send(s) by pid {lt['pid']} with no open header before them (C84)")
         if not brief:
@@ -251,6 +263,12 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
             fail.append(f"login lifetime: expected exactly one code-exchange POST and one GET /profile, saw {len(login)} sends")
 
     out("")
+    owned = {c["lifetime"] for c in cycles} | ({1} if login_lifetime else set())
+    for i, lt in enumerate(lifetimes[:expected], 1):
+        if i not in owned:
+            out(f"  lifetime {i}: a token read (pid {lt['pid']}), {len(lt['sends'])} send(s)")
+            if lt["sends"]:
+                fail.append(f"lifetime {i}: a token read sent {len(lt['sends'])} request(s); it must send nothing")
     out("plan vs journal, per cycle (the wire estimate's minimum should hold exactly):")
     for c in cycles:
         idx = c["lifetime"] - 1
@@ -261,12 +279,12 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
         gets = sum(1 for s in sends if s["method"] == "GET")
         heads = sum(1 for s in sends if s["method"] == "HEAD")
         posts = sum(1 for s in sends if s["method"] == "POST")
-        ok = gets == c["logical"] and heads == c["probes"] and posts == 1 and len(sends) == c["ceiling"]
-        out(f"  cycle {c['cycle']}: plan {c['logical']} request(s) + {c['probes']} probe(s) + 1 token POST"
+        ok = gets == c["logical"] and heads == c["probes"] and posts == c["posts"] and len(sends) == c["ceiling"]
+        out(f"  cycle {c['cycle']}: plan {c['logical']} request(s) + {c['probes']} probe(s) + {c['posts']} token POST"
             f" -> journal {posts} POST / {heads} HEAD / {gets} GET (ceiling {c['ceiling']}); {c['quote']}"
             + ("" if ok else "  <-- MISMATCH"))
         if not ok:
-            fail.append(f"cycle {c['cycle']}: journal {posts}/{heads}/{gets} vs plan {c['logical']} + {c['probes']} probes + 1 POST")
+            fail.append(f"cycle {c['cycle']}: journal {posts}/{heads}/{gets} vs plan {c['logical']} + {c['probes']} probes + {c['posts']} POST")
     if closed:
         out(f"  cycle {closed}: empty plan, no-op apply, no daemon, nothing journaled — the loop closed")
     else:
@@ -290,7 +308,7 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
     lt = ", ".join(f"L{i + 1} {t}" for i, t in enumerate(totals))
     cyc = "; ".join(f"c{c['cycle']} {c['logical']} req" for c in cycles)
     out(f"| <date> | tracer | <tip> | pass | {lt} | 0 | policy → plan → apply → replan"
-        f" ({cyc}{'; closed' if closed else '; not closed'}); each cycle's sends == its plan + probes + POST;"
+        f" ({cyc}{'; closed' if closed else '; not closed'}); each cycle's sends == its plan + probes + its planned POST;"
         f" quote: {quotes or 'n/a'}; the owner's friction notes verbatim; runs/<date>-tracer/ |")
     return True
 
@@ -372,6 +390,28 @@ def restricted(lines):
     sends(lines, "HEAD", 2)[0]["rate"] = {"x-rate-limit-account-state": "0:10:0,3:300:120"}
 
 
+def token_read(lines):
+    """A daemon opened and stopped between the cycles, sending nothing."""
+    i = lines.index([l for l in lines if l.get("event") == "open" and l["pid"] == 2][0])
+    lines.insert(i, {"event": "open", "pid": 9, "contract": "x", "daemon": "y", "clock": "system",
+                     "ts": lines[i]["ts"]})
+
+
+def token_read_that_sent(lines):
+    token_read(lines)
+    i = lines.index([l for l in lines if l.get("event") == "open" and l["pid"] == 9][0])
+    lines.insert(i + 1, dict(sends(lines, "POST", 2)[0], pid=9))
+
+
+def restored_token(lines):
+    lines.remove(sends(lines, "POST", 1)[0])
+
+
+# Rows: cycle 2 after a token read (lifetime 3); cycle 1 planned with no POST.
+AFTER_READ = "1\t1\t3\t1\t5\t1\tquoted\n2\t3\t2\t1\t4\t1\tquoted\n"
+NO_POST = "1\t1\t3\t1\t4\t0\tquoted\n2\t2\t2\t1\t4\t1\tquoted\n"
+
+
 def self_test():
     cases = [
         # (name, route, cycle-2 probe state, gap s, first window, second window, expect pass[, mutate])
@@ -390,15 +430,19 @@ def self_test():
         ("a probe with no rate-limit state is not a pass", "stash@A#1", "0:10:0,3:300:0", 100, "10", "300", False, no_state),
         ("an active restriction fails even with our own hits", "stash@A#1", "0:10:0,3:300:120", 100, "10", "300", False, restricted),
         ("a pc run whose sends went out on the xbox route fails", "stash/xbox@A#1", "0:10:0,3:300:0", 100, "10", "300", False),
+        ("a token read that sent nothing is its own lifetime (C135)", "stash@A#1", "0:10:0,3:300:0", 100, "10", "300", True, token_read, AFTER_READ),
+        ("a token read that sent something fails", "stash@A#1", "0:10:0,3:300:0", 100, "10", "300", False, token_read_that_sent, AFTER_READ),
+        ("a restored token sends no POST where none was planned (C135)", "stash@A#1", "0:10:0,3:300:0", 100, "10", "300", True, restored_token, NO_POST),
+        ("a refresh the driver did not plan fails", "stash@A#1", "0:10:0,3:300:0", 100, "10", "300", False, None, NO_POST),
     ]
     failures = 0
     with tempfile.TemporaryDirectory() as d:
         rows = f"{d}/cycles.tsv"
-        with open(rows, "w") as f:
-            f.write("1\t1\t3\t1\t5\tquoted\n2\t2\t2\t1\t4\tquoted\n")
         for case in cases:
             name, route, state, gap, w1, w2, expect = case[:7]
             mutate = case[7] if len(case) > 7 else None
+            with open(rows, "w") as f:
+                f.write(case[8] if len(case) > 8 else "1\t1\t3\t1\t5\t1\tquoted\n2\t2\t2\t1\t4\t1\tquoted\n")
             journal = f"{d}/j.jsonl"
             synthetic(journal, route, state, gap, w1, w2, mutate)
             lines = []

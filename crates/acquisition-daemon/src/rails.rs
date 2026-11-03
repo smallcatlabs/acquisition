@@ -412,8 +412,7 @@ pub struct Rails {
 }
 
 impl Rails {
-    /// Everything off and nothing persisted: the default for unit tests and
-    /// for `ChokePoint::new()` callers that predate the rails.
+    /// Everything off and nothing persisted: the default for unit tests.
     pub fn disabled() -> Rails {
         Rails::with_config(RailsConfig::default())
     }

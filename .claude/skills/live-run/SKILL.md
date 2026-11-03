@@ -86,8 +86,8 @@ every later send until `reset-tripwire`, persisted per provider; queued
 jobs wait on disk, C25) and the send ceiling (`ACQ_MAX_SENDS=<n>`: a
 halt after n sends this lifetime, not persisted) are for first contacts
 and the drivers. Permanent, no knob: the dead-grant stop (C24), the
-HTTP timeouts (10 s connect, 60 s request; a send lost in transport is
-paced as counted, C19), the send journal (`ACQ_JOURNAL`, the contract
+send's deadline (60 s from dispatch over its answer and body, C161; a
+send lost in transport is paced as counted, C19), the send journal (`ACQ_JOURNAL`, the contract
 surface, `TESTING-NOTES.md`), the mock-only kinds refused in real mode,
 a keyring save failure surfaced in `daemon status` as a stop condition,
 and `ACQ_IDLE_SHUTDOWN=<secs>` set per run. The gate admits two
@@ -184,10 +184,11 @@ driver leaves its `apply` parent persisted too: `acq cancel <id>`
 before the driver runs again, or the parent's remaining children go out
 during the next quote and the driver refuses the run.
 
-Known costs, not stops: every lifetime starts with a token POST (the
-access token is never persisted), so a by-hand ceiling of 2 is one POST
-and one GET; the first probe of a lifetime queues a few seconds behind
-that POST; an unsigned `acqd` is asked twice per login after every
+Known costs, not stops: a lifetime restores the access token from the
+keyring and sends a token POST only once it has lapsed (C135; `acq auth
+status` says how long it has left), so a by-hand ceiling counts that
+POST only then, and the drivers read the token before they fix one; a
+lifetime's first probe queues a few seconds behind such a POST; an unsigned `acqd` is asked twice per login after every
 rebuild. A signed one is asked once per keychain item on its first
 start under the identity (one prompt per persisted account, "Always
 Allow") and never again; the release archive's Developer ID `acqd` is
@@ -201,5 +202,5 @@ Sleep and wakes (soaks): a closed laptop on AC dark-wakes every 15 to
 60 min (Power Nap) and cron runs during the wakes; on battery it sleeps
 for hours; `pmset -g log` is the evidence for any sleep claim. The
 first request after a wake can fail in transport before the network is
-up; the timeout rail paces it as counted, and a consumer sees one
+up; it is paced as counted (C19), and a consumer sees one
 failed job.

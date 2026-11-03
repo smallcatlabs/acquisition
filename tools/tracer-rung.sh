@@ -45,11 +45,18 @@
 #      to the uuid; a login predating uuid-at-login has none) — 2 sends
 #   2  policy written, then `refresh --plan` with NO daemon: compiled
 #      offline, the note on stderr says so
-#   3+ per cycle: the offline envelope derives the ceiling (1 token POST +
-#      one HEAD probe per route the plan touches + one GET per action);
-#      a daemon comes up under it; `refresh --plan --json` again, now with
-#      the daemon's quote (or its note says why not — the `/profile`
-#      discriminator residual is collected here, not pre-fixed); that
+#   3+ per cycle: the offline envelope derives the ceiling (one HEAD probe
+#      per route the plan touches + one GET per action, + 1 token POST
+#      when the restored access token would not outlast the cycle: C135,
+#      a lifetime refreshes only at expiry); a daemon comes up under the
+#      ceiling without the POST and reports its token's expiry, and is
+#      replaced, having sent nothing, by one whose ceiling carries the
+#      POST when the token would not last (a token read, its own lifetime
+#      in the journal); a token that would lapse mid-cycle is waited out
+#      first, so the refresh is the cycle's first send, never a guess;
+#      `refresh --plan --json` again, now with the daemon's quote (or its
+#      note says why not — the `/profile` discriminator residual is
+#      collected here, not pre-fixed); that
 #      envelope is checked to be the offline one plus the quote (actions
 #      in order, basis, identity, revision), its actions are shown and
 #      confirmed, and THAT FILE is applied as one `apply` parent with
@@ -399,6 +406,18 @@ if [ "$MODE" = live ]; then
 else
     NEED_LOGIN=1
 fi
+# A queue an earlier daemon left on disk resumes in the first daemon
+# this run starts, before any plan of the run's is applied: its sends
+# would spend the run's ceilings and go out under no plan of its own
+# (2026-11-03: 250 jobs of an earlier deep refresh, restored by cycle 1's
+# token read). `jobs` reads the queue on disk with no daemon (C45).
+open_jobs=$("$ACQ" jobs --json | jq '.persisted.total // 0')
+if [ "$open_jobs" != 0 ]; then
+    echo "refusing: $open_jobs job(s) an earlier daemon left on disk would resume in this run's first daemon:" >&2
+    "$ACQ" jobs >&2 || true
+    echo "cancel them first (the live-run skill, \"If something trips\"), then run again" >&2
+    exit 2
+fi
 OFFSET=$(journal_size)
 LOGIN_LIFETIME=0
 
@@ -551,9 +570,34 @@ note "writing the policy and reading the first plan"
 # ---- phase 3: the cycles ----------------------------------------------------
 
 # One row per cycle for the verifier: cycle, lifetime index in this run's
-# journal, logical requests, probes expected, ceiling, quote outcome.
+# journal, logical requests, probes expected, ceiling, token POSTs
+# planned, quote outcome.
 CYCLE_ROWS="$RUN_DIR/cycles.tsv"
 : >"$CYCLE_ROWS"
+LIFETIMES=$LOGIN_LIFETIME
+# The seconds a restored access token must have left beyond the cycle's
+# estimate to be trusted through it (C135). A send refreshes a token
+# with 5 s or less left (`access_token` in daemon/refresh.rs), so one
+# that would lapse inside the cycle refreshes at a send no plan can
+# name; the driver waits until it is within those 5 s instead, and the
+# cycle's first send is the refresh. An estimate the wire outruns
+# refreshes mid-cycle anyway: the ceiling then refuses the plan's last
+# send, a stop, never a send over the bound.
+TOKEN_MARGIN=30
+# The run's account's access token, its seconds left as the daemon
+# reports them, once the start's keyring restore is over; empty when the
+# daemon holds none for it.
+token_seconds() {
+    local st=
+    for _ in $(seq 1 600); do
+        st=$("$ACQ" auth status --json 2>/dev/null || echo '{}')
+        [ "$(echo "$st" | jq -r '.keyring // empty')" = restoring ] || break
+        sleep 0.1
+    done
+    echo "$st" | jq -r --arg u "${ACQ_ACCOUNT:-}" '
+        [.accounts[]? | select($u == "" or .username == $u)]
+        | if length == 1 then (.[0].access_expires_in_seconds // empty) else empty end'
+}
 CLOSED=0
 for c in $(seq 1 "$CYCLES"); do
     tag="c$c"
@@ -595,8 +639,10 @@ for c in $(seq 1 "$CYCLES"); do
     [ $((fetches + subs)) -gt 0 ] && probes=$((probes + 1))
     [ "$clists" -gt 0 ] && probes=$((probes + 1))
     [ "$cfetches" -gt 0 ] && probes=$((probes + 1))
-    ceiling=$((1 + probes + logical))
     pace=""
+    # The cycle's seconds on the wire: the live estimate below; a mock
+    # cycle takes a few.
+    est=5
     if [ "$MODE" = live ]; then
         stash_gets=$((fetches + subs))
         # Duration of this cycle on the wire, over-estimated on purpose:
@@ -639,9 +685,31 @@ for c in $(seq 1 "$CYCLES"); do
             pace=" — more than 15 GETs on one policy: expect one ~15 s limiter hold before the 16th (rung 7b); that is the limiter working"
         fi
     fi
-    confirm "cycle $c: fresh daemon with ceiling $ceiling = 1 token POST + $probes probe HEAD(s) + $logical GET(s) ($lists stash listing, $fetches tab, $subs substash, $clists character listing, $cfetches character; plan says $wire_min..$wire_max wire sends)$pace"
+    need=$((est + TOKEN_MARGIN))
+    confirm "cycle $c: fresh daemon with ceiling $probes probe HEAD(s) + $logical GET(s) ($lists stash listing, $fetches tab, $subs substash, $clists character listing, $cfetches character; plan says $wire_min..$wire_max wire sends), + 1 token POST if the access token it restores has less than ${need}s left (it reports that before anything is sent)$pace"
+    posts=0
+    ceiling=$((probes + logical))
     cycle_offset=$(journal_size)
     PID=$(spawn_daemon "$ceiling" "daemon-$tag.out")
+    LIFETIMES=$((LIFETIMES + 1))
+    left=$(token_seconds)
+    if [ -n "$left" ] && [ "$left" -ge "$need" ]; then
+        echo "daemon $tag: the access token it restored has ${left}s left, at least the cycle's ${need}s: no token POST this lifetime"
+    else
+        echo "daemon $tag: the access token it restored has ${left:-no}${left:+s} left, short of the cycle's ${need}s:"
+        echo "  stopped before it sent anything, and replaced by one whose ceiling carries the refresh's POST"
+        stop_daemon
+        [ "$(sends_since "$cycle_offset")" = 0 ] || { echo "*** the token read sent something" >&2; exit 1; }
+        mv "$RUN_DIR/daemon-$tag.out" "$RUN_DIR/daemon-$tag-read.out"
+        if [ -n "$left" ] && [ "$left" -gt 3 ]; then
+            echo "  it would lapse mid-cycle: waiting $((left - 3))s for it to lapse, so the cycle's first send is the refresh"
+            sleep $((left - 3))
+        fi
+        posts=1
+        ceiling=$((1 + probes + logical))
+        PID=$(spawn_daemon "$ceiling" "daemon-$tag.out")
+        LIFETIMES=$((LIFETIMES + 1))
+    fi
     echo "daemon $tag: pid $PID (ceiling $ceiling)"
 
     echo ""
@@ -696,7 +764,7 @@ for c in $(seq 1 "$CYCLES"); do
     save_status "$tag"
     "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$tag.json"
     stop_daemon
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$c" $((LOGIN_LIFETIME + c)) "$logical" "$probes" "$ceiling" "$quote" >>"$CYCLE_ROWS"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$c" "$LIFETIMES" "$logical" "$probes" "$ceiling" "$posts" "$quote" >>"$CYCLE_ROWS"
     note "cycle $c (plan → quote → apply)"
 done
 if [ "$CLOSED" = 0 ]; then

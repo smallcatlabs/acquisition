@@ -147,7 +147,10 @@ assert len(pin.findall(s)) == 1, 'no one rustix pin'
 p.write_text(pin.sub('', s))
 PY
 }
-run_case 'the rustix pin taken out'                              refuse 'rustix 1.1.4: build'      unpinned       $gate --only features
+# The refusal names the locked version, read from the lock as it stands,
+# so a Dependabot bump of rustix does not break the case (#161).
+rustix=$(awk '/^name = "rustix"$/ { getline; if ($3 ~ /^"1\./) { gsub(/"/, "", $3); print $3 } }' Cargo.lock)
+run_case 'the rustix pin taken out'                              refuse "rustix $rustix: build"    unpinned       $gate --only features
 # The release's targets are every triple release.yml names, in any YAML
 # form (the reviews of #91): each case checks exactly the set it names.
 FIVE="the release's 5 targets: aarch64-apple-darwin aarch64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu"

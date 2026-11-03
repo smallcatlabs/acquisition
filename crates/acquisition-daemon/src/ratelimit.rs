@@ -114,3 +114,50 @@ impl Clock for SystemClock {
         Box::pin(tokio::time::sleep_until(deadline.into()))
     }
 }
+
+/// A bound that expired before its future was ready ([`within_on`],
+/// [`by_on`]): the daemon's own, since tokio's `Elapsed` is built only by
+/// tokio.
+#[derive(Debug)]
+pub(crate) struct Expired;
+
+/// C160 — every tokio timer in the daemon sleeps through its one `Clock`:
+/// `future` raced against `bound` on `clock` ([`race`]). For a bound that
+/// holds no daemon (the login's callback reads); a daemon's own is
+/// `Daemon::within`.
+pub(crate) async fn within_on<T>(
+    clock: &dyn Clock,
+    bound: Duration,
+    future: impl Future<Output = T>,
+) -> Result<T, Expired> {
+    race(future, clock.sleep(bound)).await
+}
+
+/// C161 — `future` raced against the absolute `deadline` on `clock`
+/// ([`race`]): a send's deadline, taken once and spent by its answer and
+/// then its body, so the body has what the answer left.
+pub(crate) async fn by_on<T>(
+    clock: &dyn Clock,
+    deadline: Instant,
+    future: impl Future<Output = T>,
+) -> Result<T, Expired> {
+    race(future, clock.sleep_until(deadline)).await
+}
+
+/// The one race of a future against a bound's sleep, `biased` so the
+/// future is polled first and one ready at its bound's instant wins, as
+/// tokio's `timeout` has it. The sleep is polled outside the task's
+/// cooperative budget, as tokio's `timeout` polls its timer, so a future
+/// that spends the whole budget on every poll never holds an expired
+/// bound back (the system clock's sleep spends that budget). The loser is
+/// dropped when the race ends.
+async fn race<T>(
+    future: impl Future<Output = T>,
+    bound: Pin<Box<dyn Future<Output = ()> + Send + '_>>,
+) -> Result<T, Expired> {
+    tokio::select! {
+        biased;
+        done = future => Ok(done),
+        () = tokio::task::unconstrained(bound) => Err(Expired),
+    }
+}

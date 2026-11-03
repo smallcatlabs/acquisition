@@ -18,7 +18,12 @@ use tokio::sync::oneshot;
 /// The liveness guard on each wait: far past any healthy answer, and
 /// short of the local runner's kill (`.config/nextest.toml`'s default
 /// profile ends a test at four 30 s periods, 120 s, [`HANG`]'s equal), so
-/// the guard fires first, by its own margin, and names the wait.
+/// the guard fires first, by its own margin, and names the wait. A
+/// starvation bound, never a wait's signal: where a wait has an exact
+/// one (the token route's hold in
+/// `c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again`),
+/// the wait fails on it, and this bound stays around it for a runner
+/// that starves the work.
 const ANSWERED_WITHIN: Duration = Duration::from_secs(30);
 
 /// `work`'s answer, or `None` past [`ANSWERED_WITHIN`]. The work runs as
@@ -398,6 +403,16 @@ async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
 /// twice and the job gave up, and `auth check` could report success.
 /// The flight now closes at the install; the next lookup refreshes, and
 /// its landing waits for the held one.
+///
+/// The wait for that refresh fails on its exact signal: the token
+/// route held (`choke.check`) while the lookup has neither answered nor
+/// sent its POST. This test never moves its clock and nothing else is
+/// in flight on the route, so a hold there cannot end and the lookup can
+/// never send. The hold is read before the POSTs: the account transport
+/// records a POST at its arrival, before the limiter observes its
+/// landing, so a second POST read first could be followed by a hold its
+/// own send installed. `ANSWERED_WITHIN` stays around the wait as the
+/// starvation bound.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() {
     let (daemon, _store, mut held, sent_log, _base, log_path) = saving_daemon().await;
@@ -432,10 +447,17 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
                 .count()
         }
     };
-    let waited = {
-        let posts = posts.clone();
+    let waited: Option<Result<(), Duration>> = {
+        let (posts, daemon) = (posts.clone(), daemon.clone());
         answered(async move {
-            while !looked_up.load(Ordering::SeqCst) && posts() < 2 {
+            loop {
+                // The route's hold first, then the POSTs (the doc above).
+                let route = daemon.choke.check(crate::ratelimit::TOKEN_ROUTE);
+                if looked_up.load(Ordering::SeqCst) || posts() >= 2 {
+                    return Ok(());
+                }
+                // Held, and neither came: the lookup can never send.
+                route?;
                 // The poll's interval: a component test on a plain runtime has no
                 // park hook to wake it when the state it waits for holds.
                 tokio::time::sleep(Duration::from_millis(5)).await;
@@ -445,7 +467,14 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
     let posts_while_held = posts();
     held.release.send(()).unwrap();
 
-    waited.expect("the lookup refreshed or answered while the save was held");
+    match waited.expect("the lookup refreshed or answered while the save was held") {
+        Ok(()) => {}
+        Err(hold) => panic!(
+            "the token route is held for {hold:?} on a clock this test never moves, with \
+             {posts_while_held} POST sent and the lookup unanswered: it can never send its \
+             refresh"
+        ),
+    }
     assert_eq!(
         posts_while_held, 2,
         "the next lookup sent a refresh of its own, not the rejected token"

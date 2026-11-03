@@ -7,18 +7,18 @@
 //! beside an auth wait, malformed listings (the account's store read as
 //! a frontend reads it) and declared route knowledge. The rest are
 //! component tests, each saying the boundary it needs: progress beside
-//! rate waits, a probe's 429 under a private login, a blocked probe (the
-//! pick), the
-//! mark on disk and the log's redaction, real mode's whoami, the cancels
-//! at the choke point and the store that cannot record.
+//! rate waits, the log's redaction, real mode's whoami, the cancels at
+//! the choke point and the store that cannot record; and, on the door
+//! with an internal reached through its daemon, a probe's 429 under a
+//! private login, a blocked probe (the pick) and the mark on disk.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
-use crate::ratelimit::Clock;
-use crate::transport::{Reply, reply};
+use crate::ratelimit::{Clock, REQUEST_TIMEOUT, body_expired, send_expired};
+use crate::transport::{Reply, Scripted, reply};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -59,12 +59,17 @@ fn fetch_payload_marker(outcome: &Outcome) -> &str {
     payload["items"][0].as_str().unwrap()
 }
 
-/// `wait_ms` of every send, in journal order.
-fn journal_waits(log_path: &std::path::Path) -> Vec<u64> {
-    journal_sends(log_path)
+/// `wait_ms` of every send the door's journal holds, in order.
+fn journal_waits(door: &Door) -> Vec<u64> {
+    door.journal()
         .iter()
         .map(|l| l["wait_ms"].as_u64().expect("wait_ms"))
         .collect()
+}
+
+/// The methods the door's scripted transport received, in order.
+fn received_methods(door: &Door) -> Vec<String> {
+    door.received().into_iter().map(|r| r.method).collect()
 }
 
 /// C21 (an auth wait occupies no dispatcher slot): two jobs held behind
@@ -369,10 +374,11 @@ fn declared_route_knowledge_holds_against_the_mock() {
 /// C19 for a probe: a HEAD's 429 that fails setup still holds its route
 /// for its clamped `Retry-After` plus the retry bucket. A login clears the
 /// setup failure's cooldown at once (`forget_degraded`, as `login` does),
-/// so the next job's probe is held by the hold alone. A component test
-/// (C158): the private `forget_degraded` stands in for that login.
-#[tokio::test]
-async fn a_head_429_that_fails_setup_holds_the_next_probe() {
+/// so the next job's probe is held by the hold alone. Through the door,
+/// a component test (C158): the private `forget_degraded`, reached on
+/// the door's daemon, stands in for that login.
+#[test]
+fn a_head_429_that_fails_setup_holds_the_next_probe() {
     let full_missing = || ScriptedResponse::full("HEAD", "429 Too Many Requests", None, "");
     let cases = [
         ("Full, missing", full_missing(), full_hold_ms()),
@@ -393,35 +399,28 @@ async fn a_head_429_that_fails_setup_holds_the_next_probe() {
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
             ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
         ];
-        let (transport, requests, ends) = scripted_transport(responses);
-        let clock = Arc::new(ParkingClock::new());
-        let (daemon, log_path) = test_daemon(Boundary::Function, transport, clock.clone());
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let first = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        let (info, _) = wait_terminal(&daemon, first).await;
-        assert_eq!(info.state, JobState::Failed, "{name}");
-        daemon.choke.forget_degraded();
-        let second = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        // The clock crosses the 429's hold, which parks the next probe.
-        advance_until(&clock, || state_of(&daemon, second).is_terminal()).await;
-        let (_, outcome) = wait_terminal(&daemon, second).await;
-        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "HEAD", "GET"],
-            "{name}"
-        );
-        assert_eq!(
-            journal_waits(&log_path),
-            [0, hold, 0],
-            "{name}: the next probe waits the clamped Retry-After plus the bucket"
-        );
-        assert_whole(&ends);
-        finish_harness_wire(dispatcher, &log_path, &requests);
+        Door::open(
+            Server::Script(responses),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|mut door| async move {
+            let first = door.submit("fetch", None).await;
+            let (info, _) = door.await_terminal(first).await;
+            assert_eq!(info.state, JobState::Failed, "{name}");
+            door.daemon().choke.forget_degraded();
+            let second = door.submit("fetch", None).await;
+            // The hook moves the clock across the 429's hold, which parks
+            // the next probe.
+            let (_, outcome) = door.await_terminal(second).await;
+            assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+            assert_eq!(
+                journal_waits(&door),
+                [0, hold, 0],
+                "{name}: the next probe waits the clamped Retry-After plus the bucket"
+            );
+            door.finish().await;
+        });
     }
 }
 
@@ -477,11 +476,13 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
 /// the route for its `Retry-After` (C19), as a blocked GET's 429 does.
 /// Once `reset-tripwire` clears the mark, the same probe goes out afresh,
 /// behind that hold for the 1015 and at once for the challenge, and the
-/// job goes out. A component test (C158): it reads the pick
-/// (`pick_runnable`), the route's state (`endpoint_state`) and its hold
-/// (`choke.check`), none of which crosses the protocol.
-#[tokio::test]
-async fn a_blocked_probe_is_no_probe_failure() {
+/// job goes out. Through the door, a component test (C158): it reads, on
+/// the door's daemon, the jobs' table, the pick (`pick_runnable`), the
+/// route's state (`endpoint_state`) and its hold (`choke.check`), none of
+/// which crosses the protocol, and resets the rails by the private call
+/// (`reset_rails`).
+#[test]
+fn a_blocked_probe_is_no_probe_failure() {
     let head_1015 = ScriptedResponse {
         method: "HEAD",
         path: "/fetch",
@@ -495,187 +496,165 @@ async fn a_blocked_probe_is_no_probe_failure() {
         ..ScriptedResponse::cloudflare_403_challenge()
     };
     for (name, head, status) in [("1015", head_1015, 429), ("challenge", head_challenge, 403)] {
-        let (transport, requests, ends) = scripted_transport(vec![
+        let script = vec![
             head,
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
             ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
-        ]);
-        let clock = Arc::new(ParkingClock::new());
-        let (daemon, log_path) = test_daemon(Boundary::Function, transport, clock.clone());
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let id = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        // The block lands while the probe runs; the probe is then turned
-        // away, back to waiting (C25), where it was a failure before.
-        let probe = tokio::time::timeout(HANG, async {
-            loop {
-                let parked = daemon
-                    .shared
-                    .lock()
-                    .unwrap()
-                    .jobs
-                    .values()
-                    .find(|entry| {
-                        entry.info.kind == "probe" && entry.info.state == JobState::Waiting
-                    })
-                    .map(|entry| entry.info.id);
-                if let Some(probe) = parked
-                    && daemon.choke.rails().halted().is_some()
-                {
-                    return probe;
-                }
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("the probe was turned away");
-        // Nothing more acts on the queue: with the dispatcher stopped and
-        // no job task left running, only a pick could, and the pick passes
-        // the turned-away probe over while halted. So no spin, no job
-        // failed as "route degraded" and no re-probe, read below once the
-        // queue is still. Then a fresh dispatcher takes the queue on.
-        dispatcher.abort();
-        tokio::time::timeout(HANG, async {
-            while !daemon.shared.lock().unwrap().active_jobs.is_empty() {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("no job task left running");
-        assert!(
-            daemon.pick_runnable().is_empty(),
-            "{name}: the pick passes the probe over while halted"
-        );
-
-        let halt = daemon
-            .choke
-            .rails()
-            .halted()
-            .expect("the block mark is set");
-        assert!(
-            halt.contains(&format!(
-                "Cloudflare answered in GGG's place: {status} on HEAD fetch"
-            )),
-            "{name}: {halt}"
-        );
-        assert_eq!(
-            daemon.choke.endpoint_state("fetch"),
-            EndpointState::Unknown,
-            "{name}: a block teaches the route nothing"
-        );
-        let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
-        assert_eq!(
-            state,
-            JobState::Waiting,
-            "{name}: the job waits on the halt"
-        );
-        assert_ne!(probe, id);
-        let (state, retries) = {
-            let s = daemon.shared.lock().unwrap();
-            (s.jobs[&probe].info.state, s.jobs[&probe].info.retries)
-        };
-        assert_eq!(
-            (state, retries),
-            (JobState::Waiting, 0),
-            "{name}: the probe waits on the halt"
-        );
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"], "{name}");
-
-        let held = daemon.choke.check("fetch").err();
-        if status == 429 {
+        ];
+        Door::open(
+            Server::Script(script),
+            Arc::new(ParkingClock::new()),
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .run(|mut door| async move {
+            let id = door.submit("fetch", None).await;
+            // The block lands while the probe runs; the probe is then
+            // turned away, back to waiting (C25), where it was a failure
+            // before. Settled, the daemon has done all it can without
+            // time moving, the dispatcher live: no job task is left
+            // running and the pick passes the turned-away probe over
+            // while halted. So no spin, no job failed as "route
+            // degraded" and no re-probe, read below.
+            door.settle().await;
+            let daemon = door.daemon().clone();
+            let probe = daemon
+                .shared
+                .lock()
+                .unwrap()
+                .jobs
+                .values()
+                .find(|entry| entry.info.kind == "probe" && entry.info.state == JobState::Waiting)
+                .map(|entry| entry.info.id)
+                .unwrap_or_else(|| panic!("{name}: the probe was turned away"));
             assert!(
-                held.is_some_and(|wait| wait >= Duration::from_secs(30)),
-                "{name}: the route is held for Cloudflare's Retry-After: {held:?}"
+                daemon.shared.lock().unwrap().active_jobs.is_empty(),
+                "{name}: no job task left running"
             );
-        } else {
-            assert_eq!(held, None, "{name}: a 403 installs no hold");
-        }
+            assert!(
+                daemon.pick_runnable().is_empty(),
+                "{name}: the pick passes the probe over while halted"
+            );
 
-        // The clock crosses the 1015's 30 s hold (its `Retry-After`),
-        // which parks the fresh probe; the challenge's probe holds none.
-        daemon.reset_rails().unwrap();
-        advance_until(&clock, || state_of(&daemon, id).is_terminal()).await;
-        let (info, _) = wait_terminal(&daemon, id).await;
-        assert_eq!(info.state, JobState::Done, "{name}");
-        assert_eq!(
-            requests.lock().unwrap().as_slice(),
-            ["HEAD", "HEAD", "GET"],
-            "{name}"
-        );
-        let hold = if status == 429 {
-            30_000 + full_hold_ms()
-        } else {
-            0
-        };
-        assert_eq!(
-            journal_waits(&log_path),
-            [0, hold, 0],
-            "{name}: the fresh probe waits out the hold, and only it"
-        );
-        assert_whole(&ends);
-        finish_harness_wire(dispatcher, &log_path, &requests);
+            let halt = daemon
+                .choke
+                .rails()
+                .halted()
+                .expect("the block mark is set");
+            assert!(
+                halt.contains(&format!(
+                    "Cloudflare answered in GGG's place: {status} on HEAD fetch"
+                )),
+                "{name}: {halt}"
+            );
+            assert_eq!(
+                daemon.choke.endpoint_state("fetch"),
+                EndpointState::Unknown,
+                "{name}: a block teaches the route nothing"
+            );
+            let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
+            assert_eq!(
+                state,
+                JobState::Waiting,
+                "{name}: the job waits on the halt"
+            );
+            assert_ne!(probe, id);
+            let (state, retries) = {
+                let s = daemon.shared.lock().unwrap();
+                (s.jobs[&probe].info.state, s.jobs[&probe].info.retries)
+            };
+            assert_eq!(
+                (state, retries),
+                (JobState::Waiting, 0),
+                "{name}: the probe waits on the halt"
+            );
+            assert_eq!(received_methods(&door), ["HEAD"], "{name}");
+
+            let held = daemon.choke.check("fetch").err();
+            if status == 429 {
+                assert!(
+                    held.is_some_and(|wait| wait >= Duration::from_secs(30)),
+                    "{name}: the route is held for Cloudflare's Retry-After: {held:?}"
+                );
+            } else {
+                assert_eq!(held, None, "{name}: a 403 installs no hold");
+            }
+
+            // The hook moves the clock across the 1015's 30 s hold (its
+            // `Retry-After`), which parks the fresh probe; the
+            // challenge's probe holds none.
+            daemon.reset_rails().unwrap();
+            let (info, _) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Done, "{name}");
+            let hold = if status == 429 {
+                30_000 + full_hold_ms()
+            } else {
+                0
+            };
+            assert_eq!(
+                journal_waits(&door),
+                [0, hold, 0],
+                "{name}: the fresh probe waits out the hold, and only it"
+            );
+            door.finish().await;
+        });
     }
 }
 
 /// C129, the mark on disk: a component case of the rails' state file,
 /// which no frontend reads (a restart's report of the mark is the wire
 /// table's second lifetime, the rows
-/// `a_cloudflare_block_admits_nothing_and_survives_a_restart`). For each
-/// block shape the file holds the mark, and none of the page's fragments
-/// and neither header the response carried.
-#[tokio::test]
-async fn a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header() {
+/// `a_cloudflare_block_admits_nothing_and_survives_a_restart`), read
+/// through the door once the job has ended. For each block shape the
+/// file holds the mark, and none of the page's fragments and neither
+/// header the response carried.
+#[test]
+fn a_cloudflare_blocks_mark_on_disk_keeps_no_page_or_header() {
     for (name, block, _, _) in cloudflare_blocks() {
         let body = block.body.clone();
-        let (transport, requests, ends) = scripted_transport(vec![
+        let script = vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
             block,
-        ]);
+        ];
         let state = TestPath::dir();
         let state_path = state.join("c129-rails.json");
-        let (daemon, log_path) = test_daemon_with(
-            Boundary::Function,
-            Provider::mock(BASE),
-            transport,
+        Door::open(
+            Server::Script(script),
             Arc::new(ParkingClock::new()),
-            RailsConfig {
-                state_path: Some(state_path.clone()),
-                ..RailsConfig::default()
-            },
-        );
-        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
-        let id = daemon
-            .submit("fetch".into(), json!({}), 0, "test".into(), None)
-            .unwrap();
-        assert_eq!(
-            wait_terminal(&daemon, id).await.0.state,
-            JobState::Failed,
-            "{name}"
-        );
-        let persisted = std::fs::read_to_string(&state_path).unwrap();
-        assert!(
-            persisted.contains("Cloudflare answered in GGG's place"),
-            "{name}: the mark is on disk: {persisted}"
-        );
-        for fragment in PAGE_FRAGMENTS
-            .into_iter()
-            .filter(|fragment| body.contains(fragment))
-        {
-            assert!(
-                !persisted.contains(fragment),
-                "{name}: the mark kept the body's {fragment:?}: {persisted}"
+            Arc::new(RecordingCredentialStore::default()),
+        )
+        .rails(RailsConfig {
+            state_path: Some(state_path.clone()),
+            ..RailsConfig::default()
+        })
+        .run(|mut door| async move {
+            let id = door.submit("fetch", None).await;
+            assert_eq!(
+                door.await_terminal(id).await.0.state,
+                JobState::Failed,
+                "{name}"
             );
-        }
-        for header in BLOCK_HEADERS {
+            let persisted = std::fs::read_to_string(&state_path).unwrap();
             assert!(
-                !persisted.contains(header),
-                "{name}: the mark kept {header:?}: {persisted}"
+                persisted.contains("Cloudflare answered in GGG's place"),
+                "{name}: the mark is on disk: {persisted}"
             );
-        }
-        assert_whole(&ends);
-        finish_harness_wire(dispatcher, &log_path, &requests);
+            for fragment in PAGE_FRAGMENTS
+                .into_iter()
+                .filter(|fragment| body.contains(fragment))
+            {
+                assert!(
+                    !persisted.contains(fragment),
+                    "{name}: the mark kept the body's {fragment:?}: {persisted}"
+                );
+            }
+            for header in BLOCK_HEADERS {
+                assert!(
+                    !persisted.contains(header),
+                    "{name}: the mark kept {header:?}: {persisted}"
+                );
+            }
+            door.finish().await;
+        });
     }
 }
 
@@ -1156,7 +1135,9 @@ fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() 
 /// `Request::List` lists them), ends as [`Job`] says; the journal's sends
 /// are the row's as [`journal_projection`] reads them; each fragment of
 /// `forbids` is absent from every surface it names; and the parking
-/// clock moved at most `virtual_at_most` over the row. What the daemon's
+/// clock moved at most `virtual_at_most` over the row. A step of the
+/// script `quiet` names answers in one of the scripted transport's quiet
+/// forms ([`Quiet`]). What the daemon's
 /// status and dashboard answer mid-row is asserted by the step that reads
 /// it ([`Step`]).
 #[derive(Default)]
@@ -1165,6 +1146,8 @@ struct Row {
     /// row replaced, that test's name, then the case.
     name: String,
     script: Vec<ScriptedResponse>,
+    /// The script's steps, by place, answered quietly.
+    quiet: Vec<(usize, Quiet)>,
     /// The daemon starts with `test-user`'s session
     /// ([`logged_in_sessions`]), else with one empty session.
     logged_in: bool,
@@ -1173,6 +1156,16 @@ struct Row {
     journal: Vec<Value>,
     forbids: Vec<Forbid>,
     virtual_at_most: Option<Duration>,
+}
+
+/// How a step of a row's script answers when it does not answer at once
+/// (C161: the send's deadline cuts it on the door's clock).
+enum Quiet {
+    /// Silent before its headers (`Scripted::Silent`).
+    Silent,
+    /// Its head after this long on the door's clock, then a silent body
+    /// (`Scripted::Delayed`).
+    Delayed(Duration),
 }
 
 /// One step of a row, through the door, as a frontend takes it.
@@ -1986,6 +1979,79 @@ fn wire_rows() -> Vec<Row> {
         ],
         ..Row::default()
     });
+    // C161: a send's deadline is the choke point's, on the door's clock,
+    // one instant REQUEST_TIMEOUT from the send's dispatch, over its answer
+    // and its body; the hook moves the clock to it, so its expiry is a row.
+    // C19 for the first: a GET silent before its headers is cut at its
+    // dispatch plus 60 s and fails its job in the deadline's words, a send
+    // lost in transport, with no status; it is noted as lost on the
+    // probe's established policy (`1:10:60`), so the next job, picked at
+    // the cut (one job per route at a time), is held as if the lost send
+    // counted: the window full from the cut, the 10 s period, the 5 s
+    // initial-window bucket and the 1 s buffer, measured from its pick at
+    // the cut, as the headerless 503's is from the 503.
+    rows.push(Row {
+        name: "a_send_silent_before_its_headers_is_cut_at_its_deadline_and_paced_as_lost".into(),
+        script: vec![
+            ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status: "204 No Content",
+                headers: policy.into(),
+                body: String::new(),
+            },
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["never"]}"#),
+            ScriptedResponse {
+                method: "GET",
+                path: "/fetch",
+                status: "200 OK",
+                headers: policy.replace("0:10:0", "1:10:0"),
+                body: r#"{"items":["done"]}"#.into(),
+            },
+        ],
+        quiet: vec![(1, Quiet::Silent)],
+        steps: vec![
+            Step::Send(vec![submit("fetch"), submit("fetch")]),
+            Step::Await(vec![(0, Failed), (1, Done)]),
+        ],
+        jobs: vec![
+            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &send_expired()]),
+            Job::fetch(Done).marker("done"),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", null, false, true, 0, null]),
+            json!(["GET", "/fetch", 200, true, true, 16_000, null]),
+        ],
+        virtual_at_most: Some(REQUEST_TIMEOUT + Duration::from_secs(16)),
+        ..Row::default()
+    });
+    // C161: one instant for the whole exchange, no fresh budget for the
+    // body. The GET's head comes 20 s after its dispatch on the door's
+    // clock (the transport holds nothing while it waits, so the hook moves
+    // to it), then its body never completes: the send is cut at its
+    // dispatch plus 60 s, not 80, keeps its status, and fails its job in
+    // the body's words. The bound refuses a cut at 80 s.
+    rows.push(Row {
+        name: "a_body_silent_after_a_late_head_is_cut_at_the_sends_one_deadline".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["never"]}"#),
+        ],
+        quiet: vec![(1, Quiet::Delayed(Duration::from_secs(20)))],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &body_expired()]),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, false, true, 0, null]),
+        ],
+        virtual_at_most: Some(REQUEST_TIMEOUT),
+        ..Row::default()
+    });
     // C26: a 403 or a 503 is never retried and never waited on (invariant
     // 3). The third case is rung 10's live 503 (2026-08-24), an origin
     // page, named as such and still never retried.
@@ -2207,6 +2273,7 @@ fn c158_the_wire_table_through_the_door() {
         let Row {
             name,
             script,
+            quiet,
             logged_in,
             steps,
             jobs,
@@ -2224,8 +2291,19 @@ fn c158_the_wire_table_through_the_door() {
             .iter()
             .any(|step| matches!(step, Step::SecondLifetime { .. }))
             .then(|| state.join("rails.json"));
+        let script = script
+            .into_iter()
+            .enumerate()
+            .map(|(place, response)| {
+                match quiet.iter().find(|(at, _)| *at == place).map(|(_, q)| q) {
+                    None => response.into(),
+                    Some(Quiet::Silent) => Scripted::Silent(response.method, response.path),
+                    Some(Quiet::Delayed(after)) => Scripted::Delayed(*after, response),
+                }
+            })
+            .collect();
         let mut door = Door::open(
-            Server::Script(script),
+            Server::Steps(script),
             clock,
             Arc::new(RecordingCredentialStore::default()),
         )

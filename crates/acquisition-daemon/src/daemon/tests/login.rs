@@ -626,7 +626,7 @@ async fn a_bound_expires_though_its_future_spends_every_poll_budget() {
     };
     let bounded = tokio::time::timeout(
         HANG,
-        crate::daemon::within_on(&SystemClock, Duration::ZERO, busy),
+        crate::ratelimit::within_on(&SystemClock, Duration::ZERO, busy),
     )
     .await
     .expect("the bound expired behind a future that spends its budget");
