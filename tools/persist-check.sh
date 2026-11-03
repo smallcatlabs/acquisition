@@ -12,13 +12,15 @@
 # --account (or have ACQ_ACCOUNT exported) naming the account whose tabs
 # these are.
 #
-# Live mode sends ~13 real requests across two daemon lifetimes:
-#   lifetime 1 (ceiling 6):  POST, HEAD+GET list, HEAD stash, ~2 child GETs,
-#                            then the ceiling halts the queue
+# Live mode sends ~13 real requests across two daemon lifetimes (a
+# lifetime's token POST only when its restored access token has lapsed,
+# C135; without it the ceiling admits one more child GET):
+#   lifetime 1 (ceiling 6):  [POST], HEAD+GET list, HEAD stash, ~2 child
+#                            GETs, then the ceiling halts the queue
 #   kill -9 the halted daemon
-#   lifetime 2 (ceiling 10): POST, HEAD stash (probe reads the real counters
-#                            — its hits > 0 are OURS, expected), rest of the
-#                            children; the parent finishes done
+#   lifetime 2 (ceiling 10): [POST], HEAD stash (probe reads the real
+#                            counters — its hits > 0 are OURS, expected),
+#                            rest of the children; the parent finishes done
 # Mock mode proves the script itself on the in-process provider first:
 # isolated socket + store, a throwaway mock login (the mock's keyring
 # service is separate from the real one; NOT ACQ_NO_KEYRING — the session
