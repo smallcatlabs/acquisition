@@ -7,7 +7,8 @@ saved logs (`runs/transport-seam-after/`, Weekly `41567365592` on the tag
 `f84960ff`, every line number below from it except the mutants' in the
 Input table, which are the after-run's at `a6e34e8e` (`choke.rs` moved by
 26 lines at `d831658c`; the measure's patterns are `f84960ff`'s). To be reviewed cold before a
-worker reads it. Its one ruling (Do 1) is the owner's.
+worker reads it. The worker runs on Opus 5.5. Its one ruling (Do 1) is the owner's, given on
+2026-11-03 ("Accept it") and in #151's body the same day.
 
 ## Goal
 
@@ -158,8 +159,8 @@ that lists nothing has met an edit the step should not have made.
 ## Do
 
 1. **The ruling, the owner's, before any code.** #151's "Closes when"
-   is restated as follows (drafted 2026-11-03; the owner's word is
-   needed before Do 4):
+   is restated as follows (drafted and accepted 2026-11-03, "Accept
+   it"; the issue's body carries it, the old sentence struck through):
 
    > Closes when a Weekly after-run, compared by
    > `tools/mutants-compare.py` against `41567365592`
@@ -171,7 +172,6 @@ that lists nothing has met an edit the step should not have made.
    > building mutants, which grows with their count, not with what the
    > tests catch.
 
-   On his word, the orchestrating session edits the issue's body.
 2. **The compare reads the cuts and the minutes.** `tools/mutants-compare.py`
    gains the sweep above:
    - each timeout of the after-run, with the tests its log names as cut;
@@ -191,7 +191,10 @@ that lists nothing has met an edit the step should not have made.
    Return the table to the orchestrating session, with the shape
    proposed for each class (Do 4), before any test changes. The session
    approves it or answers within the round; this is the step's one
-   agent-facing design decision.
+   agent-facing design decision. Where a class has two defensible
+   shapes and the smaller is not obvious, as (c) or (d) may, the session
+   asks a Fable oracle for the recommendation before answering, and
+   records it as a dated bullet in its close.
 4. **Fail fast, by the first rule that fits.** Each rule names a signal
    that is exact, never a wall bound shorter than `HANG` or a count of
    yields:
@@ -225,8 +228,6 @@ that lists nothing has met an edit the step should not have made.
 
 ## Done when
 
-- Do 1's restatement is the owner's word, quoted in the step's first
-  commit message, or the step has stopped there.
 - `tools/mutants-compare.py` prints the cuts and the minutes. Its run
   over `runs/151-stuck-verdict-after` and `runs/transport-seam-after`
   prints, under the timeouts, the sixteen's rows as the Input table
