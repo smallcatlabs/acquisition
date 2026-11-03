@@ -1116,7 +1116,7 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
         REFUSED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         false
     }
-    let conn = Connection::open(&path).unwrap();
+    let mut conn = Connection::open(&path).unwrap();
     conn.busy_handler(Some(refuse)).unwrap();
     let s = Store::init(conn, path.clone());
     assert_eq!(
@@ -1153,7 +1153,7 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
         std::thread::yield_now();
         true
     }
-    let conn = Connection::open(&path).unwrap();
+    let mut conn = Connection::open(&path).unwrap();
     conn.busy_handler(Some(noticed)).unwrap();
     let opened = std::thread::scope(|scope| {
         let opener = scope.spawn(|| Store::init(conn, path.clone()).map(drop));
@@ -2537,7 +2537,7 @@ fn c137_the_store_wait_at_zero_refuses_a_blocked_read_only_reader_at_once() {
 fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("plain.db");
-    let a = Connection::open(&path).unwrap();
+    let mut a = Connection::open(&path).unwrap();
     a.busy_timeout(std::time::Duration::ZERO).unwrap();
     a.execute_batch("CREATE TABLE t (x)").unwrap();
     let switches = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -2552,7 +2552,8 @@ fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
             seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
         rusqlite::hooks::Authorization::Allow
-    }));
+    }))
+    .unwrap();
     let b = Connection::open(&path).unwrap();
     b.execute_batch("BEGIN IMMEDIATE").unwrap();
     let err = ensure_wal(&a, std::time::Duration::ZERO).unwrap_err();
