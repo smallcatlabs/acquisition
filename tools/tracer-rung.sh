@@ -406,6 +406,18 @@ if [ "$MODE" = live ]; then
 else
     NEED_LOGIN=1
 fi
+# A queue an earlier daemon left on disk resumes in the first daemon
+# this run starts, before any plan of the run's is applied: its sends
+# would spend the run's ceilings and go out under no plan of its own
+# (2026-11-03: 250 jobs of an earlier deep refresh, restored by cycle 1's
+# token read). `jobs` reads the queue on disk with no daemon (C45).
+open_jobs=$("$ACQ" jobs --json | jq '.persisted.total // 0')
+if [ "$open_jobs" != 0 ]; then
+    echo "refusing: $open_jobs job(s) an earlier daemon left on disk would resume in this run's first daemon:" >&2
+    "$ACQ" jobs >&2 || true
+    echo "cancel them first (the live-run skill, \"If something trips\"), then run again" >&2
+    exit 2
+fi
 OFFSET=$(journal_size)
 LOGIN_LIFETIME=0
 
