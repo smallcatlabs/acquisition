@@ -34,11 +34,21 @@ Every mutant missed after falls in one of three lists:
   outcome was before, or "added".
 
 Timeouts count as caught, as the config says; they are compared as their
-own outcome all the same. Reads only; prints the comparison.
+own outcome all the same. Two sections follow (#151's restated close):
+
+- each timeout of AFTER, with the tests its log names as cut: nextest's
+  `SIGTERM` lines, the tests still running when cargo-mutants' timeout
+  ended the suite (a floor, not the inventory: the tests not yet started
+  are not named);
+- each shard's minutes of both runs, its wall time from its header and
+  the phases' durations summed by outcome, from `outcomes.json`.
+
+Reads only; prints the comparison.
 """
 
 import argparse
 import collections
+import datetime
 import glob
 import json
 import os
@@ -53,6 +63,7 @@ OUTCOMES = {
     "Timeout": "timeout",
     "Unviable": "unviable",
 }
+CUT = re.compile(r"SIGTERM \[[^\]]*\] \([^)]*\) \S+ (\S+)")
 NAME = re.compile(r"^(?P<file>.*?):(?P<line>\d+):(?P<col>\d+): (?P<desc>.*)$", re.S)
 
 
@@ -95,11 +106,15 @@ def load(run_dir, count):
             data = json.load(handle)
         header = {k: v for k, v in data.items() if k != "outcomes"}
         header["shard"] = os.path.basename(os.path.dirname(path))
+        header["phases"] = collections.Counter()
         if not header.get("end_time"):
             sys.exit(f"mutants-compare: {path}: {header['shard']} has not ended (no end_time): a run cut short")
         counted = collections.Counter()
         for outcome in data["outcomes"]:
             scenario = outcome["scenario"]
+            kind = "baseline" if scenario == "Baseline" else OUTCOMES.get(outcome["summary"], outcome["summary"])
+            for phase in outcome.get("phase_results") or []:
+                header["phases"][(kind, phase["phase"].lower())] += phase["duration"]
             if scenario == "Baseline":
                 if outcome["summary"] != "Success":
                     sys.exit(f"mutants-compare: {path}: the unmutated tree did not pass")
@@ -121,6 +136,7 @@ def load(run_dir, count):
                     "at": (int(match["line"]), int(match["col"])),
                     "outcome": summary,
                     "shard": header["shard"],
+                    "log": os.path.join(os.path.dirname(path), outcome["log_path"]),
                 }
             )
             counted[summary] += 1
@@ -151,6 +167,34 @@ def exclusions(rev):
     return [(p, re.compile(re.sub(r":\d+:(\d+):", r":\\d+:\1:", p, count=1))) for p in patterns]
 
 
+def cut_tests(mutant):
+    """The tests nextest names as cut in a mutant's log, or None when the
+    log is not there."""
+    try:
+        with open(mutant["log"], encoding="utf-8", errors="replace") as handle:
+            return sorted(set(CUT.findall(handle.read())))
+    except FileNotFoundError:
+        return None
+
+
+def minutes(label, shards):
+    print(f"{label}: minutes by shard, wall from its header, then the phases summed by outcome")
+    for s in shards:
+        wall = (datetime.datetime.fromisoformat(s["end_time"]) - datetime.datetime.fromisoformat(s["start_time"]))
+        phases = s["phases"]
+        total = collections.Counter()
+        for (_, phase), seconds in phases.items():
+            total[phase] += seconds
+        line = f"  {s['shard']}: wall {wall.total_seconds() / 60:.1f}; " + ", ".join(
+            f"{phase} {seconds / 60:.1f}" for phase, seconds in sorted(total.items())
+        )
+        print(line)
+        for kind in ("baseline", "caught", "missed", "timeout", "unviable"):
+            parts = [f"{phase} {phases[(kind, phase)] / 60:.1f}" for phase in sorted(total) if (kind, phase) in phases]
+            if parts:
+                print(f"    {kind}: " + ", ".join(parts))
+
+
 def where(mutant):
     return f"{os.path.basename(mutant['file'])}:{mutant['at'][0]}:{mutant['at'][1]}"
 
@@ -163,10 +207,11 @@ def main():
     parser.add_argument("--config-rev", default="HEAD")
     args = parser.parse_args()
 
-    runs = {}
+    runs, headers = {}, {}
     for label, run_dir, rev in (("before", args.before, args.before_rev), ("after", args.after, args.config_rev)):
         mutants, shards = load(run_dir, shard_count(rev))
         runs[label] = mutants
+        headers[label] = shards
         versions = sorted({s.get("cargo_mutants_version") for s in shards})
         print(f"{label}: {run_dir}, cargo-mutants {', '.join(map(str, versions))}")
         for s in shards:
@@ -240,6 +285,23 @@ def main():
             if pattern:
                 line += f"\n    listed as {pattern}"
             print(line)
+
+
+    timeouts = sorted((m for m in runs["after"] if m["outcome"] == "timeout"), key=lambda m: (m["file"], m["at"]))
+    print(f"\ntimeouts after: {len(timeouts)}, each with the tests its log names as cut")
+    for m in timeouts:
+        tests = cut_tests(m)
+        name = m["name"].split("src/", 1)[-1]
+        if tests is None:
+            print(f"  {name}\n    (no log at {m['log']})")
+        elif not tests:
+            print(f"  {name}\n    (its log names no test as cut)")
+        else:
+            print(f"  {name}" + "".join(f"\n    {t}" for t in tests))
+
+    print()
+    for label in ("before", "after"):
+        minutes(label, headers[label])
 
 
 if __name__ == "__main__":

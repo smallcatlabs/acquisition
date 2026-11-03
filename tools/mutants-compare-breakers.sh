@@ -14,6 +14,11 @@
 # plain `exclude_re` pattern of .cargo/mutants.toml at HEAD, its line
 # moved, so the case follows the config.
 #
+# The timed-out mutant's log carries nextest's `SIGTERM` lines (one test
+# named twice, as nextest repeats them in its summary), and every outcome
+# carries phase durations, so the positive case asserts the cut tests and
+# the minutes as the script prints them (#151's restated close).
+#
 # A refusal is evidence only when it names the property: each case
 # requires a non-zero exit and the words that name what it broke, and the
 # positive case must compare and print its expected counts and lists, so
@@ -70,19 +75,30 @@ rows += [
     (mutant(DAEMON + "gate.rs", 220, 9, "replace slow -> bool with true in slow", "slow"), "Timeout", "Timeout"),
     (mutant(DAEMON + "gate.rs", 230, 9, "replace odd -> bool with true in odd", "odd"), "Unviable", "Unviable"),
 ]
+CUT = ["daemon::tests::door::a_stalled_wait", "daemon::tests::dispatch::a_held_probe"]
+LOG = "".join(f"     SIGTERM [  19.399s] ( {75 + i}/327) acquisition-daemon {t}\n    (test aborted with signal 15: SIGTERM)\n"
+              for i, t in enumerate(CUT + CUT[:1]))
+# Seconds per phase: a timeout's test runs to the cut, the rest end early.
+PHASES = {"CaughtMutant": [("Build", 60), ("Test", 6)], "MissedMutant": [("Build", 60), ("Test", 6)],
+          "Timeout": [("Build", 60), ("Test", 30)], "Unviable": [("Build", 60)]}
 KIND = {"CaughtMutant": "caught", "MissedMutant": "missed", "Timeout": "timeout", "Unviable": "unviable"}
 
 def write(index, members):
     outcomes = [{"scenario": "Baseline", "summary": "Success", "log_path": "log/baseline.log",
-                 "diff_path": None, "phase_results": []}]
+                 "diff_path": None, "phase_results": [{"phase": "Build", "duration": 120.0}, {"phase": "Test", "duration": 6.0}]}]
     header = {"total_mutants": len(members), "missed": 0, "caught": 0, "timeout": 0, "unviable": 0, "success": 0}
+    os.makedirs(f"{out}/mutants-shard-{index}/log")
     for mut, summary in members:
-        outcomes.append({"scenario": {"Mutant": mut}, "summary": summary, "log_path": "log/x.log",
-                         "diff_path": "diff/x.diff", "phase_results": []})
+        log = "log/x.log"
+        if summary == "Timeout":
+            log = "log/slow.log"
+            with open(f"{out}/mutants-shard-{index}/{log}", "w") as f:
+                f.write(LOG)
+        outcomes.append({"scenario": {"Mutant": mut}, "summary": summary, "log_path": log, "diff_path": "diff/x.diff",
+                         "phase_results": [{"phase": ph, "duration": float(d)} for ph, d in PHASES[summary]]})
         header[KIND[summary]] += 1
     data = {"outcomes": outcomes, **header, "start_time": "2026-11-01T00:00:00Z",
             "end_time": "2026-11-01T01:00:00Z", "cargo_mutants_version": "27.1.0"}
-    os.makedirs(f"{out}/mutants-shard-{index}")
     with open(f"{out}/mutants-shard-{index}/outcomes.json", "w") as f:
         json.dump(data, f, indent=2)
 
@@ -96,8 +112,8 @@ def edit_shard(i, change):
 
 if edit == "missing":
     p = f"{out}/mutants-shard-{n - 1}"
-    for f in os.listdir(p): os.unlink(f"{p}/{f}")
-    os.rmdir(p)
+    import shutil
+    shutil.rmtree(p)
 elif edit == "extra":
     write(n, [])
 elif edit == "endnull":
@@ -124,11 +140,15 @@ stage "$scratch/whole/before" before none && stage "$scratch/whole/after" after 
 total=$((2 * shards + 5))
 out=$(compare whole); rc=$?
 want=("paired $total, added 0, removed 0" "listed, line drifted: 1" "baseline survivor: 1" "introduced: 1"
-      "replace introduced -> bool with true in introduced" "missed after: 3")
+      "replace introduced -> bool with true in introduced" "missed after: 3"
+      "timeouts after: 1, each with the tests its log names as cut"
+      $'  gate.rs:220:9: replace slow -> bool with true in slow\n    daemon::tests::dispatch::a_held_probe\n    daemon::tests::door::a_stalled_wait\n'
+      "after: minutes by shard" $'mutants-shard-0: wall 60.0; ' $'    baseline: build 2.0, test 0.1\n'
+      $'    timeout: build 1.0, test 0.5\n')
 miss=""
 for w in "${want[@]}"; do [[ $out == *"$w"* ]] || miss+=" [$w]"; done
 if ((rc == 0)) && [[ -z $miss ]]; then
-  echo "ok      a whole pair of $shards shards compares: $total paired, one in each list"
+  echo "ok      a whole pair of $shards shards compares: $total paired, one in each list, its cut tests and minutes"
 else
   echo "FAIL    the whole pair (exit $rc), lacking:$miss"; echo "$out"; bad=1
 fi
