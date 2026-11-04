@@ -2,7 +2,7 @@
 
 The fix round of the answer-facts seat (`audits/answer-facts-2026-11/seat/`,
 run 1: two Opus runners at the release build of `2bed3ba5`, the MCP
-door 62 calls and the CLI door 121 calls, their reports `REPORT-mcp.md`
+door 62 calls and the CLI door 121 calls, their reports `REPORT-mcp-1.md`
 and the CLI's copied at the close). Written by the orchestrating
 session on 2026-11-04 against the tree at `ff3ed0ac` (line numbers
 from it). The seat skill's step 8: one commit per fault, each held by
