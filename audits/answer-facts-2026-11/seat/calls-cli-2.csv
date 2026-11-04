@@ -1,0 +1,109 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,T0,"[""--help""]",0,10394,0,201,whole,
+2,T0,"[""accounts"", ""--expand""]",0,138,0,5,whole,
+3,T0,"[""auth"", ""status""]",0,142,0,5,whole,
+4,T0,"[""daemon"", ""status""]",0,40,0,5,whole,
+5,T0,"[""store"", ""status""]",0,665,0,73,whole,
+6,T0,"[""leagues"", ""--stored"", ""--expand""]",0,51,0,6,whole,
+7,T0,"[""policy"", ""show""]",0,466,0,8,whole,
+8,login,"[""auth"", ""--no-browser"", ""--json""]",0,743,0,667,whole,login seat: the door approved the mock's page
+9,T1,"[""auth"", ""status""]",0,231,0,5,whole,
+10,T1,"[""leagues"", ""--help""]",0,1721,0,5,whole,
+11,T1,"[""leagues"", ""--stored"", ""--expand""]",1,0,113,4,whole,no --account: two accounts on disk now
+12,T1,"[""leagues"", ""--stored"", ""--expand"", ""--account"", ""seat""]",0,51,0,6,whole,
+13,T1,"[""policy"", ""show"", ""--account"", ""seat""]",0,252,0,6,whole,
+14,T1,"[""leagues"", ""--account"", ""seat""]",0,161,41,509,whole,
+15,T1,"[""leagues"", ""--stored"", ""--expand"", ""--account"", ""seat""]",0,211,0,7,whole,
+16,T1,"[""characters"", ""--account"", ""seat""]",0,667,41,510,whole,
+17,T1,"[""stashes"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,2022,41,509,whole,
+18,T1,"[""character"", ""MuleQuadTab"", ""--account"", ""seat""]",0,2589,41,509,whole,no character is in Rehearsal; fetching a Standard one instead
+19,T1,"[""stash"", ""rh-dump"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,455,41,507,whole,
+20,T1,"[""stash"", ""rh-old1"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,456,43,510,whole,Dump came back empty; trying a tab that should hold items
+21,T1,"[""tabs"", ""--league"", ""Rehearsal"", ""--account"", ""seat"", ""--expand""]",0,772,0,5,whole,what landed in the store from calls 17-20
+22,T2,"[""policy"", ""set"", ""--help""]",0,3073,0,6,whole,
+23,T2,"[""policy"", ""set"", ""--account"", ""seat"", ""--if-revision"", ""0"", ""{\""version\"":3,\""realms\"":{\""pc\"":{\""leagues\"":{\""Rehearsal\"":{\""tabs\"":\""all\"",\""characters\"":\""all\"",\""max_age_seconds\"":3600}}}}}""]",0,125,0,6,whole,
+24,T2,"[""policy"", ""show"", ""--account"", ""seat""]",0,282,0,6,whole,
+25,T2,"[""policy"", ""set"", ""--account"", ""seat"", ""--if-revision"", ""0"", ""{\""version\"":3,\""realms\"":{\""pc\"":{\""leagues\"":{\""Rehearsal\"":{\""tabs\"":\""all\"",\""characters\"":\""all\"",\""max_age_seconds\"":3600}}}}}""]",1,0,100,6,whole,"the same write again: must refuse, not overwrite"
+26,T2,"[""refresh"", ""--help""]",0,4703,0,4,whole,
+27,T2,"[""refresh"", ""--plan"", ""--league"", ""Rehearsal"", ""--account"", ""seat"", ""--expand""]",0,1280,0,6,whole,
+28,T2,"[""refresh"", ""--apply"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,210,70,512,whole,
+29,T2,"[""tabs"", ""--league"", ""Rehearsal"", ""--account"", ""seat"", ""--expand""]",0,755,0,6,whole,show the apply landed
+30,T2,"[""refresh"", ""--plan"", ""--league"", ""Rehearsal"", ""--account"", ""seat"", ""--expand""]",0,377,0,6,whole,
+31,T2,"[""refresh"", ""--plan"", ""--json"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,2006,90,6,whole,plan as a file for the careful apply
+32,T2,"[""refresh"", ""--apply=/Users/tom/seat-worlds/answer-facts-2026-11/cli-opus/work/plan1.json"", ""--max-requests"", ""3"", ""--account"", ""seat""]",0,170,0,12,whole,
+33,T2,"[""refresh"", ""--apply=/Users/tom/seat-worlds/answer-facts-2026-11/cli-opus/work/plan1.json"", ""--max-requests"", ""3"", ""--account"", ""seat""]",0,170,0,7,whole,same file once more
+34,T3,"[""store"", ""--help""]",0,2552,0,4,whole,
+35,T3,"[""store"", ""status"", ""--help""]",0,1113,0,4,whole,
+36,T3,"[""store"", ""status"", ""--account"", ""GERWARIC#7694""]",0,665,0,8,whole,
+37,T3,"[""tabs"", ""--account"", ""GERWARIC#7694""]",0,2479,0,16,whole,
+38,T3,"[""store"", ""events"", ""--summary"", ""--account"", ""GERWARIC#7694""]",0,26,0,6,whole,oldest/newest: is there an age summary anywhere?
+39,T3,"[""store"", ""events"", ""--summary"", ""--hours"", ""100000"", ""--account"", ""GERWARIC#7694""]",0,875,0,14,whole,
+40,T3,"[""store"", ""characters"", ""--account"", ""GERWARIC#7694""]",0,1703,0,6,whole,
+41,T3,"[""store"", ""refused"", ""--account"", ""GERWARIC#7694""]",0,726,0,5,whole,
+42,T3,"[""price"", ""status"", ""--account"", ""GERWARIC#7694""]",0,1635,0,110,whole,
+43,T4,"[""search"", ""--describe"", ""--account"", ""GERWARIC#7694""]",0,33575,0,52,whole,
+44,T4,"[""search"", ""--describe=links,rarity,class,league"", ""--account"", ""GERWARIC#7694""]",0,2421,0,51,whole,index output was over my harness display; asking slices
+45,T4,"[""search"", ""--describe=~resist"", ""--account"", ""GERWARIC#7694""]",0,2221,0,53,whole,
+46,T4,"[""search"", ""--describe=~life"", ""--account"", ""GERWARIC#7694""]",0,4070,0,51,whole,
+47,T4,"[""search"", ""--account"", ""GERWARIC#7694"", ""links=6""]",1,0,172,41,whole,
+48,T4,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""links=6""]",0,4099,0,460,whole,
+49,T4,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""class:ring rarity=rare has:line(\""# to maximum Life\"") pseudo.count_res>=2""]",1,0,133,32,whole,
+50,T4,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""class:ring rarity=rare pseudo.total_life>0 pseudo.count_res>=2""]",0,5772,0,559,whole,
+51,T4,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""--cross"", ""league,rarity""]",0,1743,0,480,whole,
+52,T4,"[""tabs"", ""--league"", ""Allflame"", ""--account"", ""GERWARIC#7694"", ""--limit"", ""0""]",0,1352,0,8,whole,compare per-league count with call 51
+53,T4,"[""show"", ""782682ab4b89a4dae69882267662e003d53253ef2cf6fb5ab3772811409495fc"", ""--account"", ""GERWARIC#7694""]",0,1609,0,108,whole,
+54,T5,"[""price"", ""--help""]",0,2839,0,4,whole,
+55,T5,"[""price"", ""list"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""--league"", ""Standard"", ""--game-text"", ""invalid_note""]",0,573,0,100,whole,
+56,T5,"[""price"", ""list"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""--league"", ""Standard"", ""--game-text"", ""skip""]",0,1042,0,98,whole,
+57,T5,"[""price"", ""list"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""--league"", ""Standard""]",0,2147,0,98,whole,
+58,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""item/4aefe3b5b644b796292985bd387ac23d3159575863f7e57c2f7b8aa28d819f9f""]",0,617,0,98,whole,
+59,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""item/22c7b1af68519932a22aa656cc00635f5d639454b08576c296368583e4c62ebe""]",0,617,0,98,whole,
+60,T5,"[""price"", ""list"", ""--help""]",0,2596,0,5,whole,
+61,T5,"[""price"", ""status"", ""--expand"", ""--account"", ""GERWARIC#7694""]",0,1913,0,109,whole,"looking for invalid tab names, which call 59 revealed"
+62,T5,"[""tabs"", ""--account"", ""GERWARIC#7694"", ""--type"", ""DelveStash""]",0,523,0,14,whole,find a small tab to price
+63,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""tab/pc/2f01a16e65""]",0,649,0,97,whole,read before write
+64,T5,"[""price"", ""set"", ""--help""]",0,2345,0,4,whole,
+65,T5,"[""price"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""0"", ""tab/pc/2f01a16e65"", ""exact"", ""5"", ""chaos""]",0,237,0,6,whole,
+66,T5,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""links=6 league=Standard -priced"", ""--limit"", ""3"", ""--sort"", ""ilvl"", ""--desc""]",1,0,110,5,whole,find one stash item to price
+67,T5,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""links=6 league=Standard -is:priced"", ""--limit"", ""3"", ""--sort"", ""ilvl"", ""--desc""]",1,0,312,5,whole,guessing flag syntax after call 66
+68,T5,"[""search"", ""--describe=priced"", ""--account"", ""GERWARIC#7694""]",0,382,0,53,whole,
+69,T5,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""links=6 league=Standard -has:priced"", ""--limit"", ""3"", ""--sort"", ""ilvl"", ""--desc""]",0,2776,0,485,whole,
+70,T5,"[""price"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""0"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1"", ""exact"", ""2"", ""divine""]",0,394,0,105,whole,
+71,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1""]",0,781,0,98,whole,read the revision before the careful replacement
+72,T5,"[""price"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""1"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1"", ""exact"", ""3"", ""divine""]",0,433,0,100,whole,
+73,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1""]",0,781,0,101,whole,
+74,T5,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""tab/pc/2f01a16e65""]",0,690,0,100,whole,
+75,T6,"[""shop"", ""render"", ""--help""]",0,2544,0,4,whole,
+76,T6,"[""shop"", ""render"", ""--account"", ""GERWARIC#7694""]",0,3493,0,103,whole,
+77,T6,"[""policy"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""0"", ""{\""version\"":3,\""realms\"":{\""pc\"":{\""leagues\"":{\""Standard\"":{\""tabs\"":\""all\"",\""characters\"":\""all\"",\""max_age_seconds\"":3600}}}}}""]",0,238,0,6,whole,
+78,T6,"[""shop"", ""render"", ""--account"", ""GERWARIC#7694""]",0,3611,0,127,whole,
+79,T6,"[""price"", ""clear"", ""--account"", ""GERWARIC#7694"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1"", ""--if-revision"", ""1""]",1,0,293,6,whole,"undo printed by call 70 (removal), run exactly as printed"
+80,T6,"[""price"", ""clear"", ""--account"", ""GERWARIC#7694"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1"", ""--if-revision"", ""2""]",0,361,0,7,whole,as call 79 offered
+81,T6,"[""price"", ""clear"", ""--account"", ""GERWARIC#7694"", ""tab/pc/2f01a16e65"", ""--if-revision"", ""1""]",0,255,0,7,whole,"undo printed by call 65, exactly as printed"
+82,T6,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""item/a2a93391a14f072371a40e1e46cfa4759bd20af08a9f62eba5b89ab4e74636c1""]",0,714,0,111,whole,
+83,T6,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""tab/pc/2f01a16e65""]",0,649,0,108,whole,
+84,T7,"[""leagues"", ""--account"", ""seat"", ""--json""]",0,1189,0,510,whole,T1 call 14 as JSON
+85,T7,"[""price"", ""status"", ""--account"", ""GERWARIC#7694"", ""--json""]",0,3027,0,105,whole,T3 call 42 as JSON
+86,T7,"[""search"", ""--account"", ""GERWARIC#7694"", ""--realm"", ""pc"", ""links=6"", ""--limit"", ""1"", ""--json""]",0,5127,0,460,whole,"T4 call 48 as JSON, limit 1 to keep it short"
+87,T7,"[""price"", ""show"", ""--account"", ""GERWARIC#7694"", ""tab/pc/2f01a16e65"", ""--json""]",0,14339,0,99,whole,T5 call 63 as JSON
+88,T7,"[""shop"", ""render"", ""--account"", ""GERWARIC#7694"", ""--json""]",0,10445,0,128,whole,T6 call 78 as JSON
+89,T7,"[""store"", ""status"", ""--account"", ""NOBODY#0000""]",1,0,106,4,whole,"deliberate failure 1: wrong account, text"
+90,T7,"[""store"", ""status"", ""--account"", ""NOBODY#0000"", ""--json""]",1,504,0,5,whole,"deliberate failure 1: wrong account, JSON"
+91,T7,"[""stash"", ""rh-nosuch"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",1,0,158,510,whole,"deliberate failure 2: nonexistent tab, text"
+92,T7,"[""stash"", ""rh-nosuch"", ""--league"", ""Rehearsal"", ""--account"", ""seat"", ""--json""]",1,169,0,510,whole,"deliberate failure 2: nonexistent tab, JSON"
+93,T7,"[""price"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""7"", ""tab/pc/2f01a16e65"", ""exact"", ""5"", ""chaos""]",1,0,97,6,whole,"deliberate failure 3: wrong revision, text"
+94,T7,"[""price"", ""set"", ""--account"", ""GERWARIC#7694"", ""--if-revision"", ""7"", ""tab/pc/2f01a16e65"", ""exact"", ""5"", ""chaos"", ""--json""]",1,439,0,6,whole,"deliberate failure 3: wrong revision, JSON"
+95,T8,"[""daemon"", ""status""]",0,857,0,6,whole,
+96,T8,"[""version""]",0,224,0,5,whole,
+97,T8,"[""jobs"", ""--all""]",0,1722,0,6,whole,
+98,T8,"[""dash""]",1,0,82,5,whole,TUI; expect it to refuse without a terminal
+99,T8,"[""dash"", ""--json""]",0,19817,0,5,whole,what it knows of the API limits
+100,T8,"[""daemon"", ""stop""]",0,144,0,6,whole,
+101,T8,"[""tabs"", ""--league"", ""Rehearsal"", ""--account"", ""seat""]",0,755,0,6,whole,"store-only verb, no daemon"
+102,T8,"[""jobs""]",0,86,0,6,whole,"observer, no daemon"
+103,T8,"[""daemon"", ""status""]",0,176,0,5,whole,"observer, no daemon"
+104,T8,"[""leagues"", ""--account"", ""seat""]",1,0,175,56,whole,API verb with daemon stopped and session gone
+105,T8,"[""daemon"", ""status""]",0,854,0,5,whole,
+106,T8,"[""daemon"", ""stop""]",0,27,0,6,whole,leave it stopped
+107,T8,"[""daemon"", ""status""]",0,176,0,5,whole,confirm stopped
