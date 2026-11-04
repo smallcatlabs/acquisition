@@ -168,13 +168,14 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
         ("Loreweave", "bare_word", &["name:Loreweave"]),
         ("corrupted", "bare_word", &["is:corrupted"]),
         ("line(fractured)", "bare_word", &["is:fractured"]),
-        // a field `has:` takes is offered with it first, under the minus
-        // typed (#174; the answer-facts seat's CLI run 2, calls 66, 67)
+        // a field `has:` takes is offered with it first (#174; the
+        // answer-facts seat's CLI run 2, calls 66, 67); under a minus the
+        // reader typed every offer carries it, its span taking it in
         ("priced", "bare_word", &["has:priced", "name:priced"]),
         (
             "links=6 league=Standard -priced",
             "bare_word",
-            &["-has:priced", "name:priced"],
+            &["-has:priced", "-name:priced"],
         ),
         ("not Priced", "bare_word", &["-has:priced"]),
         (
@@ -192,6 +193,40 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
         if kind == "bare_word" {
             let first = json["readings"][0].as_str().unwrap();
             common::ask(&corpus, first).unwrap_or_else(|e| panic!("`{first}`: {e}"));
+            // every offer replaces exactly its span: pasted there, it
+            // parses (the review of round A, finding 1)
+            for reading in json["readings"].as_array().unwrap() {
+                let pasted = pasted(text, &json["span"], reading.as_str().unwrap());
+                acquisition_search::parse_query(&pasted)
+                    .unwrap_or_else(|e| panic!("`{text}` as `{pasted}`: {e}"));
+            }
         }
     }
+    // and means what it offers: a minus the reader typed is in the span,
+    // never twice in the query (`--has:priced`, the opposite)
+    for (text, meant) in [
+        (
+            "links=6 league=Standard -priced",
+            "links=6 league=Standard -has:priced",
+        ),
+        ("not Priced", "-has:priced"),
+        ("links=6 -  priced", "links=6 -has:priced"),
+        ("-corrupted", "-is:corrupted"),
+        ("-(priced)", "-(has:priced)"),
+        ("line(-fractured)", "line(-is:fractured)"),
+    ] {
+        let json = common::ask(&corpus, text).unwrap_err().to_json();
+        let first = json["readings"][0].as_str().unwrap();
+        assert_eq!(
+            pasted(text, &json["span"], first),
+            meant,
+            "`{text}`: {json}"
+        );
+    }
+}
+
+/// A refusal's first offer pasted over its span in the text it refused.
+fn pasted(text: &str, span: &serde_json::Value, reading: &str) -> String {
+    let at = |i: usize| span[i].as_u64().unwrap() as usize;
+    format!("{}{reading}{}", &text[..at(0)], &text[at(1)..])
 }

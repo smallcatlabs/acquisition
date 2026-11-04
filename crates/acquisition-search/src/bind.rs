@@ -1522,11 +1522,18 @@ pub(crate) fn closed(
 
 /// The parser's bare-word error, with the readings only the vocabulary
 /// knows put first: `rare` → `rarity=rare`, `corrupted` → `is:corrupted`.
+/// Each reading replaces exactly the span: under a `-` or `not` the
+/// reader typed, the span takes it in and every reading carries it as
+/// `-`, so a reading pasted there means what it offers (the review of
+/// round A, finding 1: `-has:priced` over `priced` was `--has:priced`).
 fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     if e.kind != ErrorKind::BareWord {
         return e;
     }
-    let Some(word) = e.span.and_then(|(start, end)| text.get(start..end)) else {
+    let Some((start, end)) = e.span else {
+        return e;
+    };
+    let Some(word) = text.get(start..end) else {
         return e;
     };
     // the parser's readings say which level the word stood at: outside a
@@ -1534,13 +1541,9 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     let inside = !e.readings.iter().any(|r| r.starts_with('"'));
     let mut first = Vec::new();
     if !inside {
-        // a field `has:` takes, asked with it, under the minus the reader
-        // typed before the word (#174: `-priced`, CLI run 2 of the
-        // answer-facts seat)
-        first.extend(has_reading(word).map(|has| match e.span {
-            Some((start, _)) if negated(&text[..start]) => format!("-{has}"),
-            _ => has,
-        }));
+        // a field `has:` takes, asked with it (#174: `-priced`, CLI run 2
+        // of the answer-facts seat)
+        first.extend(has_reading(word));
     }
     if inside {
         first.extend(legal(SOURCES, word).map(|v| format!("source={v}")));
@@ -1563,26 +1566,29 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     }
     first.append(&mut e.readings);
     e.readings = first;
+    if let Some(at) = negation(&text[..start]) {
+        e.span = Some((at, end));
+        e.readings = e.readings.iter().map(|r| format!("-{r}")).collect();
+    }
     e
 }
 
-/// Whether the text before a term ends in the parser's negation, `-` or
-/// `not`, so the term stood under it.
-fn negated(before: &str) -> bool {
+/// Where the parser's negation, `-` or `not`, starts when the text before
+/// a term ends in one, so the term stood under it.
+fn negation(before: &str) -> Option<usize> {
     let before = before.trim_end();
     if before.ends_with('-') {
-        return true;
+        return Some(before.len() - 1);
     }
-    let Some(at) = before.len().checked_sub(3) else {
-        return false;
-    };
-    before
+    let at = before.len().checked_sub(3)?;
+    let not = before
         .get(at..)
         .is_some_and(|w| w.eq_ignore_ascii_case("not"))
         && !before[..at]
             .chars()
             .next_back()
-            .is_some_and(crate::tree::is_word_char)
+            .is_some_and(crate::tree::is_word_char);
+    not.then_some(at)
 }
 
 #[cfg(test)]
