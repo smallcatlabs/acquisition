@@ -1236,10 +1236,14 @@ a client cannot submit one"
 /// them: the tab must stand in it (a tab the listing dropped, or names
 /// under a retired parent, is not among its tabs); a substash is judged
 /// only where the stored rows name the tab's substashes, so one of a tab
-/// never fetched, or a folder, is admitted. The words name the listing,
-/// its age at `now` (the store's clock, as `tabs` says it), the tab
-/// described, never echoed whole (C127), and the `stashes` job that
-/// fetches the listing again. Judged in `admit_listed` (`kinds.rs`), after
+/// never fetched, or a folder, is admitted. The words name what left it
+/// out, its age at `now` (the store's clock, as `tabs` says it), the
+/// value described, never echoed whole (C127), and the fetch that makes
+/// the retry pass (the review of round D, finding 1): for a tab, the
+/// league's listing and the `stashes` job that fetches it again; for a
+/// substash, its parent's stored rows, as old as the parent's last fetch,
+/// and a `stash` job for the parent, since a `stashes` job keeps them.
+/// Judged in `admit_listed` (`kinds.rs`), after
 /// the account resolves and before an id exists; the daemon's own
 /// submissions never pass it.
 pub(super) fn judge_listed(
@@ -1250,17 +1254,11 @@ pub(super) fn judge_listed(
     sub: Option<&str>,
     now: i64,
 ) -> Result<(), String> {
-    let stored = || {
-        format!(
-            "the stash listing stored for {realm} {league} (fetched {})",
-            acquisition_store::age::ago(now, Some(listing.fetched_at))
-        )
-    };
-    let again = format!("a stashes job for {realm} {league} fetches the listing again");
     let Some(tab) = listing.tabs.iter().find(|t| t.id == id) else {
         return Err(format!(
-            "{} names no tab {} that stands; {again}",
-            stored(),
+            "the stash listing stored for {realm} {league} (fetched {}) names no tab {} that stands; \
+a stashes job for {realm} {league} fetches the listing again",
+            acquisition_store::age::ago(now, Some(listing.fetched_at)),
             describe_str(id)
         ));
     };
@@ -1273,11 +1271,12 @@ pub(super) fn judge_listed(
     if subs.peek().is_none() || subs.any(|t| t.id == sub) {
         return Ok(());
     }
+    let parent = describe_str(id);
     Err(format!(
-        "{} names no substash {} of tab {} that stands; {again}",
-        stored(),
-        describe_str(sub),
-        describe_str(id)
+        "the substashes stored for tab {parent} of {realm} {league} (fetched {}) name no substash {} \
+that stands; a stash job for tab {parent} fetches its substashes again",
+        acquisition_store::age::ago(now, tab.fetched_at),
+        describe_str(sub)
     ))
 }
 

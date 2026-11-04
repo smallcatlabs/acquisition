@@ -856,15 +856,23 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
     .store_dir(store_dir.to_path_buf())
     .run(|mut door| async move {
         let stash = |params: Value| submit_of("stash", params, 0, "client", Some("Alice#1234"));
-        for (params, quoted) in [
-            (json!({ "league": "Standard", "id": "C" }), r#""C""#),
+        let tab_again = "a stashes job for pc Standard fetches the listing again";
+        let sub_again = r#"a stash job for tab "M" fetches its substashes again"#;
+        for (params, quoted, again) in [
+            (
+                json!({ "league": "Standard", "id": "C" }),
+                r#""C""#,
+                tab_again,
+            ),
             (
                 json!({ "realm": "pc", "league": "Standard", "id": "G" }),
                 r#""G""#,
+                tab_again,
             ),
             (
                 json!({ "league": "Standard", "id": "M", "sub": "S9" }),
                 r#""S9""#,
+                sub_again,
             ),
         ] {
             let what = format!("c164: stash {params}");
@@ -875,9 +883,8 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
                 &[
                     quoted.to_string(),
                     "pc Standard".to_string(),
-                    "listing".to_string(),
                     " ago".to_string(),
-                    "a stashes job".to_string(),
+                    again.to_string(),
                 ],
                 &[],
             );
@@ -919,6 +926,111 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
             paths.iter().any(|path| path.ends_with("/Standard/A")),
             "the admitted tab was sent: {paths:?}"
         );
+        door.finish().await;
+    });
+}
+
+/// C164, the review of round D, finding 1: a substash's refusal names the
+/// fetch that makes the retry pass. Its parent's stored rows are what
+/// left it out, and a `stashes` job keeps them; so the refusal names a
+/// `stash` job for the parent, and the recovery runs as a client follows
+/// it: M's rows name S1, S9 is asked for and refused, M is fetched (the
+/// server lists S1 and S9 now), and S9 is then admitted and fetched.
+#[test]
+fn c164_a_refused_substash_names_its_parents_fetch_which_lets_it_through() {
+    let store_dir = TestPath::dir();
+    let mut store = Store::open(&account_path(&store_dir, "Alice#1234")).unwrap();
+    let at = acquisition_store::now() - 7200;
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "M", "name": "M", "type": "MapStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    let parent = |subs: &[&str]| {
+        json!({ "stash": { "id": "M", "name": "M", "type": "MapStash", "items": [],
+                 "children": subs.iter().map(|id| json!({ "id": id, "name": "", "type": "MapStash",
+                     "parent": "M", "metadata": { "items": 1 } })).collect::<Vec<_>>() } })
+    };
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "M".into(),
+                sub: None,
+            },
+            &json!({ "league": "Standard", "id": "M" }),
+            200,
+            &parent(&["S1"]),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let policy = "X-Rate-Limit-Policy: stash-request-limit\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+    let script = vec![
+        ScriptedResponse {
+            method: "HEAD",
+            path: "/stash/Standard/M",
+            status: "204 No Content",
+            headers: policy.into(),
+            body: String::new(),
+        },
+        ScriptedResponse {
+            method: "GET",
+            path: "/stash/Standard/M",
+            status: "200 OK",
+            headers: policy.replace("0:1:0", "1:1:0"),
+            body: parent(&["S1", "S9"]).to_string(),
+        },
+        ScriptedResponse {
+            method: "GET",
+            path: "/stash/Standard/M/S9",
+            status: "200 OK",
+            headers: policy.replace("0:1:0", "2:1:0"),
+            body: json!({ "stash": { "id": "S9", "name": "", "type": "MapStash", "parent": "M", "items": [] } })
+                .to_string(),
+        },
+    ];
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    Door::open(
+        Server::Script(script),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let stash = |params: Value| submit_of("stash", params, 0, "client", Some("Alice#1234"));
+        let s9 = json!({ "league": "Standard", "id": "M", "sub": "S9" });
+        let refusal = assert_refused(
+            door.request(stash(s9.clone())).await,
+            "c164: S9 before M is fetched again",
+            ErrorKind::Refused,
+            &[
+                r#"no substash "S9""#.to_string(),
+                r#"a stash job for tab "M" fetches its substashes again"#.to_string(),
+            ],
+            &["a stashes job".to_string()],
+        );
+        assert!(listed(&mut door).await.is_empty(), "{refusal}");
+        let id = submitted(
+            door.request(stash(json!({ "league": "Standard", "id": "M" })))
+                .await,
+            "the parent's fetch the refusal names",
+        );
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Done, "{outcome:?}");
+        let id = submitted(door.request(stash(s9)).await, "S9 after M's fetch");
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Done, "{outcome:?}");
         door.finish().await;
     });
 }
