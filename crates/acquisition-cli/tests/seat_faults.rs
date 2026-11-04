@@ -912,6 +912,46 @@ fn a_saved_plan(base: &Path) -> (String, Value, harness::StopOnDrop) {
     (format!("--apply={}", path.display()), plan, guard)
 }
 
+/// A saved plan applied later said its listings' ages as at the plan's
+/// making with `ago`, so two applies minutes apart printed one frozen
+/// `stash listed 53s ago` (answer-facts seat run 2, cli fault 4). Each
+/// age names its clock: the listing's before the plan, as the envelope's
+/// own words measure it, and the plan's at the answer's time.
+#[test]
+fn an_applied_plan_says_its_listings_before_the_plan_and_its_own_age_now() {
+    let scratch = harness::scratch("seat-plan-age");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let (_, _, _login) = a_saved_plan(&base);
+    // two rounds: the second fetches the substashes the first revealed
+    for _ in 0..2 {
+        let out = acq(&base, &["refresh", "--apply", "--json"]);
+        assert_eq!(out.status.code(), Some(0), "{}", text(&out));
+    }
+    // a plan with nothing to do, made two minutes ago over a stash list
+    // 53 seconds older than it
+    let mut plan = sole_json(&acq(&base, &["refresh", "--plan", "--json"]));
+    assert_eq!(plan["actions"], json!([]), "{plan}");
+    let made = acquisition_store::now() - 150;
+    plan["generated_at"] = json!(made);
+    plan["basis"]["snapshot_taken_at"] = json!(made);
+    plan["basis"]["stash_listing"]["fetched_at"] = json!(made - 53);
+    let path = base.join("later.json");
+    std::fs::write(&path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
+    let said = stdout(&acq(
+        &base,
+        &["refresh", &format!("--apply={}", path.display())],
+    ));
+    let facts = said
+        .lines()
+        .find(|l| l.starts_with("facts: "))
+        .unwrap_or_else(|| panic!("{said}"));
+    assert_eq!(
+        facts, "facts: stash listed 53s before the plan; plan made 2m ago",
+        "{said}"
+    );
+}
+
 /// C111. A plan file applied twice fetched twice: the same command run
 /// again spent seven requests on tabs seconds fresh, and the limiter held
 /// the next round 292 s. A plan spends each request once, so the second

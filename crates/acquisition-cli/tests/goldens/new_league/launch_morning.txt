@@ -50,7 +50,7 @@ $ acq refresh --plan --league Rehearsal
 # holds "next: acq refresh --apply --account ExileTester --realm pc --league Rehearsal"
 --- stdout
 refresh Rehearsal on mock as ExileTester — policy 2
-facts: stash never listed
+facts: stash never listed; plan made <age> ago
 
 characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 1 request:
@@ -79,7 +79,7 @@ $ acq refresh --plan --league Rehearsal
 # holds "stash-request-limit  7 requests — ~"
 --- stdout
 refresh Rehearsal on mock as ExileTester — policy 2
-facts: stash listed <age> ago
+facts: stash listed <age> before the plan; plan made <age> ago
 
 characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 7 requests:
@@ -115,7 +115,7 @@ $ acq refresh --plan --league Rehearsal
 # holds "nothing to do in Rehearsal:"
 --- stdout
 nothing to do in Rehearsal: covered entries are fresh (under 1h) or do not need fetching
-facts: stash listed <age> ago
+facts: stash listed <age> before the plan; plan made <age> ago
 skipped 8 tabs: 7 fresh, 1 folder — container only
 characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 
@@ -192,7 +192,7 @@ $ acq refresh --plan
 # holds "nothing to do in Standard:"
 --- stdout
 nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
-facts: stash listed <age> ago; characters listed <age> ago
+facts: stash listed <age> before the plan; characters listed <age> before the plan; plan made <age> ago
 skipped 15 tabs: 14 fresh, 1 folder — container only
 skipped 2 characters: 2 fresh
 
@@ -207,7 +207,7 @@ $ acq refresh --plan --league Typo
 # holds "1 request:"
 --- stdout
 refresh Typo on mock as ExileTester — policy 3
-facts: stash never listed
+facts: stash never listed; plan made <age> ago
 
 note: Typo is not among the leagues fetched <age> ago (`acq leagues`)
 1 request:

@@ -77,7 +77,7 @@ $ acq refresh --plan --league Rehearsal
 # holds "outside the policy: 2 of 3 tabs (`acq policy set --account 'Alice#1234'` names them)"
 --- stdout
 refresh Rehearsal on mock as Alice#1234 — policy 1
-facts: stash listed <age> ago
+facts: stash listed <age> before the plan; plan made <age> ago
 
 1 request:
   fetch 1 tab

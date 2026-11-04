@@ -766,21 +766,17 @@ fn pages_awaiting(plan: &RefreshPlan) -> String {
 fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     let account = plan.account_name.as_deref().unwrap_or(&plan.account_uuid);
     if !audit {
-        let plan_age = (now - plan.generated_at).max(0);
-        let age = if plan_age < 90 {
-            String::new()
-        } else {
-            format!(" (plan {} old)", dur(plan_age))
-        };
+        // the plan's age is the facts line's, beside the listings' it
+        // measures from it
         let mut out = format!(
-            "refresh {}{} on {} as {} — {}{age}\n",
+            "refresh {}{} on {} as {} — {}\n",
             store_cmd::realm_prefix(plan.realm),
             plan.league,
             plan.provider,
             account,
             authority(plan),
         );
-        out.push_str(&facts_line(plan));
+        out.push_str(&facts_line(plan, now));
         out.push('\n');
         return out;
     }
@@ -818,10 +814,14 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
 }
 
 /// The plan's facts line: how old each listing it reads was when it was
-/// planned. Printed on every text path of a plan, the nothing-to-do
-/// path included (the answer-facts seat, CLI fault 12: the line was
-/// dropped where nothing was to do).
-fn facts_line(plan: &RefreshPlan) -> String {
+/// planned, said before the plan, and the plan's own age at `now`, the
+/// answer's time (C53, one clock per age, named where it is not the
+/// answer's; answer-facts seat run 2, cli fault 4: two applies of one
+/// file minutes apart both said `stash listed 53s ago`). Printed on
+/// every text path of a plan, the nothing-to-do path included (the
+/// answer-facts seat, CLI fault 12: the line was dropped where nothing
+/// was to do).
+fn facts_line(plan: &RefreshPlan, now: i64) -> String {
     let has_tabs = plan.actions.iter().any(|a| {
         matches!(
             a,
@@ -864,11 +864,17 @@ fn facts_line(plan: &RefreshPlan) -> String {
         }
         (false, false, _, _) => "no covered facts".into(),
     };
-    format!("facts: {facts}\n")
+    format!(
+        "facts: {facts}; plan made {}\n",
+        acquisition_store::age::ago(now, Some(plan.generated_at))
+    )
 }
 
 fn basis_age(age: Option<String>) -> String {
-    age.map_or_else(|| "never listed".into(), |age| format!("listed {age} ago"))
+    age.map_or_else(
+        || "never listed".into(),
+        |age| format!("listed {age} before the plan"),
+    )
 }
 
 /// The verdict line over the actions: the counts, the wire range, and the
@@ -1048,7 +1054,7 @@ fn render_skips(plan: &RefreshPlan, audit: bool) -> String {
 fn render_nothing_to_do(plan: &RefreshPlan, now: i64, facts: bool) -> String {
     let said = nothing_to_do(plan, now);
     match said.split_once('\n') {
-        Some((first, rest)) if facts => format!("{first}\n{}{rest}", facts_line(plan)),
+        Some((first, rest)) if facts => format!("{first}\n{}{rest}", facts_line(plan, now)),
         _ => said,
     }
 }
@@ -1963,11 +1969,11 @@ mod tests {
         let at = tiny_plan().generated_at;
         assert_eq!(
             read(at - 5, at - 5),
-            "facts: stash listed 5s ago; characters listed 5s ago"
+            "facts: stash listed 5s before the plan; characters listed 5s before the plan; plan made 0s ago"
         );
         assert_eq!(
             read(at - 5, at - 6),
-            "facts: stash listed 5s ago; characters listed 6s ago"
+            "facts: stash listed 5s before the plan; characters listed 6s before the plan; plan made 0s ago"
         );
     }
 
@@ -2278,7 +2284,7 @@ mod tests {
             None,
         );
         assert!(old.contains("on mock as Alice#1234"), "{old}");
-        assert!(old.contains("(plan 2h old)"), "{old}");
+        assert!(old.contains("; plan made 2h ago\n"), "{old}");
     }
 
     /// #22: the league's tabs outside the policy, after the skipped line

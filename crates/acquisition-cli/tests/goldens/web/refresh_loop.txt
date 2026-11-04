@@ -10,7 +10,7 @@ GET plan?realm=pc&league=Standard
 <h1>Plan</h1>
 <pre>
 refresh Standard on mock as ExileTester — policy 1
-facts: stash never listed; characters never listed
+facts: stash never listed; characters never listed; plan made <age> ago
 
 2 requests:
   list stashes
@@ -127,7 +127,7 @@ GET plan?<two tabs selected>
 <h1>Plan</h1>
 <pre>
 refresh Standard on mock as ExileTester — a selection
-facts: stash listed <age> ago
+facts: stash listed <age> before the plan; plan made <age> ago
 
 the listing is fetched beside the selection: what it newly lists takes the next plan
 3 requests:

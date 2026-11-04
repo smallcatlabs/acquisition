@@ -10,7 +10,7 @@ $ acq refresh --plan
 # holds "2 requests"
 --- stdout
 refresh Standard on mock as ExileTester — policy 1
-facts: stash never listed; characters never listed
+facts: stash never listed; characters never listed; plan made <age> ago
 
 2 requests:
   list stashes
@@ -36,7 +36,7 @@ $ acq refresh --plan
 # holds "9 requests"
 --- stdout
 refresh Standard on mock as ExileTester — policy 1
-facts: stash listed <age> ago; characters listed <age> ago
+facts: stash listed <age> before the plan; characters listed <age> before the plan; plan made <age> ago
 
 9 requests:
   fetch 7 tabs
@@ -84,7 +84,7 @@ $ acq refresh --plan
 # holds "nothing to do"
 --- stdout
 nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
-facts: stash listed <age> ago; characters listed <age> ago
+facts: stash listed <age> before the plan; characters listed <age> before the plan; plan made <age> ago
 skipped 15 tabs: 14 fresh, 1 folder — container only
 skipped 2 characters: 2 fresh
 
