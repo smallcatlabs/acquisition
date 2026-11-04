@@ -785,6 +785,10 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     let corpus = load(&s, Some("pc"));
     let fixed = as_json(&ask(&corpus, "league=Standard").unwrap());
     assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
+    // the field's name in any case, as the binder reads it (the review of
+    // round A, finding 2)
+    let shouted = as_json(&ask(&corpus, "LEAGUE=Standard").unwrap());
+    assert_eq!(shouted["scope"]["list_seen"], 10, "{}", shouted["scope"]);
     let refined = as_json(&ask(&corpus, "(league=Standard rarity=rare) ilvl>=1").unwrap());
     assert_eq!(refined["scope"]["list_seen"], 10, "{}", refined["scope"]);
     let whole = as_json(&ask(&corpus, "").unwrap());
@@ -797,8 +801,10 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
 /// the leagues its `league=` terms name through and and or, the first in
 /// the scope's order (the most never-fetched tabs first) that holds a
 /// never-fetched tab, the rest of the named that hold one counted. A term
-/// under a not names nothing; a query that names none points at the
-/// realm's most, every other counted, as before. Phrecia holds three
+/// under a not names nothing and excludes its league; a query that names
+/// none points at the realm's most it does not exclude, every other
+/// counted. The field's name is read in any case (the review of round A,
+/// finding 2). Phrecia holds three
 /// never-fetched tabs, Allflame two, Standard one (`worked`'s `Never`).
 #[test]
 fn the_tabs_pointer_names_a_league_the_query_names() {
@@ -834,8 +840,13 @@ fn the_tabs_pointer_names_a_league_the_query_names() {
             "(league=Standard or league=Nowhere) rarity=rare",
             at("Standard", 0),
         ),
-        // a negated term names nothing
+        // the field's name in any case, as the binder reads it
+        ("LEAGUE=Standard or LEAGUE=Allflame", at("Allflame", 1)),
+        // a negated term names nothing, and its league is never pointed
+        // at, also where the query names no other
         ("league=Standard -league=Phrecia", at("Standard", 0)),
+        ("-league=Phrecia", at("Allflame", 1)),
+        ("league=Phrecia -league=Phrecia", None),
         ("league=Nowhere", None),
     ] {
         assert_eq!(pointer(text), expected, "`{text}`");

@@ -2999,27 +2999,32 @@ pub struct TabsPointer {
 impl Answer {
     /// The `tabs` command for the tabs this answer's scope never fetched,
     /// a function of the answer's JSON: under one realm, of the leagues
-    /// the query names (`named_leagues`) the first in the scope's order
-    /// (the most never-fetched tabs first) that holds a never-fetched tab,
-    /// the rest of the named that hold one counted; where the query names
-    /// none, the league holding the most, every other counted; none where
-    /// no league it may name holds one (#36: under two `league=` terms the
+    /// the query names (`league_terms`, and-ed or through an or) the first
+    /// in the scope's order (the most never-fetched tabs first) that holds
+    /// a never-fetched tab, the rest of the named that hold one counted;
+    /// where the query names none, the league holding the most, every
+    /// other counted; never a league the query excludes; none where no
+    /// league it may name holds one (#36: under two `league=` terms the
     /// pointer named the realm's most, which may be neither). Made by the
     /// one opening every command has.
     pub fn tabs_pointer(&self) -> Option<TabsPointer> {
         let Realm::One(realm) = &self.scope.realm else {
             return None;
         };
-        let named = named_leagues(&self.query.tree);
+        let terms = league_terms(&self.query.tree);
         // `=` is any-case: the command carries the store's spelling
+        let among = |l: &str, excluded: bool| {
+            terms.iter().any(|(n, reach)| {
+                (*reach == Reach::Excluded) == excluded && bind::folded(l) == bind::folded(n)
+            })
+        };
+        let named = terms.iter().any(|(_, reach)| *reach != Reach::Excluded);
         let mut held = self
             .scope
             .coverage
             .never_fetched_leagues
             .iter()
-            .filter(|l| {
-                named.is_empty() || named.iter().any(|n| bind::folded(l) == bind::folded(n))
-            });
+            .filter(|l| !among(l, true) && (!named || among(l, false)));
         let league = held.next()?;
         let other_leagues = held.count();
         let mut command = opening(
@@ -3044,45 +3049,61 @@ impl Answer {
     }
 }
 
+/// Where a `league=` term stands in a query's tree.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Reach {
+    /// And-ed into the root, through every nested conjunction.
+    Fixed,
+    /// Through an or, never under a not.
+    Named,
+    /// Under a not: the query excludes the league.
+    Excluded,
+}
+
+/// The query's `league=` terms and where each stands, the one reader of
+/// them: the field named as the binder reads a name, in any case
+/// (`bind::names_field`; the review of round A, finding 2). A term under
+/// `undecided( )` or `holds( )` is none of these and is not read: it does
+/// not ask for that league's items, nor exclude them.
+fn league_terms(tree: &Json) -> Vec<(&str, Reach)> {
+    fn read<'a>(t: &'a Json, reach: Reach, found: &mut Vec<(&'a str, Reach)>) {
+        let league = t["field"]
+            .as_str()
+            .is_some_and(|f| bind::names_field(f, Thing::League));
+        if league && t["op"] == "=" {
+            found.extend(t["value"].as_str().map(|v| (v, reach)));
+        }
+        if let Some(all) = t["all"].as_array() {
+            all.iter().for_each(|child| read(child, reach, found));
+        }
+        let or = match reach {
+            Reach::Fixed => Reach::Named,
+            other => other,
+        };
+        if let Some(any) = t["any"].as_array() {
+            any.iter().for_each(|child| read(child, or, found));
+        }
+        if !t["not"].is_null() {
+            read(&t["not"], Reach::Excluded, found);
+        }
+    }
+    let mut found = Vec::new();
+    read(tree, Reach::Fixed, &mut found);
+    found
+}
+
 /// The one league a query's tree fixes: the one `league=` term among the
 /// root and its and-ed descendants, through every nested conjunction — a
 /// refinement parenthesizes the old text and appends a term, and means
 /// the same (review 2 of the re-sit: `(league=Standard rarity=rare)
 /// ilvl>=1` had lost its league's list age).
 fn fixed_league(tree: &Json) -> Option<&str> {
-    fn conjoined<'a>(t: &'a Json, found: &mut Vec<&'a str>) {
-        if t["field"] == "league" && t["op"] == "=" {
-            found.extend(t["value"].as_str());
-        }
-        if let Some(all) = t["all"].as_array() {
-            all.iter().for_each(|child| conjoined(child, found));
-        }
-    }
-    let mut found = Vec::new();
-    conjoined(tree, &mut found);
-    match found.as_slice() {
-        [one] => Some(one),
+    let terms = league_terms(tree);
+    let mut fixed = terms.iter().filter(|(_, reach)| *reach == Reach::Fixed);
+    match (fixed.next(), fixed.next()) {
+        (Some((one, _)), None) => Some(one),
         _ => None,
     }
-}
-
-/// The leagues a query's tree names by a `league=` term reached through
-/// and and or alone: never one under a not, `undecided( )` or
-/// `holds( )`, which do not ask for that league's items.
-fn named_leagues(tree: &Json) -> Vec<&str> {
-    fn named<'a>(t: &'a Json, found: &mut Vec<&'a str>) {
-        if t["field"] == "league" && t["op"] == "=" {
-            found.extend(t["value"].as_str());
-        }
-        for children in [&t["all"], &t["any"]] {
-            if let Some(children) = children.as_array() {
-                children.iter().for_each(|child| named(child, found));
-            }
-        }
-    }
-    let mut found = Vec::new();
-    named(tree, &mut found);
-    found
 }
 
 /// How every command the search prints opens — `show`'s `price show`

@@ -513,6 +513,12 @@ fn has_reading(word: &str) -> Option<String> {
         .map(|f| format!("has:{}", f.name))
 }
 
+/// Whether a name is the field that names `thing`, read as a term's
+/// field is bound: in any case.
+pub(crate) fn names_field(name: &str, thing: Thing) -> bool {
+    field(name).is_some_and(|f| f.thing == thing)
+}
+
 /// Whether the language knows a field by this name, in any case.
 pub(crate) fn is_field(name: &str) -> bool {
     field(name).is_some()
