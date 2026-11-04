@@ -179,12 +179,12 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 ### `shop_render`
 
-The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names ["pricing"] says what each count counts, ["store"] what `leagues_held` holds, ["ages"] ages.
+The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste; `page` keeps one, its fields at the top), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, never enforced, and in `facts` how old their locations' facts are. `describe` with names ["pricing"] says what each count counts, ["store"] what `leagues_held` holds, ["ages"] ages.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
 - `league` (string | null) — The league; Standard when omitted.
-- `page` (integer | null) — One page alone, by its number from 1: that page's record in place of the whole render.
+- `page` (integer | null) — One page, by its number from 1: that page's fields, and beside them the whole render's document with `pages` that page alone.
 - `realm` (string | null) — pc (the default), xbox, sony or poe2.
 - `size` (integer | null) — Characters per page, the template included: the forum's hard limit when omitted.
 - `template` (string | null) — The page's text, holding `[items]` exactly once, which each page replaces with its items; omitted, a page is the items alone.

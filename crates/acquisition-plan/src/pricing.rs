@@ -1051,6 +1051,30 @@ pub fn shop_page(rendered: &ShopRender, n: usize) -> Result<&Page> {
         })
 }
 
+/// One page of a render as an answer (#169; the answer-facts seat, MCP
+/// run 1 call 50 against 51: a page alone dropped the facts' age, what
+/// was left out and the policy): the page's own fields, as a page alone
+/// answered them, and beside them the render's document with `pages`
+/// narrowed to that page, so `counts`, `left_out`, `policy` and
+/// `freshness` stand as for the whole render.
+#[derive(Debug, Clone, Serialize)]
+pub struct ShopPage {
+    #[serde(flatten)]
+    pub page: Page,
+    #[serde(flatten)]
+    pub render: ShopRender,
+}
+
+/// [`shop_page`] as an answer: the render, its `pages` the one asked.
+pub fn shop_page_answer(mut rendered: ShopRender, n: usize) -> Result<ShopPage> {
+    let page = shop_page(&rendered, n)?.clone();
+    rendered.pages = vec![page.clone()];
+    Ok(ShopPage {
+        page,
+        render: rendered,
+    })
+}
+
 /// The currency table this build ships, or why it is not usable.
 pub fn currency_table() -> Result<&'static CurrencyTable> {
     table().context("the currency table this build ships is not usable")

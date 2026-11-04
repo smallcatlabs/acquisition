@@ -241,15 +241,44 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         )),
         "{text}"
     );
+    // a page asked: its text on stdout, the render's lines on stderr (#169)
+    t.run(
+        &["shop", "render", "--page", "1"],
+        &[
+            "facts: 2 posted items at 2 locations, 2 fetched (",
+            "page 1 of 1: ",
+        ],
+    );
     golden(file!(), "shop_render", &t);
 
-    // --page N is the page's text and nothing else; --json the record.
+    // --page N is the page's text and nothing else on stdout, for the
+    // clipboard; the render's lines stand on stderr: the head, the facts
+    // and coverage lines, the page's label (#169; the answer-facts seat,
+    // MCP run 1 call 50 against 51). --json is the render's document,
+    // its `pages` the one asked, beside the page's own fields.
     let out = acq(&base, &["shop", "render", "--page", "1"]);
     assert!(out.status.success(), "{}", stderr(&out));
     assert_eq!(String::from_utf8_lossy(&out.stdout), page_text);
+    for said in [
+        "2 items to post on 1 page",
+        "facts: 2 posted items at 2 locations, 2 fetched (",
+        "coverage: 1 container on the page outside the sync policy (revision 1): character/ch1",
+        "page 1 of 1: ",
+        "  Stash1 is the tab \"~price 3 chaos\" (tab/pc/c1): 1 item\n",
+    ] {
+        assert!(stderr(&out).contains(said), "{said}: {}", stderr(&out));
+    }
     let out = acq(&base, &["shop", "render", "--page", "1", "--json"]);
-    let page: Page = serde_json::from_value(sole_json(&out)).unwrap();
+    let doc = sole_json(&out);
+    let page: Page = serde_json::from_value(doc.clone()).unwrap();
     assert_eq!(page.text, page_text);
+    let narrowed: ShopRender = serde_json::from_value(doc.clone()).unwrap();
+    assert_eq!(narrowed.pages, vec![page]);
+    assert_eq!(narrowed.counts, r.counts);
+    assert_eq!(narrowed.left_out, r.left_out);
+    assert_eq!(narrowed.policy, r.policy);
+    assert_eq!(narrowed.freshness, r.freshness);
+    assert!(doc["leagues_held"].is_object(), "{doc}");
     let out = acq(&base, &["shop", "render", "--page", "2"]);
     assert!(!out.status.success());
     assert!(

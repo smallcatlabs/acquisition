@@ -18,14 +18,16 @@
 //! each page under its *n* of *N* label, and ends with the next action;
 //! `--expand` adds the whole policy table with every row's rule and
 //! count, and every item left off with its cell; `--page N` prints one
-//! page alone, for the clipboard; `--json` is the [`ShopRender`], of
+//! page's text alone on stdout, for the clipboard, and the render's lines
+//! before it on stderr, its `--json` the render with that page alone
+//! (`pricing::ShopPage`, #169); `--json` is the [`ShopRender`], of
 //! which every line here is a function (`tests/shop_json.rs` pins it
 //! from the spawned binary).
 
 use std::path::Path;
 
 use acquisition_plan::pricing;
-use acquisition_plan::shop::{Cell, LeftOut, ShopRender, Verdict};
+use acquisition_plan::shop::{Cell, LeftOut, Page, ShopRender, Verdict};
 use acquisition_protocol::realm::Realm;
 use anyhow::{Context, Result};
 
@@ -75,10 +77,32 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
     )?;
 
     if let Some(n) = args.page {
-        let page = pricing::shop_page(&rendered, n)?;
+        // the render's document, its pages the one asked (#169): the
+        // page's text alone on stdout, for the clipboard, and the
+        // render's lines on stderr
+        let held = acquisition_verbs::Held::read(
+            pricing::shop_page_answer(rendered, n)?,
+            &opened.facts,
+            &opened.intent,
+            realm,
+            league,
+            args.expand,
+        )?;
         if args.json {
-            println!("{}", serde_json::to_string_pretty(page)?);
+            println!("{}", serde_json::to_string_pretty(&held)?);
         } else {
+            let page = &held.answer.page;
+            eprint!(
+                "{}{}",
+                head_text(
+                    &held.answer.render,
+                    now,
+                    args.expand,
+                    &opened.account.entry.username,
+                    &crate::leagues_cmd::held_line(&held.leagues_held)
+                ),
+                page_label(page)
+            );
             print!("{}", page.text);
         }
         return Ok(());
@@ -261,12 +285,12 @@ fn left_out_line(l: &LeftOut) -> String {
     )
 }
 
-/// `leagues` is the `leagues:` line ([`crate::leagues_cmd::held_line`]),
-/// printed after the facts line, or after the head where none prints.
-fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str, leagues: &str) -> String {
+/// What a render says before its pages: the one line, the C72 lines,
+/// the policy table and the left out under `--expand`, the blocked; the
+/// whole answer where no item is on record.
+fn head_text(r: &ShopRender, now: i64, expand: bool, account: &str, leagues: &str) -> String {
     // every printed `acq price` command carries the render's scope
     let flags = crate::price_cmd::scope_flags(&r.listing, account);
-    let write = crate::price_cmd::write_flags(account);
     let mut out = String::new();
     let c = &r.counts;
     let place = format!("{}{}", realm_prefix(r.listing.realm), r.listing.league);
@@ -347,30 +371,49 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str, leagues: &
             out.push_str(&left_out_line(l));
         }
     }
-    for page in &r.pages {
+    out
+}
+
+/// A page's label, and each `Stash<n>` its links write by its tab's own
+/// name (C146).
+fn page_label(page: &Page) -> String {
+    let mut out = format!(
+        "page {} of {}: {} characters, {}\n",
+        page.number,
+        page.of,
+        page.chars,
+        plural(page.items, "item", "items")
+    );
+    for t in &page.tabs {
         out.push_str(&format!(
-            "page {} of {}: {} characters, {}\n",
-            page.number,
-            page.of,
-            page.chars,
-            plural(page.items, "item", "items")
+            "  {} is the tab {:?} ({}): {}\n",
+            t.stash,
+            t.name,
+            t.tab,
+            plural(t.items, "item", "items")
         ));
-        // each `Stash<n>` the links write, by the tab's own name (C146)
-        for t in &page.tabs {
-            out.push_str(&format!(
-                "  {} is the tab {:?} ({}): {}\n",
-                t.stash,
-                t.name,
-                t.tab,
-                plural(t.items, "item", "items")
-            ));
-        }
+    }
+    out
+}
+
+/// `leagues` is the `leagues:` line ([`crate::leagues_cmd::held_line`]),
+/// printed after the facts line, or after the head where none prints.
+fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str, leagues: &str) -> String {
+    let c = &r.counts;
+    let mut out = head_text(r, now, expand, account, leagues);
+    if c.items == 0 {
+        return out;
+    }
+    for page in &r.pages {
+        out.push_str(&page_label(page));
         out.push_str(&page.text);
         if !page.text.ends_with('\n') {
             out.push('\n');
         }
         out.push('\n');
     }
+    let flags = crate::price_cmd::scope_flags(&r.listing, account);
+    let write = crate::price_cmd::write_flags(account);
     let next = if c.posted > 0 {
         format!(
             "paste page 1 of {} into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone{}",

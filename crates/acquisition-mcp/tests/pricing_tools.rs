@@ -420,6 +420,26 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         );
     }
 
+    // A page's answer is the render's document, its `pages` the one
+    // asked, beside the page's own fields (#169; the answer-facts seat,
+    // MCP run 1 call 50 against 51): freshness, left_out, counts and
+    // policy stand as for the whole render.
+    let (_, whole) = tool(&mut mcp, "shop_render", json!({}));
+    let (_, page) = tool(&mut mcp, "shop_render", json!({ "page": 1 }));
+    for key in [
+        "freshness",
+        "left_out",
+        "left_out_total",
+        "counts",
+        "policy",
+        "leagues_held",
+    ] {
+        assert_eq!(page[key], whole[key], "{key}: {page}");
+    }
+    assert_eq!(page["pages"], json!([whole["pages"][0]]), "{page}");
+    assert_eq!(page["number"], json!(1), "{page}");
+    assert_eq!(page["text"], whole["pages"][0]["text"], "{page}");
+
     // The residue the status counts is the list's total, and its items
     // (#11): the character's noted item, which carries `game.residue`.
     let (_, status) = tool(&mut mcp, "price_status", json!({}));
