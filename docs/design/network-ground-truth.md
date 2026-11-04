@@ -980,6 +980,21 @@ the request asked for and `stash.parent` equal to the parent `id`; in
 none is `stash.id` absent. So a store check that a substash body
 names the requested sub id (C145) refuses nothing GGG serves.
 
+**N51. A league object carries its start: `/account/leagues[/{realm}]`
+answers league objects with `id`, `realm`, `description`, `category`,
+`rules`, `registerAt`, `startAt` and `endAt` (the last three ISO-8601
+times, some absent on a permanent league).** [DOC — High; the
+developer docs' League type, read 2026-11-04; the stored list of the
+owner's store is the sitting that confirms it live] Acquisition reads
+`startAt` from the stored list's entries as the league's start
+(`LeagueList.entries[].started_at`, the answer-facts seat's fix round,
+2026-11-04), `None` where the entry has none; the words beside a start not
+yet reached are the vocabulary's floor, `0s ago`, since `age::span`
+reads a negative span as none (an open question for a sitting on a
+league announced before it opens). The mock's entries carry a
+`startAt` so the fixture holds one.
+
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom
