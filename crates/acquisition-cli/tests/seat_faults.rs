@@ -1310,6 +1310,34 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
             " · location lists seen, the oldest ",
         ],
     ));
+    // a store that holds no list says so (the review of the seat's third
+    // round, finding 5)
+    let mock = base.join("store").join("mock");
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bare", false, acquisition_store::now(), &[])
+        .unwrap();
+    Store::open(&account_path(&mock, "Bob#5678"))
+        .unwrap()
+        .record(
+            &Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u-bare", "name": "Bob#5678" }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    t.run(
+        &[
+            "search",
+            "--account",
+            "Bob#5678",
+            "--realm",
+            "pc",
+            "league=Standard",
+        ],
+        &[" · no location list seen"],
+    );
     golden(file!(), "scope_line_by_tab_type", &t);
     let gloss = stdout(&acq(&base, &["search", "--describe=scope"]));
     assert!(

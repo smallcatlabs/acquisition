@@ -670,6 +670,6 @@ fixes in a second round (`f87e645d`). Run 2 sat the same day at the
 release build of `f87e645d` (the CLI door 107 calls, the MCP door 65),
 and none of run 1's faults recurred. The seat's third round
 (`briefs/answer-facts-seat-fixes-2.md`, run 2's four word faults, one
-commit each, reviewed cold and not sat again) landed the same day,
-this line's the last; its review is pending. Current: that review,
-then the group's close.
+commit each, reviewed cold and not sat again) landed the same day
+(`eecb6ef4` to `6483b9f6`). Its review (two P2s, four P3s) is answered
+in four commits, this line's the last. Current: the group's close.

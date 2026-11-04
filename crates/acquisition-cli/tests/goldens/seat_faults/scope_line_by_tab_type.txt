@@ -16,3 +16,20 @@ terms   each term counted alone over all live pc items in all leagues, never ove
   0    league=Standard  1 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)
 basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --account 'Bob#5678' --realm pc league=Standard
+# holds " · no location list seen"
+--- stdout
+query   league=Standard
+scope   account Bob#5678 · pc · live · 0 items · 0 locations fetched
+        0 locations never fetched · no location list seen
+        this store holds nothing under pc: it holds no realm
+total   0 matches
+nothing in scope carries the league of term 0: league=Standard — a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
+offers  each part of the query forced true and forced false, the part fewest items match first
+    acq search --account 'Bob#5678' --realm pc league=Standard --explain 0
+        every item in scope, this query set aside
+    acq search --account 'Bob#5678' --realm pc league=Standard --limit 10 --context corpus
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Standard  0 matched
+basis   store <store> · build <build> · snapshot 1 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
