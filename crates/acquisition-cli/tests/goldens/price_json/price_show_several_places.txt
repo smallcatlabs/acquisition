@@ -1,0 +1,7 @@
+# golden price_json/price_show_several_places: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price show tab/pc/tw
+# holds "tab/pc/tw is held in several places (pc Big, pc Standard)"
+--- stderr
+Error: tab/pc/tw is held in several places (pc Big, pc Standard): `acq price show --account 'Alice#1234' --realm pc --league Big tab/pc/tw` or `acq price show --account 'Alice#1234' --realm pc --league Standard tab/pc/tw` reads it in one
+--- exit 1

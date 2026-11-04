@@ -997,12 +997,14 @@ struct PriceShowParams {
     /// object, `{scope, realm, parent, id}`: the address is its parts in
     /// that order joined by `/`, the absent ones left out.
     target: String,
-    /// The league to read the target in; omitted, the league the facts
-    /// hold it in, so an address an answer printed reads back as printed.
+    /// The league to read the target in. With neither `league` nor
+    /// `realm`, the realm and league the facts hold the target in, so an
+    /// address an answer printed reads back as printed; held in several,
+    /// it is refused with one request per place.
     league: Option<String>,
-    /// The realm of an item or character target (pc when omitted); a tab
-    /// or substash address carries its own, and a realm given beside it
-    /// must agree.
+    /// The realm of an item or character target; a tab or substash
+    /// address carries its own, and a realm given beside it must agree.
+    /// Omitted, as `league` says (pc where the facts hold it nowhere).
     realm: Option<String>,
     /// List this many of each item set in place of ten, the first in
     /// listing order.

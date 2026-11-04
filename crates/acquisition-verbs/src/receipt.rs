@@ -29,8 +29,9 @@
 //!   row `items_here_counts` and `items_covered_below_counts`, what its
 //!   items resolve to after it, as `price show` counts them (#171), or
 //!   `counts_unavailable` where they cannot be counted: `why`, and
-//!   `reads`, each `price show` that counts them, the write standing
-//!   whole all the same (the review of round B, findings 1 and 2).
+//!   `reads`, the bare `price show` that counts them where the facts
+//!   hold the target, the write standing whole all the same (the reviews
+//!   of round B and of its fix round).
 
 use acquisition_plan::SyncPolicy;
 use acquisition_plan::price::{PriceWrite, Undo};
@@ -58,36 +59,20 @@ pub fn price_set<'a>(
 }
 
 /// Where a container's counts are read when a receipt could not count
-/// them (the review of round B, findings 1 and 2): each league's `price
-/// show` the facts hold the target in, or, where none is known, the one
-/// that reads them where the facts hold it once they can be read.
-pub fn uncounted_reads(u: &Uncounted, write: &PriceWrite, account: &str) -> Vec<(Way, String)> {
-    let target = write.target.to_string();
-    if u.places.is_empty() {
-        return vec![(
-            Way::PriceShow {
-                target,
-                account: account.to_string(),
-                realm: u.realm,
-                league: None,
-            },
-            "counts its items once the facts can be read".to_string(),
-        )];
-    }
-    u.places
-        .iter()
-        .map(|(realm, league)| {
-            (
-                Way::PriceShow {
-                    target: target.clone(),
-                    account: account.to_string(),
-                    realm: Some(*realm),
-                    league: Some(league.clone()),
-                },
-                format!("counts its items in {} {league}", realm.as_str()),
-            )
-        })
-        .collect()
+/// them: the bare `price show` of the target, which reads where the
+/// facts hold it when it runs, and names each place where they hold it
+/// in several; the receipt never guesses a scope (the review of round
+/// B's fix round). One read: `reads` keeps its list, now always of one.
+pub fn uncounted_reads(_: &Uncounted, write: &PriceWrite, account: &str) -> Vec<(Way, String)> {
+    vec![(
+        Way::PriceShow {
+            target: write.target.to_string(),
+            account: account.to_string(),
+            realm: None,
+            league: None,
+        },
+        "counts its items where the facts hold it".to_string(),
+    )]
 }
 
 /// `counts_unavailable`: why, and [`uncounted_reads`] spelled by the

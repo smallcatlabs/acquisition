@@ -126,9 +126,9 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every item of both sets.
-- `league` (string | null) — The league to read the target in; omitted, the league the facts hold it in, so an address an answer printed reads back as printed.
+- `league` (string | null) — The league to read the target in. With neither `league` nor `realm`, the realm and league the facts hold the target in, so an address an answer printed reads back as printed; held in several, it is refused with one request per place.
 - `limit` (integer | null) — List this many of each item set in place of ten, the first in listing order.
-- `realm` (string | null) — The realm of an item or character target (pc when omitted); a tab or substash address carries its own, and a realm given beside it must agree.
+- `realm` (string | null) — The realm of an item or character target; a tab or substash address carries its own, and a realm given beside it must agree. Omitted, as `league` says (pc where the facts hold it nowhere).
 - `target` (string, required) — One address: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>`. An answer holds a target as an object, `{scope, realm, parent, id}`: the address is its parts in that order joined by `/`, the absent ones left out.
 
 ### `price_status`

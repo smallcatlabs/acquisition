@@ -1869,8 +1869,22 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         run_offered(&base, &format!("{command} --json"));
     }
 
-    // an item where the facts do not hold it, the scope named and taken
-    for args in [&["--realm", "pc", "--league", "Allflame"][..], &[][..]] {
+    // an item where the facts do not hold it, the scope named whole and
+    // in part (the realm taken, pc); named not at all, `show` reads where
+    // the facts hold it, and answers (the review of round B's fix round)
+    let bare = sole_json(&acq(
+        &base,
+        &["--json", "price", "show", "item/ix", "--account", USER],
+    ));
+    assert_eq!(
+        (&bare["realm"], &bare["league"]),
+        (&json!("xbox"), &json!("Allflame")),
+        "{bare}"
+    );
+    for args in [
+        &["--realm", "pc", "--league", "Allflame"][..],
+        &["--league", "Allflame"][..],
+    ] {
         let mut asked = vec!["--json", "price", "show", "item/ix", "--account", USER];
         asked.extend(args);
         let doc = refused(&asked, "not_found");
@@ -2306,20 +2320,18 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
     assert_eq!(found["terms"], routed["terms"], "{found}");
 }
 
-/// The review of round B (`roadmap/reviews/seat-issues-b-50494341.md`,
-/// finding 1): a tab held live in two leagues has no one league to count
-/// its items in, and the read after a landed write refused, so the write
-/// lost its receipt, prior and undo with it. The counts never fail the
-/// write: the receipt stands whole and says, in place of the counts, why
-/// they are not read and the `price show` of each league that reads them,
-/// each running as printed.
-#[test]
-fn a_container_receipt_that_cannot_count_its_items_still_stands_and_says_where_to_read_them() {
-    let scratch = harness::scratch("price-uncounted");
-    let base = scratch.0.clone();
-    let mock = seed(&base);
+/// The places the review of round B and of its fix round staged, added
+/// to [`seed`]'s world: `tab/pc/tw` held live in Standard and in Big,
+/// each holding one item; `character/ch2`, a poe2 character in Standard
+/// wearing one; `character/ch3`, a pc character the listing gave no
+/// league, wearing one. Recorded at the seed's time.
+fn held_elsewhere(mock: &Path) {
     let at = acquisition_store::now();
-    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let mut store = Store::open(&account_path(mock, USER)).unwrap();
+    let mut record = |ep: Endpoint, params: Value, body: Value| {
+        store.record(&ep, &params, 200, &body, at).unwrap();
+    };
+    let orb = |id: &str| json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 });
     for league in ["Standard", "Big"] {
         let stashes = if league == "Standard" {
             json!([
@@ -2330,150 +2342,271 @@ fn a_container_receipt_that_cannot_count_its_items_still_stands_and_says_where_t
         } else {
             json!([ { "id": "tw", "name": "Twice", "type": "PremiumStash", "index": 0 } ])
         };
-        store
-            .record(
-                &Endpoint::Stashes {
-                    realm: "pc".into(),
-                    league: league.into(),
-                },
-                &json!({ "league": league }),
-                200,
-                &json!({ "stashes": stashes }),
-                at,
-            )
-            .unwrap();
-        store
-            .record(
-                &Endpoint::Stash {
-                    realm: "pc".into(),
-                    league: league.into(),
-                    id: "tw".into(),
-                    sub: None,
-                },
-                &json!({}),
-                200,
-                &json!({ "stash": { "id": "tw", "name": "Twice", "type": "PremiumStash", "items": [
-                    { "id": format!("i-tw-{league}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
-                at,
-            )
-            .unwrap();
-    }
-    drop(store);
-    let reads = |doc: &Value| -> Vec<String> {
-        let unavailable = &doc["counts_unavailable"];
-        assert!(
-            unavailable["why"]
-                .as_str()
-                .is_some_and(|w| w.contains("Big") && w.contains("Standard")),
-            "{doc}"
+        record(
+            Endpoint::Stashes {
+                realm: "pc".into(),
+                league: league.into(),
+            },
+            json!({ "league": league }),
+            json!({ "stashes": stashes }),
         );
-        assert_eq!(doc.get("items_here_counts"), None, "{doc}");
-        unavailable["reads"]
-            .as_array()
-            .unwrap_or_else(|| panic!("{doc}"))
-            .iter()
-            .map(harness::offered_line)
-            .collect()
-    };
-    let set = sole_json(&acq(
-        &base,
-        &["price", "set", "tab/pc/tw", "exact", "4", "chaos", "--json"],
-    ));
-    assert_eq!(set["revision"], json!(1), "{set}");
-    assert_eq!(reads(&set).len(), 2, "{set}");
-    // the clear lands and its receipt is whole: the prior, its undo, and
-    // each league's `price show`, run as printed
-    let cleared = sole_json(&acq(
-        &base,
-        &[
-            "price",
-            "clear",
-            "tab/pc/tw",
-            "--if-revision",
-            "1",
-            "--json",
-        ],
-    ));
-    assert_eq!(cleared["prior"]["revision"], json!(1), "{cleared}");
-    assert!(cleared["undo"].is_object(), "{cleared}");
-    let lines = reads(&cleared);
-    assert_eq!(lines.len(), 2, "{cleared}");
-    for (line, league) in lines.iter().zip(["Big", "Standard"]) {
-        assert!(line.contains(&format!("--league {league}")), "{line}");
-        let shown = run_offered(&base, &format!("{line} --json"));
-        assert_eq!(shown["items_here_counts"]["total"], json!(1), "{shown}");
+        record(
+            Endpoint::Stash {
+                realm: "pc".into(),
+                league: league.into(),
+                id: "tw".into(),
+                sub: None,
+            },
+            json!({}),
+            json!({ "stash": { "id": "tw", "name": "Twice", "type": "PremiumStash",
+                                "items": [ orb(&format!("i-tw-{league}")) ] } }),
+        );
     }
-    // the text says it in one line
-    let mut t = Transcript::offline(&base);
-    t.run(
-        &["price", "set", "tab/pc/tw", "exact", "4", "chaos"],
-        &["items here: not counted: tab/pc/tw is held in several leagues (pc Big, pc Standard); "],
+    record(
+        Endpoint::Characters { realm: "pc".into() },
+        json!({ "realm": "pc" }),
+        json!({ "characters": [ { "id": "ch1", "name": "Exile", "league": "Standard" },
+                                 { "id": "ch3", "name": "Wanderer" } ] }),
     );
-    golden(file!(), "a_receipt_uncounted", &t);
+    record(
+        Endpoint::Character {
+            realm: "pc".into(),
+            name: "Wanderer".into(),
+        },
+        json!({ "realm": "pc", "name": "Wanderer" }),
+        json!({ "character": { "id": "ch3", "name": "Wanderer",
+                                "equipment": [ orb("i-wanderer") ], "inventory": [] } }),
+    );
+    record(
+        Endpoint::Characters {
+            realm: "poe2".into(),
+        },
+        json!({ "realm": "poe2" }),
+        json!({ "characters": [ { "id": "ch2", "name": "Mage", "league": "Standard" } ] }),
+    );
+    record(
+        Endpoint::Character {
+            realm: "poe2".into(),
+            name: "Mage".into(),
+        },
+        json!({ "realm": "poe2", "name": "Mage" }),
+        json!({ "character": { "id": "ch2", "name": "Mage", "league": "Standard",
+                                "equipment": [ orb("i-mage") ], "inventory": [] } }),
+    );
 }
 
-/// The review of round B, finding 3: a character's address names no
-/// realm, and its receipt counted its items in pc, so a poe2 character's
-/// set and clear carried no counts though the facts held its items. Its
-/// realm is the facts', as its league is.
+/// The reviews of round B and of its fix round: a receipt's counts never
+/// fail the write, and the receipt never guesses the scope its follow-up
+/// read needs. Every read it offers is the bare `price show` of the
+/// target, which reads where the facts hold it when it runs.
+///
+/// - A tab held in two leagues: the set and the clear stand whole, their
+///   `counts_unavailable` names why and offers the bare read, which
+///   refuses with one command per place, each running as printed; the
+///   text's `next:` read is the same command.
+/// - A poe2 character, and a pc character the listing gave no league
+///   (finding 1), each wearing one item: their set and clear count it.
+/// - Recovery (finding 2): a clear while the facts cannot be read offers
+///   the bare read; run once the facts are back, it counts the poe2
+///   character's item, and refuses the tab per place as above.
 #[test]
-fn a_poe2_characters_receipt_counts_its_items_in_the_realm_the_facts_hold_it_in() {
-    let scratch = harness::scratch("price-poe2-character");
+fn a_receipts_read_is_the_bare_price_show_and_runs_after_recovery() {
+    let scratch = harness::scratch("price-receipt-reads");
     let base = scratch.0.clone();
     let mock = seed(&base);
-    let at = acquisition_store::now();
-    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    store
-        .record(
-            &Endpoint::Characters {
-                realm: "poe2".into(),
-            },
-            &json!({ "realm": "poe2" }),
-            200,
-            &json!({ "characters": [ { "id": "ch2", "name": "Mage", "league": "Standard" } ] }),
-            at,
-        )
-        .unwrap();
-    store
-        .record(
-            &Endpoint::Character {
-                realm: "poe2".into(),
-                name: "Mage".into(),
-            },
-            &json!({ "realm": "poe2", "name": "Mage" }),
-            200,
-            &json!({ "character": { "id": "ch2", "name": "Mage", "league": "Standard",
-                "equipment": [ { "id": "i-mage", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ],
-                "inventory": [] } }),
-            at,
-        )
-        .unwrap();
-    drop(store);
-    let set = sole_json(&acq(
-        &base,
+    held_elsewhere(&mock);
+    let write = |args: &[&str]| -> Value {
+        let mut args = args.to_vec();
+        args.push("--json");
+        let out = acq(&base, &args);
+        assert!(out.status.success(), "{args:?}: {}", stderr(&out));
+        sole_json(&out)
+    };
+    // the receipt's one read, bare: no realm, no league
+    let read_of = |doc: &Value| -> String {
+        let reads = doc["counts_unavailable"]["reads"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{doc}"));
+        assert_eq!(reads.len(), 1, "{doc}");
+        let line = harness::offered_line(&reads[0]);
+        assert!(
+            !line.contains("--league") && !line.contains("--realm"),
+            "{line}"
+        );
+        line
+    };
+    // a read run as printed: the counts, or the per-place refusal whose
+    // every command runs as printed and counts its place's item
+    let counted_through = |line: &str| -> usize {
+        let words = shell_words(&format!("{line} --json"));
+        let args: Vec<&str> = words[1..].iter().map(String::as_str).collect();
+        let doc = sole_json(&acq(&base, &args));
+        match doc["kind"].as_str() {
+            Some("several_places") => {
+                let offers = doc["offers"].as_array().unwrap();
+                for offer in offers {
+                    let read =
+                        run_offered(&base, &format!("{} --json", harness::offered_line(offer)));
+                    assert_eq!(read["items_here_counts"]["total"], json!(1), "{read}");
+                }
+                offers.len()
+            }
+            _ => {
+                assert_eq!(doc["items_here_counts"]["total"], json!(1), "{line}: {doc}");
+                1
+            }
+        }
+    };
+
+    let set = write(&["price", "set", "tab/pc/tw", "exact", "4", "chaos"]);
+    assert!(
+        set["counts_unavailable"]["why"]
+            .as_str()
+            .is_some_and(|w| w == "tab/pc/tw is held in several places (pc Big, pc Standard)"),
+        "{set}"
+    );
+    assert_eq!(counted_through(&read_of(&set)), 2);
+    let cleared = write(&["price", "clear", "tab/pc/tw", "--if-revision", "1"]);
+    assert_eq!(cleared["prior"]["revision"], json!(1), "{cleared}");
+    assert!(cleared["undo"].is_object(), "{cleared}");
+    assert_eq!(counted_through(&read_of(&cleared)), 2);
+    // the text: the not-counted line and the `next:` read, the same bare
+    // command, each running to the per-place refusal
+    let mut t = Transcript::offline(&base);
+    let out = t.run(
         &[
             "price",
             "set",
-            "character/ch2",
+            "tab/pc/tw",
             "exact",
-            "1",
+            "4",
             "chaos",
-            "--json",
-        ],
-    ));
-    assert_eq!(set["items_here_counts"]["total"], json!(1), "{set}");
-    let cleared = sole_json(&acq(
-        &base,
-        &[
-            "price",
-            "clear",
-            "character/ch2",
             "--if-revision",
-            "1",
-            "--json",
+            "0",
         ],
+        &["items here: not counted: tab/pc/tw is held in several places (pc Big, pc Standard); "],
+    );
+    let said = String::from_utf8_lossy(&out.stdout).into_owned();
+    let shows: Vec<&str> = said
+        .split('`')
+        .filter(|c| c.starts_with("acq price show"))
+        .collect();
+    assert_eq!(shows.len(), 2, "{said}");
+    for show in shows {
+        assert_eq!(counted_through(show), 2, "{show}");
+    }
+    golden(file!(), "a_receipt_uncounted", &t);
+
+    // one place: the counts, a character's realm the facts' (poe2) and a
+    // league-less character's league the one `show` reads it in
+    for target in ["character/ch2", "character/ch3"] {
+        let set = write(&["price", "set", target, "exact", "1", "chaos"]);
+        assert_eq!(set["items_here_counts"]["total"], json!(1), "{set}");
+        let cleared = write(&["price", "clear", target, "--if-revision", "1"]);
+        assert_eq!(cleared["items_here_counts"]["total"], json!(1), "{cleared}");
+    }
+
+    // recovery: clears while the facts cannot be read, their reads run
+    // once the facts are back
+    // over the clears above: a create for the character (its row at the
+    // clear's revision 2), a replace of the tab's (3, the text's create)
+    write(&[
+        "price",
+        "set",
+        "character/ch2",
+        "exact",
+        "1",
+        "chaos",
+        "--if-revision",
+        "0",
+    ]);
+    write(&[
+        "price",
+        "set",
+        "tab/pc/tw",
+        "exact",
+        "5",
+        "chaos",
+        "--if-revision",
+        "3",
+    ]);
+    let facts = account_path(&mock, USER);
+    let aside = facts.with_extension("aside");
+    std::fs::rename(&facts, &aside).unwrap();
+    std::fs::write(&facts, "not a database").unwrap();
+    let mut reads = Vec::new();
+    for (target, at) in [("character/ch2", "3"), ("tab/pc/tw", "4")] {
+        let cleared = write(&["price", "clear", target, "--if-revision", at]);
+        assert!(
+            cleared["counts_unavailable"]["why"]
+                .as_str()
+                .is_some_and(|w| w.starts_with("the facts could not be read")),
+            "{cleared}"
+        );
+        reads.push(read_of(&cleared));
+    }
+    std::fs::rename(&aside, &facts).unwrap();
+    assert_eq!(counted_through(&reads[0]), 1);
+    assert_eq!(counted_through(&reads[1]), 2);
+}
+
+/// The review of round B's fix round, its rule beneath findings 1 to 3:
+/// `price show <target>` with neither `--realm` nor `--league` reads
+/// where the facts hold the target live, by the one reader the receipts
+/// count with. Held in one place it answers there: a poe2 character in
+/// poe2, a pc character the listing gave no league in Standard, the
+/// league `show` reads it in. Held in several, it refuses with one
+/// command per place, each running as printed. Named, a scope reads as
+/// before.
+#[test]
+fn a_bare_price_show_reads_where_the_facts_hold_its_target() {
+    let scratch = harness::scratch("price-show-bare");
+    let base = scratch.0.clone();
+    held_elsewhere(&seed(&base));
+    let shown = |target: &str| sole_json(&acq(&base, &["price", "show", target, "--json"]));
+    let poe2 = shown("character/ch2");
+    assert_eq!(
+        (&poe2["realm"], &poe2["league"]),
+        (&json!("poe2"), &json!("Standard")),
+        "{poe2}"
+    );
+    assert_eq!(poe2["items_here_counts"]["total"], json!(1), "{poe2}");
+    let leagueless = shown("character/ch3");
+    assert_eq!(
+        (&leagueless["realm"], &leagueless["league"]),
+        (&json!("pc"), &json!("Standard")),
+        "{leagueless}"
+    );
+    assert_eq!(
+        leagueless["items_here_counts"]["total"],
+        json!(1),
+        "{leagueless}"
+    );
+    // held in two leagues: one command per place, each run as printed
+    let refused = shown("tab/pc/tw");
+    assert_eq!(refused["kind"], json!("several_places"), "{refused}");
+    let offers = refused["offers"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{refused}"));
+    assert_eq!(offers.len(), 2, "{refused}");
+    for (offer, league) in offers.iter().zip(["Big", "Standard"]) {
+        let line = harness::offered_line(offer);
+        assert!(line.contains(&format!("--league {league}")), "{line}");
+        let read = run_offered(&base, &format!("{line} --json"));
+        assert_eq!(read["items_here_counts"]["total"], json!(1), "{read}");
+    }
+    // a scope named reads as before
+    let named = sole_json(&acq(
+        &base,
+        &["price", "show", "tab/pc/tw", "--league", "Big", "--json"],
     ));
-    assert_eq!(cleared["items_here_counts"]["total"], json!(1), "{cleared}");
+    assert_eq!(named["league"], json!("Big"), "{named}");
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["price", "show", "tab/pc/tw"],
+        &["tab/pc/tw is held in several places (pc Big, pc Standard)"],
+    );
+    golden(file!(), "price_show_several_places", &t);
 }
 
 /// Round 5 of the 2g build (the receipt shape; its design's Q6, the cold

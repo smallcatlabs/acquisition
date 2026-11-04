@@ -2334,10 +2334,13 @@ impl Store {
 
     /// The realms and leagues in which the facts hold this address live,
     /// sorted, as `(realm, league)`: [`Store::leagues_of`] with the realm
-    /// each is in, since an item's or a character's address names none.
-    /// What a refusal for a target one scope does not hold names as the
-    /// scopes that do (round 4 of the 2g build: its offers run there).
-    pub fn places_of(&self, address: &FactAddress<'_>) -> Result<Vec<(String, String)>> {
+    /// each is in, since an item's or a character's address names none,
+    /// and a character the listing gave no league (or an item it wears)
+    /// kept in its realm with no league, never dropped (the review of
+    /// round B's fix round, finding 1). What a refusal for a target one
+    /// scope does not hold names as the scopes that do (round 4 of the 2g
+    /// build: its offers run there).
+    pub fn places_of(&self, address: &FactAddress<'_>) -> Result<Vec<(String, Option<String>)>> {
         let (sql, params): (String, Vec<&str>) = match address {
             FactAddress::Item { id } => (
                 "SELECT DISTINCT i.realm, COALESCE(i.league, c.league)
@@ -2368,11 +2371,8 @@ impl Store {
         let rows = stmt.query_map(rusqlite::params_from_iter(params), |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
         })?;
-        let mut places: Vec<(String, String)> = rows
-            .collect::<rusqlite::Result<Vec<_>>>()?
-            .into_iter()
-            .filter_map(|(realm, league)| Some((realm, league?)))
-            .collect();
+        let mut places: Vec<(String, Option<String>)> =
+            rows.collect::<rusqlite::Result<Vec<_>>>()?;
         places.sort();
         places.dedup();
         Ok(places)

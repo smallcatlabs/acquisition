@@ -206,6 +206,7 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
         doc.extend(refused.fields());
         match &refused.kind {
             RefusedKind::NotFound(missing) => offers.extend(finding(missing)),
+            RefusedKind::Several(several) => offers.extend(placing(several)),
             RefusedKind::Conflict {
                 retry: Some(retry), ..
             } => offers.push(retrying(retry)),
@@ -425,6 +426,27 @@ fn retrying(retry: &Retry) -> (Way, String) {
             format!("the same clear at revision {at}, the row as it stands"),
         ),
     }
+}
+
+/// A `show` of each place the facts hold a target in, where it named
+/// none (the review of round B's fix round): the commands the refusal's
+/// words print, as requests.
+fn placing(s: &acquisition_plan::pricing::Several) -> Vec<(Way, String)> {
+    let target = s.target.to_string();
+    s.places
+        .iter()
+        .map(|(realm, league)| {
+            (
+                Way::PriceShow {
+                    target: target.clone(),
+                    account: s.account.clone(),
+                    realm: Some(*realm),
+                    league: Some(league.clone()),
+                },
+                format!("{target} in {} {league}", realm.as_str()),
+            )
+        })
+        .collect()
 }
 
 /// The ways that would find a target the facts do not hold, from the

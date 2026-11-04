@@ -624,12 +624,14 @@ enum PriceCmd {
     /// counts.
     Show {
         target: String,
-        /// The league to read the target in. Without it, the league the
-        /// facts hold the target in: an address reads back as printed.
+        /// The league to read the target in. With neither --league nor
+        /// --realm, the realm and league the facts hold the target in, so
+        /// an address reads back as printed; held in several, it is
+        /// refused with one command per place.
         #[arg(long)]
         league: Option<String>,
         /// The realm of an item or character target; a tab or substash
-        /// address carries its own.
+        /// address carries its own. Without it, as --league says.
         #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         /// List this many of each item set, the first in listing order.

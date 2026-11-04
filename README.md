@@ -231,9 +231,9 @@ them.
   `refresh --plan`, `refresh --apply`, `refresh --tabs`, `tabs`,
   `price status` and `shop render` read or fetch Standard without
   `--league` (a saved plan carries its own); `price show` reads the
-  league the facts hold the target in, `store characters` every
-  league. `acq leagues` lists yours, and `price status`, `shop render`
-  and `tabs` name the other leagues the store holds.
+  realm and league the facts hold the target in, `store characters`
+  every league. `acq leagues` lists yours, and `price status`, `shop
+  render` and `tabs` name the other leagues the store holds.
 - **A new league.** `acq leagues --stored` reads the list last
   fetched with no daemon, the league that started last first, each
   beside when it started, whether your policy names it and what the

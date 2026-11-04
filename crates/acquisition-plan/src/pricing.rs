@@ -100,6 +100,8 @@ pub enum RefusedKind {
     },
     /// A target the facts do not hold.
     NotFound(Box<Missing>),
+    /// A target the facts hold in several places, `show` naming none.
+    Several(Box<Several>),
 }
 
 /// A refused write as it would land now: its target, the account it ran
@@ -217,6 +219,9 @@ impl Refused {
             RefusedKind::NotFound(_) => {
                 out.insert("kind".into(), json!("not_found"));
             }
+            RefusedKind::Several(_) => {
+                out.insert("kind".into(), json!("several_places"));
+            }
         }
         out
     }
@@ -285,6 +290,76 @@ pub fn league_of(store: &Store, named: &[&PriceTarget], league: Option<&str>) ->
     }
 }
 
+/// Where the facts hold `target` live, as `(realm, league)`, sorted: the
+/// one reader of it, for `show`'s scope with none named, a receipt's
+/// counts, and the refusals that name where a target is (the review of
+/// round B's fix round). A character the listing gave no league, and an
+/// item it wears, is held in its realm under [`DEFAULT_LEAGUE`], the
+/// league `show` reads it in, since every league's report carries it.
+pub fn held_places(store: &Store, target: &PriceTarget) -> Result<Vec<(Realm, String)>> {
+    let mut places: Vec<(Realm, String)> = store
+        .places_of(&FactAddress::from(target))
+        .context("reading where the facts hold the target")?
+        .into_iter()
+        .filter_map(|(realm, league)| {
+            Some((
+                Realm::parse(&realm)?,
+                league.unwrap_or_else(|| DEFAULT_LEAGUE.to_string()),
+            ))
+        })
+        .collect();
+    places.sort();
+    places.dedup();
+    Ok(places)
+}
+
+/// `show`'s refusal for a target held in several places with none named:
+/// one `price show` per place, each its realm and league, as the account
+/// the frontend resolved, `quote` its shell quoting (C143, the verb's own
+/// words; kind `several_places`, whose offers are the same commands).
+fn several_places(
+    target: &PriceTarget,
+    places: &[(Realm, String)],
+    account: &str,
+    quote: fn(&str) -> String,
+) -> anyhow::Error {
+    let held = places
+        .iter()
+        .map(|(realm, league)| format!("{} {league}", realm.as_str()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let reads = places
+        .iter()
+        .map(|(realm, league)| {
+            format!(
+                "`acq price show {} {} {} {}`",
+                option("--account", account, quote),
+                option("--realm", realm.as_str(), quote),
+                option("--league", league, quote),
+                quote(&target.to_string())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" or ");
+    anyhow::Error::new(Refused {
+        kind: RefusedKind::Several(Box::new(Several {
+            target: target.clone(),
+            account: account.to_string(),
+            places: places.to_vec(),
+        })),
+        message: format!("{target} is held in several places ({held}): {reads} reads it in one"),
+    })
+}
+
+/// A target the facts hold in several places, `show` naming none
+/// (`several_places`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Several {
+    pub target: PriceTarget,
+    pub account: String,
+    pub places: Vec<(Realm, String)>,
+}
+
 /// A target address as one word, or the grammar to type — and, for a
 /// bare id as `search` and `show` print one, the two readings it may be,
 /// filled in: an item's and a character's ids are alike, so neither is
@@ -350,11 +425,9 @@ fn not_on_record(
     quote: fn(&str) -> String,
 ) -> anyhow::Error {
     let here_realm = r.header.realm;
-    let elsewhere: Vec<(Realm, String)> = store
-        .places_of(&FactAddress::from(target))
+    let elsewhere: Vec<(Realm, String)> = held_places(store, target)
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|(realm, league)| Some((Realm::parse(&realm)?, league)))
         .filter(|(realm, league)| (*realm, league.as_str()) != (here_realm, &r.header.league))
         .collect();
     let realm = match here_realm.segment() {
@@ -456,8 +529,22 @@ pub fn show(
     quote: fn(&str) -> String,
 ) -> Result<ShowView> {
     let target = read_target(target)?;
-    let realm = realm_of(&[&target], realm)?;
-    let league = league_of(store, &[&target], league)?;
+    // neither named: where the facts hold it, one place read there and
+    // several refused naming each (the review of round B's fix round)
+    let (realm, league) = match (realm, league) {
+        (None, None) => match held_places(store, &target)?.as_slice() {
+            [(realm, league)] => (*realm, league.clone()),
+            [] => (
+                realm_of(&[&target], None)?,
+                league_of(store, &[&target], None)?,
+            ),
+            many => return Err(several_places(&target, many, account, quote)),
+        },
+        (realm, league) => (
+            realm_of(&[&target], realm)?,
+            league_of(store, &[&target], league)?,
+        ),
+    };
     let r = report(store, annotations, realm, &league)?;
     match r.show_view(&target) {
         Some(view) => Ok(view
@@ -862,16 +949,12 @@ pub struct Covered {
 /// Why a container row's receipt holds no counts, though the write
 /// landed (the review of round B, findings 1 and 2): the read after it
 /// could not answer, and a read never fails a write that stands. `why`
-/// says it in words; `places` are the realms and leagues the facts hold
-/// the target in live, each a `price show` that counts its items there,
-/// and where none is known (the facts could not be read) `realm` is the
-/// one the address names, for the one `price show` that reads them once
-/// the facts do.
+/// says it in words; the read that counts them is the bare `price show`
+/// of the target, which finds where the facts hold it when it runs (the
+/// review of round B's fix round: a receipt never guesses the scope).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Uncounted {
     pub why: String,
-    pub places: Vec<(Realm, String)>,
-    pub realm: Option<Realm>,
 }
 
 /// What a write's receipt says of its target's items: nothing for an
@@ -906,37 +989,21 @@ fn covering(
     if matches!(target, PriceTarget::Item { .. }) {
         return Covering::Nothing;
     }
-    let named_realm = match target {
-        PriceTarget::Tab { realm, .. } | PriceTarget::Substash { realm, .. } => Some(*realm),
-        _ => None,
-    };
-    let uncounted = |why: String, places: Vec<(Realm, String)>| {
-        Covering::Uncounted(Uncounted {
-            why,
-            places,
-            realm: named_realm,
-        })
-    };
+    let uncounted = |why: String| Covering::Uncounted(Uncounted { why });
     let store = match store {
         Ok(store) => store,
-        Err(why) => {
-            return uncounted(format!("the facts could not be read ({why})"), Vec::new());
-        }
-    };
-    let places: Vec<(Realm, String)> = match store.places_of(&FactAddress::from(target)) {
-        Ok(places) => places
-            .into_iter()
-            .filter_map(|(realm, league)| Some((Realm::parse(&realm)?, league)))
-            .collect(),
-        Err(e) => {
-            return uncounted(
-                format!("reading where the facts hold {target} failed ({e:#})"),
-                Vec::new(),
-            );
-        }
+        Err(why) => return uncounted(format!("the facts could not be read ({why})")),
     };
     // the realm and the league are the facts' (the review of round B,
-    // finding 3: a character's address names no realm, and pc was read)
+    // finding 3), by the one reader `show` takes its scope from
+    let places = match held_places(store, target) {
+        Ok(places) => places,
+        Err(e) => {
+            return uncounted(format!(
+                "reading where the facts hold {target} failed ({e:#})"
+            ));
+        }
+    };
     let (realm, league) = match places.as_slice() {
         [] => return Covering::Nothing,
         [(realm, league)] => (*realm, league.clone()),
@@ -946,10 +1013,7 @@ fn covering(
                 .map(|(realm, league)| format!("{} {league}", realm.as_str()))
                 .collect::<Vec<_>>()
                 .join(", ");
-            return uncounted(
-                format!("{target} is held in several leagues ({held})"),
-                places,
-            );
+            return uncounted(format!("{target} is held in several places ({held})"));
         }
     };
     let counted = report(store, annotations, realm, &league).map(|r| r.show_view(target));
@@ -962,10 +1026,7 @@ fn covering(
             })
         }
         Ok(None) => Covering::Nothing,
-        Err(e) => uncounted(
-            format!("counting the items {target} covers failed ({e:#})"),
-            places,
-        ),
+        Err(e) => uncounted(format!("counting the items {target} covers failed ({e:#})")),
     }
 }
 
@@ -986,10 +1047,7 @@ fn in_substash(store: &Store, annotations: &Annotations, target: &PriceTarget) -
     match target {
         PriceTarget::Substash { .. } => Ok(true),
         PriceTarget::Item { .. } => {
-            for (realm, league) in store.places_of(&FactAddress::from(target))? {
-                let Some(realm) = Realm::parse(&realm) else {
-                    continue;
-                };
+            for (realm, league) in held_places(store, target)? {
                 let report = report(store, annotations, realm, &league)?;
                 if report.find(target).is_some_and(|l| {
                     matches!(l.subject.location, Some(PriceTarget::Substash { .. }))

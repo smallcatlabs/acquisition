@@ -417,11 +417,23 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     assert_eq!(tabs["rows"][0]["id"], "tx", "{tabs}");
 
     // an item looked for in the realm and league the request named, and
-    // in those the verb took when it named neither (pc, the facts'
-    // Allflame): its show where the facts hold it, which answers
+    // in the realm the verb took when it named the league alone (pc): its
+    // show where the facts hold it, which answers; named neither, the
+    // verb reads where the facts hold it (the review of round B's fix
+    // round)
+    let bare = answered(
+        &mut mcp,
+        "price_show",
+        &json!({ "request": { "target": "item/ix", "account": USER } }),
+    );
+    assert_eq!(
+        (&bare["realm"], &bare["league"]),
+        (&json!("xbox"), &json!("Allflame")),
+        "{bare}"
+    );
     for asked in [
         json!({ "target": "item/ix", "account": USER, "realm": "pc", "league": "Allflame" }),
-        json!({ "target": "item/ix", "account": USER }),
+        json!({ "target": "item/ix", "account": USER, "league": "Allflame" }),
     ] {
         let doc = refusal(&mut mcp, "price_show", asked.clone(), "not_found");
         let offers = doc["offers"].as_array().unwrap();
