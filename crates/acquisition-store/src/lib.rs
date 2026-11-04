@@ -900,6 +900,7 @@ pub mod age;
 pub mod annotations;
 pub mod bound;
 pub mod corpus;
+pub mod coverage;
 pub mod index;
 pub mod jobs;
 pub mod snapshot;

@@ -623,3 +623,6 @@ subject's block on the search (S1, #155), the named-paths pin (S4),
 the shop's and price status's blocks (S3, #156), the scope of
 league-taking surfaces (S5, #157, #22), the words round (S6 to S10),
 and a seat. Current: round 1, its brief under its second cold review.
+Round 1 landed on 2026-11-03 as one commit, this line's (the store's
+`coverage` module and its unit tests, the search calling it through
+re-exports, no golden changed); its review is pending.

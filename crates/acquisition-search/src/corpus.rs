@@ -73,13 +73,20 @@
 //!   `id:` term that matches nothing (`answer.rs`).
 //! - **Coverage is stated from the header**: a folder is a row no fetch
 //!   fills and is counted apart; a location never fetched is one no item
-//!   predicate supports a claim about (invariant 6 of the surface).
+//!   predicate supports a claim about (invariant 6 of the surface). The
+//!   derivation is the store's one (`acquisition_store::coverage`, C162),
+//!   given the header's live locations in the scope's realm, each with the
+//!   live items the read found there; the removed and the leagues the
+//!   scope's items sit in are the membership's, set here over its result.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use acquisition_store::corpus::{CorpusHeader, CorpusItem, LocationRow, RealmScope, Revision};
 use acquisition_store::{Annotations, Store, age};
+// C162: coverage is the store's one derivation, under the paths it had here
+pub(crate) use acquisition_store::coverage::is_folder;
+pub use acquisition_store::coverage::{Coverage, FetchedLocation};
 use serde::{Deserialize, Serialize};
 
 use crate::answer::{Membership, Request};
@@ -351,107 +358,11 @@ pub struct Held {
     pub price: Priced,
 }
 
-/// A location the scope names by its fetch: `stash` or `character`, its
-/// id, its name as GGG gives it (none where it gives no text), and its
-/// league.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct FetchedLocation {
-    pub kind: String,
-    pub id: String,
-    pub name: Option<String>,
-    pub league: Option<String>,
-}
-
-impl FetchedLocation {
-    fn of(l: &LocationRow) -> FetchedLocation {
-        FetchedLocation {
-            kind: l.kind.clone(),
-            id: l.id.clone(),
-            name: (!l.name.trim().is_empty()).then(|| l.name.clone()),
-            league: l.league.clone(),
-        }
-    }
-}
-
-/// What the scope block says was searched (C96).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Coverage {
-    /// The live items in scope.
-    pub items: usize,
-    /// Under membership `all` and `removed`, the removed items: each is
-    /// a row marked with when it left.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub removed: Option<usize>,
-    /// Every realm the store holds, whatever the scope.
-    pub realms_held: Vec<String>,
-    pub leagues: Vec<String>,
-    /// Locations that hold items and have been fetched.
-    pub fetched: usize,
-    /// Locations a listing names and no fetch has filled, folders apart.
-    pub never_fetched: usize,
-    /// The types that have a location never fetched, the most never
-    /// fetched first, each counted as `tabs` counts a type: its
-    /// locations, how many were fetched — the never fetched are the
-    /// difference — and the live items in scope there (C118). A tab's
-    /// type is GGG's, verbatim, as `tabs` gives it; a character's is
-    /// `character`. Over the scope's realm in every league, never
-    /// narrowed by the query, since what a never-fetched location holds
-    /// is unknown: the words are C146's.
-    pub never_fetched_by_type: Vec<crate::tabs::TabType>,
-    /// The leagues holding a tab never fetched, the most first: names
-    /// alone, so the league a `tabs` pointer names and how many others
-    /// there are follow from the answer (C118).
-    pub never_fetched_leagues: Vec<String>,
-    pub folders: usize,
-    /// The earliest and the latest of the fetched locations' last
-    /// fetches, each one location's; a row's place carries its own.
-    pub oldest_fetch: Option<i64>,
-    /// C53: `oldest_fetch` in words at the answer's time, where there is
-    /// one.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub oldest_fetch_age: Option<String>,
-    /// The location whose last fetch is `oldest_fetch` (#11: the line
-    /// named an age and no place), the first in the store's order on a
-    /// tie.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub oldest_fetch_location: Option<FetchedLocation>,
-    pub newest_fetch: Option<i64>,
-    /// C53: `newest_fetch` in words at the answer's time, where there is
-    /// one.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub newest_fetch_age: Option<String>,
-    /// The location whose last fetch is `newest_fetch`, as for the oldest.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub newest_fetch_location: Option<FetchedLocation>,
-    /// When the oldest of the location lists the scope reads was last
-    /// seen: under a query that fixes one league, that league's tab list
-    /// and the realm's character list; otherwise every list of the realm
-    /// (the re-sit: a `league=Standard` query said 41 days where
-    /// Standard's own list was 3 days old, mcp-opus its fault 2).
-    pub list_seen: Option<i64>,
-    /// C53: `list_seen` in words at the answer's time, `never` where no
-    /// list was seen.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub list_seen_age: Option<String>,
-}
-
 impl Place {
     /// C53 (an age the text prints stands in words beside its epoch):
     /// the place with its fetch's age said at `now`, the answer's time.
     pub fn aged(&mut self, now: i64) {
         self.fetched_at_age = Some(age::ago(now, self.fetched_at));
-    }
-}
-
-impl Coverage {
-    /// C53: the scope's fetch and list ages said at `now`, the answer's
-    /// time — the oldest and newest fetch where there are fetches, as the
-    /// text says them, and when the lists were seen, `never` where none
-    /// was.
-    pub fn aged(&mut self, now: i64) {
-        self.oldest_fetch_age = self.oldest_fetch.map(|at| age::ago(now, Some(at)));
-        self.newest_fetch_age = self.newest_fetch.map(|at| age::ago(now, Some(at)));
-        self.list_seen_age = Some(age::ago(now, self.list_seen));
     }
 }
 
@@ -856,12 +767,26 @@ impl Corpus {
                             coverage: Coverage {
                                 removed: (membership != Membership::Live).then_some(removed),
                                 leagues: sat_in,
-                                ..coverage(
-                                    header,
-                                    &realm,
-                                    &locations,
+                                ..acquisition_store::coverage::of(
+                                    match &realm {
+                                        Realm::One(only) => RealmScope::One(only),
+                                        Realm::All => RealmScope::All,
+                                    },
+                                    &locations
+                                        .iter()
+                                        .map(|l| {
+                                            let at = coordinate(
+                                                &l.realm,
+                                                &l.kind,
+                                                &l.id,
+                                                l.league.as_deref(),
+                                            );
+                                            (l, items_at.get(&at).copied().unwrap_or(0))
+                                        })
+                                        .collect::<Vec<_>>(),
+                                    &header.listings,
+                                    &header.realms,
                                     items.len() - removed + passed_over,
-                                    &items_at,
                                 )
                             },
                             listings: header
@@ -1035,10 +960,6 @@ pub(crate) fn tab_type_unread(place: &Place) -> Option<Unread> {
     })
 }
 
-pub(crate) fn is_folder(location: &LocationRow) -> bool {
-    location.tab_type.as_deref() == Some("Folder")
-}
-
 /// What an item is socketed in, by the name it is found under.
 fn name_sockets(items: &mut [Held]) {
     let names: HashMap<String, Option<String>> = items
@@ -1057,82 +978,6 @@ fn name_sockets(items: &mut [Held]) {
         if let Some(parent) = &mut held.place.socketed_in {
             parent.name = names.get(&parent.id).cloned().flatten();
         }
-    }
-}
-
-fn coverage(
-    header: &CorpusHeader,
-    realm: &Realm,
-    locations: &[LocationRow],
-    items: usize,
-    items_at: &HashMap<Coordinate, i64>,
-) -> Coverage {
-    let holds_items: Vec<&LocationRow> = locations.iter().filter(|l| !is_folder(l)).collect();
-    let fetches = || holds_items.iter().filter_map(|l| l.fetched_at);
-    let fetched = || holds_items.iter().filter_map(|l| Some((l.fetched_at?, *l)));
-    // the first on a tie, both ways: `min_by_key` keeps the first,
-    // `max_by_key` the last, so the newest reads the reversed order
-    let oldest = fetched().min_by_key(|(at, _)| *at);
-    let newest = fetched().rev().max_by_key(|(at, _)| *at);
-    let mut never_fetched_by_type = crate::tabs::by_type(holds_items.iter().map(|l| {
-        let kind = match l.kind.as_str() {
-            "character" => "character",
-            _ => l.tab_type.as_deref().unwrap_or_default(),
-        };
-        let at = coordinate(&l.realm, &l.kind, &l.id, l.league.as_deref());
-        (
-            kind,
-            l.fetched_at.is_some(),
-            items_at.get(&at).copied().unwrap_or(0),
-        )
-    }));
-    never_fetched_by_type.retain(|t| t.tabs > t.fetched);
-    let mut by_league: Vec<(&str, usize)> = Vec::new();
-    for league in holds_items
-        .iter()
-        .filter(|l| l.kind == "stash" && l.fetched_at.is_none())
-        .filter_map(|l| l.league.as_deref())
-    {
-        match by_league.iter_mut().find(|(at, _)| *at == league) {
-            Some((_, n)) => *n += 1,
-            None => by_league.push((league, 1)),
-        }
-    }
-    by_league.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
-    never_fetched_by_type.sort_by(|a, b| {
-        (b.tabs - b.fetched)
-            .cmp(&(a.tabs - a.fetched))
-            .then_with(|| a.kind.cmp(&b.kind))
-    });
-    let mut leagues: Vec<String> = locations.iter().filter_map(|l| l.league.clone()).collect();
-    leagues.sort();
-    leagues.dedup();
-    Coverage {
-        items,
-        removed: None,
-        realms_held: header.realms.clone(),
-        leagues,
-        fetched: fetches().count(),
-        never_fetched: holds_items.len() - fetches().count(),
-        never_fetched_by_type,
-        never_fetched_leagues: by_league.into_iter().map(|(l, _)| l.to_string()).collect(),
-        folders: locations.len() - holds_items.len(),
-        oldest_fetch: oldest.map(|(at, _)| at),
-        oldest_fetch_age: None,
-        oldest_fetch_location: oldest.map(|(_, l)| FetchedLocation::of(l)),
-        newest_fetch: newest.map(|(at, _)| at),
-        newest_fetch_age: None,
-        newest_fetch_location: newest.map(|(_, l)| FetchedLocation::of(l)),
-        list_seen: header
-            .listings
-            .iter()
-            .filter(|l| match realm {
-                Realm::One(only) => l.realm == *only,
-                Realm::All => true,
-            })
-            .map(|l| l.fetched_at)
-            .min(),
-        list_seen_age: None,
     }
 }
 

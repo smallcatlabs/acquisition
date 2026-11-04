@@ -19,6 +19,8 @@
 //!
 //! The counter by type ([`by_type`]) is also a search's: its scope names
 //! the never fetched by the same types, so the two say one thing (C118).
+//! It is the store's (`acquisition_store::coverage`, C162), beside the
+//! coverage it counts for.
 //!
 //! A [`Selection`] narrows `rows` to one type, to the never fetched, or
 //! both: the never fetched by name, which every run of the re-sit asked
@@ -31,6 +33,8 @@
 
 use acquisition_store::TabRow;
 use acquisition_store::bound::bounded;
+// C162: the counter by type is the store's, under the path it had here
+pub use acquisition_store::coverage::{TabType, by_type};
 use serde::Serialize;
 
 /// A league's tabs, counted and then listed.
@@ -123,16 +127,6 @@ impl Selection {
     }
 }
 
-/// One tab type's counts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct TabType {
-    #[serde(rename = "type")]
-    pub kind: String,
-    pub tabs: usize,
-    pub fetched: usize,
-    pub items: i64,
-}
-
 impl Tabs {
     /// The league's tabs, as the store lists them, counted and listed
     /// under the one rule (C53), each listed row's fetch said as an age at
@@ -151,7 +145,7 @@ impl Tabs {
     ) -> Tabs {
         let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
         let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
-        let by_type = by_type(
+        let by_type = acquisition_store::coverage::by_type(
             rows.iter()
                 .map(|t| (t.r#type.as_str(), t.fetched_at.is_some(), t.item_count)),
         );
@@ -229,32 +223,4 @@ impl Tabs {
         self.groups = groups;
         self
     }
-}
-
-/// The counts by type, the most items first, of locations each given as
-/// its type, whether it was fetched, and its items: the one counter of
-/// `tabs` and of a search's scope, which names the never fetched by the
-/// same types (C118).
-pub fn by_type<'a>(locations: impl IntoIterator<Item = (&'a str, bool, i64)>) -> Vec<TabType> {
-    let mut by_type: Vec<TabType> = Vec::new();
-    for (kind, fetched, items) in locations {
-        let at = match by_type.iter().position(|k| k.kind == kind) {
-            Some(at) => at,
-            None => {
-                by_type.push(TabType {
-                    kind: kind.to_string(),
-                    tabs: 0,
-                    fetched: 0,
-                    items: 0,
-                });
-                by_type.len() - 1
-            }
-        };
-        let counted = &mut by_type[at];
-        counted.tabs += 1;
-        counted.fetched += usize::from(fetched);
-        counted.items += items;
-    }
-    by_type.sort_by(|a, b| b.items.cmp(&a.items).then_with(|| a.kind.cmp(&b.kind)));
-    by_type
 }
