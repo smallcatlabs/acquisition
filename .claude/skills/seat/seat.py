@@ -146,6 +146,9 @@ def setup(a):
                 backup(os.path.join(OWNER, f), os.path.join(STORE, "mock", f))
     elif a.store:
         src = os.path.abspath(a.store)
+        if not os.path.isdir(src) or not any(f.endswith(".db") for _, _, fs in os.walk(src) for f in fs):
+            shutil.rmtree(STORE)
+            sys.exit(f"seat: --store {src} is not a directory holding a store (no .db under it) — a bare world is `setup` with neither --facts nor --store (the answer-facts seat, 2026-11-04: a missing pristine made two empty worlds)")
         for d, _, files in os.walk(src):
             os.makedirs(os.path.join(STORE, os.path.relpath(d, src)), exist_ok=True)
             for f in sorted(files):

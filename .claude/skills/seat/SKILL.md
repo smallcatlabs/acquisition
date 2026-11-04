@@ -160,5 +160,12 @@ skill (P6).
   close) and made it again from the owner's unchanged files; step 10
   now keeps it, and the ledger row names it. Make the copy before the
   briefs, and check it is there before a plan names it.
+- **A missing pristine made a bare world.** `setup --store DIR` with a
+  DIR that did not exist (the pristine's own `setup` had refused its
+  unmade directory a line earlier) made two worlds with `store: []`
+  and said "the world at …" (the answer-facts seat, 2026-11-04); both
+  were torn down and remade. The door now refuses a `--store` that is
+  not a directory holding a `.db`; make the pristine's directory before
+  its `setup`, and read `world.json`'s `store` list before a launch.
 - **The seat's fix round ends with the gate run bare.** A commit went
   through with `git diff --check` failing behind a `;`.
