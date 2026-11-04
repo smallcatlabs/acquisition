@@ -227,6 +227,8 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         &["shop", "render"],
         &[
             "2 items to post on 1 page",
+            "facts: 2 posted items at 2 locations, 2 fetched (",
+            ", characters listed ",
             "coverage: 1 container on the page outside the sync policy (revision 1): character/ch1",
         ],
     );

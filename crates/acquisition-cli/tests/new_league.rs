@@ -143,6 +143,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
             2,
             &[
                 format!("no items on record for {LEAGUE}"),
+                "facts: 7 locations, 7 fetched (".into(),
                 format!("next: `acq refresh --plan --account ExileTester --realm pc --league {LEAGUE}`"),
             ],
         ),

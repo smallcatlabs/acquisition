@@ -732,6 +732,20 @@ fn c72_coverage_staleness_and_positions_are_reported_never_enforced() {
     assert!(!f.stale.iter().any(|t| t.to_string() == "item/i-tabrow"));
     assert_eq!(f.stale_uncovered, 1);
     assert_eq!(f.oldest_stale_seconds, Some(3_800));
+    // C162: the facts' oldest is the posted items' locations', another
+    // set — t2, uncovered, seen at 100 — and the stale set's stays the
+    // covered stale items' (seen at 1200, 3800 s before the render)
+    let facts = f.facts.as_ref().expect("the posted items' facts");
+    assert_eq!(facts.span.oldest_fetch, Some(100));
+    assert_eq!(
+        facts
+            .span
+            .oldest_fetch_location
+            .as_ref()
+            .map(|l| l.id.as_str()),
+        Some("t2")
+    );
+    assert_ne!(facts.span.oldest_fetch, Some(5_000 - 3_800));
     // The t2 item's fetch (response 1) predates the listing (2).
     assert_eq!(
         f.position_before_listing
@@ -783,6 +797,7 @@ fn c72_coverage_staleness_and_positions_are_reported_never_enforced() {
     )
     .unwrap();
     assert_eq!(r.freshness.policy, "league_not_covered");
+    assert!(r.freshness.facts.is_some());
     assert_eq!(r.freshness.window_seconds, None);
     assert!(r.freshness.uncovered.is_empty());
 
@@ -796,10 +811,111 @@ fn c72_coverage_staleness_and_positions_are_reported_never_enforced() {
     .unwrap();
     assert_eq!(r.freshness.policy, "unreadable");
     assert_eq!(r.freshness.policy_problem.as_deref(), Some("version 12"));
+    assert!(r.freshness.facts.is_some());
     let r = render(&report, &opts(PolicySource::NotSet)).unwrap();
     assert_eq!(r.freshness.policy, "not_set");
     // The position line needs no policy.
     assert_eq!(r.freshness.position_before_listing.len(), 1);
+}
+
+fn posted_only_in(snap: &mut PricingSnapshot, kind: &str) {
+    snap.items.retain(|i| i.location_kind == kind);
+}
+
+fn located(l: &Option<FetchedLocation>) -> Option<(&str, &str, Option<&str>)> {
+    l.as_ref()
+        .map(|l| (l.kind.as_str(), l.id.as_str(), l.name.as_deref()))
+}
+
+/// C162, #156 — a render says how old its posted items' facts are with
+/// no policy set: posted items in two tabs fetched at different times
+/// are two places, both fetched, the two fetches with their tabs, and
+/// the lists' oldest the stash listing's, older than both; no character
+/// is posted, so the character listing is not among the lists. The
+/// header says both listings' ages at the render's time.
+#[test]
+fn c162_a_render_with_no_policy_says_its_posted_locations_facts() {
+    let mut snap = snapshot();
+    posted_only_in(&mut snap, "stash");
+    for i in snap.items.iter_mut().filter(|i| i.id == "i-tabrow") {
+        i.last_seen = 1_500;
+    }
+    let r = render(&resolve(&snap).unwrap(), &opts(PolicySource::NotSet)).unwrap();
+    assert_eq!(r.freshness.policy, "not_set");
+    let f = r.freshness.facts.as_ref().expect("facts under no policy");
+    assert_eq!((f.places, f.tabs, f.characters, f.fetched), (2, 2, 0, 2));
+    let said = |at: i64| Some(acquisition_store::age::ago(5_000, Some(at)));
+    assert_eq!(f.span.oldest_fetch, Some(1_200));
+    assert_eq!(f.span.oldest_fetch_age, said(1_200));
+    assert_eq!(
+        located(&f.span.oldest_fetch_location),
+        Some(("stash", "c1", Some("~price 3 chaos")))
+    );
+    assert_eq!(f.span.newest_fetch, Some(1_500));
+    assert_eq!(f.span.newest_fetch_age, said(1_500));
+    assert_eq!(
+        located(&f.span.newest_fetch_location),
+        Some(("stash", "t2", Some("~price 9 chaos (Remove-only)")))
+    );
+    assert_eq!(f.span.list_seen, Some(1_000));
+    assert_eq!(f.span.list_seen_age, said(1_000));
+    assert_eq!(r.listing.stash_listing_fetched_at_age, said(1_000));
+    assert_eq!(r.listing.character_listing_fetched_at_age, said(1_001));
+    // round 3's: the render's own times are not worded here
+    assert!(r.listing.taken_at_age.is_none());
+}
+
+/// C162 — posted items in a tab and on a character, the character
+/// listing older than the stash listing: the lists' oldest is the
+/// character listing's, and the header ages each listing.
+#[test]
+fn c162_a_render_over_a_tab_and_a_character_reads_both_listings() {
+    let mut snap = snapshot();
+    snap.character_listing = Some(ListingBasis {
+        response_id: 3,
+        fetched_at: 900,
+    });
+    let r = render(&resolve(&snap).unwrap(), &opts(PolicySource::NotSet)).unwrap();
+    let f = r.freshness.facts.as_ref().unwrap();
+    assert_eq!((f.places, f.tabs, f.characters), (3, 2, 1));
+    assert_eq!(f.span.list_seen, Some(900));
+    let said = |at: i64| Some(acquisition_store::age::ago(5_000, Some(at)));
+    assert_eq!(r.listing.stash_listing_fetched_at_age, said(1_000));
+    assert_eq!(r.listing.character_listing_fetched_at_age, said(900));
+}
+
+/// C162 — posted items on a character alone: no tab among the places,
+/// so the stash listing is not among the lists, and the lists' oldest
+/// is the character listing's, newer than the stash listing.
+#[test]
+fn c162_a_render_over_a_character_alone_reads_the_character_listing() {
+    let mut snap = snapshot();
+    posted_only_in(&mut snap, "character");
+    let r = render(&resolve(&snap).unwrap(), &opts(PolicySource::NotSet)).unwrap();
+    let f = r.freshness.facts.as_ref().unwrap();
+    assert_eq!((f.places, f.tabs, f.characters, f.fetched), (1, 0, 1, 1));
+    assert_eq!(f.span.list_seen, Some(1_001));
+    assert_eq!(
+        located(&f.span.oldest_fetch_location),
+        located(&f.span.newest_fetch_location)
+    );
+    assert_eq!(
+        located(&f.span.oldest_fetch_location),
+        Some(("character", "ch1", Some("Exile")))
+    );
+}
+
+/// C162 — a render with nothing posted has no facts block, absent from
+/// its document, as it has no facts line.
+#[test]
+fn c162_a_render_with_nothing_posted_has_no_facts() {
+    let mut snap = snapshot();
+    snap.buyouts.clear();
+    let r = render(&resolve(&snap).unwrap(), &opts(PolicySource::NotSet)).unwrap();
+    assert_eq!(r.counts.posted, 0);
+    assert!(r.freshness.facts.is_none());
+    let doc = serde_json::to_value(&r).unwrap();
+    assert!(doc["freshness"].get("facts").is_none(), "{doc}");
 }
 
 /// T24 — `Stash<n>` against the website's own numbering, at scale: the
@@ -1112,7 +1228,11 @@ mod real_scale {
         let took = t.elapsed();
         eprintln!("render took {took:?}");
         assert_eq!(r.schema, SHOP_SCHEMA);
-        assert_eq!(r.listing, report.header);
+        // the header the report resolved, its two listings aged at the
+        // render's time for the facts line (#156)
+        let mut header = report.header.clone();
+        header.listings_aged(s.taken_at);
+        assert_eq!(r.listing, header);
 
         let c = &r.counts;
         assert_eq!(c.items, 1977);

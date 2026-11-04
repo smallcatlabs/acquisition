@@ -652,13 +652,13 @@ impl Transcript {
 }
 
 /// A transcript's own rule, outside [`normalise`]'s eleven, for a world
-/// fetched in real time ([`Transcript::fetched_live`]): on a total line,
-/// the matches' fetch clause is `(<fetches>)`, whichever form it takes.
-/// A `# holds` line is the fact as checked and is kept.
+/// fetched in real time ([`Transcript::fetched_live`]): on a total line
+/// and a facts line, the fetch clause is `(<fetches>)`, whichever form it
+/// takes. A `# holds` line is the fact as checked and is kept.
 pub fn fetch_place_rule(text: &str) -> String {
     text.split_inclusive('\n')
         .map(|line| {
-            if is_fact(line) || !line.starts_with("total ") {
+            if is_fact(line) || !(line.starts_with("total ") || line.starts_with("facts: ")) {
                 return line.to_string();
             }
             let mut line = line.to_string();

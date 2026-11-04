@@ -138,6 +138,20 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
     if r.counts.posted == 0 {
         return out;
     }
+    // how old the posted items' facts are, under every policy state
+    // (#156: no policy said nothing while the ranks were fifty days old)
+    if let Some(facts) = &f.facts {
+        out.push_str(&crate::price_cmd::facts_line(
+            &format!(
+                "{} at {}",
+                plural(r.posted_total, "posted item", "posted items"),
+                plural(facts.places, "location", "locations")
+            ),
+            facts,
+            &r.listing,
+            now,
+        ));
+    }
     match f.policy.as_str() {
         "not_set" => out.push_str(
             "policy: none set, so no refresh covers the page's facts; `acq policy set` declares coverage\n",
@@ -199,7 +213,7 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
                     (None, None) => format!("`{plan}` shows what a refresh would fetch"),
                 };
                 out.push_str(&format!(
-                    "stale: {} on the page last seen past the policy's window of {}s (oldest {}); {remedy}\n",
+                    "stale: {} on the page last seen past the policy's window of {}s (oldest covered stale item {}); {remedy}\n",
                     plural(f.stale_total, "item", "items"),
                     f.window_seconds.unwrap_or(0),
                     ago(now, f.oldest_stale_seconds.map(|s| now.saturating_sub(s)))
@@ -364,12 +378,13 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String 
 mod tests {
     use super::*;
     use crate::real_scale_fixture;
-    use acquisition_plan::listing::{ReportHeader, resolve};
+    use acquisition_plan::listing::{Facts, ReportHeader, resolve};
     use acquisition_plan::price::PriceTarget;
     use acquisition_plan::shop::{
         DEFAULT_PAGE_SIZE, Freshness, ITEMS_TOKEN, LeftOut, Page, PageTab, PolicyRow, PolicySource,
         Posted, RenderOptions, ShopCounts, render,
     };
+    use acquisition_store::coverage::FetchedLocation;
     use serde_json::json;
     use std::collections::BTreeMap;
     use std::time::Instant;
@@ -378,12 +393,28 @@ mod tests {
     /// omission and two blocked, and a policy that covers one of the two
     /// containers.
     fn rendered() -> ShopRender {
-        let header: ReportHeader = serde_json::from_value(json!({
+        let mut header: ReportHeader = serde_json::from_value(json!({
             "schema": 2, "account_uuid": "u", "realm": "pc", "league": "Standard",
             "taken_at": 2000, "note_parser_version": 1, "currency_table_version": 1,
             "stash_listing": { "response_id": 2, "fetched_at": 1000 }
         }))
         .unwrap();
+        header.listings_aged(5000);
+        // the posted items' two tabs, fetched apart
+        let at = |id: &str, name: &str| FetchedLocation {
+            kind: "stash".into(),
+            id: id.into(),
+            name: Some(name.into()),
+            league: Some("Standard".into()),
+        };
+        let mut facts = Facts::of(
+            &[
+                (at("c1", "Dump"), Some(1200)),
+                (at("t2", "~price 1 chaos"), Some(1500)),
+            ],
+            &header.bases(),
+        );
+        facts.aged(5000);
         let mut by_cell: BTreeMap<Cell, usize> = Cell::ALL.iter().map(|c| (*c, 0)).collect();
         for (cell, n) in [
             (Cell::StashItem, 2),
@@ -516,6 +547,7 @@ mod tests {
                 oldest_stale_seconds_age: None,
                 position_before_listing: vec![item("c")],
                 position_before_listing_total: 1,
+                facts: Some(facts),
             },
         }
     }
@@ -533,54 +565,58 @@ mod tests {
             lines[0],
             "13 items in Standard: 3 items to post on 2 pages; 5 omitted (4 the game lists, 1 skipped by hand); 2 blocked (1 unresolved, 1 in a substash); 3 nothing applies"
         );
+        // C162, #156: how old the posted items' facts are, first, under
+        // every policy state; the stale line's oldest is another set's
+        let facts = "facts: 3 posted items at 2 locations, 2 fetched (the oldest fetch 63m ago, Standard / Dump; the newest 58m ago, Standard / ~price 1 chaos); stash listing 66m ago";
+        assert_eq!(lines[1], facts);
         assert_eq!(
-            lines[1],
+            lines[2],
             "coverage: 1 container on the page outside the sync policy (revision 4): tab/pc/t2; add them with `acq policy set --account a` (1 of their items past the window too)"
         );
         assert_eq!(
-            lines[2],
-            "stale: 1 item on the page last seen past the policy's window of 3600s (oldest 63m ago); `acq refresh --plan --account a --realm pc --league Standard` would send 7 requests"
+            lines[3],
+            "stale: 1 item on the page last seen past the policy's window of 3600s (oldest covered stale item 63m ago); `acq refresh --plan --account a --realm pc --league Standard` would send 7 requests"
         );
         assert!(
-            lines[3]
+            lines[4]
                 .starts_with("positions: 1 item on the page seen before the current stash listing"),
             "{}",
-            lines[3]
+            lines[4]
         );
-        assert_eq!(lines[4], "blocked:");
+        assert_eq!(lines[5], "blocked:");
         assert!(
-            lines[5].starts_with(
+            lines[6].starts_with(
                 "  substash           Map                              substash/pc/m1/s1"
             ),
             "{}",
-            lines[5]
-        );
-        assert!(lines[5].ends_with("item/s"), "{}", lines[5]);
-        assert!(
-            lines[6].starts_with("  unresolved         Ring"),
-            "{}",
             lines[6]
         );
+        assert!(lines[6].ends_with("item/s"), "{}", lines[6]);
+        assert!(
+            lines[7].starts_with("  unresolved         Ring"),
+            "{}",
+            lines[7]
+        );
         // C146 — each page names the tabs its `Stash<n>` links write
-        assert_eq!(lines[7], "page 1 of 2: 40 characters, 2 items");
+        assert_eq!(lines[8], "page 1 of 2: 40 characters, 2 items");
         assert_eq!(
-            lines[8],
+            lines[9],
             "  Stash1 is the tab \"Dump\" (tab/pc/c1): 2 items"
         );
-        assert_eq!(lines[9], "page one body");
-        assert_eq!(lines[10], "");
-        assert_eq!(lines[11], "page 2 of 2: 20 characters, 1 item");
+        assert_eq!(lines[10], "page one body");
+        assert_eq!(lines[11], "");
+        assert_eq!(lines[12], "page 2 of 2: 20 characters, 1 item");
         assert_eq!(
-            lines[12],
+            lines[13],
             "  Stash2 is the tab \"~price 1 chaos\" (tab/pc/t2): 1 item"
         );
-        assert_eq!(lines[13], "page two body");
-        assert_eq!(lines[14], "");
+        assert_eq!(lines[14], "page two body");
+        assert_eq!(lines[15], "");
         assert_eq!(
-            lines[15],
+            lines[16],
             "next: paste page 1 of 2 into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone"
         );
-        assert_eq!(lines.len(), 16, "{text}");
+        assert_eq!(lines.len(), 17, "{text}");
         assert!(!text.contains("policy table"), "{text}");
 
         let text = render_text(&r, 5000, true, "a");
@@ -606,12 +642,15 @@ mod tests {
         none.counts.posted = 0;
         none.counts.pages = 0;
         none.counts.blocked = 5;
+        none.posted_total = 0;
+        none.freshness.facts = None;
         let text = render_text(&none, 5000, false, "a");
         assert!(
             text.starts_with("nothing to paste for Standard: 13 items — 5 omitted"),
             "{text}"
         );
         assert!(!text.contains("coverage:"), "{text}");
+        assert!(!text.contains("facts:"), "{text}");
         assert!(
             text.ends_with(
                 "`acq price set --account a item/<id> exact <amount> <tag>` prices one by hand\n"
@@ -633,6 +672,10 @@ mod tests {
         let mut unset = rendered();
         unset.freshness.policy = "not_set".into();
         let text = render_text(&unset, 5000, false, "a");
+        assert!(
+            text.contains(&format!("\n{facts}\npolicy: none set")),
+            "{text}"
+        );
         assert!(text.contains("policy: none set, so no refresh covers the page's facts; `acq policy set` declares coverage\n"), "{text}");
         assert!(!text.contains("coverage:"), "{text}");
         assert!(text.contains("positions: 1 item"), "{text}");

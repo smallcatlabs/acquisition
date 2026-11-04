@@ -35,6 +35,27 @@
     "residue": 1
   },
   "currency_table_version": 1,
+  "facts": {
+    "characters": 1,
+    "fetched": 7,
+    "list_seen": 100,
+    "newest_fetch": 111,
+    "newest_fetch_location": {
+      "id": "ch1",
+      "kind": "character",
+      "league": "Standard",
+      "name": "Exile"
+    },
+    "oldest_fetch": 110,
+    "oldest_fetch_location": {
+      "id": "c1",
+      "kind": "stash",
+      "league": "Standard",
+      "name": "~price 3 chaos (A)"
+    },
+    "places": 7,
+    "tabs": 6
+  },
   "league": "Standard",
   "listings": [
     {

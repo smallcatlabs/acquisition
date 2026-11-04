@@ -151,7 +151,12 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
     let mut t = Transcript::new(&base);
     t.run(
         &["price", "status"],
-        &["1 name nothing in the facts", "2 for other leagues"],
+        &[
+            "facts: 1 location, 1 fetched (fetched ",
+            "Standard / Gear); stash listing ",
+            "1 name nothing in the facts",
+            "2 for other leagues",
+        ],
     );
     let report = sole_json(&acq(&base, &["price", "status", "--json"]));
     assert_eq!(
@@ -166,7 +171,10 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
 
     t.run(
         &["price", "status", "--league", "Allflame"],
-        &["rows: 2 of 3 apply here"],
+        &[
+            "Allflame / Gear); stash listing ",
+            "rows: 2 of 3 apply here",
+        ],
     );
     golden(file!(), "price_status_other_leagues", &t);
 }

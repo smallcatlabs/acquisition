@@ -30,6 +30,30 @@
     "posted": 6
   },
   "freshness": {
+    "facts": {
+      "characters": 1,
+      "fetched": 3,
+      "list_seen": 1000,
+      "list_seen_age": "66m ago",
+      "newest_fetch": 1200,
+      "newest_fetch_age": "63m ago",
+      "newest_fetch_location": {
+        "id": "c1",
+        "kind": "stash",
+        "league": "Standard",
+        "name": "~price 3 chaos"
+      },
+      "oldest_fetch": 100,
+      "oldest_fetch_age": "81m ago",
+      "oldest_fetch_location": {
+        "id": "t2",
+        "kind": "stash",
+        "league": "Standard",
+        "name": "~price 9 chaos (Remove-only)"
+      },
+      "places": 3,
+      "tabs": 2
+    },
     "oldest_stale_seconds": 3800,
     "oldest_stale_seconds_age": "63m ago",
     "policy": "covers",
@@ -225,6 +249,7 @@
       "fetched_at": 1001,
       "response_id": 3
     },
+    "character_listing_fetched_at_age": "66m ago",
     "currency_table_version": 1,
     "league": "Standard",
     "note_parser_version": 2,
@@ -234,6 +259,7 @@
       "fetched_at": 1000,
       "response_id": 2
     },
+    "stash_listing_fetched_at_age": "66m ago",
     "taken_at": 2000
   },
   "off_page_listed": false,

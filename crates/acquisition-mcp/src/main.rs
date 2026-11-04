@@ -1812,7 +1812,7 @@ impl AcqMcp {
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
 
     #[tool(
-        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
@@ -1904,7 +1904,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced — and in `position_before_listing` items fetched before the listing their links' tab ranks use. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {

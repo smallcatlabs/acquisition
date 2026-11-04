@@ -125,7 +125,7 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 
 ### `price_status`
 
-The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
+The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every row of `rows.unmatched`, `rows.unreadable` and `rows.other_league`, past the first ten.
@@ -171,7 +171,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 ### `shop_render`
 
-The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced — and in `position_before_listing` items fetched before the listing their links' tab ranks use. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
+The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.

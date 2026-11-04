@@ -32,7 +32,7 @@
 
 use acquisition_plan::game_side::{GamePrice, Source};
 use acquisition_plan::listing::{
-    GameText, ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side,
+    Facts, GameText, ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side,
 };
 use acquisition_plan::price::{Buyout, PriceTarget, PriceWrite};
 use acquisition_plan::pricing::{self, Expect, ListArgs};
@@ -275,6 +275,66 @@ pub(crate) fn write_flags(account: &str) -> String {
     crate::printed_line(&crate::option_words("--account", account))
 }
 
+/// The facts line (C162): how many places `lead` counts, how many were
+/// fetched and the extremes of their last fetches, each with its own age,
+/// then the listings naming them, each with its age — the listing of each
+/// kind among the places, or every listing there is where there is no
+/// place. Every age is the document's own (C53), said at `now` where the
+/// document holds none.
+pub(crate) fn facts_line(lead: &str, facts: &Facts, h: &ReportHeader, now: i64) -> String {
+    let said = |age: &Option<String>, at: Option<i64>| age.clone().unwrap_or_else(|| ago(now, at));
+    let stash = match h.stash_listing {
+        Some(b) => format!(
+            "stash listing {}",
+            said(&h.stash_listing_fetched_at_age, Some(b.fetched_at))
+        ),
+        None => "stash never listed".into(),
+    };
+    let characters = match h.character_listing {
+        Some(b) => format!(
+            "characters listed {}",
+            said(&h.character_listing_fetched_at_age, Some(b.fetched_at))
+        ),
+        None => "characters never listed".into(),
+    };
+    if facts.places == 0 {
+        let lists: Vec<String> = [
+            h.stash_listing.map(|_| stash),
+            h.character_listing.map(|_| characters),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        return if lists.is_empty() {
+            "facts: nothing listed\n".into()
+        } else {
+            format!("facts: no locations; {}\n", lists.join(", "))
+        };
+    }
+    let fetched = if facts.fetched == 0 {
+        "none fetched".to_string()
+    } else {
+        let s = &facts.span;
+        format!(
+            "{} fetched ({})",
+            facts.fetched,
+            crate::search_cmd::span_words(
+                s,
+                said(&s.oldest_fetch_age, s.oldest_fetch),
+                said(&s.newest_fetch_age, s.newest_fetch),
+            )
+        )
+    };
+    let lists: Vec<String> = [
+        (facts.tabs > 0).then_some(stash),
+        (facts.characters > 0).then_some(characters),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    format!("facts: {lead}, {fetched}; {}\n", lists.join(", "))
+}
+
 fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
     // Every command the next step prints, as it runs ([`scope_flags`]).
     let scope = scope_flags(&r.header, account);
@@ -293,6 +353,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
                 plural(c.containers, "tab or character", "tabs and characters")
             ));
         }
+        out.push_str(&status_facts(r, now));
         if let Some(line) = rows_line(r) {
             out.push_str(&line);
         } else if r.rows.total > 0 {
@@ -337,6 +398,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             String::new()
         }
     ));
+    out.push_str(&status_facts(r, now));
     // Each count says what it counts (C146, a count says what it counts):
     // the hand side is the sum of its three relations, written out, since
     // "89 by hand" beside "39 decided by hand" read as a contradiction (the
@@ -440,6 +502,16 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     };
     out.push_str(&format!("next: {next}\n"));
     out
+}
+
+/// The status's facts line: the report's non-folder containers.
+fn status_facts(r: &ListingReport, now: i64) -> String {
+    facts_line(
+        &plural(r.facts.places, "location", "locations"),
+        &r.facts,
+        &r.header,
+        now,
+    )
 }
 
 fn manual_cell(l: &Listing) -> String {
@@ -1239,23 +1311,26 @@ mod tests {
             lines[0],
             "15 items in Standard: 12 the game decides, 0 decided by hand, 3 nothing applies"
         );
+        // C162: how old the facts are, over the non-folder containers
+        let facts = "facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago";
+        assert_eq!(lines[1], facts);
         assert_eq!(
-            lines[1],
+            lines[2],
             "sides: 1 priced by hand (0 by hand alone, 0 agree with the game's price, 1 conflict with it); 12 priced in game"
         );
         assert_eq!(
-            lines[2],
+            lines[3],
             "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account a --realm pc --league Standard --game-text residue` lists them"
         );
         assert_eq!(
-            lines[3],
+            lines[4],
             "rows: 1 of 2 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms"
         );
         assert_eq!(
-            lines[4],
+            lines[5],
             "next: `acq price list --account a --realm pc --league Standard --relation conflict --expand` names each conflict"
         );
-        assert_eq!(lines.len(), 5, "{text}");
+        assert_eq!(lines.len(), 6, "{text}");
         assert!(!text.contains("parser"), "{text}");
 
         let text = render_status(&r, 8_000, true, "a");
@@ -1310,7 +1385,8 @@ mod tests {
         let mut empty = snapshot();
         empty.items.clear();
         let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
-        assert!(text.starts_with("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n"), "{text}");
+        // no items is not no locations: the full view's facts line
+        assert!(text.starts_with(&format!("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n{facts}\n")), "{text}");
         assert!(
             text.ends_with(
                 "next: `acq refresh --plan --account a --realm pc --league Standard` shows what a refresh would fetch\n"
@@ -1322,9 +1398,56 @@ mod tests {
         let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
         assert!(
             text.starts_with(
-                "nothing on record for Standard: no stash listing, no character listing\n"
+                "nothing on record for Standard: no stash listing, no character listing\n\
+                 facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash never listed, characters never listed\n"
             ),
             "{text}"
+        );
+    }
+
+    /// C162 — the facts line's forms, chosen from the facts' own fields:
+    /// one location named once; none fetched; no location, the lists'
+    /// ages alone; nothing listed. Each listing is named where its kind
+    /// is among the places.
+    #[test]
+    fn c162_the_status_facts_line_takes_its_form_from_the_facts() {
+        let facts_line = |s: &PricingSnapshot| {
+            render_status(&resolve(s).unwrap(), 8_000, false, "a")
+                .lines()
+                .find(|l| l.starts_with("facts: "))
+                .map(str::to_string)
+        };
+        let mut one = snapshot();
+        one.tabs.retain(|t| t.id == "c1");
+        one.characters.clear();
+        assert_eq!(
+            facts_line(&one).as_deref(),
+            Some(
+                "facts: 1 location, 1 fetched (fetched 1h ago, Standard / ~price 3 chaos (A)); stash listing 1h ago"
+            )
+        );
+        let mut unfetched = snapshot();
+        for t in &mut unfetched.tabs {
+            t.fetched_at = None;
+        }
+        unfetched.characters.clear();
+        assert_eq!(
+            facts_line(&unfetched).as_deref(),
+            Some("facts: 3 locations, none fetched; stash listing 1h ago")
+        );
+        let mut listed_only = snapshot();
+        listed_only.items.clear();
+        listed_only.tabs.clear();
+        listed_only.characters.clear();
+        assert_eq!(
+            facts_line(&listed_only).as_deref(),
+            Some("facts: no locations; stash listing 1h ago, characters listed 1h ago")
+        );
+        listed_only.stash_listing = None;
+        listed_only.character_listing = None;
+        assert_eq!(
+            facts_line(&listed_only).as_deref(),
+            Some("facts: nothing listed")
         );
     }
 
@@ -1717,6 +1840,7 @@ mod tests {
         assert_eq!(
             text,
             "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
+             facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago\n\
              rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
              next: `acq price status --account a --realm pc --league Standard --expand` lists the rows that cannot be read\n"
         );

@@ -277,7 +277,11 @@ fn price_json_documents_are_the_views_the_text_reads() {
     // A league with no facts still shows the intent rows (C35).
     t.run(
         &["price", "status", "--league", "Hardcore"],
-        &["no items on record for Hardcore", "2 for other leagues"],
+        &[
+            "no items on record for Hardcore",
+            "facts: no locations; characters listed ",
+            "2 for other leagues",
+        ],
     );
     golden(file!(), "list_show_and_refusals", &t);
 }

@@ -138,6 +138,8 @@ use std::fmt;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::age;
 use acquisition_store::bound::bounded;
+use acquisition_store::corpus::ListingSeen;
+use acquisition_store::coverage::{self, FetchSpan, FetchedLocation};
 use acquisition_store::{
     AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     ValueError, check_value,
@@ -164,7 +166,10 @@ use crate::price::{Buyout, Price, PriceTarget};
 /// view's text says as an age, its words under the epoch's name and
 /// `_age` — `status`'s `taken_at_age` and listings', `show`'s
 /// `taken_at_age`, `manual.updated_at_age` and `basis.at_age` — absent
-/// from the report itself and from `list`, which say none.
+/// from the report itself and from `list`, which say none. Within 3
+/// since 2026-11-04 (#156, C162, additive): the report's `facts`, its
+/// non-folder containers' fetches and lists, unaged but on `status`;
+/// `list` and `show` carry the header alone.
 pub const LISTING_SCHEMA: u32 = 3;
 
 /// The GGG tab type that groups tabs and holds no items.
@@ -586,9 +591,109 @@ pub struct ListingReport {
     pub header: ReportHeader,
     pub counts: Counts,
     pub rows: RowAccounting,
+    /// How old the facts are (C162): the report's non-folder containers,
+    /// the locations the facts were read from, each with its last fetch,
+    /// never its listing time. Built by [`resolve`] unaged; [`status`]
+    /// says its ages (C53). `list` and `show` carry the header alone.
+    ///
+    /// [`status`]: ListingReport::status
+    pub facts: Facts,
     /// Containers first (tabs in listing order, then characters), then
     /// items in the snapshot's order.
     pub listings: Vec<Listing>,
+}
+
+/// How old the facts an answer rests on are, over its own set of places
+/// (C162, one derivation over any set): how many places, how many of them
+/// tabs and characters, how many fetched, and the store's span over them
+/// — the oldest and newest last fetch with its location, and the oldest
+/// of the lists naming them ([`acquisition_store::coverage::span`]). A
+/// set of posted entries has no never-fetched half to name by type, so
+/// this is the count and the span, not a whole coverage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Facts {
+    /// The places the answer rests on.
+    pub places: usize,
+    /// How many of `places` are stash tabs (substashes among them) and
+    /// how many characters: the stash listing names the first, the
+    /// character listing the second, so the text names a listing where
+    /// its kind is among the places.
+    pub tabs: usize,
+    pub characters: usize,
+    /// How many of `places` have been fetched.
+    pub fetched: usize,
+    #[serde(flatten)]
+    pub span: FetchSpan,
+}
+
+impl Facts {
+    /// The facts of `places`, each its location and its last fetch, in
+    /// the caller's order (the first on a tie), and `bases` the listings
+    /// the answer read: `list_seen` is the oldest of those whose kind is
+    /// among the places.
+    pub fn of(places: &[(FetchedLocation, Option<i64>)], bases: &[ListingSeen]) -> Facts {
+        let count = |kind: &str| places.iter().filter(|(l, _)| l.kind == kind).count();
+        let fetched: Vec<(i64, FetchedLocation)> = places
+            .iter()
+            .filter_map(|(l, at)| Some(((*at)?, l.clone())))
+            .collect();
+        let named: Vec<ListingSeen> = bases
+            .iter()
+            .filter(|b| places.iter().any(|(l, _)| l.kind == b.kind))
+            .cloned()
+            .collect();
+        Facts {
+            places: places.len(),
+            tabs: count("stash"),
+            characters: count("character"),
+            fetched: fetched.len(),
+            span: coverage::span(&fetched, &named),
+        }
+    }
+
+    /// C53: the span's ages said at `now`, the answer's time.
+    pub fn aged(&mut self, now: i64) {
+        self.span.aged(now);
+    }
+}
+
+impl ReportHeader {
+    /// The listing bases the header names, as the store's span reads
+    /// them: the stash listing names the league's tabs, the character
+    /// listing the realm's characters.
+    pub fn bases(&self) -> Vec<ListingSeen> {
+        let seen = |b: Option<ListingBasis>, kind: &str, league: Option<&str>| {
+            b.map(|b| ListingSeen {
+                realm: self.realm.as_str().to_string(),
+                league: league.map(str::to_string),
+                kind: kind.to_string(),
+                response_id: b.response_id,
+                fetched_at: b.fetched_at,
+            })
+        };
+        [
+            seen(self.stash_listing, "stash", Some(&self.league)),
+            seen(self.character_listing, "character", None),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
+    /// C53: the snapshot's and the listings' ages in words at `now`, the
+    /// answer's time.
+    pub fn aged(&mut self, now: i64) {
+        self.taken_at_age = Some(age::ago(now, Some(self.taken_at)));
+        self.listings_aged(now);
+    }
+
+    /// C53: the two listings' ages in words at `now`, `never` for a
+    /// listing that does not exist: what a text naming the lists says.
+    pub fn listings_aged(&mut self, now: i64) {
+        let listing = |l: Option<ListingBasis>| Some(age::ago(now, l.map(|l| l.fetched_at)));
+        self.stash_listing_fetched_at_age = listing(self.stash_listing);
+        self.character_listing_fetched_at_age = listing(self.character_listing);
+    }
 }
 
 /// Which items `list` selects: by relation, by the effective price's
@@ -847,16 +952,14 @@ impl ListingReport {
 
     /// What `status` is: the report without its listings, each list of
     /// its row accounting ten unless `expand`, beside its whole count
-    /// (C53, the read economy), and the snapshot's and the listings' ages
-    /// its text says, in words at `now`, the answer's time (C53, ages).
+    /// (C53, the read economy), and the snapshot's, the listings' and the
+    /// facts' ages its text says, in words at `now`, the answer's time
+    /// (C53, ages).
     pub fn status(&self, expand: bool, now: i64) -> ListingReport {
         let mut status = self.summary();
         status.rows = status.rows.bounded(expand);
-        let h = &mut status.header;
-        let listing = |l: Option<ListingBasis>| Some(age::ago(now, l.map(|l| l.fetched_at)));
-        h.taken_at_age = Some(age::ago(now, Some(h.taken_at)));
-        h.stash_listing_fetched_at_age = listing(h.stash_listing);
-        h.character_listing_fetched_at_age = listing(h.character_listing);
+        status.header.aged(now);
+        status.facts.aged(now);
         status
     }
 
@@ -1760,6 +1863,31 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         counts.by_effective.entry(side.into()).or_default();
     }
 
+    // C162: the report's non-folder containers, each with its own last
+    // fetch (a container's basis is its listing, never its fetch)
+    let places: Vec<(FetchedLocation, Option<i64>)> = tabs
+        .iter()
+        .filter(|info| info.kind != TabKind::Folder)
+        .map(|info| {
+            let at = FetchedLocation {
+                kind: "stash".into(),
+                id: info.tab.id.clone(),
+                name: named(&info.tab.name),
+                league: Some(snapshot.league.clone()),
+            };
+            (at, info.tab.fetched_at)
+        })
+        .chain(snapshot.characters.iter().map(|c| {
+            let at = FetchedLocation {
+                kind: "character".into(),
+                id: c.id.clone(),
+                name: named(&c.name),
+                league: c.league.clone(),
+            };
+            (at, c.fetched_at)
+        }))
+        .collect();
+
     let mut accounting = rows.accounting;
     let subjects: std::collections::BTreeSet<&PriceTarget> =
         listings.iter().map(|l| &l.subject.target).collect();
@@ -1772,26 +1900,34 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
     }
     accounting.counted();
 
+    let header = ReportHeader {
+        schema: LISTING_SCHEMA,
+        account_uuid: snapshot.account_uuid.clone(),
+        account_name: snapshot.account_name.clone(),
+        realm,
+        league: snapshot.league.clone(),
+        taken_at: snapshot.taken_at,
+        taken_at_age: None,
+        stash_listing_fetched_at_age: None,
+        character_listing_fetched_at_age: None,
+        stash_listing: snapshot.stash_listing,
+        character_listing: snapshot.character_listing,
+        note_parser_version: NOTE_PARSER_VERSION,
+        currency_table_version: CURRENCY_TABLE_VERSION,
+    };
     Ok(ListingReport {
-        header: ReportHeader {
-            schema: LISTING_SCHEMA,
-            account_uuid: snapshot.account_uuid.clone(),
-            account_name: snapshot.account_name.clone(),
-            realm,
-            league: snapshot.league.clone(),
-            taken_at: snapshot.taken_at,
-            taken_at_age: None,
-            stash_listing_fetched_at_age: None,
-            character_listing_fetched_at_age: None,
-            stash_listing: snapshot.stash_listing,
-            character_listing: snapshot.character_listing,
-            note_parser_version: NOTE_PARSER_VERSION,
-            currency_table_version: CURRENCY_TABLE_VERSION,
-        },
+        facts: Facts::of(&places, &header.bases()),
+        header,
         counts,
         rows: accounting,
         listings,
     })
+}
+
+/// A location's name as the store's coverage names it: none where GGG
+/// gives no text.
+pub(crate) fn named(name: &str) -> Option<String> {
+    (!name.trim().is_empty()).then(|| name.to_string())
 }
 
 #[cfg(test)]

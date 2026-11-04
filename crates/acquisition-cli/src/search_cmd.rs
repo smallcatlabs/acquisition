@@ -1037,35 +1037,10 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         // again (the h2 fix round: a line carries its counts, not an
         // instruction); each names its location as a row's place does,
         // league first (#11), and one location is named once
-        let at = |l: &Option<acquisition_search::corpus::FetchedLocation>| {
-            l.as_ref().map_or(String::new(), |l| {
-                format!(
-                    ", {} / {}{}",
-                    l.league.as_deref().unwrap_or("no league"),
-                    l.name.as_deref().unwrap_or(&l.id),
-                    if l.kind == "character" {
-                        " (character)"
-                    } else {
-                        ""
-                    }
-                )
-            })
-        };
-        if span.oldest_fetch_location == span.newest_fetch_location {
-            total.push_str(&format!(
-                " (fetched {}{})",
-                ago(now, Some(oldest)),
-                at(&span.oldest_fetch_location),
-            ));
-        } else {
-            total.push_str(&format!(
-                " (the oldest fetch {}{}; the newest {}{})",
-                ago(now, Some(oldest)),
-                at(&span.oldest_fetch_location),
-                ago(now, Some(newest)),
-                at(&span.newest_fetch_location),
-            ));
-        }
+        total.push_str(&format!(
+            " ({})",
+            span_words(span, ago(now, Some(oldest)), ago(now, Some(newest)))
+        ));
     }
     if a.total.undecided.count > 0 {
         total.push_str(&format!(" · {} undecided", a.total.undecided.count));
@@ -1100,6 +1075,39 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     }
 
     out
+}
+
+/// A fetch span's extremes as a line says them, each with its own age:
+/// two locations named apart, one named once (round 2's form, #155),
+/// each named as a row's place is, league first (#11).
+pub(crate) fn span_words(
+    span: &acquisition_store::coverage::FetchSpan,
+    oldest: String,
+    newest: String,
+) -> String {
+    let at = |l: &Option<acquisition_store::coverage::FetchedLocation>| {
+        l.as_ref().map_or(String::new(), |l| {
+            format!(
+                ", {} / {}{}",
+                l.league.as_deref().unwrap_or("no league"),
+                l.name.as_deref().unwrap_or(&l.id),
+                if l.kind == "character" {
+                    " (character)"
+                } else {
+                    ""
+                }
+            )
+        })
+    };
+    if span.oldest_fetch_location == span.newest_fetch_location {
+        format!("fetched {oldest}{}", at(&span.oldest_fetch_location))
+    } else {
+        format!(
+            "the oldest fetch {oldest}{}; the newest {newest}{}",
+            at(&span.oldest_fetch_location),
+            at(&span.newest_fetch_location),
+        )
+    }
 }
 
 /// One row as the text prints it: the title, the place, what each part

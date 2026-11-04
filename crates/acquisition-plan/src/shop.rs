@@ -108,10 +108,11 @@ use std::fmt;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::bound::bounded;
+use acquisition_store::coverage::FetchedLocation;
 use serde::{Deserialize, Serialize};
 
 use crate::currency::{self, CurrencyTableError};
-use crate::listing::{Listing, ListingReport, ReportHeader, Side};
+use crate::listing::{Facts, Listing, ListingReport, ReportHeader, Side, named};
 use crate::price::{Amount, Price, PriceTarget};
 use crate::{Selection, SyncPolicy};
 
@@ -127,7 +128,12 @@ use crate::{Selection, SyncPolicy};
 /// `stale_total`, `position_before_listing_total`) — the readiness
 /// seat's call 35 was 34,779 bytes for a 2,800-character page; and
 /// beside `freshness.oldest_stale_seconds` its words,
-/// `oldest_stale_seconds_age` (C53's ages, step 2g round 6). **5**
+/// `oldest_stale_seconds_age` (C53's ages, step 2g round 6); and since
+/// 2026-11-04 (#156, C162: one derivation over a set of places), the
+/// posted items' locations' facts, `freshness.facts`, whatever the
+/// policy says, with the two listings' ages beside the header's bases
+/// (`listing.stash_listing_fetched_at_age`,
+/// `listing.character_listing_fetched_at_age`). **5**
 /// since 2026-10-19: `left_out` lists at most fifty items, the blocked
 /// first, with `left_out_total` counting them all, unless expanded —
 /// the release seat's rerun met 160 KB of them. **4** since
@@ -471,6 +477,13 @@ pub struct Freshness {
     /// How many `position_before_listing` holds unbounded.
     #[serde(default)]
     pub position_before_listing_total: usize,
+    /// How old the posted items' facts are (C162), whatever the policy
+    /// says: the posted items' locations, each tab or character once,
+    /// with its last fetch, and the oldest of the lists naming them —
+    /// the stash listing the ranks come from, the character listing
+    /// where a character is posted. Absent when nothing is posted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<Facts>,
 }
 
 impl Freshness {
@@ -905,9 +918,13 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
             why: c.why().to_string(),
         })
         .collect();
+    // the two listing ages the facts line names, said at the render's
+    // time (C53)
+    let mut listing = report.header.clone();
+    listing.listings_aged(opts.now);
     Ok(ShopRender {
         schema: SHOP_SCHEMA,
-        listing: report.header.clone(),
+        listing,
         rendered_at: opts.now,
         size: opts.size,
         template: opts.template.to_string(),
@@ -1097,6 +1114,39 @@ struct PageBuild {
     tabs: Vec<PageTab>,
 }
 
+/// The facts of the posted entries' locations (C162), aged at `now`:
+/// each location once, in page order, with its last fetch — the newest
+/// sighting among its entries, since a fetch sees every item there.
+fn posted_facts(report: &ListingReport, entries: &[Entry], now: i64) -> Facts {
+    let mut places: Vec<(PriceTarget, Option<i64>)> = Vec::new();
+    for e in entries {
+        match places.iter_mut().find(|(at, _)| *at == e.location) {
+            Some((_, seen)) => *seen = (*seen).max(e.seen_at),
+            None => places.push((e.location.clone(), e.seen_at)),
+        }
+    }
+    let places: Vec<(FetchedLocation, Option<i64>)> = places
+        .into_iter()
+        .map(|(target, seen)| {
+            let (kind, id) = match &target {
+                PriceTarget::Character { id } => ("character", id.clone()),
+                PriceTarget::Tab { id, .. } => ("stash", id.clone()),
+                other => ("stash", other.to_string()),
+            };
+            let at = FetchedLocation {
+                kind: kind.into(),
+                id,
+                name: report.find(&target).and_then(|l| named(&l.subject.name)),
+                league: Some(report.header.league.clone()),
+            };
+            (at, seen)
+        })
+        .collect();
+    let mut facts = Facts::of(&places, &report.header.bases());
+    facts.aged(now);
+    facts
+}
+
 /// The C72 report over the posted entries (module doc).
 fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>) -> Freshness {
     let mut out = Freshness {
@@ -1115,6 +1165,7 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
         oldest_stale_seconds_age: None,
         position_before_listing: Vec::new(),
         position_before_listing_total: 0,
+        facts: (!entries.is_empty()).then(|| posted_facts(report, entries, opts.now)),
     };
     let listing_response = report.header.stash_listing.map(|b| b.response_id);
     for e in entries {

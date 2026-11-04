@@ -243,8 +243,10 @@ basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and 
 $ acq shop render
 # holds "1 item to post on 1 page; 1 omitted (1 the game lists)"
 # holds "[spoiler=\" ~price 5 chaos\"]"
+# holds "facts: 1 posted item at 1 location, 1 fetched ("
 --- stdout
 49 items in Standard: 1 item to post on 1 page; 1 omitted (1 the game lists); 0 blocked; 47 nothing applies
+facts: 1 posted item at 1 location, 1 fetched (<fetches>); stash listing <age> ago
 page 1 of 1: 156 characters, 1 item
   Stash2 is the tab "Dump" (tab/pc/dump): 1 item
 [spoiler="Shop Post 1 of 1 (1 item)"]

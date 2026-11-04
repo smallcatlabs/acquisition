@@ -165,9 +165,11 @@ basis   store <store> · build <build> · snapshot 28 · facts v9 · prices and 
 
 $ acq price status --league Rehearsal
 # holds "no items on record for Rehearsal"
+# holds "facts: 7 locations, 7 fetched ("
 # holds "next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal`"
 --- stdout
 no items on record for Rehearsal: 8 tabs and characters listed, none fetched with items
+facts: 7 locations, 7 fetched (<fetches>); stash listing <age> ago
 next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` shows what a refresh would fetch
 
 $ acq store characters --league Rehearsal

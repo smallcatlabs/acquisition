@@ -19,7 +19,7 @@
 //! it answers about, and what membership adds to the result (the removed,
 //! the leagues its items sit in) is the caller's.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::age;
 use crate::corpus::{ListingSeen, LocationRow, RealmScope};
@@ -27,7 +27,7 @@ use crate::corpus::{ListingSeen, LocationRow, RealmScope};
 /// A location the scope names by its fetch: `stash` or `character`, its
 /// id, its name as GGG gives it (none where it gives no text), and its
 /// league.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchedLocation {
     pub kind: String,
     pub id: String,
@@ -95,7 +95,7 @@ impl Coverage {
 /// The part of a coverage any set of places with their observations has:
 /// the oldest and newest fetch of its fetched places, each with its
 /// location, and when the lists that name it were seen ([`span`]).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchSpan {
     /// The earliest and the latest of the fetched locations' last
     /// fetches, each one location's; a row's place carries its own.

@@ -16,7 +16,10 @@ use std::path::{Path, PathBuf};
 
 use acquisition_plan::price::Buyout;
 use acquisition_plan::{PolicyWrite, put_sync_policy};
-use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
+use acquisition_store::{
+    Annotations, Endpoint, Index, Provenance, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
+    Store, account_path,
+};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch, unaged};
 use serde_json::{Value, json};
 
@@ -459,6 +462,8 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
 /// default document, the tool's and the CLI's the same, bounds the list
 /// and counts them all in `left_out_total`; `expand` is `--expand`, and
 /// both then list every one. The bound is the shop's (`acquisition-plan`).
+/// With the policy cleared, both documents say how old the posted
+/// items' facts are all the same (#156: no policy said nothing of them).
 #[test]
 fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
     let dir = scratch("mcp-price-left-out");
@@ -505,6 +510,20 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
         )
         .unwrap();
     drop(store);
+    let mut a = Annotations::open_for(&mock, UUID).unwrap();
+    let policy = a
+        .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
+        .unwrap()
+        .expect("the seeded policy");
+    a.delete(
+        SYNC_POLICY_SCOPE,
+        SYNC_POLICY_KEY,
+        SYNC_POLICY_KIND,
+        policy.revision,
+        &Provenance::via("test"),
+    )
+    .unwrap();
+    drop(a);
 
     let mut mcp = Mcp::start(base, &[]);
     let mut totals = Vec::new();
@@ -523,6 +542,14 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
             &steady(by_cli, CLOCK),
             &format!("shop_render {args} is not what acq {verb:?} --json prints"),
         );
+        // the posted item's one tab, fetched, under no policy (C162)
+        let freshness = &by_tool["freshness"];
+        assert_eq!(freshness["policy"], "not_set", "{freshness}");
+        let facts = &freshness["facts"];
+        assert_eq!(facts["places"], 1, "{facts}");
+        assert_eq!(facts["fetched"], 1, "{facts}");
+        assert_eq!(facts["oldest_fetch_location"]["id"], "c1", "{facts}");
+        assert!(facts["list_seen"].is_i64(), "{facts}");
         let listed = by_tool["left_out"].as_array().map_or(0, Vec::len);
         let total = by_tool["left_out_total"].as_u64().unwrap_or_default() as usize;
         totals.push((listed, total));

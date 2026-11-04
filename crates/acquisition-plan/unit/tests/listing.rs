@@ -1098,6 +1098,195 @@ fn c53_status_and_show_say_the_ages_their_texts_print() {
     assert_eq!(shown.listing.basis.at_age, said(shown.listing.basis.at));
 }
 
+/// A league with nothing on record: no listing, no location, no item.
+fn bare() -> PricingSnapshot {
+    PricingSnapshot {
+        stash_listing: None,
+        character_listing: None,
+        tabs: Vec::new(),
+        characters: Vec::new(),
+        items: Vec::new(),
+        buyouts: Vec::new(),
+        ..snapshot()
+    }
+}
+
+fn character(id: &str, league: Option<&str>, fetched_at: Option<i64>) -> CharacterSnapshot {
+    CharacterSnapshot {
+        id: id.into(),
+        name: id.to_uppercase(),
+        league: league.map(str::to_string),
+        listed_at: Some(101),
+        listed_response: Some(3),
+        fetched_at,
+        listed: Value::Null,
+        fetched: Value::Null,
+    }
+}
+
+fn place(f: &Option<FetchedLocation>) -> Option<(&str, &str)> {
+    f.as_ref().map(|l| (l.kind.as_str(), l.id.as_str()))
+}
+
+/// C162 — a status's facts are the report's non-folder containers, each
+/// with its own last fetch (never its listing time): two tabs fetched
+/// apart, one never fetched and a league-less character never fetched
+/// are four places, two fetched, the extremes the two tabs', the folder
+/// left out, and the lists' oldest the older of the two listings.
+#[test]
+fn c162_a_status_counts_its_containers_and_spans_their_fetches() {
+    let mut never = tab("t3", None, "Never", "PremiumStash", Value::Null);
+    never.fetched_at = None;
+    let mut newer = tab("t2", None, "Newer", "PremiumStash", Value::Null);
+    newer.fetched_at = Some(150);
+    let snap = PricingSnapshot {
+        stash_listing: Some(ListingBasis {
+            response_id: 2,
+            fetched_at: 100,
+        }),
+        character_listing: Some(ListingBasis {
+            response_id: 3,
+            fetched_at: 101,
+        }),
+        tabs: vec![
+            tab("f1", None, "Sale", "Folder", Value::Null),
+            tab("t1", None, "Dump", "PremiumStash", Value::Null),
+            newer,
+            never,
+        ],
+        characters: vec![character("ch2", None, None)],
+        ..bare()
+    };
+    let report = resolve(&snap).unwrap();
+    let f = &report.facts;
+    assert_eq!((f.places, f.tabs, f.characters, f.fetched), (4, 3, 1, 2));
+    // `counts.containers` counts the folder too, and is not this count
+    assert_eq!(report.counts.containers, 5);
+    assert_eq!(f.span.oldest_fetch, Some(110));
+    assert_eq!(place(&f.span.oldest_fetch_location), Some(("stash", "t1")));
+    assert_eq!(f.span.newest_fetch, Some(150));
+    assert_eq!(place(&f.span.newest_fetch_location), Some(("stash", "t2")));
+    assert_eq!(f.span.list_seen, Some(100));
+    assert!(f.span.oldest_fetch_age.is_none() && f.span.list_seen_age.is_none());
+    let now = 3_800;
+    let said = |at: i64| Some(acquisition_store::age::ago(now, Some(at)));
+    let aged = report.status(false, now).facts;
+    assert_eq!(aged.span.oldest_fetch_age, said(110));
+    assert_eq!(aged.span.newest_fetch_age, said(150));
+    assert_eq!(aged.span.list_seen_age, said(100));
+
+    // a substash is a place of its own, fetched apart from its parent
+    // (the character, never fetched, stays the third)
+    let mut sub = tab("s1", Some("m1"), "1", "MapStash", Value::Null);
+    sub.fetched_at = Some(170);
+    let snap = PricingSnapshot {
+        tabs: vec![tab("m1", None, "Maps", "MapStash", Value::Null), sub],
+        ..snap
+    };
+    let f = resolve(&snap).unwrap().facts;
+    assert_eq!((f.places, f.fetched), (3, 2));
+    assert_eq!(place(&f.span.newest_fetch_location), Some(("stash", "s1")));
+}
+
+/// C162 — no items is not no locations: a league whose two listed tabs
+/// were fetched empty spans their fetches; one whose only tab was
+/// fetched directly, never listed, has no list seen (`never`); one with
+/// nothing on record has no place and no list; one with a character
+/// listing and no stash listing reads the character listing's.
+#[test]
+fn c162_a_status_with_no_items_still_says_its_locations_and_lists() {
+    let mut a = tab("t1", None, "A", "PremiumStash", Value::Null);
+    a.fetched_at = Some(130);
+    let snap = PricingSnapshot {
+        stash_listing: Some(ListingBasis {
+            response_id: 2,
+            fetched_at: 100,
+        }),
+        tabs: vec![a, tab("t2", None, "B", "PremiumStash", Value::Null)],
+        ..bare()
+    };
+    let report = resolve(&snap).unwrap();
+    assert_eq!(report.counts.items, 0);
+    let f = &report.facts;
+    assert_eq!((f.places, f.fetched), (2, 2));
+    assert_eq!(
+        (f.span.oldest_fetch, f.span.newest_fetch),
+        (Some(110), Some(130))
+    );
+    assert_eq!(f.span.list_seen, Some(100));
+
+    let mut direct = tab("t9", None, "Direct", "PremiumStash", Value::Null);
+    direct.listed_at = None;
+    direct.listed_response = None;
+    let snap = PricingSnapshot {
+        tabs: vec![direct],
+        ..bare()
+    };
+    let report = resolve(&snap).unwrap();
+    let f = &report.facts;
+    assert_eq!((f.places, f.fetched), (1, 1));
+    assert_eq!(f.span.list_seen, None);
+    let aged = report.status(false, 1_000).facts;
+    assert_eq!(aged.span.list_seen_age.as_deref(), Some("never"));
+
+    let f = resolve(&bare()).unwrap().facts;
+    assert_eq!((f.places, f.fetched), (0, 0));
+    assert_eq!((f.span.oldest_fetch, f.span.list_seen), (None, None));
+
+    let snap = PricingSnapshot {
+        character_listing: Some(ListingBasis {
+            response_id: 3,
+            fetched_at: 101,
+        }),
+        characters: vec![character("ch1", Some("Standard"), Some(140))],
+        ..bare()
+    };
+    let f = resolve(&snap).unwrap().facts;
+    assert_eq!((f.places, f.characters, f.fetched), (1, 1, 1));
+    assert_eq!(f.span.list_seen, Some(101));
+    assert_eq!(
+        place(&f.span.oldest_fetch_location),
+        Some(("character", "ch1"))
+    );
+}
+
+/// C162, C53 — the report carries its facts unaged (the committed
+/// fixture holds them so); `status` says their ages at the answer's
+/// time, in the document, and `list` and `show` carry the header alone.
+#[test]
+fn c162_the_status_serializes_its_facts_aged_and_list_and_show_carry_none() {
+    let report = resolve(&snapshot()).unwrap();
+    let now = report.header.taken_at + 3_600;
+    let doc = serde_json::to_value(report.status(false, now)).unwrap();
+    let facts = &doc["facts"];
+    // the fixture's six tabs but its folder, and its character
+    assert_eq!(facts["places"], 7, "{facts}");
+    assert_eq!(facts["tabs"], 6, "{facts}");
+    assert_eq!(facts["characters"], 1, "{facts}");
+    assert_eq!(facts["fetched"], 7, "{facts}");
+    assert_eq!(facts["oldest_fetch"], 110, "{facts}");
+    assert_eq!(facts["oldest_fetch_age"], "61m ago", "{facts}");
+    assert_eq!(facts["oldest_fetch_location"]["id"], "c1", "{facts}");
+    assert_eq!(facts["oldest_fetch_location"]["name"], "~price 3 chaos (A)");
+    assert_eq!(facts["newest_fetch"], 111, "{facts}");
+    assert_eq!(facts["newest_fetch_age"], "61m ago", "{facts}");
+    assert_eq!(facts["newest_fetch_location"]["kind"], "character");
+    assert_eq!(facts["list_seen"], 100, "{facts}");
+    assert_eq!(facts["list_seen_age"], "61m ago", "{facts}");
+    let unaged = serde_json::to_value(&report).unwrap();
+    assert!(
+        unaged["facts"].get("oldest_fetch_age").is_none(),
+        "{unaged}"
+    );
+    let back: ListingReport = serde_json::from_value(doc).unwrap();
+    assert_eq!(back.facts.span.list_seen, Some(100));
+
+    let list = serde_json::to_value(report.list_view(ListFilter::default()).unwrap()).unwrap();
+    assert!(list.get("facts").is_none(), "{list}");
+    let show = serde_json::to_value(report.show_view(&tab_target("t1")).unwrap()).unwrap();
+    assert!(show.get("facts").is_none(), "{show}");
+}
+
 /// C70 — every listing carries its chain, so a target's coverage is
 /// a query: a folder covers its tabs' items without holding any, a
 /// parent tab covers its substashes' items beside its own, an

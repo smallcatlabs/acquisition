@@ -163,6 +163,7 @@ fn a_first_session_reads_as_a_user_meets_it_and_the_journal_holds() {
                     "{POSTED_ITEMS} item to post on {POSTED_PAGES} page; 1 omitted (1 the game lists)"
                 ),
                 format!("[spoiler=\" ~price {PRICE_SHOWN}\"]"),
+                "facts: 1 posted item at 1 location, 1 fetched (".into(),
             ],
         ),
         step(

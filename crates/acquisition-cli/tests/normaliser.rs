@@ -313,11 +313,11 @@ fn normalising_a_committed_golden_changes_nothing() {
     );
 }
 
-/// A world fetched in real time writes the total's fetch clause
-/// `(<fetches>)`, since which location is the newest, and whether the
-/// oldest is the same one, hangs on a second's boundary (#11; the
-/// journey's flipped between runs, and launch morning's form); the rest
-/// of the line, every other line and a fact stand.
+/// A world fetched in real time writes the total's and the facts line's
+/// fetch clause `(<fetches>)`, since which location is the newest, and
+/// whether the oldest is the same one, hangs on a second's boundary (#11;
+/// the journey's flipped between runs, and launch morning's form); the
+/// rest of the line, every other line and a fact stand.
 #[test]
 fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
     use crate::harness::fetch_place_rule;
@@ -346,5 +346,10 @@ fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
     rule(
         "total   2 matches (fetched <age> ago, Standard / Dump)\n",
         "total   2 matches (<fetches>)\n",
+    );
+    // a facts line's clause, the same way (#156); its listings stand
+    rule(
+        "facts: 4 locations, 2 fetched (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Exile (character)); stash listing <age> ago, characters listed <age> ago\n",
+        "facts: 4 locations, 2 fetched (<fetches>); stash listing <age> ago, characters listed <age> ago\n",
     );
 }
