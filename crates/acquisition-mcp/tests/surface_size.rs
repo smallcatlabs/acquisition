@@ -129,6 +129,10 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
                 "`left_out_total` counts them all",
                 "with how many `items` link to it",
                 "`position_before_listing` the posted items fetched before the stash listing",
+                // a span measured to the render, not a time (the
+                // answer-facts seat, run 1, MCP fault 5: read as a
+                // duration's age)
+                "the oldest covered stale item's age, now minus its sighting, `oldest_stale_seconds_age` that age's words",
             ][..],
         ),
         (

@@ -661,6 +661,10 @@ by the first parked worker handed its brief by message, landed on
 one round (`b55c8359`), reviewed (one P3), fixed in a second
 (`4fd14018`) read by the orchestrating session; closed the same day
 (`LEDGER.md`), #164 closed. Every round of the group has landed.
-Current: the group's seat (`audits/answer-facts-2026-11/seat/`), two
-blind runners at the release build of this tree, the CLI door and the
-MCP door; then the group's close.
+The group's seat (`audits/answer-facts-2026-11/seat/`, run 1: two Opus
+runners at the release build of `2bed3ba5`, the MCP door and the CLI
+door) sat on 2026-11-04; its fix round
+(`briefs/answer-facts-seat-fixes.md`, nine faults, one rule each) landed
+the same day as nine commits, one per fault, this line's the last; its
+review is pending. Current: that review, then the seat's rerun where
+the round changed what an agent meets, then the group's close.
