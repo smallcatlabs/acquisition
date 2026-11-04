@@ -120,9 +120,10 @@ That is your own account. The server takes its knobs through `env`:
 made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
 `ACQ_STORE_DIR` there must match your `acq`'s.
 
-It shares the store and the daemon with `acq`, and its 25 tools do
+It shares the store and the daemon with `acq`, and its 26 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
-`tabs`, `characters`, `item_events`, `store_status`, `accounts`),
+`tabs`, `characters`, `item_events`, `store_status`, `accounts`,
+`leagues`),
 price items and render the shop (`price_status`, `price_list`,
 `price_show`, `price_set`, `price_clear`, `shop_render`,
 `reference_currency`), keep a league fresh (`sync_policy`,

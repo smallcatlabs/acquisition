@@ -94,6 +94,39 @@ fn the_reference_matches_the_server() {
     );
 }
 
+/// The answer-facts seat (run 1, MCP fault 8; call 1): the README said
+/// the server's 25 tools where it had 26, `leagues` missing from the
+/// list. The README's tool count is the server's, and its list names
+/// each tool once: read from the README's sentence ("its N tools do what
+/// the CLI does: …", to the paragraph's end) and compared to `tools/list`.
+#[test]
+fn mcp8_the_readmes_tool_count_and_list_are_the_servers() {
+    let readme =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md")).unwrap();
+    let paragraph = readme
+        .split("\n\n")
+        .map(flat)
+        .find(|p| p.contains(" tools do what the CLI does"))
+        .expect("the README's sentence on the server's tools");
+    let at = paragraph.find(" tools do what the CLI does").unwrap();
+    let count: usize = paragraph[..at]
+        .rsplit(' ')
+        .next()
+        .and_then(|n| n.parse().ok())
+        .expect("a number before ` tools do what the CLI does`");
+    let paragraph = &paragraph[at..];
+    let mut named: Vec<&str> = paragraph.split('`').skip(1).step_by(2).collect();
+    named.sort_unstable();
+    let scratch = harness::scratch("mref-readme");
+    let mut mcp = Mcp::start(&scratch.0, &[]);
+    let tools = mcp.list_tools();
+    let _ = mcp.child.kill();
+    let mut served: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
+    served.sort_unstable();
+    assert_eq!(count, served.len(), "the README's count");
+    assert_eq!(named, served, "the README's list");
+}
+
 /// The h2 review's fifth finding: "Intent only" stood in `price_set` and
 /// `price_clear` after the server's instructions had dropped the word. The
 /// word names a mechanism a reader cannot parse (C146, a count says what
