@@ -509,7 +509,9 @@ fn an_undo_reads_its_prior_through_the_stores_door_and_a_noncanonical_one_has_no
         value: json!({ "version": 1, "type": "exact", "amount": amount, "currency": "chaos" }),
         revision,
         created_at: 0,
+        created_at_age: None,
         updated_at: 0,
+        updated_at_age: None,
         written_via: "old".into(),
         actor: None,
     };

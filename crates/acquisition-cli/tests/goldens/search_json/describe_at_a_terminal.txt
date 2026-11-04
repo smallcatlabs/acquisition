@@ -225,6 +225,8 @@ an answer, key by key
   zero                         key         in place of rows when the total is zero
   terms                        key         for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`
   basis                        key         what the answer was computed from
+  snapshot_at_age              key         when the facts the answer read were last written (`basis.snapshot.at`), in words at the answer's time
+  before_snapshot_at_age       key         the same for a `before`'s `counted_at`
   request                      key         a count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause's other reading adds or drops, and each term's matched where nothing matched — with `denominator`, what the request searches
 categories — the trade site's ids, as spelled
   weapon                        Any Weapon

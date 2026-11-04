@@ -344,8 +344,12 @@ fn faulted(
     if let Some(current) = current {
         doc.insert("kind".into(), json!("conflict"));
         doc.insert("revision".into(), json!(current.map(|row| row.revision)));
+        // the row as it stands, its times in words at the answer's (C163)
         if let Some(row) = current {
-            doc.insert("current".into(), json!(row));
+            doc.insert(
+                "current".into(),
+                json!(row.clone().aged(acquisition_store::now())),
+            );
         }
         return;
     }

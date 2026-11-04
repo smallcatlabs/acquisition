@@ -92,29 +92,18 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
     let refused = sole_json(&out);
     assert_eq!(refused["kind"], json!("conflict"), "{refused}");
     assert_eq!(refused["revision"], json!(1), "{refused}");
-    let shown = shown_row(sole_json(&acq(&base, &["policy", "show", "--json"])));
-    assert_eq!(refused["current"], shown, "{refused}");
+    let shown =
+        harness::unaged(sole_json(&acq(&base, &["policy", "show", "--json"]))["policy"].clone());
+    assert_eq!(
+        harness::unaged(refused["current"].clone()),
+        shown,
+        "{refused}"
+    );
     assert_eq!(shown["revision"], json!(1));
     assert_eq!(
         shown["value"],
         serde_json::from_str::<Value>(first).unwrap()
     );
-}
-
-/// `policy show --json`'s row without the words C53 adds beside its
-/// `updated_at` (an age made at the answer's time, round 6 of step 2g),
-/// which this file's comparisons set aside after reading their shape:
-/// the row as a write's receipt or a refusal carries it.
-fn shown_row(shown: Value) -> Value {
-    let mut row = shown["policy"].clone();
-    let age = row.as_object_mut().unwrap().remove("updated_at_age");
-    assert!(
-        age.as_ref()
-            .and_then(Value::as_str)
-            .is_some_and(|a| a.ends_with(" ago")),
-        "{shown}"
-    );
-    row
 }
 
 #[test]
@@ -198,7 +187,10 @@ fn json_stdout_is_the_contract_surface() {
     assert!(receipt.remove("target").is_some() && receipt.remove("no_undo").is_some());
     assert_eq!(written.as_ref(), Some(&row));
     let out = acq(&base, &["policy", "show", "--json"]);
-    assert_eq!(shown_row(sole_json(&out)), row);
+    assert_eq!(
+        harness::unaged(sole_json(&out)["policy"].clone()),
+        harness::unaged(row)
+    );
 
     // A conflicting --if-revision is {"error": …} naming the current
     // revision, exit 1.
@@ -485,7 +477,10 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     let back = sole_json(&out);
     assert_eq!(back["revision"], json!(3));
     assert_eq!(back["value"], serde_json::from_str::<Value>(pc).unwrap());
-    assert_eq!(back["prior"], merged["written"]);
+    assert_eq!(
+        harness::unaged(back["prior"].clone()),
+        harness::unaged(merged["written"].clone())
+    );
     use acquisition_search::answer::Shell;
     let mut revision = 3;
     // Git Bash's `sh` too on Windows (the review of #146's build, its
@@ -519,7 +514,11 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
             serde_json::from_str::<Value>(pc).unwrap(),
             "{shell:?}"
         );
-        assert_eq!(back["prior"], merged["written"], "{shell:?}");
+        assert_eq!(
+            harness::unaged(back["prior"].clone()),
+            harness::unaged(merged["written"].clone()),
+            "{shell:?}"
+        );
     }
     // the review's third finding: from the same state, the undo's words
     // run with no shell put the same policy back as its printed line did
@@ -533,5 +532,8 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     let back = harness::run_argv(&base, &merged["undo"], &["--json"]);
     assert_eq!(back["revision"], json!(revision + 2), "{back}");
     assert_eq!(back["value"], serde_json::from_str::<Value>(pc).unwrap());
-    assert_eq!(back["prior"], merged["written"]);
+    assert_eq!(
+        harness::unaged(back["prior"].clone()),
+        harness::unaged(merged["written"].clone())
+    );
 }

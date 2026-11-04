@@ -133,7 +133,10 @@ use crate::{Selection, SyncPolicy};
 /// posted items' locations' facts, `freshness.facts`, whatever the
 /// policy says, with the two listings' ages beside the header's bases
 /// (`listing.stash_listing_fetched_at_age`,
-/// `listing.character_listing_fetched_at_age`). **5**
+/// `listing.character_listing_fetched_at_age`); and since 2026-11-04
+/// (#164, C163: every time a document carries has its words beside it)
+/// `listing.taken_at_age` and `rendered_at_age`, at the render's time.
+/// **5**
 /// since 2026-10-19: `left_out` lists at most fifty items, the blocked
 /// first, with `left_out_total` counting them all, unless expanded —
 /// the release seat's rerun met 160 KB of them. **4** since
@@ -531,6 +534,9 @@ pub struct ShopRender {
     pub schema: u32,
     pub listing: ReportHeader,
     pub rendered_at: i64,
+    /// C163: `rendered_at` in words at the render's time.
+    #[serde(default)]
+    pub rendered_at_age: String,
     pub size: usize,
     pub template: String,
     pub policy: Vec<PolicyRow>,
@@ -918,14 +924,15 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
             why: c.why().to_string(),
         })
         .collect();
-    // the two listing ages the facts line names, said at the render's
-    // time (C53)
+    // the header's ages, the two listings' the facts line names among
+    // them, said at the render's time (C53, C163)
     let mut listing = report.header.clone();
-    listing.listings_aged(opts.now);
+    listing.aged(opts.now);
     Ok(ShopRender {
         schema: SHOP_SCHEMA,
         listing,
         rendered_at: opts.now,
+        rendered_at_age: acquisition_store::age::ago(opts.now, Some(opts.now)),
         size: opts.size,
         template: opts.template.to_string(),
         policy,

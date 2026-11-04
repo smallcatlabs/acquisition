@@ -74,7 +74,9 @@ fn row(scope: &str, key: &str, value: Value) -> AnnotationRow {
         value,
         revision: 3,
         created_at: 900,
+        created_at_age: None,
         updated_at: 950,
+        updated_at_age: None,
         written_via: "test".into(),
         actor: None,
     }
@@ -861,8 +863,9 @@ fn c162_a_render_with_no_policy_says_its_posted_locations_facts() {
     assert_eq!(f.span.list_seen_age, said(1_000));
     assert_eq!(r.listing.stash_listing_fetched_at_age, said(1_000));
     assert_eq!(r.listing.character_listing_fetched_at_age, said(1_001));
-    // round 3's: the render's own times are not worded here
-    assert!(r.listing.taken_at_age.is_none());
+    // round 3's (C163): the render's own times worded at its time
+    assert_eq!(r.listing.taken_at_age, said(r.listing.taken_at));
+    assert_eq!(r.rendered_at_age, "0s ago");
 }
 
 /// C162 — posted items in a tab and on a character, the character
@@ -1228,10 +1231,10 @@ mod real_scale {
         let took = t.elapsed();
         eprintln!("render took {took:?}");
         assert_eq!(r.schema, SHOP_SCHEMA);
-        // the header the report resolved, its two listings aged at the
-        // render's time for the facts line (#156)
+        // the header the report resolved, its snapshot and its two
+        // listings aged at the render's time (#156, C163)
         let mut header = report.header.clone();
-        header.listings_aged(s.taken_at);
+        header.aged(s.taken_at);
         assert_eq!(r.listing, header);
 
         let c = &r.counts;

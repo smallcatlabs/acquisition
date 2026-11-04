@@ -260,7 +260,8 @@
       "response_id": 2
     },
     "stash_listing_fetched_at_age": "66m ago",
-    "taken_at": 2000
+    "taken_at": 2000,
+    "taken_at_age": "50m ago"
   },
   "off_page_listed": false,
   "pages": [
@@ -515,6 +516,7 @@
   ],
   "posted_total": 6,
   "rendered_at": 5000,
+  "rendered_at_age": "0s ago",
   "schema": 5,
   "size": 50000,
   "template": "[items]"

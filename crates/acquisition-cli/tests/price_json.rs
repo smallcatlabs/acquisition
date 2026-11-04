@@ -569,19 +569,14 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         "--json",
     ]);
     let shown = sole_json(&acq(&base, &["price", "show", "item/i-map", "--json"]));
-    // the row `show` prints, less the words C53 says beside its
-    // `updated_at` there (step 2g round 6), which a refusal does not
-    // carry: round 6 touches no refusal
-    let mut manual = shown["listing"]["manual"].clone();
-    assert!(
-        manual
-            .as_object_mut()
-            .unwrap()
-            .remove("updated_at_age")
-            .is_some(),
-        "{shown}"
+    // the row `show` prints, each side's words beside its `updated_at`
+    // (C163) set aside: made at each answer's own time, and pinned where
+    // they are made, the verbs' documents test
+    assert_eq!(
+        harness::unaged(doc["current"].clone()),
+        harness::unaged(shown["listing"]["manual"].clone()),
+        "{doc}"
     );
-    assert_eq!(doc["current"], manual, "{doc}");
     doc.as_object_mut().unwrap().remove("current");
     assert_eq!(
         doc,
@@ -763,6 +758,12 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     let unmatched = &report["rows"]["unmatched"];
     let updated_at = unmatched[0]["updated_at"].as_i64();
     assert!(updated_at.is_some(), "{unmatched}");
+    // C163: its time's words beside it
+    let updated_at_age = unmatched[0]["updated_at_age"].as_str();
+    assert!(
+        updated_at_age.is_some_and(|a| a.ends_with(" ago")),
+        "{unmatched}"
+    );
     assert_eq!(
         unmatched,
         &json!([{
@@ -771,6 +772,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
             "inherited": false,
             "revision": 1,
             "updated_at": updated_at,
+            "updated_at_age": updated_at_age,
             "written_via": "test",
         }]),
         "{report}"
@@ -2340,7 +2342,10 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         (&cleared["written"], at(&cleared)),
         (&Value::Null, at(&created) + 1)
     );
-    assert_eq!(cleared["prior"], created["written"]);
+    assert_eq!(
+        harness::unaged(cleared["prior"].clone()),
+        harness::unaged(created["written"].clone())
+    );
     // Its undo is a create, revision 0 at a terminal, which says so, and
     // lands at the revision after the tombstone's.
     let line = cleared["undo"]["request"].as_str().unwrap();
@@ -2371,9 +2376,15 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         "--if-revision",
         &rev,
     ]);
-    assert_eq!(replaced["prior"], recreated["written"]);
+    assert_eq!(
+        harness::unaged(replaced["prior"].clone()),
+        harness::unaged(recreated["written"].clone())
+    );
     let restored = undone(&replaced);
-    assert_eq!(restored["prior"], replaced["written"]);
+    assert_eq!(
+        harness::unaged(restored["prior"].clone()),
+        harness::unaged(replaced["written"].clone())
+    );
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&restored)));
 
@@ -2395,7 +2406,10 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     ]);
     harness::offered_line(&again["undo"]);
     let by_words = harness::run_argv(&base, &again["undo"], &["--json"]);
-    assert_eq!(by_words["prior"], again["written"]);
+    assert_eq!(
+        harness::unaged(by_words["prior"].clone()),
+        harness::unaged(again["written"].clone())
+    );
     assert_eq!(by_words["revision"], json!(at(&again) + 1), "{by_words}");
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&by_words)));

@@ -88,6 +88,11 @@ pub struct Shown {
     /// The stored body as text, when asked for.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<String>,
+    /// C163: `basis.snapshot.at` in words at the answer's time, at the
+    /// path `show` declares for it: the basis is identity (C98) and
+    /// carries no words ([`crate::answer::snapshot_age`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_at_age: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -225,15 +230,19 @@ fn shown(
 
 impl Shown {
     /// C53 (an age the text prints stands in words beside its epoch,
-    /// made at the answer's own time): the place's fetch and the item's
-    /// removal, where it left, said at `now`.
+    /// made at the answer's own time) and C163 (every time a document
+    /// carries has its words beside it): the place's fetch, the item's
+    /// first and last sighting and its removal, where it left, and the
+    /// basis's snapshot, at the path `show` declares for it, said at
+    /// `now`.
     pub fn aged(mut self, now: i64) -> Shown {
+        use acquisition_store::age::ago;
         self.place.aged(now);
-        self.item.facts.removed_at_age = self
-            .item
-            .facts
-            .removed_at
-            .map(|at| acquisition_store::age::ago(now, Some(at)));
+        let facts = &mut self.item.facts;
+        facts.first_seen_age = Some(ago(now, Some(facts.first_seen)));
+        facts.last_seen_age = Some(ago(now, Some(facts.last_seen)));
+        facts.removed_at_age = facts.removed_at.map(|at| ago(now, Some(at)));
+        self.snapshot_at_age = Some(crate::answer::snapshot_age(&self.basis, now));
         self
     }
 }
@@ -363,6 +372,7 @@ fn read_one(
         lines,
         against,
         body: body.then_some(stored),
+        snapshot_at_age: None,
     }))
 }
 

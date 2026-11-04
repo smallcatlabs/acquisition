@@ -970,7 +970,7 @@ impl Asked {
     /// since, the count the same or not; where none was, wherever the
     /// count has.
     pub fn answer(&self, corpus: &Corpus) -> Result<Answer, SearchError> {
-        let mut answered = answer(corpus, &self.request)?;
+        let mut answered = unaged(corpus, &self.request)?;
         let matched = answered.total.matched;
         answered.before = self
             .before
@@ -979,7 +979,7 @@ impl Asked {
                 Some(basis) => *basis != corpus.basis,
                 None => before.count != matched,
             });
-        Ok(answered)
+        Ok(answered.aged(acquisition_store::now()))
     }
 }
 
@@ -1164,6 +1164,19 @@ pub struct Answer {
     pub zero: Option<Zero>,
     pub terms: Vec<TermOut>,
     pub basis: Basis,
+    /// C163 (every time a document carries has its words beside it):
+    /// `basis.snapshot.at` in words at the answer's time, at the path the
+    /// answer declares for it — the basis is identity (C98) and carries
+    /// no words, nor does the copy a continuation carries whole
+    /// (`view.rows.next.request.basis`), whose time this is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_at_age: Option<String>,
+    /// C163: `before.counted_at.snapshot.at` in words at the answer's
+    /// time, where a route was read back with the basis it was counted
+    /// at: a `before` stands as the route said it, so its words stand
+    /// here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before_snapshot_at_age: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1620,10 +1633,19 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
 
 impl Answer {
     /// C53 (an age the text prints stands in words beside its epoch,
-    /// made at the answer's own time): the scope's and the matches' fetch
-    /// and list ages, each row's place and removal, and each term's removed id, said
-    /// at `now`. Said again at another `now`, the words are that time's.
+    /// made at the answer's own time) and C163 (every time a document
+    /// carries has its words beside it): the basis's snapshot and a
+    /// `before`'s, each at the path the answer declares, the scope's and
+    /// the matches' fetch and list ages, each row's place and removal,
+    /// and each term's removed id, said at `now`. Said again at another
+    /// `now`, the words are that time's.
     pub fn aged(mut self, now: i64) -> Answer {
+        self.snapshot_at_age = Some(snapshot_age(&self.basis, now));
+        self.before_snapshot_at_age = self
+            .before
+            .as_ref()
+            .and_then(|before| before.counted_at.as_ref())
+            .map(|basis| snapshot_age(basis, now));
         self.scope.coverage.aged(now);
         if let Some(span) = &mut self.total.span {
             span.aged(now);
@@ -1639,6 +1661,13 @@ impl Answer {
         }
         self
     }
+}
+
+/// C163: a basis's snapshot time in words at `now`, `never` before any
+/// response landed (a revision's `at` is 0 then).
+pub fn snapshot_age(basis: &Basis, now: i64) -> String {
+    let at = basis.snapshot.at;
+    age::ago(now, (at > 0).then_some(at))
 }
 
 /// The answer's subject (C162: every answer applies the one derivation
@@ -2160,6 +2189,8 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     }
     let mut answer = Answer {
         before: None,
+        snapshot_at_age: None,
+        before_snapshot_at_age: None,
         query: QueryOut {
             text: query.text(),
             tree,

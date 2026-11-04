@@ -204,7 +204,15 @@ pub struct Facts {
     /// The item this one is socketed in.
     pub socketed_in: Option<String>,
     pub first_seen: i64,
+    /// C163 (every time a document carries has its words beside it):
+    /// `first_seen` in words at the answer's time, where an answer that
+    /// carries the facts said it (`show`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_seen_age: Option<String>,
     pub last_seen: i64,
+    /// C163: `last_seen` in words, the same way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_seen_age: Option<String>,
     pub removed_at: Option<i64>,
     /// C53: `removed_at` in words at the answer's time, where the item
     /// left and an answer that prints it said it (`show`).

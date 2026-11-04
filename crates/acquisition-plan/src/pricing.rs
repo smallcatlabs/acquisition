@@ -82,9 +82,8 @@ pub struct Refused {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefusedKind {
     /// A write refused for its revision; `revision` is the row's now,
-    /// and `current` the stored row as it stands — `show`'s `manual` less
-    /// the age words an answer adds (`updated_at_age`; round 6 of the 2g
-    /// build, its fix round) — where
+    /// and `current` the stored row as it stands — `show`'s `manual`, its
+    /// `updated_at` in words at the refusal's time (C163) — where
     /// a live row stands and this build reads its value: none where a
     /// clear left the revision or no row was ever written.
     Conflict {
@@ -170,7 +169,10 @@ impl Refused {
                         inherited: false,
                         revision: row.revision,
                         updated_at: row.updated_at,
-                        updated_at_age: None,
+                        updated_at_age: Some(acquisition_store::age::ago(
+                            acquisition_store::now(),
+                            Some(row.updated_at),
+                        )),
                         written_via: row.written_via.clone(),
                         actor: row.actor.clone(),
                     })
@@ -197,8 +199,8 @@ impl Refused {
     /// The fields a failure document adds beside `error`: `kind`, and
     /// for a conflict `revision` (null when no row was ever written:
     /// C11's field, kept) and `current`, the stored row as it stands,
-    /// `show`'s `manual` less the age words an answer adds — absent,
-    /// never null, where none stands.
+    /// `show`'s `manual` with its age words (C163) — absent, never null,
+    /// where none stands.
     pub fn fields(&self) -> serde_json::Map<String, Value> {
         let mut out = serde_json::Map::new();
         match &self.kind {
@@ -489,7 +491,8 @@ pub struct ListArgs {
     pub expand: bool,
 }
 
-/// `price list`. `account` and `quote` as [`show`]'s.
+/// `price list`, its ages in words at the answer's time
+/// ([`ListView::aged`]). `account` and `quote` as [`show`]'s.
 pub fn list(
     store: &Store,
     annotations: &Annotations,
@@ -552,7 +555,7 @@ pub fn list(
         expand: args.expand,
     };
     match r.list_view(filter) {
-        Some(view) => Ok(view),
+        Some(view) => Ok(view.aged(acquisition_store::now())),
         None => {
             let missing = [&location, &covered_by]
                 .into_iter()
@@ -922,7 +925,7 @@ pub fn set(
             return Err(standing(&target, &row, &asked, "a write over it", &shown));
         }
         Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
-        Ok(write) => write,
+        Ok(write) => write.aged(acquisition_store::now()),
     };
     Ok(SetReceipt {
         write,
@@ -965,6 +968,7 @@ pub fn clear(
         }
     };
     clear_buyout(annotations, &target, expected, provenance)
+        .map(|write| write.aged(acquisition_store::now()))
         .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))
 }
 
@@ -1130,7 +1134,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands, `manual` less the age words an answer adds (`updated_at_age`), absent over a cleared row — and with no row names none, or 0, to create one (0, which no row carries, creates only where no row stands, on every surface); a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands in `manual`'s shape, its age words with it, absent over a cleared row — and with no row names none, or 0, to create one (0, which no row carries, creates only where no row stands, on every surface); a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
         Described {
             name: "undo",
@@ -1141,7 +1145,7 @@ pub fn described() -> Vec<Described> {
         },
         entry(
             "status counts",
-            "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.by_game_statement` the items by the game side's statement in a public tab (exact, negotiable, skip, none; a hand row nearer the item still applies over a skip); `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: a hand row or its tab's name applies, where either does); price_list with `game_text` `residue` or `invalid_note` lists the items of either count; `rows` accounts for every hand-written row: how many apply here, which name nothing in this league's facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read (`unreadable`), which belong to other leagues (`other_league`) or realms (`other_realm`, a count); each of the three lists holds ten unless `expand`, its whole count beside it (`unmatched_total`, `unreadable_total`, `other_league_total`); `facts`, how old the facts are, is over the report's non-folder containers, the locations the facts were read from: `places` (`tabs`, `characters`), `fetched`, the oldest and newest last fetch each with its location, and `list_seen` the oldest of the lists naming them, null where none",
+            "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.by_game_statement` the items by the game side's statement in a public tab (exact, negotiable, skip, none; a hand row nearer the item still applies over a skip); `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: a hand row or its tab's name applies, where either does); price_list with `game_text` `residue` or `invalid_note` lists the items of either count; `rows` accounts for every hand-written row: how many apply here, which name nothing in this league's facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at` with its words, `written_via` — since no listing carries it), which cannot be read (`unreadable`), which belong to other leagues (`other_league`) or realms (`other_realm`, a count); each of the three lists holds ten unless `expand`, its whole count beside it (`unmatched_total`, `unreadable_total`, `other_league_total`); `facts`, how old the facts are, is over the report's non-folder containers, the locations the facts were read from: `places` (`tabs`, `characters`), `fetched`, the oldest and newest last fetch each with its location, and `list_seen` the oldest of the lists naming them, null where none",
         ),
         entry(
             "show counts",

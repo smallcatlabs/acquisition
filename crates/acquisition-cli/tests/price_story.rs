@@ -185,6 +185,17 @@ fn c74_set_show_render_clear_is_one_story() {
     assert_eq!((r.counts.posted, r.counts.off_page), (0, 2));
 }
 
+/// A row's facts, its words set aside (C163: each receipt's are made at
+/// its own answer's time, so two receipts' differ across a second): two
+/// answers' rows compare by these.
+fn unaged(row: &AnnotationRow) -> AnnotationRow {
+    AnnotationRow {
+        created_at_age: None,
+        updated_at_age: None,
+        ..row.clone()
+    }
+}
+
 /// C35, C78 — two blind writers on one row, started together, round
 /// after round: whatever the interleaving, at least one lands, no write
 /// clobbers another — every receipt's `prior` is exactly the row the
@@ -225,7 +236,8 @@ fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
         let mut expect_prior = before.clone();
         for w in &successes {
             assert_eq!(
-                w.prior, expect_prior,
+                w.prior.as_ref().map(unaged),
+                expect_prior.as_ref().map(unaged),
                 "round {round}: a write replaced a row it did not read"
             );
             expect_prior = w.written.clone();
@@ -344,8 +356,8 @@ fn c74_a_clear_under_a_render_is_never_a_torn_page() {
         let cleared = write_outcome(&clear)
             .unwrap_or_else(|e| panic!("round {round}: the clear did not land: {e}"));
         assert_eq!(
-            cleared.prior,
-            Some(written),
+            cleared.prior.as_ref().map(unaged),
+            Some(unaged(&written)),
             "round {round}: the clear removed what the set wrote"
         );
         assert!(

@@ -668,6 +668,15 @@ pub enum Undo {
 }
 
 impl PriceWrite {
+    /// C163 (every time a document carries has its words beside it): the
+    /// write with each row it carries, `written` and `prior`, saying its
+    /// times at `now`, the answer's time.
+    pub fn aged(mut self, now: i64) -> PriceWrite {
+        self.written = self.written.map(|row| row.aged(now));
+        self.prior = self.prior.map(|row| row.aged(now));
+        self
+    }
+
     /// What undoes this write, or why nothing does, in words: a prior
     /// this build cannot read (a newer build's, written past by naming
     /// its revision, or a value not in its canonical text), or one a new

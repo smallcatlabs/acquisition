@@ -655,5 +655,6 @@ worker and landed on 2026-11-04 as one commit (`077c80c8`); reviewed
 the same day (`LEDGER.md`), #105 closed on its third item and #12 on
 the owner's answer to the map's question 7. Current: round 3, every
 time a document carries has its words (`briefs/every-epoch-words.md`,
-C163 as amended on 2026-11-04), building on the first parked worker;
-after it, the group's seat.
+C163 as amended on 2026-11-04), landed on 2026-11-04 as one commit on
+the first parked worker, and its review is pending; after it, the
+group's seat.

@@ -187,13 +187,33 @@ pub struct AnnotationRow {
     pub value: Value,
     pub revision: i64,
     pub created_at: i64,
+    /// C163 (every time a document carries has its words beside it):
+    /// `created_at` in words at the answer's time, where the answer's
+    /// maker says it ([`AnnotationRow::aged`]); absent from a row as the
+    /// store reads it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at_age: Option<String>,
     pub updated_at: i64,
+    /// C163: `updated_at` in words, the same way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at_age: Option<String>,
     /// The channel the last write came through (C65): `cli`, `mcp`, ….
     pub written_via: String,
     /// What the writer claimed about who was acting. Untrusted audit
     /// metadata: never identity, never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
+}
+
+impl AnnotationRow {
+    /// C163: the row with its creation's and its last write's ages said
+    /// at `now`, the answer's time — what a document that carries a row
+    /// (a policy shown, a receipt, a conflict) says of it.
+    pub fn aged(mut self, now: i64) -> AnnotationRow {
+        self.created_at_age = Some(crate::age::ago(now, Some(self.created_at)));
+        self.updated_at_age = Some(crate::age::ago(now, Some(self.updated_at)));
+        self
+    }
 }
 
 /// A live row whose stored value this build cannot parse as JSON (C151):
@@ -261,7 +281,9 @@ impl Stored {
             value,
             revision: self.revision,
             created_at: self.created_at,
+            created_at_age: None,
             updated_at: self.updated_at,
+            updated_at_age: None,
             written_via: self.written_via,
             actor: self.actor,
         }
@@ -1040,7 +1062,9 @@ impl Annotations {
                 value: Value::Null,
                 revision: 1,
                 created_at: now,
+                created_at_age: None,
                 updated_at: now,
+                updated_at_age: None,
                 written_via: String::new(),
                 actor: None,
             }),

@@ -275,6 +275,14 @@ pub fn answer_keys() -> Vec<Named> {
             "what the answer was computed from: its `intent` is the revision of the account's hand-written prices and sync policy, which every write to either moves",
         ),
         key(
+            "snapshot_at_age",
+            "when the facts the answer read were last written (`basis.snapshot.at`), in words at the answer's time: the basis is the answer's identity and carries none, nor does the copy `view.rows.next` sends back, whose time this is",
+        ),
+        key(
+            "before_snapshot_at_age",
+            "the same for a `before`'s `counted_at`: when the facts the route was counted at were last written",
+        ),
+        key(
             "request",
             "a count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause's other reading adds or drops, and each term's matched where nothing matched — with `denominator`, what the request searches: the scope, never the share the count is of; every other count is its number alone, and routes asks for every count's. Any request an answer holds is sent back as printed",
         ),

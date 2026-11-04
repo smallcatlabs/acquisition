@@ -596,8 +596,8 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
     .listing
     .manual
     .unwrap();
-    // less the words C53 says beside its `updated_at` on `show` (step
-    // 2g round 6), which a refusal does not carry
+    // each side less its words beside its `updated_at` (C163), made at
+    // each answer's own time: the refusal carries them as `show` does
     let shown = ManualSide {
         updated_at_age: None,
         ..shown
@@ -610,7 +610,10 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
         let r = Refused::find(&e).unwrap();
         let fields = r.fields();
         assert_eq!(fields["revision"], json!(1), "{e:#}");
-        assert_eq!(fields["current"], json!(shown), "{e:#}");
+        let mut current = fields["current"].clone();
+        let words = current.as_object_mut().unwrap().remove("updated_at_age");
+        assert!(words.is_some_and(|w| w.is_string()), "{e:#}");
+        assert_eq!(current, json!(shown), "{e:#}");
     }
     clear(&mut a, "item/i1", Expect::Exactly(1), &via, "a", plain).unwrap();
     let e = write(&mut a, Expect::Exactly(9)).unwrap_err();

@@ -117,8 +117,8 @@ pub struct EventSummary {
 
 impl EventSummary {
     /// `events` grouped by location (`summary`), counted whole, then cut,
-    /// each listed location's latest event said as an age at `now`, the
-    /// answer's time (C53).
+    /// each listed location's earliest and latest event said as an age at
+    /// `now`, the answer's time (C53, C163).
     pub fn of(events: &Events, rows: Vec<LocationChanges>, expand: bool, now: i64) -> EventSummary {
         let by_kind = KindTotals {
             added: rows.iter().map(|r| r.added).sum(),
@@ -131,6 +131,7 @@ impl EventSummary {
         let rows = rows
             .into_iter()
             .map(|mut row| {
+                row.first_age = Some(acquisition_store::age::ago(now, Some(row.first)));
                 row.last_age = Some(acquisition_store::age::ago(now, Some(row.last)));
                 row
             })
@@ -161,6 +162,10 @@ pub struct LocationChanges {
     pub moved_out: usize,
     pub removed: usize,
     pub first: i64,
+    /// C163: `first` in words at the answer's time, on a location a
+    /// summary lists.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_age: Option<String>,
     pub last: i64,
     /// C53: `last` in words at the answer's time, on a location a
     /// summary lists.

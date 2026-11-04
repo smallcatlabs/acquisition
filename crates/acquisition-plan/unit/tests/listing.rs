@@ -59,7 +59,9 @@ fn row(scope: &str, key: &str, value: Value, revision: i64) -> AnnotationRow {
         value,
         revision,
         created_at: 50,
+        created_at_age: None,
         updated_at: 60,
+        updated_at_age: None,
         written_via: "test".into(),
         actor: None,
     }
@@ -707,7 +709,10 @@ fn the_report_json_matches_the_committed_fixture() {
         env!("CARGO_MANIFEST_DIR"),
         "/reference/listing-report-schema-3.json"
     );
+    // aged at a fixed time, an hour after the snapshot: every view's
+    // words (C163) are the contract's too
     let report = resolve(&snapshot()).unwrap();
+    let report = report.clone().aged(report.header.taken_at + 3_600);
     let actual = serde_json::to_value(&report).unwrap();
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::write(path, serde_json::to_string_pretty(&actual).unwrap() + "\n").unwrap();
@@ -1046,22 +1051,25 @@ fn c53_the_status_lists_ten_of_each_row_list_beside_its_whole_count() {
         ),
         (13, 14, 12)
     );
-    assert_eq!(&rows.unmatched[..], &whole.unmatched[..LISTED]);
+    // the first ten of the whole, each worded at the status's time (C163)
+    let aged = report.clone().aged(0);
+    assert_eq!(&rows.unmatched[..], &aged.rows.unmatched[..LISTED]);
     // the whole-set counts stand as they are
     assert_eq!(
         (rows.total, rows.applied, rows.other_realm),
         (whole.total, whole.applied, whole.other_realm)
     );
     assert!(status.listings.is_empty());
-    assert_eq!(report.status(true, 0).rows, report.rows);
+    assert_eq!(report.status(true, 0).rows, aged.rows);
 }
 
 /// C53 (an age the text prints stands in words beside its epoch,
-/// made at the answer's own time): `status` says the snapshot and the
-/// two listings it was resolved over, `show` the snapshot, its
-/// target's hand row and the fact its texts came from — each in the
-/// store's words at the time given, beside its epoch — and a view no
-/// text ages (`list`, the report) carries none.
+/// made at the answer's own time) and C163 (every time a document
+/// carries has its words beside it): `status` says the snapshot and the
+/// two listings it was resolved over, `show` and `list` those and each
+/// listing's hand row and the fact its texts came from — each in the
+/// store's words at the time given, beside its epoch — and the report
+/// as [`resolve`] makes it, which no answer prints, carries none.
 #[test]
 fn c53_status_and_show_say_the_ages_their_texts_print() {
     let report = resolve(&snapshot()).unwrap();
@@ -1092,10 +1100,25 @@ fn c53_status_and_show_say_the_ages_their_texts_print() {
     let shown = report.show_view(&item).unwrap().aged(now);
     let doc = serde_json::to_value(&shown).unwrap();
     assert_eq!(doc["taken_at_age"], "60m ago", "{doc}");
-    assert!(doc.get("stash_listing_fetched_at_age").is_none(), "{doc}");
+    assert_eq!(
+        shown.header.stash_listing_fetched_at_age,
+        said(h.stash_listing.map(|l| l.fetched_at))
+    );
     let manual = shown.listing.manual.as_ref().unwrap();
     assert_eq!(manual.updated_at_age, said(Some(manual.updated_at)));
     assert_eq!(shown.listing.basis.at_age, said(shown.listing.basis.at));
+    let container = shown.container.as_ref().expect("the item's container");
+    assert_eq!(container.basis.at_age, said(container.basis.at));
+
+    let list = report.list_view(ListFilter::default()).unwrap().aged(now);
+    assert_eq!(list.header.taken_at_age.as_deref(), Some("60m ago"));
+    assert!(!list.items.is_empty() && !list.containers.is_empty());
+    for l in list.items.iter().chain(&list.containers) {
+        assert_eq!(l.basis.at_age, said(l.basis.at), "{:?}", l.subject);
+        if let Some(manual) = &l.manual {
+            assert_eq!(manual.updated_at_age, said(Some(manual.updated_at)));
+        }
+    }
 }
 
 /// A league with nothing on record: no listing, no location, no item.

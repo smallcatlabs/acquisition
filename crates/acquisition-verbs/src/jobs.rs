@@ -233,7 +233,8 @@ impl Listed {
 }
 
 /// C45 and C149: the ledger's open rows as one document — `jobs` (the
-/// store's rows, ten, every one under `expand`), `written_at`, and the
+/// store's rows, ten, every one under `expand`, each row's times in words
+/// as one job's are, C163), `written_at`, and the
 /// ledger's counts over every open row: `total`, `waiting`,
 /// `recorded_running`, the words `daemon_status` uses, and `left_out`.
 #[derive(Clone, Debug, Serialize)]
@@ -255,7 +256,8 @@ pub struct PersistedJobs {
 
 impl PersistedJobs {
     /// The ledger's open rows, counted whole and then cut by the one rule,
-    /// its last write said as an age at `now`, the answer's time (C53).
+    /// its last write and each listed row's times said as ages at `now`,
+    /// the answer's time (C53, C163).
     pub fn of(persisted: Persisted, expand: bool, now: i64) -> PersistedJobs {
         let (total, waiting, recorded_running) = (
             persisted.jobs.len(),
@@ -264,7 +266,7 @@ impl PersistedJobs {
         );
         let (jobs, left_out) = bounded(persisted.jobs, None, expand);
         PersistedJobs {
-            jobs,
+            jobs: jobs.into_iter().map(|job| job.aged(now)).collect(),
             written_at: persisted.written_at,
             written_at_age: acquisition_store::age::ago(now, persisted.written_at),
             total,

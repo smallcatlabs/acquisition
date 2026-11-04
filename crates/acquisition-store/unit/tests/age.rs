@@ -99,11 +99,17 @@ fn c53_a_row_a_maker_ages_says_its_epochs_beside_them() {
         r#type: "PremiumStash".into(),
         idx: None,
         listed_at: Some(now),
+        listed_at_age: None,
         fetched_at: None,
         fetched_at_age: None,
         removed_at: None,
+        removed_at_age: None,
         item_count: 0,
         fetched_items: None,
     };
-    assert_eq!(tab.aged(now).fetched_at_age.as_deref(), Some("never"));
+    let tab = tab.aged(now);
+    assert_eq!(tab.fetched_at_age.as_deref(), Some("never"));
+    // C163: the listing's time in words, a removal's only where it left
+    assert_eq!(tab.listed_at_age.as_deref(), Some("0s ago"));
+    assert_eq!(tab.removed_at_age, None);
 }

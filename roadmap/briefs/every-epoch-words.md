@@ -135,7 +135,11 @@ inventory.
   (an empty coverage's fetch ages stay `None`: unchanged, the null
   rule below). No golden under any `tests/goldens/` holds these
   documents in JSON form (`shop_json/`, `price_json/` hold CLI text),
-  so no transcript golden changes.
+  so no transcript golden changes. (Settled in the round: one does,
+  `search_json/describe_at_a_terminal.txt`, by two added glosses —
+  the search's `describe` answer section names every top-level key an
+  answer prints, `surface_faults.rs:949`, and Do 3 adds
+  `snapshot_at_age` and `before_snapshot_at_age` there.)
 - `REVIEW-CHECKLIST.md`, "Frontends and the surface an agent meets"
   (a document's key order lost through a JSON value).
 
@@ -269,7 +273,8 @@ inventory.
 4. The assertions named in Read moved to their replacing facts; the
    two reference fixtures regenerated for the added keys; no
    transcript golden changes (`git diff --stat -- 'crates/*/tests/goldens/'`
-   empty); `CLI-REFERENCE.md` and `MCP-REFERENCE.md` unchanged.
+   empty; settled in the round: the `describe` golden's two glosses,
+   Read's note); `CLI-REFERENCE.md` and `MCP-REFERENCE.md` unchanged.
 5. The gloss: the `ages` entry unchanged; a per-tool gloss that names
    one of these times says its words stand beside it; no id in any
    (C116).
@@ -288,8 +293,9 @@ inventory.
   convention; `Revision` and `Basis` are unchanged (`git diff` of
   their definitions empty); `tests/next.rs` unchanged and passing.
 - `git diff --stat <base>..<head> -- 'crates/*/tests/goldens/'
-  CLI-REFERENCE.md MCP-REFERENCE.md` is empty; the two reference
-  fixtures' diffs are added keys only.
+  CLI-REFERENCE.md MCP-REFERENCE.md` is empty (settled in the round:
+  but for `search_json/describe_at_a_terminal.txt`'s two added glosses,
+  Read's note); the two reference fixtures' diffs are added keys only.
 - The commit message carries `retired nothing` and the keys by
   document.
 - `tools/gate.sh` is green on the step's tree, every stage 0.

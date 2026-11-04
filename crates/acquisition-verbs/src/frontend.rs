@@ -487,20 +487,21 @@ impl Account {
             account: self.entry.username.clone(),
             realms: replaced_realms(value, prior.as_ref(), write),
         };
+        let now = acquisition_store::now();
         let notes = match (
             SyncPolicy::from_value(value),
             self.facts().ok().map(|f| f.league_list()),
         ) {
-            (Ok(written), Some(Ok(list))) => {
-                league_notes(written.leagues(), list.as_ref(), acquisition_store::now())
-            }
+            (Ok(written), Some(Ok(list))) => league_notes(written.leagues(), list.as_ref(), now),
             _ => Vec::new(),
         };
+        // C163: each row the receipt carries says its times at the answer's
+        let row = row.aged(now);
         Ok(PolicyWritten {
             written: row.clone(),
             row,
             target,
-            prior,
+            prior: prior.map(|prior| prior.aged(now)),
             league_notes: notes,
         })
     }
@@ -541,26 +542,23 @@ pub struct PolicyShown {
     pub leagues_held_unavailable: Option<String>,
 }
 
-/// The stored policy row as shown: the row whole, and beside its
-/// `updated_at` the age the text prints, in words at the answer's time
-/// (C53; additive on the row).
+/// The stored policy row as shown: the row whole, beside its
+/// `created_at` and its `updated_at` their ages in words at the answer's
+/// time (C53, the age the text prints; C163, every time a document
+/// carries; additive on the row, [`AnnotationRow::aged`]).
 #[derive(Clone, Debug, Serialize)]
 pub struct ShownPolicy {
     #[serde(flatten)]
     pub row: AnnotationRow,
-    pub updated_at_age: String,
 }
 
 impl PolicyShown {
-    /// The stored row, or none, its last write said as an age at `now`.
+    /// The stored row, or none, its times said as ages at `now`.
     pub fn of(row: Option<AnnotationRow>, leagues_held: Vec<LeaguesHeld>, now: i64) -> PolicyShown {
         PolicyShown {
             leagues_held,
             leagues_held_unavailable: None,
-            policy: row.map(|row| ShownPolicy {
-                updated_at_age: acquisition_store::age::ago(now, Some(row.updated_at)),
-                row,
-            }),
+            policy: row.map(|row| ShownPolicy { row: row.aged(now) }),
         }
     }
 }
@@ -572,7 +570,8 @@ impl PolicyShown {
 /// [`crate::receipt`]): `target`, `written` (the stored row again, under
 /// the shape's name; the flattened row stands, C53 additive), `prior`,
 /// the row the write replaced, null on a create — the flattened row's
-/// `revision` is the receipt's, the one the next write names. Its `undo`
+/// `revision` is the receipt's, the one the next write names; each row
+/// with its times in words at the answer's time (C163). Its `undo`
 /// or `no_undo` is spelled by each surface ([`crate::receipt::policy`]).
 #[derive(Clone, Debug, Serialize)]
 pub struct PolicyWritten {

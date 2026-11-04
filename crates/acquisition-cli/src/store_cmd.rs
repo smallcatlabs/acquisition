@@ -1217,9 +1217,11 @@ mod tests {
             r#type: "PremiumStash".into(),
             idx: Some(1),
             listed_at: Some(90),
+            listed_at_age: None,
             fetched_at: Some(90),
             fetched_at_age: None,
             removed_at: None,
+            removed_at_age: None,
             item_count: 7,
             fetched_items: Some(7),
         }];

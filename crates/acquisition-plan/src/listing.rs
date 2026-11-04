@@ -164,12 +164,17 @@ use crate::price::{Buyout, Price, PriceTarget};
 /// fails it is either additive (regenerate the fixture) or a bump.
 /// Within 3 (step 2g round 6, C53's ages, additive): beside an epoch a
 /// view's text says as an age, its words under the epoch's name and
-/// `_age` — `status`'s `taken_at_age` and listings', `show`'s
-/// `taken_at_age`, `manual.updated_at_age` and `basis.at_age` — absent
-/// from the report itself and from `list`, which say none. Within 3
-/// since 2026-11-04 (#156, C162, additive): the report's `facts`, its
-/// non-folder containers' fetches and lists, unaged but on `status`;
-/// `list` and `show` carry the header alone.
+/// `_age`. Within 3 since 2026-11-04 (#156, C162, additive): the
+/// report's `facts`, its non-folder containers' fetches and lists;
+/// `list` and `show` carry the header alone. Within 3 since 2026-11-04
+/// (#164, C163, every time a document carries has its words beside it,
+/// additive): every view says every age, made where the view is
+/// ([`ListingReport::aged`], [`ListView::aged`], [`ShowView::aged`]) —
+/// the header's snapshot and its two listings (the flattened header's
+/// `taken_at_age`, `stash_listing_fetched_at_age`,
+/// `character_listing_fetched_at_age`), each listing's
+/// `manual.updated_at_age` and `basis.at_age`, the unmatched rows'
+/// `updated_at_age`; [`resolve`] makes the report unaged.
 pub const LISTING_SCHEMA: u32 = 3;
 
 /// The GGG tab type that groups tabs and holds no items.
@@ -263,6 +268,13 @@ pub struct ManualSide {
     pub written_via: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
+}
+
+impl ManualSide {
+    /// C163: the row's last write in words at `now`, the answer's time.
+    pub fn aged(&mut self, now: i64) {
+        self.updated_at_age = Some(age::ago(now, Some(self.updated_at)));
+    }
 }
 
 /// One text the game side read, verbatim, and what it read as.
@@ -448,6 +460,17 @@ pub struct Listing {
     /// What applies (C81).
     pub effective: Effective,
     pub basis: Basis,
+}
+
+impl Listing {
+    /// C53 and C163: the hand row's last write and the fact the texts
+    /// came from, in words at `now` (`never` where no fact stands).
+    pub fn aged(&mut self, now: i64) {
+        if let Some(manual) = &mut self.manual {
+            manual.aged(now);
+        }
+        self.basis.at_age = Some(age::ago(now, self.basis.at));
+    }
 }
 
 /// A `buyout` row the state could not use.
@@ -771,7 +794,10 @@ impl GameText {
 /// one each sits in and those above it, in the report's order, each with
 /// its own listing), and the items: `total` selected, `listed` of them
 /// here — ten by default, the filter's `limit`, or all under its
-/// `expand` — and `counts`, the whole selection counted.
+/// `expand` — and `counts`, the whole selection counted; its ages in
+/// words where [`pricing::list`] makes it ([`ListView::aged`]).
+///
+/// [`pricing::list`]: crate::pricing::list
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ListView {
     #[serde(flatten)]
@@ -790,6 +816,19 @@ pub struct ListView {
     pub counts: SetCounts,
     pub containers: Vec<Listing>,
     pub items: Vec<Listing>,
+}
+
+impl ListView {
+    /// C53 and C163 (every time a document carries has its words beside
+    /// it): the snapshot's and the listings' ages, and each container's
+    /// and item's listing, said at `now`, the answer's time.
+    pub fn aged(mut self, now: i64) -> ListView {
+        self.header.aged(now);
+        for listing in self.containers.iter_mut().chain(&mut self.items) {
+            listing.aged(now);
+        }
+        self
+    }
 }
 
 /// `show`'s contract: the listing, the container an item sits in, and
@@ -866,15 +905,17 @@ impl SetCounts {
 
 impl ShowView {
     /// C53 (an age the text prints stands in words beside its epoch,
-    /// made at the answer's own time): the target's hand row's last
-    /// write, the fact its texts came from, and the snapshot, said at
-    /// `now`, as `show`'s text says them.
+    /// made at the answer's own time) and C163 (every time a document
+    /// carries has its words beside it): the snapshot's and the listings'
+    /// ages, and each listing's — the target's, its container's and both
+    /// item sets' — said at `now`.
     pub fn aged(mut self, now: i64) -> ShowView {
-        self.header.taken_at_age = Some(age::ago(now, Some(self.header.taken_at)));
-        if let Some(manual) = &mut self.listing.manual {
-            manual.updated_at_age = Some(age::ago(now, Some(manual.updated_at)));
+        self.header.aged(now);
+        self.listing.aged(now);
+        let sets = [&mut self.items_here, &mut self.items_covered_below];
+        for listing in self.container.iter_mut().chain(sets.into_iter().flatten()) {
+            listing.aged(now);
         }
-        self.listing.basis.at_age = Some(age::ago(now, self.listing.basis.at));
         self
     }
 
@@ -952,15 +993,27 @@ impl ListingReport {
 
     /// What `status` is: the report without its listings, each list of
     /// its row accounting ten unless `expand`, beside its whole count
-    /// (C53, the read economy), and the snapshot's, the listings' and the
-    /// facts' ages its text says, in words at `now`, the answer's time
-    /// (C53, ages).
+    /// (C53, the read economy), its ages in words at `now`, the answer's
+    /// time ([`ListingReport::aged`]).
     pub fn status(&self, expand: bool, now: i64) -> ListingReport {
         let mut status = self.summary();
         status.rows = status.rows.bounded(expand);
-        status.header.aged(now);
-        status.facts.aged(now);
-        status
+        status.aged(now)
+    }
+
+    /// C53 and C163 (every time a document carries has its words beside
+    /// it): the snapshot's, the listings' and the facts' ages, each
+    /// unmatched row's last write, and each listing's, said at `now`.
+    pub fn aged(mut self, now: i64) -> ListingReport {
+        self.header.aged(now);
+        self.facts.aged(now);
+        for row in &mut self.rows.unmatched {
+            row.aged(now);
+        }
+        for listing in &mut self.listings {
+            listing.aged(now);
+        }
+        self
     }
 
     /// `list`'s view under a filter. `None` when the filter names a

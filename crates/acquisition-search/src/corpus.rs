@@ -498,7 +498,9 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         container: row.container,
         socketed_in: row.socketed_in,
         first_seen: row.first_seen,
+        first_seen_age: None,
         last_seen: row.last_seen,
+        last_seen_age: None,
         removed_at: row.removed_at,
         removed_at_age: None,
     };

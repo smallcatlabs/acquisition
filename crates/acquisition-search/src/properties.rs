@@ -1150,7 +1150,9 @@ mod tests {
             container: None,
             socketed_in: None,
             first_seen: 0,
+            first_seen_age: None,
             last_seen: 0,
+            last_seen_age: None,
             removed_at: None,
             removed_at_age: None,
         };

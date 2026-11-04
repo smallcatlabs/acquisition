@@ -5,6 +5,7 @@
     "fetched_at": 101,
     "response_id": 3
   },
+  "character_listing_fetched_at_age": "61m ago",
   "counts": {
     "by_effective": {
       "game": 5,
@@ -39,7 +40,9 @@
     "characters": 1,
     "fetched": 7,
     "list_seen": 100,
+    "list_seen_age": "61m ago",
     "newest_fetch": 111,
+    "newest_fetch_age": "61m ago",
     "newest_fetch_location": {
       "id": "ch1",
       "kind": "character",
@@ -47,6 +50,7 @@
       "name": "Exile"
     },
     "oldest_fetch": 110,
+    "oldest_fetch_age": "61m ago",
     "oldest_fetch_location": {
       "id": "c1",
       "kind": "stash",
@@ -61,6 +65,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -94,6 +99,7 @@
         "inherited": false,
         "revision": 3,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -115,6 +121,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -170,6 +177,7 @@
         "inherited": true,
         "revision": 3,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -191,6 +199,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -232,6 +241,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -282,6 +292,7 @@
         "inherited": false,
         "revision": 4,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "1",
           "currency": "divine",
@@ -305,6 +316,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -362,6 +374,7 @@
         "inherited": true,
         "revision": 4,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "1",
           "currency": "divine",
@@ -386,6 +399,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -427,6 +441,7 @@
     {
       "basis": {
         "at": 100,
+        "at_age": "61m ago",
         "response": 2
       },
       "chain": [
@@ -481,6 +496,7 @@
         "inherited": false,
         "revision": 5,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "7",
           "currency": "chaos",
@@ -505,6 +521,7 @@
     {
       "basis": {
         "at": 101,
+        "at_age": "61m ago",
         "response": 3
       },
       "chain": [
@@ -539,6 +556,7 @@
         "inherited": false,
         "revision": 6,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "2222",
           "currency": "jewellers",
@@ -560,6 +578,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -607,6 +626,7 @@
         "inherited": true,
         "revision": 6,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "2222",
           "currency": "jewellers",
@@ -637,6 +657,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -702,6 +723,7 @@
         "inherited": false,
         "revision": 2,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -731,6 +753,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -788,6 +811,7 @@
         "inherited": false,
         "revision": 1,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "3",
           "currency": "chaos",
@@ -819,6 +843,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -885,6 +910,7 @@
         "inherited": true,
         "revision": 3,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -914,6 +940,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -979,6 +1006,7 @@
         "inherited": true,
         "revision": 3,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -1008,6 +1036,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -1066,6 +1095,7 @@
         "inherited": true,
         "revision": 3,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "type": "skip",
           "version": 1
@@ -1095,6 +1125,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -1153,6 +1184,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -1214,6 +1246,7 @@
         "inherited": true,
         "revision": 4,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "1",
           "currency": "divine",
@@ -1246,6 +1279,7 @@
     {
       "basis": {
         "at": 120,
+        "at_age": "61m ago",
         "response": 7
       },
       "chain": [
@@ -1304,6 +1338,7 @@
         "inherited": true,
         "revision": 5,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "7",
           "currency": "chaos",
@@ -1351,6 +1386,7 @@
         "inherited": false,
         "revision": 8,
         "updated_at": 60,
+        "updated_at_age": "62m ago",
         "value": {
           "amount": "1",
           "currency": "chaos",
@@ -1382,5 +1418,7 @@
     "fetched_at": 100,
     "response_id": 2
   },
-  "taken_at": 200
+  "stash_listing_fetched_at_age": "61m ago",
+  "taken_at": 200,
+  "taken_at_age": "60m ago"
 }

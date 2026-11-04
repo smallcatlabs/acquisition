@@ -477,6 +477,7 @@ mod tests {
             schema: 1,
             listing: header,
             rendered_at: 5000,
+            rendered_at_age: "0s ago".into(),
             size: 200,
             template: "[items]".into(),
             policy,

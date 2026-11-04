@@ -293,7 +293,9 @@ fn no_policy_and_uncovered_league_are_distinct_structured_errors() {
         value: v4.clone(),
         revision: 1,
         created_at: 1,
+        created_at_age: None,
         updated_at: 1,
+        updated_at_age: None,
         written_via: "future-build".into(),
         actor: None,
     });

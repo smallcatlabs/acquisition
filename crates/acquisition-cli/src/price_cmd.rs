@@ -1275,7 +1275,9 @@ mod tests {
             value,
             revision,
             created_at: 900,
+            created_at_age: None,
             updated_at: 950,
+            updated_at_age: None,
             written_via: "cli".into(),
             actor: Some("tom".into()),
         }
@@ -1954,7 +1956,9 @@ mod tests {
             value: json!({ "version": 9, "type": "exact" }),
             revision: 7,
             created_at: 900,
+            created_at_age: None,
             updated_at: 950,
+            updated_at_age: None,
             written_via: "cli".into(),
             actor: None,
         });
@@ -1994,7 +1998,9 @@ mod tests {
             value,
             revision,
             created_at: 0,
+            created_at_age: None,
             updated_at: 0,
+            updated_at_age: None,
             written_via: "cli".into(),
             actor: None,
         };

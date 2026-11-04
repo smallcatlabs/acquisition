@@ -18,7 +18,9 @@ fn facts() -> Facts {
         container: Some("items".into()),
         socketed_in: None,
         first_seen: 100,
+        first_seen_age: None,
         last_seen: 200,
+        last_seen_age: None,
         removed_at: None,
         removed_at_age: None,
     }

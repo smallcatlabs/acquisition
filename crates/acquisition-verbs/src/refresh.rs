@@ -103,6 +103,11 @@ pub struct PlanAges {
     /// `plan.generated_at` at the answer's time: how old the plan is.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generated_at_age: Option<String>,
+    /// `plan.basis.snapshot_taken_at` measured from the plan's own
+    /// `generated_at`, as the listings' are (C163: every time a document
+    /// carries has its words beside it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_taken_at_age: Option<String>,
     /// `plan.basis.stash_listing.fetched_at` measured from the plan's own
     /// `generated_at`, as its text says the facts' age (`3h before
     /// generated_at`), `never` where the stashes were never listed.
@@ -118,8 +123,9 @@ pub struct PlanAges {
 }
 
 impl Planned {
-    /// The plan's ages said at `now`, the answer's time; the listings'
-    /// from the plan's own `generated_at`, as its text measures them.
+    /// The plan's ages said at `now`, the answer's time; the snapshot's
+    /// and the listings' from the plan's own `generated_at`, as its text
+    /// measures the listings'.
     /// The envelope is untouched.
     pub fn aged(mut self, now: i64) -> Planned {
         use acquisition_store::age::{ago, before};
@@ -129,6 +135,11 @@ impl Planned {
         };
         self.ages = PlanAges {
             generated_at_age: Some(ago(now, Some(plan.generated_at))),
+            snapshot_taken_at_age: Some(before(
+                "generated_at",
+                plan.generated_at,
+                Some(plan.basis.snapshot_taken_at),
+            )),
             stash_listing_fetched_at_age: Some(basis(plan.basis.stash_listing.as_ref())),
             character_listing_fetched_at_age: Some(basis(plan.basis.character_listing.as_ref())),
             quote_observed_at_age: plan.quote.as_ref().map(|q| ago(now, Some(q.observed_at))),

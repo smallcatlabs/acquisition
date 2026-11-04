@@ -760,6 +760,7 @@ fn persisted_job(state: &str) -> PersistedJob {
         params: json!({ "id": "t1" }),
         cancel_requested: false,
         submitted_at: 10,
+        submitted_at_age: None,
         updated_at: 20,
         updated_at_age: None,
     }
@@ -2121,11 +2122,13 @@ fn a_policy_write_refused_for_its_revision_is_a_conflict_with_the_row() {
     let doc = acquisition_verbs::refusal::document(&fault.into(), &Plain);
     assert_eq!(doc["kind"], "conflict", "{doc}");
     assert_eq!(doc["revision"], 1, "{doc}");
-    assert_eq!(
-        doc["current"],
-        json!(account.policy().unwrap().unwrap()),
-        "{doc}"
-    );
+    // the row as it stands, its times in words at the refusal's (C163)
+    let mut current = doc["current"].clone();
+    for key in ["created_at_age", "updated_at_age"] {
+        let words = current.as_object_mut().unwrap().remove(key);
+        assert!(words.as_ref().is_some_and(said), "{key}: {doc}");
+    }
+    assert_eq!(current, json!(account.policy().unwrap().unwrap()), "{doc}");
     assert_eq!(
         doc["error"],
         "the sync policy is at revision 1 (re-read and retry)"
@@ -2222,7 +2225,11 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
     let read = account
         .set_policy(&poe2, Expect::Exactly(1), PolicyWrite::Merge)
         .unwrap();
-    assert_eq!(read.prior.as_ref(), Some(&first.row), "the merge's prior");
+    assert_eq!(
+        read.prior.as_ref().map(unaged),
+        Some(unaged(&first.row)),
+        "the merge's prior"
+    );
     let doc = serde_json::to_value(receipt::policy(&read, &surface)).unwrap();
     assert_eq!(doc["target"]["realms"], json!(["poe2"]), "{doc}");
     assert!(
@@ -2256,17 +2263,17 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
     let named = account
         .set_policy(&poe2, Expect::Exactly(3), PolicyWrite::Merge)
         .unwrap();
-    assert_eq!(named.prior.as_ref(), Some(&second.row));
+    assert_eq!(named.prior.as_ref().map(unaged), Some(unaged(&second.row)));
     assert_eq!(named.row.revision, 4);
     // Its undo writes the prior back whole over 4, and lands.
     let back = undo(&named);
     assert_eq!((back.row.revision, &back.row.value), (5, &policy()));
-    assert_eq!(back.prior.as_ref(), Some(&named.row));
+    assert_eq!(back.prior.as_ref().map(unaged), Some(unaged(&named.row)));
     // The current form reads its prior too.
     let current = account
         .set_policy(&poe2, Expect::Current, PolicyWrite::Merge)
         .unwrap();
-    assert_eq!(current.prior.as_ref(), Some(&back.row));
+    assert_eq!(current.prior.as_ref().map(unaged), Some(unaged(&back.row)));
 
     // A prior this build cannot read: replaced only by naming it, and
     // nothing puts it back.
@@ -2286,6 +2293,17 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
         doc["no_undo"],
         json!("the prior policy cannot be put back: this build cannot read it")
     );
+}
+
+/// A row's facts, its words set aside (C163: each receipt's are made at
+/// its own answer's time, so two receipts' differ across a second): two
+/// answers' rows compare by these.
+fn unaged(row: &acquisition_store::AnnotationRow) -> acquisition_store::AnnotationRow {
+    acquisition_store::AnnotationRow {
+        created_at_age: None,
+        updated_at_age: None,
+        ..row.clone()
+    }
 }
 
 /// Round 5 of the 2g build: a receipt reads in the order its document
@@ -2308,4 +2326,966 @@ fn a_receipt_keeps_its_documents_key_order_and_its_undo_after_it() {
     let order = ["scope", "revision", "target", "written", "prior", "no_undo"].map(at);
     assert!(order.is_sorted(), "{order:?}: {text}");
     assert!(text.starts_with("{\"scope\":"), "{text}");
+}
+
+// ---- every time a document carries has its words (C163, #164) ----------
+
+/// C163's vocabulary (`acquisition_store::age`): a span (`45s`, `12m`,
+/// `5h`, `9d`) read `ago` or `before generated_at`, or `never`.
+fn said(words: &Value) -> bool {
+    let Some(words) = words.as_str() else {
+        return false;
+    };
+    if words == "never" {
+        return true;
+    }
+    let Some(span) = words
+        .strip_suffix(" ago")
+        .or_else(|| words.strip_suffix(" before generated_at"))
+    else {
+        return false;
+    };
+    let (n, unit) = span.split_at(span.len().saturating_sub(1));
+    !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && ["s", "m", "h", "d"].contains(&unit)
+}
+
+/// The values at `path` in `doc`, each with the indices its `[]`
+/// segments took: `rows[].listed_at` is every row's. A key a value lacks
+/// yields nothing there.
+fn at<'a>(doc: &'a Value, path: &str) -> Vec<(Vec<usize>, &'a Value)> {
+    let mut found = vec![(Vec::new(), doc)];
+    for segment in path.split('.') {
+        let (key, every) = match segment.strip_suffix("[]") {
+            Some(key) => (key, true),
+            None => (segment, false),
+        };
+        found = found
+            .into_iter()
+            .filter_map(|(taken, v)| v.get(key).map(|v| (taken, v)))
+            .flat_map(|(taken, v)| match (every, v.as_array()) {
+                (true, Some(each)) => each
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| {
+                        let mut taken = taken.clone();
+                        taken.push(i);
+                        (taken, v)
+                    })
+                    .collect(),
+                (true, None) => Vec::new(),
+                (false, _) => vec![(taken, v)],
+            })
+            .collect();
+    }
+    found
+}
+
+/// The one value at `path` with its `[]` segments taken as `taken`
+/// gives them, in order; a path with fewer takes the first of them.
+fn at_taken<'a>(doc: &'a Value, path: &str, taken: &[usize]) -> Option<&'a Value> {
+    let mut taken = taken.iter();
+    let mut v = doc;
+    for segment in path.split('.') {
+        match segment.strip_suffix("[]") {
+            Some(key) => v = v.get(key)?.get(*taken.next()?)?,
+            None => v = v.get(segment)?,
+        }
+    }
+    Some(v)
+}
+
+/// Whether a concrete path (`rows.3.listed_at`) is the pattern's
+/// (`rows[].listed_at`).
+fn matches(pattern: &str, concrete: &str) -> bool {
+    let pattern: Vec<&str> = pattern
+        .split('.')
+        .flat_map(|s| match s.strip_suffix("[]") {
+            Some(key) => vec![key, "[]"],
+            None => vec![s],
+        })
+        .collect();
+    let concrete: Vec<&str> = concrete.split('.').collect();
+    pattern.len() == concrete.len()
+        && pattern
+            .iter()
+            .zip(&concrete)
+            .all(|(p, c)| p == c || (*p == "[]" && c.parse::<usize>().is_ok()))
+}
+
+/// Whether a key names a time (C163's walk): it ends `_at` or `_seen`,
+/// or it is one of the times named otherwise.
+fn names_a_time(key: &str) -> bool {
+    key.ends_with("_at")
+        || key.ends_with("_seen")
+        || [
+            "first",
+            "last",
+            "at",
+            "last_login",
+            "oldest_fetch",
+            "newest_fetch",
+        ]
+        .contains(&key)
+}
+
+/// The values the walk does not enter: opaque JSON a document carries
+/// verbatim (a job's `params`, a refused body), and a query's tree.
+const OPAQUE: [&str; 3] = ["params", "body", "tree"];
+
+/// C163's walk over one document: every time under a name that says so,
+/// an integer, with its words beside it under its own name and `_age`,
+/// or under the path a wrapper row of `inventory` declares for it; a
+/// null time is never failed (its maker's convention says it). Each
+/// failure, by its concrete path.
+fn bare_times(document: &str, doc: &Value, inventory: &[(&str, &str, &str)]) -> Vec<String> {
+    fn walk(v: &Value, path: &str, out: &mut Vec<String>, declared: &dyn Fn(&str) -> Option<bool>) {
+        match v {
+            Value::Object(o) => {
+                for (key, value) in o {
+                    let here = if path.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{path}.{key}")
+                    };
+                    if OPAQUE.contains(&key.as_str()) {
+                        continue;
+                    }
+                    if names_a_time(key) && value.is_i64() {
+                        let beside = o.get(&format!("{key}_age")).is_some_and(said);
+                        if !beside && declared(&here) != Some(true) {
+                            out.push(here.clone());
+                        }
+                    }
+                    walk(value, &here, out, declared);
+                }
+            }
+            Value::Array(each) => {
+                for (i, value) in each.iter().enumerate() {
+                    walk(value, &format!("{path}.{i}"), out, declared);
+                }
+            }
+            _ => {}
+        }
+    }
+    // the inventory's wrapper rows: a time whose words stand elsewhere
+    // than beside it, at the path the row declares
+    let declared = |concrete: &str| -> Option<bool> {
+        inventory
+            .iter()
+            .filter(|(d, time, words)| {
+                *d == document && !is_sibling(time, words) && matches(time, concrete)
+            })
+            .map(|(_, _, words)| {
+                let taken: Vec<usize> = concrete
+                    .split('.')
+                    .filter_map(|s| s.parse::<usize>().ok())
+                    .collect();
+                at_taken(doc, words, &taken).is_some_and(said)
+            })
+            .next()
+    };
+    let mut out = Vec::new();
+    walk(doc, "", &mut out, &declared);
+    out
+}
+
+/// Whether a row's words stand beside its time, under its own name and
+/// `_age`, rather than under a declared path.
+fn is_sibling(time: &str, words: &str) -> bool {
+    words == format!("{time}_age")
+}
+
+/// Every document a verb returns, each over a world that populates the
+/// times it carries, built through the maker each frontend calls: the
+/// facts two hours old, a ring the second fetch removed, the policy
+/// written twice, a price set, replaced, cleared and set again, and a row
+/// on a target the facts do not hold.
+fn populated() -> Vec<(&'static str, Value)> {
+    use acquisition_plan::pricing::{self, Bound, ListArgs, ShopArgs};
+    use acquisition_search::answer::Membership;
+    use acquisition_search::answer::{Asked, Request};
+    use acquisition_search::corpus::Realm as Scope;
+    use acquisition_search::{Corpus, answer};
+    use acquisition_store::Provenance;
+    use acquisition_verbs::events::{EventSummary, Events, summary};
+    use acquisition_verbs::{Held, receipt, refusal};
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let now = acquisition_store::now();
+    let t = now - 7_200;
+    let quote = |s: &str| s.to_string();
+    let mut docs: Vec<(&'static str, Value)> = Vec::new();
+
+    // the facts: a listing of two tabs, one fetched twice (the second
+    // without its ring), a character listed and fetched, a body refused
+    let mut store = account.facts().unwrap();
+    listing(
+        &mut store,
+        t,
+        json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
+               { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 }]),
+    );
+    let ring = |id: &str, x: i64| {
+        json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                "rarity": "Normal", "frameType": 0, "identified": true, "ilvl": 1, "x": x, "y": 0 })
+    };
+    let fetch = |store: &mut Store, items: Value, at: i64| {
+        store
+            .record(
+                &Endpoint::Stash {
+                    realm: "pc".into(),
+                    league: "Standard".into(),
+                    id: "t1".into(),
+                    sub: None,
+                },
+                &json!({ "league": "Standard" }),
+                200,
+                &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
+                                    "items": items } }),
+                at,
+            )
+            .map(|_| ())
+    };
+    fetch(&mut store, json!([ring("i1", 0), ring("i2", 1)]), t + 60).unwrap();
+    let before = Corpus::load(
+        &store,
+        &account.intent().unwrap(),
+        Some(&Scope::One("pc".into())),
+    )
+    .unwrap();
+    fetch(&mut store, json!([ring("i1", 0)]), t + 120).unwrap();
+    // an item with no id: a body the store refuses and keeps
+    let nameless = json!({ "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                           "frameType": 0, "identified": true, "ilvl": 1, "x": 2, "y": 0 });
+    assert!(fetch(&mut store, json!([nameless]), t + 150).is_err());
+    store
+        .record(
+            &Endpoint::Characters { realm: "pc".into() },
+            &json!({}),
+            200,
+            &json!({ "characters": [
+                { "id": "c1", "name": "Exile", "class": "Witch", "level": 1, "league": "Standard" }
+            ] }),
+            t,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Character {
+                realm: "pc".into(),
+                name: "Exile".into(),
+            },
+            &json!({ "name": "Exile" }),
+            200,
+            &json!({ "character": { "id": "c1", "name": "Exile", "class": "Witch", "level": 1,
+                                    "league": "Standard", "equipment": [], "inventory": [] } }),
+            t + 180,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": [{ "id": "Standard", "realm": "pc" }] }),
+            t,
+        )
+        .unwrap();
+
+    // the intent: the policy written twice and once refused; a price
+    // set, replaced, cleared and set again, once refused; a row on a
+    // target the facts do not hold, and one on the tab
+    account
+        .set_policy(&policy(), Expect::Create, PolicyWrite::Replace)
+        .unwrap();
+    let replaced = account
+        .set_policy(&policy(), Expect::Exactly(1), PolicyWrite::Replace)
+        .unwrap();
+    docs.push((
+        "policy receipt",
+        serde_json::to_value(receipt::policy(&replaced, &Plain)).unwrap(),
+    ));
+    let fault = account
+        .set_policy(&policy(), Expect::Exactly(9), PolicyWrite::Replace)
+        .unwrap_err();
+    docs.push(("policy conflict", refusal::document(&fault.into(), &Plain)));
+    docs.push((
+        "policy shown",
+        serde_json::to_value(account.policy_shown(false).unwrap()).unwrap(),
+    ));
+    let mut intent = account.intent().unwrap();
+    let via = Provenance::via("test");
+    let set = |intent: &mut Annotations, target: &str, amount: &str, expect: Expect| {
+        pricing::set(
+            &store,
+            intent,
+            target,
+            "exact",
+            Some(amount),
+            Some("chaos"),
+            expect,
+            &via,
+            USER,
+            quote,
+        )
+    };
+    set(&mut intent, "item/i1", "5", Expect::Create).unwrap();
+    let replaced = set(&mut intent, "item/i1", "6", Expect::Current).unwrap();
+    docs.push((
+        "price receipt",
+        serde_json::to_value(receipt::price_set(&replaced, USER, &Plain)).unwrap(),
+    ));
+    let cleared =
+        pricing::clear(&mut intent, "item/i1", Expect::Current, &via, USER, quote).unwrap();
+    docs.push((
+        "price clear receipt",
+        serde_json::to_value(receipt::price_clear(&cleared, USER, &Plain)).unwrap(),
+    ));
+    set(&mut intent, "item/i1", "7", Expect::Create).unwrap();
+    let refused = set(&mut intent, "item/i1", "8", Expect::Exactly(9)).unwrap_err();
+    docs.push(("price conflict", refusal::document(&refused, &Plain)));
+    set(&mut intent, "item/ghost", "1", Expect::Create).unwrap();
+    set(&mut intent, "tab/pc/t1", "2", Expect::Create).unwrap();
+
+    // the facts' documents
+    let tabs = acquisition_search::tabs::Tabs::of(
+        "pc",
+        "Standard",
+        store.tabs("pc", "Standard").unwrap(),
+        &Default::default(),
+        None,
+        false,
+        now,
+    );
+    let read = acquisition_verbs::leagues::PolicyRead::of_account(&account);
+    docs.push((
+        "tabs",
+        serde_json::to_value(
+            Held::with(tabs, &store, &read, Realm::Pc, "Standard", false).unwrap(),
+        )
+        .unwrap(),
+    ));
+    docs.push((
+        "characters",
+        serde_json::to_value(acquisition_verbs::Characters::of(
+            Some("pc"),
+            None,
+            store.characters(Some("pc"), None).unwrap(),
+            None,
+            false,
+            now,
+        ))
+        .unwrap(),
+    ));
+    let events = Events::read(&store, now, 24.0, None).unwrap();
+    docs.push(("events", serde_json::to_value(&events).unwrap()));
+    let rows = summary(&store, &events.rows);
+    docs.push((
+        "event summary",
+        serde_json::to_value(EventSummary::of(&events, rows, false, now)).unwrap(),
+    ));
+    docs.push((
+        "refused bodies",
+        serde_json::to_value(acquisition_verbs::RefusedBodies::read(&store, 50, now).unwrap())
+            .unwrap(),
+    ));
+    docs.push((
+        "store status",
+        serde_json::to_value(store.status().unwrap()).unwrap(),
+    ));
+    docs.push((
+        "accounts",
+        serde_json::to_value(frontend(&s.mock).accounts().unwrap().bounded(false)).unwrap(),
+    ));
+    docs.push((
+        "league list",
+        serde_json::to_value(account.league_list(false).unwrap()).unwrap(),
+    ));
+
+    // the search: an answer cut at one row, so it names its
+    // continuation; a route counted on the corpus before the second
+    // fetch, read back; the removed ring under membership all; `show`
+    let scope = Some(Scope::One("pc".into()));
+    let corpus = Corpus::load(&store, &intent, scope.as_ref()).unwrap();
+    let request = |text: &str, membership: Option<&str>, limit: usize| -> Request {
+        let mut scope = json!({ "realm": "pc" });
+        if let Some(m) = membership {
+            scope["membership"] = json!(m);
+        }
+        serde_json::from_value(json!({ "scope": scope, "query": { "text": text },
+                                       "view": { "rows": { "limit": limit } } }))
+        .unwrap()
+    };
+    let first = answer(&before, &request("base=\"Iron Ring\"", None, 1)).unwrap();
+    let first = serde_json::to_value(&first).unwrap();
+    docs.push(("search", first.clone()));
+    let route = json!({ "count": first["total"]["matched"], "counted_at": first["basis"],
+                        "request": serde_json::to_value(request("base=\"Iron Ring\"", None, 1)).unwrap() });
+    let read_back = Asked::read(&route).unwrap().answer(&corpus).unwrap();
+    docs.push((
+        "search, a route read back",
+        serde_json::to_value(&read_back).unwrap(),
+    ));
+    let all = Corpus::load_of(&store, &intent, scope.as_ref(), Membership::All).unwrap();
+    let removed = answer(&all, &request("base=\"Iron Ring\"", Some("all"), 10)).unwrap();
+    docs.push(("search, removed", serde_json::to_value(&removed).unwrap()));
+    docs.push((
+        "show",
+        serde_json::to_value(acquisition_search::show(&store, &intent, "i2", false).unwrap())
+            .unwrap(),
+    ));
+
+    // the listing state's views and the shop render
+    let status = pricing::report(&store, &intent, Realm::Pc, "Standard")
+        .unwrap()
+        .status(true, now);
+    docs.push((
+        "price status",
+        serde_json::to_value(
+            Held::read(status, &store, &intent, Realm::Pc, "Standard", false).unwrap(),
+        )
+        .unwrap(),
+    ));
+    docs.push((
+        "price list",
+        serde_json::to_value(
+            pricing::list(
+                &store,
+                &intent,
+                Some(Realm::Pc),
+                Some("Standard"),
+                &ListArgs::default(),
+                USER,
+                quote,
+            )
+            .unwrap(),
+        )
+        .unwrap(),
+    ));
+    for (name, target) in [
+        ("price show, an item", "item/i1"),
+        ("price show, a tab", "tab/pc/t1"),
+    ] {
+        docs.push((
+            name,
+            serde_json::to_value(
+                pricing::show(
+                    &store,
+                    &intent,
+                    target,
+                    Some(Realm::Pc),
+                    Some("Standard"),
+                    Bound::default(),
+                    USER,
+                    quote,
+                )
+                .unwrap(),
+            )
+            .unwrap(),
+        ));
+    }
+    let rendered = pricing::shop_render(
+        &store,
+        &intent,
+        "mock",
+        Realm::Pc,
+        "Standard",
+        &ShopArgs {
+            size: acquisition_plan::shop::DEFAULT_PAGE_SIZE,
+            template: None,
+            now,
+            expand: true,
+        },
+    )
+    .unwrap();
+    docs.push((
+        "shop render",
+        serde_json::to_value(
+            Held::read(rendered, &store, &intent, Realm::Pc, "Standard", false).unwrap(),
+        )
+        .unwrap(),
+    ));
+
+    // the plan, quoted, as `refresh --plan` answers it
+    let opened = account.open().unwrap();
+    let bare = opened.compile(Realm::Pc, "Standard", now).unwrap();
+    let work = bare
+        .actions
+        .iter()
+        .map(|a| {
+            let (kind, params) = a.job();
+            acquisition_protocol::protocol::QuoteJob {
+                kind: kind.into(),
+                params,
+            }
+        })
+        .collect();
+    let plan = bare
+        .clone()
+        .with_quote(acquisition_protocol::protocol::Quote {
+            observed_at: now,
+            provider: bare.provider.clone(),
+            account: bare.account_name.clone(),
+            halted: None,
+            work,
+            scopes: vec![acquisition_protocol::protocol::QuoteScope {
+                key: "stash".into(),
+                endpoints: vec!["stash".into()],
+                requests: bare.logical_requests,
+                queued_ahead: 0,
+                policy: None,
+                rules: Vec::new(),
+                observed_seconds_ago: None,
+                eta_seconds: None,
+                notes: Vec::new(),
+            }],
+            not_covered: Vec::new(),
+        })
+        .unwrap();
+    docs.push((
+        "plan",
+        serde_json::to_value(
+            acquisition_verbs::refresh::Planned {
+                plan,
+                ages: Default::default(),
+                quote_note: None,
+                notes: Default::default(),
+                uncovered_tabs: None,
+            }
+            .aged(now),
+        )
+        .unwrap(),
+    ));
+
+    // the ledger: the open rows, one job on disk, the daemon's report
+    let ledger = acquisition_store::jobs::Persisted {
+        jobs: vec![persisted_job("waiting")],
+        written_at: Some(20),
+    };
+    docs.push((
+        "jobs, the ledger's",
+        serde_json::to_value(Jobs::Absent {
+            persisted: Some(acquisition_verbs::PersistedJobs::of(
+                ledger.clone(),
+                false,
+                now,
+            )),
+        })
+        .unwrap(),
+    ));
+    docs.push((
+        "job, on disk",
+        serde_json::to_value(Job::Absent {
+            persisted: persisted_job("done").aged(now),
+            next: "n".into(),
+        })
+        .unwrap(),
+    ));
+    docs.push((
+        "daemon, absent",
+        serde_json::to_value(DaemonReport::Absent {
+            persisted: Some(PersistedSummary::of(&ledger, now)),
+            log: None,
+        })
+        .unwrap(),
+    ));
+    docs
+}
+
+/// C163's inventory: every time a document a verb returns carries, as
+/// (document, the time's path, its words' path), `[]` every element of
+/// an array. A words path that is not the time's own name and `_age` is
+/// a wrapper row: the time sits in a value that is identity (C98, the
+/// search's basis, carried whole by a continuation and by a route read
+/// back) or in a bound envelope (C38, the plan's), or in a header
+/// flattened into its document, and the document declares where its
+/// words stand. The walk's exemptions are these rows and nothing else.
+const INVENTORY: &[(&str, &str, &str)] = &[
+    ("tabs", "rows[].listed_at", "rows[].listed_at_age"),
+    ("tabs", "rows[].fetched_at", "rows[].fetched_at_age"),
+    ("tabs", "rows[].removed_at", "rows[].removed_at_age"),
+    ("characters", "rows[].listed_at", "rows[].listed_at_age"),
+    ("characters", "rows[].fetched_at", "rows[].fetched_at_age"),
+    ("events", "rows[].at", "rows[].at_age"),
+    ("event summary", "rows[].first", "rows[].first_age"),
+    ("event summary", "rows[].last", "rows[].last_age"),
+    (
+        "refused bodies",
+        "rows[].fetched_at",
+        "rows[].fetched_at_age",
+    ),
+    (
+        "store status",
+        "league_list_latest.fetched_at",
+        "league_list_latest.fetched_at_age",
+    ),
+    (
+        "accounts",
+        "accounts[].last_login",
+        "accounts[].last_login_age",
+    ),
+    ("league list", "fetched_at", "fetched_at_age"),
+    ("search", "basis.snapshot.at", "snapshot_at_age"),
+    (
+        "search",
+        "view.rows.next.request.basis.snapshot.at",
+        "snapshot_at_age",
+    ),
+    (
+        "search",
+        "rows[].place.fetched_at",
+        "rows[].place.fetched_at_age",
+    ),
+    ("search", "scope.oldest_fetch", "scope.oldest_fetch_age"),
+    ("search", "scope.newest_fetch", "scope.newest_fetch_age"),
+    ("search", "scope.list_seen", "scope.list_seen_age"),
+    ("search", "total.oldest_fetch", "total.oldest_fetch_age"),
+    ("search", "total.newest_fetch", "total.newest_fetch_age"),
+    ("search", "total.list_seen", "total.list_seen_age"),
+    (
+        "search, a route read back",
+        "basis.snapshot.at",
+        "snapshot_at_age",
+    ),
+    (
+        "search, a route read back",
+        "before.counted_at.snapshot.at",
+        "before_snapshot_at_age",
+    ),
+    ("search, removed", "basis.snapshot.at", "snapshot_at_age"),
+    (
+        "search, removed",
+        "rows[].removed_at",
+        "rows[].removed_at_age",
+    ),
+    ("show", "basis.snapshot.at", "snapshot_at_age"),
+    ("show", "place.fetched_at", "place.fetched_at_age"),
+    ("show", "item.facts.first_seen", "item.facts.first_seen_age"),
+    ("show", "item.facts.last_seen", "item.facts.last_seen_age"),
+    ("show", "item.facts.removed_at", "item.facts.removed_at_age"),
+    (
+        "jobs, the ledger's",
+        "persisted.written_at",
+        "persisted.written_at_age",
+    ),
+    (
+        "jobs, the ledger's",
+        "persisted.jobs[].submitted_at",
+        "persisted.jobs[].submitted_at_age",
+    ),
+    (
+        "jobs, the ledger's",
+        "persisted.jobs[].updated_at",
+        "persisted.jobs[].updated_at_age",
+    ),
+    (
+        "job, on disk",
+        "persisted.submitted_at",
+        "persisted.submitted_at_age",
+    ),
+    (
+        "job, on disk",
+        "persisted.updated_at",
+        "persisted.updated_at_age",
+    ),
+    (
+        "daemon, absent",
+        "persisted.written_at",
+        "persisted.written_at_age",
+    ),
+    ("policy shown", "policy.created_at", "policy.created_at_age"),
+    ("policy shown", "policy.updated_at", "policy.updated_at_age"),
+    ("policy receipt", "created_at", "created_at_age"),
+    ("policy receipt", "updated_at", "updated_at_age"),
+    (
+        "policy receipt",
+        "written.created_at",
+        "written.created_at_age",
+    ),
+    (
+        "policy receipt",
+        "written.updated_at",
+        "written.updated_at_age",
+    ),
+    ("policy receipt", "prior.created_at", "prior.created_at_age"),
+    ("policy receipt", "prior.updated_at", "prior.updated_at_age"),
+    (
+        "policy conflict",
+        "current.created_at",
+        "current.created_at_age",
+    ),
+    (
+        "policy conflict",
+        "current.updated_at",
+        "current.updated_at_age",
+    ),
+    (
+        "price receipt",
+        "written.created_at",
+        "written.created_at_age",
+    ),
+    (
+        "price receipt",
+        "written.updated_at",
+        "written.updated_at_age",
+    ),
+    ("price receipt", "prior.created_at", "prior.created_at_age"),
+    ("price receipt", "prior.updated_at", "prior.updated_at_age"),
+    (
+        "price clear receipt",
+        "prior.created_at",
+        "prior.created_at_age",
+    ),
+    (
+        "price clear receipt",
+        "prior.updated_at",
+        "prior.updated_at_age",
+    ),
+    (
+        "price conflict",
+        "current.updated_at",
+        "current.updated_at_age",
+    ),
+    ("price status", "taken_at", "taken_at_age"),
+    (
+        "price status",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price status",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price status",
+        "rows.unmatched[].updated_at",
+        "rows.unmatched[].updated_at_age",
+    ),
+    (
+        "price status",
+        "facts.oldest_fetch",
+        "facts.oldest_fetch_age",
+    ),
+    (
+        "price status",
+        "facts.newest_fetch",
+        "facts.newest_fetch_age",
+    ),
+    ("price status", "facts.list_seen", "facts.list_seen_age"),
+    ("price list", "taken_at", "taken_at_age"),
+    (
+        "price list",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price list",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price list",
+        "containers[].basis.at",
+        "containers[].basis.at_age",
+    ),
+    (
+        "price list",
+        "containers[].manual.updated_at",
+        "containers[].manual.updated_at_age",
+    ),
+    ("price list", "items[].basis.at", "items[].basis.at_age"),
+    (
+        "price list",
+        "items[].manual.updated_at",
+        "items[].manual.updated_at_age",
+    ),
+    ("price show, an item", "taken_at", "taken_at_age"),
+    (
+        "price show, an item",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price show, an item",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price show, an item",
+        "listing.basis.at",
+        "listing.basis.at_age",
+    ),
+    (
+        "price show, an item",
+        "listing.manual.updated_at",
+        "listing.manual.updated_at_age",
+    ),
+    (
+        "price show, an item",
+        "container.basis.at",
+        "container.basis.at_age",
+    ),
+    (
+        "price show, an item",
+        "container.manual.updated_at",
+        "container.manual.updated_at_age",
+    ),
+    ("price show, a tab", "taken_at", "taken_at_age"),
+    (
+        "price show, a tab",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price show, a tab",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price show, a tab",
+        "listing.basis.at",
+        "listing.basis.at_age",
+    ),
+    (
+        "price show, a tab",
+        "listing.manual.updated_at",
+        "listing.manual.updated_at_age",
+    ),
+    (
+        "price show, a tab",
+        "items_here[].basis.at",
+        "items_here[].basis.at_age",
+    ),
+    (
+        "price show, a tab",
+        "items_here[].manual.updated_at",
+        "items_here[].manual.updated_at_age",
+    ),
+    ("shop render", "rendered_at", "rendered_at_age"),
+    ("shop render", "listing.taken_at", "listing.taken_at_age"),
+    (
+        "shop render",
+        "listing.stash_listing.fetched_at",
+        "listing.stash_listing_fetched_at_age",
+    ),
+    (
+        "shop render",
+        "listing.character_listing.fetched_at",
+        "listing.character_listing_fetched_at_age",
+    ),
+    (
+        "shop render",
+        "freshness.facts.oldest_fetch",
+        "freshness.facts.oldest_fetch_age",
+    ),
+    (
+        "shop render",
+        "freshness.facts.newest_fetch",
+        "freshness.facts.newest_fetch_age",
+    ),
+    (
+        "shop render",
+        "freshness.facts.list_seen",
+        "freshness.facts.list_seen_age",
+    ),
+    ("plan", "plan.generated_at", "generated_at_age"),
+    (
+        "plan",
+        "plan.basis.snapshot_taken_at",
+        "snapshot_taken_at_age",
+    ),
+    (
+        "plan",
+        "plan.basis.stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "plan",
+        "plan.basis.character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    ("plan", "plan.quote.observed_at", "quote_observed_at_age"),
+];
+
+/// The rows no verb's document populates: a tab `tabs` lists is live, so
+/// its `removed_at` is null on every row it carries; the words stand
+/// where it is not.
+const NULL_ON_EVERY_ROW: [(&str, &str); 1] = [("tabs", "rows[].removed_at")];
+
+/// C163, the inventory: over a world that populates them, every time of
+/// the inventory has its words at its words' path, in the vocabulary,
+/// and a null time says `never` or carries none, as its maker says; every
+/// row names a time its document carries, and every document is one of
+/// the world's.
+#[test]
+fn c163_every_time_of_the_inventory_has_its_words() {
+    let docs = populated();
+    let mut bare = Vec::new();
+    for (document, time, words) in INVENTORY {
+        let doc = &docs
+            .iter()
+            .find(|(name, _)| name == document)
+            .unwrap_or_else(|| panic!("no document {document}"))
+            .1;
+        let found = at(doc, time);
+        assert!(!found.is_empty(), "{document}: no {time} in {doc}");
+        let populated = found.iter().any(|(_, v)| !v.is_null());
+        assert!(
+            populated || NULL_ON_EVERY_ROW.contains(&(document, time)),
+            "{document}: {time} is null on every row the world gives it"
+        );
+        for (taken, value) in found {
+            let said_here = at_taken(doc, words, &taken);
+            let holds = match value {
+                Value::Null => said_here.is_none_or(|w| w == "never"),
+                _ => said_here.is_some_and(said),
+            };
+            if !holds {
+                bare.push(format!(
+                    "{document}: {time} {value} → {words} {}",
+                    said_here.map_or("absent".into(), Value::to_string)
+                ));
+            }
+        }
+    }
+    assert!(bare.is_empty(), "{} bare:\n{}", bare.len(), bare.join("\n"));
+}
+
+/// C163, the walk (a supplement to the inventory): no document a verb
+/// returns carries a time, under a name that says so, without its words
+/// beside it or at the path the inventory declares; and the walk fails
+/// on a bare time under a name the inventory does not hold.
+#[test]
+fn c163_no_document_carries_a_time_without_its_words() {
+    let mut bare = Vec::new();
+    for (document, doc) in populated() {
+        bare.extend(
+            bare_times(document, &doc, INVENTORY)
+                .into_iter()
+                .map(|path| format!("{document}: {path}")),
+        );
+    }
+    assert!(bare.is_empty(), "{} bare:\n{}", bare.len(), bare.join("\n"));
+
+    /// A document of this test's own, with a time no maker words.
+    #[derive(serde::Serialize)]
+    struct Stamped {
+        name: &'static str,
+        stamped_at: i64,
+        stamped_at_age: Option<String>,
+        nested: Vec<Value>,
+    }
+    let stamped = serde_json::to_value(Stamped {
+        name: "x",
+        stamped_at: 1_000,
+        stamped_at_age: None,
+        nested: vec![json!({ "seen_at": 5, "last": null })],
+    })
+    .unwrap();
+    assert_eq!(
+        bare_times("stamped", &stamped, INVENTORY),
+        ["nested.0.seen_at", "stamped_at"],
+        "the walk fails on a bare time and never on a null one"
+    );
 }

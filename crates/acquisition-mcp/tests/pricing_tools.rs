@@ -1014,8 +1014,8 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     assert!(ok, "{view}");
     let manual = view["listing"]["manual"].clone();
     assert_eq!(manual["actor"], "acq search --count tab", "{view}");
-    // less the words C53 says beside its `updated_at` on `show` (step 2g
-    // round 6), which a refusal does not carry: round 6 touches no refusal
+    // each side's words beside its `updated_at` (C163) set aside: made at
+    // each answer's own time, and pinned where they are made
     assert!(manual.get("updated_at_age").is_some(), "{view}");
     let manual = steady(manual, &[]);
     let (ok, refusal) = tool(
@@ -1025,7 +1025,7 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     );
     assert!(!ok, "{refusal}");
     assert_eq!(refusal["kind"], "conflict", "{refusal}");
-    assert_eq!(refusal["current"], manual, "{refusal}");
+    assert_eq!(steady(refusal["current"].clone(), &[]), manual, "{refusal}");
 }
 
 /// Round 5 of the 2g build (the receipt shape): a write's receipt on this
@@ -1100,7 +1100,10 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
         "the same tool: {replaced}"
     );
     let (_, restored) = sent(&mut mcp, "price_set", &replaced);
-    assert_eq!(restored["prior"], replaced["written"]);
+    assert_eq!(
+        harness::unaged(restored["prior"].clone()),
+        harness::unaged(replaced["written"].clone())
+    );
     assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
     assert!(no_daemon_appeared(&dir.0));
 }
@@ -1261,5 +1264,8 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     );
     assert!(ok, "{back}");
     assert_eq!((&back["revision"], &back["value"]), (&json!(3), &pc));
-    assert_eq!(back["prior"], merged["written"]);
+    assert_eq!(
+        harness::unaged(back["prior"].clone()),
+        harness::unaged(merged["written"].clone())
+    );
 }

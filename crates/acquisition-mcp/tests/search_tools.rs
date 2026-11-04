@@ -919,8 +919,9 @@ fn keys_in_order(text: &str) -> Vec<String> {
 /// basis, query, rows, scope, terms, total, view — so the terms block and
 /// the basis stood before the total. The text now holds them in the
 /// order a reader needs: the query, the scope, the total, the rows and
-/// the view with its way on, then the terms and the basis; a site
-/// search's report opens the query, as it opens the terminal's answer.
+/// the view with its way on, then the terms and the basis, the basis's
+/// time in words after it (C163); a site search's report opens the query,
+/// as it opens the terminal's answer.
 #[test]
 fn the_answers_text_leads_with_its_total_never_with_its_terms() {
     let mut seat = Seat::new();
@@ -931,7 +932,16 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
     let text = text_of(&mut seat, json!({ "query": { "text": "class:ring" } }));
     assert_eq!(
         keys_in_order(&text),
-        ["query", "scope", "total", "rows", "view", "terms", "basis"],
+        [
+            "query",
+            "scope",
+            "total",
+            "rows",
+            "view",
+            "terms",
+            "basis",
+            "snapshot_at_age"
+        ],
         "{text}"
     );
     let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
@@ -946,7 +956,16 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
     );
     assert_eq!(
         keys_in_order(&counted),
-        ["query", "scope", "total", "rows", "view", "terms", "basis"],
+        [
+            "query",
+            "scope",
+            "total",
+            "rows",
+            "view",
+            "terms",
+            "basis",
+            "snapshot_at_age"
+        ],
         "{counted}"
     );
 }

@@ -677,6 +677,12 @@ pub struct TabRow {
     pub r#type: String,
     pub idx: Option<i64>,
     pub listed_at: Option<i64>,
+    /// C163 (every time a document carries has its words beside it):
+    /// `listed_at` in words at the answer's time, `never` where the tab
+    /// was never listed, where the answer's maker says it
+    /// ([`TabRow::aged`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listed_at_age: Option<String>,
     pub fetched_at: Option<i64>,
     /// C53: `fetched_at` in words at the answer's time (`6d ago`,
     /// `never`), where the answer's maker says it ([`TabRow::aged`]);
@@ -684,6 +690,10 @@ pub struct TabRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fetched_at_age: Option<String>,
     pub removed_at: Option<i64>,
+    /// C163: `removed_at` in words at the answer's time where the tab
+    /// left, absent where it stands, as an item's removal is said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at_age: Option<String>,
     /// Live (not removed) items whose location is this tab.
     pub item_count: i64,
     /// Item facts the last landed body carried (its `_split` count);
@@ -742,10 +752,14 @@ impl EventRow {
 }
 
 impl TabRow {
-    /// C53 (an age the text prints stands in words beside its epoch):
-    /// the row with its fetch's age said at `now`, the answer's time.
+    /// C53 (an age the text prints stands in words beside its epoch) and
+    /// C163 (every time a document carries has its words beside it): the
+    /// row with its listing's, its fetch's and its removal's ages said at
+    /// `now`, the answer's time.
     pub fn aged(mut self, now: i64) -> TabRow {
+        self.listed_at_age = Some(age::ago(now, self.listed_at));
         self.fetched_at_age = Some(age::ago(now, self.fetched_at));
+        self.removed_at_age = self.removed_at.map(|at| age::ago(now, Some(at)));
         self
     }
 }
@@ -2243,9 +2257,11 @@ impl Store {
                 r#type: r.get(5)?,
                 idx: r.get(6)?,
                 listed_at: r.get(7)?,
+                listed_at_age: None,
                 fetched_at: r.get(8)?,
                 fetched_at_age: None,
                 removed_at: r.get(9)?,
+                removed_at_age: None,
                 item_count: r.get(10)?,
                 fetched_items: r.get(11)?,
             })
