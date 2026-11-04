@@ -185,7 +185,7 @@ acq price clear <target> [--if-revision N]   # remove a price, with undo
 acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pages to paste, omissions counted
 
 # the store: no daemon, no network
-acq leagues --stored [--expand]   # the league list last fetched, each league beside whether the policy names it and its tabs and characters on disk
+acq leagues --stored [--expand]   # the league list last fetched, the newest start first, each league beside when it started, whether the policy names it and its tabs and characters on disk
 acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--limit N] [--expand]   # counts, then the ten tabs with the most items; --limit more, --expand all
 acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts, then ten characters: locations, ages and live items; --expand all
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
@@ -233,9 +233,10 @@ them.
   league. `acq leagues` lists yours, and `price status`, `shop render`
   and `tabs` name the other leagues the store holds.
 - **A new league.** `acq leagues --stored` reads the list last
-  fetched with no daemon, each league beside whether your policy names
-  it and what the store holds of it; `acq leagues` fetches the list
-  anew and names a new league the day it opens. The first
+  fetched with no daemon, the league that started last first, each
+  beside when it started, whether your policy names it and what the
+  store holds of it; `acq leagues` fetches the list anew, a new league
+  among it the day it opens. The first
   policy is written with `--if-revision 0` (the MCP's `if_revision: 0`
   the same), which lands only where none is stored; add the league to a
   policy by writing the realm back with every league it keeps (a

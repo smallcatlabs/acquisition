@@ -113,3 +113,25 @@ fn c53_a_row_a_maker_ages_says_its_epochs_beside_them() {
     assert_eq!(tab.listed_at_age.as_deref(), Some("0s ago"));
     assert_eq!(tab.removed_at_age, None);
 }
+
+/// A league's `startAt` as GGG gives it, ISO 8601 UTC, read as seconds
+/// since 1970 (the answer-facts seat, MCP fault 3); a fraction dropped, a
+/// leap day kept, and any other shape none, never a panic (C47).
+#[test]
+fn a_time_ggg_gives_as_text_reads_as_its_epoch_or_none() {
+    for (text, at) in [
+        ("1970-01-01T00:00:00Z", Some(0)),
+        ("2013-01-23T21:00:00Z", Some(1_358_974_800)),
+        ("2026-11-02T20:00:00Z", Some(1_793_649_600)),
+        ("2026-11-02T20:00:00.250Z", Some(1_793_649_600)),
+        ("2000-02-29T00:00:00Z", Some(951_782_400)),
+        ("2026-11-02T20:00:00", None),
+        ("2026-11-02 20:00:00Z", None),
+        ("2026-13-02T20:00:00Z", None),
+        ("2026-11-02T20:00Z", None),
+        ("26-11-02T20:00:00Z", None),
+        ("", None),
+    ] {
+        assert_eq!(parse_utc(text), at, "{text}");
+    }
+}

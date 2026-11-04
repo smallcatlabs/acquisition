@@ -62,6 +62,47 @@ pub fn before(basis: &str, basis_at: i64, at: Option<i64>) -> String {
     }
 }
 
+/// A time GGG gives as ISO 8601 UTC text (`2026-11-02T20:00:00Z`, a
+/// fraction of a second allowed and dropped) as seconds since 1970; none
+/// where the text is not that shape (C47: a malformed time is no time,
+/// never a panic). Howard Hinnant's days_from_civil, without a date crate.
+pub fn parse_utc(text: &str) -> Option<i64> {
+    let text = text.strip_suffix('Z')?;
+    let (date, time) = text.split_once('T')?;
+    let time = time.split_once('.').map_or(time, |(whole, _)| whole);
+    let number = |part: &str, digits: usize| -> Option<i64> {
+        (part.len() == digits && part.bytes().all(|b| b.is_ascii_digit()))
+            .then(|| part.parse().ok())
+            .flatten()
+    };
+    let mut d = date.split('-');
+    let (y, m, day) = (
+        number(d.next()?, 4)?,
+        number(d.next()?, 2)?,
+        number(d.next()?, 2)?,
+    );
+    let mut t = time.split(':');
+    let (h, min, s) = (
+        number(t.next()?, 2)?,
+        number(t.next()?, 2)?,
+        number(t.next()?, 2)?,
+    );
+    if d.next().is_some() || t.next().is_some() {
+        return None;
+    }
+    if !(1..=12).contains(&m) || !(1..=31).contains(&day) || h > 23 || min > 59 || s > 60 {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y.rem_euclid(400);
+    let mp = if m > 2 { m - 3 } else { m + 9 };
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 86_400 + h * 3600 + min * 60 + s)
+}
+
 #[cfg(test)]
 #[path = "../unit/tests/age.rs"]
 mod tests;

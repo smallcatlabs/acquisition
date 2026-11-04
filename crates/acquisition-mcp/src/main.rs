@@ -741,7 +741,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "league list",
-        "leagues (`stored: true`): the list last fetched, `fetched_at` with its age (null and no leagues if never), `leagues_total` all, `leagues` ten in its order (`expand` all), each with `realm` (null where it names none), `named` (the policy names it in that realm, or any realm where none; false under `policy` `none` or `unreadable`) and `held`, its tabs and characters on disk in that realm, summed where none",
+        "leagues (`stored: true`): the list last fetched, `fetched_at` with its age (null and no leagues if never), `leagues_total` all, `leagues` ten, the newest `started_at` first, then those with none in the list's order (`expand` all), each with `realm` (null where it names none), `started_at` with its age, GGG's start (null where it gives none), `named` (the policy names it in that realm, or any realm where none; false under `policy` `none` or `unreadable`) and `held`, its tabs and characters on disk in that realm, summed where none",
     ),
     ("ages", acquisition_store::age::SAID),
 ];
@@ -1780,7 +1780,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names [\"store\"] says what each count counts."
+        description = "The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `started_at` (the newest start first), `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names [\"store\"] says what each count counts."
     )]
     fn leagues(&self, Parameters(p): Parameters<Args<LeaguesParams>>) -> Told {
         answer(|| {

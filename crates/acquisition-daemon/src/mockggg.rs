@@ -298,19 +298,30 @@ const MOCK_TABS: &[(&str, &str, &str, usize, Option<&str>)] = &[
 /// tab it does not hold, and not GGG's. What GGG answers a stash list for
 /// a league that does not exist is unrecorded; it is never provoked
 /// (N27, the invalid-request budget).
-const MOCK_LEAGUES: &[(&str, &str, &str, &str)] = &[
-    ("Standard", "The default game mode.", "Standard", ""),
+/// Each league's `startAt` as GGG gives it, ISO 8601 UTC: the permanent
+/// two on one made-up day, the challenge league later, so the stored list
+/// reads it as the newest start (the answer-facts seat, MCP fault 3).
+const MOCK_LEAGUES: &[(&str, &str, &str, &str, &str)] = &[
+    (
+        "Standard",
+        "The default game mode.",
+        "Standard",
+        "",
+        "2013-01-23T21:00:00Z",
+    ),
     (
         "Hardcore",
         "A character killed in Hardcore is moved to Standard.",
         "Standard",
         "hc-",
+        "2013-01-23T21:00:00Z",
     ),
     (
         "Rehearsal",
         "The mock's challenge league, empty on its first morning.",
         "Rehearsal",
         "rh-",
+        "2026-10-30T20:00:00Z",
     ),
 ];
 
@@ -323,12 +334,13 @@ fn league_prefix(league: &str) -> Option<&'static str> {
 
 /// `GET /account/leagues`: the three of [`MOCK_LEAGUES`], each in the
 /// shape the real endpoint gives (`id`, `realm`, `description`,
-/// `category.id`).
+/// `category.id`, `startAt`).
 fn mock_league_list() -> serde_json::Value {
     let leagues: Vec<serde_json::Value> = MOCK_LEAGUES
         .iter()
-        .map(|(id, description, category, _)| {
-            json!({ "id": id, "realm": "pc", "description": description, "category": { "id": category } })
+        .map(|(id, description, category, _, start)| {
+            json!({ "id": id, "realm": "pc", "description": description,
+                    "category": { "id": category }, "startAt": start })
         })
         .collect();
     json!({ "leagues": leagues })

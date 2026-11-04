@@ -109,9 +109,9 @@ pub(crate) fn policy_held_line(held: &[LeaguesHeld]) -> String {
     format!("held: {}\n", realms.join("; "))
 }
 
-/// `acq leagues --stored`'s text: the list's age, then each league with
-/// its realm, the policy's word and what the store holds of it, "on disk"
-/// said once.
+/// `acq leagues --stored`'s text: the list's age, then each league, the
+/// newest start first, with its realm, when it started, the policy's word
+/// and what the store holds of it, "on disk" said once.
 pub(crate) fn list_text(l: &LeagueListShown) -> String {
     if l.fetched_at.is_none() {
         return "no league list on record; `acq leagues` fetches it\n".into();
@@ -131,6 +131,12 @@ pub(crate) fn list_text(l: &LeagueListShown) -> String {
             if let Some(realm) = &league.realm {
                 words.push(realm.clone());
             }
+            // which league started last (the answer-facts seat, MCP fault
+            // 3 and CLI fault 6: nothing marked the new league)
+            words.push(match league.started_at {
+                Some(_) => format!("started {}", league.started_at_age),
+                None => "no start given".into(),
+            });
             words.push(coverage(l.policy, league.named).to_string());
             let held = holding(league.held.tabs, league.held.characters);
             if held.is_empty() {

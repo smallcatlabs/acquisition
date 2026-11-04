@@ -123,6 +123,7 @@ fn entries(ids: &[&str]) -> Vec<LeagueEntry> {
         .map(|id| LeagueEntry {
             id: id.to_string(),
             realm: Some("pc".into()),
+            started_at: None,
         })
         .collect()
 }
@@ -138,21 +139,26 @@ fn c126_the_list_holds_a_league_in_its_own_realm_and_a_realmless_entry_in_every_
         &Endpoint::Leagues,
         &json!({}),
         200,
-        &json!({ "leagues": [ { "id": "Standard", "realm": "pc" }, { "id": "Hardcore" } ] }),
+        &json!({ "leagues": [ { "id": "Standard", "realm": "pc", "startAt": "2013-01-23T21:00:00Z" },
+                              { "id": "Hardcore" } ] }),
         50,
     )
     .unwrap();
     let list = s.league_list().unwrap().unwrap();
+    // each entry's start as GGG gives it, none where it gives none (the
+    // answer-facts seat, MCP fault 3)
     assert_eq!(
         list.entries,
         vec![
             LeagueEntry {
                 id: "Standard".into(),
-                realm: Some("pc".into())
+                realm: Some("pc".into()),
+                started_at: Some(1_358_974_800),
             },
             LeagueEntry {
                 id: "Hardcore".into(),
-                realm: None
+                realm: None,
+                started_at: None,
             },
         ]
     );

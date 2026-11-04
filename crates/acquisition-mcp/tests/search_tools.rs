@@ -1502,7 +1502,8 @@ fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_els
     );
     assert_eq!(
         listed["leagues"][0],
-        json!({ "id": "Standard", "realm": "pc", "named": false, "held": { "tabs": 2, "characters": 0 } })
+        json!({ "id": "Standard", "realm": "pc", "started_at": null, "started_at_age": "never",
+                "named": false, "held": { "tabs": 2, "characters": 0 } })
     );
     let (printed, ok) = cli(&base, &["leagues", "--stored"]);
     assert!(ok, "{printed}");

@@ -296,8 +296,10 @@ pub struct LeagueListShown {
     pub policy_revision: Option<i64>,
     /// Every league the list holds.
     pub leagues_total: usize,
-    /// The leagues listed: ten, in the list's order; every one under
-    /// `expand`.
+    /// The leagues listed: ten, the newest start first, those with no
+    /// start after them in the list's order; every one under `expand`
+    /// (the answer-facts seat, MCP fault 3: nothing marked the new
+    /// league).
     pub leagues: Vec<ListedLeague>,
     /// The leagues not in `leagues`.
     pub left_out: usize,
@@ -312,6 +314,12 @@ pub struct ListedLeague {
     pub id: String,
     /// The realm the list's entry names; null where it names none.
     pub realm: Option<String>,
+    /// When the league started: the entry's `startAt` as GGG gives it,
+    /// null where it gives none (C163, a time the document carries).
+    pub started_at: Option<i64>,
+    /// C53: `started_at` in words at the answer's time, `never` where
+    /// the entry gives no start.
+    pub started_at_age: String,
     /// Whether the sync policy names the league in the entry's realm, or
     /// in any realm where the entry names none; false with no policy or
     /// an unreadable one.
@@ -378,6 +386,8 @@ impl LeagueListShown {
                 ListedLeague {
                     id: entry.id.clone(),
                     realm: entry.realm.clone(),
+                    started_at: entry.started_at,
+                    started_at_age: acquisition_store::age::ago(now, entry.started_at),
                     named,
                     held: match (&entry.realm, realm) {
                         (Some(_), None) => Holding::default(),
@@ -386,6 +396,10 @@ impl LeagueListShown {
                 }
             })
             .collect();
+        // the newest start first, a stable sort: those with no start
+        // after, in the list's order
+        let mut rows = rows;
+        rows.sort_by_key(|l| std::cmp::Reverse(l.started_at.unwrap_or(i64::MIN)));
         let leagues_total = rows.len();
         let (leagues, left_out) = bounded(rows, None, expand);
         Ok(LeagueListShown {

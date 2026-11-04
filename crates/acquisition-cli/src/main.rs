@@ -262,15 +262,16 @@ enum Cmd {
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
-    /// List the account's leagues: one a line, with its realm and category
-    /// (`--json`: GGG's answer whole). A new league is listed here the day
-    /// it opens. `--stored` reads the list last fetched instead, with no
-    /// daemon: each league beside whether the sync policy names it and what
-    /// the store holds of it, ten unless `--expand`.
+    /// List the account's leagues: one a line, with its realm, its category
+    /// and when it started (`--json`: GGG's answer whole). A new league is
+    /// listed here the day it opens. `--stored` reads the list last fetched
+    /// instead, with no daemon: the newest start first, each league beside
+    /// when it started, whether the sync policy names it and what the store
+    /// holds of it, ten unless `--expand`.
     Leagues {
-        /// Read the stored list (the latest fetch) with no daemon, each
-        /// league beside the policy's word and its tabs and characters on
-        /// disk.
+        /// Read the stored list (the latest fetch) with no daemon, the
+        /// newest start first, each league beside its start, the policy's
+        /// word and its tabs and characters on disk.
         #[arg(long)]
         stored: bool,
         /// With `--stored`, list every league, not ten.

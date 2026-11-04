@@ -13,6 +13,7 @@ fn c53_a_note_and_a_spent_fetch_say_their_epochs_as_ages() {
         entries: vec![acquisition_store::LeagueEntry {
             id: "Standard".into(),
             realm: Some("pc".into()),
+            started_at: None,
         }],
     };
     let notes = league_notes(
@@ -52,6 +53,7 @@ fn c126_a_league_the_list_holds_in_another_realm_is_noted() {
     let entry = |id: &str, realm: Option<&str>| acquisition_store::LeagueEntry {
         id: id.into(),
         realm: realm.map(str::to_string),
+        started_at: None,
     };
     let list = LeagueList {
         fetched_at: 1_000,

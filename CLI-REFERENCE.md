@@ -15,7 +15,7 @@ Commands:
   profile       The account profile (account:profile)
   characters    List characters on the logged-in account. A route's first use queues a visible `probe` job — one HEAD that learns the policy and the account's current counters before anything real is sent
   character     Fetch one character with its equipment and inventory
-  leagues       List the account's leagues: one a line, with its realm and category (`--json`: GGG's answer whole). A new league is listed here the day it opens. `--stored` reads the list last fetched instead, with no daemon: each league beside whether the sync policy names it and what the store holds of it, ten unless `--expand`
+  leagues       List the account's leagues: one a line, with its realm, its category and when it started (`--json`: GGG's answer whole). A new league is listed here the day it opens. `--stored` reads the list last fetched instead, with no daemon: the newest start first, each league beside when it started, whether the sync policy names it and what the store holds of it, ten unless `--expand`
   accounts      Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside. `--json` is one document: `provider`, `total`, `accounts` (the listed) and `left_out`
   tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than ten tabs is counted by type with its ten largest tabs instead; --limit lists more or fewer, --expand every one. --type and --never-fetched select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts. `--json` is the same document: the counts, `by_type`, and `rows`, the tabs listed, with `left_out` counting the rest
   search        Search the items the store holds (no daemon): a query over every live item of one realm, answered with the canonical query, the scope searched, the total, and the rows with the lines the query touched — then each term's counts over the scope, matched, failed, lacked, undecided, and the basis. Every count has a route: the command that returns exactly its members, printed where a next step hangs on it and every one under `--routes`. `--json` is the answer whole, in the same order, the query as text and as tree, a count's request where its route is printed; a failure is `{"error", "kind", "readings"}`, with `offers`, each `{request, says}`, where a way on is a request `--request` reads. `--describe` prints the language, and what this build refuses by name
@@ -152,12 +152,12 @@ Options:
 ## `acq leagues`
 
 ```text
-List the account's leagues: one a line, with its realm and category (`--json`: GGG's answer whole). A new league is listed here the day it opens. `--stored` reads the list last fetched instead, with no daemon: each league beside whether the sync policy names it and what the store holds of it, ten unless `--expand`
+List the account's leagues: one a line, with its realm, its category and when it started (`--json`: GGG's answer whole). A new league is listed here the day it opens. `--stored` reads the list last fetched instead, with no daemon: the newest start first, each league beside when it started, whether the sync policy names it and what the store holds of it, ten unless `--expand`
 
 Usage: acq leagues [OPTIONS]
 
 Options:
-      --stored             Read the stored list (the latest fetch) with no daemon, each league beside the policy's word and its tabs and characters on disk
+      --stored             Read the stored list (the latest fetch) with no daemon, the newest start first, each league beside its start, the policy's word and its tabs and characters on disk
       --expand             With `--stored`, list every league, not ten
   -h, --help               Print help
 ```

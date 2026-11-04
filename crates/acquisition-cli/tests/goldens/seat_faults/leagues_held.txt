@@ -90,9 +90,9 @@ wire: 1–3 sends; plus first-contact probes and token refresh if needed
 next: acq refresh --apply --account 'Alice#1234' --realm pc --league Rehearsal
 
 $ acq leagues --stored
-# holds "Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)"
+# holds "Standard (pc, no start given, named, 1 tab on disk), Rehearsal (pc, no start given, named, 3 tabs, 2 characters), Mirage (pc, no start given, not named, nothing on disk)"
 --- stdout
-league list fetched <age> ago: Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)
+league list fetched <age> ago: Standard (pc, no start given, named, 1 tab on disk), Rehearsal (pc, no start given, named, 3 tabs, 2 characters), Mirage (pc, no start given, not named, nothing on disk)
 
 $ acq tabs
 # holds "leagues: Standard (this); also held: Allflame (1 tab, policy unreadable)"

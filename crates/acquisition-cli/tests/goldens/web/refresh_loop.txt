@@ -71,7 +71,7 @@ GET refresh?realm=pc&league=Standard
 # holds "Plan under the policy"
 <main>
 <h1>Refresh</h1>
-<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Rehearsal">Rehearsal (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="get" action="plan">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">

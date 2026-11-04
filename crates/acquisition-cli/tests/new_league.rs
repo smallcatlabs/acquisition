@@ -63,7 +63,18 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         step(
             &["leagues"],
             1,
-            &[format!("{LEAGUES_LISTED} leagues"), format!("{LEAGUE}  ")],
+            &[
+                format!("{LEAGUES_LISTED} leagues"),
+                format!("{LEAGUE}  "),
+                "  started".to_string(),
+            ],
+        ),
+        // the stored list names the new league first, by its start (the
+        // answer-facts seat, MCP fault 3 and CLI fault 6)
+        step(
+            &["leagues", "--stored"],
+            1,
+            &[format!(": {LEAGUE} (pc, started ")],
         ),
         step(&["policy"], 1, &[format!("revision {POLICY_REVISION}")]),
         step(

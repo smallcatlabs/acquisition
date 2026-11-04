@@ -3,14 +3,20 @@
 $ acq leagues
 # holds "3 leagues"
 # holds "Rehearsal  "
+# holds "  started"
 --- stdout
 3 leagues
-league     realm  category
-Standard   pc     Standard
-Hardcore   pc     Standard
-Rehearsal  pc     Rehearsal
+league     realm  category   started
+Standard   pc     Standard   <age> ago
+Hardcore   pc     Standard   <age> ago
+Rehearsal  pc     Rehearsal  <age> ago
 --- stderr
 job <j1> (ExileTester): done
+
+$ acq leagues --stored
+# holds ": Rehearsal (pc, started "
+--- stdout
+league list fetched <age> ago: Rehearsal (pc, started <age> ago, not named, nothing on disk), Standard (pc, started <age> ago, named, 15 tabs, 2 characters on disk), Hardcore (pc, started <age> ago, not named, nothing on disk)
 
 $ acq policy
 # holds "revision 1"

@@ -817,11 +817,17 @@ pub struct LeagueList {
     pub entries: Vec<LeagueEntry>,
 }
 
-/// One entry of the stored league list: its id and the realm it names.
+/// One entry of the stored league list: its id, the realm it names, and
+/// when it started.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LeagueEntry {
     pub id: String,
     pub realm: Option<String>,
+    /// The entry's `startAt` as GGG gives it, ISO 8601 UTC read as
+    /// seconds since 1970 ([`age::parse_utc`]); `None` where the entry
+    /// gives none, or none that reads (the answer-facts seat, MCP fault
+    /// 3: nothing marked the new league).
+    pub started_at: Option<i64>,
 }
 
 impl LeagueEntry {
@@ -879,6 +885,10 @@ pub(crate) fn league_list_in(conn: &Connection) -> Result<Option<LeagueList>> {
             Some(LeagueEntry {
                 id: l.get("id").and_then(Value::as_str)?.to_string(),
                 realm: l.get("realm").and_then(Value::as_str).map(str::to_string),
+                started_at: l
+                    .get("startAt")
+                    .and_then(Value::as_str)
+                    .and_then(age::parse_utc),
             })
         })
         .collect();

@@ -74,7 +74,7 @@ One job's state, ETA and retries. A waiting job with a large ETA is the rate lim
 
 ### `leagues`
 
-The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names ["store"] says what each count counts.
+The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `started_at` (the newest start first), `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names ["store"] says what each count counts.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every league of the list, not ten.

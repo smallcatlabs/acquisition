@@ -1034,9 +1034,14 @@ fn strip_idless_items(items: &mut Vec<Value>, skipped: &mut usize) {
 }
 
 /// `acq leagues` in text: the list GGG returned, one league a line with
-/// its realm and category, ready to copy a name from; `--json` prints the
-/// job's answer as it came. A payload of another shape prints whole.
+/// its realm, its category and when it started, ready to copy a name
+/// from; `--json` prints the job's answer as it came. A payload of
+/// another shape prints whole.
 pub fn leagues_text(payload: &Value) -> String {
+    leagues_text_at(payload, acquisition_store::now())
+}
+
+fn leagues_text_at(payload: &Value, now: i64) -> String {
     // the job's payload carries GGG's body under `body`
     let body = payload.get("body").unwrap_or(payload);
     let Some(leagues) = body.get("leagues").and_then(Value::as_array) else {
@@ -1052,13 +1057,23 @@ pub fn leagues_text(payload: &Value) -> String {
         }
         v.as_str().unwrap_or("-").to_string()
     };
-    let rows: Vec<[String; 3]> = leagues
+    // when each started, in the one vocabulary of ages (the answer-facts
+    // seat, CLI fault 6: nothing marked the new league)
+    let started = |l: &Value| match l["startAt"]
+        .as_str()
+        .and_then(acquisition_store::age::parse_utc)
+    {
+        Some(at) => acquisition_store::age::ago(now, Some(at)),
+        None => "-".into(),
+    };
+    let rows: Vec<[String; 4]> = leagues
         .iter()
         .map(|l| {
             [
                 field(l, &["id"]),
                 field(l, &["realm"]),
                 field(l, &["category", "id"]),
+                started(l),
             ]
         })
         .collect();
@@ -1068,14 +1083,23 @@ pub fn leagues_text(payload: &Value) -> String {
         .chain([6])
         .max()
         .unwrap_or(6);
+    let c = rows
+        .iter()
+        .map(|r| r[2].chars().count())
+        .chain([8])
+        .max()
+        .unwrap_or(8);
     let mut out = format!(
-        "{} {}\n{:<w$}  realm  category\n",
+        "{} {}\n{:<w$}  realm  {:<c$}  started\n",
         rows.len(),
         if rows.len() == 1 { "league" } else { "leagues" },
-        "league"
+        "league",
+        "category"
     );
-    for [id, realm, category] in &rows {
-        out.push_str(&format!("{id:<w$}  {realm:<5}  {category}\n"));
+    for [id, realm, category, started] in &rows {
+        out.push_str(&format!(
+            "{id:<w$}  {realm:<5}  {category:<c$}  {started}\n"
+        ));
     }
     out
 }

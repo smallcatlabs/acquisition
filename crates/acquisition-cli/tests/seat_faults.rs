@@ -2057,7 +2057,7 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
         .unwrap();
     t.run(
         &["leagues", "--stored"],
-        &["Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)"],
+        &["Standard (pc, no start given, named, 1 tab on disk), Rehearsal (pc, no start given, named, 3 tabs, 2 characters), Mirage (pc, no start given, not named, nothing on disk)"],
     );
     let listed = sole_json(&acq(&base, &["leagues", "--stored", "--json"]));
     assert_eq!(listed["leagues_total"], 3, "{listed}");

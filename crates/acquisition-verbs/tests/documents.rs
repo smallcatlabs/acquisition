@@ -1734,9 +1734,9 @@ fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
             &json!({}),
             200,
             &json!({ "leagues": [
-                { "id": "Standard", "realm": "pc" },
+                { "id": "Standard", "realm": "pc", "startAt": "2013-01-23T21:00:00Z" },
                 { "id": "Allflame", "realm": "pc" },
-                { "id": "Mirage", "realm": "pc" },
+                { "id": "Mirage", "realm": "pc", "startAt": "2026-11-02T20:00:00Z" },
                 { "id": "Rehearsal" },
             ] }),
             1_000,
@@ -1761,13 +1761,29 @@ fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
         (&doc["policy"], &doc["leagues_total"]),
         (&json!("set"), &json!(4))
     );
+    // the newest start first, then those with none in the list's order;
+    // each start with its age, `never` where GGG gives none (the
+    // answer-facts seat, MCP fault 3: nothing marked the new league)
+    let mut leagues = doc["leagues"].clone();
+    for league in leagues.as_array_mut().unwrap() {
+        let age = league
+            .as_object_mut()
+            .unwrap()
+            .remove("started_at_age")
+            .unwrap();
+        let said = age.as_str().unwrap();
+        match league["started_at"].as_i64() {
+            Some(_) => assert!(said.ends_with(" ago"), "{said}"),
+            None => assert_eq!(said, "never"),
+        }
+    }
     assert_eq!(
-        doc["leagues"],
+        leagues,
         json!([
-            { "id": "Standard", "realm": "pc", "named": true, "held": { "tabs": 2, "characters": 0 } },
-            { "id": "Allflame", "realm": "pc", "named": false, "held": { "tabs": 1, "characters": 0 } },
-            { "id": "Mirage", "realm": "pc", "named": false, "held": { "tabs": 0, "characters": 0 } },
-            { "id": "Rehearsal", "realm": null, "named": true, "held": { "tabs": 0, "characters": 2 } },
+            { "id": "Mirage", "realm": "pc", "started_at": 1_793_649_600, "named": false, "held": { "tabs": 0, "characters": 0 } },
+            { "id": "Standard", "realm": "pc", "started_at": 1_358_974_800, "named": true, "held": { "tabs": 2, "characters": 0 } },
+            { "id": "Allflame", "realm": "pc", "started_at": null, "named": false, "held": { "tabs": 1, "characters": 0 } },
+            { "id": "Rehearsal", "realm": null, "started_at": null, "named": true, "held": { "tabs": 0, "characters": 2 } },
         ]),
         "{doc}"
     );
