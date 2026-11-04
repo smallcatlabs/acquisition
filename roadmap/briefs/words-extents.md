@@ -13,11 +13,13 @@ clock per age) and C116 (no id in user-facing text); the owner's
 answers to the map's §11 questions 5 (C146 unchanged) and 7 (#12
 closed on the terms block's sentence) are in hand. The words are the
 session's agent-facing design, listed at the close for his review.
-Cut twice: the first draft (`36c4dc9b`) was reviewed cold
-(`roadmap/reviews/words-extents-brief-36c4dc9b.md`, the prompt
-beside: nine findings, two nitpicks); this cut answers each, listed
-at the foot under "Taken from the review". To be reviewed cold again
-before a worker reads it.
+Cut three times: the first draft (`36c4dc9b`) and the re-cut
+(`9080b9cf`) were each reviewed cold
+(`roadmap/reviews/words-extents-brief-<sha>.md`, the prompts beside:
+nine findings then four, two nitpicks in all); this cut answers the
+second review's four, listed at the foot under "Taken from the
+reviews" with the first's nine; not reviewed a third time, the
+roadmap's rule.
 
 ## Goal
 
@@ -54,8 +56,10 @@ live.
      limit's events sets it too: a limit met is not proof of more),
      `:128–145` (`events: events.returned`, `limit_reached`;
      `left_out` counts location rows, not events) and
-     `crates/acquisition-cli/src/store_cmd.rs:738–745` (the event
-     limit stays under `--expand`, which expands the location rows),
+     `crates/acquisition-cli/src/store_cmd.rs:738–745` (`--expand`
+     alone selects the raw event list, 739; `--summary --expand`
+     expands the summary's location rows, 744; the event limit stays
+     under both),
      `:787` (the raw list's `(limit reached)`), `:788–812` (the
      summary's sentence) and `:879` (the footer "`--expand` lists
      every event", which is not what `--expand` does): the counts are
@@ -162,7 +166,20 @@ live.
   fixture changes; `price_cmd.rs:1414`, `:1426`, `:1867` and
   `goldens/new_league/launch_morning.txt:174` (the zero-item status's
   sentences); `store_cmd.rs:879` and `:787` (the events footer and the
-  raw list's words); `seat_faults.rs:597` (the jobs literal);
+  raw list's words); the type rows' holders for item 10:
+  `crates/acquisition-search/tests/tabs.rs:133` (whole `by_type` rows
+  compared as JSON) and `crates/acquisition-store/unit/tests/coverage.rs:98`,
+  `:165`, `:278`, `:296` (`TabType` expectations) and `:432` (the
+  serialized coverage text holding a type row), each gaining `never`
+  before regeneration, with a zero and a positive `never` pinned on
+  the `tabs` and search surfaces; for item 13:
+  `crates/acquisition-search/tests/seat_faults.rs:1160`
+  (`a_unique_tabs_page_with_no_name_is_named_by_its_id`, extended to
+  the scope's and the total's JSON) and one new seeded CLI transcript
+  with its own named golden under `seat_faults` for the total line
+  and a row's text (extending `a_rows_place_says_how_long_ago…` would
+  change `place_and_its_age.txt` instead), the C117 field test
+  keeping its raw-name assertions; `seat_faults.rs:597` (the jobs literal);
   `goldens/web/refresh_loop.txt:36`, `:44` and `web/jobs_halted.txt:10`
   (the rails and jobs text on the web); `crates/acquisition-plan/unit/tests/ages.rs:116`
   (the plan note's age, its direct pin) and
@@ -186,8 +203,11 @@ live.
      in the last H h (the window may hold more; a larger \`--limit\`
      reads more events): …`, N the document's `events` and H its
      `hours`; the existing sentence when not; the footer at `:879`
-     says `\`--expand\` lists every location`, which is what it does;
-     the raw list's `(limit reached)` at `:787` gains the same clause;
+     says `\`acq store events --summary --expand …\` lists every
+     location the returned events touched`, the printed command
+     carrying the request's account, hours and limit as the refusals
+     print theirs (C156), pinned from the default invocation; the raw
+     list's `(limit reached)` at `:787` gains the same clause;
      the JSON unchanged (`limit_reached` and `left_out` already say
      it); the gloss says the counts are the returned events' and
      `left_out` the locations'.
@@ -207,10 +227,14 @@ live.
      public tab (a hand row nearer the item still applies)`; the
      gloss the same; a non-public tab's skip text stays residue.
   6. Store refused: `N refused bodies shown of M on record; \`acq store
-     refused --limit M\` lists them all` where N < M, `N refused
-     bodies on record` where N is M, the one-body-in-full action kept
-     after it; the JSON gains `total` beside `returned` and `limit`
-     (additive), both counts from `RefusedBodies`.
+     refused --account <name> --limit M\` lists them all` where N < M,
+     the account resolved and shell-quoted as every printed command
+     carries it (C156; two accounts without a selector is the
+     standard ambiguity, `documents.rs:203`), `N refused bodies on
+     record` where N is M, the one-body-in-full action kept after it;
+     the JSON gains `total` beside `returned` and `limit` (additive),
+     both counts from `RefusedBodies`; the printed command is run in
+     its test over a two-account store.
   7. The receipt's gloss says `in_facts` is "the address exists in
      these facts in any league, removed included"; the status's phrase
      becomes `name nothing in this league's facts` in all three
@@ -245,14 +269,19 @@ live.
       two matching rules; pinned on a seeded fixture with such a tab
       in the scope's JSON, the total's JSON, the total line and a
       row's text, all four naming it alike.
-  14. The zero-item status: `nothing on record for <place>` is said
-      only where there is no location (`facts.places` 0), with its
-      listings' absence; where locations exist and no listing does:
-      `no items on record for <place>: N locations, M fetched, none
-      with items; no stash listing, no character listing`; where a
-      listing exists: `no items on record for <place>: N listed, M
-      fetched, none with items`, M from `facts.fetched`, `none
-      fetched` where M is 0; the `facts:` line stays.
+  14. The zero-item status, three branches whose guards exclude one
+      another: neither listing and `facts.places` 0: `nothing on
+      record for <place>: no stash listing, no character listing`;
+      neither listing and `facts.places` > 0: `no items on record for
+      <place>: N locations, M fetched, none with items; no stash
+      listing, no character listing`; a listing exists: `no items on
+      record for <place>: N listed, M fetched, none with items`; M
+      from `facts.fetched`, `none fetched` where M is 0; the `facts:`
+      line stays after each. Five cases staged and their opening
+      sentence asserted beside the `facts:` line (`price_cmd.rs:1414`,
+      `:1426` cover two, and `:1438` filters the opening sentence out
+      today): no location and no listing; locations and no listing
+      with M 0 and with M > 0; a listing with M 0 and with M > 0.
 - Not taken, with reasons, listed here so the worker does not take
   them: thousands separators (every count prints bare, one rule);
   `policy show` answering on a malformed row (its answer is the row;
@@ -330,11 +359,25 @@ live.
 changed lines by kind, the MCP's bounds before and after, and the
 test count before and after.
 
-## Taken from the review
+## Taken from the reviews
 
-The cold review of `36c4dc9b`
+The second cold review, of `9080b9cf`
+(`roadmap/reviews/words-extents-brief-9080b9cf.md`): four findings,
+no nitpick, each answered in this cut.
+
+1. The events footer names `--summary --expand`, what expands the
+   locations, as a printed command carrying the request's account,
+   hours and limit, pinned from the default invocation.
+2. The refused list's continuation carries the resolved account and
+   is run in its test over two accounts.
+3. The zero-item status's three branches have exclusive guards and
+   five staged cases with the opening sentence asserted.
+4. The type rows' five more holders and the remove-only pin's own
+   named golden are named.
+
+The first cold review, of `36c4dc9b`
 (`roadmap/reviews/words-extents-brief-36c4dc9b.md`): nine findings,
-two nitpicks, each answered in this cut.
+two nitpicks, each answered in the second cut.
 
 1. The events sentence uses the document's own counts and hours and
    promises what a larger limit does, not what `--expand` does; the
