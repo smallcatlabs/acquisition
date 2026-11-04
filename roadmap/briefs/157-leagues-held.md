@@ -10,11 +10,16 @@ owner accepted the map's §11 question 6, (a): the same verb and tool
 read the stored league list offline when asked, each league beside
 whether the policy covers it. The JSON shapes and the text's words
 below are the session's agent-facing design, listed at the close for
-his review. Cut twice: the first draft (`dae7aa60`) was reviewed cold
-(`roadmap/reviews/157-leagues-held-brief-dae7aa60.md`, the prompt
-beside: eight findings, one nitpick); this cut answers each, listed
-at the foot under "Taken from the review". To be reviewed cold again
-before a worker reads it.
+his review. Cut three times: the first draft (`dae7aa60`) and the
+re-cut (`d38e3762`) were each reviewed cold
+(`roadmap/reviews/157-leagues-held-brief-<sha>.md`, the prompts
+beside: eight findings then six, three nitpicks in all); this cut
+answers the second review's six, listed at the foot under "Taken from
+the reviews" with the first's eight; not reviewed a third time, the
+roadmap's rule. Round 3 (`briefs/every-epoch-words.md`) and this
+round build in either order, one at a time; whichever lands second
+reconciles the other's changes to the policy document's assertions
+and the `documents.rs` walk, named in its report.
 
 ## Goal
 
@@ -82,18 +87,27 @@ surfaces say none of it.
   before it), `:594–602` (`price status`'s `--league`, Standard by
   default), `:841` (the policy flags' words). `crates/acquisition-mcp/src/main.rs`
   (the tools table: `tabs` at 359, `price_status` at 391,
-  `set_sync_policy` at 435; `sync_policy`; the `leagues` job through
-  `submit_job`; `StoreParams` with the standard optional `account`,
-  832–838, and `AcqMcp::account`/`facts`, 1428–1438, which every store
-  tool takes; the `describe` entries); `crates/acquisition-mcp/tests/mcp_reference.rs`
+  `set_sync_policy` at 435 are the refusal-request mappings; the
+  tools themselves are `tabs` at 1500, `set_sync_policy` at 1753,
+  `price_status` at 1817, and the policy read `sync_policy` at 1742,
+  which takes `StoreParams` (832–838: the standard optional `account`
+  and nothing else) and gains `expand`; `AcqMcp::account`/`facts`,
+  1428–1438; the `leagues` job through `submit_job`; the `describe`
+  entries); `crates/acquisition-cli/src/main.rs:833` (`PolicyCmd::Show`
+  takes no argument and gains `--expand`); `crates/acquisition-mcp/tests/mcp_reference.rs`
   (a new tool reaches `MCP-REFERENCE.md` through the generator) and
   `surface_size.rs:32` (the first turn's texts held to their bounds:
   the new tool's text counts).
 - `crates/acquisition-cli/src/price_cmd.rs:201` (`rows: … N for other
   leagues, M for other realms`: the count exists, the leagues are not
-  named), `:278–300` (`render_status`'s head); `shop_cmd.rs:135–215`
-  (the freshness lines, the `facts:` line first since round 4);
-  `store_cmd.rs:296–330` (`tabs`' head and `no_tabs_text`);
+  named), `:338` (`render_status`'s head, since round 4);
+  `shop_cmd.rs:135–215` (the freshness lines, the `facts:` line first
+  since round 4; nothing printed with nothing posted, 138, and the
+  early return with no items, 253–260: on those paths the `leagues:`
+  line follows the head); `store_cmd.rs:296–330` (`tabs`' head and
+  `no_tabs_text`), `:578–582` (`store status`'s text);
+  `crates/acquisition-cli/src/diagnose_cmd.rs:71` (reuses the status
+  text, so `diagnose` prints the new words too);
   `crates/acquisition-search/src/tabs.rs:44`, `:139`, `:172` (one
   league per listing). `policy show`: `crates/acquisition-verbs/src/frontend.rs:500–525`
   (`PolicyShown`, the row whole) and its CLI and MCP renderings (grep
@@ -136,11 +150,21 @@ surfaces say none of it.
   1316: `facts:` is line 1, so the `leagues:` line is line 2 and the
   `sides:` line moves to 3), `shop_cmd.rs:528` (its assertion at 571:
   `facts:` first among the freshness lines, `leagues:` second, the
-  coverage line moves down) and `price_cmd.rs:1701`;
+  coverage line moves down); `price_cmd.rs:1701` is an item-show
+  assertion this step does not touch;
   `crates/acquisition-mcp/tests/pricing_tools.rs`, `search_tools.rs`
   (the `tabs` tool), `surface_size.rs:32`, `mcp_reference.rs:77`
   (`MCP-REFERENCE.md`); `crates/acquisition-verbs/tests/documents.rs:1234`
-  (the walk over every document gains the new ones); and the grep by
+  (the walk over every document gains the new ones) and `:1106`,
+  with `crates/acquisition-cli/tests/store_answers.rs:288` (each
+  asserts the policy answer equals `{"policy": null}`: it now carries
+  `leagues_held` beside `policy`, so each asserts the new shape);
+  `crates/acquisition-cli/tests/diagnose.rs:173` and
+  `goldens/diagnose/no_daemon.txt:32` (the status text through
+  `diagnose`); the `LeagueList` constructors in
+  `crates/acquisition-store/unit/tests/lib.rs:58`, `:94`, `:111` and
+  `crates/acquisition-plan/unit/tests/ages.rs:10` (each gains
+  `entries`); and the grep by
   command (`price status`, `shop render`, `tabs`, `policy show`,
   `leagues`, `store status`) over `crates/*/tests` and `crates/*/src`,
   the empty-scope paths included (a render with nothing posted, a
@@ -162,7 +186,7 @@ surfaces say none of it.
     Vec<LeagueHeld { league: Option<String>, tabs, characters }>`, one
     query over the live tabs and characters of the realm, league-less
     characters under a `None` league, in the store's order; a unit
-    test over a fixture of rows. `LeagueList` gains `entries:
+    test over a fixture of rows. its callers count the whole before the bound. `LeagueList` gains `entries:
     Vec<LeagueEntry { id, realm: Option<String> }>` read from each
     entry's `id` and `realm` (`ids` stays, additive), `None` where an
     entry carries no realm.
@@ -172,10 +196,14 @@ surfaces say none of it.
     `named` is whether `SyncPolicy::league(realm, league)` is `Some`,
     the policy names the league, whatever its entry covers (a league
     entry may cover characters alone or some tabs; `named` says only
-    that it is in the policy); the list is bounded by `LISTED` with
-    `left_out` counted and `left_out_needs: expand` (C53, C149), the
-    league read first and the rest in the store's order, `expand`
-    listing all; made once in the verbs crate and carried by `price
+    that it is in the policy); `leagues_total` counts every league of
+    the realm on disk, the list is bounded by `LISTED` with `left_out`
+    counted and `left_out_needs: expand` (C53, C149), the league read
+    first, in one of the ten slots, and the rest in the store's order,
+    `expand` listing all (`--expand` on `price status`, `shop render`
+    and `tabs` as today, and on `policy show` new; `expand` on the
+    MCP's `price_status`, `shop_render`, `tabs` as today and on
+    `sync_policy` new); made once in the verbs crate and carried by `price
     status`, `shop render` and `tabs` under `leagues_held`, and by
     `policy show` under the same key once per realm the store holds,
     the realms the policy does not name included.
@@ -192,12 +220,17 @@ surfaces say none of it.
     `connect` in its arm, `--expand` beside it) and the MCP tool
     `leagues` (new, no daemon; arguments `stored: true` required, the
     standard optional `account`, and `expand`): `LeagueListShown {
-    fetched_at, fetched_at_age, leagues: [{ id, realm, named, held: {
-    tabs, characters } }], left_out, left_out_needs }`, bounded as
-    above, from `Store::league_list` and `leagues_held` (a league's
-    `held` in its own realm where the entry has one, else in every
-    realm, summed); never fetched: `{ fetched_at: null,
-    fetched_at_age: "never", leagues: [] }` and the text `no league
+    fetched_at, fetched_at_age, policy, leagues_total, leagues: [{ id,
+    realm, named, held: { tabs, characters } }], left_out,
+    left_out_needs }`, bounded as above, `policy` the same state as
+    `LeaguesHeld` carries, `named` whether the policy names the entry
+    in its realm, or in any realm where the entry has none, and
+    `false` throughout where `policy` is `none` or `unreadable`,
+    `leagues_total` the list's length, from `Store::league_list` and
+    `leagues_held` (a league's `held` in its own realm where the entry
+    has one, else in every realm, summed); never fetched: `{
+    fetched_at: null, fetched_at_age: "never", policy, leagues_total:
+    0, leagues: [] }` and the text `no league
     list on record; \`acq leagues\` fetches it` (the job as today,
     `--stored` absent). The text: `league list fetched 2d ago: Standard
     (pc, named, 405 tabs on disk), Allflame (pc, not named, 3 tabs),
@@ -220,8 +253,10 @@ surfaces say none of it.
   - `store status`: `leagues` and `league_list` stay as they are;
     the JSON gains `league_list_latest { count, fetched_at,
     fetched_at_age }` from `LeagueList` (null and `never` where none);
-    the text's `league list N` is followed by `(the latest fetch: 3
-    leagues, 2d ago)` or `(never fetched)`.
+    the text's `league list N leagues` becomes `league ids seen across
+    every league fetch: N (the latest fetch: 3 leagues, 2d ago)` or
+    `… (never fetched)`, so the kept count names its set (C146); the
+    same words reach `diagnose`.
   - the README's "A new league" line opens with `acq leagues
     --stored` (what the store holds and the policy names, no daemon)
     and keeps `acq leagues` for the fetch; the tour line resolves.
@@ -231,13 +266,18 @@ surfaces say none of it.
   names the other two with counts and coverage; the same for `shop
   render` and `tabs`; a realm with one league: `none other`; no
   policy: `no policy`; an unreadable policy: `policy unreadable`; a
-  realm with twelve leagues on disk: ten named, two counted, `expand`
-  listing all; league-less characters: the `no league` row; `policy
+  realm with twelve leagues on disk: ten named, two counted,
+  `leagues_total` 12, `expand` listing all on each of the four
+  surfaces and on the MCP's four tools; league-less characters: the
+  `no league` row; `policy
   show` with a policy naming one realm over a store holding two: the
   second realm's leagues with `no policy for <realm>`; a policy
   entry covering characters alone: `named`; `acq leagues --stored`
   with a fetched list, a policy and tabs on disk; with no list ever
-  fetched; a list of twelve: bounded; the MCP tool the same three and
+  fetched; a list of twelve: bounded, `leagues_total` 12; a list
+  entry with no realm and a policy naming its league under one realm:
+  `named`; no policy and an unreadable policy: `policy` says so and
+  `named` is `false`; the MCP tool the same and
   a two-account store with and without `account` (the standard
   ambiguity refusal); a plan over a league of 10 non-folder tabs and
   2 folders with a policy naming 2: `uncovered_tabs { count: 8, of:
@@ -254,15 +294,18 @@ surfaces say none of it.
 ## Do
 
 1. The store read `leagues_held` and `LeagueList.entries`, each with
-   its unit test; the verbs crate's `LeaguesHeld` fragment with the
-   policy's `named` and state, and `LeagueListShown` from the stored
-   list, both bounded, each a document the walk in `documents.rs`
-   covers; the web's `leagues(realm)` replaced by the verbs crate's
-   read with `expand` (C46: the frontend had opened a store read of
-   its own).
+   its unit test (the constructors in the store's and the planner's
+   unit tests gaining `entries`); the verbs crate's `LeaguesHeld`
+   fragment with the policy's `named` and state and its whole count,
+   and `LeagueListShown` from the stored list, both bounded, each a
+   document the walk in `documents.rs` covers; the web's
+   `leagues(realm)` replaced by the verbs crate's read with `expand`
+   (C46: the frontend had opened a store read of its own).
 2. `price status`, `shop render` and `tabs`: `leagues_held` in the
-   JSON, the `leagues:` line in the text; `policy show`: the same
-   beside the row.
+   JSON, the `leagues:` line in the text after the `facts:` line, or
+   after the head where no `facts:` line prints; `policy show`: the
+   same beside the row, `--expand` on the CLI and `expand` on the
+   MCP's `sync_policy` listing the leagues whole.
 3. `acq leagues --stored` (clap: the flag and `--expand` beside the
    job's verb, branching before `connect`; the verb without it submits
    the job as today) and the MCP tool `leagues` with `stored`,
@@ -330,11 +373,30 @@ surfaces say none of it.
 changed lines by kind, the two references' size before and after,
 and the test count before and after.
 
-## Taken from the review
+## Taken from the reviews
 
-The cold review of `dae7aa60`
+The second cold review, of `d38e3762`
+(`roadmap/reviews/157-leagues-held-brief-d38e3762.md`): six findings,
+two nitpicks, each answered in this cut.
+
+- A. `policy show --expand` and `expand` on the MCP's policy read;
+  both documents carry their whole count; the league read takes one
+  of the ten slots.
+- B. The stored-list document carries the policy's state; `named` is
+  defined for a realm-less entry and under no or an unreadable policy.
+- C. The policy answer's two equality assertions, `diagnose`'s reuse
+  of the status text with its golden, and the `LeagueList`
+  constructors are named with their new facts.
+- D. The kept status count is named for its set, league ids seen
+  across every fetch.
+- E. The `leagues:` line follows the head where no `facts:` line
+  prints.
+- F. The citations corrected: the MCP tools' lines, `render_status`'s,
+  the item-show assertion dropped, the status text's file.
+
+The first cold review, of `dae7aa60`
 (`roadmap/reviews/157-leagues-held-brief-dae7aa60.md`): eight
-findings, one a nitpick, each answered in this cut.
+findings, one a nitpick, each answered in the second cut.
 
 1. `store status` keeps `leagues` and `league_list` as they are and
    gains `league_list_latest`; the union's reader is kept.
