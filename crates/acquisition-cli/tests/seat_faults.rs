@@ -268,6 +268,66 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         "{report}"
     );
     assert!(report["error"].is_string(), "{report}");
+
+    // #168's text half (the answer-facts seat, CLI run 1 call 11): the
+    // text named the accounts and no command to run. It prints one ready
+    // command per account, the JSON's offers' own lines, each running as
+    // printed; past the store's bound of ten, the rest counted with the
+    // command that lists them. The kind stays `ambiguous_account` (C121).
+    drop(Store::open(&account_path(&base.join("store").join("mock"), "Bob#5678")).unwrap());
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["tabs", "--league", "Allflame"],
+        &[
+            "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT\n",
+            "  `acq --account 'Alice#1234' tabs --league=Allflame`\n",
+            "  `acq --account 'Bob#5678' tabs --league=Allflame`\n",
+        ],
+    );
+    let said = stderr(&out);
+    let printed: Vec<&str> = said
+        .split('`')
+        .filter(|c| c.starts_with("acq --account"))
+        .collect();
+    assert_eq!(printed.len(), 2, "{said}");
+    let offers = report["offers"].as_array().unwrap();
+    let lines: Vec<&str> = offers
+        .iter()
+        .filter_map(|o| o["request"].as_str())
+        .collect();
+    assert!(
+        lines.iter().all(|l| l.contains("--json")),
+        "the JSON's offers repeat the JSON command: {report}"
+    );
+    for command in printed {
+        let ran = run_as_printed(&base, command);
+        assert!(ran.status.success(), "`{command}`: {}", text(&ran));
+    }
+    // twelve accounts: ten commands, and the two left counted
+    let mut index = Index::load(&base.join("store").join("mock")).unwrap();
+    for n in 0..10 {
+        index
+            .record_login(
+                &format!("Extra{n:02}#1"),
+                &format!("u-x{n}"),
+                false,
+                acquisition_store::now(),
+                &[],
+            )
+            .unwrap();
+    }
+    let out = t.run(
+        &["tabs"],
+        &["\n  and 2 more: `acq accounts --expand` lists every account\n"],
+    );
+    let ready = stderr(&out)
+        .lines()
+        .filter(|l| l.starts_with("  `acq --account"))
+        .count();
+    assert_eq!(ready, 10, "{}", stderr(&out));
+    let every = run_as_printed(&base, "acq accounts --expand");
+    assert!(every.status.success(), "{}", text(&every));
+    golden(file!(), "account_to_pick", &t);
 }
 
 fn stdout(out: &std::process::Output) -> String {

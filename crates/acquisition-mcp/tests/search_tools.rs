@@ -1559,6 +1559,15 @@ fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_els
     let (e, refused) = seat.call("leagues", &json!({ "stored": true }));
     assert!(refused, "{e}");
     assert_eq!(e["kind"], "ambiguous_account", "{e}");
+    // #168's text half, in the tool's own terms (C143): one request per
+    // account, the same call as each, sent back as printed
+    let offers = e["offers"].as_array().unwrap_or_else(|| panic!("{e}"));
+    assert_eq!(offers.len(), 2, "{e}");
+    for offer in offers {
+        assert_eq!(offer.get("tool"), None, "the same tool: {offer}");
+        let (back, refused) = seat.call("leagues", &offer["request"]);
+        assert!(!refused, "{offer}: {back}");
+    }
     let (alice, refused) = seat.call("leagues", &json!({ "stored": true, "account": USER }));
     assert!(!refused, "{alice}");
     assert_eq!(alice["leagues_total"], 12, "{alice}");

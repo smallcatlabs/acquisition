@@ -1122,6 +1122,40 @@ pub(crate) fn failure_words(e: &anyhow::Error) -> String {
     format!("{e:#}")
 }
 
+/// Under a text refusal naming accounts to pick from (#168's text half;
+/// the answer-facts seat, CLI run 1 call 11), one ready command per
+/// account: the lines of the JSON document's own offers ([`error_report`],
+/// never a second construction), this command as each account, each
+/// running as printed (C156); the first of the store's bound
+/// (`acquisition_store::bound::LISTED`), the rest counted with the
+/// command that lists every account. Nothing for any other refusal.
+fn ready_accounts(e: &anyhow::Error) -> String {
+    let picking = e.chain().any(|c| {
+        matches!(
+            c.downcast_ref::<Fault>(),
+            Some(Fault::AmbiguousAccount { .. })
+        )
+    });
+    if !picking {
+        return String::new();
+    }
+    let doc = error_report(e);
+    let lines: Vec<&str> = doc["offers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|o| o["request"].as_str())
+        .collect();
+    let (shown, left) = acquisition_store::bound::bounded(lines, None, false);
+    let mut out: String = shown.iter().map(|l| format!("  `{l}`\n")).collect();
+    if left > 0 {
+        out.push_str(&format!(
+            "  and {left} more: `acq accounts --expand` lists every account\n"
+        ));
+    }
+    out
+}
+
 /// A failure's `--json` document (C11): the one refusal shape every
 /// surface prints (`acquisition_verbs::refusal::document`; round 4 of
 /// the 2g build), its words this terminal's and its offers command lines
@@ -1528,6 +1562,7 @@ async fn main() {
                 println!("{}", error_report(&e));
             } else {
                 eprintln!("Error: {}", failure_words(&e));
+                eprint!("{}", ready_accounts(&e));
             }
         }
         if !json && let Some(hint) = pasted_shell_hint() {

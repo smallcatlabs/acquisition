@@ -1,0 +1,28 @@
+# golden seat_faults/account_to_pick: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq tabs --league Allflame
+# holds "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT\n"
+# holds "  `acq --account 'Alice#1234' tabs --league=Allflame`\n"
+# holds "  `acq --account 'Bob#5678' tabs --league=Allflame`\n"
+--- stderr
+Error: 2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT
+  `acq --account 'Alice#1234' tabs --league=Allflame`
+  `acq --account 'Bob#5678' tabs --league=Allflame`
+--- exit 1
+
+$ acq tabs
+# holds "\n  and 2 more: `acq accounts --expand` lists every account\n"
+--- stderr
+Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, Extra08#1, Extra09#1; pick one with --account or ACQ_ACCOUNT
+  `acq --account 'Alice#1234' tabs`
+  `acq --account 'Bob#5678' tabs`
+  `acq --account 'Extra00#1' tabs`
+  `acq --account 'Extra01#1' tabs`
+  `acq --account 'Extra02#1' tabs`
+  `acq --account 'Extra03#1' tabs`
+  `acq --account 'Extra04#1' tabs`
+  `acq --account 'Extra05#1' tabs`
+  `acq --account 'Extra06#1' tabs`
+  `acq --account 'Extra07#1' tabs`
+  and 2 more: `acq accounts --expand` lists every account
+--- exit 1
