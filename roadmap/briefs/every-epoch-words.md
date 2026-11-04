@@ -4,16 +4,24 @@ Round 3 of the answer-facts group (`roadmap/reviews/answer-facts-map.md`
 §4 "The structural pin" and §10 step S4, as revised by its reviews).
 Written by the orchestrating session on 2026-11-03 against the tree
 at `2977ea2c` (round 2 closed; every line number below from it). Cut
-twice: the first draft (`b03b3e78`) was reviewed cold
-(`roadmap/reviews/every-epoch-words-brief-b03b3e78.md`, the prompt
-beside: eight findings, one nitpick); this cut answers each, listed
-at the foot under "Taken from the review". Its ruling is C163
+three times: the first draft (`b03b3e78`) and the re-cut (`a3f4f280`)
+were each reviewed cold (`roadmap/reviews/every-epoch-words-brief-<sha>.md`,
+the prompts beside: eight findings, then five, none a nitpick); this
+cut answers the second review's five, listed at the foot under "Taken
+from the reviews" with the first's eight; not reviewed a third time,
+the roadmap's rule. Its issue is #164. Its ruling is C163
 (`decisions/frontends.md`, beside C162), entered on 2026-11-04 on the
 owner's word, "yes, as drafted": the first cut had read C53 as
 already requiring words beside every epoch a document carries, the
 review held that reading an extension of C53's letter, not the
 letter, and the orchestrator agreed; the line was drafted here and
-ruled. To be reviewed cold again before a worker reads it.
+ruled. The second review asked two amendments of the line, both the
+owner's and both requested at this cut: a clause for words under a
+path the document declares where the time sits in a value that is
+identity (the search basis's, Do 3), and the walk clause said of a
+time that is not null; and that Unbuilt name #164. The step starts
+once he has answered: the design below assumes the wrapper clause,
+and without it the search basis's words have no lawful home.
 
 ## Goal
 
@@ -32,9 +40,10 @@ Why: the class "a time serialized with no words beside it" is held
 today by discipline, each `aged` method naming its fields by hand
 (`crates/acquisition-store/src/lib.rs:744–760`); the MCP-2 seat worked
 a date out by hand from `first_seen` and retracted it (its debrief);
-the sweep and the review found seventeen such times across ten
-documents where the map had counted ten. Structure over discipline,
-at the cost of one test and one inventory.
+the sweep and the two reviews found the inventory below, longer each
+time, where the map had counted ten; the worker measures its count on
+the tree. Structure over discipline, at the cost of one test and one
+inventory.
 
 ## Read
 
@@ -77,11 +86,24 @@ at the cost of one test and one inventory.
   the ages "absent from the report itself and from `list`, which say
   none"), `:253–257` (`manual.updated_at`), `:418–422` (`basis.at`),
   `:465–470` (`rows.unmatched[]`, each a `ManualSide` with
-  `updated_at`), `:553–575` (`ReportHeader`: `taken_at`,
-  `stash_listing`, `character_listing`, their ages "on `status`, whose
-  text says it"), `:695–700` (`ShowView`: the header, `listing`, and
-  the container and item collections whose listings `aged` does not
-  reach), `:767` (`ShowView::aged`); `crates/acquisition-plan/src/shop.rs:517–522`
+  `updated_at`), `:553–575` (`ReportHeader`, flattened into the
+  report, so its times serialize as `taken_at`,
+  `stash_listing.fetched_at`, `character_listing.fetched_at`, their
+  words as `taken_at_age`, `stash_listing_fetched_at_age`,
+  `character_listing_fetched_at_age`, set by `status` alone),
+  `:695–700` (`ShowView`: the header, `listing`, and the container and
+  item collections), `:767` (`ShowView::aged`: it ages the snapshot
+  and the target's listing, neither header base nor the collections);
+  `crates/acquisition-plan/src/price.rs:639` and
+  `crates/acquisition-verbs/src/receipt.rs:35` (a price write's
+  receipt: `written` and `prior` rows), `crates/acquisition-verbs/src/refusal.rs:338`
+  (a policy conflict's `current` row), `crates/acquisition-plan/src/pricing.rs:163`
+  (a price conflict's `current`, built with `updated_at_age: None`);
+  `crates/acquisition-search/src/answer.rs:1467` (a continuation's
+  `request.basis`, the answer's own basis carried whole) and `:891` (a
+  `before`'s `counted_at`, a historical basis); `crates/acquisition-protocol/src/job.rs:86`
+  (`JobInfo`, a live job's row: no time at all);
+  `crates/acquisition-plan/src/shop.rs:517–522`
   and `:911` (`ShopRender`: the header cloned unaged, `rendered_at`);
   `crates/acquisition-plan/src/lib.rs:1249` (`PlanBasis.snapshot_taken_at`),
   `crates/acquisition-verbs/src/refresh.rs:50–100` (`PlanAges`: the
@@ -97,7 +119,12 @@ at the cost of one test and one inventory.
 - The assertions this step changes, each named with the fact that
   replaces it: `crates/acquisition-cli/tests/plan_json.rs:104–112`
   (`shown_row` strips `updated_at_age` alone before comparing a policy
-  row: it strips every `_age` the row gains);
+  row) and `:182`, `:476` (a receipt's flattened row and its `prior`
+  compared against `shown_row`'s result and against an earlier
+  `written`: both sides of each comparison are normalized by one
+  helper that strips every `_age` key, the words validated at their
+  owning boundary, the verbs tests; the conflict documents'
+  comparisons the same way);
   `crates/acquisition-plan/unit/tests/listing.rs:1062–1080`
   (`c53_status_and_show_say_the_ages_their_texts_print` asserts the
   report and `list` carry no ages: they carry them now, as every view
@@ -128,32 +155,48 @@ at the cost of one test and one inventory.
     `rows[].removed_at` → `rows[].removed_at_age`.
   - `search`: `basis.snapshot.at` → `snapshot_at_age` at the answer's
     top level (a declared wrapper path: `basis` and `Revision` are
-    identity and gain nothing; a continuation's `request.basis` and a
-    `before`'s `counted_at` carry no words).
+    identity and gain nothing); a continuation's
+    `view.rows.next.request.basis.snapshot.at` → the answer's
+    `snapshot_at_age` (the same basis, carried whole: a declared
+    mapping to the answer's words); a `before`'s
+    `counted_at.snapshot.at` → `before.snapshot_at_age` (a historical
+    basis, its own time's words).
   - `show`: `basis.snapshot.at` → `snapshot_at_age` at its top level;
     `item.facts.first_seen` → `first_seen_age`; `last_seen` →
     `last_seen_age`.
   - `store events --summary`: `first` → `first_age`.
-  - the job list (`jobs[]`, live and from the ledger) and one job on
+  - the job list from the ledger (`persisted.jobs[]`) and one job on
     disk: `submitted_at` → `submitted_at_age`; `updated_at` →
     `updated_at_age` (the list's rows aged as one job is; one job's
-    `aged` gains the first).
+    `aged` gains the first). The live list's `rows[]` are `JobInfo`,
+    which carries no time: nothing to word.
   - `policy show`: `policy.created_at` → `created_at_age`; a policy
     write's receipt: the flattened row's, `written`'s and `prior`'s
-    `created_at` and `updated_at` → their `_age`s.
-  - the price report and `list` (`header.taken_at`,
-    `stash_listing.fetched_at`, `character_listing.fetched_at` →
-    `taken_at_age`, `stash_listing_fetched_at_age`,
-    `character_listing_fetched_at_age`, the wrapper paths `status`
-    has; `basis.at` → `basis.at_age`; `manual.updated_at` →
-    `manual.updated_at_age`); `status`'s `rows.unmatched[].updated_at`
-    → `updated_at_age`; `show`'s container and item collections'
-    rows, each as its `ManualSide` or basis is worded in `status`.
+    `created_at` and `updated_at` → their `_age`s; a policy conflict's
+    `current` row the same; a price write's receipt (`price set`,
+    `price clear`): `written` and `prior` the same; a price conflict's
+    `current.updated_at` → `updated_at_age`.
+  - the price report and `list`: `taken_at` → `taken_at_age`;
+    `stash_listing.fetched_at` → `stash_listing_fetched_at_age`;
+    `character_listing.fetched_at` → `character_listing_fetched_at_age`
+    (the header is flattened; these are the wrapper paths `status`
+    has); each listing's `basis.at` → `basis.at_age` and
+    `manual.updated_at` → `manual.updated_at_age`; `status`'s
+    `rows.unmatched[].updated_at` → `updated_at_age`; `show`'s two
+    header bases (unaged today, `listing.rs:767`) and its container
+    and item collections' rows, each as its `ManualSide` or basis is
+    worded in `status`.
   - the shop render: `listing.taken_at`, `listing.stash_listing`,
     `listing.character_listing` → the three ages as `status` has them;
     `rendered_at` → `rendered_at_age`.
-  - the plan: `plan.basis.snapshot_taken_at` → `snapshot_taken_at_age`
-    in the wrapper (`PlanAges`), measured `before generated_at`.
+  - the plan, every mapping a wrapper path into `PlanAges`:
+    `plan.generated_at` → `generated_at_age` (exists);
+    `plan.basis.stash_listing.fetched_at` →
+    `stash_listing_fetched_at_age` and `plan.basis.character_listing.fetched_at`
+    → `character_listing_fetched_at_age` (exist, measured `before
+    generated_at`); `plan.quote.observed_at` → `quote_observed_at_age`
+    (exists); `plan.basis.snapshot_taken_at` → `snapshot_taken_at_age`
+    (new, measured `before generated_at`).
   - already worded, in the inventory as such: `fetched_at`,
     `removed_at` on items, the event row's `at` and the listing's
     `last`, `last_login`, `written_at`, `generated_at`, the quote's
@@ -167,9 +210,11 @@ at the cost of one test and one inventory.
   inventory misses.
 - The null rule: a null time's words are `never` where its maker says
   so today (`list_seen`, a never-fetched row's `fetched_at`) and
-  absent where its maker says so today (the span's fetch epochs, an
-  item's `removed_at`); the pin accepts either and this step changes
-  neither.
+  absent where its maker says so today (the span's fetch epochs,
+  `coverage.rs:136` and its test at `unit/tests/coverage.rs:343`; an
+  item's `removed_at`); both tests of Do 2 apply it: a time that is
+  not null must have its words, a null time satisfies its convention
+  either way, and this step changes neither convention.
 - Failing inputs, each a test staged before its maker changes (Do 1):
   the inventory test failing on each of the bare times over a
   populated fixture; the walk failing on a document that carries a
@@ -194,9 +239,10 @@ at the cost of one test and one inventory.
    absence as the null rule says; and a second test walking every
    document's owned fields for a key ending `_at` or `_seen`, or named
    `first`, `last`, `at`, `last_login`, `oldest_fetch` or
-   `newest_fetch`, whose value is an integer or null, resolving the
+   `newest_fetch`, whose value is an integer, resolving the
    inventory's declared wrapper paths before requiring a sibling, and
-   failing on a time with neither; opaque JSON (a job's `params`, a
+   failing on a time with neither; a null under such a name satisfies
+   the null rule and is not failed; opaque JSON (a job's `params`, a
    refused body) is not walked; the walk's exemption list is the
    inventory's wrapper rows and nothing else. The fixtures are built
    centrally in the verbs tests (its store helpers, the ingest API,
@@ -209,15 +255,18 @@ at the cost of one test and one inventory.
    name and `_age` or its declared wrapper path, made where the
    document's other ages are, never on `Revision` or `Basis`:
    `TabRow::aged` words `listed_at` and `removed_at`; `Shown::aged`
-   and `Answer::aged` set `snapshot_at_age` at the top level and the
+   and `Answer::aged` set `snapshot_at_age` at the top level, a
+   `before`'s `snapshot_at_age` beside its `counted_at`, and the
    item's `first_seen_age`, `last_seen_age`; the events summary gains
    `first_age`; `PersistedJob::aged` words `submitted_at` too and the
-   list's rows are aged; `ShownPolicy` and `PolicyWritten` word every
-   `AnnotationRow` they carry; the price report and `list` are aged as
-   `status` is (the design note at `listing.rs:163–167` rewritten:
-   every view says its ages), `status`'s unmatched rows and `show`'s
-   collections with them; the shop render's header is aged and
-   `rendered_at` worded; `PlanAges` gains `snapshot_taken_at_age`.
+   ledger list's rows are aged; `ShownPolicy`, `PolicyWritten`, the
+   policy conflict, the price receipts and the price conflict word
+   every `AnnotationRow` they carry; the price report and `list` are
+   aged as `status` is (the design note at `listing.rs:163–167`
+   rewritten: every view says its ages), `status`'s unmatched rows
+   and `show`'s header bases and collections with them; the shop
+   render's header is aged and `rendered_at` worded; `PlanAges` gains
+   `snapshot_taken_at_age`.
 4. The assertions named in Read moved to their replacing facts; the
    two reference fixtures regenerated for the added keys; no
    transcript golden changes (`git diff --stat -- 'crates/*/tests/goldens/'`
@@ -235,9 +284,10 @@ at the cost of one test and one inventory.
   inventory's rows are every time path of Input; the walk's exemption
   list equals the inventory's wrapper rows; the fixture-struct case
   proves the walk fails on a bare time.
-- Every time path of Input has its words path present on a populated
-  fixture; `Revision` and `Basis` are unchanged (`git diff` of their
-  definitions empty); `tests/next.rs` unchanged and passing.
+- Every time path of Input that is not null has its words path
+  present on a populated fixture, and a null one satisfies its
+  convention; `Revision` and `Basis` are unchanged (`git diff` of
+  their definitions empty); `tests/next.rs` unchanged and passing.
 - `git diff --stat <base>..<head> -- 'crates/*/tests/goldens/'
   CLI-REFERENCE.md MCP-REFERENCE.md` is empty; the two reference
   fixtures' diffs are added keys only.
@@ -266,11 +316,32 @@ at the cost of one test and one inventory.
 `TEMPLATE.md`. Under 3: the keys added by document, the sweep's
 count on the step's tree, and the test count before and after.
 
-## Taken from the review
+## Taken from the reviews
 
-The cold review of `b03b3e78`
+The second cold review, of `a3f4f280`
+(`roadmap/reviews/every-epoch-words-brief-a3f4f280.md`): five
+findings, none a nitpick, each answered in this cut; on the line it
+asked for a wrapper-path clause, a null-safe walk clause and an issue
+for Unbuilt, which are the owner's (#164 opened for the last).
+
+1. A continuation's and a historical basis's copies of the snapshot
+   time are declared mappings: the continuation's to the answer's own
+   words, the `before`'s to its own.
+2. The inventory gains the price receipts' and conflicts' rows, the
+   policy conflict's row, and `show`'s header bases; the count is the
+   worker's measure.
+3. Every existing wrapper mapping is enumerated (the plan's four), the
+   headers' flattened paths are spelled as they serialize, the ledger
+   list is told from the live one, which carries no time.
+4. Both tests apply the null rule: words for a time that is not null,
+   a null's convention either way.
+5. The receipt and conflict comparisons normalize both sides by one
+   helper; the words are validated at their owning boundary.
+
+The first cold review, of `b03b3e78`
 (`roadmap/reviews/every-epoch-words-brief-b03b3e78.md`): eight
-findings, one a nitpick, and a verdict on the head.
+findings, one a nitpick, and a verdict on the head, each answered in
+the second cut.
 
 - **The head:** the reading of C53 was an extension; the line is
   drafted, ruled and entered as C163 (2026-11-04, "yes, as drafted").
