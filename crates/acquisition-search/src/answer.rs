@@ -39,7 +39,7 @@
 //! ```text
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
 //! scope   account A · pc · live · 7 items · 2 locations fetched
-//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc --league Standard --never-fetched
+//!         1 location never fetched: PremiumStash 1 of 3 · location lists seen, the oldest 2h ago · each tab: acq tabs --account A --realm pc --league Standard --never-fetched
 //! total   1 match (fetched 2h ago, Standard / Rings) · 2 undecided
 //! rows    r1  Two-Stone Ring · rare · Standard / Rings · fetched 2h ago
 //!             +95 to maximum Life (explicit) · pseudo.total_res 65

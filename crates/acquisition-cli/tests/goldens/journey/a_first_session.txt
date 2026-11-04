@@ -120,7 +120,7 @@ $ acq search 'class=Rings rarity=rare'
 --- stdout
 query   class=Rings rarity=rare
 scope   account ExileTester · pc · live · 49 items · 16 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   1 match (<fetches>)
 rows    Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             class Rings
@@ -141,7 +141,7 @@ $ acq search '"+# to maximum Life">=70' --sort pseudo.total_life
 --- stdout
 query   line("# to maximum Life" arg1>=70)
 scope   account ExileTester · pc · live · 49 items · 16 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   2 matches (<fetches>)
 rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1, y 0 · fetched <age> ago
             sorts by pseudo.total_life 89 · +89 to maximum Life (explicit)
@@ -161,7 +161,7 @@ $ acq search 'class="Stackable Currency"' --count base --sum stack
 --- stdout
 query   class="Stackable Currency"
 scope   account ExileTester · pc · live · 49 items · 16 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   1 match (<fetches>) · 34 undecided
 sum     stack over every match: 7
 count   base · 1 value

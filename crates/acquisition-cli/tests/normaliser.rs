@@ -262,8 +262,8 @@ fn the_age_rule_keeps_a_padded_cells_width_whatever_the_ages_digits() {
     // a fixture's day count is wider than `<age>`, and its one space
     // before a separator is prose, never padding
     assert_eq!(
-        n("location list seen 20391d ago \u{b7} each tab\n"),
-        "location list seen <age> ago \u{b7} each tab\n"
+        n("location lists seen, the oldest 20391d ago \u{b7} each tab\n"),
+        "location lists seen, the oldest <age> ago \u{b7} each tab\n"
     );
     // an age a plan measures before itself is the test's timing too
     assert_eq!(

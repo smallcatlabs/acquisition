@@ -5,7 +5,7 @@ $ acq search --realm pc --count rarity league=Standard
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   4 matches (fetched <age> ago, pc · Standard / Gear)
 count   rarity · 4 values
         1  magic
@@ -26,7 +26,7 @@ $ acq search --realm pc --count rarity --limit 1 league=Standard
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   4 matches (fetched <age> ago, pc · Standard / Gear)
 limit   1, the values a table lists: a count shows no rows
 count   rarity · 4 values · 3 shown: a larger --limit returns the rest

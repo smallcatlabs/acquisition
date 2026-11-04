@@ -710,9 +710,11 @@ fn describe_is_as_large_as_its_text_says() {
     // some 10 KB, every category id with what makes it hold (10,734 at r5)
     assert!(size(&mut seat, json!(["categories"])) < 13_000);
     assert!(size(&mut seat, json!(["categories"])) > 8_000);
-    // some 5 KB, every key an answer prints and what it counts (#83:
-    // 5,340 bytes when the anatomy left `search`'s text)
-    assert!(size(&mut seat, json!(["answer"])) < 7_000);
+    // some 7 KB, every key an answer prints and what it counts (#83:
+    // 5,340 bytes when the anatomy left `search`'s text; 7,120 once
+    // `list_seen` named the lists it is the oldest of, the answer-facts
+    // seat's run 2, cli fault 8)
+    assert!(size(&mut seat, json!(["answer"])) < 7_500);
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
     // some 7 KB since a show's counts joined it (step 2g, round 2: 4,541
     // bytes of entries then) and the shop's substash rule the receipt's

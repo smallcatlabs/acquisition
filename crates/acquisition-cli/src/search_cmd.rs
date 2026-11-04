@@ -992,11 +992,20 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         plural(scope.coverage.fetched, "location", "locations"),
     );
     line(first);
+    // an age over several lists names the set it is the oldest of
+    // (answer-facts seat run 2, cli fault 8: `location list seen 57d ago`
+    // read as the stash list's, 53 days old; it was a character list's)
     let mut never = format!(
-        "        {}{} · location list seen {}",
+        "        {}{} · {}",
         plural(scope.coverage.never_fetched, "location", "locations"),
         never_fetched_text(&scope.coverage.never_fetched_by_type),
-        ago(now, scope.coverage.span.list_seen),
+        match scope.coverage.span.list_seen {
+            Some(_) => format!(
+                "location lists seen, the oldest {}",
+                ago(now, scope.coverage.span.list_seen)
+            ),
+            None => "no location list seen".to_string(),
+        },
     );
     // the list that exists: `tabs` over the league the query fixes, or the
     // one holding the most never fetched, the others counted (C118)

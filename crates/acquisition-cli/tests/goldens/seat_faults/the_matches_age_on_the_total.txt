@@ -6,7 +6,7 @@ $ acq search --realm pc league=Standard
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 3 items · 3 locations fetched
-        0 locations never fetched · location list seen <age> ago
+        0 locations never fetched · location lists seen, the oldest <age> ago
 total   2 matches (the oldest fetch <age> ago, pc · Standard / Gear; the newest <age> ago, pc · Standard / Dump)
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-gear

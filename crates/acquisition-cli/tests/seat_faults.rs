@@ -1246,8 +1246,13 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
 /// calls 4, 40, its fault 3; cli-sonnet-2 calls 3, 6, its fault 1). C118:
 /// the scope line names the types with the most never fetched, counts
 /// the rest, and points at the list that exists.
+///
+/// Its list age names the set it is the oldest of, as the `scope` gloss
+/// does (answer-facts seat run 2, cli fault 8: `location list seen 57d
+/// ago` read as the stash list's, 53 days old, where it was a character
+/// list's).
 #[test]
-fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
+fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_the_oldest_of() {
     let scratch = harness::scratch("seat-by-type");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
@@ -1277,9 +1282,18 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
     let mut t = Transcript::new(&base);
     let shown = stdout(&t.run(
         &["search", "--realm", "pc", "league=Standard"],
-        &["MapStash 3 of 3", "2 more in 2 other types"],
+        &[
+            "MapStash 3 of 3",
+            "2 more in 2 other types",
+            " · location lists seen, the oldest ",
+        ],
     ));
     golden(file!(), "scope_line_by_tab_type", &t);
+    let gloss = stdout(&acq(&base, &["search", "--describe=scope"]));
+    assert!(
+        gloss.contains("`list_seen` when the oldest of the lists the scope reads was last seen: under a query that fixes one league, that league's tab list and the realm's character list, otherwise every list of the realm"),
+        "{gloss}"
+    );
     assert!(!shown.contains("--view locations"), "{shown}");
     // the pointer, parsed from the line and run as printed, lists the
     // never fetched of the league it names
