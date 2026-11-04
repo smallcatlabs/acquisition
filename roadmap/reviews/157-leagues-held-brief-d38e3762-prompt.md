@@ -1,0 +1,16 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/157-leagues-held.md, re-cut at d38e3762. The first cut (dae7aa60) was reviewed cold (roadmap/reviews/157-leagues-held-brief-dae7aa60.md, its prompt beside: eight findings, one nitpick); this cut answers each, and the brief's foot ("Taken from the review") says how. Read it with `git show d38e3762` and the file as it stands. It is round 5 of a group designed in roadmap/reviews/answer-facts-map.md (§3 Root 2, §10 S5, §11 question 6 (a) accepted by the owner). Rounds 1, 2 and 4 landed (fb6c5c02; 0d17cdaa^..2977ea2c; 052e0fe4); round 3 (every-epoch-words.md, C163) builds before this one. The rulings: C118 as amended, C162, C126 (decisions/plans.md), C146, C53, C149; AGENTS.md names C1, C46, C116, C122, C154. The brief's form is roadmap/briefs/TEMPLATE.md; the rhythm roadmap/README.md "A step". Read; do not build or run anything; the tree is read-only to you.
+
+Your lens, in this order. First, the eight findings: is each answered in substance (one line each: answered / narrower, sound or not / not answered)? In particular finding 2 (LeagueList.entries with an optional realm, additive beside ids; C126's match by (realm, league) through league_notes and SyncPolicy::leagues, crates/acquisition-plan/src/lib.rs:741–767), finding 3 (named from SyncPolicy::league, :712–713, and the fragment's policy state), finding 4 (both lists bounded by LISTED with left_out and expand, C53 and C149), and finding 6 (Planned.uncovered_tabs as the verbs wrapper's own field from the policy plan's snapshot, crates/acquisition-verbs/src/refresh.rs:35–50 and :449–458; absent on selection and file plans; every text path in plan_cmd.rs:879–890; stderr under --json at :343–355). Then:
+1. The MCP tool: is a new tool with stored, account and expand sound against the tools table and StoreParams (crates/acquisition-mcp/src/main.rs:832–838, :1428–1438), the reference generator (tests/mcp_reference.rs) and the first-turn bound (tests/surface_size.rs:32)? Does `acq leagues --stored` branch cleanly before connect in the job's arm (crates/acquisition-cli/src/main.rs:1672)?
+2. The text lines against each surface's head and the positional assertions (price_cmd.rs:1316, shop_cmd.rs:571): are the stated line moves right, and is every line's set named (C146)?
+3. store status: the new league_list_latest beside the kept fields (crates/acquisition-store/src/lib.rs:846–856, store_cmd.rs:578–582): additive and well-defined?
+4. Any holder still missing under a grep by command, any citation not matching the tree.
+5. Whether the step as drawn can be built by a worker reading only this brief and what it names, in the order given, each commit gated; and whether it is one round or two.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- The eight findings: one line each.
+- Findings, most severe first, each: the Do or done-when number, what is wrong in one sentence, the concrete reading (file:line), and the smallest change to the brief sufficient.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether the step may start as drawn, in one line.
