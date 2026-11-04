@@ -1313,7 +1313,7 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
     golden(file!(), "scope_line_by_tab_type", &t);
     let gloss = stdout(&acq(&base, &["search", "--describe=scope"]));
     assert!(
-        gloss.contains("`list_seen` when the oldest of the lists the scope reads was last seen: under a query that fixes one league, that league's tab list and the realm's character list, otherwise every list of the realm"),
+        gloss.contains("`list_seen` when the oldest of the lists the scope reads was last seen: under a query that fixes one league that a list names, that league's tab list and the realm's character list, otherwise every list of the realm"),
         "{gloss}"
     );
     assert!(!shown.contains("--view locations"), "{shown}");

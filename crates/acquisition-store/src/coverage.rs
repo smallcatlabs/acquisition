@@ -139,8 +139,9 @@ pub struct FetchSpan {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub newest_fetch_location: Option<FetchedLocation>,
     /// When the oldest of the location lists the scope reads was last
-    /// seen: under a query that fixes one league, that league's tab list
-    /// and the realm's character list; otherwise every list of the realm
+    /// seen: under a query that fixes one league a list names, that
+    /// league's tab list and the realm's character list; otherwise every
+    /// list of the realm
     /// (the re-sit: a `league=Standard` query said 41 days where
     /// Standard's own list was 3 days old, mcp-opus its fault 2).
     pub list_seen: Option<i64>,
