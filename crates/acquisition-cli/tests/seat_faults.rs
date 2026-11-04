@@ -1892,7 +1892,10 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
 fn cli10_the_skip_count_names_the_list_that_holds_them() {
     let scratch = harness::scratch("seat-skip-route");
     let base = scratch.0.clone();
-    let mock = crate::price_json::seed(&base);
+    // the refetch shares the seed's time: two seconds would print the
+    // facts line's two-time form (round A's report: a bare gate failed)
+    let at = acquisition_store::now();
+    let mock = crate::price_json::seed_at(&base, at);
     // the public tab refetched with three `~skip` notes beside its two
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     let orb = |id: &str, note: Option<&str>| {
@@ -1916,7 +1919,7 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
             &json!({ "stash": { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "items": [
                 orb("i-noted", Some("~price 5 chaos")), orb("i-plain", None),
                 orb("k1", Some("~skip")), orb("k2", Some("~skip")), orb("k3", Some("~skip")) ] } }),
-            acquisition_store::now(),
+            at,
         )
         .unwrap();
     drop(store);

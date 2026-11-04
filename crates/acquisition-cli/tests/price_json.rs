@@ -31,9 +31,15 @@ fn stderr(out: &Output) -> String {
 /// with a row), a map tab with a substash holding one item, a character
 /// wearing one; a row on the folder and one naming nothing here.
 pub(crate) fn seed(base: &Path) -> PathBuf {
+    seed_at(base, acquisition_store::now())
+}
+
+/// [`seed`], every response recorded at `at`: a test that refetches
+/// records at the seed's time too, so a facts line it reads has one
+/// fetch time whatever second the refetch took.
+pub(crate) fn seed_at(base: &Path, at: i64) -> PathBuf {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
