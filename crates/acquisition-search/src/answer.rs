@@ -2089,7 +2089,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     let tree = json::to_json(&query.root);
     let mut coverage = corpus.coverage.clone();
     if let Some(seen) = fixed_league(&tree).and_then(|league| corpus.list_seen_in(league)) {
-        coverage.list_seen = Some(seen);
+        coverage.span.list_seen = Some(seen);
     }
     let mut answer = Answer {
         before: None,

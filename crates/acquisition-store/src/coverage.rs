@@ -4,7 +4,10 @@
 //! bases), how many were fetched and never, the never fetched by type and
 //! by league, the oldest and newest fetch with their locations, and when
 //! the lists were seen, aged at the answer's time by one method
-//! ([`Coverage::aged`]).
+//! ([`Coverage::aged`]). The fetch and list part is any set's
+//! ([`FetchSpan`]), computed by [`span`] over the places and listing bases
+//! a caller names: [`of`] folds a scope's through it, and an answer its
+//! subject's.
 //!
 //! It lives here because the store is the one crate every maker links
 //! (C1), as the age vocabulary ([`crate::age`]) and the read economy's
@@ -73,6 +76,27 @@ pub struct Coverage {
     /// there are follow from the answer (C118).
     pub never_fetched_leagues: Vec<String>,
     pub folders: usize,
+    /// The fetch and list ages of the scope's locations, flattened at
+    /// their place in the scope's JSON.
+    #[serde(flatten)]
+    pub span: FetchSpan,
+}
+
+impl Coverage {
+    /// C53: the scope's fetch and list ages said at `now`, the answer's
+    /// time — the oldest and newest fetch where there are fetches, as the
+    /// text says them, and when the lists were seen, `never` where none
+    /// was.
+    pub fn aged(&mut self, now: i64) {
+        self.span.aged(now);
+    }
+}
+
+/// The part of a coverage any set of places with their observations has:
+/// the oldest and newest fetch of its fetched places, each with its
+/// location, and when the lists that name it were seen ([`span`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FetchSpan {
     /// The earliest and the latest of the fetched locations' last
     /// fetches, each one location's; a row's place carries its own.
     pub oldest_fetch: Option<i64>,
@@ -105,11 +129,10 @@ pub struct Coverage {
     pub list_seen_age: Option<String>,
 }
 
-impl Coverage {
-    /// C53: the scope's fetch and list ages said at `now`, the answer's
-    /// time — the oldest and newest fetch where there are fetches, as the
-    /// text says them, and when the lists were seen, `never` where none
-    /// was.
+impl FetchSpan {
+    /// C53: the span's ages said at `now`, the answer's time — the oldest
+    /// and newest fetch where there are fetches, and when the lists were
+    /// seen, `never` where none was.
     pub fn aged(&mut self, now: i64) {
         self.oldest_fetch_age = self.oldest_fetch.map(|at| age::ago(now, Some(at)));
         self.newest_fetch_age = self.newest_fetch.map(|at| age::ago(now, Some(at)));
@@ -150,15 +173,6 @@ pub fn of(
         .filter(|(l, _)| !is_folder(l))
         .collect();
     let fetches = || holds_items.iter().filter_map(|(l, _)| l.fetched_at);
-    let fetched = || {
-        holds_items
-            .iter()
-            .filter_map(|(l, _)| Some((l.fetched_at?, *l)))
-    };
-    // the first on a tie, both ways: `min_by_key` keeps the first,
-    // `max_by_key` the last, so the newest reads the reversed order
-    let oldest = fetched().min_by_key(|(at, _)| *at);
-    let newest = fetched().rev().max_by_key(|(at, _)| *at);
     let mut never_fetched_by_type = by_type(holds_items.iter().map(|(l, here)| {
         let kind = match l.kind.as_str() {
             "character" => "character",
@@ -200,20 +214,42 @@ pub fn of(
         never_fetched_by_type,
         never_fetched_leagues: by_league.into_iter().map(|(l, _)| l.to_string()).collect(),
         folders: locations.len() - holds_items.len(),
-        oldest_fetch: oldest.map(|(at, _)| at),
+        span: span(
+            &holds_items
+                .iter()
+                .filter_map(|(l, _)| Some((l.fetched_at?, FetchedLocation::of(l))))
+                .collect::<Vec<_>>(),
+            &listings
+                .iter()
+                .filter(|l| match realm {
+                    RealmScope::One(only) => l.realm == only,
+                    RealmScope::All => true,
+                })
+                .cloned()
+                .collect::<Vec<_>>(),
+        ),
+    }
+}
+
+/// The fetch span of a set of places: `fetched` its fetched places, each
+/// with its last fetch, in the caller's order (the oldest and the newest
+/// are the first in that order on a tie), and `listings` the listing
+/// bases that name the set, which the caller chooses (C162: a set's
+/// observations are its caller's to name); `list_seen` is the oldest of
+/// them. Unaged: [`FetchSpan::aged`] says it at the answer's time.
+pub fn span(fetched: &[(i64, FetchedLocation)], listings: &[ListingSeen]) -> FetchSpan {
+    // the first on a tie, both ways: `min_by_key` keeps the first,
+    // `max_by_key` the last, so the newest reads the reversed order
+    let oldest = fetched.iter().min_by_key(|(at, _)| *at);
+    let newest = fetched.iter().rev().max_by_key(|(at, _)| *at);
+    FetchSpan {
+        oldest_fetch: oldest.map(|(at, _)| *at),
         oldest_fetch_age: None,
-        oldest_fetch_location: oldest.map(|(_, l)| FetchedLocation::of(l)),
-        newest_fetch: newest.map(|(at, _)| at),
+        oldest_fetch_location: oldest.map(|(_, l)| l.clone()),
+        newest_fetch: newest.map(|(at, _)| *at),
         newest_fetch_age: None,
-        newest_fetch_location: newest.map(|(_, l)| FetchedLocation::of(l)),
-        list_seen: listings
-            .iter()
-            .filter(|l| match realm {
-                RealmScope::One(only) => l.realm == only,
-                RealmScope::All => true,
-            })
-            .map(|l| l.fetched_at)
-            .min(),
+        newest_fetch_location: newest.map(|(_, l)| l.clone()),
+        list_seen: listings.iter().map(|l| l.fetched_at).min(),
         list_seen_age: None,
     }
 }

@@ -991,8 +991,10 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         },
         plural(scope.coverage.fetched, "location", "locations"),
     );
-    if let (Some(oldest), Some(newest)) = (scope.coverage.oldest_fetch, scope.coverage.newest_fetch)
-    {
+    if let (Some(oldest), Some(newest)) = (
+        scope.coverage.span.oldest_fetch,
+        scope.coverage.span.newest_fetch,
+    ) {
         // each age is one location's last fetch (C146: "newest 4d ago"
         // named no location, the release seat: cli-opus call 35,
         // cli-sonnet call 25, cli-opus-2 call 34); a row's place carries
@@ -1016,9 +1018,9 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         first.push_str(&format!(
             " (the oldest fetch {}{}; the newest {}{})",
             ago(now, Some(oldest)),
-            at(&scope.coverage.oldest_fetch_location),
+            at(&scope.coverage.span.oldest_fetch_location),
             ago(now, Some(newest)),
-            at(&scope.coverage.newest_fetch_location),
+            at(&scope.coverage.span.newest_fetch_location),
         ));
     }
     line(first);
@@ -1026,7 +1028,7 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         "        {}{} · location list seen {}",
         plural(scope.coverage.never_fetched, "location", "locations"),
         never_fetched_text(&scope.coverage.never_fetched_by_type),
-        ago(now, scope.coverage.list_seen),
+        ago(now, scope.coverage.span.list_seen),
     );
     // the list that exists: `tabs` over the league the query fixes, or the
     // one holding the most never fetched, the others counted (C118)

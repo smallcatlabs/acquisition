@@ -75,14 +75,16 @@ fn c162_an_empty_set_has_no_fetch_and_no_list() {
             never_fetched_by_type: vec![],
             never_fetched_leagues: vec![],
             folders: 0,
-            oldest_fetch: None,
-            oldest_fetch_age: None,
-            oldest_fetch_location: None,
-            newest_fetch: None,
-            newest_fetch_age: None,
-            newest_fetch_location: None,
-            list_seen: None,
-            list_seen_age: None,
+            span: FetchSpan {
+                oldest_fetch: None,
+                oldest_fetch_age: None,
+                oldest_fetch_location: None,
+                newest_fetch: None,
+                newest_fetch_age: None,
+                newest_fetch_location: None,
+                list_seen: None,
+                list_seen_age: None,
+            },
         }
     );
 }
@@ -101,7 +103,7 @@ fn c162_one_never_fetched_tab_is_its_type_never_fetched() {
         }]
     );
     assert_eq!(coverage.never_fetched_leagues, vec!["Std".to_string()]);
-    assert_eq!(coverage.oldest_fetch, None);
+    assert_eq!(coverage.span.oldest_fetch, None);
 }
 
 #[test]
@@ -116,7 +118,7 @@ fn c162_a_folder_is_counted_apart_in_no_type_and_never_a_fetch() {
     assert!(coverage.never_fetched_leagues.is_empty());
     // a folder fetched in error is still never a fetch
     let fetched_folder = over(&[(tab("Std", "f", "Folder", Some(10)), 0)]);
-    assert_eq!(fetched_folder.oldest_fetch, None);
+    assert_eq!(fetched_folder.span.oldest_fetch, None);
     assert_eq!(fetched_folder.fetched, 0);
 }
 
@@ -126,14 +128,14 @@ fn c162_on_a_tie_the_oldest_and_the_newest_are_the_first_in_the_order_given() {
     let b = tab("Std", "b", "NormalStash", Some(70));
     let forward = over(&[(a.clone(), 1), (b.clone(), 1)]);
     let at = |l: &Option<FetchedLocation>| l.as_ref().map(|l| l.id.clone());
-    assert_eq!(forward.oldest_fetch, Some(70));
-    assert_eq!(forward.newest_fetch, Some(70));
-    assert_eq!(at(&forward.oldest_fetch_location), location("a"));
-    assert_eq!(at(&forward.newest_fetch_location), location("a"));
+    assert_eq!(forward.span.oldest_fetch, Some(70));
+    assert_eq!(forward.span.newest_fetch, Some(70));
+    assert_eq!(at(&forward.span.oldest_fetch_location), location("a"));
+    assert_eq!(at(&forward.span.newest_fetch_location), location("a"));
     // the same places in the other order: the choice follows the order
     let reversed = over(&[(b, 1), (a, 1)]);
-    assert_eq!(at(&reversed.oldest_fetch_location), location("b"));
-    assert_eq!(at(&reversed.newest_fetch_location), location("b"));
+    assert_eq!(at(&reversed.span.oldest_fetch_location), location("b"));
+    assert_eq!(at(&reversed.span.newest_fetch_location), location("b"));
 }
 
 #[test]
@@ -170,7 +172,7 @@ fn c162_a_character_is_its_own_type_and_no_leagues_never_fetched() {
     // a never-fetched character counts into no league's never fetched
     assert!(coverage.never_fetched_leagues.is_empty());
     assert_eq!(
-        coverage.oldest_fetch_location,
+        coverage.span.oldest_fetch_location,
         Some(FetchedLocation {
             kind: "character".into(),
             id: "x".into(),
@@ -189,10 +191,13 @@ fn c162_a_substash_is_a_location_of_its_own_with_its_own_fetch() {
     };
     let coverage = over(&[(parent, 0), (substash, 2)]);
     assert_eq!((coverage.fetched, coverage.never_fetched), (2, 0));
-    assert_eq!(coverage.oldest_fetch_location.map(|l| l.id), location("p"));
-    assert_eq!(coverage.newest_fetch, Some(80));
     assert_eq!(
-        coverage.newest_fetch_location.map(|l| l.id),
+        coverage.span.oldest_fetch_location.map(|l| l.id),
+        location("p")
+    );
+    assert_eq!(coverage.span.newest_fetch, Some(80));
+    assert_eq!(
+        coverage.span.newest_fetch_location.map(|l| l.id),
         location("p-1")
     );
 }
@@ -217,7 +222,7 @@ fn c162_a_blank_name_is_no_name() {
     };
     let coverage = over(&[(blank, 0)]);
     assert_eq!(
-        coverage.oldest_fetch_location,
+        coverage.span.oldest_fetch_location,
         Some(FetchedLocation {
             kind: "stash".into(),
             id: "a".into(),
@@ -234,13 +239,13 @@ fn c162_lists_seen_are_the_scopes_realm_or_every_realms() {
     let listings = [listing("pc", Some("Std"), 300), listing("xbox", None, 200)];
     let realms = ["pc".to_string(), "xbox".to_string()];
     let one = of(RealmScope::One("pc"), &places(&rows), &listings, &realms, 1);
-    assert_eq!(one.list_seen, Some(300));
+    assert_eq!(one.span.list_seen, Some(300));
     let all = of(RealmScope::All, &places(&rows), &listings, &realms, 1);
-    assert_eq!(all.list_seen, Some(200));
+    assert_eq!(all.span.list_seen, Some(200));
     // the oldest of the realm's lists
     let two = [listing("pc", Some("Std"), 300), listing("pc", None, 250)];
     let pc = of(RealmScope::One("pc"), &places(&rows), &two, &realms, 1);
-    assert_eq!(pc.list_seen, Some(250));
+    assert_eq!(pc.span.list_seen, Some(250));
 }
 
 #[test]
@@ -339,9 +344,9 @@ fn c53_coverage_ages_its_fetches_and_lists_where_there_are_any() {
     let now = 10_000;
     let mut none = of(RealmScope::All, &[], &[], &[], 0);
     none.aged(now);
-    assert_eq!(none.oldest_fetch_age, None);
-    assert_eq!(none.newest_fetch_age, None);
-    assert_eq!(none.list_seen_age.as_deref(), Some("never"));
+    assert_eq!(none.span.oldest_fetch_age, None);
+    assert_eq!(none.span.newest_fetch_age, None);
+    assert_eq!(none.span.list_seen_age.as_deref(), Some("never"));
 
     let rows = [
         (tab("Std", "a", "NormalStash", Some(now - 30)), 1),
@@ -350,7 +355,103 @@ fn c53_coverage_ages_its_fetches_and_lists_where_there_are_any() {
     let listings = [listing("pc", Some("Std"), now - 3 * 86_400)];
     let mut some = of(RealmScope::All, &places(&rows), &listings, &[], 2);
     some.aged(now);
-    assert_eq!(some.oldest_fetch_age.as_deref(), Some("2h ago"));
-    assert_eq!(some.newest_fetch_age.as_deref(), Some("30s ago"));
-    assert_eq!(some.list_seen_age.as_deref(), Some("3d ago"));
+    assert_eq!(some.span.oldest_fetch_age.as_deref(), Some("2h ago"));
+    assert_eq!(some.span.newest_fetch_age.as_deref(), Some("30s ago"));
+    assert_eq!(some.span.list_seen_age.as_deref(), Some("3d ago"));
+}
+
+#[test]
+fn c162_a_spans_tie_is_the_first_in_the_order_given_both_ways() {
+    let fetched = |id: &str| {
+        (
+            70,
+            FetchedLocation {
+                kind: "stash".into(),
+                id: id.into(),
+                name: None,
+                league: Some("Std".into()),
+            },
+        )
+    };
+    let at = |l: &Option<FetchedLocation>| l.as_ref().map(|l| l.id.clone());
+    let forward = span(&[fetched("a"), fetched("b")], &[]);
+    assert_eq!(
+        (forward.oldest_fetch, forward.newest_fetch),
+        (Some(70), Some(70))
+    );
+    assert_eq!(at(&forward.oldest_fetch_location), location("a"));
+    assert_eq!(at(&forward.newest_fetch_location), location("a"));
+    let reversed = span(&[fetched("b"), fetched("a")], &[]);
+    assert_eq!(at(&reversed.oldest_fetch_location), location("b"));
+    assert_eq!(at(&reversed.newest_fetch_location), location("b"));
+}
+
+#[test]
+fn c162_a_scopes_span_is_the_span_of_its_fetched_places_and_its_realms_lists() {
+    let rows = [
+        (tab("Std", "f", "Folder", Some(5)), 0),
+        (tab("Std", "a", "NormalStash", Some(40)), 1),
+        (tab("Std", "b", "NormalStash", None), 0),
+        (character(Some("Hc"), "x", Some(90)), 2),
+        (tab("Std", "c", "MapStash", Some(40)), 1),
+    ];
+    let listings = [
+        listing("pc", Some("Std"), 300),
+        listing("pc", None, 250),
+        listing("xbox", None, 200),
+    ];
+    let scope = of(RealmScope::One("pc"), &places(&rows), &listings, &[], 4);
+    // the folder is no fetch, the never fetched none, and xbox's list
+    // not the realm's
+    let fetched: Vec<(i64, FetchedLocation)> = [&rows[1].0, &rows[3].0, &rows[4].0]
+        .into_iter()
+        .map(|l| (l.fetched_at.unwrap(), FetchedLocation::of(l)))
+        .collect();
+    assert_eq!(scope.span, span(&fetched, &listings[..2]));
+    assert_eq!(scope.span.list_seen, Some(250));
+}
+
+/// The scope's JSON is the eight span keys flattened where the fields
+/// stood, in their order: the text itself, never a sorted value.
+#[test]
+fn c162_a_coverage_serializes_its_span_in_place_populated_and_empty_aged_or_not() {
+    let now = 1_000_000;
+    let rows = [
+        (tab("Std", "a", "NormalStash", Some(now - 7_200)), 1),
+        (character(Some("Hc"), "x", Some(now - 30)), 2),
+        (tab("Std", "c", "MapStash", None), 0),
+    ];
+    let listings = [listing("pc", Some("Std"), now - 3 * 86_400)];
+    let mut some = of(
+        RealmScope::All,
+        &places(&rows),
+        &listings,
+        &[PC.to_string()],
+        3,
+    );
+    let text = |c: &Coverage| serde_json::to_string(c).unwrap();
+    let head = r#"{"items":3,"realms_held":["pc"],"leagues":["Hc","Std"],"fetched":2,"never_fetched":1,"never_fetched_by_type":[{"type":"MapStash","tabs":1,"fetched":0,"items":0}],"never_fetched_leagues":["Std"],"folders":0,"#;
+    let (a, x) = (
+        r#"{"kind":"stash","id":"a","name":"tab a","league":"Std"}"#,
+        r#"{"kind":"character","id":"x","name":"char x","league":"Hc"}"#,
+    );
+    assert_eq!(
+        text(&some),
+        format!(
+            r#"{head}"oldest_fetch":992800,"oldest_fetch_location":{a},"newest_fetch":999970,"newest_fetch_location":{x},"list_seen":740800}}"#
+        )
+    );
+    some.aged(now);
+    assert_eq!(
+        text(&some),
+        format!(
+            r#"{head}"oldest_fetch":992800,"oldest_fetch_age":"2h ago","oldest_fetch_location":{a},"newest_fetch":999970,"newest_fetch_age":"30s ago","newest_fetch_location":{x},"list_seen":740800,"list_seen_age":"3d ago"}}"#
+        )
+    );
+
+    let empty = r#"{"items":0,"realms_held":[],"leagues":[],"fetched":0,"never_fetched":0,"never_fetched_by_type":[],"never_fetched_leagues":[],"folders":0,"oldest_fetch":null,"newest_fetch":null,"list_seen":null"#;
+    let mut none = of(RealmScope::All, &[], &[], &[], 0);
+    assert_eq!(text(&none), format!("{empty}}}"));
+    none.aged(now);
+    assert_eq!(text(&none), format!(r#"{empty},"list_seen_age":"never"}}"#));
 }

@@ -82,11 +82,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use acquisition_store::corpus::{CorpusHeader, CorpusItem, LocationRow, RealmScope, Revision};
+use acquisition_store::corpus::{
+    CorpusHeader, CorpusItem, ListingSeen, LocationRow, RealmScope, Revision,
+};
 use acquisition_store::{Annotations, Store, age};
 // C162: coverage is the store's one derivation, under the paths it had here
 pub(crate) use acquisition_store::coverage::is_folder;
-pub use acquisition_store::coverage::{Coverage, FetchedLocation};
+pub use acquisition_store::coverage::{Coverage, FetchSpan, FetchedLocation};
 use serde::{Deserialize, Serialize};
 
 use crate::answer::{Membership, Request};
@@ -383,9 +385,9 @@ pub struct Corpus {
     /// one. What an `id:` that matches nothing is looked up in.
     pub(crate) gone: HashMap<String, Left>,
     pub(crate) items: Vec<Held>,
-    /// The realm's location lists, each by its league (`None`: the
-    /// character list) and when it was last seen.
-    pub(crate) listings: Vec<(Option<String>, i64)>,
+    /// The realm's location lists, each with its realm, its league
+    /// (`None`: the character list) and when it was last seen.
+    pub(crate) listings: Vec<ListingSeen>,
 }
 
 impl Corpus {
@@ -395,11 +397,12 @@ impl Corpus {
     pub fn list_seen_in(&self, league: &str) -> Option<i64> {
         self.listings
             .iter()
-            .filter(|(of, _)| {
-                of.as_deref()
+            .filter(|l| {
+                l.league
+                    .as_deref()
                     .is_none_or(|of| crate::bind::folded(of) == crate::bind::folded(league))
             })
-            .map(|(_, at)| *at)
+            .map(|l| l.fetched_at)
             .min()
     }
 }
@@ -793,7 +796,7 @@ impl Corpus {
                                 .listings
                                 .iter()
                                 .filter(|l| in_realm(&l.realm))
-                                .map(|l| (l.league.clone(), l.fetched_at))
+                                .cloned()
                                 .collect(),
                             realm,
                             membership,
