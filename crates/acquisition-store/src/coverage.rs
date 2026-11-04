@@ -40,10 +40,27 @@ impl FetchedLocation {
         FetchedLocation {
             kind: l.kind.clone(),
             id: l.id.clone(),
-            name: (!l.name.trim().is_empty()).then(|| l.name.clone()),
+            name: location_name(&l.name),
             league: l.league.clone(),
         }
     }
+}
+
+/// The mark GGG ends a remove-only tab's name with, a substash's too
+/// (N47).
+pub const REMOVE_ONLY: &str = "(Remove-only)";
+
+/// A location's name as every answer names it, or none where GGG's holds
+/// no text but the mark it adds to a remove-only tab's: a unique tab's
+/// page comes with an empty name, or with the mark alone, and is shown by
+/// its id (C53: every nothing says which nothing). The one rule, read by
+/// the scope's span here and by a search row's place, so one tab has one
+/// name on every line (round 2's close); whether a tab is remove-only is
+/// read from the raw name, never from this (C117).
+pub fn location_name(name: &str) -> Option<String> {
+    let text = name.trim();
+    let text = text.strip_suffix(REMOVE_ONLY).unwrap_or(text).trim();
+    (!text.is_empty()).then(|| name.to_string())
 }
 
 /// What the scope block says was searched (C96).
@@ -64,8 +81,8 @@ pub struct Coverage {
     pub never_fetched: usize,
     /// The types that have a location never fetched, the most never
     /// fetched first, each counted as `tabs` counts a type: its
-    /// locations, how many were fetched — the never fetched are the
-    /// difference — and the live items in scope there (C118). A tab's
+    /// locations, how many were fetched and how many never were, and the
+    /// live items at every location of the type, fetched or not (C118). A tab's
     /// type is GGG's, verbatim, as `tabs` gives it; a character's is
     /// `character`. Over the scope's realm in every league, never
     /// narrowed by the query, since what a never-fetched location holds
@@ -145,8 +162,14 @@ impl FetchSpan {
 pub struct TabType {
     #[serde(rename = "type")]
     pub kind: String,
+    /// Every location of the type.
     pub tabs: usize,
+    /// How many of them were fetched.
     pub fetched: usize,
+    /// How many of them were never fetched, `tabs` less `fetched` (S10:
+    /// a seat subtracted by hand).
+    pub never: usize,
+    /// The live items at every location of the type, fetched or not.
     pub items: i64,
 }
 
@@ -180,7 +203,7 @@ pub fn of(
         };
         (kind, l.fetched_at.is_some(), *here)
     }));
-    never_fetched_by_type.retain(|t| t.tabs > t.fetched);
+    never_fetched_by_type.retain(|t| t.never > 0);
     let mut by_league: Vec<(&str, usize)> = Vec::new();
     for league in holds_items
         .iter()
@@ -193,11 +216,7 @@ pub fn of(
         }
     }
     by_league.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
-    never_fetched_by_type.sort_by(|a, b| {
-        (b.tabs - b.fetched)
-            .cmp(&(a.tabs - a.fetched))
-            .then_with(|| a.kind.cmp(&b.kind))
-    });
+    never_fetched_by_type.sort_by(|a, b| b.never.cmp(&a.never).then_with(|| a.kind.cmp(&b.kind)));
     let mut leagues: Vec<String> = locations
         .iter()
         .filter_map(|(l, _)| l.league.clone())
@@ -268,6 +287,7 @@ pub fn by_type<'a>(locations: impl IntoIterator<Item = (&'a str, bool, i64)>) ->
                     kind: kind.to_string(),
                     tabs: 0,
                     fetched: 0,
+                    never: 0,
                     items: 0,
                 });
                 by_type.len() - 1
@@ -276,6 +296,7 @@ pub fn by_type<'a>(locations: impl IntoIterator<Item = (&'a str, bool, i64)>) ->
         let counted = &mut by_type[at];
         counted.tabs += 1;
         counted.fetched += usize::from(fetched);
+        counted.never += usize::from(!fetched);
         counted.items += items;
     }
     by_type.sort_by(|a, b| b.items.cmp(&a.items).then_with(|| a.kind.cmp(&b.kind)));

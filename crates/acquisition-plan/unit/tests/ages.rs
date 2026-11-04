@@ -77,8 +77,8 @@ fn c126_a_league_the_list_holds_in_another_realm_is_noted() {
 }
 
 /// C53: a plan's note that the realm's character listing names no
-/// character in the league says when that listing was fetched, in
-/// words at the time given, as the note's text does.
+/// character in the league says when that listing was fetched, measured
+/// before the plan's `generated_at`, as the note's text does.
 #[test]
 fn c53_the_no_characters_note_says_its_listings_age() {
     let mut s = acquisition_store::Store::open_memory().unwrap();
@@ -110,10 +110,13 @@ fn c53_the_no_characters_note_says_its_listings_age() {
     )
     .unwrap();
     let snapshot = s.refresh_snapshot("pc", "Standard", &a).unwrap();
-    let notes = plan_notes(&snapshot, 100 + 5 * 3_600);
+    // measured before the plan's own `generated_at`, as the plan's
+    // wrapper measures its listings, whatever the answer's time (C53, one
+    // clock per age)
+    let notes = plan_notes(&snapshot, 100 + 9 * 3_600, 100 + 5 * 3_600);
     assert!(notes.no_characters_listed, "{notes:?}");
     assert_eq!(
         notes.character_listing_fetched_at_age.as_deref(),
-        Some("5h ago")
+        Some("5h before generated_at")
     );
 }

@@ -137,6 +137,8 @@ pub enum Jobs {
 pub struct ByState {
     pub running: usize,
     pub waiting: usize,
+    /// The finished jobs a daemon holds, a live count: the ledger records
+    /// none (C146).
     pub done: usize,
     pub failed: usize,
     pub cancelled: usize,
@@ -148,7 +150,8 @@ pub struct ByState {
 /// from now — a start, never an end.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct JobCounts {
-    /// Every job the list holds.
+    /// Every job the list holds: on the live list, every job this daemon
+    /// holds, those submitted to it and those it restored alike.
     pub total: usize,
     pub by_state: ByState,
     #[serde(skip_serializing_if = "Option::is_none")]

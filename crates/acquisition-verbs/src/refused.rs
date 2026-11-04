@@ -1,7 +1,8 @@
 //! The bodies the store refused as malformed, listed as one document
 //! (C149, every answer one object, its lists counted beside their rows):
 //! the rows the store's listing returns, newest first, under `rows`,
-//! beside `returned` and the `limit` the request named. The rows are the
+//! beside `returned`, the `limit` the request named and `total`, every
+//! body on record. The rows are the
 //! store's own, their bodies left on disk; a redesign of what a row says
 //! (#18) is additive on this object.
 
@@ -15,6 +16,9 @@ pub struct RefusedBodies {
     pub limit: usize,
     /// How many it returned.
     pub returned: usize,
+    /// How many are on record, `returned` among them (C146: whether more
+    /// exist than were returned).
+    pub total: usize,
     pub rows: Vec<Refused>,
 }
 
@@ -30,6 +34,7 @@ impl RefusedBodies {
         Ok(RefusedBodies {
             limit,
             returned: rows.len(),
+            total: store.refused_total()?,
             rows,
         })
     }

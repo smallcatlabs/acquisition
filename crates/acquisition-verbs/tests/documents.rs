@@ -418,6 +418,64 @@ async fn an_empty_plan_is_nothing_with_its_skipped_and_no_daemon() {
     assert!(client.is_none());
 }
 
+/// C53 (one clock per age): the plan's note that no character is listed
+/// in the league says its character listing's age as the plan's wrapper
+/// does, measured before the plan's `generated_at`, never at the answer's
+/// time — one key name, one clock — on a populated note answered three
+/// hours after the plan was made.
+#[test]
+fn c53_the_plan_note_and_its_wrapper_measure_the_character_listing_alike() {
+    use acquisition_plan::{PlanNotes, plan_notes};
+    use acquisition_verbs::refresh::{PlanAges, Planned};
+    let s = scratch();
+    let account = profiled(&s.mock);
+    account
+        .set_policy(
+            &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+                { "tabs": "all", "characters": "all", "max_age_seconds": 3600 } } } } }),
+            Expect::Create,
+            PolicyWrite::Replace,
+        )
+        .unwrap();
+    let mut opened = account.open().unwrap();
+    listing(&mut opened.facts, 1_900, json!([]));
+    opened
+        .facts
+        .record(
+            &Endpoint::Characters { realm: "pc".into() },
+            &json!({}),
+            200,
+            &json!({ "characters": [ { "id": "c1", "name": "Elsewhere", "league": "Mirage" } ] }),
+            1_820,
+        )
+        .unwrap();
+    let plan = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
+    let snapshot = opened
+        .facts
+        .refresh_snapshot("pc", "Standard", &opened.intent)
+        .unwrap();
+    let answered = 2_000 + 3 * 3_600;
+    let generated_at = plan.generated_at;
+    let planned = Planned {
+        plan,
+        ages: PlanAges::default(),
+        quote_note: None,
+        notes: plan_notes(&snapshot, answered, generated_at),
+        uncovered_tabs: None,
+    }
+    .aged(answered);
+    assert!(planned.notes != PlanNotes::default(), "{:?}", planned.notes);
+    let doc = serde_json::to_value(&planned).unwrap();
+    assert_eq!(
+        doc["character_listing_fetched_at_age"], "3m before generated_at",
+        "{doc}"
+    );
+    assert_eq!(
+        doc["notes"]["character_listing_fetched_at_age"], doc["character_listing_fetched_at_age"],
+        "{doc}"
+    );
+}
+
 /// C53 (an age the text prints stands in words beside its epoch, made
 /// at the answer's own time) and the envelope's schema contract (round 6
 /// of step 2g, the second cold review's finding 7): a plan's ages stand

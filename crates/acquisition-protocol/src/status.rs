@@ -20,6 +20,8 @@ pub struct RailsStatus {
     /// trip or ceiling.
     pub halted: Option<String>,
     pub refresh_failed: Option<String>,
+    /// The sends since this daemon started: never persisted, so a
+    /// journal that spans lifetimes holds more.
     pub sends: u64,
     pub max_sends: Option<u64>,
     /// The send journal: its path when it opened, the words of why not

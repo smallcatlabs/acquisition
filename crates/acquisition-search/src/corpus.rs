@@ -88,7 +88,9 @@ use acquisition_store::corpus::{
 use acquisition_store::{Annotations, Store, age};
 // C162: coverage is the store's one derivation, under the paths it had here
 pub(crate) use acquisition_store::coverage::is_folder;
+// a location's name is the store's one rule, the scope's and a row's alike
 pub use acquisition_store::coverage::{Coverage, FetchSpan, FetchedLocation};
+use acquisition_store::coverage::{REMOVE_ONLY, location_name};
 use serde::{Deserialize, Serialize};
 
 use crate::answer::{Membership, Request};
@@ -444,18 +446,6 @@ pub(crate) fn celled(mut place: Place, item: &crate::derive::Item) -> Place {
     place
 }
 
-/// The mark GGG ends a remove-only tab's name with, a substash's too
-/// (N47).
-pub(crate) const REMOVE_ONLY: &str = "(Remove-only)";
-
-/// A location's name, or none where GGG's holds no text but the mark it
-/// adds to a remove-only tab's.
-fn named(name: &str) -> Option<String> {
-    let text = name.trim();
-    let text = text.strip_suffix(REMOVE_ONLY).unwrap_or(text).trim();
-    (!text.is_empty()).then(|| name.to_string())
-}
-
 /// One row of the store's read as the deriver's facts and the item's
 /// place, by name and id. What an item is socketed in is named by
 /// [`Corpus::load`], which holds every item.
@@ -478,7 +468,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         league: row.league.clone(),
         kind: row.location_kind.clone(),
         id: row.location_id.clone(),
-        name: location.and_then(|l| named(&l.name)),
+        name: location.and_then(|l| location_name(&l.name)),
         tab_type: location
             .filter(|l| l.kind == "stash")
             .and_then(|l| l.tab_type.clone())

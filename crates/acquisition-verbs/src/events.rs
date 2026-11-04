@@ -98,7 +98,9 @@ pub struct KindTotals {
 pub struct EventSummary {
     pub hours: f64,
     pub limit: usize,
-    /// The events summarized: those the read returned.
+    /// The events summarized: those the read returned, the newest of the
+    /// window, never the window's whole (C146: under `limit_reached` the
+    /// window may hold more).
     pub events: usize,
     pub limit_reached: bool,
     pub by_kind: KindTotals,
@@ -107,7 +109,7 @@ pub struct EventSummary {
     /// The locations listed, the newest activity first: ten, or every
     /// one under `expand`.
     pub rows: Vec<LocationChanges>,
-    /// The locations not in `rows`.
+    /// The locations not in `rows`: locations, never events.
     pub left_out: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,

@@ -1185,7 +1185,8 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     .unwrap();
     for (page, name, at) in [
         ("p1", "", 21),
-        ("p2", " (Remove-only)", 22),
+        // the newest page fetched, so the scope and the total name it
+        ("p2", " (Remove-only)", 24),
         ("p3", "Rings", 23),
     ] {
         s.record(
@@ -1219,6 +1220,18 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
             ("i-p3".to_string(), json!("Rings"), json!("~price 1 chaos")),
         ]
     );
+    // the scope's and the total's newest fetch name that page as the
+    // row's place does: by its id, no name (round 2's close: the scope
+    // kept the mark as the name); the raw name still decides
+    // `tab.remove_only` (C117, pinned by its field test)
+    for at in ["scope", "total"] {
+        assert_eq!(
+            a[at]["newest_fetch_location"],
+            json!({ "kind": "stash", "id": "p2", "name": null, "league": "Standard" }),
+            "{at}: {}",
+            a[at]
+        );
+    }
 }
 
 /// "Where do I pick it up" needed the item's cell, which three runs found
@@ -1429,9 +1442,9 @@ fn the_scope_says_the_never_fetched_by_tab_type() {
     assert_eq!(
         a["scope"]["never_fetched_by_type"],
         json!([
-            { "type": "MapStash", "tabs": 4, "fetched": 2, "items": 1 },
-            { "type": "PremiumStash", "tabs": 2, "fetched": 1, "items": 1 },
-            { "type": "character", "tabs": 1, "fetched": 0, "items": 0 },
+            { "type": "MapStash", "tabs": 4, "fetched": 2, "never": 2, "items": 1 },
+            { "type": "PremiumStash", "tabs": 2, "fetched": 1, "never": 1, "items": 1 },
+            { "type": "character", "tabs": 1, "fetched": 0, "never": 1, "items": 0 },
         ])
     );
     // the leagues a tab never fetched sits in, a character's apart

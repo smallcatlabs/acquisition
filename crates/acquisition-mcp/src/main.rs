@@ -690,7 +690,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "job counts",
-        "list_jobs with a daemon running: `running: true`, `total` every job it lists, `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs by id (not by when they run: priority decides that, so a running job can be left out) and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
+        "list_jobs with a daemon running: `running: true`, `total` every job this daemon holds (restored ones too), `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs by id (not by when they run: priority decides that, so a running job can be left out) and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
     ),
     (
         "ledger",
@@ -702,7 +702,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "another daemon",
-        "daemon_status `running: true, compatible: false`: a daemon of another contract, artifact, provider or world, reported by its identity alone — contract_matches, artifact_matches, provider_matches, world_matches; artifact_relation same_file, same_bytes for another copy, different, unhashable, no_sibling or unreported, against the acqd beside this server; `wanted` this server's own — and never replaced by this server. A compatible one adds its vitals: provider, uptime, idle_shutdown_seconds, connections, queue counts, rate-limit policies learned, the rails state with the journal path, keyring health and `log`, the file it opened",
+        "daemon_status `running: true, compatible: false`: a daemon of another contract, artifact, provider or world, reported by its identity alone — contract_matches, artifact_matches, provider_matches, world_matches; artifact_relation same_file, same_bytes for another copy, different, unhashable, no_sibling or unreported, against the acqd beside this server; `wanted` this server's own — and never replaced by this server. A compatible one adds its vitals: provider, uptime, idle_shutdown_seconds, connections, queue counts, rate-limit policies learned and `rails.sends` since this daemon started, the rails state with the journal path, keyring health and `log`, the file it opened",
     ),
     (
         "wedged",
@@ -725,7 +725,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "tab counts",
-        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first, each type's `never` its never fetched); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
     ),
     (
         "character counts",
@@ -733,7 +733,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "event counts",
-        "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
+        "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, the returned ones, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
     ),
     (
         "leagues held",
@@ -1513,7 +1513,7 @@ impl AcqMcp {
     // ---- store reads: no daemon, no GGG traffic ----
 
     #[tool(
-        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file and `last_login`, the last sign-in or token refresh: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn accounts(&self, Parameters(p): Parameters<Args<AccountsParams>>) -> Told {
         answer(|| {

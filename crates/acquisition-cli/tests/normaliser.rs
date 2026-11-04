@@ -265,6 +265,11 @@ fn the_age_rule_keeps_a_padded_cells_width_whatever_the_ages_digits() {
         n("location list seen 20391d ago \u{b7} each tab\n"),
         "location list seen <age> ago \u{b7} each tab\n"
     );
+    // an age a plan measures before itself is the test's timing too
+    assert_eq!(
+        n("(the realm's character listing, listed 17s before the plan)\n"),
+        "(the realm's character listing, listed <age> before the plan)\n"
+    );
 }
 
 #[test]

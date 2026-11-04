@@ -2035,6 +2035,15 @@ impl Store {
 
     // ---- the read side (frontends) ---------------------------------------
 
+    /// How many bodies `record` refused as malformed: every one on
+    /// record, the whole a bounded `refused_list` reads part of.
+    pub fn refused_total(&self) -> Result<usize> {
+        let n: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM refused", [], |r| r.get(0))?;
+        Ok(usize::try_from(n).unwrap_or(0))
+    }
+
     /// Bodies `record` refused as malformed, newest first, without their
     /// bodies (`Refused::body` is `None`); `refused` reads one with it.
     pub fn refused_list(&self, limit: usize) -> Result<Vec<Refused>> {

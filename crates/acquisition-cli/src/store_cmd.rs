@@ -109,7 +109,7 @@ pub fn accounts(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
     for e in &accounts.accounts {
         let size = std::fs::metadata(&e.store).map(|m| m.len()).unwrap_or(0);
         println!(
-            "{:<24} last login {:<10} {:<14} store {:.1} MB{}",
+            "{:<24} last sign-in or token refresh {:<10} {:<14} store {:.1} MB{}",
             e.username,
             ago(now, Some(e.last_login)),
             if e.persisted {
@@ -640,7 +640,8 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
 
 /// Bodies the store refused as malformed: the list, or one body in full.
 pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()> {
-    let store = open(cx)?;
+    let account = cx.account()?;
+    let store = account.facts()?;
     if let Some(id) = id {
         let Some(row) = store.refused(id)? else {
             anyhow::bail!("no refused body with id {id} (see `acq store refused`)");
@@ -664,8 +665,8 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
         }
         return Ok(());
     }
-    // one document (C149): the rows under `rows`, `returned` and `limit`
-    // beside them
+    // one document (C149): the rows under `rows`, `returned`, `limit` and
+    // `total` beside them
     let now = acquisition_store::now();
     let listed = acquisition_verbs::RefusedBodies::read(&store, limit, now)?;
     if json {
@@ -683,9 +684,23 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
             r.reason
         );
     }
+    // C146: the rows shown of the whole on record, and where they are
+    // part of it the command that lists them all, carrying the account
+    // read (C156: a printed command runs as printed)
+    let bodies = |n: usize| crate::plural(n, "refused body", "refused bodies");
+    let counted = if listed.returned < listed.total {
+        format!(
+            "{} shown of {} on record; `acq store refused {} --limit {}` lists them all",
+            bodies(listed.returned),
+            listed.total,
+            crate::price_cmd::write_flags(&account.entry.username),
+            listed.total
+        )
+    } else {
+        format!("{} on record", bodies(listed.total))
+    };
     println!(
-        "{} refused body(ies){}",
-        rows.len(),
+        "{counted}{}",
         if rows.is_empty() {
             ""
         } else {
@@ -784,13 +799,17 @@ pub fn events(
         "{} event(s){}",
         ev.returned,
         if ev.limit_reached {
-            " (limit reached)"
+            format!(" (limit reached: {MAY_HOLD_MORE})")
         } else {
-            ""
+            String::new()
         }
     );
     Ok(())
 }
+
+/// C146: what a limit met says of the window — not proof of more, and
+/// what reads more.
+const MAY_HOLD_MORE: &str = "the window may hold more; a larger `--limit` reads more events";
 
 /// The window's hours as the text says them: whole, or to a tenth.
 fn hours_words(hours: f64) -> String {
@@ -811,8 +830,14 @@ pub(crate) fn event_summary_text(
     now: i64,
 ) -> String {
     let hours = hours_words(listed.hours);
+    // C146: the counts are the returned events'; where the limit was met
+    // they are the window's newest, and the window may hold more
     if listed.events == 0 {
-        return format!("0 events in the last {hours} h\n");
+        return if listed.limit_reached {
+            format!("the newest 0 events in the last {hours} h ({MAY_HOLD_MORE})\n")
+        } else {
+            format!("0 events in the last {hours} h\n")
+        };
     }
     let total = LocationChanges {
         added: listed.by_kind.added,
@@ -823,15 +848,20 @@ pub(crate) fn event_summary_text(
     };
     let summed = counts(&total).replace(" moved in", " moved");
     let mut out = format!(
-        "{} event{} at {} location{} in the last {hours} h: {summed}{}\n",
+        "{}{} event{} at {} location{} in the last {hours} h{}: {summed}\n",
+        if listed.limit_reached {
+            "the newest "
+        } else {
+            ""
+        },
         listed.events,
         if listed.events == 1 { "" } else { "s" },
         listed.locations,
         if listed.locations == 1 { "" } else { "s" },
         if listed.limit_reached {
-            " (limit reached)"
+            format!(" ({MAY_HOLD_MORE})")
         } else {
-            ""
+            String::new()
         }
     );
     let rows = &listed.rows;
@@ -863,21 +893,29 @@ pub(crate) fn event_summary_text(
             ago(now, Some(r.last))
         ));
     }
+    // a printed command carries the request's values exactly, never
+    // their display rounding (round 3's review, P2: `--hours 0.04`
+    // printed as `--hours 0.0` read an empty window): the hours as the
+    // request held them, shortest round-trip
+    let every = format!(
+        "`acq store events {} --hours {} --limit {} --summary --expand`",
+        crate::price_cmd::write_flags(account),
+        listed.hours,
+        listed.limit
+    );
+    // the command is said once: with the count of the locations left
+    // out where there are some, else as the footer
     if listed.left_out > 0 {
-        // a printed command carries the request's values exactly, never
-        // their display rounding (round 3's review, P2: `--hours 0.04`
-        // printed as `--hours 0.0` read an empty window): the hours as
-        // the request held them, shortest round-trip
         out.push_str(&format!(
-            "{} of {} locations listed: `acq store events {} --hours {} --limit {} --summary --expand` lists every one\n",
+            "{} of {} locations listed: {every} lists every one\n",
             rows.len(),
             listed.locations,
-            crate::price_cmd::write_flags(account),
-            listed.hours,
-            listed.limit
+        ));
+    } else {
+        out.push_str(&format!(
+            "({every} lists every location the returned events touched)\n"
         ));
     }
-    out.push_str("(--expand lists every event)\n");
     out
 }
 

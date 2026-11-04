@@ -210,7 +210,7 @@ fn rows_line(r: &ListingReport) -> Option<String> {
         || rows.other_realm > 0)
         .then(|| {
             format!(
-                "rows: {} of {} apply here; {} name nothing in the facts, {} unreadable, {} for other leagues, {} for other realms\n",
+                "rows: {} of {} apply here; {} name nothing in this league's facts, {} unreadable, {} for other leagues, {} for other realms\n",
                 rows.applied,
                 rows.total,
                 rows.unmatched_total,
@@ -226,7 +226,7 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
     let mut out = String::new();
     let rows = &r.rows;
     if !rows.unmatched.is_empty() {
-        out.push_str("rows naming nothing in the facts:\n");
+        out.push_str("rows naming nothing in this league's facts:\n");
         for m in &rows.unmatched {
             out.push_str(&format!(
                 "  {}: {}, revision {}\n",
@@ -363,16 +363,30 @@ fn render_status(
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
     let c = &r.counts;
     if c.items == 0 {
-        if h.stash_listing.is_none() && h.character_listing.is_none() {
-            out.push_str(&format!(
-                "nothing on record for {place}: no stash listing, no character listing\n"
-            ));
+        // C146 (every nothing says which nothing): three branches whose
+        // guards exclude one another — no listing and no location;
+        // locations and no listing; a listing — the fetched count the
+        // facts' own, so the sentence never contradicts the facts line
+        // beside it (round 4's close)
+        let facts = &r.facts;
+        let fetched = match facts.fetched {
+            0 => "none fetched".to_string(),
+            m => format!("{m} fetched"),
+        };
+        let unlisted = h.stash_listing.is_none() && h.character_listing.is_none();
+        out.push_str(&if unlisted && facts.places == 0 {
+            format!("nothing on record for {place}: no stash listing, no character listing\n")
+        } else if unlisted {
+            format!(
+                "no items on record for {place}: {}, {fetched}, none with items; no stash listing, no character listing\n",
+                plural(facts.places, "location", "locations")
+            )
         } else {
-            out.push_str(&format!(
-                "no items on record for {place}: {} listed, none fetched with items\n",
+            format!(
+                "no items on record for {place}: {} listed, {fetched}, none with items\n",
                 plural(c.containers, "tab or character", "tabs and characters")
-            ));
-        }
+            )
+        });
         out.push_str(&status_facts(r, now));
         out.push_str(leagues);
         if let Some(line) = rows_line(r) {
@@ -461,8 +475,15 @@ fn render_status(
             String::new()
         };
         out.push_str(&format!(
-            "in game also: {} (~skip), {} (no effect: a hand row or its tab's name applies, where either does){listed}\n",
-            plural(skipped, "item skipped", "items skipped"),
+            "in game also: {} (a hand row nearer the item still applies), {} (no effect: a hand row or its tab's name applies, where either does){listed}\n",
+            // C146 and C81: the game-side statements in public tabs alone;
+            // a non-public tab's skip text is price text the site cannot
+            // see, counted above
+            plural(
+                skipped,
+                "item with a game-side ~skip statement in a public tab",
+                "items with a game-side ~skip statement in a public tab"
+            ),
             plural(
                 invalid,
                 "note starts like a price and does not read as one",
@@ -1170,7 +1191,7 @@ fn render_write(
             if in_facts == Some(false) {
                 out.push_str(&format!(
                     "note: the facts hold no {target} (not fetched yet, or a typo); the row stands, \
-                     and `acq price status` counts it under \"name nothing in the facts\"\n"
+                     and `acq price status` counts it under \"name nothing in this league's facts\"\n"
                 ));
             }
             if let Some(note) = note {
@@ -1349,7 +1370,7 @@ mod tests {
         );
         assert_eq!(
             lines[5],
-            "rows: 1 of 2 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms"
+            "rows: 1 of 2 apply here; 1 name nothing in this league's facts, 0 unreadable, 0 for other leagues, 0 for other realms"
         );
         assert_eq!(
             lines[6],
@@ -1372,7 +1393,9 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in the facts:\n  item/i-gone: skip, revision 5\n"),
+            text.contains(
+                "rows naming nothing in this league's facts:\n  item/i-gone: skip, revision 5\n"
+            ),
             "{text}"
         );
 
@@ -1385,8 +1408,43 @@ mod tests {
         let text = render_status(&r, 8_000, false, "a", "");
         assert!(
             text.contains(
-                "in game also: 0 items skipped (~skip), 1 note starts like a price and does not read as one (no effect: a hand row or its tab's name applies, where either does); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
+                "in game also: 0 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies), 1 note starts like a price and does not read as one (no effect: a hand row or its tab's name applies, where either does); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
             ),
+            "{text}"
+        );
+
+        // C146 and C81: the skip count is the game-side statements in
+        // public tabs, and a hand row nearer the item still applies over
+        // a tab's `~skip`; a tab that is not public states nothing, its
+        // `~skip` is price text the site cannot see
+        let mut skips = snapshot();
+        skips
+            .tabs
+            .push(tab("k1", None, "~skip", "PremiumStash", true));
+        for i in 0..2 {
+            skips
+                .items
+                .push(item(&format!("i-k{i}"), "stash", "k1", None));
+        }
+        skips.buyouts.push(row(
+            "item",
+            "i-k0",
+            json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chaos" }),
+            6,
+        ));
+        let text = render_status(&resolve(&skips).unwrap(), 8_000, false, "a", "");
+        assert!(
+            text.contains(
+                "in game also: 2 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies), 0 notes start like a price"
+            ),
+            "{text}"
+        );
+        skips.tabs.last_mut().unwrap().metadata = json!({});
+        let r = resolve(&skips).unwrap();
+        let text = render_status(&r, 8_000, false, "a", "");
+        assert!(!text.contains("~skip statement"), "{text}");
+        assert!(
+            text.contains("5 items carry price text the trade site cannot see"),
             "{text}"
         );
 
@@ -1411,22 +1469,62 @@ mod tests {
         empty.items.clear();
         let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a", "");
         // no items is not no locations: the full view's facts line
-        assert!(text.starts_with(&format!("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n{facts}\n")), "{text}");
+        assert!(text.starts_with(&format!("no items on record for Standard: 4 tabs and characters listed, 4 fetched, none with items\n{facts}\n")), "{text}");
         assert!(
             text.ends_with(
                 "next: `acq refresh --plan --account a --realm pc --league Standard` shows what a refresh would fetch\n"
             ),
             "{text}"
         );
+        // C146: the zero-item status's three branches, their guards
+        // exclusive — neither listing and no location; neither listing
+        // and locations; a listing — each opening sentence beside the
+        // facts line, the fetched count the facts' own (round 4's close:
+        // "nothing on record" stood beside four fetched locations)
+        let opening = |s: &PricingSnapshot| {
+            let text = render_status(&resolve(s).unwrap(), 8_000, false, "a", "");
+            let lines: Vec<String> = text.lines().take(2).map(str::to_string).collect();
+            assert!(lines[1].starts_with("facts: "), "{text}");
+            lines[0].clone()
+        };
+        let unfetched = |s: &mut PricingSnapshot| {
+            for t in &mut s.tabs {
+                t.fetched_at = None;
+            }
+            for c in &mut s.characters {
+                c.fetched_at = None;
+            }
+        };
+        // a listing, M 0
+        let mut listed_unfetched = empty.clone();
+        unfetched(&mut listed_unfetched);
+        assert_eq!(
+            opening(&listed_unfetched),
+            "no items on record for Standard: 4 tabs and characters listed, none fetched, none with items"
+        );
+        // neither listing, locations, M > 0
         empty.stash_listing = None;
         empty.character_listing = None;
         let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a", "");
         assert!(
             text.starts_with(
-                "nothing on record for Standard: no stash listing, no character listing\n\
+                "no items on record for Standard: 4 locations, 4 fetched, none with items; no stash listing, no character listing\n\
                  facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash never listed, characters never listed\n"
             ),
             "{text}"
+        );
+        // neither listing, locations, M 0
+        unfetched(&mut empty);
+        assert_eq!(
+            opening(&empty),
+            "no items on record for Standard: 4 locations, none fetched, none with items; no stash listing, no character listing"
+        );
+        // neither listing, no location
+        empty.tabs.clear();
+        empty.characters.clear();
+        assert_eq!(
+            opening(&empty),
+            "nothing on record for Standard: no stash listing, no character listing"
         );
     }
 
@@ -1864,9 +1962,9 @@ mod tests {
         let text = render_status(&r, 8_000, false, "a", "");
         assert_eq!(
             text,
-            "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
+            "no items on record for Standard: 4 tabs and characters listed, 4 fetched, none with items\n\
              facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago\n\
-             rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
+             rows: 0 of 3 apply here; 2 name nothing in this league's facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
              next: `acq price status --account a --realm pc --league Standard --expand` lists the rows that cannot be read\n"
         );
         let text = render_status(&r, 8_000, true, "a", "");
@@ -1875,7 +1973,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in the facts:\n  item/i-01: skip, revision 4\n  item/i-gone: skip, revision 5\n"),
+            text.contains("rows naming nothing in this league's facts:\n  item/i-01: skip, revision 4\n  item/i-gone: skip, revision 5\n"),
             "{text}"
         );
     }
@@ -1926,7 +2024,7 @@ mod tests {
             render_write(&created, Some(false), None, "a"),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              note: the facts hold no item/i1 (not fetched yet, or a typo); the row stands, \
-             and `acq price status` counts it under \"name nothing in the facts\"\n\
+             and `acq price status` counts it under \"name nothing in this league's facts\"\n\
              next: `acq price show --account a item/i1` reads it beside the game side; \
              `acq price clear --account a item/i1 --if-revision 1` undoes it\n"
         );

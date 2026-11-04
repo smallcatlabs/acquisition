@@ -204,3 +204,17 @@ fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     );
     finish_harness(None, &log);
 }
+
+/// C3 (the idle default, an hour): the protocol's field doc says the
+/// default the daemon starts with, read from the daemon's own constant,
+/// so the doc a frontend's author reads cannot drift from it again (it
+/// said 60 after the default became 3600).
+#[test]
+fn the_protocols_idle_doc_says_the_daemons_default() {
+    let protocol = include_str!("../../../../acquisition-protocol/src/protocol.rs");
+    let said = format!("default {}, one hour", IDLE_SHUTDOWN.as_secs());
+    assert!(
+        protocol.contains(&said),
+        "the protocol's `idle_shutdown_seconds` doc does not say `{said}`"
+    );
+}

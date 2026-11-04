@@ -56,7 +56,11 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     let mut t = Transcript::new(&base);
     let out = t.run(
         &["jobs"],
-        &["2 waiting, 1 recorded running", "Standard/tab3"],
+        &[
+            "2 waiting, 1 recorded running",
+            "Standard/tab3",
+            "3 jobs on disk: 1 recorded running, 2 waiting; done not recorded",
+        ],
     );
     assert!(out.status.success(), "{out:?}");
     let shown = text(&out);

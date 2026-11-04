@@ -159,7 +159,7 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
             // the league the rows price is named beside the one read
             // (round 5 of the answer-facts group; the CLI-2 seat's fault 6)
             "leagues: Standard (this); also held: Allflame (1 tab, no policy)",
-            "1 name nothing in the facts",
+            "1 name nothing in this league's facts",
             "2 for other leagues",
         ],
     );
@@ -594,7 +594,9 @@ fn jobs_lists_what_is_open_and_counts_the_finished_it_leaves_out() {
         "the earliest is left out:\n{said}"
     );
     assert!(
-        said.contains("12 jobs: 0 running, 0 waiting, 12 done"),
+        said.contains(
+            "12 jobs this daemon holds (its own and the restored): 0 running, 0 waiting, 12 done"
+        ),
         "{said}"
     );
     assert!(
@@ -1521,6 +1523,68 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     );
     golden(file!(), "place_and_its_age", &t);
+}
+
+/// Round 2's close: a tab whose name is GGG's remove-only mark alone was
+/// named by its id on a row and on the total line, and by the mark on the
+/// scope's oldest fetch, the store's one rule then keeping the mark as a
+/// name: one tab, two names. C53 (every nothing says which nothing): the
+/// four places name it alike, by its id.
+#[test]
+fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
+    let scratch = harness::scratch("seat-remove-only");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    // Standard's tab, fetched three days ago under the mark alone
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let then = acquisition_store::now() - 3 * 86_400 - 60;
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "a1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": " (Remove-only)", "type": "PremiumStash", "items": [
+                { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            then,
+        )
+        .unwrap();
+    drop(store);
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["search", "--realm", "pc", "league=Standard"],
+        &[
+            "total   1 match (fetched 3d ago, Standard / a1)",
+            "rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched 3d ago",
+        ],
+    );
+    let json = sole_json(&acq(
+        &base,
+        &["search", "--realm", "pc", "league=Standard", "--json"],
+    ));
+    let a1 = json!({ "kind": "stash", "id": "a1", "name": null, "league": "Standard" });
+    assert_eq!(
+        json["scope"]["oldest_fetch_location"], a1,
+        "{}",
+        json["scope"]
+    );
+    assert_eq!(
+        json["total"]["oldest_fetch_location"], a1,
+        "{}",
+        json["total"]
+    );
+    assert_eq!(
+        json["rows"][0]["place"]["name"],
+        Value::Null,
+        "{}",
+        json["rows"][0]
+    );
+    golden(file!(), "remove_only_tab_by_its_id", &t);
 }
 
 /// A seat quoted the scope's oldest fetch for 187 matches and named it

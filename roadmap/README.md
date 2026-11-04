@@ -648,6 +648,9 @@ reviews), went ahead of round 3 to the first parked worker, handed
 its brief by message, and landed on 2026-11-04 as one commit
 (`a6c2b121`); reviewed (two P2s, a P3), fixed in one round
 (`497575f5`) and reviewed clean; closed the same day (`LEDGER.md`),
-#157 and #22 closed. Current: round 3, waiting on two amendments of
-C163 the owner has before him; the second parked worker waits for its
-brief; after it, the words round (S6 to S10) and the group's seat.
+#157 and #22 closed. Round 6, the words round (S6 to S10,
+`briefs/words-extents.md`, cut three times under two cold reviews),
+went ahead of round 3 to the second parked worker and landed on
+2026-11-04 as one commit, this line's; its review is pending. Current:
+round 3, waiting on two amendments of C163 the owner has before him;
+after it, the group's seat.

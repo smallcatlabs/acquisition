@@ -592,15 +592,17 @@ pub enum Response {
         provider: String,
         uptime_seconds: u64,
         /// The idle exit this daemon was started with (`ACQ_IDLE_SHUTDOWN`,
-        /// default 60): with no connection, no live job and no live
-        /// limiter history for this long, it exits. Reported so the
-        /// README's recipe for a longer-lived daemon can be checked.
+        /// default 3600, one hour (C3)): with no connection, no live job
+        /// and no live limiter history for this long, it exits. Reported
+        /// so the README's recipe for a longer-lived daemon can be
+        /// checked.
         #[serde(default)]
         idle_shutdown_seconds: u64,
         connections: usize,
         jobs_waiting: usize,
         jobs_running: usize,
-        /// Rate-limit policies learned from responses so far.
+        /// Rate-limit policies learned from responses since this daemon
+        /// started: the limiter is never persisted.
         policies_known: usize,
         in_flight: usize,
         max_in_flight: usize,

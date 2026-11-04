@@ -345,7 +345,7 @@ fn a_never_listed_league_plans_the_listing_alone() {
     assert_eq!(plan.wire_sends.prerequisites.len(), 2);
 }
 
-/// C36 — coverage plus freshness compile to minimal requests (here none); C38 — the envelope carries provider, uuid, operation, schema stamp, fact basis and the policy revision even when empty.
+/// C36 — coverage plus freshness compile to minimal requests (here none); C38 — the envelope carries provider, uuid, operation, schema stamp, fact basis and the policy revision even when empty; C77 — freshness is judged at compile against the window, so the same facts compiled a cycle later, past the window, fetch the tab the first compile skipped.
 #[test]
 fn fresh_facts_compile_to_an_empty_plan_that_still_cites_its_basis() {
     let mut s = store();
@@ -387,6 +387,19 @@ fn fresh_facts_compile_to_an_empty_plan_that_still_cites_its_basis() {
     assert_eq!(plan.basis.snapshot_taken_at, snap.taken_at);
     assert_eq!(plan.plan_schema, REFRESH_PLAN_SCHEMA);
     assert_eq!(plan.operation, "refresh");
+    // C77: the fresh fact is not pre-fetched at T; the same snapshot
+    // compiled at T + a cycle that outlasts the window (the tab fetched
+    // at 1010, its window 3600) fetches it, the replan correct
+    let later = plan_refresh("mock", &snap, 1010 + 3600 + 1).unwrap();
+    assert!(
+        later.actions.iter().any(|a| matches!(
+            a,
+            RefreshAction::FetchTab { id, .. } if id == "t1"
+        )),
+        "{:?}",
+        later.actions
+    );
+    assert!(later.skipped_tabs.is_empty(), "{:?}", later.skipped_tabs);
 }
 
 /// C36 — the policy's window, not a schedule, decides what is fetched.

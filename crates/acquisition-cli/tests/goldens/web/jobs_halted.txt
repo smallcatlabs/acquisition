@@ -7,7 +7,7 @@ GET jobs <the daemon halted>
 <main>
 <h1>Jobs</h1>
 <pre>
-rails:  tripwire ON · sends 0 · journal off
+rails:  tripwire ON · sends 0 since this daemon started · journal off
 HALTED: 429 on GET /stash/Standard (staged trip)
         clear with `acq daemon reset-tripwire` after the post-violation wait
 no jobs

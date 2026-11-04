@@ -932,3 +932,33 @@ fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
         (i64::MAX, json!({ "version": 1, "type": "skip" }))
     );
 }
+
+/// C146 (a count says what it counts, on every surface it stands): the
+/// receipt's `in_facts` is taken over every league, removed included,
+/// and the status's unmatched rows over this league's facts alone — two
+/// extents, two phrases; the skip count is the public tabs' game-side
+/// statements, a nearer hand row applying over them (C81).
+#[test]
+fn c146_the_glosses_name_the_extent_each_count_is_taken_over() {
+    let gloss = |name: &str| {
+        described()
+            .into_iter()
+            .find(|d| d.name == name)
+            .unwrap_or_else(|| panic!("no {name}"))
+            .what
+    };
+    let undo = gloss("undo");
+    assert!(
+        undo.contains("`in_facts` is whether the address exists in these facts in any league, removed included"),
+        "{undo}"
+    );
+    let status = gloss("status counts");
+    assert!(
+        status.contains("which name nothing in this league's facts (`unmatched`"),
+        "{status}"
+    );
+    assert!(
+        status.contains("`counts.by_game_statement` the items by the game side's statement in a public tab (exact, negotiable, skip, none; a hand row nearer the item still applies over a skip)"),
+        "{status}"
+    );
+}

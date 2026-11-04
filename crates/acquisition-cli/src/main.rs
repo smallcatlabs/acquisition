@@ -119,7 +119,7 @@ pub(crate) fn persisted_queue_text(jobs: &Jobs) -> Result<String> {
                 p.recorded_running,
                 store_cmd::ago(acquisition_store::now(), p.written_at),
                 rows_text(&jobs),
-                summary_text(&p.counts())
+                summary_text(&p.counts(), Counted::Ledger)
             );
             if p.left_out > 0 {
                 text.push_str(&format!(
@@ -931,8 +931,9 @@ enum DaemonCmd {
     /// The daemon running: pid, version, contract revision, the executable
     /// it runs from and its hash, provider, the world it serves
     /// (its canonical store root), uptime, the idle exit it was started with, connections, queue
-    /// counts, policies learned, the socket, log and journal paths, the
-    /// rails state, keyring health. Observes only: never spawns or
+    /// counts, policies learned since this daemon started, the socket,
+    /// log and journal paths, the rails state (its sends since this
+    /// daemon started), keyring health. Observes only: never spawns or
     /// replaces; with no daemon running, what the ledger on disk holds
     /// — `persisted`: `waiting`, `recorded_running`, `written_at`;
     /// `null` when this shell's world has no queue yet; a daemon of
@@ -2523,7 +2524,7 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
                     (None, _) => line!("acqd:   not reported"),
                 }
                 line!(
-                    "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known}"
+                    "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known} since this daemon started"
                 );
                 line!("socket: {}", found.socket());
                 line!("log:    {}", log.as_deref().unwrap_or("not reported"));
@@ -2542,7 +2543,9 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
 }
 
 /// The daemon's rails as `daemon status` prints them: the tripwire, the
-/// sends against their ceiling and the journal, then a halt with its
+/// sends against their ceiling, this daemon's lifetime's (C146: the
+/// limiter and the count are never persisted, while the journal beside
+/// them spans lifetimes), and the journal, then a halt with its
 /// cause and what clears it — the web UI's jobs page opens with it, so a
 /// queue that stands still says why. A journal that was not written is
 /// named by its path, the status's own field, before the daemon's words
@@ -2554,7 +2557,7 @@ pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> S
         (_, None) => "off".to_string(),
     };
     let mut out = format!(
-        "rails:  tripwire {} · sends {}{} · journal {journal}\n",
+        "rails:  tripwire {} · sends {}{} since this daemon started · journal {journal}\n",
         if rails.tripwire_enabled { "ON" } else { "off" },
         rails.sends,
         rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
@@ -2955,7 +2958,7 @@ pub(crate) fn jobs_text(listed: &Listed) -> String {
     if !listed.rows.is_empty() {
         out.push_str(&rows_text(&listed.rows));
     }
-    out.push_str(&summary_text(&listed.counts));
+    out.push_str(&summary_text(&listed.counts, Counted::Live));
     if listed.open_left_out > 0 {
         out.push_str(&format!(
             "{} more open jobs not listed (`acq jobs --all`)\n",
@@ -2979,7 +2982,7 @@ fn table_text(jobs: &[JobInfo]) -> String {
     if jobs.is_empty() {
         return "no jobs\n".to_string();
     }
-    rows_text(jobs) + &summary_text(&JobCounts::of(jobs))
+    rows_text(jobs) + &summary_text(&JobCounts::of(jobs), Counted::Selected)
 }
 
 fn rows_text(jobs: &[JobInfo]) -> String {
@@ -3054,15 +3057,34 @@ fn rows_text(jobs: &[JobInfo]) -> String {
     out
 }
 
-/// The last line of a job table: the counts by state, and for what waits
-/// when the next starts and when the last does — a start, never an end:
-/// how long a request then takes is not predicted.
-fn summary_text(counts: &JobCounts) -> String {
+/// Where a job table's counts were taken (C146: a count says what it
+/// counts): one summary line serves three reads, each saying its own.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Counted {
+    /// The live list: the jobs this daemon holds, those submitted to it
+    /// and those it restored from the ledger alike.
+    Live,
+    /// The ledger read with no daemon: what is on disk, its `running`
+    /// recorded rather than current, and no `done` recorded at all.
+    Ledger,
+    /// The jobs a command selected: those it shows.
+    Selected,
+}
+
+/// The last line of a job table: the counts by state, where they were
+/// taken ([`Counted`]), and for what waits when the next starts and when
+/// the last does — a start, never an end: how long a request then takes
+/// is not predicted.
+fn summary_text(counts: &JobCounts, counted: Counted) -> String {
     if counts.total == 0 {
         return "no jobs\n".to_string();
     }
     let by = &counts.by_state;
-    let mut parts = vec![format!("{} running", by.running)];
+    let running = match counted {
+        Counted::Ledger => format!("{} recorded running", by.running),
+        Counted::Live | Counted::Selected => format!("{} running", by.running),
+    };
+    let mut parts = vec![running];
     let waiting = by.waiting;
     parts.push(
         match (counts.next_starts_in_seconds, counts.last_starts_in_seconds) {
@@ -3073,6 +3095,13 @@ fn summary_text(counts: &JobCounts) -> String {
             _ => format!("{waiting} waiting"),
         },
     );
+    if counted == Counted::Ledger {
+        return format!(
+            "{} on disk: {}; done not recorded\n",
+            plural(counts.total, "job", "jobs"),
+            parts.join(", ")
+        );
+    }
     parts.push(format!("{} done", by.done));
     if by.failed > 0 {
         parts.push(format!("{} failed", by.failed));
@@ -3080,10 +3109,13 @@ fn summary_text(counts: &JobCounts) -> String {
     if by.cancelled > 0 {
         parts.push(format!("{} cancelled", by.cancelled));
     }
+    let held = match counted {
+        Counted::Live => " this daemon holds (its own and the restored)",
+        Counted::Ledger | Counted::Selected => "",
+    };
     format!(
-        "{} job{}: {}\n",
-        counts.total,
-        if counts.total == 1 { "" } else { "s" },
+        "{}{held}: {}\n",
+        plural(counts.total, "job", "jobs"),
         parts.join(", ")
     )
 }
@@ -3203,7 +3235,7 @@ mod tests {
         assert_eq!(text.lines().filter(|l| l.contains(" sleep ")).count(), 20);
         assert!(
             text.contains(
-                "28 jobs: 0 running, 13 waiting (next starts in ~16s, the last in ~28s), 15 done\n"
+                "28 jobs this daemon holds (its own and the restored): 0 running, 13 waiting (next starts in ~16s, the last in ~28s), 15 done\n"
             ),
             "{text}"
         );
@@ -3216,6 +3248,76 @@ mod tests {
         let all = jobs_text(&Listed::of(jobs, true));
         assert_eq!(all.lines().filter(|l| l.contains(" sleep ")).count(), 28);
         assert!(!all.contains("not listed"), "{all}");
+        // a selected job's table keeps its own context: the jobs it shows
+        let one = table_text(&[job(3, JobState::Waiting)]);
+        assert!(
+            one.ends_with("1 job: 0 running, 1 waiting (next starts in ~3s), 0 done\n"),
+            "{one}"
+        );
+    }
+
+    /// C146 (a count says what it counts): the sends and the policies
+    /// learned are this daemon's lifetime's, never persisted, said beside
+    /// a journal path that spans lifetimes (the league seat read `sends
+    /// 17` as the day's count).
+    #[test]
+    fn c146_daemon_status_says_its_counts_are_this_daemons_lifetimes() {
+        use acquisition_client::client::{DaemonId, Endpoint, Reported};
+        use acquisition_protocol::status::RailsStatus;
+        let rails = RailsStatus {
+            tripwire_enabled: false,
+            halted: None,
+            refresh_failed: None,
+            sends: 17,
+            max_sends: None,
+            journal: Some("/j/journal.jsonl".into()),
+            journal_path: Some("/j/journal.jsonl".into()),
+        };
+        let status = Response::DaemonStatus {
+            pid: 4242,
+            version: "0.0.1".into(),
+            contract: "ffffffffffff".into(),
+            provider: "mock".into(),
+            uptime_seconds: 61,
+            idle_shutdown_seconds: 3600,
+            connections: 1,
+            jobs_waiting: 0,
+            jobs_running: 0,
+            policies_known: 3,
+            in_flight: 0,
+            max_in_flight: 2,
+            rails,
+            keyring: "ok".into(),
+            log: None,
+        };
+        let identity = DaemonId::judged(
+            Reported {
+                pid: 4242,
+                version: "0.0.1".into(),
+                contract: "ffffffffffff".into(),
+                artifact: None,
+                provider: "mock".into(),
+                world: "/w".into(),
+            },
+            Endpoint {
+                socket: "/run/acq/w.sock".into(),
+            },
+            Ok("/w".into()),
+        );
+        let text = daemon_text(&DaemonReport::Running {
+            status: Box::new(status),
+            identity: Box::new(identity),
+        });
+        assert!(
+            text.contains("  policies learned: 3 since this daemon started\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "rails:  tripwire off · sends 17 since this daemon started · journal /j/journal.jsonl\n"
+            ),
+            "{text}"
+        );
     }
 
     #[test]

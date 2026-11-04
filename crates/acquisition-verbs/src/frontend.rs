@@ -131,6 +131,8 @@ impl Accounts {
 #[derive(Clone, Debug, Serialize)]
 pub struct AccountRow {
     pub username: String,
+    /// The last sign-in or token refresh (C146: a login and a refresh's
+    /// persist both write it; the name is the contract and stays).
     pub last_login: i64,
     /// C53: `last_login` in words at the answer's time (`6d ago`).
     pub last_login_age: String,
@@ -144,7 +146,8 @@ pub struct AccountRow {
 
 impl AccountRow {
     /// One account as the index knows it, its store's path under `dir`,
-    /// its last login said as an age at `now`, the answer's time (C53).
+    /// its last sign-in or token refresh said as an age at `now`, the
+    /// answer's time (C53).
     pub fn of(entry: &AccountEntry, dir: &std::path::Path, now: i64) -> AccountRow {
         AccountRow {
             username: entry.username.clone(),

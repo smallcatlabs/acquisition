@@ -132,8 +132,8 @@ fn a_large_league_is_counted_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(
         doc["by_type"],
         json!([
-            { "type": "PremiumStash", "tabs": 2, "fetched": 2, "items": 5 },
-            { "type": "QuadStash", "tabs": 39, "fetched": 0, "items": 0 },
+            { "type": "PremiumStash", "tabs": 2, "fetched": 2, "never": 0, "items": 5 },
+            { "type": "QuadStash", "tabs": 39, "fetched": 0, "never": 39, "items": 0 },
         ])
     );
     assert_eq!(doc["listed"], "most_items");

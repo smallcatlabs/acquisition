@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 pub struct AccountEntry {
     /// GGG username as the token response reports it: `name#discriminator`.
     pub username: String,
-    /// Unix seconds of the most recent login.
+    /// Unix seconds of the most recent sign-in or token refresh: a login
+    /// ([`Index::record_login`]) and a refresh's persist ([`Index::upsert`])
+    /// both write it.
     pub last_login: i64,
     /// A refresh token for this account is in the keyring. False for
     /// one-off sessions (`ACQ_NO_KEYRING`, a failed keyring save) and after

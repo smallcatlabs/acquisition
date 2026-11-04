@@ -358,7 +358,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
         text.ends_with(
             "), was unset\n\
              note: the facts hold no item/i-typo (not fetched yet, or a typo); the row stands, \
-             and `acq price status` counts it under \"name nothing in the facts\"\n\
+             and `acq price status` counts it under \"name nothing in this league's facts\"\n\
              next: `acq price show --account 'Alice#1234' item/i-typo` reads it beside the game side; \
              `acq price clear --account 'Alice#1234' item/i-typo --if-revision 3` undoes it\n"
         ),
@@ -813,7 +813,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         let text = String::from_utf8_lossy(&out.stdout);
         assert!(
             out.status.success()
-                && text.contains("rows naming nothing in the facts:\n")
+                && text.contains("rows naming nothing in this league's facts:\n")
                 && text.contains(line),
             "`{command}` printed:\n{text}"
         );

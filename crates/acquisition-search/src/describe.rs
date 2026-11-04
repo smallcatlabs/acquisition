@@ -236,7 +236,7 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "scope.never_fetched_by_type",
-            "`never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type and `fetched` how many of them were, so `tabs` minus `fetched` were never fetched, and `items` the live items in the fetched ones, counted as `tabs` counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown; `tabs` lists a league's tabs",
+            "`never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type, `fetched` how many of them were and `never` how many were not, and `items` the live items at every location of the type, fetched or not, counted as `tabs` counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown; `tabs` lists a league's tabs",
         ),
         key(
             "scope.never_fetched_leagues",

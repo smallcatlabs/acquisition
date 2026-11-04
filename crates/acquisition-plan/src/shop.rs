@@ -108,11 +108,11 @@ use std::fmt;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::bound::bounded;
-use acquisition_store::coverage::FetchedLocation;
+use acquisition_store::coverage::{FetchedLocation, location_name};
 use serde::{Deserialize, Serialize};
 
 use crate::currency::{self, CurrencyTableError};
-use crate::listing::{Facts, Listing, ListingReport, ReportHeader, Side, named};
+use crate::listing::{Facts, Listing, ListingReport, ReportHeader, Side};
 use crate::price::{Amount, Price, PriceTarget};
 use crate::{Selection, SyncPolicy};
 
@@ -1136,7 +1136,9 @@ fn posted_facts(report: &ListingReport, entries: &[Entry], now: i64) -> Facts {
             let at = FetchedLocation {
                 kind: kind.into(),
                 id,
-                name: report.find(&target).and_then(|l| named(&l.subject.name)),
+                name: report
+                    .find(&target)
+                    .and_then(|l| location_name(&l.subject.name)),
                 league: Some(report.header.league.clone()),
             };
             (at, seen)

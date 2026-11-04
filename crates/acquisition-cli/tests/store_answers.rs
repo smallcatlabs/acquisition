@@ -205,6 +205,133 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
     assert_eq!(listed["returned"], LISTED, "{listed}");
     assert_eq!(listed["limit_reached"], true, "{listed}");
     assert_eq!(listed["rows"].as_array().map(Vec::len), Some(LISTED));
+
+    // C146 (a count says what it counts): a limit met is not proof of
+    // more, so the counts are the returned events', the newest, said as
+    // such, with what reads more; the default invocation's footer prints
+    // the command that lists every location the returned events touched,
+    // with the request's account, window and limit
+    let text = |args: &[&str]| String::from_utf8_lossy(&acq(&base, args).stdout).to_string();
+    let reached = "(the window may hold more; a larger `--limit` reads more events)";
+    let default = text(&["store", "events"]);
+    assert!(
+        default.starts_with(&format!(
+            "the newest 10 events at 10 locations in the last 24 h {reached}: +10 added\n"
+        )),
+        "{default}"
+    );
+    assert!(
+        default.ends_with(
+            "(`acq store events --account 'Alice#1234' --hours 24 --limit 10 --summary --expand` lists every location the returned events touched)\n"
+        ),
+        "{default}"
+    );
+    let every = run_printed(&base, &default);
+    assert_eq!(every.len(), 1, "{default}");
+    assert_eq!(every[0]["events"], 10, "{}", every[0]);
+    assert_eq!(every[0]["locations"], 10, "{}", every[0]);
+    // a window of exactly the limit's events sets it too: the words say
+    // "may"
+    let exactly = text(&["store", "events", "--limit", "12"]);
+    assert!(
+        exactly.starts_with(&format!(
+            "the newest 12 events at 12 locations in the last 24 h {reached}: +12 added\n"
+        )),
+        "{exactly}"
+    );
+    // a non-default limit and window
+    let five = text(&["store", "events", "--hours", "0.09", "--limit", "5"]);
+    assert!(
+        five.starts_with(&format!(
+            "the newest 5 events at 5 locations in the last 0.1 h {reached}: +5 added\n"
+        )),
+        "{five}"
+    );
+    assert!(
+        five.contains(
+            "`acq store events --account 'Alice#1234' --hours 0.09 --limit 5 --summary --expand`"
+        ),
+        "{five}"
+    );
+    // a limit of zero reads none, and the window is not said empty
+    let zero = text(&["store", "events", "--limit", "0"]);
+    assert_eq!(
+        zero,
+        format!("the newest 0 events in the last 24 h {reached}\n"),
+        "{zero}"
+    );
+    // the raw list says the same of its own count
+    let raw = text(&["store", "events", "--expand"]);
+    assert!(
+        raw.ends_with(
+            "10 event(s) (limit reached: the window may hold more; a larger `--limit` reads more events)\n"
+        ),
+        "{raw}"
+    );
+}
+
+/// C146 (a count says what it counts and what the reader can do next):
+/// a refused list shorter than the bodies on record says it shows part
+/// of a whole and prints the command that lists them all, carrying the
+/// account it read, run here as printed over a store with two accounts,
+/// where a command with no selector is refused as ambiguous.
+#[test]
+fn a_refused_list_shorter_than_the_whole_says_so_and_how_to_list_them_all() {
+    let scratch = harness::scratch("store-refused");
+    let base = scratch.0.clone();
+    let mock = world(&base, |store, at| {
+        let endpoint = Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: "t1".into(),
+            sub: None,
+        };
+        for n in 0..3 {
+            // an item with no `id`: refused, its body kept
+            let body = json!({ "stash": { "id": "t1", "name": "t1", "type": "PremiumStash",
+                "items": [ { "typeLine": format!("Nameless {n}") } ] } });
+            assert!(
+                store
+                    .record(&endpoint, &json!({ "league": "Standard" }), 200, &body, at)
+                    .is_err()
+            );
+        }
+    });
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, 1, &[])
+        .unwrap();
+    let out = acq(
+        &base,
+        &["store", "refused", "--account", USER, "--limit", "2"],
+    );
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        text.ends_with(
+            "2 refused bodies shown of 3 on record; `acq store refused --account 'Alice#1234' --limit 3` lists them all — `acq store refused <id>` prints one in full\n"
+        ),
+        "{text}"
+    );
+    // the continuation, run as printed; the one-body action after it
+    // names a placeholder
+    let continuation = text.split(" — ").next().unwrap();
+    let all = run_printed(&base, continuation);
+    assert_eq!(all.len(), 1, "{text}");
+    assert_eq!(
+        (&all[0]["returned"], &all[0]["total"]),
+        (&json!(3), &json!(3)),
+        "{}",
+        all[0]
+    );
+    let out = acq(&base, &["store", "refused", "--account", USER]);
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        text.ends_with(
+            "3 refused bodies on record — `acq store refused <id>` prints one in full\n"
+        ),
+        "{text}"
+    );
 }
 
 /// C149: `accounts --json` printed the inner array where the MCP's
@@ -234,6 +361,23 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     assert!(
         text.ends_with("10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
         "{text}"
+    );
+    // C146: the time is written by a sign-in and by a token refresh's
+    // persist alike, so an account whose last write was a refresh says
+    // both writers
+    let refreshed = acquisition_store::now() - 19 * 86_400;
+    Index::load(&mock)
+        .unwrap()
+        .upsert("Exile00", false, refreshed, &[])
+        .unwrap();
+    let text = String::from_utf8_lossy(&acq(&base, &["accounts", "--expand"]).stdout).to_string();
+    let row = text
+        .lines()
+        .find(|l| l.starts_with("Exile00 "))
+        .unwrap_or_else(|| panic!("{text}"));
+    assert!(
+        row.contains(" last sign-in or token refresh 19d ago "),
+        "{row}"
     );
 }
 
@@ -292,7 +436,7 @@ fn c149_every_json_answer_the_step_wrapped_is_one_object() {
     let refused = answer(&["store", "refused"]);
     assert_eq!(
         refused,
-        json!({ "limit": 50, "returned": 0, "rows": [] }),
+        json!({ "limit": 50, "returned": 0, "total": 0, "rows": [] }),
         "{refused}"
     );
 }

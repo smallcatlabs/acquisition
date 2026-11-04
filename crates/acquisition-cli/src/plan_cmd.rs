@@ -281,7 +281,17 @@ fn plan_note_lines(plan: &RefreshPlan, notes: &PlanNotes, now: i64) -> String {
             .basis
             .character_listing
             .as_ref()
-            .map(|l| format!(", listed {}", store_cmd::ago(now, Some(l.fetched_at))))
+            // the plan's clock, as its wrapper and note measure it (S7)
+            .map(|l| {
+                format!(
+                    ", listed {}",
+                    acquisition_store::age::before(
+                        "the plan",
+                        plan.generated_at,
+                        Some(l.fetched_at)
+                    )
+                )
+            })
             .unwrap_or_default();
         out.push_str(&format!(
             "characters: none in {}{} (the realm's character listing{listed})\n",

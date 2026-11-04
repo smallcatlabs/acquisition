@@ -836,8 +836,10 @@ pub struct PlanNotes {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub no_characters_listed: bool,
     /// C53: beside `no_characters_listed`, when the realm's character
-    /// listing that names none was fetched, in words at the answer's
-    /// time (the epoch is the plan's `basis.character_listing.fetched_at`).
+    /// listing that names none was fetched, measured before the plan's
+    /// `generated_at` as the plan's wrapper measures it (`3m before
+    /// generated_at`; S7: one key name, one clock); the epoch is the
+    /// plan's `basis.character_listing.fetched_at`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub character_listing_fetched_at_age: Option<String>,
 }
@@ -850,9 +852,10 @@ impl PlanNotes {
 
 /// The notes of a compile over `snapshot` ([`PlanNotes`]). A snapshot
 /// with no policy, or whose policy does not cover its league, has none:
-/// the compile refuses it first. Each age a note's text prints is said
-/// at `now`, the answer's time (C53).
-pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64) -> PlanNotes {
+/// the compile refuses it first. A league note's age is said at `now`,
+/// the answer's time; the character listing's is measured before the
+/// plan's `generated_at`, as the plan's own listings are (C53).
+pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64, generated_at: i64) -> PlanNotes {
     let covered = snapshot
         .policy
         .as_ref()
@@ -884,7 +887,9 @@ pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64) -> PlanNotes {
         character_listing_fetched_at_age: snapshot
             .character_listing
             .filter(|_| no_characters_listed)
-            .map(|l| acquisition_store::age::ago(now, Some(l.fetched_at))),
+            .map(|l| {
+                acquisition_store::age::before("generated_at", generated_at, Some(l.fetched_at))
+            }),
     }
 }
 

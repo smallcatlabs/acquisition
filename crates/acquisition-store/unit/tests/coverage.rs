@@ -99,6 +99,7 @@ fn c162_one_never_fetched_tab_is_its_type_never_fetched() {
             kind: "PremiumStash".into(),
             tabs: 1,
             fetched: 0,
+            never: 1,
             items: 0,
         }]
     );
@@ -166,6 +167,7 @@ fn c162_a_character_is_its_own_type_and_no_leagues_never_fetched() {
             kind: "character".into(),
             tabs: 2,
             fetched: 1,
+            never: 1,
             items: 5,
         }]
     );
@@ -279,6 +281,7 @@ fn c162_a_stash_location_with_no_type_counts_under_the_empty_type() {
             kind: String::new(),
             tabs: 1,
             fetched: 0,
+            never: 1,
             items: 0,
         }]
     );
@@ -297,6 +300,7 @@ fn c162_a_partly_fetched_type_is_listed_with_its_every_locations_items() {
             kind: "QuadStash".into(),
             tabs: 3,
             fetched: 2,
+            never: 1,
             items: 12,
         }]
     );
@@ -430,7 +434,7 @@ fn c162_a_coverage_serializes_its_span_in_place_populated_and_empty_aged_or_not(
         3,
     );
     let text = |c: &Coverage| serde_json::to_string(c).unwrap();
-    let head = r#"{"items":3,"realms_held":["pc"],"leagues":["Hc","Std"],"fetched":2,"never_fetched":1,"never_fetched_by_type":[{"type":"MapStash","tabs":1,"fetched":0,"items":0}],"never_fetched_leagues":["Std"],"folders":0,"#;
+    let head = r#"{"items":3,"realms_held":["pc"],"leagues":["Hc","Std"],"fetched":2,"never_fetched":1,"never_fetched_by_type":[{"type":"MapStash","tabs":1,"fetched":0,"never":1,"items":0}],"never_fetched_leagues":["Std"],"folders":0,"#;
     let (a, x) = (
         r#"{"kind":"stash","id":"a","name":"tab a","league":"Std"}"#,
         r#"{"kind":"character","id":"x","name":"char x","league":"Hc"}"#,

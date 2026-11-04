@@ -3,10 +3,11 @@
 $ acq jobs
 # holds "2 waiting, 1 recorded running"
 # holds "Standard/tab3"
+# holds "3 jobs on disk: 1 recorded running, 2 waiting; done not recorded"
 --- stdout
 daemon is not running; on disk: 2 waiting, 1 recorded running, written <age> ago — a job command spawns a successor that restores them, and `acq cancel <id>` then acts on them
 id  parent  kind   target         state    prio  account     by   eta
  1          stash  Standard/tab1  waiting     5  Exile#1234  cli
  2          stash  Standard/tab2  running     5  Exile#1234  cli
  3       2  stash  Standard/tab3  waiting     5  Exile#1234  cli
-3 jobs: 1 running, 2 waiting, 0 done
+3 jobs on disk: 1 recorded running, 2 waiting; done not recorded

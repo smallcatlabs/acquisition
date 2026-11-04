@@ -505,7 +505,7 @@ impl Opened {
         )?;
         let mut planned = quote(&self.account.frontend.root, plan).await;
         let now = acquisition_store::now();
-        planned.notes = plan_notes(&snapshot, now);
+        planned.notes = plan_notes(&snapshot, now, planned.plan.generated_at);
         planned.uncovered_tabs = UncoveredTabs::of(&snapshot);
         Ok(planned.aged(now))
     }

@@ -422,7 +422,7 @@ fn draw_policies(f: &mut Frame, area: Rect, s: &Snap, app: &mut App) {
     if s.rails.tripwire_enabled || s.rails.max_sends.is_some() {
         summary.push(Line::from(Span::styled(
             format!(
-                "  rails: tripwire {} · sends {}{}",
+                "  rails: tripwire {} · sends {}{} since this daemon started",
                 if s.rails.tripwire_enabled {
                     "ON"
                 } else {

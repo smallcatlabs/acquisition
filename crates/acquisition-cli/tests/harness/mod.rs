@@ -1060,15 +1060,25 @@ fn log_rule(text: &str) -> String {
 }
 
 /// The rule `age`: `<n>s ago`, `<n>m ago`, `<n>h ago` and `<n>d ago` are
-/// `<age> ago`, since a seeded fetch grows older every day. An age padded
-/// in a table's cell, two spaces or more after it, keeps the cell's width,
-/// the age and those spaces, so `9s ago` and `10s ago` in one column read
-/// the same (issue #127), never with fewer than one space; one space after
-/// an age is prose or a separator and stays one.
+/// `<age> ago`, since a seeded fetch grows older every day, and an age a
+/// plan measures before itself, `<n>s before the plan`, is `<age> before
+/// the plan`, since the gap between a seeded listing and the compile is
+/// the test's own timing. An age padded in a table's cell, two spaces or
+/// more after it, keeps the cell's width, the age and those spaces, so
+/// `9s ago` and `10s ago` in one column read the same (issue #127), never
+/// with fewer than one space; one space after an age is prose or a
+/// separator and stays one.
 fn age_rule(text: &str) -> String {
+    aged_before(&aged_before(text, " ago"), " before the plan")
+}
+
+/// Every `<n><unit>` that `suffix` follows in `text` as `<age>`
+/// ([`age_rule`]).
+fn aged_before(text: &str, suffix: &str) -> String {
+    let masked = format!("<age>{suffix}");
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(at) = rest.find(" ago") {
+    while let Some(at) = rest.find(suffix) {
         let head = &rest[..at];
         let bytes = head.as_bytes();
         let n = bytes.len();
@@ -1083,19 +1093,19 @@ fn age_rule(text: &str) -> String {
                 start = i;
             }
         }
-        rest = &rest[at + " ago".len()..];
+        rest = &rest[at + suffix.len()..];
         if start < n {
             out.push_str(&head[..start]);
-            out.push_str("<age> ago");
+            out.push_str(&masked);
             let pad = rest.len() - rest.trim_start_matches(' ').len();
             if pad > 1 {
-                let cell = n - start + " ago".len() + pad;
-                out.push_str(&" ".repeat(cell.saturating_sub("<age> ago".len()).max(1)));
+                let cell = n - start + suffix.len() + pad;
+                out.push_str(&" ".repeat(cell.saturating_sub(masked.len()).max(1)));
                 rest = &rest[pad..];
             }
         } else {
             out.push_str(head);
-            out.push_str(" ago");
+            out.push_str(suffix);
         }
     }
     out.push_str(rest);

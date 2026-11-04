@@ -139,7 +139,7 @@ use acquisition_protocol::realm::Realm;
 use acquisition_store::age;
 use acquisition_store::bound::bounded;
 use acquisition_store::corpus::ListingSeen;
-use acquisition_store::coverage::{self, FetchSpan, FetchedLocation};
+use acquisition_store::coverage::{self, FetchSpan, FetchedLocation, location_name};
 use acquisition_store::{
     AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     ValueError, check_value,
@@ -467,11 +467,11 @@ pub struct RowAccounting {
     pub applied: usize,
     /// Tab and substash rows of another realm.
     pub other_realm: usize,
-    /// Readable rows naming nothing in these facts, each whole: no
+    /// Readable rows naming nothing in this league's facts, each whole: no
     /// listing carries them, so this is where they are read. The status
     /// lists ten unless expanded ([`ListingReport::status`]).
     pub unmatched: Vec<ManualSide>,
-    /// How many rows name nothing in these facts, `unmatched` whole.
+    /// How many rows name nothing in this league's facts, `unmatched` whole.
     #[serde(default)]
     pub unmatched_total: usize,
     /// Rows that cannot be read, each with why — a value the buyout kind
@@ -1872,7 +1872,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
             let at = FetchedLocation {
                 kind: "stash".into(),
                 id: info.tab.id.clone(),
-                name: named(&info.tab.name),
+                name: location_name(&info.tab.name),
                 league: Some(snapshot.league.clone()),
             };
             (at, info.tab.fetched_at)
@@ -1881,7 +1881,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
             let at = FetchedLocation {
                 kind: "character".into(),
                 id: c.id.clone(),
-                name: named(&c.name),
+                name: location_name(&c.name),
                 league: c.league.clone(),
             };
             (at, c.fetched_at)
@@ -1922,12 +1922,6 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         rows: accounting,
         listings,
     })
-}
-
-/// A location's name as the store's coverage names it: none where GGG
-/// gives no text.
-pub(crate) fn named(name: &str) -> Option<String> {
-    (!name.trim().is_empty()).then(|| name.to_string())
 }
 
 #[cfg(test)]

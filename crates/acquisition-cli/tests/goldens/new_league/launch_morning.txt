@@ -46,7 +46,7 @@ $ acq refresh --plan --league Rehearsal
 refresh Rehearsal on mock as ExileTester — policy 2
 facts: stash never listed
 
-characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 1 request:
   list stashes
 reason: stash never listed
@@ -75,7 +75,7 @@ $ acq refresh --plan --league Rehearsal
 refresh Rehearsal on mock as ExileTester — policy 2
 facts: stash listed <age> ago
 
-characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 7 requests:
   fetch 7 tabs
     rh-cur1  Currency
@@ -110,7 +110,7 @@ $ acq refresh --plan --league Rehearsal
 --- stdout
 nothing to do in Rehearsal: covered entries are fresh (under 1h) or do not need fetching
 skipped 8 tabs: 7 fresh, 1 folder — container only
-characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 
 $ acq tabs --league Rehearsal
 # holds "8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items"
@@ -171,7 +171,7 @@ $ acq price status --league Rehearsal
 # holds "facts: 7 locations, 7 fetched ("
 # holds "next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal`"
 --- stdout
-no items on record for Rehearsal: 8 tabs and characters listed, none fetched with items
+no items on record for Rehearsal: 8 tabs and characters listed, 7 fetched, none with items
 facts: 7 locations, 7 fetched (<fetches>); stash listing <age> ago
 leagues: Rehearsal (this); also held: Standard (15 tabs, 2 characters, named)
 next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` shows what a refresh would fetch
