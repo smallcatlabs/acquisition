@@ -701,5 +701,13 @@ live tab and the text's ready commands), fixed in one round
 commands, `leagues_held` outside the snapshot and its live tab), fixed
 at the owner's word in a second (`bff3bf50`, `a7cf8f66`) read by the
 orchestrating session and not reviewed a third time; #172 and #168's
-text half closed the same day, #168 left open for its kind. Next,
-round D (#166) at the owner's word.
+text half closed the same day, #168 left open for its kind. Round D
+(`briefs/seat-issues-d.md`, the new ruling C164, a client's stash job
+for a tab the stored listing does not name refused at submit) landed as
+`accf270f`; reviewed (two P2s, two P3s, and C164's read set against
+C28, which the owner amended to name it, `ccb5c360`), fixed in one
+round (`22c9bc4d..5746304c`), reviewed (a P3: the realm quoted before
+it was judged), fixed at the owner's word in a second (`f6a020b7`)
+read by the orchestrating session and not reviewed a third time; #166
+closed the same day. The rounds are done; #165 and #168's kind wait on
+the owner's rulings.
