@@ -694,4 +694,12 @@ one cause, a receipt guessing a read's scope, and a P3), fixed at the
 owner's word in a second (`14705058`, `4bd32311`: `price show` reads a
 bare target's scope from the facts) read by the orchestrating session
 and not reviewed a third time; #169, #171, #170 and #167 closed the
-same day. Next, round C.
+same day. Round C (`briefs/seat-issues-c.md`) landed as
+`cf37c972`, `a7395a13`; reviewed (findings of one read snapshot, one
+live tab and the text's ready commands), fixed in one round
+(`dfebc2fe..12a91ec1`), reviewed (three P2s: a request file's ready
+commands, `leagues_held` outside the snapshot and its live tab), fixed
+at the owner's word in a second (`bff3bf50`, `a7cf8f66`) read by the
+orchestrating session and not reviewed a third time; #172 and #168's
+text half closed the same day, #168 left open for its kind. Next,
+round D (#166) at the owner's word.
