@@ -433,6 +433,30 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
         &["item/i-map's price was cleared (revision 3): nothing to clear"],
     );
     assert!(!out.status.success());
+    // A tab's row: the receipt says what its items resolve to after the
+    // write, as `price show` counts them, and after the clear (#171; the
+    // answer-facts seat, CLI run 1 call 79 against 84): i-plain keeps
+    // its own row, which agrees with the tab's name, and i-noted's note
+    // conflicts with the tab's row, then with the folder's once the
+    // tab's is cleared.
+    t.run(
+        &["price", "set", "tab/pc/c1", "exact", "7", "chaos"],
+        &["items here: 2 items — 1 agree, 1 conflict\n"],
+    );
+    t.run(
+        &["price", "clear", "tab/pc/c1"],
+        &["items here: 2 items — 1 agree, 1 conflict\n"],
+    );
+    let out = acq(
+        &base,
+        &["price", "set", "tab/pc/c1", "exact", "7", "chaos", "--json"],
+    );
+    assert_eq!(
+        sole_json(&out)["items_here_counts"]["by_relation"],
+        json!({ "agree": 1, "conflict": 1 })
+    );
+    let out = acq(&base, &["price", "clear", "tab/pc/c1"]);
+    assert!(out.status.success(), "{}", stderr(&out));
     golden(file!(), "a_write_walk_refused", &t);
     let out = acq(&base, &["price", "status", "--json"]);
     let report: ListingReport = serde_json::from_value(sole_json(&out)).unwrap();

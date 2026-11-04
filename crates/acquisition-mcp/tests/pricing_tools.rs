@@ -655,9 +655,25 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             &["price", "clear", "item/i-plain", "--if-revision", "1"],
             true,
         ),
+        // a tab's row over a tab whose name prices its items: what they
+        // resolve to after the write, and after the clear (#171)
+        (
+            "price_set",
+            json!({ "target": "tab/pc/c1", "type": "exact", "amount": "7", "currency": "chaos" }),
+            &["price", "set", "tab/pc/c1", "exact", "7", "chaos"],
+            true,
+        ),
+        (
+            "price_clear",
+            json!({ "target": "tab/pc/c1", "if_revision": 1 }),
+            &["price", "clear", "tab/pc/c1", "--if-revision", "1"],
+            true,
+        ),
     ];
+    let mut told = Vec::new();
     for (name, args, verb, succeeds) in steps {
         let (tool_ok, by_tool) = tool(&mut mcp, name, args.clone());
+        told.push(by_tool.clone());
         let (cli_ok, by_cli) = cli(&by_acq.0, verb);
         assert_eq!(
             (tool_ok, cli_ok),
@@ -672,6 +688,24 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             "{name} {args} is not what acq {verb:?} --json prints"
         );
     }
+    // #171 (the answer-facts seat, CLI run 1 call 79 against 84): a tab
+    // row's receipt counts the tab's items as `price show` does, after
+    // the write and after the clear; an item's carries no such count
+    let (tab_set, tab_clear) = (&told[told.len() - 2], &told[told.len() - 1]);
+    assert_eq!(
+        tab_set["items_here_counts"]["by_relation"],
+        json!({ "conflict": 2 }),
+        "{tab_set}"
+    );
+    assert_eq!(tab_set["items_here_counts"]["total"], json!(2), "{tab_set}");
+    // the folder's row still covers both once the tab's is cleared
+    assert_eq!(
+        tab_clear["items_here_counts"]["by_relation"],
+        json!({ "conflict": 2 }),
+        "{tab_clear}"
+    );
+    assert!(told[0].get("items_here_counts").is_none(), "{}", told[0]);
+
     // The tool's rows are stamped as the server's, and a row on a target
     // the facts do not hold is read through the surface: `price_status`
     // lists it whole, and `price_show` refuses it saying so (C35).

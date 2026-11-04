@@ -353,6 +353,13 @@ impl Account {
             .map_err(Fault::Unopened)
     }
 
+    /// The account's facts where a file is there to read, opened read-only
+    /// and never made: for a verb that needs no facts and counts from
+    /// them where it can (a price clear's receipt, #171).
+    pub fn facts_if_any(&self) -> Option<Store> {
+        Store::open_read_only(&account_path(&self.frontend.dir(), &self.entry.username)).ok()
+    }
+
     /// C35 (intent is irreplaceable, one file per account uuid): the
     /// account's intent file, or [`Fault::NoUuid`] for an entry that
     /// predates uuid-at-login.

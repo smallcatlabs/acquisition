@@ -2710,8 +2710,16 @@ async fn populated() -> Vec<(&'static str, Value)> {
         "price receipt",
         serde_json::to_value(receipt::price_set(&replaced, USER, &Plain)).unwrap(),
     ));
-    let cleared =
-        pricing::clear(&mut intent, "item/i1", Expect::Current, &via, USER, quote).unwrap();
+    let cleared = pricing::clear(
+        Some(&store),
+        &mut intent,
+        "item/i1",
+        Expect::Current,
+        &via,
+        USER,
+        quote,
+    )
+    .unwrap();
     docs.push((
         "price clear receipt",
         serde_json::to_value(receipt::price_clear(&cleared, USER, &Plain)).unwrap(),

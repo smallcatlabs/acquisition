@@ -17,11 +17,13 @@
 //!   back, `no_undo` beside its absence, the reason in words — never both,
 //!   never neither;
 //! - the write's own facts: `in_facts` on a price set, `league_notes` on
-//!   a policy write (C126).
+//!   a policy write (C126), and on a price set or clear over a container's
+//!   row `items_here_counts` and `items_covered_below_counts`, what its
+//!   items resolve to after it, as `price show` counts them (#171).
 
 use acquisition_plan::SyncPolicy;
 use acquisition_plan::price::{PriceWrite, Undo};
-use acquisition_plan::pricing::SetReceipt;
+use acquisition_plan::pricing::{ClearReceipt, SetReceipt};
 use acquisition_store::{IntentValue as _, check_value};
 use serde::Serialize;
 use serde_json::Value;
@@ -41,11 +43,11 @@ pub fn price_set<'a>(
 
 /// `price clear`'s receipt, as [`price_set`]'s.
 pub fn price_clear<'a>(
-    write: &'a PriceWrite,
+    receipt: &'a ClearReceipt,
     account: &str,
     surface: &dyn Surface,
-) -> Receipt<'a, PriceWrite> {
-    shaped(write, price_undo(write, account), surface)
+) -> Receipt<'a, ClearReceipt> {
+    shaped(receipt, price_undo(&receipt.write, account), surface)
 }
 
 /// What puts a price write's prior back, as the account it ran as, with

@@ -2021,7 +2021,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision` (the next write's), `undo` (a request that puts `prior` back) or `no_undo` (why none), `in_facts`; `describe` with names [\"pricing\"] gives the revision rule and the undo."
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision (price_show reads it); omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names [\"pricing\"] gives the revision rule and the undo."
     )]
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {
@@ -2059,7 +2059,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns the receipt — `target`, `written` null, `prior`, the row removed, `revision`, the one the clear left, and `undo`, the price_set that puts it back, a create naming no revision, sent as printed (or `no_undo`, why none)."
+        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns the receipt — `target`, `written` null, `prior`, the row removed, `revision`, the one the clear left, and `undo`, the price_set that puts it back, a create naming no revision, sent as printed (or `no_undo`, why none); on a container's row, its items' counts after the clear, as price_set's."
     )]
     fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
         let p = match p.read() {
@@ -2071,7 +2071,14 @@ impl AcqMcp {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
+        // the facts where they can be read, never made: what a container's
+        // row covered is counted from them (#171); a clear needs none
+        let facts = self
+            .account(p.account.as_deref())
+            .ok()
+            .and_then(|account| account.facts_if_any());
         let written = acquisition_plan::pricing::clear(
+            facts.as_ref(),
             &mut intent,
             &p.target,
             acquisition_plan::pricing::Expect::or(

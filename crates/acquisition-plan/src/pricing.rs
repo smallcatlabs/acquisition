@@ -55,7 +55,8 @@ use serde_json::{Value, json};
 
 use crate::currency::{Currency, CurrencyTable, table};
 use crate::listing::{
-    GameText, ListFilter, ListView, ListingReport, ManualSide, Relation, ShowView, resolve,
+    GameText, ListFilter, ListView, ListingReport, ManualSide, Relation, SetCounts, ShowView,
+    resolve,
 };
 use crate::price::{
     BUYOUT_KIND, BUYOUT_VERSION, Buyout, PriceTarget, PriceWrite, PriceWriteError, clear_buyout,
@@ -819,6 +820,72 @@ pub struct SetReceipt {
     pub in_facts: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// A container's row: what its items resolve to after the write.
+    #[serde(flatten)]
+    pub covered: Option<Covered>,
+}
+
+/// `clear --json`: the [`PriceWrite`], and for a container's row what its
+/// items resolve to after the clear ([`Covered`]).
+#[derive(Debug, Serialize)]
+pub struct ClearReceipt {
+    #[serde(flatten)]
+    pub write: PriceWrite,
+    #[serde(flatten)]
+    pub covered: Option<Covered>,
+}
+
+/// What a row on a tab, a folder, a substash or a character covers once
+/// the write lands (#171; the answer-facts seat, CLI run 1 call 79
+/// against 84: the receipt said the tab's price and only `price show`
+/// how many items take it): the two sets `price show` counts, by the
+/// function it counts them with ([`ListingReport::show_view`]), so the
+/// words are its own. A set's `by_relation` says which of its items take
+/// a price by hand alone, which the game decides and which agree; none
+/// is listed here (`returned` 0, `left_out` every one), `price show`
+/// lists them. Absent for an item's row and for a target the facts do
+/// not hold.
+#[derive(Debug, Clone, Serialize)]
+pub struct Covered {
+    pub items_here_counts: SetCounts,
+    pub items_covered_below_counts: SetCounts,
+}
+
+/// [`Covered`] for `target` as the store and intent now stand: its realm
+/// and league read as `show` reads them.
+fn covered(
+    store: &Store,
+    annotations: &Annotations,
+    target: &PriceTarget,
+) -> Result<Option<Covered>> {
+    if matches!(target, PriceTarget::Item { .. }) || !store.holds(&FactAddress::from(target))? {
+        return Ok(None);
+    }
+    let realm = realm_of(&[target], None)?;
+    let league = league_of(store, &[target], None)?;
+    let view = report(store, annotations, realm, &league)?.show_view(target);
+    Ok(view.map(|view| {
+        let view = view.bounded(Some(0), false);
+        Covered {
+            items_here_counts: view.items_here_counts,
+            items_covered_below_counts: view.items_covered_below_counts,
+        }
+    }))
+}
+
+/// [`covered`] after a write that landed: a read that fails then says the
+/// write stands, so no one retries what is done.
+fn covered_after(
+    store: &Store,
+    annotations: &Annotations,
+    write: &PriceWrite,
+) -> Result<Option<Covered>> {
+    covered(store, annotations, &write.target).with_context(|| {
+        format!(
+            "{} was written (revision {}); reading the items it covers failed",
+            write.target, write.revision
+        )
+    })
 }
 
 /// The note a set's receipt carries where the shop cannot post what the
@@ -927,24 +994,30 @@ pub fn set(
         Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
         Ok(write) => write.aged(acquisition_store::now()),
     };
+    let covered = covered_after(store, annotations, &write)?;
     Ok(SetReceipt {
         write,
         in_facts,
         note,
+        covered,
     })
 }
 
 /// `price clear <target>`: remove the row, under the same compare-and-
 /// swap. A target with no row is a refusal that says so — every nothing
-/// says which nothing. `account` and `quote` are as for [`set`].
+/// says which nothing. `account` and `quote` are as for [`set`]. `store`
+/// is the facts where a frontend could open them without making them:
+/// what a container's row covered is counted from them after the clear,
+/// and a clear needs no facts (C46).
 pub fn clear(
+    store: Option<&Store>,
     annotations: &mut Annotations,
     target: &str,
     expect: Expect,
     provenance: &Provenance,
     account: &str,
     quote: fn(&str) -> String,
-) -> Result<PriceWrite> {
+) -> Result<ClearReceipt> {
     let target = read_target(target)?;
     let shown = read_back(&target, account, quote);
     let asked = Asked {
@@ -967,9 +1040,14 @@ pub fn clear(
             });
         }
     };
-    clear_buyout(annotations, &target, expected, provenance)
+    let write = clear_buyout(annotations, &target, expected, provenance)
         .map(|write| write.aged(acquisition_store::now()))
-        .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))
+        .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))?;
+    let covered = match store {
+        Some(store) => covered_after(store, annotations, &write)?,
+        None => None,
+    };
+    Ok(ClearReceipt { write, covered })
 }
 
 /// `shop render`'s request beside the facts: the page size, the template

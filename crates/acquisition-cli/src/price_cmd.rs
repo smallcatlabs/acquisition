@@ -1097,6 +1097,7 @@ pub fn set(
             &receipt.write,
             Some(receipt.in_facts),
             receipt.note.as_deref(),
+            receipt.covered.as_ref(),
             &username
         )
     );
@@ -1110,7 +1111,9 @@ pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Re
     let account = cx.account()?;
     let username = &account.entry.username;
     let mut annotations = account.intent()?;
-    let write = pricing::clear(
+    let facts = account.facts_if_any();
+    let receipt = pricing::clear(
+        facts.as_ref(),
         &mut annotations,
         target,
         Expect::or(if_revision, Expect::Current),
@@ -1119,13 +1122,19 @@ pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Re
         acquisition_search::answer::shell_quoted,
     )?;
     if json {
-        let receipt = receipt::price_clear(&write, username, &Terminal::writing());
+        let receipt = receipt::price_clear(&receipt, username, &Terminal::writing());
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
     print!(
         "{}",
-        render_write(&write, None, None, &account.entry.username)
+        render_write(
+            &receipt.write,
+            None,
+            None,
+            receipt.covered.as_ref(),
+            &account.entry.username
+        )
     );
     Ok(())
 }
@@ -1165,11 +1174,13 @@ fn offered_line(way: &Way) -> String {
 /// refuses over a price set since, and the line says so. A prior this
 /// build cannot read is shown as its JSON and promised no undo. A set's
 /// `note` (the shop's rule, where the target is or sits in a substash)
-/// is a `note:` line.
+/// is a `note:` line. A container's row says what its items resolve to
+/// after the write, in `price show`'s words (#171).
 fn render_write(
     write: &PriceWrite,
     in_facts: Option<bool>,
     note: Option<&str>,
+    covered: Option<&pricing::Covered>,
     account: &str,
 ) -> String {
     let target = &write.target;
@@ -1207,16 +1218,43 @@ fn render_write(
             if let Some(note) = note {
                 out.push_str(&format!("note: {note}\n"));
             }
+            out.push_str(&covered_line(covered));
             out.push_str(&format!(
                 "next: `{show} {word}` reads it beside the game side; {undo}\n"
             ));
         }
         None => {
             out.push_str(&format!("{target}: cleared, {was}\n"));
+            out.push_str(&covered_line(covered));
             out.push_str(&format!("next: {undo}\n"));
         }
     }
     out
+}
+
+/// A container's two sets after a write, one line in `price show`'s
+/// words; nothing for an item's row.
+fn covered_line(covered: Option<&pricing::Covered>) -> String {
+    let Some(c) = covered else {
+        return String::new();
+    };
+    let (here, below) = (&c.items_here_counts, &c.items_covered_below_counts);
+    let mut line = match here.total {
+        0 => "items here: none on record".to_string(),
+        n => format!(
+            "items here: {} — {}",
+            plural(n, "item", "items"),
+            set_breakdown(here)
+        ),
+    };
+    if below.total > 0 {
+        line.push_str(&format!(
+            "; items covered through children: {} — {}",
+            plural(below.total, "item", "items"),
+            set_breakdown(below)
+        ));
+    }
+    format!("{line}\n")
 }
 
 #[cfg(test)]
@@ -2025,7 +2063,7 @@ mod tests {
             revision: 1,
         };
         assert_eq!(
-            render_write(&created, None, None, "a"),
+            render_write(&created, None, None, None, "a"),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              next: `acq price show --account a item/i1` reads it beside the game side; \
              `acq price clear --account a item/i1 --if-revision 1` undoes it\n"
@@ -2033,11 +2071,11 @@ mod tests {
         // A target the facts do not hold is noted between the row and the
         // next step, never refused (C64); one they do says nothing.
         assert_eq!(
-            render_write(&created, Some(true), None, "a"),
-            render_write(&created, None, None, "a")
+            render_write(&created, Some(true), None, None, "a"),
+            render_write(&created, None, None, None, "a")
         );
         assert_eq!(
-            render_write(&created, Some(false), None, "a"),
+            render_write(&created, Some(false), None, None, "a"),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              note: the facts hold no item/i1 (not fetched yet, or a typo); the row stands, \
              and `acq price status` counts it under \"name nothing in this league's facts\"\n\
@@ -2047,7 +2085,7 @@ mod tests {
         // Every command carries the account the command ran with, quoted
         // for the shell that runs it as printed.
         assert_eq!(
-            render_write(&created, None, None, "Alice#1234"),
+            render_write(&created, None, None, None, "Alice#1234"),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              next: `acq price show --account 'Alice#1234' item/i1` reads it beside the game side; \
              `acq price clear --account 'Alice#1234' item/i1 --if-revision 1` undoes it\n"
@@ -2060,7 +2098,7 @@ mod tests {
             revision: 2,
         };
         assert_eq!(
-            render_write(&replaced, None, None, "a"),
+            render_write(&replaced, None, None, None, "a"),
             "item/i1: 1/5 divine b/o (revision 2), was 12.5 chaos (revision 1)\n\
              next: `acq price show --account a item/i1` reads it beside the game side; \
              `acq price set --account a item/i1 exact 12.5 chaos --if-revision 2` puts the prior back\n"
@@ -2073,7 +2111,7 @@ mod tests {
             revision: 3,
         };
         assert_eq!(
-            render_write(&cleared, None, None, "a"),
+            render_write(&cleared, None, None, None, "a"),
             "item/i1: cleared, was 1/5 divine b/o (revision 2)\n\
              next: `acq price set --account a item/i1 negotiable 1/5 divine --if-revision 0` puts it back \
              (a create, which lands only where no price stands; the row's count continues past the clear)\n"
@@ -2086,7 +2124,7 @@ mod tests {
             prior_unreadable: None,
             revision: 4,
         };
-        let text = render_write(&unreadable, None, None, "a");
+        let text = render_write(&unreadable, None, None, None, "a");
         assert!(
             text.starts_with(
                 "item/i1: cleared, was an unreadable value {\"type\":\"auction\",\"version\":9} (revision 3)\n"
@@ -2106,7 +2144,7 @@ mod tests {
             prior_unreadable: None,
             revision: 4,
         };
-        let text = render_write(&overwritten, None, None, "a");
+        let text = render_write(&overwritten, None, None, None, "a");
         assert!(
             text.ends_with(
                 "next: `acq price show --account a item/i1` reads it beside the game side; \

@@ -24,3 +24,17 @@ $ acq price clear item/i-map
 --- stderr
 Error: item/i-map's price was cleared (revision 3): nothing to clear (`acq price show --account 'Alice#1234' item/i-map` reads what covers it)
 --- exit 1
+
+$ acq price set tab/pc/c1 exact 7 chaos
+# holds "items here: 2 items — 1 agree, 1 conflict\n"
+--- stdout
+tab/pc/c1: 7 chaos (revision 1), was unset
+items here: 2 items — 1 agree, 1 conflict
+next: `acq price show --account 'Alice#1234' tab/pc/c1` reads it beside the game side; `acq price clear --account 'Alice#1234' tab/pc/c1 --if-revision 1` undoes it
+
+$ acq price clear tab/pc/c1
+# holds "items here: 2 items — 1 agree, 1 conflict\n"
+--- stdout
+tab/pc/c1: cleared, was 7 chaos (revision 1)
+items here: 2 items — 1 agree, 1 conflict
+next: `acq price set --account 'Alice#1234' tab/pc/c1 exact 7 chaos --if-revision 0` puts it back (a create, which lands only where no price stands; the row's count continues past the clear)
