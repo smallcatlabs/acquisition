@@ -313,12 +313,13 @@ fn normalising_a_committed_golden_changes_nothing() {
     );
 }
 
-/// A world fetched in real time writes the total's fetch places
-/// `<place>`, since which location is the newest hangs on a second's
-/// boundary (#11; the journey's flipped between runs); the rest of the
-/// line, every other line and a fact stand.
+/// A world fetched in real time writes the total's fetch clause
+/// `(<fetches>)`, since which location is the newest, and whether the
+/// oldest is the same one, hangs on a second's boundary (#11; the
+/// journey's flipped between runs, and launch morning's form); the rest
+/// of the line, every other line and a fact stand.
 #[test]
-fn the_fetch_place_rule_writes_the_totals_places_and_nothing_else() {
+fn the_fetch_place_rule_writes_the_totals_fetch_clause_and_nothing_else() {
     use crate::harness::fetch_place_rule;
     let rule = |text: &str, expected: &str| {
         let once = fetch_place_rule(text);
@@ -331,7 +332,7 @@ fn the_fetch_place_rule_writes_the_totals_places_and_nothing_else() {
          # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
          rows    Ring · Standard / Dump · fetched <age> ago\n",
         "scope   account a · pc · live · 49 items · 16 locations fetched\n\
-         total   12 matches (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>)\n\
+         total   12 matches (<fetches>)\n\
          # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
          rows    Ring · Standard / Dump · fetched <age> ago\n",
     );
@@ -339,11 +340,11 @@ fn the_fetch_place_rule_writes_the_totals_places_and_nothing_else() {
     // count may follow the clause
     rule(
         "total   3 matches (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Exile (character)) · 1 undecided\n",
-        "total   3 matches (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>) · 1 undecided\n",
+        "total   3 matches (<fetches>) · 1 undecided\n",
     );
-    // one location, named once
+    // one location, named once: the same mask
     rule(
         "total   2 matches (fetched <age> ago, Standard / Dump)\n",
-        "total   2 matches (fetched <age> ago, <place>)\n",
+        "total   2 matches (<fetches>)\n",
     );
 }

@@ -157,7 +157,7 @@ $ acq search --count league
 query   (every item in scope)
 scope   account ExileTester · pc · live · 49 items · 23 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   49 matches (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>)
+total   49 matches (<fetches>)
 count   league · 1 value
        49  Standard
 routes  each returns exactly the members counted (1 more: --routes)

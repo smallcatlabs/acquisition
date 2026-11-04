@@ -98,6 +98,8 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
                 "`items` every live item in scope before any term",
                 "`never_fetched` counts the tabs, their pages and the characters",
                 "named in `oldest_fetch_location` and `newest_fetch_location`",
+                // the matches' span with no fetch: what is null, what absent
+                "`oldest_fetch` and `newest_fetch` are null and their `_age` and `_location` absent, while `list_seen` and its `_age` stand",
                 "never over the matches, which are `total`",
                 "counted in `view.rows.left_out`",
             ][..],

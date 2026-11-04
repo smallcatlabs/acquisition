@@ -1120,13 +1120,22 @@ fn c162_places_are_keyed_as_the_corpus_keys_a_location() {
     ];
     fetch_character(&mut s, "pc", in_league("Settlers", both), 20);
     list_characters(&mut s, "pc", listed("Standard"), 30);
+    let both = vec![
+        ring("kept", "Rare", json!({})),
+        ring("left", "Rare", json!({})),
+    ];
+    fetch_character(&mut s, "pc", in_league("Standard", both), 40);
     fetch_character(
         &mut s,
         "pc",
         in_league("Standard", vec![ring("kept", "Rare", json!({}))]),
-        40,
+        50,
     );
-    for membership in [Membership::All, Membership::Removed] {
+    // under both, matches in each of the character's two leagues
+    for (membership, matched) in [
+        (Membership::All, &["gone", "kept", "left"][..]),
+        (Membership::Removed, &["gone", "left"][..]),
+    ] {
         let corpus = Corpus::load_of(
             &s,
             &intent(&s),
@@ -1139,6 +1148,16 @@ fn c162_places_are_keyed_as_the_corpus_keys_a_location() {
             json!({ "scope": { "membership": membership }, "query": { "text": "rarity=rare" } }),
         );
         assert_eq!(a["scope"]["membership"], json!(membership));
+        assert_eq!(ids(&a), matched, "{membership:?}");
+        let mut leagues: Vec<&str> = a["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["place"]["league"].as_str().unwrap())
+            .collect();
+        leagues.sort();
+        leagues.dedup();
+        assert_eq!(leagues, ["Settlers", "Standard"], "{membership:?}");
         assert_eq!(a["total"]["places"], 1, "{membership:?}");
         assert_eq!(a["total"]["oldest_fetch_location"]["kind"], "character");
         assert_eq!(

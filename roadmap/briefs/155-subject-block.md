@@ -268,8 +268,13 @@ scope's provenance stays where a program keeps it (C53).
    with their `_age` and `_location` the earliest and latest of those
    locations' last fetches, the locations' fetches and not a removed
    item's last sighting; `list_seen` the oldest of the lists that
-   name those locations; the fetch fields null where no matched
-   location was fetched, the block absent where nothing matched. The
+   name those locations; where no matched location was fetched,
+   `oldest_fetch` and `newest_fetch` null, their `_age` and
+   `_location` absent and `list_seen` with its `_age` kept, and the
+   block absent where nothing matched, `places` 0. *Settled in the
+   round:* the brief first said "the fetch fields null", wider than
+   Do 2's null-versus-absent shape (the build review at `21a8a28c`,
+   its second finding). The
    `scope` entry's sentence on its ages says they are
    over every location in scope, the matches' under `total`. No id in
    either (C116); `surface_size.rs:89`'s sample and

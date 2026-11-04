@@ -244,7 +244,7 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "total",
-            "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`; `places` the locations the matches sit in, each once; `oldest_fetch` and `newest_fetch`, each with its `_age` and `_location` as under `scope`, the earliest and the latest of those locations' last fetches — the locations' fetches, not a removed item's last sighting — and `list_seen` when the oldest of the lists that name those locations was last seen; the fetch fields are null where no matched location was fetched, and all of them absent where nothing matched",
+            "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`; `places` the locations the matches sit in, each once; `oldest_fetch` and `newest_fetch`, each with its `_age` and `_location` as under `scope`, the earliest and the latest of those locations' last fetches — the locations' fetches, not a removed item's last sighting — and `list_seen` when the oldest of the lists that name those locations was last seen; where no matched location was fetched, `oldest_fetch` and `newest_fetch` are null and their `_age` and `_location` absent, while `list_seen` and its `_age` stand, and where nothing matched every one of them is absent and `places` is 0",
         ),
         key(
             "before",

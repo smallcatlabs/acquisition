@@ -526,8 +526,9 @@ impl Transcript {
     }
 
     /// The world was fetched by the mock daemon in real time, so which of
-    /// its locations is the matches' oldest or newest fetch hangs on a
-    /// second's boundary: the golden writes those places `<place>`
+    /// its locations is the matches' oldest or newest fetch, and whether
+    /// they are one, hangs on a second's boundary: the golden writes the
+    /// total's fetch clause `(<fetches>)`
     /// ([`fetch_place_rule`]). A seeded world, whose fetch times the test
     /// sets, names them.
     pub fn fetched_live(mut self) -> Transcript {
@@ -652,9 +653,8 @@ impl Transcript {
 
 /// A transcript's own rule, outside [`normalise`]'s eleven, for a world
 /// fetched in real time ([`Transcript::fetched_live`]): on a total line,
-/// the place after each of the matches' oldest and newest fetch's ages,
-/// or after their one location's, is `<place>`. A `# holds` line is the
-/// fact as checked and is kept.
+/// the matches' fetch clause is `(<fetches>)`, whichever form it takes.
+/// A `# holds` line is the fact as checked and is kept.
 pub fn fetch_place_rule(text: &str) -> String {
     text.split_inclusive('\n')
         .map(|line| {
@@ -662,25 +662,20 @@ pub fn fetch_place_rule(text: &str) -> String {
                 return line.to_string();
             }
             let mut line = line.to_string();
-            // The oldest place ends at the "; " before the newest; the
-            // newest, or the one location, at the clause's own ")", the
-            // line's last, since a character's place carries a ")" of its
-            // own ("(character)") and which location is newest hangs on a
-            // second (the gate, 2026-10-31, on the launch-morning
-            // transcript); an undecided count after the clause holds none.
-            let oldest = ("fetch <age> ago, ", "; ");
-            if let Some(at) = line.find(oldest.0).map(|at| at + oldest.0.len())
-                && let Some(len) = line[at..].find(oldest.1)
+            // Which location is the oldest or the newest hangs on a second
+            // (the gate, 2026-10-31, on the launch-morning transcript), and
+            // so does the form: places all fetched in one second are one
+            // location, named once (the gate, 2026-11-03, the same
+            // transcript). The clause ends at its own ")", the line's last,
+            // since a character's place carries a ")" of its own
+            // ("(character)") and an undecided count after it holds none.
+            if let Some(at) = ["(the oldest fetch ", "(fetched "]
+                .iter()
+                .find_map(|form| line.find(form))
+                && let Some(end) = line.rfind(')')
+                && end > at
             {
-                line.replace_range(at..at + len, "<place>");
-            }
-            for to_the_end in ["newest <age> ago, ", "(fetched <age> ago, "] {
-                if let Some(at) = line.find(to_the_end).map(|at| at + to_the_end.len())
-                    && let Some(end) = line.rfind(')')
-                    && end > at
-                {
-                    line.replace_range(at..end, "<place>");
-                }
+                line.replace_range(at..=end, "(<fetches>)");
             }
             line
         })
