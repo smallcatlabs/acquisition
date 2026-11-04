@@ -1031,11 +1031,11 @@ struct PriceListParams {
     /// Only items a row on this target would cover: a folder's tabs'
     /// items, a map or unique tab's substashes' items too.
     covered_by: Option<String>,
-    /// Only items whose price text decides nothing, the members of
-    /// price_status's counts: residue (`counts.residue`),
-    /// a note or tab name that reads as a price where the trade site cannot
-    /// see it; invalid_note (`counts.invalid_notes`), a note that starts
-    /// like a price and does not read as one.
+    /// Only the members of a count of price_status: residue
+    /// (`counts.residue`), price text the trade site cannot see;
+    /// invalid_note (`counts.invalid_notes`), a note that starts like a
+    /// price and does not read as one; skip (`counts.by_game_statement`'s
+    /// `skip`), a ~skip statement in a public tab.
     game_text: Option<String>,
     /// List this many items in place of ten, the first in listing order;
     /// `total` says how many the selection holds.

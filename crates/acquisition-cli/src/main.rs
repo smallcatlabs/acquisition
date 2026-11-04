@@ -667,11 +667,12 @@ enum PriceCmd {
         /// tabs' items, a map or unique tab's substashes' items too.
         #[arg(long)]
         covered_by: Option<String>,
-        /// Only items whose price text decides nothing, the ones `acq
-        /// price status` counts: residue, a note or tab name that reads
-        /// as a price where the trade site cannot see it (a character's
-        /// item, a tab that is not public); invalid_note, a note that
-        /// starts like a price and does not read as one.
+        /// Only the items of a game-side count `acq price status` prints:
+        /// residue, a note or tab name that reads as a price where the
+        /// trade site cannot see it (a character's item, a tab that is not
+        /// public); invalid_note, a note that starts like a price and does
+        /// not read as one; skip, a game-side ~skip statement in a public
+        /// tab.
         #[arg(long, value_name = "TEXT")]
         game_text: Option<String>,
         /// List at most N items, the first in listing order; the first

@@ -1752,6 +1752,80 @@ fn cli13_a_counts_heading_counts_its_none_line() {
     golden(file!(), "count_heading_counts_its_none_line", &t);
 }
 
+/// The answer-facts seat (run 1, CLI fault 10 and the MCP's T5 note; CLI
+/// calls 69, 73, MCP call 38): `price status` counted three game-side
+/// `~skip` statements and its route listed the invalid notes alone; the
+/// runner found the skips by a search. A count a frontend prints names
+/// what the reader can do next (C146): `price list --game-text skip`
+/// lists them, and the status prints that route beside the count, which
+/// runs as printed and lists the three.
+#[test]
+fn cli10_the_skip_count_names_the_list_that_holds_them() {
+    let scratch = harness::scratch("seat-skip-route");
+    let base = scratch.0.clone();
+    let mock = crate::price_json::seed(&base);
+    // the public tab refetched with three `~skip` notes beside its two
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let orb = |id: &str, note: Option<&str>| {
+        let mut v = json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                            "x": 0, "y": 0, "stackSize": 5 });
+        if let Some(n) = note {
+            v["note"] = json!(n);
+        }
+        v
+    };
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "c1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "items": [
+                orb("i-noted", Some("~price 5 chaos")), orb("i-plain", None),
+                orb("k1", Some("~skip")), orb("k2", Some("~skip")), orb("k3", Some("~skip")) ] } }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let mut t = Transcript::offline(&base);
+    let said = stdout(&t.run(
+        &["price", "status"],
+        &[
+            "3 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text skip` lists them)",
+        ],
+    ));
+    let route = said
+        .split('`')
+        .find(|c| c.ends_with("--game-text skip"))
+        .unwrap_or_else(|| panic!("no skip route:\n{said}"));
+    let out = harness::offline_printed(&base, &format!("{route} --json"))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "`{route}`: {}", text(&out));
+    let listed = sole_json(&out);
+    assert_eq!(listed["total"], 3, "{listed}");
+    let mut ids: Vec<&str> = listed["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|i| i["subject"]["target"]["id"].as_str())
+        .collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["k1", "k2", "k3"], "{listed}");
+    t.run(
+        &["price", "list", "--game-text", "skip"],
+        &[
+            "3 items",
+            "with a game-side ~skip statement in a public tab",
+        ],
+    );
+    golden(file!(), "skip_count_names_its_list", &t);
+}
+
 /// A seat quoted the scope's oldest fetch for 187 matches and named it
 /// the fault a person would quote wrong (#155; MCP-2 calls 32 and 37):
 /// the total line says the matches' own oldest and newest fetch, each

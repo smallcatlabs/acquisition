@@ -1,0 +1,25 @@
+# golden seat_faults/skip_count_names_its_list: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price status
+# holds "3 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text skip` lists them)"
+--- stdout
+7 items in Standard: 4 the game decides, 1 decided by hand, 2 nothing applies
+facts: 4 locations, 4 fetched (fetched <age> ago, pc · Standard / ~price 3 chaos); stash listing <age> ago, characters listed <age> ago
+leagues: Standard (this); none other
+sides: 5 priced by hand (0 by hand alone, 4 agree with the game's price, 1 conflict with it); 2 priced in game
+1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text residue` lists them
+in game also: 3 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text skip` lists them), 0 notes start like a price and do not read as one (no effect: a hand row or its tab's name applies, where either does)
+rows: 2 of 3 apply here; 1 name nothing in this league's facts, 0 unreadable, 0 for other leagues, 0 for other realms
+next: `acq price list --account 'Alice#1234' --realm pc --league Standard --relation conflict --expand` names each conflict
+
+$ acq price list --game-text skip
+# holds "3 items"
+# holds "with a game-side ~skip statement in a public tab"
+--- stdout
+3 items listed in Standard with a game-side ~skip statement in a public tab: 3 agree; in 1 container
+  relation     wins  by hand            in game            item                                     id
+~price 3 chaos (3 chaos, public)  3 items: 3 agree  tab/pc/c1
+  agree        game  skip               skip               Chaos Orb x5                             k1
+  agree        game  skip               skip               Chaos Orb x5                             k2
+  agree        game  skip               skip               Chaos Orb x5                             k3
+next: `acq price show --account 'Alice#1234' --realm pc --league Standard item/<id>` is one listing with its texts

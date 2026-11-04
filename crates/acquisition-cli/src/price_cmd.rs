@@ -468,6 +468,13 @@ fn render_status(
     let skipped = reading_count(r, "skip");
     let invalid = c.invalid_notes;
     if skipped + invalid > 0 {
+        // each count names what lists it, where it is not zero (C146; the
+        // answer-facts seat, CLI fault 10: the skips had no route)
+        let skip_route = if skipped > 0 {
+            format!("; `acq price list {scope} --game-text skip` lists them")
+        } else {
+            String::new()
+        };
         // the invalid notes' list, where there are any to list (#11)
         let listed = if invalid > 0 {
             format!("; `acq price list {scope} --game-text invalid_note` lists them")
@@ -475,7 +482,7 @@ fn render_status(
             String::new()
         };
         out.push_str(&format!(
-            "in game also: {} (a hand row nearer the item still applies), {} (no effect: a hand row or its tab's name applies, where either does){listed}\n",
+            "in game also: {} (a hand row nearer the item still applies{skip_route}), {} (no effect: a hand row or its tab's name applies, where either does){listed}\n",
             // C146 and C81: the game-side statements in public tabs alone;
             // a non-public tab's skip text is price text the site cannot
             // see, counted above
@@ -727,6 +734,9 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
         }
         Some(GameText::InvalidNote) => {
             scope.push_str(" with a note that starts like a price and does not read as one");
+        }
+        Some(GameText::Skip) => {
+            scope.push_str(" with a game-side ~skip statement in a public tab");
         }
         None => {}
     }
@@ -1437,7 +1447,7 @@ mod tests {
         let text = render_status(&resolve(&skips).unwrap(), 8_000, false, "a", "");
         assert!(
             text.contains(
-                "in game also: 2 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies), 0 notes start like a price"
+                "in game also: 2 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies; `acq price list --account a --realm pc --league Standard --game-text skip` lists them), 0 notes start like a price"
             ),
             "{text}"
         );

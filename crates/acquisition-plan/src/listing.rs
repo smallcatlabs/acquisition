@@ -749,9 +749,9 @@ pub struct ListFilter {
     pub expand: bool,
 }
 
-/// The price text that decides nothing, as `list` selects it (#11): the
-/// items `price status` counts and no other verb listed. The words are
-/// the counts' (C146).
+/// The game-side text `list` selects (#11): the items `price status`
+/// counts and no other verb listed, the price text that decides nothing
+/// and the game's `~skip` statements. The words are the counts' (C146).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GameText {
@@ -761,15 +761,21 @@ pub enum GameText {
     /// A note that starts like a price and does not read as one:
     /// `Counts::invalid_notes`, `game.note.reading` invalid on the item.
     InvalidNote,
+    /// The game side's `~skip` statement in a public tab:
+    /// `Counts::by_game_statement`'s `skip`, `game.reading` skip on the
+    /// item (the answer-facts seat, CLI fault 10: the status counted
+    /// them and offered no route).
+    Skip,
 }
 
 impl GameText {
-    pub const ALL: [GameText; 2] = [GameText::Residue, GameText::InvalidNote];
+    pub const ALL: [GameText; 3] = [GameText::Residue, GameText::InvalidNote, GameText::Skip];
 
     pub fn as_str(self) -> &'static str {
         match self {
             GameText::Residue => "residue",
             GameText::InvalidNote => "invalid_note",
+            GameText::Skip => "skip",
         }
     }
 
@@ -785,6 +791,7 @@ impl GameText {
                 .note
                 .as_ref()
                 .is_some_and(|n| matches!(n.reading, GamePrice::Invalid { .. })),
+            GameText::Skip => matches!(game.reading, GamePrice::Skip),
         }
     }
 }

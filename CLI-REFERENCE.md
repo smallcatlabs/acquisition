@@ -681,7 +681,7 @@ Options:
       --effective <EFFECTIVE>    Who decides: game, manual, none or unresolved
       --in <LOCATION>            Only items physically in this container (a tab, substash or character address)
       --covered-by <COVERED_BY>  Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too
-      --game-text <TEXT>         Only items whose price text decides nothing, the ones `acq price status` counts: residue, a note or tab name that reads as a price where the trade site cannot see it (a character's item, a tab that is not public); invalid_note, a note that starts like a price and does not read as one
+      --game-text <TEXT>         Only the items of a game-side count `acq price status` prints: residue, a note or tab name that reads as a price where the trade site cannot see it (a character's item, a tab that is not public); invalid_note, a note that starts like a price and does not read as one; skip, a game-side ~skip statement in a public tab
       --limit <N>                List at most N items, the first in listing order; the first line says N of how many
       --expand
   -h, --help                     Print help
