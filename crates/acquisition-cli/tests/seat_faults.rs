@@ -954,6 +954,24 @@ fn an_applied_plan_says_its_listings_before_the_plan_and_its_own_age_now() {
         facts, "facts: stash listed 53s before the plan; plan made 2m ago",
         "{said}"
     );
+    // the reviewed file's audit view says its basis by the same clocks
+    // (the review of the seat's third round, finding 1)
+    let audit = stdout(&acq(
+        &base,
+        &["refresh", &format!("--plan={}", path.display()), "--expand"],
+    ));
+    let basis = audit
+        .lines()
+        .find(|l| l.starts_with("basis: "))
+        .unwrap_or_else(|| panic!("{audit}"));
+    assert_eq!(
+        basis,
+        format!(
+            "basis: stash listed 53s before the plan (response {}), characters never listed; plan made 2m ago",
+            plan["basis"]["stash_listing"]["response_id"]
+        ),
+        "{audit}"
+    );
 }
 
 /// C111. A plan file applied twice fetched twice: the same command run

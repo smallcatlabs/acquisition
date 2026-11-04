@@ -331,7 +331,6 @@ pub async fn refresh_plan(
     json: bool,
     expand: bool,
 ) -> Result<()> {
-    let now = acquisition_store::now();
     let (
         Planned {
             plan,
@@ -362,6 +361,9 @@ pub async fn refresh_plan(
             (account.open()?.plan(realm, league).await?, username)
         }
     };
+    // the answer's time, read after the compile and its awaited quote
+    // (the review of the seat's third round, finding 6)
+    let now = acquisition_store::now();
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
         // why the quote is absent, and the compile's notes, are
@@ -793,9 +795,12 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     );
     // Both bases are the facts as of the read; which facets the policy
     // covers shows in the actions and skips, not here.
+    // each listing's age before the plan and the plan's own at `now`, as
+    // the facts line says them (C53; the review of the seat's third
+    // round, finding 1: `stash listing 53s old` named no clock)
     let stash = match &plan.basis.stash_listing {
         Some(l) => format!(
-            "stash listing {} old (response {})",
+            "stash listed {} before the plan (response {})",
             dur(plan.generated_at - l.fetched_at),
             l.response_id
         ),
@@ -803,13 +808,16 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     };
     let characters = match &plan.basis.character_listing {
         Some(l) => format!(
-            "character listing {} old (response {})",
+            "characters listed {} before the plan (response {})",
             dur(plan.generated_at - l.fetched_at),
             l.response_id
         ),
         None => "characters never listed".into(),
     };
-    out.push_str(&format!("basis: {stash}, {characters}\n\n"));
+    out.push_str(&format!(
+        "basis: {stash}, {characters}; plan made {}\n\n",
+        acquisition_store::age::ago(now, Some(plan.generated_at))
+    ));
     out
 }
 
