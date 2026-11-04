@@ -676,10 +676,13 @@ fn open_as_asked(
                 );
             } else {
                 eprintln!("Error: {}", crate::failure_words(&e));
-                // the ready commands, this command as typed (its request
-                // file kept) as each account (the review of round C,
-                // finding 4)
-                eprint!("{}", crate::ready_accounts(&e));
+                // the ready commands: the request the JSON offers, rebound
+                // to each account (the review of round C's fix round,
+                // finding 1)
+                eprint!(
+                    "{}",
+                    crate::ready_accounts(&e, &crate::Terminal::asking(sent.clone()))
+                );
             }
             anyhow::Error::from(crate::AlreadyReported)
         })?;

@@ -343,7 +343,8 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     // every text refusal whose JSON offers accounts prints them as ready
     // commands, by the one renderer (the review of round C, finding 4):
     // an account no login made, two known; and a request read whole with
-    // no account, two known, its file kept and `--account` added
+    // no account, two known, printed as the request the JSON offers,
+    // rebound to each account
     let scratch = harness::scratch("seat-account-unknown");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
@@ -365,6 +366,17 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let request = base.join("request.json");
     std::fs::write(&request, r#"{"query":{"text":""}}"#).unwrap();
     let request = request.to_str().unwrap().to_string();
+    // a request whose own scope names an account no login made: each
+    // command carries the request rebound to an account known, never the
+    // file beside a scope still naming `Missing` (the review of round C's
+    // fix round, finding 1)
+    let missing = base.join("missing.json");
+    std::fs::write(
+        &missing,
+        r#"{"scope":{"account":"Missing"},"query":{"text":""}}"#,
+    )
+    .unwrap();
+    let missing = missing.to_str().unwrap().to_string();
     let mut t = Transcript::new(&base);
     for (args, said) in [
         (
@@ -374,6 +386,10 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         (
             vec!["search", "--request", request.as_str()],
             "2 accounts are known and one is to be picked",
+        ),
+        (
+            vec!["search", "--request", missing.as_str()],
+            "no login made a store for `Missing`",
         ),
     ] {
         let out = t.run(&args, &[said]);
