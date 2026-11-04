@@ -611,4 +611,15 @@ timeouts each still timing out, and #151 open. The owner restated
 at `514fdeb9`) closed on 2026-11-03 (`LEDGER.md`): 16 of 16 caught
 locally, its build reviewed, one fix round. The Weekly after-run
 `41652559158` on the tag `151-component-waits-after` showed each of the
-sixteen caught, and #151 closed on 2026-11-03.
+sixteen caught, and #151 closed on 2026-11-03. The answer-facts group
+opened the same day under the owner's grant of autonomy ("I agree
+with your approach, and I encourage you to orchestrate with
+autonomy"): the map `reviews/answer-facts-map.md` (reviewed cold
+twice, its eight recommendations accepted as a set), its rulings
+C118 amended and C162 entered at `f3db3427`, and its rounds in the
+map's §10 order: the coverage fold in the store (S2,
+`briefs/155-coverage-fold.md`, cut twice under cold reviews), then the
+subject's block on the search (S1, #155), the named-paths pin (S4),
+the shop's and price status's blocks (S3, #156), the scope of
+league-taking surfaces (S5, #157, #22), the words round (S6 to S10),
+and a seat. Current: round 1, its brief under its second cold review.
