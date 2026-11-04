@@ -675,13 +675,17 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
 /// same document (C115): its tabs are `rows`, cut the same way, every one
 /// under `--expand` — the refresh-run script reads them there (the review
 /// of note 38 at `16bba23e`, step 1, reproduced its abort on the old flat list).
+/// The head's items are the tabs' alone, and it says so with the command
+/// that counts the characters' (answer-facts seat run 2, cli fault 2: both
+/// runners took `20231 items` for the league's, where `price status` said
+/// 21311, and worked out the difference by arithmetic).
 #[test]
-fn tabs_says_its_counts_first_and_counts_a_large_league() {
+fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
     let scratch = harness::scratch("seat-tabs");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
     let mut t = Transcript::new(&base);
-    let said = stdout(&t.run(&["tabs"], &["1 tabs in Standard: 1 fetched; 1 items"]));
+    let said = stdout(&t.run(&["tabs"], &["1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)"]));
     assert!(
         said.contains("a1"),
         "a small league is listed whole:\n{said}"

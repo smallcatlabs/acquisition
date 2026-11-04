@@ -592,7 +592,7 @@ async fn tabs(
     match empty {
         Some(said) => body.push_str(&pre(&said)),
         None => {
-            body.push_str(&pre(&store_cmd::tabs_head(&listed, realm, &league)));
+            body.push_str(&pre(&store_cmd::tabs_head(&listed, realm, &league, None)));
             // the stash list one group, open; each map or unique tab's
             // pages a group of their own under it, closed (the 4b sitting
             // round, Do 4); no script

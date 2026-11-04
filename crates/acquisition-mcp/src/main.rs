@@ -725,7 +725,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "tab counts",
-        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first, each type's `never` its never fetched); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items in tabs (characters apart: the `characters` tool with the league counts theirs), and the same by tab type (`by_type`, the most items first, each type's `never` its never fetched); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
     ),
     (
         "character counts",

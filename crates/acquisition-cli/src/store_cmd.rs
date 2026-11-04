@@ -175,11 +175,16 @@ pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &
     )
 }
 
-/// `tabs`' first line: the league's counts, the answer first (C53).
+/// `tabs`' first line: the league's counts, the answer first (C53). Its
+/// items are the tabs' alone and it says so, with `characters` the
+/// command that counts the rest where the surface prints one: a league's
+/// count elsewhere holds its characters' items too (C146, a count says
+/// what it counts; answer-facts seat run 2, cli fault 2).
 pub(crate) fn tabs_head(
     listed: &acquisition_search::tabs::Tabs,
     realm: Realm,
     league: &str,
+    characters: Option<&str>,
 ) -> String {
     let mut parts = vec![format!("{} fetched", listed.fetched)];
     if listed.never_fetched > 0 {
@@ -193,11 +198,28 @@ pub(crate) fn tabs_head(
         ));
     }
     format!(
-        "{} tabs in {}{league}: {}; {} items",
+        "{} tabs in {}{league}: {}; {} items in tabs (characters apart{})",
         listed.tabs,
         realm_prefix(realm),
         parts.join(", "),
-        listed.items
+        listed.items,
+        characters
+            .map(|line| format!(": `{line}`"))
+            .unwrap_or_default()
+    )
+}
+
+/// The command that lists one league's characters, as `account`, in the
+/// quoting every printed command takes (C156).
+fn characters_line(account: &str, realm: Realm, league: &str) -> String {
+    crate::printed_line(
+        &[
+            ["acq", "store", "characters"].map(String::from).to_vec(),
+            crate::option_words("--account", account),
+            crate::option_words("--realm", realm.as_str()),
+            crate::option_words("--league", league),
+        ]
+        .concat(),
     )
 }
 
@@ -315,7 +337,8 @@ pub fn tabs(
         return Ok(());
     }
     // The answer first (C53), so it is never under a screen of rows.
-    println!("{}", tabs_head(&listed, realm, league));
+    let characters = characters_line(&username, realm, league);
+    println!("{}", tabs_head(&listed, realm, league, Some(&characters)));
     print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (the re-sit:

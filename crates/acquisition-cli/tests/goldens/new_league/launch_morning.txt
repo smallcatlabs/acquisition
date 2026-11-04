@@ -122,7 +122,7 @@ characters: none in Rehearsal (the realm's character listing, listed <age> befor
 $ acq tabs --league Rehearsal
 # holds "8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items"
 --- stdout
-8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items
+8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items in tabs (characters apart: `acq store characters --account ExileTester --realm pc --league Rehearsal`)
 leagues: Rehearsal (this); also held: Standard (15 tabs, 2 characters, named)
 name         type           items  fetched      parent       id
 Currency     CurrencyStash      0  <age> ago                 rh-cur1
@@ -137,7 +137,7 @@ Maps (empty) MapStash           0  <age> ago                 rh-mape
 $ acq tabs
 # holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
 --- stdout
-15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items
+15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items in tabs (characters apart: `acq store characters --account ExileTester --realm pc --league Standard`)
 leagues: Standard (this); also held: Rehearsal (8 tabs, named)
 type            tabs  fetched   items
 PremiumStash       2        2      13

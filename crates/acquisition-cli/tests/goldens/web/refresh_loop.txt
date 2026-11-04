@@ -76,7 +76,7 @@ GET refresh?realm=pc&league=Standard
 <form method="get" action="plan">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <pre>
-15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items
+15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart)
 </pre>
 <details class="list" open><summary>Stash tabs (15)</summary>
 <table>

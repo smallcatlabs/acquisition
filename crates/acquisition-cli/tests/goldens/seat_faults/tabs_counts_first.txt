@@ -1,9 +1,9 @@
 # golden seat_faults/tabs_counts_first: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq tabs
-# holds "1 tabs in Standard: 1 fetched; 1 items"
+# holds "1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)"
 --- stdout
-1 tabs in Standard: 1 fetched; 1 items
+1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 name type          items  fetched      parent       id
 Gear PremiumStash      1  <age> ago                 a1
@@ -12,7 +12,7 @@ $ acq tabs
 # holds "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items"
 # holds "next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 41"
 --- stdout
-41 tabs in Standard: 1 fetched, 40 never fetched; 1 items
+41 tabs in Standard: 1 fetched, 40 never fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 type           tabs  fetched   items
 PremiumStash      1        1       1
@@ -35,7 +35,7 @@ $ acq tabs --league 'Hard Mode'
 # holds "`acq tabs --account 'Alice#1234' --realm pc --league 'Hard Mode' --expand` lists all 41"
 # holds "`acq search --account 'Alice#1234' --realm pc 'league=\"Hard Mode\"' --count tab`"
 --- stdout
-41 tabs in Hard Mode: 0 fetched, 41 never fetched; 0 items
+41 tabs in Hard Mode: 0 fetched, 41 never fetched; 0 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league 'Hard Mode'`)
 leagues: Hard Mode (this); also held: Allflame (1 tab, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
@@ -59,7 +59,7 @@ $ acq tabs --league Small
 # holds "the 10 with the most items:"
 # holds "`acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20"
 --- stdout
-20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+20 tabs in Small: 0 fetched, 20 never fetched; 0 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Small`)
 leagues: Small (this); also held: Allflame (1 tab, no policy), Hard Mode (41 tabs, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
@@ -81,7 +81,7 @@ next: `acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists
 $ acq tabs --league Small --limit 15
 # holds "the 15 with the most items:"
 --- stdout
-20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+20 tabs in Small: 0 fetched, 20 never fetched; 0 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Small`)
 leagues: Small (this); also held: Allflame (1 tab, no policy), Hard Mode (41 tabs, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
