@@ -390,6 +390,11 @@ pub struct Corpus {
     /// The realm's location lists, each with its realm, its league
     /// (`None`: the character list) and when it was last seen.
     pub(crate) listings: Vec<ListingSeen>,
+    /// Each location's place in the store's order of locations, by its
+    /// coordinate: an answer's span breaks a tie by it, as the scope's
+    /// does, so where both blocks hold the tied locations they name one
+    /// (the answer-facts seat, MCP fault 4).
+    pub(crate) order: HashMap<Coordinate, usize>,
 }
 
 impl Corpus {
@@ -645,6 +650,17 @@ impl Corpus {
                         },
                     };
                     let index = locations(header);
+                    let order: HashMap<Coordinate, usize> = header
+                        .locations
+                        .iter()
+                        .enumerate()
+                        .map(|(at, l)| {
+                            (
+                                coordinate(&l.realm, &l.kind, &l.id, l.league.as_deref()),
+                                at,
+                            )
+                        })
+                        .collect();
                     let mut items = Vec::new();
                     // under `removed`, the live items the read hands over:
                     // counted for the scope block and never derived
@@ -795,6 +811,7 @@ impl Corpus {
                             membership,
                             gone,
                             items,
+                            order,
                         },
                         leagues,
                     )))

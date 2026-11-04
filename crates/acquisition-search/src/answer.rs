@@ -1684,6 +1684,16 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
     if places.is_empty() {
         return (0, None);
     }
+    // in the store's order of locations, so a tie names the location the
+    // scope's span names (the answer-facts seat, MCP fault 4)
+    let mut places = places;
+    places.sort_by_key(|p| {
+        corpus
+            .order
+            .get(&coordinate(&p.realm, &p.kind, &p.id, p.league.as_deref()))
+            .copied()
+            .unwrap_or(usize::MAX)
+    });
     let fetched: Vec<(i64, FetchedLocation)> = places
         .iter()
         .filter_map(|p| {

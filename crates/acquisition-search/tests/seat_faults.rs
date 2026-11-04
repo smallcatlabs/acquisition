@@ -1272,6 +1272,73 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     }
 }
 
+/// The answer-facts seat (MCP fault 4; calls 26, 31, 33 to 35): a tab and
+/// a character fetched in one second, the scope named the tab as its
+/// newest fetch and the total the character, one tie broken two ways.
+/// A span's tie is broken by the store's order of locations on every
+/// block, whatever order the facts arrived or the matches were met in.
+#[test]
+fn mcp4_a_tie_in_the_fetch_span_names_one_location_on_every_block() {
+    for character_first in [false, true] {
+        let mut s = store();
+        list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Dump")]), 10);
+        list_characters(
+            &mut s,
+            "pc",
+            json!([{ "id": "c1", "name": "Witch", "league": "Standard" }]),
+            10,
+        );
+        let tab_fetch = |s: &mut Store| {
+            fetch_tab(
+                s,
+                "pc",
+                "Standard",
+                "t1",
+                "Dump",
+                vec![ring("r1", "Rare", json!({ "ilvl": 10 }))],
+                50,
+            );
+        };
+        let character_fetch = |s: &mut Store| {
+            fetch_character(
+                s,
+                "pc",
+                json!({ "id": "c1", "name": "Witch", "league": "Standard",
+                        "equipment": [ring("r2", "Rare", json!({ "ilvl": 20 }))] }),
+                50,
+            );
+        };
+        if character_first {
+            character_fetch(&mut s);
+            tab_fetch(&mut s);
+        } else {
+            tab_fetch(&mut s);
+            character_fetch(&mut s);
+        }
+        for desc in [false, true] {
+            let a = view(
+                &s,
+                "pc",
+                "rarity=rare",
+                json!({ "rows": { "sort": "ilvl", "desc": desc } }),
+            );
+            assert_eq!(a["total"]["places"], 2);
+            for end in ["oldest_fetch_location", "newest_fetch_location"] {
+                assert_eq!(
+                    a["scope"][end], a["total"][end],
+                    "{end}, desc {desc}, character first {character_first}"
+                );
+            }
+        }
+    }
+    let d = serde_json::to_value(describe(&["all".to_string()]).unwrap()).unwrap();
+    assert!(
+        d.to_string()
+            .contains("the first in the store's order on a tie"),
+        "the gloss of the two location fields says how a tie is broken"
+    );
+}
+
 /// "Where do I pick it up" needed the item's cell, which three runs found
 /// only in the stored body (the trade seat: cli-opus calls 30, 33, 34;
 /// cli-sonnet call 23; mcp-sonnet call 22). The place carries GGG's cell
