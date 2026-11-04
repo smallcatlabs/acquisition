@@ -3380,12 +3380,18 @@ async fn c163_every_time_of_the_inventory_has_its_words() {
             bare.push(format!("{document}: no such document in the world"));
             continue;
         };
+        // a path the inventory names is found whether or not its value is
+        // null; the null-only exemption applies to the values found
         let found = at(doc, time);
+        if found.is_empty() {
+            bare.push(format!("{document}: no {time} in the document"));
+            continue;
+        }
         if !found.iter().any(|(_, v)| !v.is_null())
             && !NULL_ON_EVERY_ROW.contains(&(document, time))
         {
             bare.push(format!(
-                "{document}: {time} is absent or null on every row the world gives it"
+                "{document}: {time} is null on every row the world gives it"
             ));
             continue;
         }
