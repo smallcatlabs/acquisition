@@ -842,7 +842,7 @@ pub(crate) fn bind_key(text: &str) -> Result<Key, LanguageError> {
     }
     let known = || -> Vec<&'static str> {
         fields()
-            .filter(|f| !matches!(f.thing, Thing::Text | Thing::Id | Thing::Price))
+            .filter(|f| f.takes_has() && f.thing != Thing::Price)
             .map(|f| f.name)
             .chain(["line"])
             .collect()

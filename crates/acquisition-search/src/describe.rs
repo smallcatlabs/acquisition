@@ -619,8 +619,10 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             "on a ranged line — a template with exactly one `# to #`: that pair, and their mean; avg also on a template of exactly two numbers, their mean",
         ),
     ];
+    // a key is a field `has:` takes (`FieldDef::takes_has`), `priced`
+    // apart: yes or no is no value to count by (`bind::bind_key`)
     let keys: Vec<&'static str> = bind::fields()
-        .filter(|f| !matches!(f.name, "text" | "id" | "priced"))
+        .filter(|f| f.takes_has() && f.thing != Thing::Price)
         .map(|f| f.name)
         .chain(["line"])
         .collect();
