@@ -7,11 +7,14 @@ session on 2026-11-03 from the map and a re-read of the tree at
 are the owner's and are entered in the registry ahead of the code at
 `f3db3427` (C118 as amended, C162), under his words of 2026-11-03: "I
 agree with your approach, and I encourage you to orchestrate with
-autonomy." Cut twice: the first draft (`6544366c`) was reviewed cold
-(`roadmap/reviews/155-coverage-fold-brief-6544366c.md`, the prompt
-beside: six findings, one nitpick); this cut answers each, listed at
-the foot under "Taken from the review". To be reviewed cold again
-before a worker reads it.
+autonomy." Cut three times: the first draft (`6544366c`) and the
+re-cut (`6935be77`) were each reviewed cold
+(`roadmap/reviews/155-coverage-fold-brief-<sha>.md`, the prompts
+beside: six findings then three, none structural); this cut answers
+the second review's three, listed at the foot under "Taken from the
+reviews" with the first's six. Not reviewed a third time: the
+roadmap's rule, and the third review's findings were tightenings of
+lines the second had already found.
 
 ## Goal
 
@@ -22,13 +25,17 @@ the age vocabulary (`age.rs`) and the read economy's bound
 where each had its own; and nothing any user or program meets has
 changed: every golden under every crate's `tests/goldens/` is byte for
 byte what it was, both references are unchanged, and every JSON
-answer is the same document in the same field order, but for the one
-field that names the build: `basis.build` is a digest of the search
-crate's sources (`crates/acquisition-search/build.rs:29`,
+answer is the same document in the same field order, but for the
+build's identity wherever it is carried: `basis.build` is a digest of
+the search crate's sources (`crates/acquisition-search/build.rs:29`,
 `corpus.rs:614`), so it changes with this edit as with every source
-edit, the text goldens mask it (`harness/mod.rs:1128`), and a
-continuation token of another build is refused by design
-(`tests/next.rs:463`). The step moves a derivation one crate down and
+edit; a continuation embeds the basis in its request
+(`answer.rs:2039`) and the printed command encodes that request
+(`:2974`), so those change with it; a continuation of another build
+is refused and the refusal names both builds (`corpus.rs:215`,
+`tests/next.rs:463`); the text goldens mask the digest
+(`harness/mod.rs:1128`). Everything else is identical at fixed inputs
+and a fixed time. The step moves a derivation one crate down and
 proves the move by the absence of any other change.
 
 Why it matters: the map found that every surface derives its ages and
@@ -167,8 +174,15 @@ no golden holds (a field's order, a serde attribute, a gloss).
   `RealmScope::One` of the populated realm `list_seen` is that realm's
   base, under `All` the older one's (1125–1133); the never-fetched
   types ordered most never fetched first, ties by name, and the
-  never-fetched leagues most first, ties by name (1094–1098);
-  `by_type` on its own: items descending then name ascending (258),
+  never-fetched leagues most first, ties by name (1094–1098); a stash
+  location with no `tab_type` (its type the empty string, 1078–1081,
+  as today); a type with fetched and never-fetched locations both,
+  the fetched ones holding items (the type retained, its `items` the
+  sum over every location of the type, fetched or not, 1083–1089);
+  `items` and `realms_held` passed through as given, not derived from
+  the rows (1110–1113: a total larger than the rows' sum and a realm
+  held with no row in the set both come back unchanged); `by_type` on
+  its own: items descending then name ascending (258),
   and a folder counted as a type when its row is given (as `Tabs::of`
   gives it, 154–157); `aged` on its own: the fetch words absent with
   no fetch, `list_seen_age` `never` with no list, and all three words
@@ -253,13 +267,19 @@ no golden holds (a field's order, a serde attribute, a gloss).
   `crates/acquisition-verbs/` or `crates/acquisition-plan/` changes in
   the range.
 - The moved text reads the same: the reviewer diffs `git show
-  6544366c:crates/acquisition-search/src/corpus.rs` lines 354–455 and
-  `git show 6544366c:crates/acquisition-search/src/tabs.rs` lines
-  126–134 and 238–260 against `crates/acquisition-store/src/coverage.rs`
-  and finds every field in the same order with the same serde
-  attribute and doc comment, the differences being module paths, the
-  function's name and its input shape, and the words Do 2 asks the
-  module doc to add. The report carries that diff under 3.
+  6544366c:crates/acquisition-search/src/corpus.rs` lines 354–455,
+  1038–1040 and 1063–1136, and `git show
+  6544366c:crates/acquisition-search/src/tabs.rs` lines 126–134 and
+  238–260, against `crates/acquisition-store/src/coverage.rs`, and
+  finds every field in the same order with the same serde attribute
+  and doc comment and every statement of the function in the same
+  order, the differences being module paths, the function's name and
+  its input shape, and the words Do 2 asks the module doc to add; and
+  diffs the call site (`corpus.rs:853–866` at `6544366c`) against the
+  new one, checking the rows' order, the resolved realm, the count
+  lookup with its zero fallback, the item-total expression
+  (`items.len() - removed + passed_over`) and both overrides are as
+  they were. The report carries both diffs under 3.
 - `tools/arch-check.sh` reports the same edges as before (the store
   links nothing new; nothing new links the store).
 - The commit message carries the two retirement lines of Do 5.
@@ -300,11 +320,29 @@ no golden holds (a field's order, a serde attribute, a gloss).
 before and after, and the diff of the moved text the last done-when
 line names.
 
-## Taken from the review
+## Taken from the reviews
 
-The cold review of `6544366c`
+The second cold review, of `6935be77`
+(`roadmap/reviews/155-coverage-fold-brief-6935be77.md`): three
+findings, no nitpick, each answered in this cut.
+
+1. The build's identity is carried beyond `basis.build`: in a
+   continuation's request, the command that encodes it, and the
+   refusal that names two builds. Goal now excepts the identity
+   wherever it is carried and holds everything else identical at fixed
+   inputs and time.
+2. The reading of the moved text covered the types and not the
+   function or the call site. The done-when adds `coverage()` and
+   `is_folder` to the comparison and a diff of the call site checking
+   its five particulars.
+3. Three properties of the fold were unstaged: the stash location with
+   no type, the type with fetched and never-fetched locations both,
+   and the pass-through of `items` and `realms_held`. Input stages
+   each.
+
+The first cold review, of `6544366c`
 (`roadmap/reviews/155-coverage-fold-brief-6544366c.md`): six findings,
-one a nitpick, each answered in this cut.
+one a nitpick, each answered in the second cut.
 
 1. The tie rule: Input had the newest picking the last on a tie; the
    code picks the first both ways (1073–1076). Input corrected, and
