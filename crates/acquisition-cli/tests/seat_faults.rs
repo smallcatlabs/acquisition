@@ -1667,6 +1667,91 @@ fn cli4_a_spans_location_names_its_realm() {
     }
 }
 
+/// The answer-facts seat (run 1, CLI fault 13; call 65): `--count
+/// league,rarity` headed rarity `4 values` and printed five lines,
+/// `(none)` among them. A count's heading counts the lines it prints
+/// (C146, a count says what it counts): where a `none` bucket is a line,
+/// it is a value. The JSON's `values` keeps its count of the values the
+/// items carry.
+#[test]
+fn cli13_a_counts_heading_counts_its_none_line() {
+    let scratch = harness::scratch("seat-count-none");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    // Standard's tab refetched with a rare beside its orb: one rarity
+    // value, and the orb with none; the query holds that one tab, so the
+    // total's span is one location whatever second the refetch took
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "a1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
+                { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 },
+                { "id": "i-rare", "name": "Doom Loop", "typeLine": "Ruby Ring", "baseType": "Ruby Ring",
+                  "rarity": "Rare", "frameTypeId": "Rare", "identified": true, "ilvl": 80, "x": 1, "y": 0 } ] } }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let mut t = Transcript::new(&base);
+    let shown = stdout(&t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--count",
+            "rarity",
+            "league=Standard",
+        ],
+        &["count   rarity · 2 values"],
+    ));
+    let at = shown
+        .lines()
+        .position(|l| l.starts_with("count   rarity"))
+        .unwrap_or_else(|| panic!("no rarity count:\n{shown}"));
+    let lines: Vec<&str> = shown
+        .lines()
+        .skip(at + 1)
+        .take_while(|l| {
+            l.trim_start()
+                .split_once("  ")
+                .is_some_and(|(n, _)| n.parse::<u64>().is_ok())
+        })
+        .collect();
+    assert_eq!(lines.len(), 2, "{shown}");
+    assert!(lines.iter().any(|l| l.ends_with("(none)")), "{shown}");
+    assert!(
+        shown
+            .lines()
+            .nth(at)
+            .unwrap()
+            .starts_with("count   rarity · 2 values"),
+        "{shown}"
+    );
+    let json = sole_json(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--count",
+            "rarity",
+            "league=Standard",
+            "--json",
+        ],
+    ));
+    assert_eq!(json["view"]["counts"]["tables"][0]["values"], 1, "{json}");
+    golden(file!(), "count_heading_counts_its_none_line", &t);
+}
+
 /// A seat quoted the scope's oldest fetch for 187 matches and named it
 /// the fault a person would quote wrong (#155; MCP-2 calls 32 and 37):
 /// the total line says the matches' own oldest and newest fetch, each
