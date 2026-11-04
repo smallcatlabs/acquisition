@@ -2747,3 +2747,100 @@ fn leagues_held_counts_each_leagues_tabs_and_characters_in_one_realm() {
     );
     assert_eq!(s.leagues_held("sony").unwrap(), vec![]);
 }
+
+/// The review of round C (`roadmap/reviews/seat-issues-c-a7395a13.md`,
+/// finding 1): a document's reads are one read snapshot. A write a
+/// second connection commits between what were its component reads —
+/// injected from SQLite's authorizer on the reader, as
+/// `c137_ensure_wal_…` counts its pragmas, the first time a component
+/// read prepares a statement on its table — never makes the document
+/// disagree with itself: `tabs`' rows beside its coverage, and `store
+/// status`'s item count beside its facts'.
+#[test]
+fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("facts.db");
+    let mut a = Store::open(&path).unwrap();
+    a.record(
+        &Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        &json!({}),
+        200,
+        &json!({ "stashes": [ { "id": "a1", "name": "One", "type": "PremiumStash", "index": 0 } ] }),
+        10,
+    )
+    .unwrap();
+    // `b` fetches a1 the first time `a` prepares a read of `on`
+    let inject = |a: &mut Store, on: &'static str| {
+        let mut b = Some(Store::open(&path).unwrap());
+        a.conn
+            .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+                if let rusqlite::hooks::AuthAction::Read { table_name, .. } = ctx.action
+                    && table_name == on
+                    && let Some(mut b) = b.take()
+                {
+                    b.record(
+                        &stash_ep("a1"),
+                        &json!({}),
+                        200,
+                        &stash("a1", vec![item("x1", "Bow", 0)]),
+                        20,
+                    )
+                    .unwrap();
+                }
+                rusqlite::hooks::Authorization::Allow
+            }))
+            .unwrap();
+    };
+    // `tabs`: its rows read first, then the coverage, whose locations
+    // read `characters` (which the rows do not)
+    inject(&mut a, "characters");
+    let (rows, coverage) = a.tabs_document("pc", "Standard", 100).unwrap();
+    let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
+    assert_eq!(fetched, coverage.fetched, "{rows:?}\n{coverage:?}");
+    a.conn
+        .authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>)
+        .unwrap();
+
+    // `store status`: its counts read first, the refused count after the
+    // items count, then the facts
+    let mut c = Store::open(&temp.path().join("other.db")).unwrap();
+    c.record(
+        &Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        &json!({}),
+        200,
+        &json!({ "stashes": [ { "id": "a1", "name": "One", "type": "PremiumStash", "index": 0 } ] }),
+        10,
+    )
+    .unwrap();
+    drop(c);
+    let path = temp.path().join("other.db");
+    let mut a = Store::open(&path).unwrap();
+    let mut b = Some(Store::open(&path).unwrap());
+    a.conn
+        .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+            if let rusqlite::hooks::AuthAction::Read { table_name, .. } = ctx.action
+                && table_name == "refused"
+                && let Some(mut b) = b.take()
+            {
+                b.record(
+                    &stash_ep("a1"),
+                    &json!({}),
+                    200,
+                    &stash("a1", vec![item("x2", "Bow", 0)]),
+                    20,
+                )
+                .unwrap();
+            }
+            rusqlite::hooks::Authorization::Allow
+        }))
+        .unwrap();
+    let st = a.status().unwrap();
+    assert_eq!(st.items as usize, st.facts.items, "{st:?}");
+    assert_eq!(st.facts.fetched, 0, "{st:?}");
+}

@@ -197,7 +197,8 @@ impl Tabs {
     }
 
     /// [`Tabs::of`] the league's tabs as `store` holds them, with the
-    /// facts block over them (#172): the one read every surface makes,
+    /// facts block over them (#172), both from one read snapshot
+    /// (`Store::tabs_document`): the one read every surface makes,
     /// `acq tabs`, the MCP's `tabs` and the web UI's refresh page.
     pub fn read(
         store: &acquisition_store::Store,
@@ -208,16 +209,11 @@ impl Tabs {
         expand: bool,
         now: i64,
     ) -> anyhow::Result<Tabs> {
-        let mut tabs = Tabs::of(
-            realm,
-            league,
-            store.tabs(realm, league)?,
-            select,
-            limit,
-            expand,
-            now,
-        );
-        tabs.span = store.coverage(Some(realm), Some(league), true, now)?.span;
+        // the rows and their facts from one read snapshot (the review of
+        // round C, finding 1)
+        let (rows, coverage) = store.tabs_document(realm, league, now)?;
+        let mut tabs = Tabs::of(realm, league, rows, select, limit, expand, now);
+        tabs.span = coverage.span;
         Ok(tabs)
     }
 

@@ -998,6 +998,41 @@ impl Status {
     }
 }
 
+/// A league's live tabs in listing order (folder children after their
+/// folder, substashes after their tab), over `conn`: the store's own
+/// connection, or a read transaction a document's reads share (the
+/// review of round C, finding 1).
+fn tabs_in(conn: &Connection, realm: &str, league: &str) -> Result<Vec<TabRow>> {
+    let mut stmt = conn.prepare(&format!(
+
+        "SELECT t.realm, t.league, t.id, t.parent, COALESCE(t.name, ''), COALESCE(t.type, ''), t.idx, t.listed_at, t.fetched_at, t.removed_at,
+                (SELECT count(*) FROM items i WHERE i.realm = t.realm AND i.league = t.league AND i.location_kind = 'stash' AND i.location_id = t.id AND i.removed_at IS NULL),
+                CASE WHEN t.fetched_at IS NULL THEN NULL
+                     ELSE COALESCE(json_extract(t.json, '$.stash._split.items'), json_extract(t.json, '$._split.items')) END
+           FROM tabs t WHERE t.realm = ?1 AND t.league = ?2 AND t.removed_at IS NULL ORDER BY {TAB_ORDER_KEYS}"
+    ))?;
+    let rows = stmt.query_map([realm, league], |r| {
+        Ok(TabRow {
+            realm: r.get(0)?,
+            league: r.get(1)?,
+            id: r.get(2)?,
+            parent: r.get(3)?,
+            name: r.get(4)?,
+            r#type: r.get(5)?,
+            idx: r.get(6)?,
+            listed_at: r.get(7)?,
+            listed_at_age: None,
+            fetched_at: r.get(8)?,
+            fetched_at_age: None,
+            removed_at: r.get(9)?,
+            removed_at_age: None,
+            item_count: r.get(10)?,
+            fetched_items: r.get(11)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
 /// The latest league list's count and age ([`Status::league_list_latest`]):
 /// `count` and `fetched_at` null and the age `never` where no list was
 /// ever fetched; a list fetched empty counts 0 (C53: the age in words
@@ -2192,9 +2227,15 @@ impl Store {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// The store's status: every count, the facts block and the refused
+    /// bodies' newest, read in one read transaction at one answer time,
+    /// so a write committed between two of its reads never makes it
+    /// disagree with itself (the review of round C, finding 1).
     pub fn status(&self) -> Result<Status> {
-        let count = |sql: &str| -> Result<i64> { Ok(self.conn.query_row(sql, [], |r| r.get(0))?) };
-        Ok(Status {
+        let now = now();
+        let tx = self.conn.unchecked_transaction()?;
+        let count = |sql: &str| -> Result<i64> { Ok(tx.query_row(sql, [], |r| r.get(0))?) };
+        let status = Status {
             path: self.path.display().to_string(),
             bytes: std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0),
             responses: count("SELECT count(*) FROM responses")?,
@@ -2208,11 +2249,11 @@ impl Store {
                 "fetched".to_string()
             },
             league_list_latest: {
-                let latest = league_list_in(&self.conn)?;
+                let latest = league_list_in(&tx)?;
                 LeagueListLatest {
                     count: latest.as_ref().map(|l| l.ids.len()),
                     fetched_at: latest.as_ref().map(|l| l.fetched_at),
-                    fetched_at_age: age::ago(now(), latest.map(|l| l.fetched_at)),
+                    fetched_at_age: age::ago(now, latest.map(|l| l.fetched_at)),
                 }
             },
             characters: count("SELECT count(*) FROM characters WHERE removed_at IS NULL")?,
@@ -2223,9 +2264,9 @@ impl Store {
             withheld_responses: count("SELECT count(*) FROM responses WHERE withheld IS NOT NULL")?,
             withheld_items: count("SELECT COALESCE(SUM(withheld), 0) FROM responses")?,
             refused_bodies: count("SELECT count(*) FROM refused")?,
-            refused_latest_at: self
-                .conn
-                .query_row("SELECT MAX(fetched_at) FROM refused", [], |r| r.get(0))?,
+            refused_latest_at: tx.query_row("SELECT MAX(fetched_at) FROM refused", [], |r| {
+                r.get(0)
+            })?,
             refused_latest_at_age: None,
             granted_skills: count(
                 "SELECT COALESCE(SUM(value), 0) FROM characters c, json_each(json_extract(c.json, '$._granted'))
@@ -2236,9 +2277,10 @@ impl Store {
                   WHERE c.removed_at IS NULL",
             )?,
             last_event: count("SELECT COALESCE(MAX(id), 0) FROM item_events")?,
-            facts: self.coverage(None, None, false, now())?,
-        }
-        .aged(now()))
+            facts: corpus::coverage_in(&tx, None, None, false, now)?,
+        };
+        tx.finish()?;
+        Ok(status.aged(now))
     }
 
     /// Tabs of a league in listing order (folder children after their
@@ -2279,33 +2321,7 @@ impl Store {
     }
 
     pub fn tabs(&self, realm: &str, league: &str) -> Result<Vec<TabRow>> {
-        let mut stmt = self.conn.prepare(&format!(
-            "SELECT t.realm, t.league, t.id, t.parent, COALESCE(t.name, ''), COALESCE(t.type, ''), t.idx, t.listed_at, t.fetched_at, t.removed_at,
-                    (SELECT count(*) FROM items i WHERE i.realm = t.realm AND i.league = t.league AND i.location_kind = 'stash' AND i.location_id = t.id AND i.removed_at IS NULL),
-                    CASE WHEN t.fetched_at IS NULL THEN NULL
-                         ELSE COALESCE(json_extract(t.json, '$.stash._split.items'), json_extract(t.json, '$._split.items')) END
-               FROM tabs t WHERE t.realm = ?1 AND t.league = ?2 AND t.removed_at IS NULL ORDER BY {TAB_ORDER_KEYS}"
-        ))?;
-        let rows = stmt.query_map([realm, league], |r| {
-            Ok(TabRow {
-                realm: r.get(0)?,
-                league: r.get(1)?,
-                id: r.get(2)?,
-                parent: r.get(3)?,
-                name: r.get(4)?,
-                r#type: r.get(5)?,
-                idx: r.get(6)?,
-                listed_at: r.get(7)?,
-                listed_at_age: None,
-                fetched_at: r.get(8)?,
-                fetched_at_age: None,
-                removed_at: r.get(9)?,
-                removed_at_age: None,
-                item_count: r.get(10)?,
-                fetched_items: r.get(11)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<_, _>>()?)
+        tabs_in(&self.conn, realm, league)
     }
 
     /// One item by id, removed or not.
