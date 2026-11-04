@@ -7,13 +7,13 @@ at `2977ea2c` (round 2 closed; every line number below from it). Cut
 twice: the first draft (`b03b3e78`) was reviewed cold
 (`roadmap/reviews/every-epoch-words-brief-b03b3e78.md`, the prompt
 beside: eight findings, one nitpick); this cut answers each, listed
-at the foot under "Taken from the review". Its ruling is not yet
-entered: the first cut read C53 as already requiring words beside
-every epoch a document carries, and the review held that reading an
-extension of C53's letter, not the letter. The orchestrator agrees.
-The line is drafted in Input for the owner; the step starts only once
-he has entered it, and a worker who finds it missing stops. To be
-reviewed cold again before a worker reads it.
+at the foot under "Taken from the review". Its ruling is C163
+(`decisions/frontends.md`, beside C162), entered on 2026-11-04 on the
+owner's word, "yes, as drafted": the first cut had read C53 as
+already requiring words beside every epoch a document carries, the
+review held that reading an extension of C53's letter, not the
+letter, and the orchestrator agreed; the line was drafted here and
+ruled. To be reviewed cold again before a worker reads it.
 
 ## Goal
 
@@ -38,8 +38,8 @@ at the cost of one test and one inventory.
 
 ## Read
 
-- The words ruling drafted in Input, once entered in
-  `decisions/frontends.md` beside C53; C53 (`:11`: "an age the text
+- C163 as entered (`decisions/frontends.md`, beside C162; quoted in
+  Input); C53 (`:11`: "an age the text
   prints stands in words beside its epoch in the JSON"; "every nothing
   says which nothing"), C146 (no rename), C149 (one JSON object), C98
   (the basis is identity: `decisions/search.md`), C38 (the plan's
@@ -115,12 +115,12 @@ at the cost of one test and one inventory.
 
 ## Input
 
-- **The ruling, drafted for the owner, entered before the code:**
+- **The ruling, C163, as entered:**
 
-  > - **C<next> — Every time a document carries has its words beside it.** A time a document serializes (seconds since 1970) has its age in words under the time's own name and `_age`, made at the answer's time or measured from a time of the document's own where its text measures so (C53, three output levels); a bound envelope's words sit in its wrapper (C38, the plan's); a null time says `never` or carries no words, as its maker says; words never enter a value's identity (C98, the basis). A pin walks every document a verb returns and fails on a time with no words. *Why:* C53 words the ages a text prints, and a seat worked a date by hand from a time no text printed. *Pinned:* `acquisition-verbs/tests/documents.rs`; Unbuilt, the answer-facts group's round 3.
+  > - **C163 — Every time a document carries has its words beside it.** A time a document serializes (seconds since 1970) has its age in words under the time's own name and `_age`, made at the answer's time or measured from a time of the document's own where its text measures so (C53, three output levels); a bound envelope's words sit in its wrapper (C38, the plan's); a null time says `never` or carries no words, as its maker says; words never enter a value's identity (C98, the basis). A pin walks every document a verb returns and fails on a time with no words. *Why:* C53 words the ages a text prints, and a seat worked a date by hand from a time no text printed. *Pinned:* `acquisition-verbs/tests/documents.rs`; Unbuilt, the answer-facts group's round 3.
 
-  Under 800 bytes; `python3 -I tools/bothy.py check` on the tree that
-  holds it is the worker's first check.
+  761 bytes; `python3 -I tools/bothy.py check` passes on the tree that
+  holds it.
 - The sweep at `2977ea2c`: `grep -rn 'pub [a-z_]*: \(Option<\)\?i64' crates/acquisition-{store,verbs,plan,search,protocol}/src | grep -i '_at\b\|_at:\|seen\|first\|last\|login\|written\|rendered\|generated\|observed\|taken\|\bat:\|since\|expires\|until' | grep -v '_age'`,
   59 field declarations; the review's reading of them by document,
   which is this step's inventory (document → time path → words path):
@@ -184,8 +184,8 @@ at the cost of one test and one inventory.
 
 ## Do
 
-1. The words ruling in the registry, as entered by the owner with the next free id: a worker
-   who finds it missing stops and reports.
+1. C163 in the registry: a worker who finds it missing stops and
+   reports.
 2. The pin first, red: in `documents.rs`, one test over populated
    fixtures with the inventory above as a table of `(document, time
    path, words path)`, each row asserting the words path holds a word
@@ -230,7 +230,7 @@ at the cost of one test and one inventory.
 
 ## Done when
 
-- The words ruling is in `decisions/frontends.md` at the step's base commit, its id the one the owner gave it, which this brief's head is then amended to cite.
+- C163 is in `decisions/frontends.md` at the step's base commit.
 - `documents.rs` holds the inventory test and the walk; the
   inventory's rows are every time path of Input; the walk's exemption
   list equals the inventory's wrapper rows; the fixture-struct case
@@ -273,7 +273,7 @@ The cold review of `b03b3e78`
 findings, one a nitpick, and a verdict on the head.
 
 - **The head:** the reading of C53 was an extension; the line is
-  drafted (its id the next free one, `C<next>` above) and the step waits on the owner's word.
+  drafted, ruled and entered as C163 (2026-11-04, "yes, as drafted").
 1. Words never enter identity: `Revision` and `Basis` gain nothing;
    the words sit at the answer's and `show`'s top level under a
    declared wrapper path; the continuation's and `before`'s carriers
