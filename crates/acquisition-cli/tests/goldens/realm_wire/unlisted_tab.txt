@@ -1,16 +1,16 @@
 # golden realm_wire/unlisted_tab: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq stash cur1 --realm xbox
-# holds "the stash listing stored for xbox Standard (fetched "
+# holds "the stash listing stored for xbox \"Standard\" (fetched "
 # holds "names no tab \"cur1\" that stands"
-# holds "a stashes job for xbox Standard fetches the listing again"
+# holds "a stashes job for xbox \"Standard\" fetches the listing again"
 --- stderr
-Error: the stash listing stored for xbox Standard (fetched <age> ago) names no tab "cur1" that stands; a stashes job for xbox Standard fetches the listing again
+Error: the stash listing stored for xbox "Standard" (fetched <age> ago) names no tab "cur1" that stands; a stashes job for xbox "Standard" fetches the listing again
 --- exit 1
 
 $ acq stash nope
-# holds "the stash listing stored for pc Standard (fetched "
+# holds "the stash listing stored for pc \"Standard\" (fetched "
 # holds "no tab \"nope\""
 --- stderr
-Error: the stash listing stored for pc Standard (fetched <age> ago) names no tab "nope" that stands; a stashes job for pc Standard fetches the listing again
+Error: the stash listing stored for pc "Standard" (fetched <age> ago) names no tab "nope" that stands; a stashes job for pc "Standard" fetches the listing again
 --- exit 1

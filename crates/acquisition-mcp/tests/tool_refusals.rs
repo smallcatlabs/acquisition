@@ -207,9 +207,9 @@ fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
 /// job for `rh-nope`, a tab the stored listing never named, was admitted
 /// and its 404 spent a request): with the mock's pc Standard listing
 /// stored, `submit_job` of a stash for a tab it does not name is refused
-/// at submit, kind `refused` in the daemon's data, its words naming the
-/// listing, its age and the `stashes` job that fetches it again, and no
-/// job is admitted; a tab it names is admitted and fetched.
+/// at submit, kind `refused` in the daemon's data with a message (its
+/// words are the CLI's golden `unlisted_tab`'s), and no job is admitted;
+/// a tab it names is admitted and fetched.
 #[test]
 fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_submit() {
     let scratch = harness::scratch("mcp-unlisted");
@@ -228,14 +228,12 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
         json!({ "kind": "stash", "params": { "league": "Standard", "id": "nope" } }),
     );
     assert_eq!(error["data"]["kind"], "refused", "{error}");
-    let message = error["message"].as_str().unwrap_or_default();
-    for words in [
-        "the stash listing stored for pc Standard (fetched ",
-        r#"names no tab "nope" that stands"#,
-        "a stashes job for pc Standard fetches the listing again",
-    ] {
-        assert!(message.contains(words), "{words:?}: {message}");
-    }
+    // the words are held once, by the CLI's golden (C153; the review of
+    // round D, finding 4): here, that the refusal says something
+    assert!(
+        error["message"].as_str().is_some_and(|m| !m.is_empty()),
+        "{error}"
+    );
     let jobs = mcp.expect_ok("list_jobs", json!({ "expand": true }));
     let rows = jobs["rows"].as_array().cloned().unwrap_or_default();
     assert!(

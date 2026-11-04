@@ -844,6 +844,21 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
             at + 60,
         )
         .unwrap();
+    // a league longer than a refusal's preview (C127; the review of round
+    // D, finding 3): a valid segment, quoted bounded
+    let long = format!("League {}", "w".repeat(193));
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: long.clone(),
+            },
+            &json!({ "league": long }),
+            200,
+            &json!({ "stashes": [ tab("A", "PremiumStash", 0) ] }),
+            at,
+        )
+        .unwrap();
     drop(store);
     let clock = Arc::new(ParkingClock::new());
     let sessions = live_sessions(&clock);
@@ -856,7 +871,7 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
     .store_dir(store_dir.to_path_buf())
     .run(|mut door| async move {
         let stash = |params: Value| submit_of("stash", params, 0, "client", Some("Alice#1234"));
-        let tab_again = "a stashes job for pc Standard fetches the listing again";
+        let tab_again = r#"a stashes job for pc "Standard" fetches the listing again"#;
         let sub_again = r#"a stash job for tab "M" fetches its substashes again"#;
         for (params, quoted, again) in [
             (
@@ -882,7 +897,7 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
                 ErrorKind::Refused,
                 &[
                     quoted.to_string(),
-                    "pc Standard".to_string(),
+                    r#"pc "Standard""#.to_string(),
                     " ago".to_string(),
                     again.to_string(),
                 ],
@@ -890,6 +905,16 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
             );
             assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
         }
+        let what = "c164: a tab of a league longer than the preview";
+        assert_refused(
+            door.request(stash(json!({ "league": long, "id": "C" })))
+                .await,
+            what,
+            ErrorKind::Refused,
+            &[long[..40].to_string(), r#""C""#.to_string()],
+            std::slice::from_ref(&long),
+        );
+        assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
         door.settle().await;
         assert!(
             door.sent().is_empty(),
@@ -1097,6 +1122,23 @@ fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
             ErrorKind::Refused,
             &["could not be read".to_string()],
             &[],
+        );
+        // the league as the refusal quotes it: bounded (the review of
+        // round D, finding 3)
+        let long = format!("League {}", "w".repeat(193));
+        let submit = submit_of(
+            "stash",
+            json!({ "league": long, "id": "C" }),
+            0,
+            "client",
+            Some("Alice#1234"),
+        );
+        assert_refused(
+            door.request(submit).await,
+            what,
+            ErrorKind::Refused,
+            &[long[..40].to_string(), "could not be read".to_string()],
+            std::slice::from_ref(&long),
         );
         assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
         door.settle().await;

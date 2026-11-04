@@ -1254,6 +1254,9 @@ pub(super) fn judge_listed(
     sub: Option<&str>,
     now: i64,
 ) -> Result<(), String> {
+    // the league a client sent, quoted bounded as the tab is (C127; the
+    // review of round D, finding 3); the realm is one the door names
+    let league = describe_str(league);
     let Some(tab) = listing.tabs.iter().find(|t| t.id == id) else {
         return Err(format!(
             "the stash listing stored for {realm} {league} (fetched {}) names no tab {} that stands; \

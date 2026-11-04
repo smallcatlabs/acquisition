@@ -96,15 +96,15 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     t.run(
         &["stash", "cur1", "--realm", "xbox"],
         &[
-            "the stash listing stored for xbox Standard (fetched ",
+            r#"the stash listing stored for xbox "Standard" (fetched "#,
             r#"names no tab "cur1" that stands"#,
-            "a stashes job for xbox Standard fetches the listing again",
+            r#"a stashes job for xbox "Standard" fetches the listing again"#,
         ],
     );
     t.run(
         &["stash", "nope"],
         &[
-            r#"the stash listing stored for pc Standard (fetched "#,
+            r#"the stash listing stored for pc "Standard" (fetched "#,
             r#"no tab "nope""#,
         ],
     );

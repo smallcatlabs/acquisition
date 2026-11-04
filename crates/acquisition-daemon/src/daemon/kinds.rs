@@ -328,9 +328,12 @@ impl Daemon {
         else {
             return Ok(());
         };
+        // the league quoted bounded, as every client value a refusal
+        // quotes (C127; the review of round D, finding 3)
+        let quoted = describe_str(&league);
         let unread = |fault: String| {
             refused(format!(
-                "the stash listing stored for {realm} {league} could not be read to judge this tab: {fault}"
+                "the stash listing stored for {realm} {quoted} could not be read to judge this tab: {fault}"
             ))
         };
         let path = account_path(dir, account);
