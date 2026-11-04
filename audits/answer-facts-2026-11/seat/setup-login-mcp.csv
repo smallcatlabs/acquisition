@@ -1,0 +1,3 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,login,"[""ACQ_IDLE_SHUTDOWN=14400"", ""auth"", ""--no-browser"", ""--json""]",0,743,0,877,whole,login seat: the door approved the mock's page
