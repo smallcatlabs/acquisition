@@ -1221,6 +1221,9 @@ fn describe_at_a_terminal() {
             "`--describe all` everything",
             "pseudo.total_life",
             "accessory.ring",
+            // the set the key names, exactly (the answer-facts seat, CLI
+            // fault 5: never-fetched characters sat in four other leagues)
+            "the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`",
         ],
     );
     t.run(

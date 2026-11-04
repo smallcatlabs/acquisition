@@ -7,6 +7,7 @@ $ acq search --describe
 # holds "`--describe all` everything"
 # holds "pseudo.total_life"
 # holds "accessory.ring"
+# holds "the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`"
 --- stdout
 fields
   text                       text        every displayed string, each tested on its own
@@ -216,7 +217,7 @@ an answer, key by key
   scope                        key         what was searched
   scope.never_fetched          key         `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many
   scope.never_fetched_by_type  key         `never_fetched_by_type` is the same by tab type, a character's `character`
-  scope.never_fetched_leagues  key         `never_fetched_leagues` names the leagues that hold a never-fetched tab, the most first
+  scope.never_fetched_leagues  key         `never_fetched_leagues` names the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`
   total                        key         the matches
   before                       key         where a request is sent back with the `count` it was printed with, and the `counted_at` basis it came from
   rows                         key         id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`
