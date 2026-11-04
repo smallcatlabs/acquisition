@@ -13,7 +13,11 @@ clock per age) and C116 (no id in user-facing text); the owner's
 answers to the map's §11 questions 5 (C146 unchanged) and 7 (#12
 closed on the terms block's sentence) are in hand. The words are the
 session's agent-facing design, listed at the close for his review.
-To be reviewed cold before a worker reads it.
+Cut twice: the first draft (`36c4dc9b`) was reviewed cold
+(`roadmap/reviews/words-extents-brief-36c4dc9b.md`, the prompt
+beside: nine findings, two nitpicks); this cut answers each, listed
+at the foot under "Taken from the review". To be reviewed cold again
+before a worker reads it.
 
 ## Goal
 
@@ -45,11 +49,17 @@ live.
   `decisions/pricing.md`: C81 (a nearer hand row beats a tab's
   `~skip`), C78; `AGENTS.md`: C116, C122, C154.
 - The items, each with its maker and its words today:
-  1. The events summary: `crates/acquisition-verbs/src/events.rs:128–145`
-     (`events: events.returned`, `limit_reached`) and
-     `crates/acquisition-cli/src/store_cmd.rs:788–812` (`N events at M
-     locations in the last 24 h` with `(limit reached)`): the counts
-     are the returned rows', said as the window's.
+  1. The events summary: `crates/acquisition-verbs/src/events.rs:74`
+     (`limit_reached` is set on equality, so a window of exactly the
+     limit's events sets it too: a limit met is not proof of more),
+     `:128–145` (`events: events.returned`, `limit_reached`;
+     `left_out` counts location rows, not events) and
+     `crates/acquisition-cli/src/store_cmd.rs:738–745` (the event
+     limit stays under `--expand`, which expands the location rows),
+     `:787` (the raw list's `(limit reached)`), `:788–812` (the
+     summary's sentence) and `:879` (the footer "`--expand` lists
+     every event", which is not what `--expand` does): the counts are
+     the returned rows', said as the window's.
   2. `daemon status`: `crates/acquisition-cli/src/main.rs:2526`
      (`policies learned: N`) and `:2557` (`sends N`, beside a journal
      path that spans lifetimes): this daemon's lifetime, bare
@@ -59,23 +69,38 @@ live.
      `:175` (`done` counted) and the ledger read's text `3 jobs: 1
      running, 2 waiting, 0 done`
      (`goldens/persisted_queue/the_queue_read_from_the_ledger.txt:12`):
-     `done` is never read from the ledger, and `N jobs` is this
-     daemon's lifetime from the first id it issued (`queue.rs:397–415`).
+     `done` is never read from the ledger, and the ledger's `running`
+     is recorded, not current; the live count is the jobs this daemon
+     holds, this lifetime's and the restored ones alike
+     (`crates/acquisition-daemon/src/daemon/queue.rs:390–415`); the
+     one `summary_text` serves the live read, the ledger read and a
+     selected job (`crates/acquisition-cli/src/main.rs:122`, `:2982`,
+     `:3060`), so each gets its own context rather than one changed
+     sentence.
   4. `accounts`: `crates/acquisition-store/src/index.rs:246`, `:259`,
      `:332` (`last_login` written by a login and by the refresh's
      persist alike); the text `last login 19d ago`
      (`documents.rs:219`, `c53_an_account_row_says_its_last_login_as_an_age`).
   5. `price status`: `crates/acquisition-cli/src/price_cmd.rs:464`
      (`N items skipped (~skip)`), where C81 makes a nearer hand row
-     apply over the tab's `~skip`.
-  6. `store refused`: `store_cmd.rs:664–672` (`N refused body(ies)`,
-     `returned` printed as the count, never whether more exist);
-     `store status`'s `refused_bodies` is the whole (`lib.rs:846–897`).
+     apply over the tab's `~skip`, and where the count is
+     `by_game_statement`'s, the game-side statements in public tabs
+     alone (`crates/acquisition-plan/src/listing.rs:525–527`; a
+     non-public tab's price text is residue).
+  6. `store refused`: `store_cmd.rs:664–672` and `:687–693` (`N
+     refused body(ies)`, `returned` printed as the count, never
+     whether more exist; the only next step offered is one body in
+     full); `store status`'s `refused_bodies` is the whole
+     (`lib.rs:846–897`).
   7. A price receipt's `in_facts`: `crates/acquisition-plan/src/pricing.rs:897–903`
      ("whether the facts hold the target at all, in any league") and
      its gloss at `:1134`; `price status`'s `name nothing in the
      facts` (`price_cmd.rs:213`), which counts rows whose address is
-     not in this league's facts: two phrases for two extents.
+     not in this league's facts: two phrases for two extents. The
+     status phrase has three producers that must move together: the
+     summary line (`:213`), the expanded list's heading `rows naming
+     nothing in the facts` (`:229`) and the receipt's quotation of it
+     (`:1173`), and the status gloss (`pricing.rs:1140`).
   8. `crates/acquisition-protocol/src/protocol.rs:594–598` (the idle
      knob's doc says `default 60`) against
      `crates/acquisition-daemon/src/daemon.rs:172` (`IDLE_SHUTDOWN`
@@ -98,19 +123,28 @@ live.
   13. Raised at round 2's close: the total line names a location from
       the item's `Place` (`crates/acquisition-search/src/corpus.rs:291–325`:
       a name that is the ` (Remove-only)` mark alone is none, 301,
-      and the id is shown), the scope line from the store's
-      `FetchedLocation::of` (`coverage.rs:35–44`: the mark kept as the
-      name): one tab, two names.
-  14. Raised at round 4's close: `price_cmd.rs:370–376` (the zero-item
-      line `no items on record for <place>: N listed, none fetched
-      with items`) beside the `facts:` line that follows it (`N
-      locations, M fetched`): "none fetched with items" reads against
-      "M fetched" where the fetched locations are empty.
+      and the id is shown; `tab.remove_only` is read from the raw
+      name at `:499` and stays so, C117), the scope line from the
+      store's `FetchedLocation::of` (`coverage.rs:35–44`: the mark
+      kept as the name): one tab, two names. The scope's ages are in
+      the JSON alone since round 2 (`tests/seat_faults.rs:1500–1523`),
+      so the two names meet in the scope's JSON, the total's JSON and
+      the total line and the rows' text.
+  14. Raised at round 4's close: `price_cmd.rs:366–368` (`nothing on
+      record for <place>: no stash listing, no character listing`,
+      printed because both listings are absent, beside a `facts:` line
+      that may count fetched locations: the contradiction round 4's
+      worker saw, pinned as it stands at `:1421–1427` over four
+      fetched locations) and `:370–376` (`no items on record for
+      <place>: N listed, none fetched with items`, ambiguous beside `M
+      fetched` where the fetched locations are empty).
 - The glosses and bounds: the MCP's `describe` entries for each
   changed count (grep each key in `crates/acquisition-search/src/describe.rs`
   and `crates/acquisition-mcp/src/main.rs`), `surface_size.rs:32`
-  (the first turn's bounds) and `search_tools.rs` (the `describe`
-  sections' bounds).
+  (the first turn's bounds: 600, 300 and 1,000 bytes for a tool's
+  description, its parameters and the instructions) and
+  `search_tools.rs` (the `describe` sections' bounds: 7,000 answer,
+  8,000 pricing, 6,000 store, 4,000 daemon).
 - The holders, each changed by this step, found by grep on each
   item's words over `crates/*/tests` and `crates/*/src`: the events
   goldens and `store_answers.rs`; `goldens/persisted_queue/*` and
@@ -121,11 +155,23 @@ live.
   `:1012` (the receipt's gloss); `seat_faults.rs:1375` and
   `goldens/seat_faults/scope_line_by_tab_type.txt` (the type rows);
   `documents.rs:429`, `:483` and `plan_json.rs` (the plan's ages);
-  `goldens/seat_faults/place_and_its_age.txt` and a fixture with a
-  remove-only tab (`goldens/seat_faults/a_unique_tabs_page_with_no_name…`,
-  `seat_faults.rs:1160`); `price_cmd.rs:1234` (the zero-item
-  positional test, round 4's line 1). The worker lists every holder
-  it finds in its report.
+  a seeded fixture with a remove-only tab, extended from the one
+  `crates/acquisition-search/tests/seat_faults.rs:1160` uses (the
+  unique page's test; there is no CLI golden of that name), with
+  `goldens/seat_faults/place_and_its_age.txt` changing only if its
+  fixture changes; `price_cmd.rs:1414`, `:1426`, `:1867` and
+  `goldens/new_league/launch_morning.txt:174` (the zero-item status's
+  sentences); `store_cmd.rs:879` and `:787` (the events footer and the
+  raw list's words); `seat_faults.rs:597` (the jobs literal);
+  `goldens/web/refresh_loop.txt:36`, `:44` and `web/jobs_halted.txt:10`
+  (the rails and jobs text on the web); `crates/acquisition-plan/unit/tests/ages.rs:116`
+  (the plan note's age, its direct pin) and
+  `goldens/new_league/launch_morning.txt:49`, `:78`, `:113` (its
+  text); `price_json.rs:361`, `:816`, `price_cmd.rs:1352`, `:1375`,
+  `:1869`, `:1878`, `:1929`, `seat_faults.rs:162` and
+  `goldens/seat_faults/price_status_other_leagues.txt` (the "names
+  nothing" phrase's holders). The worker lists every holder it finds
+  in its report.
 - `REVIEW-CHECKLIST.md`, "Frontends and the surface an agent meets"
   (a claim wider than its evidence; a sibling sentence left standing).
 
@@ -136,29 +182,40 @@ live.
   7, the close's action, not the worker's).
 - The words, the session's design, each a function of the document's
   own fields (C53):
-  1. Events: `the newest 10 events (of more; \`--expand\` lists all) at
-     M locations in the last 24 h: …` when `limit_reached`, the
-     existing sentence when not; the JSON unchanged (`limit_reached`
-     and `left_out` already say it); the gloss says the counts are the
-     returned rows'.
+  1. Events: when `limit_reached`, `the newest N events at M locations
+     in the last H h (the window may hold more; a larger \`--limit\`
+     reads more events): …`, N the document's `events` and H its
+     `hours`; the existing sentence when not; the footer at `:879`
+     says `\`--expand\` lists every location`, which is what it does;
+     the raw list's `(limit reached)` at `:787` gains the same clause;
+     the JSON unchanged (`limit_reached` and `left_out` already say
+     it); the gloss says the counts are the returned events' and
+     `left_out` the locations'.
   2. Daemon status: `policies learned: N since this daemon started`
      and `sends N since this daemon started`, the journal path's
      clause unchanged; the glosses the same.
-  3. Jobs: `N jobs since this daemon started: …` on the live read; on
-     the ledger read, `done` is not printed (`3 jobs on disk: 1
-     running, 2 waiting; done not recorded`), the JSON's `done` kept
-     and glossed as the live count.
+  3. Jobs: on the live read, `N jobs this daemon holds (its own and
+     the restored): …`; on the ledger read, `3 jobs on disk: 1
+     recorded running, 2 waiting; done not recorded`, `done` not
+     printed; a selected job's summary keeps its own context; the
+     JSON's `done` kept and glossed as the live count; three contexts
+     for one `summary_text`, each said where it is printed.
   4. Accounts: `last sign-in or token refresh 19d ago`; the key
      `last_login` kept (C146 bars a rename), its gloss saying both
      writers.
-  5. Price status: `N items marked ~skip in game (a hand row nearer
-     the item still applies)`; the gloss the same.
-  6. Store refused: `N refused bodies shown of M on record` (M from
-     the status's whole), `of M` absent where N is M; the JSON gains
-     `total` beside `returned` and `limit` (additive).
+  5. Price status: `N items with a game-side ~skip statement in a
+     public tab (a hand row nearer the item still applies)`; the
+     gloss the same; a non-public tab's skip text stays residue.
+  6. Store refused: `N refused bodies shown of M on record; \`acq store
+     refused --limit M\` lists them all` where N < M, `N refused
+     bodies on record` where N is M, the one-body-in-full action kept
+     after it; the JSON gains `total` beside `returned` and `limit`
+     (additive), both counts from `RefusedBodies`.
   7. The receipt's gloss says `in_facts` is "the address exists in
      these facts in any league, removed included"; the status's phrase
-     becomes `name nothing in this league's facts`; the JSON key
+     becomes `name nothing in this league's facts` in all three
+     producers (the summary line, the expanded list's heading, the
+     receipt's quotation) and the status gloss; the JSON key
      unchanged.
   8. The protocol doc says `default 3600, one hour (C3)`; a test holds
      the doc's number to the daemon's constant (the words step's
@@ -171,18 +228,30 @@ live.
   11. The plan note's `character_listing_fetched_at_age` is measured
       `before generated_at` as the wrapper's is, the key name kept;
       the note's text says `before the plan` where it said `ago`.
-  12. C77's pin: a unit test in the plan crate compiling a plan at `T`
-      over a fact fresh at `T` and past the window at `T + cycle`:
-      the plan at `T` does not fetch it and a plan at `T + cycle`
-      does; C77's *Pinned:* names the test (the build replaces
-      `nothing yet`, as every build does).
+  12. C77's pin: the plan crate's fresh-facts fixture
+      (`unit/tests/lib.rs:350`) extended with a second compile at `T +
+      cycle`: the plan at `T` skips the fresh fact and the plan at `T +
+      cycle` fetches it (`lib.rs:2197`, `:2409–2420` judge against the
+      supplied compile time and the window; nothing in the planner
+      changes); C77's *Pinned:* names the test (the build replaces
+      `nothing yet`, as every build does). This pin covers behaviour
+      already correct, so it is the one of Do 1 that need not start
+      red.
   13. `FetchedLocation::of` names a location as the row's `Place`
       does: a name that is the remove-only mark alone, or empty, is
-      none and the id is shown; the one rule in the store, the search's
-      `Place` reading it from there if that is simpler than two
-      matching rules; the scope line and the total line agree.
-  14. The zero-item status line says `no items on record for <place>:
-      N listed, M fetched, none with items` where M > 0, and `none
+      none and the id is shown, the raw name still deciding
+      `tab.remove_only` (C117); the one rule in the store, the
+      search's `Place` reading it from there if that is simpler than
+      two matching rules; pinned on a seeded fixture with such a tab
+      in the scope's JSON, the total's JSON, the total line and a
+      row's text, all four naming it alike.
+  14. The zero-item status: `nothing on record for <place>` is said
+      only where there is no location (`facts.places` 0), with its
+      listings' absence; where locations exist and no listing does:
+      `no items on record for <place>: N locations, M fetched, none
+      with items; no stash listing, no character listing`; where a
+      listing exists: `no items on record for <place>: N listed, M
+      fetched, none with items`, M from `facts.fetched`, `none
       fetched` where M is 0; the `facts:` line stays.
 - Not taken, with reasons, listed here so the worker does not take
   them: thousands separators (every count prints bare, one rule);
@@ -204,9 +273,12 @@ live.
 
 ## Do
 
-1. The pins first, red: one test per failing input, in the crate that
+1. The pins first, red (item 12's excepted, a pin of behaviour
+   already right): one test per failing input, in the crate that
    holds the behaviour (C122), the words asserted as goldens where a
-   golden holds them.
+   golden holds them; item 1's three cases (a window of exactly the
+   limit's events, a non-default limit and window, a limit of zero);
+   item 5's two (a public and a non-public tab's skip text).
 2. The words and the one measure, items 1 to 14, each where its maker
    is; the glosses beside them; no key renamed, every JSON change
    additive; the C77 test and C77's *Pinned:* line.
@@ -223,7 +295,8 @@ live.
 
 - Each of the fourteen items prints the words of Input on the surface
   that holds it, pinned by a test or a golden fact; `grep -rn
-  '(limit reached)' crates/acquisition-cli/src` finds nothing.
+  'lists every event' crates/acquisition-cli/src` finds nothing, and
+  every `limit reached` in the CLI's sources carries its clause.
 - `TabType.never` exists on every type row; the plan note's and the
   wrapper's character-listing ages are equal on one fixture; C77's
   test exists and its *Pinned:* names it; `FetchedLocation::of` and
@@ -256,3 +329,30 @@ live.
 `TEMPLATE.md`. Under 3: the regenerated files by directory, the
 changed lines by kind, the MCP's bounds before and after, and the
 test count before and after.
+
+## Taken from the review
+
+The cold review of `36c4dc9b`
+(`roadmap/reviews/words-extents-brief-36c4dc9b.md`): nine findings,
+two nitpicks, each answered in this cut.
+
+1. The events sentence uses the document's own counts and hours and
+   promises what a larger limit does, not what `--expand` does; the
+   footer and the raw list's words follow; three cases staged.
+2. The jobs count names what it holds, this lifetime's and the
+   restored, the ledger's running is "recorded", and each of the
+   three contexts of one summary gets its own words.
+3. The zero-item status's no-listing branch, already pinned
+   contradictory, is included, "nothing on record" reserved for no
+   location, the fetched count from the facts block.
+4. The skip count names the public tabs' game-side statements.
+5. The "names nothing" phrase moves in its three producers and the
+   gloss, their holders named.
+6. The refused list offers the continuation that lists the rest.
+7. The remove-only pin names the surfaces as they are since round 2
+   and a fixture that exists; the raw name keeps `tab.remove_only`.
+8. C77's pin is exempt from starting red, extending the fresh-facts
+   fixture with a later compile.
+9. The holders missed are named: the events footer and raw list, the
+   jobs literal, the web goldens, the plan note's direct pin and its
+   texts, the zero-item status's assertions.
