@@ -637,7 +637,11 @@ epoch a document carries has its words
 (`briefs/every-epoch-words.md`), is cut twice under a cold review and
 waits on one ruling of the owner's, drafted in its Input: the step is
 an extension of C53's letter, not its reading. A parked Opus worker
-waits for it. Round 4, the shop's and price status's facts blocks
-(`briefs/156-facts-blocks.md`, cut three times under two cold
-reviews), landed on 2026-11-04 as one commit, this line's, built by a
-parked Opus worker in the main tree; its review is pending.
+waits for it. Round 4, the shop render's and price status's
+own facts (`briefs/156-facts-blocks.md`, cut three times under two
+cold reviews), went ahead of round 3 to a second parked worker, handed
+its brief by message, and landed on 2026-11-04 as one commit
+(`052e0fe4`); reviewed cold, no findings; closed the same day
+(`LEDGER.md`), #156 closed. Current: round 3, waiting on two
+amendments of C163 the owner has before him; the first parked worker
+waits for its brief.
