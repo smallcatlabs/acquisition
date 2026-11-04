@@ -2,8 +2,10 @@
 
 Provenance: Fable (`claude-fable-5-1`), one session on 2026-11-03 at
 `7ab91cc4`, read-only; a read and a proposal, nothing built, no issue
-changed, nothing committed. What was read: `AGENTS.md`, `GLOSSARY.md`,
-`roadmap/README.md`, the rulings C53, C96, C98, C100, C105, C108, C115,
+changed. Committed at `a064b508`, reviewed cold by Codex
+(`answer-facts-map-a064b508.md`, thirteen findings) and revised by
+the rules at the foot ("Taken from the review"). What was read:
+`AGENTS.md`, `GLOSSARY.md`, `roadmap/README.md`, the rulings C53, C96, C98, C100, C105, C108, C115,
 C117, C118, C126, C143, C146, C149, C72, C74, C77 and C45 with their
 mechanisms in the code, the honesty briefs (`h1-*`, `h2-*`, `h3-*`),
 `briefs/words.md`, `briefs/league-seat-fixes.md`, their `LEDGER.md`
@@ -37,13 +39,15 @@ The system is closer to right than the issues suggest, and the gaps
 are not small and separate: they are one missing idea seen from three
 sides. Every answer already carries facts about itself, the words are
 one vocabulary (`age.rs`), the JSON is one document on both doors, and
-the two places the words name the set a number is over (the terms
-block, the never-fetched line) are the two places no seat stumbles any
-more. What is missing is the middle: every surface derives its ages
-and coverage from whatever struct it happens to hold (a row's location,
-the corpus header, the listing response, the policy window, nothing),
-so an answer reports the age of a *row* or of the *whole scope* and
-never of its *subject*, the set the reader asked about. The matches'
+where the words name the set a number is over (the terms block) no
+seat has stumbled since, and the never-fetched line's text reads once
+though its JSON was read twice (the MCP-2 debrief, call 25). What is
+missing is the middle: every surface derives its ages and coverage
+from whatever struct it happens to hold (a row's location, the corpus
+header, the listing response, the policy window, nothing), so where an
+answer gives an age it is a *row's* or the *whole scope's*, where it
+holds none it gives none, and never is it the age of its *subject*,
+the set the reader asked about. The matches'
 age (#155), the posted items' age without a policy (#156), a counts
 view with no age, a price status whose text has no age, a store status
 with none, and "how old is my data" with no verb to ask are one gap.
@@ -54,9 +58,11 @@ window, a limit, a file, a realm) goes unnamed, which C146 read
 precisely already forbids. The collapse is one function from a set of
 places to its coverage and ages, applied by every answer to its
 subject and, where wider, to its scope, each block named for the set it
-is over. It would retire the scope line's ages from the text, three
-per-surface derivations and one class of golden; it strains at the
-plan, at the shop's shape and at the MCP's size, and §4 says where.
+is over. It would retire two per-surface derivations and two partial
+aging methods, and it changes the scope line's text and two surfaces'
+ages, which are contract changes and not retirements; it strains at
+the plan, at the shop's shape, at removed items and at the MCP's size,
+and §4 says where.
 
 ## 2. The map
 
@@ -68,6 +74,15 @@ document: the CLI's `--json` is `serde_json::to_string_pretty` of the
 same value the MCP's `told` serializes (`search_cmd.rs:315-317`,
 `acquisition-mcp/src/main.rs:504-506`); the MCP seat's documents and
 mine agree byte for byte in content. Line numbers are at `7ab91cc4`.
+
+The cut every list takes is one number (C53): `accounts`, `tabs`,
+`characters`, `store events` and the job lists each carry `left_out`
+and `left_out_needs` in the JSON and a "N of M … lists all" line in the
+text (`frontend.rs:102-123`, `characters.rs:41-49`, `events.rs:111-113`,
+`jobs.rs:199-204`, `store_cmd.rs:127`, `:313-329`); they are not
+rows below, since each says what it cut. `store refused` is the one
+list that does not (its row in §2.2). Not mapped: `describe`, `auth`'s
+receipts, `diagnose`'s log tail beyond §2.5, and the web beyond §2.6.
 
 ### 2.1 Search: rows, counts, cross (CLI text; `--json` = MCP `search`)
 
@@ -82,7 +97,7 @@ and `--explain` (`CLI-REFERENCE.md`, the `search` entry).
 | the never fetched by type | `scope.never_fetched_by_type[] {type,tabs,fetched,items}`; text `MapStash 2489 of 2582 … (counted over every location in the realm, in every league, whatever the query asks, …)` | the scope, by GGG's type, `character` a type (`corpus.rs:1077-1106`); the text names its set; `**` the JSON gloss says `items` counts the fetched locations' items (`describe.rs:238`) while the code counts items at every location of the type (`corpus.rs:1086`), equal only while a never-fetched location holds none | C118, C146 | `goldens/seat_faults/scope_line_by_tab_type.txt`; `acquisition-search/tests/seat_faults.rs:1375` |
 | the oldest and newest fetch | `scope.oldest_fetch`, `_age`, `_location`; `newest_…`; text `(the oldest fetch 57d ago, Allflame / TheAbsenceOfPatience (character); the newest 53d ago, Standard / Dump Tab)` | `**` one location each, the extremes over every fetched non-folder location in the realm, every league, empty tabs included, never narrowed by the query (`corpus.rs:1073-1076`, `:1120-1125`); identical for 187 matches and for 22,623 items (my runs, the seat's calls MCP-2 32 and 37); the text names the location and not the set | C118's "ages half, which its text does not describe" (`0d8db46c`), C53, C146 | `answer.rs:60-76` `c100_the_worked_example…`; `membership.rs:1038`; 18 goldens hold "the oldest fetch" (the search reader's grep over the four test directories: 20 files, 18 of them goldens) |
 | the lists seen | `scope.list_seen`, `_age`; text `· location list seen 57d ago` | the oldest of the location lists the query reads: a fixed league's tab list and the realm's character list, else every list of the realm (`corpus.rs:425-433`, `:1126-1134`; `answer.rs:2088-2093`); the one coverage fact the query narrows | C118 | `acquisition-search/tests/answer.rs:781` `the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues` |
-| the pointer | text `each tab: acq tabs … --league Standard --never-fetched`; `**` no JSON field | the fixed league if it holds a never-fetched tab, else the league with the most (`answer.rs:2896-2938`); #36 | C118 | `goldens/seat_faults/tabs_pointer_names_its_league.txt` |
+| the pointer | text `each tab: acq tabs … --league Standard --never-fetched`; `**` no JSON field | the fixed league if it holds a never-fetched tab, nothing if it does not; when no league is fixed, the league with the most (`answer.rs:2896-2938`); #36 | C118 | `goldens/seat_faults/tabs_pointer_names_its_league.txt` |
 | the terms | `terms[] {matched,failed,lacked,undecided}`; text `each term counted alone over all live pc items in all leagues, never over the matches` | the scope, each term alone (`answer.rs:1751-1764`); the text names its set; #12's contradiction has its sentence | C93, C115 | 19 goldens hold "each term counted alone" (the same grep) |
 | the rows' cut | `view.rows {returned, left_out, next}`; text `rows 1–10 of 187 shown: …` | the matches past the page | C53 | `acquisition-search/tests/next.rs` |
 | a count's buckets | `view.counts.tables[].buckets[].count`, `values`, `left_out`; cross `cells`, `left_out` | the matches carrying each value; `left_out` counts values or cells, never items (`counts.rs:850-886`, `:962-997`); `**` the routes line reads "over the scope" beside a count of the matches (`search_cmd.rs:1577`) | C95, C105 | `acquisition-search/tests/counts.rs` |
@@ -106,8 +121,9 @@ and `--explain` (`CLI-REFERENCE.md`, the `search` entry).
 | `characters` (CLI text, `--expand`; `--json` = MCP) | `characters`, `fetched`, `empty_bodies`, `never_fetched`, `items`; rows `listed_at(_age)`, `fetched_at(_age)`, `item_count`, `fetched_items` | the selection; a row's last *landed* fetch: a refused body rolls back whole (`lib.rs:1356-1380`), so a character whose newest body was refused keeps its older fetch and items, and nothing on the row points at the refusal (the CLI-2 seat's `pilatesinstructor`, its T3) | C53, C146 | `acquisition-verbs/src/characters.rs:118` |
 | `store status` (CLI text; `--json` = MCP `store_status`) | `responses`, `leagues`, `league_list`, `characters`, `tabs`, `items`, `items_removed`, `events`, `refused_bodies`, `granted_skills`, `unlifted_items`, `withheld_*` | the whole file, every realm and league (`lib.rs:2049-2082`); `**` no age at all, not the league list's fetch (`LeagueList.fetched_at` exists, `lib.rs:793-797`), not the newest ingest; `**` `leagues` is a never-retired union of every id ever listed in any realm (`lib.rs:1422-1427`, an upsert), printed as `league list 3 leagues`; `responses` and `events` are all-time rows, unglossed | C146 | `goldens/seat_faults/store_status_counts.txt`; `c146_store_status…` |
 | `store events` (CLI text, `--summary`, `--expand`; `--json` = MCP `item_events`) | `hours`, `limit`, `returned`, `limit_reached`; text `0 events in the last 24 h` | the request's window, named | C146 | `acquisition-cli/tests/store_answers.rs`; `documents.rs:936` |
-| `store events --summary` | `events`, `locations`, `by_kind`; text `N events at M locations in the last 24 h` | `**` the ten newest events the limit returned, phrased as the window's whole (`events.rs:136-141`, `events: events.returned`); #105's third item; the MCP gloss says so, the text does not | C146 | `documents.rs:936` |
+| `store events --summary` | `events`, `locations`, `by_kind`; text `N events at M locations in the last 24 h` | `**` the newest events the limit returned, counted as the window's (`events.rs:136-141`, `events: events.returned`); the text says "(limit reached)" when the limit cut and names no count of rows (`store_cmd.rs:809`), and its zero-event return prints "0 events" with no qualification at all (`:792`); the MCP gloss names the rows; #105's third item | C146 | `documents.rs:936` |
 | `store events` | `at(_age)` per event | `**` the ingest time of the response that produced the event, not when the change happened in game | — | — |
+| `store refused` (CLI text; `--json`) | `limit`, `returned`, rows `fetched_at(_age)`; text `N refused body(ies)`, one body `fetched X ago` | the newest `limit` rows, 50 unasked, each fetch aged (`refused.rs:23-31`); `**` the text prints `returned` as the count and never whether the store holds more than the limit (`store_cmd.rs:664-672`), the JSON `limit` and `returned` and no whole, where `store status`'s `refused_bodies` is the whole and neither names the other | C53, C146 | `acquisition-cli/tests/store_answers.rs:289` |
 | `leagues` (a job: CLI table; `--json` and MCP `job_result` the payload) | the list as GGG gives it | `**` no fetch time anywhere (the payload is `{provider, params, body, rate_limit}`); no surface reads the stored list but the web's league select and the plan's note (#157); `store status` says only `never fetched` or `N leagues` | C126 | — |
 | `accounts` / `auth status` | `last_login(_age)`; text `last login 19d ago` | `**` the index's `last_login`, which login and the refresh's persist both write (`index.rs:246, 259, 332`; `refresh.rs:104, 204-207`): the last credential write, not the last interactive login | — | `goldens/seat_faults/auth_status_without_a_keyring.txt` (the keyring line alone) |
 
@@ -117,7 +133,7 @@ and `--explain` (`CLI-REFERENCE.md`, the `search` entry).
 | --- | --- | --- | --- | --- |
 | the facts line | `basis.stash_listing{response_id, fetched_at}`, `character_listing`; text `facts: stash listed 53d ago; characters listed 53d ago` | `**` the league's newest stash *listing* response and the *realm's* character listing (`snapshot.rs:142-146`, `:414-430`), measured at `generated_at` and worded "ago" (`plan_cmd.rs:773-799`, `:835-837`); the text says neither "listing" nor "realm"; no age of the items is on the line | C77, C53 | `goldens/journey/a_first_session.txt:39`; `new_league/launch_morning.txt:75` |
 | an action's age | `actions[].reason {kind: stale, age_seconds}`; text `322 stale (53d–56d)`, `stale for 53d` | that location's own fetch at compile (`lib.rs:2358-2370`); the one per-location age the plan carries | C77 | `lib.rs` unit tests |
-| the skips | `skipped_tabs[] {reason}`, `skipped_characters[]`; text `skipped 16 tabs: 16 folders — containers only` | `**` covered tabs only (`lib.rs:2243-2245`); the tabs the policy does not name appear nowhere, no list and no count (#22; `crates/acquisition-plan/unit/tests/lib.rs:679` pins their absence); the no-league characters of the realm are counted in every league's skip (`snapshot.rs:146-149`) | C37, C61 | `goldens/new_league/launch_morning.txt:88`, `:111` |
+| the skips | `skipped_tabs[] {reason}`, `skipped_characters[]`; text `skipped 16 tabs: 16 folders — containers only` | `**` covered tabs only (`lib.rs:2243-2245`); the tabs the policy does not name appear nowhere, no list and no count (#22; no test I found pins their absence: `crates/acquisition-plan/unit/tests/lib.rs:679` is a child named directly, covered as before); the no-league characters of the realm are counted in every league's skip (`snapshot.rs:146-149`) | C37, C61 | `goldens/new_league/launch_morning.txt:88`, `:111` |
 | the quote | `quote.scopes[] {requests, queued_ahead, eta_seconds, observed_seconds_ago, notes}`, `not_covered`; text `quote: ETA unavailable until 2 rate-limit policies are learned` / `stash-request-limit 7 requests — ~<eta>s` | the daemon's limiter at `observed_at`, per serial key (`quote.rs:37-133`); `null` means unlearned or degraded, and the text says so; `**` the decision view drops `observed_seconds_ago`, so a "ready" rests on headers of unstated age (`plan_cmd.rs:1676-1730`); no total time on either view | C40 | `daemon/tests/quote.rs:94-113`; `launch_morning.txt:53-54`, `:91` |
 | the wire | `wire_sends {min, max, prerequisites}`; text `wire: 3374–10122 sends; plus first-contact probes and token refresh if needed` | the actions times one to three; the "plus" clause is two fixed strings whatever the routes know (`lib.rs:1310-1325`) | C42 | `plan_json.rs:263` |
 | the league note | `notes.league {league, list_fetched_at(_age)}`; text `note: the league list was never fetched, so Standard is not read against it` | `**` the latest `leagues` response of any realm, matched by id alone (`lib.rs:741-758`, `LeagueList` has no realm); silent when never fetched on a plan (`:831`), said on the policy receipt (my run) | C126 | `journey.rs:209-212`; `launch_morning.txt:189`, `:198` |
@@ -134,7 +150,7 @@ and `--explain` (`CLI-REFERENCE.md`, the `search` entry).
 
 | fact | field or phrase | of what | ruling | pinned by |
 | --- | --- | --- | --- | --- |
-| `price status` counts | `counts.items`, `by_effective`, `by_relation`, `by_game_statement`, `invalid_notes`, `residue`, `priced_tabs`; text `21311 items in Standard: 492 the game decides, 0 decided by hand, 20819 nothing applies` | the league read, Standard given silently (`main.rs:598`); `**` `items` includes the realm's league-less characters' items in every league (`snapshot.rs:764-770`); `**` no door names the other leagues the store holds (#19; `rows: … 2 for other leagues` counts rows and names no league) | C53, C146 | `goldens/seat_faults/price_status_other_leagues.txt`; `price_cmd.rs:1234` |
+| `price status` counts | `counts.items`, `by_effective`, `by_relation`, `by_game_statement`, `invalid_notes`, `residue`, `priced_tabs`; text `21311 items in Standard: 492 the game decides, 0 decided by hand, 20819 nothing applies` | the league read, Standard given silently (`main.rs:598`); `items` includes the realm's league-less characters' items in every league, and the text says so in a line of its own when any exist (`snapshot.rs:764-770`, `price_cmd.rs:389`); `**` no door names the other leagues the store holds (#19; `rows: … 2 for other leagues` counts rows and names no league) | C53, C146 | `goldens/seat_faults/price_status_other_leagues.txt`; `price_cmd.rs:1234` |
 | `price status` ages | `stash_listing_fetched_at_age`, `character_listing_fetched_at_age`, `taken_at_age` | `**` the listing's age and the realm's character listing's, in JSON always and in text only under `--expand` (`price_cmd.rs:413-424`): the decision view carries no age at all (my run); `taken_at_age` is the answer's own clock, `0s ago`, reading as freshness; no age of the priced items' own fetches anywhere | C53 | `price_cmd.rs:1271` (a unit test, no golden); `crates/acquisition-plan/unit/tests/listing.rs:1066` |
 | `price status` words | `skipped (~skip)`; `inherited`; `invalid_notes` "(no effect: a hand row or its tab's name applies, where either does)" | `**` "skipped" overclaims: a nearer hand row beats a tab's `~skip` (C81); `inherited` is the manual side's inheritance, not the items a container row decides; the invalid-notes words landed (`price_cmd.rs:380`, `listing.rs:525`) | C81, C146 | `price_cmd.rs:1288` |
 | `price list` | `total`, `listed`, `left_out`, `items_on_record` | the selection before and after the bound; `**` no row carries an age in text, JSON epochs only (`listing.rs:164-168`) | C53 | `price_json.rs:458` |
@@ -179,8 +195,9 @@ issue names.
 **The idea in a sentence:** every surface derives its self-facts from
 whatever struct it holds (a row's location, the corpus header, the
 listing response, the policy window, nothing), so an answer says how
-old a row is and how old everything is, and never how old *what it
-answered about* is.
+old a row is or how old everything is, or, holding neither, nothing at
+all (`price status`'s text, `store status`, a counts view), and never
+how old *what it answered about* is.
 
 The evidence is in the code's own words. `Coverage` is "the earliest
 and the latest of the fetched locations' last fetches, each one
@@ -212,11 +229,12 @@ age; a `characters` row has two ages and a `TabRow` one
   by the query's category's tab types): the subject's coverage can say
   nothing of what was never fetched, since a never-fetched location
   holds no match; #39 needs a reading from category to tab type, which
-  is the trade catalogue's, a different idea. #12 (a term's count beside
-  the total): the terms block now says "never over the matches"
-  (`search_cmd.rs:1379`), the two league-seat runs did not stop on
-  it, and its trigger ("a run spends a call") has not fired in four
-  seats; it is closed by the sentence, not by this root.
+  is the trade catalogue's, a different idea. #12 (a term's count
+  beside the total) names its own fire, "a run spends a call on the
+  terms block": the block now says "never over the matches"
+  (`search_cmd.rs:1379`), the re-sit's count was one re-read and no
+  call, and the two league-seat runs did not stop on it; whether that
+  closes it is the owner's (§11, question 7), and this root does not.
 - **Gaps no issue names:** a counts or cross view carries no age of
   the counted items (§2.1); `price status`'s decision view carries no
   age (§2.4); `store status` carries no age and "how old is my data"
@@ -229,10 +247,11 @@ age; a `characters` row has two ages and a `TabRow` one
 
 ### Root 2. A surface that takes one league says nothing of what the store holds beyond it
 
-**The idea in a sentence:** `price status`, `shop render`, `tabs`, the
-plan and `policy show` each take a league as their scope, Standard by
-default, and no block says what else the store holds or what the
-policy leaves out, where a search answer says both.
+**The idea in a sentence:** `price status`, `shop render`, `tabs` and
+the plan each take a league as their scope, Standard by default, and
+`policy show` shows the stored row whole (`frontend.rs:501`); no block
+says what else the store holds or what the policy leaves out, where a
+search answer says both.
 
 The search answer's scope block already does this job: `realms_held`,
 `leagues`, `never_fetched_leagues` and the pointer (`corpus.rs:380-404`).
@@ -271,14 +290,16 @@ neither which nor that there is one.
 This is C146 read precisely, not a new idea: "a number a frontend
 prints names what it counted, where it came from" covers the extent,
 and the words step applied it to `never_fetched_by_type` and the terms
-block and no further. The cases: the events summary counts the ten the
-limit returned and says "in the last 24 h" (§2.2); `daemon status`'s
+block and no further. The cases: the events summary counts the rows the
+limit returned and says "in the last 24 h", "(limit reached)" its one
+qualification (§2.2); `store refused` prints a count and not whether
+more exist (§2.2); `daemon status`'s
 `sends` and `policies_known` and `jobs`' `total` are this lifetime's,
 bare (§2.5); `store status`'s `leagues` is a never-retired union
 (§2.2); `accounts`' "last login" includes refresh writes (§2.2);
-`price status`'s `items` counts league-less characters' items in every
-league and "skipped" overclaims (§2.4); the plan's `changed:` is the
-whole file's delta and "left: nothing — every covered entry is fresh"
+`price status`'s "skipped" overclaims (§2.4; its league-less
+characters' items the text already names, `price_cmd.rs:389`); the
+plan's `changed:` is the whole file's delta and "left: nothing — every covered entry is fresh"
 prints beside skipped folders (§2.3); a receipt's `in_facts` is wider
 than status's "names nothing in the facts" (§2.4); the ledger text
 prints "0 done" never read (§2.5); the never-fetched gloss counts
@@ -314,15 +335,21 @@ these three cover three things each, and the first two are one shape.
 answer applies it to its subject and, where its scope is wider, to its
 scope, each block named for the set it is over.**
 
-A place is a location with a kind, a type, a league, a fetch time and
-a listing time: what `LocationRow` already is (`acquisition-store/src/corpus.rs`).
-The function is what `coverage()` already computes over the header
-(`corpus.rs:1069-1136`): how many places, how many fetched, the never
-fetched by type and by league, the oldest and newest fetch with their
-locations, when the lists were seen, aged at `now` by one method
-(`Coverage::aged`, `:446-455`). Today it runs once, over the whole
-realm. The collapse is to run the same function over the answer's
-subject:
+A place is a location with a kind, a type, a league and a fetch time:
+what `LocationRow` already is (`acquisition-store/src/corpus.rs:202`).
+The function takes a set of places with their observations: each
+place's fetch, the listing bases of the set's realm and leagues (a
+listing that names nothing has no location row to carry its time, and
+a substash's listing time is its parent's fetch, `corpus.rs:35-38`),
+and the item count at each place. That is `coverage()`'s signature
+already (`corpus.rs:1063-1068`: the header, the realm, the locations,
+the item total and the counts by coordinate), and what it computes
+over the header (`:1069-1136`) is the function's result: how many
+places, how many fetched, the never fetched by type and by league, the
+oldest and newest fetch with their locations, when the lists were seen,
+aged at `now` by one method (`Coverage::aged`, `:446-455`). Today it
+runs once, over the whole realm. The collapse is to run the same
+function over the answer's subject:
 
 - a search answer's subject is the matches' places: `total` gains the
   matches' oldest and newest fetch and lists seen, the same shape, one
@@ -344,6 +371,11 @@ subject:
   the lists seen and its actions carry their ages, so the plan changes
   least; its wrapper gains the league's block beside the covered set
   (#22) and the leagues the store holds beside the policy's (#157).
+
+What the function makes right is the ages and coverage of a set of
+places, and only that. The credential ages (`accounts`' last login),
+the events' window, a lifetime's counts and the policy's omissions are
+Root 3's sweep and Root 2's scope block; the collapse claims neither.
 
 Each block is named for its set, in the text and in the JSON key:
 `scope` is what could have been seen, `total` or `posted` or `league`
@@ -375,11 +407,13 @@ read-side derivation with no policy in it, which is what C39 permits;
 but it is not "what search needs" alone, and C108 was ruled about the
 read. The owner decides whether a derivation every reader shares is
 the store's (§11, question 2). If he declines, the function lives in
-the search crate and the planner's shop and status call it there,
-which C1 permits (the verbs crate links both; the planner does not
-link the search, so the shop and price status would reach it through
-the verbs crate's door, one call each). That works and is worse: the
-function would sit one crate above the fact it reads.
+the search crate, and the planner cannot call it: the search links the
+planner, and C1 forbids the reverse edge (`decisions/search.md:9`,
+`tools/arch-check.sh:377`). The shop's and price status's blocks would
+then be made in the verbs crate, a wrapper holding the planner's
+document and the block beside it, the planner unaware of both. That
+works and is worse: the function sits one crate above the fact it
+reads, and two answers are assembled above their makers.
 
 ### What it retires, in C154's form
 
@@ -387,22 +421,34 @@ function would sit one crate above the fact it reads.
   `tabs.rs`'s `by_type` counting; held by the store's one function and
   its unit tests over a fixture of places, with the search's
   `c100_the_worked_example…` and `tabs.rs:38` reading its result.
-- retired the shop's own reading of `last_seen` for ages under a
-  policy (`shop.rs:1139-1195` stays for the window; the ages come from
-  the block); held by `c72_coverage_staleness_and_positions…` reading
-  the block.
-- retired `price status`'s `stash_listing_fetched_at_age` and
-  `character_listing_fetched_at_age` as fields of their own; not
-  retired in the JSON (C53, additive), retired as the one way the age
-  is made; held by the block's `list_seen`.
-- retired the scope line's ages half in the CLI text (18 goldens, the
-  search reader's grep); held by the subject's ages under `total` and
-  the scope's in every search JSON golden.
 - retired `TabRow::aged` and `CharacterRow::aged` as two partial
-  methods; held by one aging over every `_at` the row carries (§4, the
-  structural pin).
+  methods; held by one aging per row and the named paths of the pin
+  below.
 - retired nothing of the plan's envelope (C38: the envelope is bound;
   the block sits in the wrapper with `notes` and `quote_note`).
+
+Three changes the first draft of this list called retirements are
+not: each swaps a fact for one with a different subject, or ends a
+property without re-holding it, and C154 has no line for that. They
+are contract changes, each held by a regenerated golden that names the
+new fact (C122):
+
+- the scope line's ages half leaves the CLI text (18 goldens, the
+  search reader's grep): the property "the scope's ages are in the
+  text" ends; the subject's ages under `total` and the scope's in the
+  JSON goldens hold what replaces it, not what it held.
+- the shop's `oldest_stale_seconds` stays: it is the stale covered
+  set's oldest, which its test keeps apart from an older uncovered
+  item (`shop.rs:1181`, `crates/acquisition-plan/unit/tests/shop.rs:725`),
+  a different subject from the posted set's. The posted block stands
+  beside it, and one new case in `c72_coverage_staleness_and_positions…`
+  holds the two apart: an uncovered posted item older than every stale
+  one makes the block's oldest older than the window's.
+- `price status`'s `stash_listing_fetched_at_age` and
+  `character_listing_fetched_at_age` stay: two bases over two sets,
+  the league's tabs and the realm's characters, which one `list_seen`
+  cannot carry (`listing.rs:852`); the block names both, and the
+  fields are made by the one aging rather than by hand.
 
 ### The structural pin
 
@@ -412,11 +458,21 @@ summary's `first`, the ledger rows' `submitted_at` and `updated_at`,
 the shop's listing header) is held today by discipline: each `aged`
 method names its fields by hand. The verbs crate already walks every
 document a verb returns (`documents.rs`,
-`c149_every_document_a_verb_returns_is_one_json_object`). One more
-rule there, that every key ending `_at` has a sibling ending `_age` or
-is on a named exempt list, makes the next bare epoch fail the gate.
-That is structure over discipline at the cost of one test and one
-list, and it needs no ruling: it is C53's mechanism.
+`c149_every_document_a_verb_returns_is_one_json_object`), but over
+empty fixtures (`documents.rs:1240`: a store with no rows), so a rule
+over keys there meets no row's timestamp, and a suffix rule would miss
+`first_seen`, `last_seen`, `first` and `last`, four of the class's own
+members. The rule is a list of paths, each read from a fixture that
+holds a row: `tabs`' `listed_at`, `show`'s `first_seen` and
+`last_seen`, the events' `first` and `last`, the ledger rows'
+`submitted_at` and `updated_at`, the shop's header, each with its
+words beside it; a plan's ages sit in its wrapper outside the envelope
+(`documents.rs:483`), which the list says. That is structure over
+discipline at the cost of one test and one list. C53 requires words
+beside the ages the text prints and `_age` beside the epochs an answer
+makes at its time; "every epoch an answer carries has its words" is
+one step past that letter in its direction, and the owner reads it as
+C53's mechanism or as a line of its own (§11, question 3).
 
 ### Where it strains
 
@@ -424,11 +480,22 @@ list, and it needs no ruling: it is C53's mechanism.
   `generated_at`, not `now`; the block would be aged "before
   generated_at" as its listing ages are (`age::before`). The envelope
   cannot change (C38); the block sits in the wrapper. And #22's count,
-  the league's tabs outside the policy, is a fact about the scope the
-  policy does not cover, which the planner's snapshot does not hold:
-  the snapshot is the covered selection (`lib.rs:2243`). The wrapper
-  would read the league's locations once more. Half a day, and the
-  plan's text gains a line it did not have.
+  the league's tabs outside the policy, the planner's snapshot already
+  holds: `RefreshSnapshot.tabs` is the league's live tabs whole
+  (`snapshot.rs:140`), and compile keeps the covered ones
+  (`lib.rs:2243`); the wrapper counts the rest from the same snapshot
+  with the planner's own coverage test, no second read. An hour or
+  two, and the plan's text gains a line it did not have.
+- **Removed items and the empty set.** A search over `all` or `removed`
+  (`search_cmd.rs:92`) holds items whose stored body predates later
+  fetches of the location they left, and a row's place age is that
+  location's current fetch (`corpus.rs:579`), not the item's last
+  sighting. A block folded over the matches' places would report the
+  places' fetches for a subject of sightings: this map's central fault
+  again, for historical subjects. The block must say which it reports
+  (the places' observations, each removed row carrying when it left,
+  as today), and a match set with no places has no ages: the block
+  says so rather than carrying none.
 - **The shop's shape.** A block over posted entries has `never_fetched`
   at zero by construction (a posted item was fetched) and `by_type` of
   little use; one struct serving a set where half its fields cannot
@@ -467,7 +534,7 @@ user would meet.
 
 **C118, amended (`decisions/search.md`):**
 
-> - **C118 — An answer says how old its subject is, how old a row is, and what kind of place it could not see.** A row carries its location's fetch age beside `place` (text in the CLI, an epoch in JSON; C53, three output levels). The answer's subject — the matches, the posted items, a league's items or tabs, the store — carries the oldest and newest fetch among its places with their locations and when its lists were seen, named for the set they are over; a wider scope's stand apart, named, in the JSON. The scope line says the never fetched by tab type, the largest named and the rest counted, and points at the list that exists. Why a location was never fetched, by policy or not yet, is left out until a seat asks. *Why:* a seat quoted the scope's age for 187 matches, and a page said nothing of positions 50 days old. *Pinned:* `acquisition-search/tests/seat_faults.rs`, `acquisition-search/tests/explain.rs`; the subject's block, nothing yet.
+> - **C118 — An answer says how old its subject is, how old a row is, and what kind of place it could not see.** A row carries its location's fetch age beside `place` (C53, three output levels); its subject, the set answered about, carries its places' oldest and newest fetch with their locations and when its lists were seen, named for the set, a wider scope's apart in the JSON; the scope line says the never fetched by tab type, the largest named and the rest counted, and points at the list that exists. Why a location was never fetched, by policy or not yet, is left out until a seat asks. *Why:* a scope's age read as the matches'; a page silent on positions' age. *Pinned:* `acquisition-search/tests/seat_faults.rs`, `acquisition-search/tests/explain.rs`; the subject's Unbuilt, #155, #156.
 
 **C146, read precisely (no change recommended; the alternative is one clause):**
 
@@ -482,7 +549,7 @@ goldens, and a ruling that lists extents will be read as closed.
 
 **The mechanism, one line (`decisions/frontends.md`, beside C146 and C53; or C118's doc comment):**
 
-> - **C162 — Coverage and age are one derivation over a set of places, held once, and every answer applies it to its subject and, where wider, to its scope.** The derivation takes places (a location's kind, type, league, fetch time and listing time) and returns their count, the fetched and never fetched by type and league, the oldest and newest fetch with their locations and when their lists were seen, aged at the answer's time by one method; a surface derives none of these for itself. *Why:* four surfaces derived coverage four ways and each reported the age of what its struct held. *Pinned:* nothing yet.
+> - **C162 — Coverage and age are one derivation over a set of places, held once, and every answer applies it to its subject and, where wider, to its scope.** The derivation takes a set of places with their observations (each location's kind, type, league and fetch, the set's listing bases, the items at each) and returns their count, the fetched and never fetched by type and league, the oldest and newest fetch with their locations and when their lists were seen, aged at the answer's time by one method; a surface derives none of these for itself. *Why:* four surfaces derived coverage four ways and each reported the age of what its struct held. *Pinned:* nothing yet.
 
 Where the derivation lives is the owner's (§11, question 2): the
 store crate under C108 and C39 read as permitting a neutral
@@ -596,10 +663,13 @@ Reframes considered and rejected.
 The frame: each gap is an answer reporting facts about its scope where
 the reader asked about its subject.
 
-Where it holds: Root 1 entire. The matches' age (#155), the posted
-items' age (#156), a counts view's age, a price status's text, a tabs
-head: in each the answer has a wider set's facts in hand and reports
-those. The frame names the direction exactly.
+Where it holds: Root 1 where an age is given. The matches' age
+(#155), the posted items' age under a policy (#156), a tabs head: in
+each the answer has a wider set's facts in hand and reports those, and
+the frame names the direction exactly. Where Root 1 gives no age at
+all (`price status`'s text, `store status`, a counts view, a render
+with no policy) the frame does not reach: nothing of any scope is
+reported, an omission the block fills and the frame does not name.
 
 Where it is wrong: in two ways. First, Root 2 is its mirror image. For
 #157, #22 and #19 the answer reports facts about its *subject* (the
@@ -630,22 +700,26 @@ Questions he can answer from his own `acq` output during the 3.30 run,
 each naming the root it confirms or refutes. No agent opens the store;
 he reads his terminal.
 
-1. After the new league's first sync, `acq search --league <new>
-   <any query>`: does the scope line's oldest fetch name a Standard
+1. After the new league's first sync, `acq search 'league="<new>"
+   <any query>'` (`--realm pc` beside it if his store holds more than
+   one realm): does the scope line's oldest fetch name a Standard
    location weeks old while every row says hours or minutes? If he
    quoted the scope's age to himself as the league's, Root 1 holds; if
    he read the rows' ages and never looked at the scope's, the text
    change in §4 costs nothing he uses.
-2. `acq search --league <new> --count tab`: did he want an age beside
-   the counts and go back to the rows for it? Root 1, the counts view.
+2. `acq search 'league="<new>"' --count tab`: did he want an age
+   beside the counts and go back to the rows for it? Root 1, the counts
+   view.
 3. `acq price status --league <new>`: can he say from the text how old
    its facts are without `--expand`? Did he assume current? Root 1 on
    pricing; the decision view's missing line.
 4. `acq shop render --league <new>` with his policy covering it: does
    the stale line's count and "oldest … ago" match what he expects?
-   Then `--league Standard`, if Standard is outside his policy: does the
-   render say anything of the positions' age? If not, and he pasted,
-   #156 is live for him.
+   Then `--league Standard`, if Standard is outside his policy and
+   holds posted items (with none the render prints no freshness at all,
+   `shop_cmd.rs:138`, and the question has no answer): does the render
+   say anything of the positions' age? If not, and he pasted, #156 is
+   live for him.
 5. `acq store status`: could he answer "how old is my data" from it?
    Where did he go instead? Root 1 at the store.
 6. The league morning: did `acq leagues` tell him which league was
@@ -666,20 +740,24 @@ he reads his terminal.
 11. Did any age in words mislead by its staleness, an MCP answer or a
     saved `--json` quoted later? The ages are made at the answer's time
     (`age.rs:22`); a "no" keeps the vocabulary as it is.
-12. Did the plan's `quote` ever say "ready" on a route whose headers
-    were old enough that the apply then waited? Root 3's one quote row
-    (the decision view drops `observed_seconds_ago`).
+12. Two facts apart, no cause between them: did a plan's `quote` say
+    "ready" and the apply then wait; and what `observed_seconds_ago`
+    did that plan's `--expand` or `--json` carry? A wait after "ready"
+    has other causes (work queued between, a probe, a token refresh, a
+    retry: `quote.rs:147`), so the pair records what happened and
+    proves nothing. Root 3's one quote row is that the decision view
+    drops the age (`plan_cmd.rs:1792`).
 
 ## 10. Next steps, ranked, each with its cost, what it retires and whether it needs a ruling
 
 | step | what | cost | retires (C154's form) | ruling |
 | --- | --- | --- | --- | --- |
-| S1. The subject's block on the search answer | the matches' coverage under `total` on rows, counts and cross, one fold in the loop at `answer.rs:1751`; the text's total line gains the ages and the scope line loses its ages half; the gloss; the goldens regenerated and read | a day | retired the scope line's ages half in the text; held by the subject's ages under `total` and the scope's in the JSON goldens. #155 closes | yes: C118 amended (§5) |
+| S1. The subject's block on the search answer | the matches' coverage under `total` on rows, counts and cross, one fold in the loop at `answer.rs:1751`; the text's total line gains the ages and the scope line loses its ages half; the gloss; the goldens regenerated and read | a day | retired nothing; the scope line's ages half leaves the text, a contract change held by the regenerated goldens and the JSON's scope. #155 closes | yes: C118 amended (§5) |
 | S2. The one function in the store | `coverage` over place rows beside `age.rs`, with `aged`; the search's `coverage()` and `tabs::by_type` on it; its unit tests over a fixture of places | a day | retired `corpus.rs`'s `coverage()` and `tabs.rs`'s counting; held by the store's function and its tests, read by `c100_…` and `tabs.rs:38` | yes: where it lives, under C108 and C39 (§11, question 2); the mechanism line (§5) |
-| S3. The shop's and price status's blocks | the posted entries' block whatever the policy; the league's block in `price status`'s decision view; the shop's listing header aged | half a day each | retired the shop's own age reading under a policy and the two listing-age fields as the one maker; held by the block and `c72_…`. #156 closes | no, after S2; the words are the session's, listed |
-| S4. The `_at`/`_age` pin | one rule in `documents.rs` over every document a verb returns: every `_at` has an `_age` or is exempt by name; `tabs`' `listed_at`, `show`'s `first_seen`/`last_seen`, the events' `first`, the ledger rows, the shop's header aged | half a day | retired `TabRow::aged` and `CharacterRow::aged` as two partial methods; held by the rule and one aging per row | no (C53's mechanism) |
-| S5. The scope of league-taking surfaces | the store's leagues beside `price status`, `shop render` and `tabs`; the stored league list read by `policy show` and a `leagues --stored` or the same verb offline, each league beside whether the policy covers it; the plan wrapper's count of the league's tabs outside the policy; C126's match per realm | a day and a half | retired nothing; #157 and #22 close, #19's comment answered | the offline read of the league list is agent-facing design, the session's under the owner's delegation; the README's new-league line is his to re-read |
-| S6. The extents sweep | the events summary (#105's third item), `sends` and `policies_known` and `total` said per lifetime, `leagues` as a union or retired to the list's size, "last login" as the last credential write or narrowed, `price status`'s league-less items and "skipped", `in_facts`'s width, "0 done", `protocol.rs:595`'s default, the gloss of `never_fetched_by_type.items` | a day | retired nothing | no: C146 read precisely |
+| S3. The shop's and price status's blocks | the posted entries' block whatever the policy; the league's block in `price status`'s decision view; the shop's listing header aged | half a day each | retired nothing: the shop's stale-set age and the two listing-age fields stay as their own facts, the block beside them, one new `c72_…` case holding the two apart. #156 closes | no, after S2; the words are the session's, listed |
+| S4. The named-paths pin | one rule in `documents.rs` over a list of paths read from fixtures that hold a row: `tabs`' `listed_at`, `show`'s `first_seen`/`last_seen`, the events' `first` and `last`, the ledger rows, the shop's header, each aged; a plan's in its wrapper | half a day | retired `TabRow::aged` and `CharacterRow::aged` as two partial methods; held by the rule and one aging per row | one step past C53's letter: his reading (§11, question 3) |
+| S5. The scope of league-taking surfaces | the store's leagues beside `price status`, `shop render` and `tabs`; the stored league list read by `policy show` and a `leagues --stored` or the same verb offline, each league beside whether the policy covers it; the plan wrapper's count of the league's tabs outside the policy, from the snapshot it holds; C126's match per realm | a day | retired nothing; #157 and #22 close, #19's comment answered | the offline read of the league list is agent-facing design, the session's under the owner's delegation; the README's new-league line is his to re-read |
+| S6. The extents sweep | the events summary (#105's third item), `sends` and `policies_known` and `total` said per lifetime, `leagues` as a union or retired to the list's size, "last login" as the last credential write or narrowed, `price status`'s "skipped", `store refused`'s text saying whether more exist, `in_facts`'s width, "0 done", `protocol.rs:595`'s default, the gloss of `never_fetched_by_type.items` | a day | retired nothing | no: C146 read precisely |
 | S7. The plan's clocks | one name per clock: the note's `character_listing_fetched_at_age` renamed or measured as the top-level one; the decision quote keeps `observed_seconds_ago` | an hour | nothing | no, but a JSON key moves: C146 bars a rename, so the measure changes, not the name; listed for the owner |
 | S8. C77 pinned | a test that a plan's freshness is judged at compile, the clock behind the facts line | an hour | nothing | no |
 | S9. #12 closed on the sentence | the terms block says its set; four seats did not stop | minutes | nothing | the owner's |
@@ -704,13 +782,16 @@ The decisions only he can make, each as a question with its options.
    snapshots. (a) The store crate, beside the age vocabulary, read as a
    neutral derivation every reader shares, recommended: it sits at the
    fact it reads and every consumer links it. (b) The search crate, the
-   shop and status reaching it through the verbs crate. (c) No shared
+   shop's and price status's blocks made in a verbs-crate wrapper, the
+   planner unaware of the search (C1 bars it the edge). (c) No shared
    function; each surface keeps its own and the blocks are held equal
    by a test.
 3. **The mechanism's home.** (a) The one-line ruling of §5 in
    `decisions/frontends.md` beside C146 and C53, recommended. (b) The
    mechanism as C118's doc comment, no registry line. (c) Cross-cutting
-   in `AGENTS.md`, at the budget's cost.
+   in `AGENTS.md`, at the budget's cost. And the pin of §4, one step
+   past C53's letter: read as C53's mechanism, needing no line, or
+   named in the line.
 4. **The scope line's ages leaving the text.** The words step added
    them for #11 and he read that change. (a) Remove from the CLI text
    once the subject's ages stand under the total, kept in the JSON,
@@ -731,3 +812,37 @@ The decisions only he can make, each as a question with its options.
    the shape exists), then S4 (the pin), then S3 and S5 between
    sittings; S6 to S10 as a words round with the next seat checking
    them. Or S4 first, since it is cheapest and structural.
+
+## Taken from the review
+
+The cold review at `a064b508` (`answer-facts-map-a064b508.md`) found
+thirteen; each is answered above by one of five rules, not by itself.
+
+- **A marked cell names what the surface already prints.** The events
+  summary's "(limit reached)" and `price status`'s league-less line
+  (finding 8); `policy show` shows the row whole, no league (4); the
+  tabs pointer gives nothing for a fixed league without a never-fetched
+  tab (13); "no seat stumbles" narrowed to the terms block, the
+  never-fetched JSON read twice (4); Root 1 and §8 say where an answer
+  gives no age at all rather than a wider set's (4).
+- **A command in §9 is one the reference prints.** `acq search` takes
+  the league as a term, not a flag (5); item 4 needs posted items and
+  item 12 records two facts and proves no cause (11).
+- **The collapse's contract names its inputs, its retirements re-hold
+  their property, its strains are all named.** The function takes
+  places with their observations and counts, and claims only the ages
+  and coverage of a set (1); the shop's stale-set age and the two
+  listing bases stay as their own facts, and the scope line's text is a
+  contract change, three lines moved out of C154's form (3); the pin is
+  a list of paths over populated fixtures, one step past C53's letter
+  (2); the plan's snapshot already holds the uncovered tabs (7);
+  removed items and the empty set are a strain (10); the fallback home
+  is a verbs-crate wrapper, since C1 bars the planner the search (12).
+- **The C118 draft is in the registry's form.** Under 800 bytes, no
+  measurement in its Why, the unbuilt half named against #155 and
+  #156 (6).
+- **The inventory names what it cut.** `store refused` has its row, the
+  one list whose text says nothing of more; the lists that do are
+  named once in §2's head, and so is what the map does not cover (9).
+- **#12** keeps its own fire line and its close is the owner's, not the
+  root's (4).
