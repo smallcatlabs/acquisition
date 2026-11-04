@@ -687,5 +687,11 @@ kind waiting on his rulings, all by one parked Opus worker handed
 each round by message. Round A (`briefs/seat-issues-a.md`) landed as
 `7690703f..a5e6b58c`, reviewed (two P2s, a P3), fixed in one round
 (`1aaeb410..e3b5c217`) reviewed clean; #174, #173 and #36 closed the
-same day. Next, round B, its first commit the pricing golden that
-reads two clocks (`cli10_the_skip_count_names_the_list_that_holds_them`).
+same day. Round B (`briefs/seat-issues-b.md`) landed as
+`935d4f51..50494341`, the two-clock golden first; reviewed (a P1, three
+P2s), fixed in one round (`a4d1fc99..a0bd4726`), reviewed (three P2s of
+one cause, a receipt guessing a read's scope, and a P3), fixed at the
+owner's word in a second (`14705058`, `4bd32311`: `price show` reads a
+bare target's scope from the facts) read by the orchestrating session
+and not reviewed a third time; #169, #171, #170 and #167 closed the
+same day. Next, round C.
