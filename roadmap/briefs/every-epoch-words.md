@@ -16,12 +16,11 @@ already requiring words beside every epoch a document carries, the
 review held that reading an extension of C53's letter, not the
 letter, and the orchestrator agreed; the line was drafted here and
 ruled. The second review asked two amendments of the line, both the
-owner's and both requested at this cut: a clause for words under a
-path the document declares where the time sits in a value that is
-identity (the search basis's, Do 3), and the walk clause said of a
-time that is not null; and that Unbuilt name #164. The step starts
-once he has answered: the design below assumes the wrapper clause,
-and without it the search basis's words have no lawful home.
+owner's: a clause for words under a path the document declares where
+the time sits in a value that is identity (the search basis's, Do 3),
+and the walk clause said of a time that is not null; and that Unbuilt
+name #164. He amended it on 2026-11-04 ("Yes, amend it"); the line as
+it stands in the registry is the one the design below rests on.
 
 ## Goal
 
@@ -144,10 +143,10 @@ inventory.
 
 - **The ruling, C163, as entered:**
 
-  > - **C163 — Every time a document carries has its words beside it.** A time a document serializes (seconds since 1970) has its age in words under the time's own name and `_age`, made at the answer's time or measured from a time of the document's own where its text measures so (C53, three output levels); a bound envelope's words sit in its wrapper (C38, the plan's); a null time says `never` or carries no words, as its maker says; words never enter a value's identity (C98, the basis). A pin walks every document a verb returns and fails on a time with no words. *Why:* C53 words the ages a text prints, and a seat worked a date by hand from a time no text printed. *Pinned:* `acquisition-verbs/tests/documents.rs`; Unbuilt, the answer-facts group's round 3.
+  > - **C163 — Every time a document carries has its words beside it.** A time a document serializes (seconds since 1970) has its age in words under the time's own name and `_age`, or under a path the document declares for it where the time sits in a value that is identity (C98, the basis) or a bound envelope (C38, the plan's); the words are made at the answer's time, or from a time of the document's own where its text measures so (C53, output levels); a null time says `never` or carries no words, as its maker says. A pin walks every document a verb returns and fails on a time, not null, with no words. *Why:* C53 words the ages a text prints, and a seat worked a date by hand from a time no text printed. *Pinned:* `acquisition-verbs/tests/documents.rs`; Unbuilt, #164.
 
-  761 bytes; `python3 -I tools/bothy.py check` passes on the tree that
-  holds it.
+  775 bytes as amended; `python3 -I tools/bothy.py check` passes on the
+  tree that holds it.
 - The sweep at `2977ea2c`: `grep -rn 'pub [a-z_]*: \(Option<\)\?i64' crates/acquisition-{store,verbs,plan,search,protocol}/src | grep -i '_at\b\|_at:\|seen\|first\|last\|login\|written\|rendered\|generated\|observed\|taken\|\bat:\|since\|expires\|until' | grep -v '_age'`,
   59 field declarations; the review's reading of them by document,
   which is this step's inventory (document → time path → words path):
