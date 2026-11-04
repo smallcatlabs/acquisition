@@ -413,8 +413,17 @@ search needs and nothing more"; C39 says the store exposes "neutral
 snapshots, never half a planner". A coverage function is a neutral
 read-side derivation with no policy in it, which is what C39 permits;
 but it is not "what search needs" alone, and C108 was ruled about the
-read. The owner decides whether a derivation every reader shares is
-the store's (§11, question 2). If he declines, the function lives in
+read: its sentence governs the corpus read, the streaming read of
+bodies, and what it forbids is deriving what a body says (C103). A
+coverage fold reads no body; it folds ingest facts, which C103 sends
+to the store's read in any case. And the store already holds two
+derivations every reader shares and no ruling names: the age
+vocabulary (`age.rs`) and the read economy's one number (`bound.rs`),
+used by the planner, the search, the verbs, the CLI and the MCP (the
+grep for `acquisition_store::age` and `::bound` over `crates/*/src`:
+22 files in five crates). A coverage function beside them is the
+third of a kind. The owner decides whether that reading of C108 is
+his (§11, question 2). If he declines, the function lives in
 the search crate, and the planner cannot call it: the search links the
 planner, and C1 forbids the reverse edge (`decisions/search.md:9`,
 `tools/arch-check.sh:377`). The shop's and price status's blocks would
@@ -803,9 +812,15 @@ The decisions only he can make, each as a question with its options.
    Decline; #155 and #156 as filed, two fixes.
 2. **Where the one derivation lives.** C108 says the store gains what
    search needs and nothing more; C39 says the store exposes neutral
-   snapshots. (a) The store crate, beside the age vocabulary, read as a
-   neutral derivation every reader shares, recommended: it sits at the
-   fact it reads and every consumer links it. (b) The search crate, the
+   snapshots. The precedent: C108's sentence is about the corpus read
+   and forbids deriving what a body says, which a coverage fold never
+   does; and the store already holds two derivations every reader
+   shares, the age vocabulary (`age.rs`) and the read economy's one
+   number (`bound.rs`), used by five crates (§4, "Where it lives").
+   (a) The store crate, beside those two, read as a neutral derivation
+   every reader shares, recommended: it sits at the fact it reads,
+   every consumer links it, and it is the third of a kind the store
+   already holds. (b) The search crate, the
    shop's and price status's blocks made in a verbs-crate wrapper, the
    planner unaware of the search (C1 bars it the edge). (c) No shared
    function; each surface keeps its own and the blocks are held equal
