@@ -534,15 +534,15 @@ async fn tabs(
         .to_string();
     let read = blocking(&web, move |web| -> Result<_, Failure> {
         let facts = web.account.facts()?;
-        let listed = acquisition_search::tabs::Tabs::of(
+        let listed = acquisition_search::tabs::Tabs::read(
+            &facts,
             realm.as_str(),
             &league,
-            facts.tabs(realm.as_str(), &league)?,
             &acquisition_search::tabs::Selection::default(),
             None,
             true,
             acquisition_store::now(),
-        )
+        )?
         .grouped();
         // every character, as every tab: the page is a selection, and a
         // row it does not list cannot be ticked (C53's audit view)
@@ -592,7 +592,11 @@ async fn tabs(
     match empty {
         Some(said) => body.push_str(&pre(&said)),
         None => {
-            body.push_str(&pre(&store_cmd::tabs_head(&listed, realm, &league, None)));
+            body.push_str(&pre(&format!(
+                "{}\n{}",
+                store_cmd::tabs_head(&listed, realm, &league, None),
+                store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
+            )));
             // the stash list one group, open; each map or unique tab's
             // pages a group of their own under it, closed (the 4b sitting
             // round, Do 4); no script

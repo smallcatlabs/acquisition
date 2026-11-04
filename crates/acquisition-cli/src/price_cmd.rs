@@ -323,20 +323,7 @@ pub(crate) fn facts_line(lead: &str, facts: &Facts, h: &ReportHeader, now: i64) 
             format!("facts: no locations; {}\n", lists.join(", "))
         };
     }
-    let fetched = if facts.fetched == 0 {
-        "none fetched".to_string()
-    } else {
-        let s = &facts.span;
-        format!(
-            "{} fetched ({})",
-            facts.fetched,
-            crate::search_cmd::span_words(
-                s,
-                said(&s.oldest_fetch_age, s.oldest_fetch),
-                said(&s.newest_fetch_age, s.newest_fetch),
-            )
-        )
-    };
+    let fetched = fetched_words(facts.fetched, &facts.span, now);
     let lists: Vec<String> = [
         (facts.tabs > 0).then_some(stash),
         (facts.characters > 0).then_some(characters),
@@ -345,6 +332,30 @@ pub(crate) fn facts_line(lead: &str, facts: &Facts, h: &ReportHeader, now: i64) 
     .flatten()
     .collect();
     format!("facts: {lead}, {fetched}; {}\n", lists.join(", "))
+}
+
+/// A facts line's fetched part (C162): how many places were fetched and
+/// the extremes of their last fetches, each with its own age, the
+/// document's own where it holds one, said at `now` otherwise (C53).
+/// The one formatter of it, for every facts line: `price status`'s, a
+/// shop render's, `store status`'s and `tabs`' (#172).
+pub(crate) fn fetched_words(
+    fetched: usize,
+    span: &acquisition_store::coverage::FetchSpan,
+    now: i64,
+) -> String {
+    if fetched == 0 {
+        return "none fetched".to_string();
+    }
+    let said = |age: &Option<String>, at: Option<i64>| age.clone().unwrap_or_else(|| ago(now, at));
+    format!(
+        "{fetched} fetched ({})",
+        crate::search_cmd::span_words(
+            span,
+            said(&span.oldest_fetch_age, span.oldest_fetch),
+            said(&span.newest_fetch_age, span.newest_fetch),
+        )
+    )
 }
 
 /// `leagues` is the `leagues:` line ([`crate::leagues_cmd::held_line`]),

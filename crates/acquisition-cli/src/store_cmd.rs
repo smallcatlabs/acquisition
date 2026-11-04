@@ -209,6 +209,33 @@ pub(crate) fn tabs_head(
     )
 }
 
+/// `tabs`' facts line (#172): the league's tabs, how many were fetched
+/// and their extremes, and when its stash listing was seen, in the words
+/// the other facts lines print ([`crate::price_cmd::fetched_words`]).
+pub(crate) fn tabs_facts_line(listed: &acquisition_search::tabs::Tabs, now: i64) -> String {
+    let places = listed.tabs - listed.folders;
+    let listing = match listed.span.list_seen {
+        Some(at) => format!(
+            "stash listing {}",
+            listed
+                .span
+                .list_seen_age
+                .clone()
+                .unwrap_or_else(|| ago(now, Some(at)))
+        ),
+        None => "stash never listed".to_string(),
+    };
+    format!(
+        "facts: {}, {}; {listing}\n",
+        plural_of(places, "tab", "tabs"),
+        crate::price_cmd::fetched_words(listed.fetched, &listed.span, now)
+    )
+}
+
+fn plural_of(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
 /// The command that lists one league's characters, as `account`, in the
 /// quoting every printed command takes (C156).
 fn characters_line(account: &str, realm: Realm, league: &str) -> String {
@@ -306,15 +333,15 @@ pub fn tabs(
     let username = account.entry.username.clone();
     let store = account.facts()?;
     let now = acquisition_store::now();
-    let listed = acquisition_search::tabs::Tabs::of(
+    let listed = acquisition_search::tabs::Tabs::read(
+        &store,
         realm.as_str(),
         league,
-        store.tabs(realm.as_str(), league)?,
         select,
         limit,
         expand,
         now,
-    );
+    )?;
     // what the store holds beyond this league, beside it: `tabs` lists
     // one league, and the line names the others to ask for
     let held = acquisition_verbs::Held::with(
@@ -339,6 +366,7 @@ pub fn tabs(
     // The answer first (C53), so it is never under a screen of rows.
     let characters = characters_line(&username, realm, league);
     println!("{}", tabs_head(&listed, realm, league, Some(&characters)));
+    print!("{}", tabs_facts_line(&listed, now));
     print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (the re-sit:
@@ -638,6 +666,7 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
         st.items_removed,
         st.events
     ));
+    out.push_str(&status_facts_line(&st.facts));
     if st.withheld_responses > 0 {
         out.push_str(&format!(
             "withheld: {} of tabs or characters the latest list no longer named, carrying {}: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
@@ -660,11 +689,38 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
     }
     if st.refused_bodies > 0 {
         out.push_str(&format!(
-            "refused: {} the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
+            "refused: {} the store would not ingest, kept verbatim as evidence{} (`acq store refused`)\n",
             counted(st.refused_bodies, "body", "bodies"),
+            st.refused_latest_at_age
+                .as_deref()
+                .map(|age| format!(", the newest {age}"))
+                .unwrap_or_default(),
         ));
     }
     out
+}
+
+/// `store status`'s facts line (#172): every realm and league's
+/// locations, how many were fetched and their extremes, and when the
+/// oldest of the location lists was seen, in the words the other facts
+/// lines print ([`crate::price_cmd::fetched_words`]) and a search's scope
+/// line says the lists in.
+fn status_facts_line(facts: &acquisition_store::coverage::Coverage) -> String {
+    let places = facts.fetched + facts.never_fetched;
+    let lists = match &facts.span.list_seen_age {
+        Some(age) if facts.span.list_seen.is_some() => {
+            format!("location lists seen, the oldest {age}")
+        }
+        _ => "no location list seen".to_string(),
+    };
+    if places == 0 {
+        return format!("facts: no locations; {lists}\n");
+    }
+    format!(
+        "facts: {}, {}; {lists}\n",
+        plural_of(places, "location", "locations"),
+        crate::price_cmd::fetched_words(facts.fetched, &facts.span, acquisition_store::now())
+    )
 }
 
 /// Bodies the store refused as malformed: the list, or one body in full.
@@ -1175,9 +1231,12 @@ mod tests {
             withheld_responses: 1,
             withheld_items: 4,
             refused_bodies: 1,
+            refused_latest_at: None,
+            refused_latest_at_age: None,
             granted_skills: 8,
             last_event: 9,
             league_list_latest: Default::default(),
+            facts: Default::default(),
         };
         let text = status_text(&st);
         // the kept count names its set, beside the latest list (C146)

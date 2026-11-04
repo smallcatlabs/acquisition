@@ -6,9 +6,11 @@ $ acq store status
 --- stdout
 <scratch>/store/mock/Alice_1234.db  (0.1 MB)
 responses 5  league ids seen across every league fetch: 0 (never fetched: `acq leagues`)  characters 0  tabs 2 (every realm and league)  items 2 (+0 removed)  events 2
+facts: 2 locations, 2 fetched (fetched <age> ago, pc · Allflame / Gear); location lists seen, the oldest <age> ago
 
 $ acq store status
 # holds "league ids seen across every league fetch: 2 (the latest fetch: 1 league, "
 --- stdout
 <scratch>/store/mock/Alice_1234.db  (0.1 MB)
 responses 7  league ids seen across every league fetch: 2 (the latest fetch: 1 league, <age> ago)  characters 0  tabs 2 (every realm and league)  items 2 (+0 removed)  events 2
+facts: 2 locations, 2 fetched (fetched <age> ago, pc · Allflame / Gear); location lists seen, the oldest <age> ago

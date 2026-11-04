@@ -5,6 +5,7 @@ $ acq tabs --limit 0
 # holds "lists all 1"
 --- stdout
 1 tabs in Standard: 1 fetched; 2 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 1 tab, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 type           tabs  fetched   items
 PremiumStash      1        1       2
@@ -14,6 +15,7 @@ $ acq tabs --type PremiumStash --limit 0
 # holds "0 of 1 shown: "
 --- stdout
 1 tabs in Standard: 1 fetched; 2 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 1 tab, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 1 PremiumStash tabs
 0 of 1 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type PremiumStash` lists all

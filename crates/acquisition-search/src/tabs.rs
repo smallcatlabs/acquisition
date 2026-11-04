@@ -34,6 +34,7 @@
 use acquisition_store::TabRow;
 use acquisition_store::bound::bounded;
 // C162: the counter by type is the store's, under the path it had here
+use acquisition_store::coverage::FetchSpan;
 pub use acquisition_store::coverage::{TabType, by_type};
 use serde::Serialize;
 
@@ -52,6 +53,14 @@ pub struct Tabs {
     pub folders: usize,
     /// The live items in the league's tabs.
     pub items: i64,
+    /// How old the league's tab facts are (#172; C162, the store's one
+    /// derivation): the oldest and newest fetch of its tabs with their
+    /// locations, and when its stash listing was seen, each age in words
+    /// at the answer's time, under the keys a search's scope names them
+    /// by. Filled by [`Tabs::read`]; none on a document made from rows
+    /// alone.
+    #[serde(flatten)]
+    pub span: FetchSpan,
     /// The same counts by GGG's tab type, the most items first.
     pub by_type: Vec<TabType>,
     /// The selection `rows` is cut from, where one was asked, and how
@@ -175,6 +184,7 @@ impl Tabs {
             never_fetched: tabs.saturating_sub(fetched + folders),
             folders,
             items,
+            span: FetchSpan::default(),
             by_type,
             selection: (!select.is_empty()).then(|| select.clone()),
             selected: (!select.is_empty()).then_some(selected),
@@ -184,6 +194,31 @@ impl Tabs {
             left_out_needs: (left_out > 0).then_some("expand"),
             groups: Vec::new(),
         }
+    }
+
+    /// [`Tabs::of`] the league's tabs as `store` holds them, with the
+    /// facts block over them (#172): the one read every surface makes,
+    /// `acq tabs`, the MCP's `tabs` and the web UI's refresh page.
+    pub fn read(
+        store: &acquisition_store::Store,
+        realm: &str,
+        league: &str,
+        select: &Selection,
+        limit: Option<usize>,
+        expand: bool,
+        now: i64,
+    ) -> anyhow::Result<Tabs> {
+        let mut tabs = Tabs::of(
+            realm,
+            league,
+            store.tabs(realm, league)?,
+            select,
+            limit,
+            expand,
+            now,
+        );
+        tabs.span = store.coverage(Some(realm), Some(league), true, now)?.span;
+        Ok(tabs)
     }
 
     /// The document with its rows grouped (`groups`): a page — a row

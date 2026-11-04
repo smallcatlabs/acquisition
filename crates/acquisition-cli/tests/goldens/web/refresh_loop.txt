@@ -77,6 +77,7 @@ GET refresh?realm=pc&league=Standard
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <pre>
 15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart)
+facts: 14 tabs, 7 fetched (<fetches>); stash listing <age> ago
 </pre>
 <details class="list" open><summary>Stash tabs (15)</summary>
 <table>

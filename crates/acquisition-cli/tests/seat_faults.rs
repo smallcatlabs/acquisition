@@ -2236,6 +2236,116 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
     golden(file!(), "counts_of_none", &t);
 }
 
+/// #172 (the answer-facts seat, CLI run 2 calls 5, 36, 37; MCP run 2
+/// calls 27, 30): `store status` printed counts and no time, and `tabs`
+/// a row's age and no league-wide oldest or newest. Each carries the
+/// facts block the other answers carry, from the store's one derivation
+/// (C162): `store status` over every realm and league, with the newest
+/// refused body's age beside their count; `tabs` over the league's tabs.
+/// Fixed times, two fetches an hour apart, so the oldest and the newest
+/// are told apart (round B's item 0: never `now()` twice).
+#[test]
+fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
+    let scratch = harness::scratch("seat-facts-block");
+    let base = scratch.0.clone();
+    let at = acquisition_store::now() - 7200;
+    seed_two_leagues_at(&base, at);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                { "id": "a2", "name": "Spare", "type": "PremiumStash", "index": 1 } ] }),
+            at,
+        )
+        .unwrap();
+    let stash = |id: &str| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: id.into(),
+        sub: None,
+    };
+    store
+        .record(
+            &stash("a2"),
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a2", "name": "Spare", "type": "PremiumStash", "items": [
+                { "id": "i-spare", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            at + 3600,
+        )
+        .unwrap();
+    // an item with no id: a body refused, kept as evidence
+    assert!(
+        store
+            .record(
+                &stash("a1"),
+                &json!({}),
+                200,
+                &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash",
+                                    "items": [ { "typeLine": "Nameless" } ] } }),
+                at + 1800,
+            )
+            .is_err()
+    );
+    drop(store);
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["store", "status"],
+        &[
+            "facts: 3 locations, 3 fetched (the oldest fetch ",
+            ", pc · Allflame / Gear; the newest ",
+            ", pc · Standard / Spare); location lists seen, the oldest ",
+            "refused: 1 body the store would not ingest, kept verbatim as evidence, the newest ",
+        ],
+    );
+    let status = sole_json(&acq(&base, &["store", "status", "--json"]));
+    let facts = &status["facts"];
+    assert_eq!(
+        (
+            &facts["oldest_fetch"],
+            &facts["newest_fetch"],
+            &facts["list_seen"]
+        ),
+        (&json!(at), &json!(at + 3600), &json!(at)),
+        "{status}"
+    );
+    assert_eq!(
+        facts["newest_fetch_location"]["name"],
+        json!("Spare"),
+        "{status}"
+    );
+    assert!(facts["oldest_fetch_age"].is_string(), "{status}");
+    assert_eq!(status["refused_latest_at"], json!(at + 1800), "{status}");
+    assert!(status["refused_latest_at_age"].is_string(), "{status}");
+    t.run(
+        &["tabs"],
+        &[
+            "facts: 2 tabs, 2 fetched (the oldest fetch ",
+            ", pc · Standard / Gear; the newest ",
+            ", pc · Standard / Spare); stash listing ",
+        ],
+    );
+    let tabs = sole_json(&acq(&base, &["tabs", "--json"]));
+    assert_eq!(
+        (
+            &tabs["oldest_fetch"],
+            &tabs["newest_fetch"],
+            &tabs["list_seen"]
+        ),
+        (&json!(at), &json!(at + 3600), &json!(at)),
+        "{tabs}"
+    );
+    golden(file!(), "facts_block", &t);
+}
+
 #[test]
 fn store_status_says_what_its_league_and_tab_counts_count() {
     let scratch = harness::scratch("seat-status");

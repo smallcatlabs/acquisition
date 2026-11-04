@@ -68,7 +68,7 @@ pub fn location_name(name: &str) -> Option<String> {
 }
 
 /// What the scope block says was searched (C96).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coverage {
     /// The live items in scope.
     pub items: usize,
@@ -116,7 +116,7 @@ impl Coverage {
 /// The part of a coverage any set of places with their observations has:
 /// the oldest and newest fetch of its fetched places, each with its
 /// location, and when the lists that name it were seen ([`span`]).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchSpan {
     /// The earliest and the latest of the fetched locations' last
     /// fetches, each one location's; a row's place carries its own.
@@ -163,7 +163,7 @@ impl FetchSpan {
 }
 
 /// One tab type's counts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TabType {
     #[serde(rename = "type")]
     pub kind: String,

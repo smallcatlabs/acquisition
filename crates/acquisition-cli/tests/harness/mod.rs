@@ -1420,6 +1420,9 @@ pub struct Pages {
     web_addr: String,
     text: String,
     facts: usize,
+    /// The world was fetched in real time, as [`Transcript::fetched_live`]
+    /// says of a transcript's: [`fetch_place_rule`] applies.
+    fetched_live: bool,
 }
 
 impl Pages {
@@ -1430,7 +1433,17 @@ impl Pages {
             web_addr: web.addr.clone(),
             text: String::new(),
             facts: 0,
+            fetched_live: false,
         }
+    }
+
+    /// The pages read a world fetched in real time through the daemon:
+    /// which location is the oldest or newest, and the facts line's form,
+    /// hang on a second (#172: the refresh page's `tabs` facts line), so
+    /// [`fetch_place_rule`] masks the fetch clause.
+    pub fn fetched_live(mut self) -> Pages {
+        self.fetched_live = true;
+        self
     }
 
     /// Record a page under `label` (`GET search?…`), checking each fact
@@ -1498,7 +1511,14 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
         "# golden {stem}/{name}: acq web's pages, each page's <main>, normalised (C122). Each \
          `# holds` line is a fact checked in that page as served; regenerate under \
          ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
-        normalise(&job_tables(&pid_words(&pages.text)), &pages.base)
+        {
+            let text = normalise(&job_tables(&pid_words(&pages.text)), &pages.base);
+            if pages.fetched_live {
+                fetch_place_rule(&text)
+            } else {
+                text
+            }
+        }
     );
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::create_dir_all(path.parent().expect("a parent")).expect("the goldens directory");

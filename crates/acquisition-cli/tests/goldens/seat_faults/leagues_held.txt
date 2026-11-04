@@ -36,6 +36,7 @@ $ acq tabs
 # holds "leagues: Standard (this); also held: Allflame (1 tab, not named)"
 --- stdout
 1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 1 tab, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, not named), Rehearsal (3 tabs, 2 characters, named), no league (1 character)
 name type          items  fetched      parent       id
 Gear PremiumStash      1  <age> ago                 a1
@@ -44,6 +45,7 @@ $ acq tabs --realm xbox
 # holds "leagues: Standard (this); none other"
 --- stdout
 1 tabs in xbox/Standard: 0 fetched, 1 never fetched; 0 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm xbox --league Standard`)
+facts: 1 tab, none fetched; stash never listed
 leagues: Standard (this); none other
 name type          items  fetched      parent       id
 x1   PremiumStash      -  never                     x1
@@ -98,6 +100,7 @@ $ acq tabs
 # holds "leagues: Standard (this); also held: Allflame (1 tab, policy unreadable)"
 --- stdout
 1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 1 tab, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, policy unreadable), Rehearsal (3 tabs, 2 characters, policy unreadable), no league (1 character)
 name type          items  fetched      parent       id
 Gear PremiumStash      1  <age> ago                 a1
@@ -106,6 +109,7 @@ $ acq tabs
 # holds "Extra8 (1 tab, policy unreadable) … and 2 more: `--expand` lists them"
 --- stdout
 1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 1 tab, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, policy unreadable), Extra1 (1 tab, policy unreadable), Extra2 (1 tab, policy unreadable), Extra3 (1 tab, policy unreadable), Extra4 (1 tab, policy unreadable), Extra5 (1 tab, policy unreadable), Extra6 (1 tab, policy unreadable), Extra7 (1 tab, policy unreadable), Extra8 (1 tab, policy unreadable) … and 2 more: `--expand` lists them
 name type          items  fetched      parent       id
 Gear PremiumStash      1  <age> ago                 a1

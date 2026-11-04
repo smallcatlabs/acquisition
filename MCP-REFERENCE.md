@@ -46,7 +46,7 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows.
+What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows.
 
 - `names` (array | null) — Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, answer, trade, pricing), an entry (league, total_res), a category's id; all, everything. "~resist": the language's entries whose name or definition matches, whole if ten or fewer, else their lines.
 
@@ -200,7 +200,7 @@ One item as the search derives it, live or removed (no daemon): its place, its f
 
 ### `store_status`
 
-Store file path, size, and row counts (no daemon); `describe` with names ["store"] says what each count counts.
+Store file path, size, and row counts (no daemon), and `facts`: how old the facts are over every realm and league, the oldest and newest fetch with their locations; `describe` with names ["store"] says what each count counts.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 
@@ -222,7 +222,7 @@ The account's sync policy (declared coverage and freshness) with its revision �
 
 ### `tabs`
 
-The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
+The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it, and the league's `oldest_fetch`, `newest_fetch` and `list_seen`; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every tab of the league, or of the selection.

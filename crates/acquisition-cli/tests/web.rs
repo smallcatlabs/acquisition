@@ -574,7 +574,7 @@ fn the_refresh_loop_runs_through_the_pages() {
             .success()
     );
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
-    let mut pages = Pages::new(&base, &web);
+    let mut pages = Pages::new(&base, &web).fetched_live();
 
     let plan = web.get("plan?realm=pc&league=Standard");
     pages.page(

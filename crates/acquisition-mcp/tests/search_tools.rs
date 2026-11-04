@@ -724,10 +724,12 @@ fn describe_is_as_large_as_its_text_says() {
     let pricing = size(&mut seat, json!(["pricing"]));
     assert!(pricing < 9_000, "pricing: {pricing} bytes");
     assert!(size(&mut seat, json!(["pricing"])) > 6_000);
-    // some 5 KB since the leagues held and the stored list joined it
+    // some 6 KB since the leagues held and the stored list joined it
     // (round 5 of the answer-facts group: 5,150 bytes, from just under
-    // the small sections' 4,000 before)
-    assert!(size(&mut seat, json!(["store"])) < 6_000);
+    // the small sections' 4,000 before) and the facts blocks of `store
+    // status` and `tabs` (#172: 6,367 bytes)
+    let store = size(&mut seat, json!(["store"]));
+    assert!(store < 7_000, "store: {store} bytes");
     assert!(size(&mut seat, json!(["store"])) > 4_000);
     let large = [
         "computed",
@@ -762,7 +764,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed some 80 KB",
         "fields and trade 20 KB each",
         "categories 10 KB",
-        "pricing 8 KB, answer 7 KB",
+        "pricing 8 KB, answer 7 KB, store 6 KB",
         "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
@@ -1001,7 +1003,21 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(tabs["rows"].as_array().unwrap().len(), 10);
     let (printed, ok) = cli(&seat.base, &["tabs"]);
     assert!(ok);
-    assert_eq!(unaged(printed), unaged(tabs));
+    assert_eq!(unaged(printed), unaged(tabs.clone()));
+    // #172: the league's facts block over its tabs, and the store's over
+    // every realm and league, alike on both surfaces
+    for key in ["oldest_fetch", "newest_fetch_location", "list_seen"] {
+        assert!(!tabs[key].is_null(), "{key}: {tabs}");
+    }
+    let (status, refused) = seat.call("store_status", &json!({}));
+    assert!(!refused, "{status}");
+    assert_eq!(status["facts"]["fetched"], json!(2), "{status}");
+    assert!(
+        status["facts"]["oldest_fetch_location"].is_object(),
+        "{status}"
+    );
+    let (printed, _) = cli(&seat.base, &["store", "status"]);
+    assert_eq!(unaged(printed), unaged(status));
 
     let (all, _) = seat.call("tabs", &json!({ "expand": true }));
     assert_eq!(all["rows"].as_array().unwrap().len(), 41);

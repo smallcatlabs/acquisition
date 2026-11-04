@@ -438,6 +438,75 @@ fn read_gone(tx: &rusqlite::Transaction, realm: Option<&str>) -> Result<Vec<Gone
 }
 
 impl Store {
+    /// C162: how old the facts are over a set of live locations, by the
+    /// one derivation every answer takes (`coverage::of`), its ages said
+    /// at `now`: the locations of `realm` (every realm where none), of
+    /// `league` where one is named, the tabs alone where `tabs_only`, each
+    /// with its live items, and the listings that name them (#172: `store
+    /// status` over every realm and league, `tabs` over a league's tabs).
+    pub fn coverage(
+        &self,
+        realm: Option<&str>,
+        league: Option<&str>,
+        tabs_only: bool,
+        now: i64,
+    ) -> Result<crate::coverage::Coverage> {
+        let tx = self.conn.unchecked_transaction()?;
+        let kept = |kind: &str, of: Option<&str>| {
+            (!tabs_only || kind == "stash") && league.is_none_or(|l| of == Some(l))
+        };
+        let locations: Vec<LocationRow> = read_locations(&tx, realm, Membership::Live)?
+            .into_iter()
+            .filter(|l| kept(&l.kind, l.league.as_deref()))
+            .collect();
+        let listings: Vec<ListingSeen> = read_listings(&tx, realm)?
+            .into_iter()
+            .filter(|l| kept(&l.kind, l.league.as_deref()) || (l.kind == "character" && !tabs_only))
+            .collect();
+        let realms = read_realms(&tx)?;
+        // live items by location: a tab's by its league too, a
+        // character's by its id alone
+        let mut at: std::collections::HashMap<(String, String, String, Option<String>), i64> =
+            std::collections::HashMap::new();
+        {
+            let mut stmt = tx.prepare(
+                "SELECT realm, location_kind, location_id,
+                        CASE WHEN location_kind = 'stash' THEN league END, count(*)
+                   FROM items WHERE removed_at IS NULL AND (?1 IS NULL OR realm = ?1)
+                  GROUP BY 1, 2, 3, 4",
+            )?;
+            let rows = stmt.query_map([realm], |r| {
+                Ok(((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?), r.get(4)?))
+            })?;
+            for row in rows {
+                let (key, n) = row?;
+                at.insert(key, n);
+            }
+        }
+        tx.finish()?;
+        let counted: Vec<(&LocationRow, i64)> = locations
+            .iter()
+            .map(|l| {
+                let league = (l.kind == "stash").then(|| l.league.clone()).flatten();
+                let key = (l.realm.clone(), l.kind.clone(), l.id.clone(), league);
+                (l, at.get(&key).copied().unwrap_or(0))
+            })
+            .collect();
+        let items = counted.iter().map(|(_, n)| *n as usize).sum();
+        let mut coverage = crate::coverage::of(
+            match realm {
+                Some(only) => RealmScope::One(only),
+                None => RealmScope::All,
+            },
+            &counted,
+            &listings,
+            &realms,
+            items,
+        );
+        coverage.aged(now);
+        Ok(coverage)
+    }
+
     /// The revision of the facts as they stand: what a consumer holding a
     /// corpus compares before every answer (C98).
     pub fn revision(&self) -> Result<Revision> {

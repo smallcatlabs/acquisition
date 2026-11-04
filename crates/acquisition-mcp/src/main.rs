@@ -725,11 +725,11 @@ const DAEMON: [(&str, &str); 8] = [
 const STORE: [(&str, &str); 7] = [
     (
         "store counts",
-        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
+        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists, `refused_latest_at` when the newest was fetched and `refused_latest_at_age` that age in words. `facts` says how old the facts are over every realm and league the store holds, in the keys a search's `scope` names them by: `fetched` and `never_fetched` locations (by type and league), `folders`, the `oldest_fetch` and `newest_fetch` with their `_age` and `_location`, and `list_seen`, when the oldest location list was seen. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
     ),
     (
         "tab counts",
-        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items in tabs (characters apart: the `characters` tool with the league counts theirs), and the same by tab type (`by_type`, the most items first, each type's `never` its never fetched); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items in tabs (characters apart: the `characters` tool with the league counts theirs), and the same by tab type (`by_type`, the most items first, each type's `never` its never fetched); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `oldest_fetch` and `newest_fetch`, each with its `_age` and `_location`, are the league's tabs' extremes and `list_seen` when its stash listing was seen (`never` where it was not). `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
     ),
     (
         "character counts",
@@ -1528,7 +1528,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
+        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it, and the league's `oldest_fetch`, `newest_fetch` and `list_seen`; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -1539,12 +1539,11 @@ impl AcqMcp {
                 .league
                 .as_deref()
                 .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
-            let rows = store.tabs(realm.as_str(), league)?;
             let expand = p.expand.unwrap_or(false);
-            let listed = acquisition_search::tabs::Tabs::of(
+            let listed = acquisition_search::tabs::Tabs::read(
+                &store,
                 realm.as_str(),
                 league,
-                rows,
                 &acquisition_search::tabs::Selection {
                     kind: p.r#type,
                     never_fetched: p.never_fetched.unwrap_or(false),
@@ -1552,7 +1551,7 @@ impl AcqMcp {
                 p.limit,
                 expand,
                 acquisition_store::now(),
-            );
+            )?;
             let policy = PolicyRead::of_account(&self.account(p.account.as_deref())?);
             Held::with(listed, &store, &policy, realm, league, expand)
         })
@@ -1610,7 +1609,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows."
+        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -1736,7 +1735,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Store file path, size, and row counts (no daemon); `describe` with names [\"store\"] says what each count counts."
+        description = "Store file path, size, and row counts (no daemon), and `facts`: how old the facts are over every realm and league, the oldest and newest fetch with their locations; `describe` with names [\"store\"] says what each count counts."
     )]
     fn store_status(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| self.facts(p.parse()?.account.as_deref())?.status())

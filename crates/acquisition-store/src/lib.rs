@@ -957,6 +957,13 @@ pub struct Status {
     /// Bodies `record` refused as malformed and kept verbatim in
     /// `refused` — evidence, never facts (`acq store refused`).
     pub refused_bodies: i64,
+    /// When the newest refused body was fetched, and its age in words at
+    /// the answer's time (C163), beside their count (#172); absent where
+    /// none was refused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refused_latest_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refused_latest_at_age: Option<String>,
     /// Entries of the skills PoE2 characters' items grant (`_granted`),
     /// as of each live character's latest fetch: GGG shows a granted
     /// skill once in each place it appears, the item's sockets and the
@@ -973,6 +980,22 @@ pub struct Status {
     /// not printed with the counts.
     #[serde(skip)]
     pub last_event: i64,
+    /// How old the facts are over every realm and league the store holds
+    /// (#172; C162, the one derivation every answer's facts take,
+    /// `coverage::of`): the locations fetched and never fetched, by type
+    /// and league, the oldest and newest fetch with their locations, when
+    /// the oldest of the location lists was seen, each age in words at the
+    /// answer's time; the keys a search's scope names them by.
+    #[serde(default)]
+    pub facts: coverage::Coverage,
+}
+
+impl Status {
+    /// C163: the newest refused body's age in words at `now`.
+    fn aged(mut self, now: i64) -> Status {
+        self.refused_latest_at_age = self.refused_latest_at.map(|at| age::ago(now, Some(at)));
+        self
+    }
 }
 
 /// The latest league list's count and age ([`Status::league_list_latest`]):
@@ -2200,6 +2223,10 @@ impl Store {
             withheld_responses: count("SELECT count(*) FROM responses WHERE withheld IS NOT NULL")?,
             withheld_items: count("SELECT COALESCE(SUM(withheld), 0) FROM responses")?,
             refused_bodies: count("SELECT count(*) FROM refused")?,
+            refused_latest_at: self
+                .conn
+                .query_row("SELECT MAX(fetched_at) FROM refused", [], |r| r.get(0))?,
+            refused_latest_at_age: None,
             granted_skills: count(
                 "SELECT COALESCE(SUM(value), 0) FROM characters c, json_each(json_extract(c.json, '$._granted'))
                   WHERE c.removed_at IS NULL",
@@ -2209,7 +2236,9 @@ impl Store {
                   WHERE c.removed_at IS NULL",
             )?,
             last_event: count("SELECT COALESCE(MAX(id), 0) FROM item_events")?,
-        })
+            facts: self.coverage(None, None, false, now())?,
+        }
+        .aged(now()))
     }
 
     /// Tabs of a league in listing order (folder children after their

@@ -5,6 +5,7 @@ $ acq tabs --type UniqueStash --never-fetched
 # holds "10 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all"
 --- stdout
 42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 41 tabs, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 40 never-fetched UniqueStash tabs
 name       type         items  fetched      parent       id
@@ -24,6 +25,7 @@ $ acq tabs --type UniqueStash --never-fetched --limit 25
 # holds "25 of 40 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type UniqueStash --never-fetched` lists all"
 --- stdout
 42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 41 tabs, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 40 never-fetched UniqueStash tabs
 name       type         items  fetched      parent       id
