@@ -297,6 +297,15 @@ pub(crate) struct FieldDef {
     pub what: &'static str,
 }
 
+impl FieldDef {
+    /// Whether `has:` asks something of the field: every field but `text`
+    /// and `id`, which every item has. The one source for `has:`'s
+    /// binding, a count's keys and the `has:` a refusal offers (#174).
+    pub(crate) fn takes_has(&self) -> bool {
+        !matches!(self.thing, Thing::Text | Thing::Id)
+    }
+}
+
 pub(crate) const FIELDS: &[FieldDef] = &[
     FieldDef {
         name: "text",
@@ -494,6 +503,14 @@ pub(crate) fn fields() -> impl Iterator<Item = &'static FieldDef> {
 
 fn field(name: &str) -> Option<&'static FieldDef> {
     fields().find(|f| f.name.eq_ignore_ascii_case(name))
+}
+
+/// `has:<field>` where the word names a field `has:` takes, in the
+/// field's own spelling: the reading a flag field's refusal offers first.
+fn has_reading(word: &str) -> Option<String> {
+    field(word)
+        .filter(|f| f.takes_has())
+        .map(|f| format!("has:{}", f.name))
 }
 
 /// Whether the language knows a field by this name, in any case.
@@ -833,7 +850,7 @@ pub(crate) fn bind_key(text: &str) -> Result<Key, LanguageError> {
             ),
         )
         .with_readings(vec!["price.currency".to_string()])),
-        Some(def) if !matches!(def.thing, Thing::Text | Thing::Id) => Ok(Key::Field(def)),
+        Some(def) if def.takes_has() => Ok(Key::Field(def)),
         Some(def) => Err(LanguageError::new(
             ErrorKind::View,
             format!(
@@ -1103,13 +1120,13 @@ impl Binder {
             }
             Node::Has(name) => {
                 let def = known_field(name, |near| format!("has:{near}"))?;
-                match def.thing {
-                    Thing::Text | Thing::Id => Err(LanguageError::new(
+                if !def.takes_has() {
+                    return Err(LanguageError::new(
                         ErrorKind::OperatorMismatch,
                         format!("every item has `{}`: `has:` asks nothing of it", def.name),
-                    )),
-                    thing => Ok(Atom::Has(thing)),
+                    ));
                 }
+                Ok(Atom::Has(def.thing))
             }
             Node::Is(name) => match legal(ITEM_FLAGS, name) {
                 Some(flag) => Ok(Atom::Is(flag)),
@@ -1124,14 +1141,16 @@ impl Binder {
                     ErrorKind::UnknownName,
                     "`is:removed` is no flag: what has left the stash is a membership of the scope, never a term — membership `removed` searches the removed alone, membership `all` the removed beside the live",
                 )),
-                None => Err(unknown_among(
-                    "is:",
-                    name,
-                    ITEM_FLAGS,
-                    ITEM_FLAGS,
-                    Some("is"),
-                    |near| format!("is:{near}"),
-                )),
+                None => {
+                    let mut e =
+                        unknown_among("is:", name, ITEM_FLAGS, ITEM_FLAGS, Some("is"), |near| {
+                            format!("is:{near}")
+                        });
+                    // a field `has:` takes is asked with it (#174:
+                    // `-is:priced`, CLI run 2 of the answer-facts seat)
+                    e.readings.splice(0..0, has_reading(name));
+                    Err(e)
+                }
             },
             Node::Members {
                 of: Collection::Links,
@@ -1514,6 +1533,15 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     // line it offered the word as a phrase
     let inside = !e.readings.iter().any(|r| r.starts_with('"'));
     let mut first = Vec::new();
+    if !inside {
+        // a field `has:` takes, asked with it, under the minus the reader
+        // typed before the word (#174: `-priced`, CLI run 2 of the
+        // answer-facts seat)
+        first.extend(has_reading(word).map(|has| match e.span {
+            Some((start, _)) if negated(&text[..start]) => format!("-{has}"),
+            _ => has,
+        }));
+    }
     if inside {
         first.extend(legal(SOURCES, word).map(|v| format!("source={v}")));
         first.extend(legal(LINE_FLAGS, word).map(|v| format!("is:{v}")));
@@ -1536,6 +1564,25 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     first.append(&mut e.readings);
     e.readings = first;
     e
+}
+
+/// Whether the text before a term ends in the parser's negation, `-` or
+/// `not`, so the term stood under it.
+fn negated(before: &str) -> bool {
+    let before = before.trim_end();
+    if before.ends_with('-') {
+        return true;
+    }
+    let Some(at) = before.len().checked_sub(3) else {
+        return false;
+    };
+    before
+        .get(at..)
+        .is_some_and(|w| w.eq_ignore_ascii_case("not"))
+        && !before[..at]
+            .chars()
+            .next_back()
+            .is_some_and(crate::tree::is_word_char)
 }
 
 #[cfg(test)]

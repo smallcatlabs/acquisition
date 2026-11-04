@@ -168,6 +168,20 @@ fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
         ("Loreweave", "bare_word", &["name:Loreweave"]),
         ("corrupted", "bare_word", &["is:corrupted"]),
         ("line(fractured)", "bare_word", &["is:fractured"]),
+        // a field `has:` takes is offered with it first, under the minus
+        // typed (#174; the answer-facts seat's CLI run 2, calls 66, 67)
+        ("priced", "bare_word", &["has:priced", "name:priced"]),
+        (
+            "links=6 league=Standard -priced",
+            "bare_word",
+            &["-has:priced", "name:priced"],
+        ),
+        ("not Priced", "bare_word", &["-has:priced"]),
+        (
+            "links=6 league=Standard -is:priced",
+            "unknown_name",
+            &["has:priced"],
+        ),
     ] {
         let e = common::ask(&corpus, text).unwrap_err();
         let json = e.to_json();
