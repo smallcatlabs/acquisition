@@ -186,7 +186,8 @@ surfaces say none of it.
     Vec<LeagueHeld { league: Option<String>, tabs, characters }>`, one
     query over the live tabs and characters of the realm, league-less
     characters under a `None` league, in the store's order; a unit
-    test over a fixture of rows. its callers count the whole before the bound. `LeagueList` gains `entries:
+    test over a fixture of rows; its callers count the whole before
+    the bound. `LeagueList` gains `entries:
     Vec<LeagueEntry { id, realm: Option<String> }>` read from each
     entry's `id` and `realm` (`ids` stays, additive), `None` where an
     entry carries no realm.
