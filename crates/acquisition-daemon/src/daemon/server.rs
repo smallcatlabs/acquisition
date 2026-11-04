@@ -267,6 +267,10 @@ impl Daemon {
                 let admitted = self
                     .refuse_while_stopping()
                     .and_then(|()| admit_client(&kind, &params, self.provider.is_real()))
+                    // C127: the realm judged before any refusal quotes it
+                    // (C164's, after the account resolves); `submit` judges
+                    // it again for the daemon's own submissions
+                    .and_then(|()| admit_realm(&kind, &params))
                     .and_then(|()| admit_client_submitter(&submitted_by));
                 // C148: a job that will need a session waits for the
                 // start's restore before its account is resolved.

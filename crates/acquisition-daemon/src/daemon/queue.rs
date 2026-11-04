@@ -721,8 +721,11 @@ resubmit if still wanted",
 }
 
 /// Realm admission: a kind in a realm family (`acquisition_protocol::realm`) must name a
-/// realm that family takes — or none, meaning pc. Runs at submit for
-/// every kind and per tuple inside `validate_apply`, so a job that would
+/// realm that family takes — or none, meaning pc. Runs at the client's
+/// door before the account resolves, so no later refusal (C164's) quotes
+/// a realm outside the closed set (the review of round D's fix round);
+/// and at submit for every kind and per tuple inside `validate_apply`,
+/// the daemon's own submissions included, so a job that would
 /// render a stash URL under `poe2` never gets an id (C59: no code path
 /// renders an unobserved URL shape). Kinds outside the families ignore
 /// the param. A realm that is not a string of at most `PREVIEW_BYTES` is

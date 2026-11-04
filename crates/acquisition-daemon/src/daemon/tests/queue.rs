@@ -1140,6 +1140,24 @@ fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
             &[long[..40].to_string(), "could not be read".to_string()],
             std::slice::from_ref(&long),
         );
+        // a realm outside the closed set is judged before any refusal
+        // quotes it: refused as an unknown realm, never echoed whole (C127;
+        // the review of round D's fix round)
+        let realm = "r".repeat(200);
+        let submit = submit_of(
+            "stash",
+            json!({ "realm": realm, "league": "Standard", "id": "C" }),
+            0,
+            "client",
+            Some("Alice#1234"),
+        );
+        assert_refused(
+            door.request(submit).await,
+            what,
+            ErrorKind::Refused,
+            &["realm must be a string naming one of".to_string()],
+            &[realm.clone(), "could not be read".to_string()],
+        );
         assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
         door.settle().await;
         assert!(door.sent().is_empty(), "{what}: sent");
