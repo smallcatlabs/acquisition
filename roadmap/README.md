@@ -626,8 +626,15 @@ round (S6 to S10), and a seat. Round 1 landed on 2026-11-03 as one
 commit, `fb6c5c02` (the store's `coverage` module and its sixteen
 unit tests, the search calling it through re-exports, no golden
 changed), built by an Opus worker in the orchestrating session;
-reviewed cold, no findings; closed the same day (`LEDGER.md`). Round
-2, the matches' fetch span on the search answer
+reviewed cold, no findings; closed the same day (`LEDGER.md`). Round 2, the matches' fetch span on the search answer
 (`briefs/155-subject-block.md`, cut three times under two cold
-reviews), landed on 2026-11-03, built by an Opus worker; its review
-is pending.
+reviews), landed on 2026-11-03 as two commits (`0d17cdaa`,
+`21a8a28c`) in a session the owner started from a card, reviewed
+(two findings), fixed in one round (`2977ea2c`, which also fixed a
+live golden's flake the round's first gate exposed) and reviewed
+clean; closed the same day (`LEDGER.md`), #155 closed. Round 3, every
+epoch a document carries has its words
+(`briefs/every-epoch-words.md`), is cut twice under a cold review and
+waits on one ruling of the owner's, drafted in its Input: the step is
+an extension of C53's letter, not its reading. A parked Opus worker
+waits for it.
