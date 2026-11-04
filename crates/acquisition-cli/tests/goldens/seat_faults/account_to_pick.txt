@@ -11,9 +11,10 @@ Error: 2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick 
 --- exit 1
 
 $ acq tabs
+# holds "12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one"
 # holds "\n  and 2 more: `acq accounts --expand` lists every account\n"
 --- stderr
-Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, Extra08#1, Extra09#1; pick one with --account or ACQ_ACCOUNT
+Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one with --account or ACQ_ACCOUNT
   `acq --account 'Alice#1234' tabs`
   `acq --account 'Bob#5678' tabs`
   `acq --account 'Extra00#1' tabs`

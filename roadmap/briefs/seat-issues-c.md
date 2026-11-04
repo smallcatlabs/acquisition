@@ -64,7 +64,10 @@ index them. Read the calls each item cites before its rule.
    offers come from, never a second construction; capped as the other
    refusal lists are (`acquisition_store::bound::LISTED`), the rest
    counted with the command that lists them (`acq accounts`). The
-   kind stays `ambiguous_account` (C121). The MCP's text
+   kind stays `ambiguous_account` (C121). (Settled in the round: the
+   refusal's sentence names at most the bound's count of accounts, the
+   rest counted, the JSON's `accounts` whole; the review of round C,
+   finding 5, where the build had kept the sentence unchanged.) The MCP's text
    (`crates/acquisition-mcp/src/main.rs`, about line 193) checked
    against the same rule in its own terms (C143: a tool's request, not
    a CLI command). Pin: the refusal's golden on the CLI, a command run

@@ -207,6 +207,18 @@ pub fn door_word(door: &ConnectError) -> &'static str {
     }
 }
 
+/// Account names as a refusal's sentence says them: the first of the
+/// store's bound (`acquisition_store::bound::LISTED`), the rest counted
+/// (the review of round C, finding 5); the document's `accounts` lists
+/// them all.
+fn named(names: &[String]) -> String {
+    let (shown, left) = acquisition_store::bound::bounded(names.to_vec(), None, false);
+    match left {
+        0 => shown.join(", "),
+        n => format!("{}, and {n} more", shown.join(", ")),
+    }
+}
+
 impl fmt::Display for Fault {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -223,14 +235,14 @@ impl fmt::Display for Fault {
                 "no login made a store for `{selector}`; the names known: {}",
                 match known.is_empty() {
                     true => "none".to_string(),
-                    false => known.join(", "),
+                    false => named(known),
                 }
             ),
             Fault::AmbiguousAccount { candidates } => write!(
                 f,
                 "{} accounts are known and one is to be picked: {}",
                 candidates.len(),
-                candidates.join(", ")
+                named(candidates)
             ),
             Fault::NoUuid { username } => write!(
                 f,

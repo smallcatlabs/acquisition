@@ -316,9 +316,20 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
             )
             .unwrap();
     }
+    // the sentence names the bound's count too, the rest counted, and
+    // the JSON's list stays whole (the review of round C, finding 5)
     let out = t.run(
         &["tabs"],
-        &["\n  and 2 more: `acq accounts --expand` lists every account\n"],
+        &[
+            "12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one",
+            "\n  and 2 more: `acq accounts --expand` lists every account\n",
+        ],
+    );
+    let whole = sole_json(&acq(&base, &["tabs", "--json"]));
+    assert_eq!(
+        whole["accounts"].as_array().map(Vec::len),
+        Some(12),
+        "{whole}"
     );
     let ready = stderr(&out)
         .lines()
