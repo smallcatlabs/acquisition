@@ -176,6 +176,7 @@ const RECEIPT: &[&str] = &[
     "written_via",
     "undo",
     "clear",
+    "counts_unavailable",
 ];
 
 /// Two refusals of one write offer the same ways, each spelled by its
@@ -918,7 +919,11 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
         let (cli_ok, by_cli) = cli(&by_acq.0, &["price", "clear", target, "--if-revision", "1"]);
         assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
         undo_alike(&by_tool, &by_cli);
-        assert_eq!(steady(by_tool, RECEIPT), steady(by_cli, RECEIPT));
+        assert_eq!(
+            steady(by_tool.clone(), RECEIPT),
+            steady(by_cli.clone(), RECEIPT)
+        );
+        (by_tool, by_cli)
     };
 
     let (gone_mcp, gone_acq) = (remove(&by_mcp.0), remove(&by_acq.0));
@@ -931,7 +936,32 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
     for base in [&by_mcp.0, &by_acq.0] {
         std::fs::write(facts(base), "not a database").unwrap();
     }
-    clear(&mut mcp, "tab/pc/f1");
+    // the folder's row cleared with no facts to count its items in: the
+    // receipt says why, alike on both surfaces (the review of round B,
+    // finding 2), and names the `price show` that counts them
+    let (by_tool, by_cli) = clear(&mut mcp, "tab/pc/f1");
+    for doc in [&by_tool, &by_cli] {
+        let unavailable = &doc["counts_unavailable"];
+        assert!(
+            unavailable["why"]
+                .as_str()
+                .is_some_and(|w| w.contains("the facts could not be read")),
+            "{doc}"
+        );
+        assert_eq!(
+            unavailable["reads"].as_array().map(Vec::len),
+            Some(1),
+            "{doc}"
+        );
+    }
+    assert_eq!(
+        by_tool["counts_unavailable"]["why"],
+        by_cli["counts_unavailable"]["why"]
+    );
+    assert_eq!(
+        by_tool["counts_unavailable"]["reads"][0]["tool"],
+        json!("price_show")
+    );
     assert_eq!(
         std::fs::read_to_string(facts(&by_mcp.0)).unwrap(),
         "not a database"

@@ -375,12 +375,16 @@ impl refusal::Surface for Spoken<'_> {
                 account,
                 realm,
                 league,
-            } => Some((
-                json!({
-                    "target": target, "account": account, "realm": realm.as_str(), "league": league,
-                }),
-                other("price_show"),
-            )),
+            } => {
+                let mut request = json!({ "target": target, "account": account });
+                if let Some(realm) = realm {
+                    request["realm"] = json!(realm.as_str());
+                }
+                if let Some(league) = league {
+                    request["league"] = json!(league);
+                }
+                Some((request, other("price_show")))
+            }
             Way::PriceStatus {
                 account,
                 realm,
@@ -2074,10 +2078,10 @@ impl AcqMcp {
         // row covered is counted from them (#171); a clear needs none
         let facts = self
             .account(p.account.as_deref())
-            .ok()
-            .and_then(|account| account.facts_if_any());
+            .map_err(|e| e.to_string())
+            .and_then(|account| account.facts_read());
         let written = acquisition_plan::pricing::clear(
-            facts.as_ref(),
+            facts.as_ref().map_err(String::as_str),
             &mut intent,
             &p.target,
             acquisition_plan::pricing::Expect::or(

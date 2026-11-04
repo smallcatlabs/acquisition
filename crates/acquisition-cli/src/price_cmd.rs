@@ -1115,7 +1115,7 @@ pub fn set(
             &receipt.write,
             Some(receipt.in_facts),
             receipt.note.as_deref(),
-            receipt.covered.as_ref(),
+            Some((&receipt.covered, &receipt.uncounted)),
             &username
         )
     );
@@ -1129,9 +1129,9 @@ pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Re
     let account = cx.account()?;
     let username = &account.entry.username;
     let mut annotations = account.intent()?;
-    let facts = account.facts_if_any();
+    let facts = account.facts_read();
     let receipt = pricing::clear(
-        facts.as_ref(),
+        facts.as_ref().map_err(String::as_str),
         &mut annotations,
         target,
         Expect::or(if_revision, Expect::Current),
@@ -1150,7 +1150,7 @@ pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Re
             &receipt.write,
             None,
             None,
-            receipt.covered.as_ref(),
+            Some((&receipt.covered, &receipt.uncounted)),
             &account.entry.username
         )
     );
@@ -1198,7 +1198,7 @@ fn render_write(
     write: &PriceWrite,
     in_facts: Option<bool>,
     note: Option<&str>,
-    covered: Option<&pricing::Covered>,
+    covered: Option<Covering<'_>>,
     account: &str,
 ) -> String {
     let target = &write.target;
@@ -1240,23 +1240,39 @@ fn render_write(
             if let Some(note) = note {
                 out.push_str(&format!("note: {note}\n"));
             }
-            out.push_str(&covered_line(covered));
+            out.push_str(&covered_line(covered, write, account));
             out.push_str(&format!(
                 "next: `{show} {word}` reads it beside the game side; {undo}\n"
             ));
         }
         None => {
             out.push_str(&format!("{target}: cleared, {was}\n"));
-            out.push_str(&covered_line(covered));
+            out.push_str(&covered_line(covered, write, account));
             out.push_str(&format!("next: {undo}\n"));
         }
     }
     out
 }
 
+/// A write receipt's counts of its target's items, and why none where
+/// they could not be read.
+type Covering<'a> = (&'a Option<pricing::Covered>, &'a Option<pricing::Uncounted>);
+
 /// A container's two sets after a write, one line in `price show`'s
-/// words; nothing for an item's row.
-fn covered_line(covered: Option<&pricing::Covered>) -> String {
+/// words; where they could not be counted, why, and each `price show`
+/// that counts them (the review of round B, findings 1 and 2); nothing
+/// for an item's row.
+fn covered_line(covered: Option<Covering<'_>>, write: &PriceWrite, account: &str) -> String {
+    let Some((covered, uncounted)) = covered else {
+        return String::new();
+    };
+    if let Some(u) = uncounted {
+        let reads: Vec<String> = receipt::uncounted_reads(u, write, account)
+            .iter()
+            .map(|(way, says)| format!("`{}` {says}", offered_line(way)))
+            .collect();
+        return format!("items here: not counted: {}; {}\n", u.why, reads.join("; "));
+    }
     let Some(c) = covered else {
         return String::new();
     };

@@ -125,7 +125,7 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
 
     let r = refused(
         clear(
-            None,
+            Err("no facts"),
             &mut a,
             "item/i1",
             Expect::Exactly(6),
@@ -180,7 +180,7 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
     );
     // Naming the revision goes through.
     clear(
-        None,
+        Err("no facts"),
         &mut a,
         "item/i1",
         Expect::Exactly(1),
@@ -297,7 +297,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     );
     let r = refused(
         clear(
-            None,
+            Err("no facts"),
             &mut a,
             "item/i1",
             Expect::Exactly(1),
@@ -316,7 +316,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     ));
 
     clear(
-        None,
+        Err("no facts"),
         &mut a,
         "item/i1",
         Expect::Exactly(2),
@@ -351,7 +351,18 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         r.message,
         "item/i1's price was cleared (revision 3); a new price names revision 0, or none"
     );
-    let r = refused(clear(None, &mut a, "item/i1", Expect::Current, &via, "a", plain).unwrap_err());
+    let r = refused(
+        clear(
+            Err("no facts"),
+            &mut a,
+            "item/i1",
+            Expect::Current,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap_err(),
+    );
     assert!(matches!(
         r.kind,
         RefusedKind::Conflict {
@@ -423,9 +434,17 @@ fn a_row_this_build_cannot_read_is_never_written_blind() {
         )
         .map(|_| ())
         .unwrap_err(),
-        clear(None, &mut a, "item/i1", Expect::Current, &via, "a", plain)
-            .map(|_| ())
-            .unwrap_err(),
+        clear(
+            Err("no facts"),
+            &mut a,
+            "item/i1",
+            Expect::Current,
+            &via,
+            "a",
+            plain,
+        )
+        .map(|_| ())
+        .unwrap_err(),
     ];
     for e in blind {
         let e = format!("{e:#}");
@@ -645,7 +664,16 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
     for e in [
         write(&mut a, Expect::Exactly(9)).unwrap_err(),
         write(&mut a, Expect::Create).unwrap_err(),
-        clear(None, &mut a, "item/i1", Expect::Create, &via, "a", plain).unwrap_err(),
+        clear(
+            Err("no facts"),
+            &mut a,
+            "item/i1",
+            Expect::Create,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap_err(),
     ] {
         let r = Refused::find(&e).unwrap();
         let fields = r.fields();
@@ -656,7 +684,7 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
         assert_eq!(current, json!(shown), "{e:#}");
     }
     clear(
-        None,
+        Err("no facts"),
         &mut a,
         "item/i1",
         Expect::Exactly(1),
@@ -669,7 +697,16 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
     let fields = Refused::find(&e).unwrap().fields();
     assert_eq!(fields["revision"], json!(2));
     assert!(!fields.contains_key("current"), "{fields:?}");
-    let e = clear(None, &mut a, "item/i2", Expect::Current, &via, "a", plain).unwrap_err();
+    let e = clear(
+        Err("no facts"),
+        &mut a,
+        "item/i2",
+        Expect::Current,
+        &via,
+        "a",
+        plain,
+    )
+    .unwrap_err();
     let fields = Refused::find(&e).unwrap().fields();
     assert_eq!(fields["revision"], Value::Null);
     assert!(!fields.contains_key("current"), "{fields:?}");
@@ -925,7 +962,7 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
     // the write refusals' read-back: `price show` as the account
     let r = refused(
         clear(
-            None,
+            Err("no facts"),
             &mut a,
             "item/i2",
             Expect::Current,
@@ -987,7 +1024,16 @@ fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
     )
     .unwrap_err();
     assert_eq!(format!("{e:#}"), said);
-    let e = clear(None, &mut a, "item/i1", Expect::Current, &via, "a", plain).unwrap_err();
+    let e = clear(
+        Err("no facts"),
+        &mut a,
+        "item/i1",
+        Expect::Current,
+        &via,
+        "a",
+        plain,
+    )
+    .unwrap_err();
     assert_eq!(format!("{e:#}"), said);
     let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
     assert_eq!(

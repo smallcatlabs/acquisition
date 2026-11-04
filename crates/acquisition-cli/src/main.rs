@@ -1322,7 +1322,14 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 league,
             } => [
                 words(&["acq", "price", "show", target]),
-                scope(account, realm, league),
+                option_words("--account", account),
+                realm
+                    .map(|r| option_words("--realm", r.as_str()))
+                    .unwrap_or_default(),
+                league
+                    .as_deref()
+                    .map(|l| option_words("--league", l))
+                    .unwrap_or_default(),
             ]
             .concat(),
             Way::PriceStatus {

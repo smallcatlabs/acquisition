@@ -76,12 +76,14 @@ pub enum Way {
         league: String,
         plan: Option<String>,
     },
-    /// One price target in one league.
+    /// One price target in one league, or where the facts hold it when
+    /// neither is named (a receipt whose counts could not be read: the
+    /// review of round B, finding 2).
     PriceShow {
         target: String,
         account: String,
-        realm: Realm,
-        league: String,
+        realm: Option<Realm>,
+        league: Option<String>,
     },
     /// One league's pricing state, every row listed.
     PriceStatus {
@@ -441,8 +443,8 @@ fn finding(m: &Missing) -> Vec<(Way, String)> {
                     Way::PriceShow {
                         target: target.clone(),
                         account: m.account.clone(),
-                        realm: *realm,
-                        league: league.clone(),
+                        realm: Some(*realm),
+                        league: Some(league.clone()),
                     },
                     format!(
                         "{target} in {} {league}, where the facts hold it",

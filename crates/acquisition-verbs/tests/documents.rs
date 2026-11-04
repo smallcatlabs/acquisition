@@ -2125,7 +2125,7 @@ fn a_not_found_offers_what_would_find_it_in_the_scope_it_carries() {
     assert_eq!(
         doc["offers"],
         json!([{
-            "request": format!("PriceShow {{ target: \"tab/xbox/nope\", account: \"{USER}\", realm: Pc, league: \"Standard\" }}"),
+            "request": format!("PriceShow {{ target: \"tab/xbox/nope\", account: \"{USER}\", realm: Some(Pc), league: Some(\"Standard\") }}"),
             "says": "tab/xbox/nope in pc Standard, where the facts hold it",
             "tool": "price_show",
         }])
@@ -2711,7 +2711,7 @@ async fn populated() -> Vec<(&'static str, Value)> {
         serde_json::to_value(receipt::price_set(&replaced, USER, &Plain)).unwrap(),
     ));
     let cleared = pricing::clear(
-        Some(&store),
+        Ok(&store),
         &mut intent,
         "item/i1",
         Expect::Current,

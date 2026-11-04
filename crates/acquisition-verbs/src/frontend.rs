@@ -353,11 +353,13 @@ impl Account {
             .map_err(Fault::Unopened)
     }
 
-    /// The account's facts where a file is there to read, opened read-only
-    /// and never made: for a verb that needs no facts and counts from
-    /// them where it can (a price clear's receipt, #171).
-    pub fn facts_if_any(&self) -> Option<Store> {
-        Store::open_read_only(&account_path(&self.frontend.dir(), &self.entry.username)).ok()
+    /// The account's facts opened read-only, never made nor migrated, or
+    /// why they could not be, in words: for a verb that needs no facts and
+    /// counts from them where it can (a price clear's receipt, #171), and
+    /// says why where it cannot (the review of round B, finding 2).
+    pub fn facts_read(&self) -> Result<Store, String> {
+        Store::open_read_only(&account_path(&self.frontend.dir(), &self.entry.username))
+            .map_err(|e| format!("{e:#}"))
     }
 
     /// C35 (intent is irreplaceable, one file per account uuid): the

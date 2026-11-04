@@ -1,0 +1,8 @@
+# golden price_json/a_receipt_uncounted: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price set tab/pc/tw exact 4 chaos
+# holds "items here: not counted: tab/pc/tw is held in several leagues (pc Big, pc Standard); "
+--- stdout
+tab/pc/tw: 4 chaos (revision 3), was unset
+items here: not counted: tab/pc/tw is held in several leagues (pc Big, pc Standard); `acq price show tab/pc/tw --account 'Alice#1234' --realm pc --league Big` counts its items in pc Big; `acq price show tab/pc/tw --account 'Alice#1234' --realm pc --league Standard` counts its items in pc Standard
+next: `acq price show --account 'Alice#1234' tab/pc/tw` reads it beside the game side; `acq price clear --account 'Alice#1234' tab/pc/tw --if-revision 3` undoes it

@@ -27,11 +27,14 @@
 //! - the write's own facts: `in_facts` on a price set, `league_notes` on
 //!   a policy write (C126), and on a price set or clear over a container's
 //!   row `items_here_counts` and `items_covered_below_counts`, what its
-//!   items resolve to after it, as `price show` counts them (#171).
+//!   items resolve to after it, as `price show` counts them (#171), or
+//!   `counts_unavailable` where they cannot be counted: `why`, and
+//!   `reads`, each `price show` that counts them, the write standing
+//!   whole all the same (the review of round B, findings 1 and 2).
 
 use acquisition_plan::SyncPolicy;
 use acquisition_plan::price::{PriceWrite, Undo};
-use acquisition_plan::pricing::{ClearReceipt, SetReceipt};
+use acquisition_plan::pricing::{ClearReceipt, SetReceipt, Uncounted};
 use acquisition_store::{IntentValue as _, check_value};
 use serde::Serialize;
 use serde_json::Value;
@@ -49,7 +52,58 @@ pub fn price_set<'a>(
     let mut shaped = shaped(receipt, price_undo(&receipt.write, account), surface);
     shaped.clear = price_clear_offer(&receipt.write, account)
         .and_then(|(way, says)| offer(&way, &says, surface));
+    shaped.counts_unavailable =
+        unavailable(receipt.uncounted.as_ref(), &receipt.write, account, surface);
     shaped
+}
+
+/// Where a container's counts are read when a receipt could not count
+/// them (the review of round B, findings 1 and 2): each league's `price
+/// show` the facts hold the target in, or, where none is known, the one
+/// that reads them where the facts hold it once they can be read.
+pub fn uncounted_reads(u: &Uncounted, write: &PriceWrite, account: &str) -> Vec<(Way, String)> {
+    let target = write.target.to_string();
+    if u.places.is_empty() {
+        return vec![(
+            Way::PriceShow {
+                target,
+                account: account.to_string(),
+                realm: u.realm,
+                league: None,
+            },
+            "counts its items once the facts can be read".to_string(),
+        )];
+    }
+    u.places
+        .iter()
+        .map(|(realm, league)| {
+            (
+                Way::PriceShow {
+                    target: target.clone(),
+                    account: account.to_string(),
+                    realm: Some(*realm),
+                    league: Some(league.clone()),
+                },
+                format!("counts its items in {} {league}", realm.as_str()),
+            )
+        })
+        .collect()
+}
+
+/// `counts_unavailable`: why, and [`uncounted_reads`] spelled by the
+/// surface.
+fn unavailable(
+    u: Option<&Uncounted>,
+    write: &PriceWrite,
+    account: &str,
+    surface: &dyn Surface,
+) -> Option<Value> {
+    let u = u?;
+    let reads: Vec<Value> = uncounted_reads(u, write, account)
+        .iter()
+        .filter_map(|(way, says)| offer(way, says, surface))
+        .collect();
+    Some(serde_json::json!({ "why": u.why, "reads": reads }))
 }
 
 /// The clear of the row a write left standing, at the revision it wrote,
@@ -76,7 +130,10 @@ pub fn price_clear<'a>(
     account: &str,
     surface: &dyn Surface,
 ) -> Receipt<'a, ClearReceipt> {
-    shaped(receipt, price_undo(&receipt.write, account), surface)
+    let mut shaped = shaped(receipt, price_undo(&receipt.write, account), surface);
+    shaped.counts_unavailable =
+        unavailable(receipt.uncounted.as_ref(), &receipt.write, account, surface);
+    shaped
 }
 
 /// What puts a price write's prior back, as the account it ran as, with
@@ -184,6 +241,10 @@ pub struct Receipt<'a, T: Serialize> {
     /// A price write's [`price_clear_offer`], spelled as `undo` is.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clear: Option<Value>,
+    /// A container's row whose counts could not be read: `why`, and
+    /// `reads`, each `price show` that counts them, spelled as `undo` is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub counts_unavailable: Option<Value>,
 }
 
 /// `document` with `undo` spelled by `surface`, or `no_undo` beside its
@@ -205,5 +266,6 @@ fn shaped<'a, T: Serialize>(
         undo,
         no_undo,
         clear: None,
+        counts_unavailable: None,
     }
 }

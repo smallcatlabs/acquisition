@@ -2306,6 +2306,112 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
     assert_eq!(found["terms"], routed["terms"], "{found}");
 }
 
+/// The review of round B (`roadmap/reviews/seat-issues-b-50494341.md`,
+/// finding 1): a tab held live in two leagues has no one league to count
+/// its items in, and the read after a landed write refused, so the write
+/// lost its receipt, prior and undo with it. The counts never fail the
+/// write: the receipt stands whole and says, in place of the counts, why
+/// they are not read and the `price show` of each league that reads them,
+/// each running as printed.
+#[test]
+fn a_container_receipt_that_cannot_count_its_items_still_stands_and_says_where_to_read_them() {
+    let scratch = harness::scratch("price-uncounted");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    let at = acquisition_store::now();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    for league in ["Standard", "Big"] {
+        let stashes = if league == "Standard" {
+            json!([
+                { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
+                  "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
+                { "id": "tw", "name": "Twice", "type": "PremiumStash", "index": 3 } ])
+        } else {
+            json!([ { "id": "tw", "name": "Twice", "type": "PremiumStash", "index": 0 } ])
+        };
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.into(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": stashes }),
+                at,
+            )
+            .unwrap();
+        store
+            .record(
+                &Endpoint::Stash {
+                    realm: "pc".into(),
+                    league: league.into(),
+                    id: "tw".into(),
+                    sub: None,
+                },
+                &json!({}),
+                200,
+                &json!({ "stash": { "id": "tw", "name": "Twice", "type": "PremiumStash", "items": [
+                    { "id": format!("i-tw-{league}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+                at,
+            )
+            .unwrap();
+    }
+    drop(store);
+    let reads = |doc: &Value| -> Vec<String> {
+        let unavailable = &doc["counts_unavailable"];
+        assert!(
+            unavailable["why"]
+                .as_str()
+                .is_some_and(|w| w.contains("Big") && w.contains("Standard")),
+            "{doc}"
+        );
+        assert_eq!(doc.get("items_here_counts"), None, "{doc}");
+        unavailable["reads"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{doc}"))
+            .iter()
+            .map(harness::offered_line)
+            .collect()
+    };
+    let set = sole_json(&acq(
+        &base,
+        &["price", "set", "tab/pc/tw", "exact", "4", "chaos", "--json"],
+    ));
+    assert_eq!(set["revision"], json!(1), "{set}");
+    assert_eq!(reads(&set).len(), 2, "{set}");
+    // the clear lands and its receipt is whole: the prior, its undo, and
+    // each league's `price show`, run as printed
+    let cleared = sole_json(&acq(
+        &base,
+        &[
+            "price",
+            "clear",
+            "tab/pc/tw",
+            "--if-revision",
+            "1",
+            "--json",
+        ],
+    ));
+    assert_eq!(cleared["prior"]["revision"], json!(1), "{cleared}");
+    assert!(cleared["undo"].is_object(), "{cleared}");
+    let lines = reads(&cleared);
+    assert_eq!(lines.len(), 2, "{cleared}");
+    for (line, league) in lines.iter().zip(["Big", "Standard"]) {
+        assert!(line.contains(&format!("--league {league}")), "{line}");
+        let shown = run_offered(&base, &format!("{line} --json"));
+        assert_eq!(shown["items_here_counts"]["total"], json!(1), "{shown}");
+    }
+    // the text says it in one line
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["price", "set", "tab/pc/tw", "exact", "4", "chaos"],
+        &["items here: not counted: tab/pc/tw is held in several leagues (pc Big, pc Standard); "],
+    );
+    golden(file!(), "a_receipt_uncounted", &t);
+}
+
 /// Round 5 of the 2g build (the receipt shape; its design's Q6, the cold
 /// review's finding 2): every write's `--json` receipt carries `revision`,
 /// the one the next write names — a clear's its tombstone's, from the

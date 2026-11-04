@@ -823,6 +823,11 @@ pub struct SetReceipt {
     /// A container's row: what its items resolve to after the write.
     #[serde(flatten)]
     pub covered: Option<Covered>,
+    /// A container's row whose counts could not be read: why, and where
+    /// they are read; spelled per surface beside the receipt
+    /// (`acquisition_verbs::receipt`).
+    #[serde(skip)]
+    pub uncounted: Option<Uncounted>,
 }
 
 /// `clear --json`: the [`PriceWrite`], and for a container's row what its
@@ -833,6 +838,9 @@ pub struct ClearReceipt {
     pub write: PriceWrite,
     #[serde(flatten)]
     pub covered: Option<Covered>,
+    /// As a set's ([`SetReceipt::uncounted`]).
+    #[serde(skip)]
+    pub uncounted: Option<Uncounted>,
 }
 
 /// What a row on a tab, a folder, a substash or a character covers once
@@ -844,48 +852,121 @@ pub struct ClearReceipt {
 /// a price by hand alone, which the game decides and which agree; none
 /// is listed here (`returned` 0, `left_out` every one), `price show`
 /// lists them. Absent for an item's row and for a target the facts do
-/// not hold.
+/// not hold live, and where they cannot be read ([`Uncounted`]).
 #[derive(Debug, Clone, Serialize)]
 pub struct Covered {
     pub items_here_counts: SetCounts,
     pub items_covered_below_counts: SetCounts,
 }
 
-/// [`Covered`] for `target` as the store and intent now stand: its realm
-/// and league read as `show` reads them.
-fn covered(
-    store: &Store,
-    annotations: &Annotations,
-    target: &PriceTarget,
-) -> Result<Option<Covered>> {
-    if matches!(target, PriceTarget::Item { .. }) || !store.holds(&FactAddress::from(target))? {
-        return Ok(None);
-    }
-    let realm = realm_of(&[target], None)?;
-    let league = league_of(store, &[target], None)?;
-    let view = report(store, annotations, realm, &league)?.show_view(target);
-    Ok(view.map(|view| {
-        let view = view.bounded(Some(0), false);
-        Covered {
-            items_here_counts: view.items_here_counts,
-            items_covered_below_counts: view.items_covered_below_counts,
-        }
-    }))
+/// Why a container row's receipt holds no counts, though the write
+/// landed (the review of round B, findings 1 and 2): the read after it
+/// could not answer, and a read never fails a write that stands. `why`
+/// says it in words; `places` are the realms and leagues the facts hold
+/// the target in live, each a `price show` that counts its items there,
+/// and where none is known (the facts could not be read) `realm` is the
+/// one the address names, for the one `price show` that reads them once
+/// the facts do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Uncounted {
+    pub why: String,
+    pub places: Vec<(Realm, String)>,
+    pub realm: Option<Realm>,
 }
 
-/// [`covered`] after a write that landed: a read that fails then says the
-/// write stands, so no one retries what is done.
-fn covered_after(
-    store: &Store,
+/// What a write's receipt says of its target's items: nothing for an
+/// item's row or a target the facts do not hold live, the counts, or why
+/// not.
+#[derive(Debug, Clone)]
+enum Covering {
+    Nothing,
+    Counted(Covered),
+    Uncounted(Uncounted),
+}
+
+impl Covering {
+    fn split(self) -> (Option<Covered>, Option<Uncounted>) {
+        match self {
+            Covering::Nothing => (None, None),
+            Covering::Counted(c) => (Some(c), None),
+            Covering::Uncounted(u) => (None, Some(u)),
+        }
+    }
+}
+
+/// [`Covered`] for `target` as the store (or why it could not be read)
+/// and intent now stand, after a write that landed: its realm and league
+/// read as `show` reads them, and any read that cannot answer an
+/// [`Uncounted`] in place of the counts.
+fn covering(
+    store: Result<&Store, &str>,
     annotations: &Annotations,
-    write: &PriceWrite,
-) -> Result<Option<Covered>> {
-    covered(store, annotations, &write.target).with_context(|| {
-        format!(
-            "{} was written (revision {}); reading the items it covers failed",
-            write.target, write.revision
-        )
-    })
+    target: &PriceTarget,
+) -> Covering {
+    if matches!(target, PriceTarget::Item { .. }) {
+        return Covering::Nothing;
+    }
+    let named_realm = match target {
+        PriceTarget::Tab { realm, .. } | PriceTarget::Substash { realm, .. } => Some(*realm),
+        _ => None,
+    };
+    let uncounted = |why: String, places: Vec<(Realm, String)>| {
+        Covering::Uncounted(Uncounted {
+            why,
+            places,
+            realm: named_realm,
+        })
+    };
+    let store = match store {
+        Ok(store) => store,
+        Err(why) => {
+            return uncounted(format!("the facts could not be read ({why})"), Vec::new());
+        }
+    };
+    let places: Vec<(Realm, String)> = match store.places_of(&FactAddress::from(target)) {
+        Ok(places) => places
+            .into_iter()
+            .filter_map(|(realm, league)| Some((Realm::parse(&realm)?, league)))
+            .collect(),
+        Err(e) => {
+            return uncounted(
+                format!("reading where the facts hold {target} failed ({e:#})"),
+                Vec::new(),
+            );
+        }
+    };
+    let league = match places.as_slice() {
+        [] => return Covering::Nothing,
+        [(_, league)] => league.clone(),
+        many => {
+            let held = many
+                .iter()
+                .map(|(realm, league)| format!("{} {league}", realm.as_str()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return uncounted(
+                format!("{target} is held in several leagues ({held})"),
+                places,
+            );
+        }
+    };
+    let counted = realm_of(&[target], None)
+        .and_then(|realm| report(store, annotations, realm, &league))
+        .map(|r| r.show_view(target));
+    match counted {
+        Ok(Some(view)) => {
+            let view = view.bounded(Some(0), false);
+            Covering::Counted(Covered {
+                items_here_counts: view.items_here_counts,
+                items_covered_below_counts: view.items_covered_below_counts,
+            })
+        }
+        Ok(None) => Covering::Nothing,
+        Err(e) => uncounted(
+            format!("counting the items {target} covers failed ({e:#})"),
+            places,
+        ),
+    }
 }
 
 /// The note a set's receipt carries where the shop cannot post what the
@@ -994,23 +1075,24 @@ pub fn set(
         Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
         Ok(write) => write.aged(acquisition_store::now()),
     };
-    let covered = covered_after(store, annotations, &write)?;
+    let (covered, uncounted) = covering(Ok(store), annotations, &write.target).split();
     Ok(SetReceipt {
         write,
         in_facts,
         note,
         covered,
+        uncounted,
     })
 }
 
 /// `price clear <target>`: remove the row, under the same compare-and-
 /// swap. A target with no row is a refusal that says so — every nothing
 /// says which nothing. `account` and `quote` are as for [`set`]. `store`
-/// is the facts where a frontend could open them without making them:
-/// what a container's row covered is counted from them after the clear,
-/// and a clear needs no facts (C46).
+/// is the facts where a frontend could open them without making them, or
+/// why it could not: what a container's row covered is counted from them
+/// after the clear, and a clear needs no facts (C46).
 pub fn clear(
-    store: Option<&Store>,
+    store: Result<&Store, &str>,
     annotations: &mut Annotations,
     target: &str,
     expect: Expect,
@@ -1043,11 +1125,12 @@ pub fn clear(
     let write = clear_buyout(annotations, &target, expected, provenance)
         .map(|write| write.aged(acquisition_store::now()))
         .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))?;
-    let covered = match store {
-        Some(store) => covered_after(store, annotations, &write)?,
-        None => None,
-    };
-    Ok(ClearReceipt { write, covered })
+    let (covered, uncounted) = covering(store, annotations, &write.target).split();
+    Ok(ClearReceipt {
+        write,
+        covered,
+        uncounted,
+    })
 }
 
 /// `shop render`'s request beside the facts: the page size, the template
@@ -1241,7 +1324,7 @@ pub fn described() -> Vec<Described> {
         Described {
             name: "undo",
             what: format!(
-                "a write's receipt, a set's or a clear's, is one shape, the sync policy's write's too: `target`; `written`, the row now standing, null after a clear; `prior`, the row before, null on a create; `revision`, the one the next write names; and `undo`, the request that puts `prior` back, sent back as printed (`request` and `says`, `tool` where it is another tool's, and beside a command line `argv`, its words unquoted for a program to run with no shell): after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision; after a clear, a set with the prior's value naming no revision, a create. Beside a replace's undo stands `clear`, the clear of the row at the written revision, in the same shape (\"clears it: no price by hand\"): a replace's undo puts the prior back, and a create's clear goes stale once a replace moves the row; a create and a clear carry none. Where nothing puts it back `undo` is absent and `no_undo` says why, in words: a prior this build cannot read (a newer build's, replaced only by naming its revision), one naming a retired currency, which a new price cannot name, or a policy's first write, since no verb clears a policy. `in_facts` is whether the address exists in these facts in any league, removed included (false: not fetched yet, or a typo; the row stands); on a set or a clear of a tab's, folder's, substash's or character's row, `items_here_counts` and `items_covered_below_counts` count what its items resolve to after the write, as a show counts its sets, listing none; `note`, on a set whose target is a map or unique tab's substash or an item the facts hold in one, where the row stands all the same, says: {}",
+                "a write's receipt, a set's or a clear's, is one shape, the sync policy's write's too: `target`; `written`, the row now standing, null after a clear; `prior`, the row before, null on a create; `revision`, the one the next write names; and `undo`, the request that puts `prior` back, sent back as printed (`request` and `says`, `tool` where it is another tool's, and beside a command line `argv`, its words unquoted for a program to run with no shell): after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision; after a clear, a set with the prior's value naming no revision, a create. Beside a replace's undo stands `clear`, the clear of the row at the written revision, in the same shape (\"clears it: no price by hand\"): a replace's undo puts the prior back, and a create's clear goes stale once a replace moves the row; a create and a clear carry none. Where nothing puts it back `undo` is absent and `no_undo` says why, in words: a prior this build cannot read (a newer build's, replaced only by naming its revision), one naming a retired currency, which a new price cannot name, or a policy's first write, since no verb clears a policy. `in_facts` is whether the address exists in these facts in any league, removed included (false: not fetched yet, or a typo; the row stands); on a set or a clear of a tab's, folder's, substash's or character's row, `items_here_counts` and `items_covered_below_counts` count what its items resolve to after the write, as a show counts its sets, listing none, and where they cannot be counted (the facts unread, the target held in several leagues) `counts_unavailable` says why and in `reads` each price_show that counts them, the write standing whole; `note`, on a set whose target is a map or unique tab's substash or an item the facts hold in one, where the row stands all the same, says: {}",
                 substash_note()
             ),
         },
