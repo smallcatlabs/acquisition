@@ -3,8 +3,10 @@
 Provenance: Fable (`claude-fable-5-1`), one session on 2026-11-03 at
 `7ab91cc4`, read-only; a read and a proposal, nothing built, no issue
 changed. Committed at `a064b508`, reviewed cold by Codex
-(`answer-facts-map-a064b508.md`, thirteen findings) and revised by
-the rules at the foot ("Taken from the review"). What was read:
+(`answer-facts-map-a064b508.md`, thirteen findings), revised by the
+rules at the foot ("Taken from the review"), reviewed narrowly at
+`d3cbb0c2` (`answer-facts-map-fixes-d3cbb0c2.md`, four findings) and
+revised again. What was read:
 `AGENTS.md`, `GLOSSARY.md`, `roadmap/README.md`, the rulings C53, C96, C98, C100, C105, C108, C115,
 C117, C118, C126, C143, C146, C149, C72, C74, C77 and C45 with their
 mechanisms in the code, the honesty briefs (`h1-*`, `h2-*`, `h3-*`),
@@ -391,7 +393,13 @@ decision.
 
 In the store crate, beside `age.rs`: a pure function over place rows,
 returning the struct the search already serializes as `scope`'s
-coverage, with its `aged`. The reason is C1 and P5 together: every
+coverage, with its `aged`, widened by one field: each listing base the
+set reads (the realm's characters, each league's tabs) with its own
+age, beside the aggregate `list_seen` the struct holds today
+(`corpus.rs:426`, the minimum over them at `:1126`). The header
+already carries the bases one by one
+(`acquisition-store/src/corpus.rs:172`), and `price status`'s two
+listing fields map onto them. The reason is C1 and P5 together: every
 consumer that answers links the store (the search, the planner's
 pricing and shop, the verbs' tabs, characters and status), the fact it
 reads (`fetched_at`, `listed_at`) is the store's (C103: place is the
@@ -420,7 +428,8 @@ reads, and two answers are assembled above their makers.
 - retired `acquisition-search/src/corpus.rs`'s `coverage()` and
   `tabs.rs`'s `by_type` counting; held by the store's one function and
   its unit tests over a fixture of places, with the search's
-  `c100_the_worked_example…` and `tabs.rs:38` reading its result.
+  `c100_the_worked_example…` reading its result, `tabs.rs:154` calling
+  it and `acquisition-search/tests/tabs.rs:117` reading the counts.
 - retired `TabRow::aged` and `CharacterRow::aged` as two partial
   methods; held by one aging per row and the named paths of the pin
   below.
@@ -447,8 +456,9 @@ new fact (C122):
 - `price status`'s `stash_listing_fetched_at_age` and
   `character_listing_fetched_at_age` stay: two bases over two sets,
   the league's tabs and the realm's characters, which one `list_seen`
-  cannot carry (`listing.rs:852`); the block names both, and the
-  fields are made by the one aging rather than by hand.
+  cannot carry (`listing.rs:852`); the block carries each base with
+  its age beside `list_seen` (the widening under "Where it lives"),
+  and the two fields are read from it rather than made by hand.
 
 ### The structural pin
 
@@ -463,16 +473,30 @@ empty fixtures (`documents.rs:1240`: a store with no rows), so a rule
 over keys there meets no row's timestamp, and a suffix rule would miss
 `first_seen`, `last_seen`, `first` and `last`, four of the class's own
 members. The rule is a list of paths, each read from a fixture that
-holds a row: `tabs`' `listed_at`, `show`'s `first_seen` and
-`last_seen`, the events' `first` and `last`, the ledger rows'
-`submitted_at` and `updated_at`, the shop's header, each with its
-words beside it; a plan's ages sit in its wrapper outside the envelope
-(`documents.rs:483`), which the list says. That is structure over
-discipline at the cost of one test and one list. C53 requires words
-beside the ages the text prints and `_age` beside the epochs an answer
-makes at its time; "every epoch an answer carries has its words" is
-one step past that letter in its direction, and the owner reads it as
-C53's mechanism or as a line of its own (§11, question 3).
+holds a row, and the list is the class whole, longer than the first
+draft's by the five the narrow review found: `tabs`' `listed_at`;
+`show`'s `first_seen` and `last_seen`; the search's and `show`'s
+`basis.snapshot.at` (`acquisition-search/src/corpus.rs:156`); the
+events' `first` and `last`; the queue list's rows' `submitted_at` and
+`updated_at` (`verbs/src/jobs.rs:262`), where one job's status already
+ages them (`:575`); the policy's `created_at`, bare beside an aged
+`updated_at` (`frontend.rs:509-513`, `annotations.rs:189`); the price
+list's `basis` and `manual` epochs outside `status` and `show`, which
+alone word them (`listing.rs:163-167`); the shop's listing header and
+its `rendered_at` (`shop.rs:520`); the plan's `basis.snapshot_taken_at`,
+which `PlanAges` does not map (`crates/acquisition-plan/src/lib.rs:1249`,
+`refresh.rs:57-70`), its wrapper holding the plan's other ages outside
+the envelope (`documents.rs:483`). The walk that holds the shape today
+enumerates ten documents (`documents.rs:1240`); the rule extends the
+enumeration to every document the list names. That is structure over
+discipline at the cost of one test and one list. C53's own condition
+is narrower than the rule: "an age the text prints stands in words
+beside its epoch in the JSON, made at the answer's own time"
+(`decisions/frontends.md:11`), so an epoch the text never prints as an
+age owes no words under its letter. "Every epoch an answer carries has
+its words" is one step past that letter in its direction, and the
+owner reads it as C53's mechanism or as a line of its own (§11,
+question 3).
 
 ### Where it strains
 
@@ -513,7 +537,7 @@ C53's mechanism or as a line of its own (§11, question 3).
   none. #104's measure moves by that much. Small, and named.
 - **Golden churn.** Every search text golden changes once (the total
   line), every price status and shop golden gains a line, and the
-  `age` normaliser already masks the words (`harness/mod.rs:306-330`),
+  text's age rule already masks the words (`harness/mod.rs:1070`),
   so a regeneration is read as a diff of one line per file. The words
   step did 18 files in one commit; this is of that size, three times.
 - **The gloss.** One `coverage` entry in `describe` replaces the
@@ -534,7 +558,7 @@ user would meet.
 
 **C118, amended (`decisions/search.md`):**
 
-> - **C118 — An answer says how old its subject is, how old a row is, and what kind of place it could not see.** A row carries its location's fetch age beside `place` (C53, three output levels); its subject, the set answered about, carries its places' oldest and newest fetch with their locations and when its lists were seen, named for the set, a wider scope's apart in the JSON; the scope line says the never fetched by tab type, the largest named and the rest counted, and points at the list that exists. Why a location was never fetched, by policy or not yet, is left out until a seat asks. *Why:* a scope's age read as the matches'; a page silent on positions' age. *Pinned:* `acquisition-search/tests/seat_faults.rs`, `acquisition-search/tests/explain.rs`; the subject's Unbuilt, #155, #156.
+> - **C118 — An answer says how old its subject and each row are, and what kind of place it could not see.** A row carries its location's fetch age beside `place` (C53, output levels). The subject, the set asked about, has its places' oldest and newest fetch with their locations and when its lists were seen, named for the set. A wider scope's ages stand apart in the JSON. The scope line says the never fetched by tab type, the largest named and the rest counted, and points at the list that exists. Why a location was never fetched, by policy or not yet, is left out until a seat asks. *Why:* a seat read the scope's age as the matches', and a page hid positions' age. *Pinned:* `acquisition-search/tests/seat_faults.rs`, `acquisition-search/tests/explain.rs`; the subject's Unbuilt, #155, #156.
 
 **C146, read precisely (no change recommended; the alternative is one clause):**
 
@@ -601,9 +625,9 @@ sites:
 What shape would give a new answer-bearing surface its honesty for
 free: a value type with one `aged`, one gloss and one golden shape,
 so a surface that holds places gets its block by one call and cannot
-leave the words out; and the `_at`/`_age` pin in `documents.rs`, so a
-bare epoch fails the gate. Under that shape #155 is a fold and a
-line, #156 is a call, and the next surface (the GUI's cards, #98)
+leave the words out; and the named-paths pin in `documents.rs`, so a
+bare epoch on its list fails the gate. Under that shape #155 is a fold
+and a line, #156 is a call, and the next surface (the GUI's cards, #98)
 inherits both.
 
 ### Where they want different things, and where it is one need
@@ -753,7 +777,7 @@ he reads his terminal.
 | step | what | cost | retires (C154's form) | ruling |
 | --- | --- | --- | --- | --- |
 | S1. The subject's block on the search answer | the matches' coverage under `total` on rows, counts and cross, one fold in the loop at `answer.rs:1751`; the text's total line gains the ages and the scope line loses its ages half; the gloss; the goldens regenerated and read | a day | retired nothing; the scope line's ages half leaves the text, a contract change held by the regenerated goldens and the JSON's scope. #155 closes | yes: C118 amended (§5) |
-| S2. The one function in the store | `coverage` over place rows beside `age.rs`, with `aged`; the search's `coverage()` and `tabs::by_type` on it; its unit tests over a fixture of places | a day | retired `corpus.rs`'s `coverage()` and `tabs.rs`'s counting; held by the store's function and its tests, read by `c100_…` and `tabs.rs:38` | yes: where it lives, under C108 and C39 (§11, question 2); the mechanism line (§5) |
+| S2. The one function in the store | `coverage` over place rows beside `age.rs`, with `aged`; the search's `coverage()` and `tabs::by_type` on it; its unit tests over a fixture of places | a day | retired `corpus.rs`'s `coverage()` and `tabs.rs`'s counting; held by the store's function and its tests, read by `c100_…`, `tabs.rs:154` and `tests/tabs.rs:117` | yes: where it lives, under C108 and C39 (§11, question 2); the mechanism line (§5) |
 | S3. The shop's and price status's blocks | the posted entries' block whatever the policy; the league's block in `price status`'s decision view; the shop's listing header aged | half a day each | retired nothing: the shop's stale-set age and the two listing-age fields stay as their own facts, the block beside them, one new `c72_…` case holding the two apart. #156 closes | no, after S2; the words are the session's, listed |
 | S4. The named-paths pin | one rule in `documents.rs` over a list of paths read from fixtures that hold a row: `tabs`' `listed_at`, `show`'s `first_seen`/`last_seen`, the events' `first` and `last`, the ledger rows, the shop's header, each aged; a plan's in its wrapper | half a day | retired `TabRow::aged` and `CharacterRow::aged` as two partial methods; held by the rule and one aging per row | one step past C53's letter: his reading (§11, question 3) |
 | S5. The scope of league-taking surfaces | the store's leagues beside `price status`, `shop render` and `tabs`; the stored league list read by `policy show` and a `leagues --stored` or the same verb offline, each league beside whether the policy covers it; the plan wrapper's count of the league's tabs outside the policy, from the snapshot it holds; C126's match per realm | a day | retired nothing; #157 and #22 close, #19's comment answered | the offline read of the league list is agent-facing design, the session's under the owner's delegation; the README's new-league line is his to re-read |
@@ -846,3 +870,20 @@ thirteen; each is answered above by one of five rules, not by itself.
   named once in §2's head, and so is what the map does not cover (9).
 - **#12** keeps its own fire line and its close is the owner's, not the
   root's (4).
+
+The narrow review at `d3cbb0c2` (`answer-facts-map-fixes-d3cbb0c2.md`)
+checked the five claims the round had inferred and found four things:
+
+- **The pin's list is the class whole.** Five bare epochs it missed are
+  named (the search basis's snapshot time, the policy's `created_at`,
+  the price list's bases, the shop's `rendered_at`, the plan's snapshot
+  time), the queue list told from one job's status, the fixture walk
+  extended, C53's own condition quoted, and §6's old phrase for the
+  pin replaced (finding 1).
+- **The result carries each listing base.** The coverage struct holds
+  one `list_seen`; the block promised both bases, so the function's
+  result is widened by one field and the two price status fields read
+  from it (2).
+- **The C118 draft is in declaratives.** One idea per sentence, no
+  semicolon, no fragment, under the budget (3).
+- **Two citations** name the caller and the text's age rule (4).
