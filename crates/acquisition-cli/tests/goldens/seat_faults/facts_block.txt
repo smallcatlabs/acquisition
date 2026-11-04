@@ -22,3 +22,19 @@ leagues: Standard (this); also held: Allflame (1 tab, no policy)
 name  type          items  fetched      parent       id
 Gear  PremiumStash      1  <age> ago                 a1
 Spare PremiumStash      1  <age> ago                 a2
+
+$ acq tabs --league Empty
+# holds "no tabs known for Empty"
+# holds "facts: no tabs; stash listing "
+--- stdout
+no tabs known for Empty in <scratch>/store/mock/Alice_1234.db (run `acq stashes --account 'Alice#1234' --realm pc --league Empty` or `acq refresh --all --account 'Alice#1234' --realm pc --league Empty`)
+facts: no tabs; stash listing <age> ago
+leagues: Empty (this); also held: Allflame (1 tab, no policy), Standard (2 tabs, no policy)
+
+$ acq tabs --league Nowhere
+# holds "no tabs known for Nowhere"
+# holds "facts: no tabs; stash never listed"
+--- stdout
+no tabs known for Nowhere in <scratch>/store/mock/Alice_1234.db (run `acq stashes --account 'Alice#1234' --realm pc --league Nowhere` or `acq refresh --all --account 'Alice#1234' --realm pc --league Nowhere`)
+facts: no tabs; stash never listed
+leagues: Nowhere (this); also held: Allflame (1 tab, no policy), Standard (2 tabs, no policy)

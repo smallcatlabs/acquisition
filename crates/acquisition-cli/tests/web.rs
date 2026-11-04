@@ -496,6 +496,33 @@ fn the_form_renders_the_realm_it_is_asked_for() {
             "Hardcore (tabs on disk)",
         ],
     );
+    // a league with no tabs: the refresh page's facts line, an empty
+    // listing apart from one never seen (the review of round C, finding 3)
+    let mock = scratch.0.join("mock");
+    Store::open(&account_path(&mock, USER))
+        .unwrap()
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Empty".into(),
+            },
+            &json!({ "league": "Empty" }),
+            200,
+            &json!({ "stashes": [] }),
+            50,
+        )
+        .unwrap();
+    for (league, said) in [
+        ("Empty", "facts: no tabs; stash listing "),
+        ("Nowhere", "facts: no tabs; stash never listed"),
+    ] {
+        let page = web.get(&format!("refresh?realm=pc&league={league}"));
+        pages.page(
+            &format!("GET refresh?realm=pc&league={league}"),
+            &page,
+            &["no tabs known for", said],
+        );
+    }
     page_golden(file!(), "console_realm", &pages);
 }
 

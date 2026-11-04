@@ -191,3 +191,45 @@ GET ?realm=xbox
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 
 </main>
+
+GET refresh?realm=pc&league=Empty
+# holds "no tabs known for"
+# holds "facts: no tabs; stash listing "
+<main>
+<h1>Refresh</h1>
+<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="get" action="plan">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Empty">
+<pre>
+no tabs known for Empty in <scratch>/mock/Alice_1234.db (run `acq stashes --account &#39;Alice#1234&#39; --realm pc --league Empty` or `acq refresh --all --account &#39;Alice#1234&#39; --realm pc --league Empty`)
+facts: no tabs; stash listing <age> ago
+</pre>
+<pre>
+no characters known in Empty (run `acq characters` or cover them in the sync policy)
+</pre>
+<button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
+</form>
+
+</main>
+
+GET refresh?realm=pc&league=Nowhere
+# holds "no tabs known for"
+# holds "facts: no tabs; stash never listed"
+<main>
+<h1>Refresh</h1>
+<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="get" action="plan">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Nowhere">
+<pre>
+no tabs known for Nowhere in <scratch>/mock/Alice_1234.db (run `acq stashes --account &#39;Alice#1234&#39; --realm pc --league Nowhere` or `acq refresh --all --account &#39;Alice#1234&#39; --realm pc --league Nowhere`)
+facts: no tabs; stash never listed
+</pre>
+<pre>
+no characters known in Nowhere (run `acq characters` or cover them in the sync policy)
+</pre>
+<button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
+</form>
+
+</main>

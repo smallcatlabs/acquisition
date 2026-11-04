@@ -225,6 +225,11 @@ pub(crate) fn tabs_facts_line(listed: &acquisition_search::tabs::Tabs, now: i64)
         ),
         None => "stash never listed".to_string(),
     };
+    // an empty league says when its listing was seen, or that it never
+    // was (the review of round C, finding 3)
+    if listed.tabs == 0 {
+        return format!("facts: no tabs; {listing}\n");
+    }
     format!(
         "facts: {}, {}; {listing}\n",
         plural_of(places, "tab", "tabs"),
@@ -360,6 +365,7 @@ pub fn tabs(
     let listed = held.answer;
     if listed.tabs == 0 {
         println!("{}", no_tabs_text(realm, league, &store, &username));
+        print!("{}", tabs_facts_line(&listed, now));
         print!("{leagues}");
         return Ok(());
     }

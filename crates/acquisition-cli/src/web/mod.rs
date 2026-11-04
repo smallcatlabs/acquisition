@@ -590,7 +590,12 @@ async fn tabs(
         esc(&league)
     ));
     match empty {
-        Some(said) => body.push_str(&pre(&said)),
+        // an empty league's facts line too (the review of round C,
+        // finding 3)
+        Some(said) => body.push_str(&pre(&format!(
+            "{said}\n{}",
+            store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
+        ))),
         None => {
             body.push_str(&pre(&format!(
                 "{}\n{}",

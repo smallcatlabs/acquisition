@@ -2403,6 +2403,33 @@ fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
         (&json!(at), &json!(at + 3600), &json!(at)),
         "{tabs}"
     );
+    // a league with no tabs prints its facts line too, an empty listing
+    // apart from one never seen (the review of round C, finding 3)
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Empty".into(),
+            },
+            &json!({ "league": "Empty" }),
+            200,
+            &json!({ "stashes": [] }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    t.run(
+        &["tabs", "--league", "Empty"],
+        &["no tabs known for Empty", "facts: no tabs; stash listing "],
+    );
+    t.run(
+        &["tabs", "--league", "Nowhere"],
+        &[
+            "no tabs known for Nowhere",
+            "facts: no tabs; stash never listed",
+        ],
+    );
     golden(file!(), "facts_block", &t);
 }
 
