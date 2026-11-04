@@ -1,0 +1,16 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/157-leagues-held.md, committed at dae7aa60. Read it with `git show dae7aa60` and the file as it stands. It is round 5 of a group designed in roadmap/reviews/answer-facts-map.md (§3 Root 2, §10 step S5, §11 question 6, whose option (a) the owner accepted; reviewed twice). Rounds 1, 2 and 4 landed (fb6c5c02; 0d17cdaa^..2977ea2c; 052e0fe4); round 3 (roadmap/briefs/every-epoch-words.md, C163) waits on two amendments and will build before this one. The rulings are C118 as amended, C162, C126 (decisions/plans.md) and C146; AGENTS.md names C1, C46, C116, C122, C154. The brief's form is roadmap/briefs/TEMPLATE.md; the rhythm is roadmap/README.md, "A step". Read; do not build or run anything; the tree is read-only to you.
+
+Your lens, in this order:
+1. The shapes (Input). Is Store::leagues_held a neutral read under C39 and C108 (crates/acquisition-store/src/lib.rs: the tabs and characters tables, league-less characters), and is the verbs fragment LeaguesHeld with the policy's coverage the right home under C46 (the web's own read at crates/acquisition-cli/src/web/mod.rs:356–372 to be replaced)? Does covers_tab's realm-and-league lookup give coverage per league as the brief says (crates/acquisition-plan/src/lib.rs:655–665 and the policy's shape)?
+2. acq leagues --stored and the MCP leagues tool. Is a flag on the job's verb sound under clap and the CLI's job path (crates/acquisition-cli/src/main.rs:1672), and a new MCP tool under the tools table (crates/acquisition-mcp/src/main.rs) and its reference test (crates/acquisition-mcp/tests/mcp_reference.rs)? Does Store::league_list (lib.rs:793–812, :2046) give what the document needs, and does the stored leagues envelope carry a realm per league (read the mock provider's leagues fixture in crates/acquisition-daemon)?
+3. The plan wrapper (Do 4): is uncovered_tabs computable from RefreshSnapshot.tabs and covers_tab in the verbs crate's wrapper without the planner changing (crates/acquisition-verbs/src/refresh.rs:35–50; crates/acquisition-store/src/snapshot.rs:140; C38), and where does the summary's text live (crates/acquisition-cli/src/plan_cmd.rs, grep skipped_tabs)?
+4. store status (Do 5): does changing "league list N" from the union to the latest list change a count's meaning under C146, and is the union table then unread (crates/acquisition-store/src/lib.rs:1418–1430, :578)?
+5. The text (Input): are the lines well-formed against each surface's head (price_cmd.rs:278–300, shop_cmd.rs:135–215, store_cmd.rs:296–330, policy show's rendering), C53's decision view and C146; and are the holders in Read complete under a grep by command?
+6. Whether the step as drawn can be built by a worker reading only this brief and what it names, in the order given, each commit gated; and whether it is one round or should be cut in two.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- Findings, most severe first, each: the Do or done-when number, what is wrong in one sentence, the concrete reading (file:line), and the smallest change to the brief sufficient.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether the step may start as drawn, in one line.
