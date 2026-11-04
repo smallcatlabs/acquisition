@@ -130,6 +130,13 @@ fn a_time_ggg_gives_as_text_reads_as_its_epoch_or_none() {
         ("2026-13-02T20:00:00Z", None),
         ("2026-11-02T20:00Z", None),
         ("26-11-02T20:00:00Z", None),
+        // a day its month does not have, and a fraction that is not
+        // decimal digits (the round's review)
+        ("2026-02-31T00:00:00Z", None),
+        ("2025-02-29T00:00:00Z", None),
+        ("2026-04-31T00:00:00Z", None),
+        ("2026-11-02T20:00:00.garbageZ", None),
+        ("2026-11-02T20:00:00.Z", None),
         ("", None),
     ] {
         assert_eq!(parse_utc(text), at, "{text}");

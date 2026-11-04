@@ -1670,19 +1670,26 @@ fn cli4_a_spans_location_names_its_realm() {
 /// The answer-facts seat (run 1, CLI fault 13; call 65): `--count
 /// league,rarity` headed rarity `4 values` and printed five lines,
 /// `(none)` among them. A count's heading counts the lines it prints
-/// (C146, a count says what it counts): where a `none` bucket is a line,
-/// it is a value. The JSON's `values` keeps its count of the values the
-/// items carry.
+/// (C146, a count says what it counts), every special bucket among them:
+/// `(none)` and `(undecided)` are lines, so values, in the heading and in
+/// a limited view's `shown` (the round's review: `(undecided)` was left
+/// out). The JSON's `values` keeps its count of the values the items
+/// carry.
 #[test]
-fn cli13_a_counts_heading_counts_its_none_line() {
-    let scratch = harness::scratch("seat-count-none");
+fn cli13_a_counts_heading_counts_every_line_it_prints() {
+    let scratch = harness::scratch("seat-count-lines");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    // Standard's tab refetched with a rare beside its orb: one rarity
-    // value, and the orb with none; the query holds that one tab, so the
-    // total's span is one location whatever second the refetch took
+    // Standard's tab refetched with two rarities beside its orb (none) and
+    // an item whose rarity does not read (undecided); the query holds that
+    // one tab, so the total's span is one location whatever second the
+    // refetch took
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let ring = |id: &str, rarity: Value| {
+        json!({ "id": id, "name": "Doom Loop", "typeLine": "Ruby Ring", "baseType": "Ruby Ring",
+                "rarity": rarity, "identified": true, "ilvl": 80, "x": 1, "y": 0 })
+    };
     store
         .record(
             &Endpoint::Stash {
@@ -1695,24 +1702,21 @@ fn cli13_a_counts_heading_counts_its_none_line() {
             200,
             &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
                 { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 },
-                { "id": "i-rare", "name": "Doom Loop", "typeLine": "Ruby Ring", "baseType": "Ruby Ring",
-                  "rarity": "Rare", "frameTypeId": "Rare", "identified": true, "ilvl": 80, "x": 1, "y": 0 } ] } }),
+                ring("i-rare", json!("Rare")), ring("i-magic", json!("Magic")), ring("i-odd", json!(7)) ] } }),
             acquisition_store::now(),
         )
         .unwrap();
     drop(store);
+    let count = |limit: Option<&'static str>| {
+        let mut args = vec!["search", "--realm", "pc", "--count", "rarity"];
+        if let Some(n) = limit {
+            args.extend(["--limit", n]);
+        }
+        args.push("league=Standard");
+        args
+    };
     let mut t = Transcript::new(&base);
-    let shown = stdout(&t.run(
-        &[
-            "search",
-            "--realm",
-            "pc",
-            "--count",
-            "rarity",
-            "league=Standard",
-        ],
-        &["count   rarity · 2 values"],
-    ));
+    let shown = stdout(&t.run(&count(None), &["count   rarity · 4 values\n"]));
     let at = shown
         .lines()
         .position(|l| l.starts_with("count   rarity"))
@@ -1726,30 +1730,20 @@ fn cli13_a_counts_heading_counts_its_none_line() {
                 .is_some_and(|(n, _)| n.parse::<u64>().is_ok())
         })
         .collect();
-    assert_eq!(lines.len(), 2, "{shown}");
-    assert!(lines.iter().any(|l| l.ends_with("(none)")), "{shown}");
-    assert!(
-        shown
-            .lines()
-            .nth(at)
-            .unwrap()
-            .starts_with("count   rarity · 2 values"),
-        "{shown}"
+    assert_eq!(lines.len(), 4, "{shown}");
+    for special in ["(none)", "(undecided)"] {
+        assert!(lines.iter().any(|l| l.contains(special)), "{shown}");
+    }
+    // limited to one value: the two special lines print past the cut
+    t.run(
+        &count(Some("1")),
+        &["count   rarity · 4 values · 3 shown: a larger --limit returns the rest"],
     );
-    let json = sole_json(&acq(
-        &base,
-        &[
-            "search",
-            "--realm",
-            "pc",
-            "--count",
-            "rarity",
-            "league=Standard",
-            "--json",
-        ],
-    ));
-    assert_eq!(json["view"]["counts"]["tables"][0]["values"], 1, "{json}");
-    golden(file!(), "count_heading_counts_its_none_line", &t);
+    let mut json_args = count(None);
+    json_args.push("--json");
+    let json = sole_json(&acq(&base, &json_args));
+    assert_eq!(json["view"]["counts"]["tables"][0]["values"], 2, "{json}");
+    golden(file!(), "count_heading_counts_every_line", &t);
 }
 
 /// The answer-facts seat (run 1, CLI fault 10 and the MCP's T5 note; CLI

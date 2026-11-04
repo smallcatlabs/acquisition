@@ -1730,20 +1730,24 @@ fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
     } else {
         ("value", "values")
     };
-    // the heading counts the lines it prints: a `none` line is a value
-    // (C146; the answer-facts seat, CLI fault 13: `4 values` over five
-    // lines, `(none)` among them); `values` keeps its count of the values
-    // the items carry
-    let none = table.buckets.iter().any(|b| b.label.bucket == "none");
+    // the heading counts the lines it prints, every special bucket among
+    // them: a `none` and an `undecided` line are values (C146; the
+    // answer-facts seat, CLI fault 13: `4 values` over five lines);
+    // `values` keeps its count of the values the items carry
+    let special = table
+        .buckets
+        .iter()
+        .filter(|b| matches!(b.label.bucket, "none" | "undecided"))
+        .count();
     let mut head = format!(
         "count   {} · {}",
         table.key,
-        plural(table.values + usize::from(none), one, many)
+        plural(table.values + special, one, many)
     );
     if table.left_out > 0 {
         head.push_str(&format!(
             " · {} shown: a larger --limit returns the rest",
-            table.values - table.left_out + usize::from(none)
+            table.values - table.left_out + special
         ));
     }
     if table.computed > 0 {

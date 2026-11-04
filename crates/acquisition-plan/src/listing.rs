@@ -738,8 +738,8 @@ pub struct ListFilter {
     pub r#in: Option<PriceTarget>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub covered_by: Option<PriceTarget>,
-    /// Only items whose price text decides nothing, of one kind: the
-    /// members of `Counts::residue` or of `Counts::invalid_notes`.
+    /// Only items whose game-side text is of one kind, the members of a
+    /// count `price status` prints: [`GameText`] says each kind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub game_text: Option<GameText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

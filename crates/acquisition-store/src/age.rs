@@ -63,13 +63,22 @@ pub fn before(basis: &str, basis_at: i64, at: Option<i64>) -> String {
 }
 
 /// A time GGG gives as ISO 8601 UTC text (`2026-11-02T20:00:00Z`, a
-/// fraction of a second allowed and dropped) as seconds since 1970; none
-/// where the text is not that shape (C47: a malformed time is no time,
-/// never a panic). Howard Hinnant's days_from_civil, without a date crate.
+/// decimal fraction of a second allowed and dropped) as seconds since
+/// 1970; none where the text is not a calendar date and time of that
+/// shape (C47: a malformed time is no time, never a panic). Howard
+/// Hinnant's days_from_civil, without a date crate.
 pub fn parse_utc(text: &str) -> Option<i64> {
     let text = text.strip_suffix('Z')?;
     let (date, time) = text.split_once('T')?;
-    let time = time.split_once('.').map_or(time, |(whole, _)| whole);
+    let time = match time.split_once('.') {
+        Some((whole, fraction))
+            if !fraction.is_empty() && fraction.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            whole
+        }
+        Some(_) => return None,
+        None => time,
+    };
     let number = |part: &str, digits: usize| -> Option<i64> {
         (part.len() == digits && part.bytes().all(|b| b.is_ascii_digit()))
             .then(|| part.parse().ok())
@@ -90,7 +99,15 @@ pub fn parse_utc(text: &str) -> Option<i64> {
     if d.next().is_some() || t.next().is_some() {
         return None;
     }
-    if !(1..=12).contains(&m) || !(1..=31).contains(&day) || h > 23 || min > 59 || s > 60 {
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let days_in_month = match m {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    if !(1..=12).contains(&m) || !(1..=days_in_month).contains(&day) || h > 23 || min > 59 || s > 60
+    {
         return None;
     }
     let y = if m <= 2 { y - 1 } else { y };
