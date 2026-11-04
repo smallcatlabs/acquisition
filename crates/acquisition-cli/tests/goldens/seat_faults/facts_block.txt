@@ -38,3 +38,22 @@ $ acq tabs --league Nowhere
 no tabs known for Nowhere in <scratch>/store/mock/Alice_1234.db (run `acq stashes --account 'Alice#1234' --realm pc --league Nowhere` or `acq refresh --all --account 'Alice#1234' --realm pc --league Nowhere`)
 facts: no tabs; stash never listed
 leagues: Nowhere (this); also held: Allflame (1 tab, no policy), Standard (2 tabs, no policy)
+
+$ acq tabs --league Maps
+# holds "facts: 1 tab, none fetched"
+--- stdout
+1 tabs in Maps: 0 fetched, 1 never fetched; 0 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Maps`)
+facts: 1 tab, none fetched; stash listing <age> ago
+leagues: Maps (this); also held: Allflame (1 tab, no policy), Standard (2 tabs, no policy)
+name type          items  fetched      parent       id
+Keep PremiumStash      -  never                     k1
+
+$ acq tabs
+# holds "Maps (1 tab, "
+--- stdout
+2 tabs in Standard: 2 fetched; 2 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+facts: 2 tabs, 2 fetched (the oldest fetch <age> ago, pc · Standard / Gear; the newest <age> ago, pc · Standard / Spare); stash listing <age> ago
+leagues: Standard (this); also held: Allflame (1 tab, no policy), Maps (1 tab, no policy)
+name  type          items  fetched      parent       id
+Gear  PremiumStash      1  <age> ago                 a1
+Spare PremiumStash      1  <age> ago                 a2

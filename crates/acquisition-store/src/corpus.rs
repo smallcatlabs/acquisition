@@ -497,21 +497,28 @@ pub(crate) fn coverage_in(
 }
 
 impl Store {
-    /// A league's tabs and the coverage of its tabs (#172), for `tabs`:
-    /// one read transaction, so a write committed between the two reads
-    /// never makes the rows and the facts disagree (the review of round
-    /// C, finding 1), as [`Store::refresh_snapshot`] reads.
+    /// A league's tabs, the coverage of its tabs (#172) and what the
+    /// store holds of each of the realm's leagues ([`Store::leagues_held`],
+    /// the `leagues_held` beside them), for `tabs`: one read transaction,
+    /// so a write committed between the reads never makes the rows, the
+    /// facts and the holdings disagree (the review of round C, finding 1;
+    /// of its fix round, finding 3), as [`Store::refresh_snapshot`] reads.
     pub fn tabs_document(
         &self,
         realm: &str,
         league: &str,
         now: i64,
-    ) -> Result<(Vec<crate::TabRow>, crate::coverage::Coverage)> {
+    ) -> Result<(
+        Vec<crate::TabRow>,
+        crate::coverage::Coverage,
+        Vec<crate::LeagueHeld>,
+    )> {
         let tx = self.conn.unchecked_transaction()?;
         let rows = crate::tabs_in(&tx, realm, league)?;
         let coverage = coverage_in(&tx, Some(realm), Some(league), true, now)?;
+        let held = crate::leagues_held_in(&tx, realm)?;
         tx.finish()?;
-        Ok((rows, coverage))
+        Ok((rows, coverage, held))
     }
 
     /// C162: how old the facts are over a set of live locations, by the

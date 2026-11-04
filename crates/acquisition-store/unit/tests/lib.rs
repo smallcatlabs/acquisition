@@ -2201,10 +2201,11 @@ fn substash_membership_follows_the_parents_fetch_and_the_parents_fate() {
         .record(&listing, &json!({}), 200, &json!({ "stashes": [] }), 6)
         .unwrap();
     assert_eq!(ing.removed, 1);
-    // the orphan's row, read as the planner's snapshot reads a row (its
-    // own `removed_at`), where `tabs` reads live locations alone, a
-    // retired parent's substash among the gone (the review of round C,
-    // finding 2)
+    // the orphan's stored row, read by raw SQL on its own `removed_at`,
+    // where `tabs` reads live locations alone, a retired parent's
+    // substash among the gone (the review of round C, finding 2); the
+    // planner's snapshot keeping it is the planner's own test
+    // (`an_orphaned_substash_is_skipped_never_rendered_by_the_wrong_path`)
     let orphans = |s: &Store| -> Vec<(String, Option<i64>)> {
         let mut stmt = s
             .conn
@@ -2798,9 +2799,47 @@ fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
     // `tabs`: its rows read first, then the coverage, whose locations
     // read `characters` (which the rows do not)
     inject(&mut a, "characters");
-    let (rows, coverage) = a.tabs_document("pc", "Standard", 100).unwrap();
+    let (rows, coverage, _) = a.tabs_document("pc", "Standard", 100).unwrap();
     let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
     assert_eq!(fetched, coverage.fetched, "{rows:?}\n{coverage:?}");
+    a.conn
+        .authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>)
+        .unwrap();
+
+    // `tabs`' holdings (`leagues_held`) are the document's too (the review
+    // of round C's fix round, findings 2 and 3): a listing that adds a tab,
+    // committed once the rows are read, is in neither the rows nor the
+    // league's count beside them
+    let mut b = Some(Store::open(&path).unwrap());
+    a.conn
+        .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+            if let rusqlite::hooks::AuthAction::Read { table_name, .. } = ctx.action
+                && table_name == "characters"
+                && let Some(mut b) = b.take()
+            {
+                b.record(
+                    &Endpoint::Stashes {
+                        realm: "pc".into(),
+                        league: "Standard".into(),
+                    },
+                    &json!({}),
+                    200,
+                    &json!({ "stashes": [
+                        { "id": "a1", "name": "One", "type": "PremiumStash", "index": 0 },
+                        { "id": "a2", "name": "Two", "type": "PremiumStash", "index": 1 } ] }),
+                    30,
+                )
+                .unwrap();
+            }
+            rusqlite::hooks::Authorization::Allow
+        }))
+        .unwrap();
+    let (rows, _, held) = a.tabs_document("pc", "Standard", 100).unwrap();
+    let standard = held
+        .iter()
+        .find(|h| h.league.as_deref() == Some("Standard"))
+        .map(|h| h.tabs);
+    assert_eq!(standard, Some(rows.len() as i64), "{rows:?}\n{held:?}");
     a.conn
         .authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>)
         .unwrap();
@@ -2850,7 +2889,8 @@ fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
 /// retired keeps its row (the planner reports it as orphaned, C54) and
 /// is no live location; `tabs` counted it while the facts left it out
 /// through its parent. One reading of a live tab, the parent's fate
-/// included: gone in `tabs`' rows and in every coverage alike.
+/// included: gone in `tabs`' rows, in every coverage and in the
+/// leagues' holdings alike.
 #[test]
 fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
     let mut s = Store::open_memory().unwrap();
@@ -2895,9 +2935,18 @@ fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
         orphan, None,
         "the orphan's row stays, its own removed_at unset"
     );
-    let (rows, coverage) = s.tabs_document("pc", "Standard", 10).unwrap();
+    let (rows, coverage, held) = s.tabs_document("pc", "Standard", 10).unwrap();
     let ids: Vec<&str> = rows.iter().map(|t| t.id.as_str()).collect();
     assert_eq!(ids, ["k1"], "{rows:?}");
+    // the league's holdings count it out too, the document's and the
+    // store's (the review of round C's fix round, finding 2)
+    let one = vec![LeagueHeld {
+        league: Some("Standard".into()),
+        tabs: 1,
+        characters: 0,
+    }];
+    assert_eq!(held, one, "the tabs document's holdings");
+    assert_eq!(s.leagues_held("pc").unwrap(), one, "the store's holdings");
     assert_eq!(
         rows.len(),
         coverage.fetched + coverage.never_fetched + coverage.folders,

@@ -1009,6 +1009,30 @@ pub(crate) const TAB_GONE: &str =
     "COALESCE(t.removed_at, (SELECT p.removed_at FROM tabs p WHERE p.realm = t.realm
                                   AND p.league = t.league AND p.id = t.parent))";
 
+/// [`Store::leagues_held`] over `conn`: the store's own connection, or
+/// a read transaction a document's reads share. A tab is counted by the
+/// one test of a live tab ([`TAB_GONE`]), a retired parent's substash
+/// left out as `tabs`' rows leave it (the review of round C's fix round,
+/// finding 2).
+pub(crate) fn leagues_held_in(conn: &Connection, realm: &str) -> Result<Vec<LeagueHeld>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT league, SUM(n_tabs), SUM(n_characters) FROM (
+             SELECT t.league AS league, 1 AS n_tabs, 0 AS n_characters FROM tabs t
+              WHERE t.realm = ?1 AND {TAB_GONE} IS NULL
+             UNION ALL
+             SELECT league, 0, 1 FROM characters WHERE realm = ?1 AND removed_at IS NULL)
+          GROUP BY league ORDER BY league IS NULL, league"
+    ))?;
+    let rows = stmt.query_map([realm], |r| {
+        Ok(LeagueHeld {
+            league: r.get(0)?,
+            tabs: r.get(1)?,
+            characters: r.get(2)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
 /// A league's live tabs in listing order (folder children after their
 /// folder, substashes after their tab), over `conn`: the store's own
 /// connection, or a read transaction a document's reads share (the
@@ -2221,21 +2245,7 @@ impl Store {
     /// order. One query; neutral (C39), the caller adds the policy and
     /// bounds the list (C53).
     pub fn leagues_held(&self, realm: &str) -> Result<Vec<LeagueHeld>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT league, SUM(t), SUM(c) FROM (
-                 SELECT league, 1 AS t, 0 AS c FROM tabs WHERE realm = ?1 AND removed_at IS NULL
-                 UNION ALL
-                 SELECT league, 0, 1 FROM characters WHERE realm = ?1 AND removed_at IS NULL)
-              GROUP BY league ORDER BY league IS NULL, league",
-        )?;
-        let rows = stmt.query_map([realm], |r| {
-            Ok(LeagueHeld {
-                league: r.get(0)?,
-                tabs: r.get(1)?,
-                characters: r.get(2)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<_, _>>()?)
+        leagues_held_in(&self.conn, realm)
     }
 
     /// The store's status: every count, the facts block and the refused

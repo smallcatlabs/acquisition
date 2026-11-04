@@ -338,7 +338,7 @@ pub fn tabs(
     let username = account.entry.username.clone();
     let store = account.facts()?;
     let now = acquisition_store::now();
-    let listed = acquisition_search::tabs::Tabs::read(
+    let (listed, holdings) = acquisition_search::tabs::Tabs::read(
         &store,
         realm.as_str(),
         league,
@@ -347,16 +347,17 @@ pub fn tabs(
         expand,
         now,
     )?;
-    // what the store holds beyond this league, beside it: `tabs` lists
-    // one league, and the line names the others to ask for
-    let held = acquisition_verbs::Held::with(
+    // what the store holds beyond this league, beside it, read in the
+    // document's snapshot: `tabs` lists one league, and the line names
+    // the others to ask for
+    let held = acquisition_verbs::Held::of(
         listed,
-        &store,
+        holdings,
         &acquisition_verbs::leagues::PolicyRead::of_account(&account),
         realm,
         league,
         expand,
-    )?;
+    );
     if json {
         println!("{}", serde_json::to_string_pretty(&held)?);
         return Ok(());

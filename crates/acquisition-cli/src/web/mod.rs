@@ -543,6 +543,7 @@ async fn tabs(
             true,
             acquisition_store::now(),
         )?
+        .0
         .grouped();
         // every character, as every tab: the page is a selection, and a
         // row it does not list cannot be ticked (C53's audit view)

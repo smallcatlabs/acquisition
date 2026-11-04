@@ -1540,7 +1540,7 @@ impl AcqMcp {
                 .as_deref()
                 .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
             let expand = p.expand.unwrap_or(false);
-            let listed = acquisition_search::tabs::Tabs::read(
+            let (listed, holdings) = acquisition_search::tabs::Tabs::read(
                 &store,
                 realm.as_str(),
                 league,
@@ -1553,7 +1553,7 @@ impl AcqMcp {
                 acquisition_store::now(),
             )?;
             let policy = PolicyRead::of_account(&self.account(p.account.as_deref())?);
-            Held::with(listed, &store, &policy, realm, league, expand)
+            Ok(Held::of(listed, holdings, &policy, realm, league, expand))
         })
     }
 

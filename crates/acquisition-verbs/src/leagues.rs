@@ -264,6 +264,23 @@ impl<T> Held<T> {
         )
     }
 
+    /// [`Held::with`] over the holdings already read: the ones a
+    /// document read in its own snapshot (`tabs`, the review of round
+    /// C's fix round, finding 3), never read again.
+    pub fn of(
+        answer: T,
+        rows: Vec<acquisition_store::LeagueHeld>,
+        policy: &PolicyRead,
+        realm: Realm,
+        league: &str,
+        expand: bool,
+    ) -> Held<T> {
+        Held {
+            answer,
+            leagues_held: LeaguesHeld::of(rows, policy, realm, Some(league), expand),
+        }
+    }
+
     /// [`Held::read`] with the policy already read.
     pub fn with(
         answer: T,

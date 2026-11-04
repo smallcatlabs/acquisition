@@ -2381,6 +2381,45 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
 /// refused body's age beside their count; `tabs` over the league's tabs.
 /// Fixed times, two fetches an hour apart, so the oldest and the newest
 /// are told apart (round B's item 0: never `now()` twice).
+/// Pc Maps listed with map tab m1 and tab k1, m1 fetched with its
+/// substash s1, then listed again without m1: s1's row stays, its parent
+/// retired (C54).
+fn retired_parent(mock: &Path, at: i64) {
+    let mut store = Store::open(&account_path(mock, "Alice#1234")).unwrap();
+    let maps = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Maps".into(),
+    };
+    let mut record = |ep: &Endpoint, body: Value, at: i64| {
+        store
+            .record(ep, &json!({ "league": "Maps" }), 200, &body, at)
+            .unwrap();
+    };
+    record(
+        &maps,
+        json!({ "stashes": [ { "id": "m1", "name": "Atlas", "type": "MapStash", "index": 0 },
+                             { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 1 } ] }),
+        at,
+    );
+    record(
+        &Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Maps".into(),
+            id: "m1".into(),
+            sub: None,
+        },
+        json!({ "stash": { "id": "m1", "name": "Atlas", "type": "MapStash", "items": [],
+                 "children": [ { "id": "s1", "name": "", "type": "MapStash", "parent": "m1",
+                                 "metadata": { "items": 1 } } ] } }),
+        at,
+    );
+    record(
+        &maps,
+        json!({ "stashes": [ { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 0 } ] }),
+        at + 60,
+    );
+}
+
 #[test]
 fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
     let scratch = harness::scratch("seat-facts-block");
@@ -2506,6 +2545,25 @@ fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
             "no tabs known for Nowhere",
             "facts: no tabs; stash never listed",
         ],
+    );
+    // a map tab the listing retired leaves its substash's row, and no
+    // count of the document holds it: not the rows, not the facts, not
+    // the leagues held beside them (the review of round C's fix round,
+    // finding 2)
+    retired_parent(&mock, at);
+    t.run(
+        &["tabs", "--league", "Maps"],
+        &["facts: 1 tab, none fetched"],
+    );
+    t.run(&["tabs"], &["Maps (1 tab, "]);
+    let maps = sole_json(&acq(&base, &["tabs", "--league", "Maps", "--json"]));
+    assert_eq!(
+        (&maps["tabs"], &maps["leagues_held"]["leagues"][0]),
+        (
+            &json!(1),
+            &json!({ "league": "Maps", "tabs": 1, "characters": 0, "named": false })
+        ),
+        "{maps}"
     );
     golden(file!(), "facts_block", &t);
 }

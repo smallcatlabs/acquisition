@@ -1058,6 +1058,56 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     );
     let (printed, _) = cli(&seat.base, &["tabs", "--league", "Small"]);
     assert_eq!(unaged(printed), unaged(small));
+
+    // a map tab the listing retired leaves its substash's row (C54), and
+    // the leagues held beside the rows count it out as the rows do (the
+    // review of round C's fix round, finding 2)
+    let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+    let maps = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Maps".into(),
+    };
+    record(
+        &mut store,
+        maps.clone(),
+        "pc",
+        json!({ "stashes": [ { "id": "m1", "name": "Atlas", "type": "MapStash", "index": 0 },
+                             { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 1 } ] }),
+        50,
+    );
+    record(
+        &mut store,
+        Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Maps".into(),
+            id: "m1".into(),
+            sub: None,
+        },
+        "pc",
+        json!({ "stash": { "id": "m1", "name": "Atlas", "type": "MapStash", "items": [],
+                 "children": [ { "id": "s1", "name": "", "type": "MapStash", "parent": "m1",
+                                 "metadata": { "items": 1 } } ] } }),
+        51,
+    );
+    record(
+        &mut store,
+        maps,
+        "pc",
+        json!({ "stashes": [ { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 0 } ] }),
+        52,
+    );
+    drop(store);
+    let (held, _) = seat.call("tabs", &json!({ "league": "Maps" }));
+    assert_eq!(
+        (&held["tabs"], &held["leagues_held"]["leagues"][0]),
+        (
+            &json!(1),
+            &json!({ "league": "Maps", "tabs": 1, "characters": 0, "named": false })
+        ),
+        "{held}"
+    );
+    let (printed, _) = cli(&seat.base, &["tabs", "--league", "Maps"]);
+    assert_eq!(unaged(printed), unaged(held));
 }
 
 /// Pc Standard listed again as 41 tabs: Rings and Dump, and 39 of `kind`
