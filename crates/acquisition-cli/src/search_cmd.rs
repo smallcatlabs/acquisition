@@ -1778,7 +1778,19 @@ fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
                 .iter()
                 .flat_map(|b| bucket_text(b, all_realms)),
         )
+        .chain(unmatched_text(&table.unmatched_leagues))
         .collect()
+}
+
+/// The scope's leagues no match is in, after a table keyed by `league`:
+/// a bucket is a value an item holds, so they have none (#173).
+fn unmatched_text(leagues: &[String]) -> Option<String> {
+    (!leagues.is_empty()).then(|| {
+        format!(
+            "           the scope's leagues no match is in have no bucket: {}",
+            leagues.join(", ")
+        )
+    })
 }
 
 fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
@@ -1827,6 +1839,7 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
             .collect();
         out.push(format!("           undecided: {}", tally.join(" · ")));
     }
+    out.extend(unmatched_text(&cross.unmatched_leagues));
     out
 }
 

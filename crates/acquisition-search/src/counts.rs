@@ -54,6 +54,13 @@
 //!   tab's type is keyed by realm as a tab and a vocabulary row are,
 //!   labelled with it, and its route is scoped to it (C96, C97). Under
 //!   one realm the value alone is the key.
+//! - **A league the matches are not in has no bucket, and the table names
+//!   it** (#173; the answer-facts seat, MCP run 2, call 38: three buckets
+//!   beside eight leagues in scope). A bucket is a value an item holds, so
+//!   a table keyed by `league`, or a cross with `league` among its keys,
+//!   lists in `unmatched_leagues` the scope's leagues (`scope.leagues`)
+//!   that no match is in, under any realm, and is silent where every one
+//!   has a bucket. Counted over every value, the cut ones too.
 //! - **`tab` is counted by the tab, never by its name.** An item in a
 //!   substash is in its tab's bucket. A name is no identity — two leagues
 //!   each have a `Dump` — and `tab=` tests a substash's name beside its
@@ -249,6 +256,10 @@ pub struct CrossOut {
     pub sum: Option<SumOf>,
     /// How many cells hold an item.
     pub cells_in_all: usize,
+    /// With `league` a key: the scope's leagues no match is in, which
+    /// have no cell, since a bucket is a value an item holds (#173).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub unmatched_leagues: Vec<String>,
     /// The cells that hold one, ranked; a cell is a bucket of each key.
     pub cells: Vec<Cell>,
     pub left_out: usize,
@@ -291,6 +302,10 @@ pub struct Table {
     pub key: String,
     /// How many values the matching items carry.
     pub values: usize,
+    /// Keyed by `league`: the scope's leagues no match is in, which have
+    /// no bucket, since a bucket is a value an item holds (#173).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub unmatched_leagues: Vec<String>,
     /// The values, ranked and cut; then `none`, then `undecided`, each only
     /// when it holds an item.
     pub buckets: Vec<Bucket>,
@@ -870,6 +885,10 @@ fn field_table(
             .then_with(|| spelled(a, &tabs).cmp(&spelled(b, &tabs)))
     });
     let in_all = values.len();
+    let unmatched_leagues = match def.thing {
+        Thing::League => unmatched(matches.corpus, values.iter().map(|(of, _)| of)),
+        _ => Vec::new(),
+    };
     let mut buckets: Vec<Bucket> = values
         .iter()
         .take(limit)
@@ -881,6 +900,7 @@ fn field_table(
     Table {
         key: key.to_string(),
         values: in_all,
+        unmatched_leagues,
         buckets,
         left_out,
         left_out_needs: (left_out > 0).then_some(TABLE_LIMIT),
@@ -961,6 +981,11 @@ pub(crate) fn crossed(bound: &BoundCounts, matches: &Matches<'_>) -> CrossOut {
     });
     let in_all = ranked_cells.len();
     let left_out = in_all.saturating_sub(bound.limit);
+    let unmatched_leagues = defs
+        .iter()
+        .position(|def| def.thing == Thing::League)
+        .map(|k| unmatched(matches.corpus, ranked_cells.iter().map(|(of, _)| &of[k])))
+        .unwrap_or_default();
     let cells = ranked_cells
         .iter()
         .take(bound.limit)
@@ -1010,8 +1035,27 @@ pub(crate) fn crossed(bound: &BoundCounts, matches: &Matches<'_>) -> CrossOut {
                 }
             })
             .collect(),
+        unmatched_leagues,
         tally: tallied(tally),
     }
+}
+
+/// The scope's leagues that none of these buckets is: a league counts as
+/// held when any realm's bucket is it (#173).
+fn unmatched<'a>(corpus: &Corpus, buckets: impl Iterator<Item = &'a Of>) -> Vec<String> {
+    let held: HashSet<&str> = buckets
+        .filter_map(|of| match of {
+            Of::Text(value) | Of::Placed { value, .. } => Some(value.as_str()),
+            _ => None,
+        })
+        .collect();
+    corpus
+        .coverage
+        .leagues
+        .iter()
+        .filter(|league| !held.contains(league.as_str()))
+        .cloned()
+        .collect()
 }
 
 // ---- the vocabulary -------------------------------------------------------------------------------
@@ -1301,6 +1345,7 @@ fn vocabulary(
     Table {
         key: key.to_string(),
         values: in_all,
+        unmatched_leagues: Vec::new(),
         buckets,
         left_out,
         left_out_needs: (left_out > 0 || computed_left_out > 0).then_some(TABLE_LIMIT),

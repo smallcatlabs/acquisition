@@ -1782,7 +1782,9 @@ fn cli4_a_spans_location_names_its_realm() {
 /// `(none)` and `(undecided)` are lines, so values, in the heading and in
 /// a limited view's `shown` (the round's review: `(undecided)` was left
 /// out). The JSON's `values` keeps its count of the values the items
-/// carry.
+/// carry. A table or a cross keyed by `league` closes on the scope's
+/// leagues no match is in (#173), the search crate's
+/// `unmatched_leagues`.
 #[test]
 fn cli13_a_counts_heading_counts_every_line_it_prints() {
     let scratch = harness::scratch("seat-count-lines");
@@ -1851,6 +1853,31 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
     json_args.push("--json");
     let json = sole_json(&acq(&base, &json_args));
     assert_eq!(json["view"]["counts"]["tables"][0]["values"], 2, "{json}");
+    // #173 (MCP run 2, call 38): keyed by `league`, a table and a cross
+    // name the scope's leagues no match is in, Allflame's orb no rare
+    let unmatched = "the scope's leagues no match is in have no bucket: Allflame\n";
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--count",
+            "league",
+            "rarity=rare",
+        ],
+        &[unmatched],
+    );
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--cross",
+            "league,rarity",
+            "rarity=rare",
+        ],
+        &[unmatched],
+    );
     golden(file!(), "count_heading_counts_every_line", &t);
 }
 

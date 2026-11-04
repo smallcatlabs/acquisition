@@ -259,6 +259,10 @@ pub fn answer_keys() -> Vec<Named> {
             "the view as it ran: rows, the default, ten where no limit is given, sorted by a value; counts, a table for each key and no rows, a sum's `value` over the items that have the value and its `lacking` counting the items without it, which add nothing; cross, one crossed table of two keys; explain, the total with one node forced true and forced false, the node named by its path as `terms[].path` gives it. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text; the counts section lists the keys. A sort's value is a field (reqlevel), a computed value (pseudo.total_res), a line's number (line(\"# to maximum Life\").arg1) or a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one; an item that lacks it is last, ascending or descending",
         ),
         key(
+            "unmatched_leagues",
+            "the leagues of `scope.leagues` no match is in, beside a counts table or a cross keyed by `league`: they have no bucket, since a bucket is a value a matching item holds; absent where every league in scope has one",
+        ),
+        key(
             "view.rows.next",
             "rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole",
         ),

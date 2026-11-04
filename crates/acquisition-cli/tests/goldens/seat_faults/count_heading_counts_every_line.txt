@@ -41,3 +41,45 @@ routes  each returns exactly the members counted (3 more: --routes)
   rarity (undecided) (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'league=Standard undecided(rarity)'
 basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc --count league rarity=rare
+# holds "the scope's leagues no match is in have no bucket: Allflame\n"
+--- stdout
+query   rarity=rare
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   1 match (fetched <age> ago, pc · Standard / Gear) · 1 undecided
+count   league · 1 value
+        1  Standard
+           the scope's leagues no match is in have no bucket: Allflame
+undecided `rarity` unread — e.g. Doom Loop Ruby Ring · id i-odd
+            `rarity` is a number, not a string; a refresh may help; a body GGG really gives this way needs a build that reads it
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    rarity=rare  1 matched · 1 failed · 2 lacked · 1 undecided
+routes  each returns exactly the members counted (4 more: --routes)
+  undecided at the root (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(rarity=rare)'
+  term 0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(rarity=rare)'
+basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc --cross league,rarity rarity=rare
+# holds "the scope's leagues no match is in have no bucket: Allflame\n"
+--- stdout
+query   rarity=rare
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   1 match (fetched <age> ago, pc · Standard / Gear) · 1 undecided
+cross   league × rarity · 1 cell
+        1  Standard × rare
+           the scope's leagues no match is in have no bucket: Allflame
+undecided `rarity` unread — e.g. Doom Loop Ruby Ring · id i-odd
+            `rarity` is a number, not a string; a refresh may help; a body GGG really gives this way needs a build that reads it
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    rarity=rare  1 matched · 1 failed · 2 lacked · 1 undecided
+routes  each returns exactly the members counted (4 more: --routes)
+  undecided at the root (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(rarity=rare)'
+  term 0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(rarity=rare)'
+basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

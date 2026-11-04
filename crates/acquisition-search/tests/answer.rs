@@ -793,6 +793,90 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     assert_eq!(unknown["scope"]["list_seen"], 5, "{}", unknown["scope"]);
 }
 
+/// #173 — a counts or cross view keyed by `league` names the scope's
+/// leagues no match is in (the answer-facts seat, MCP run 2, call 38:
+/// three buckets beside eight leagues): a bucket is a value a matching
+/// item holds, so Allflame, whose one listed tab was never fetched, or a
+/// query every Standard item fails, leaves a league with none. A league is held under any realm
+/// (call 38's `Standard` twice); the field is absent where every league in
+/// scope has a bucket, and beside any key but `league`.
+#[test]
+fn a_league_count_names_the_scopes_leagues_no_match_is_in() {
+    let mut s = worked();
+    let counted = |corpus: &Corpus, text: &str, view: Value| -> Value {
+        let request =
+            serde_json::from_value(json!({ "query": { "text": text }, "view": view })).unwrap();
+        as_json(&acquisition_search::answer(corpus, &request).unwrap())
+    };
+    let league = json!({ "counts": { "keys": ["league", "rarity"] } });
+    let cross = json!({ "cross": { "keys": ["rarity", "league"] } });
+    let corpus = load(&s, Some("pc"));
+    let every = counted(&corpus, "", league.clone());
+    assert_eq!(every["scope"]["leagues"], json!(["Standard"]), "{every}");
+    for table in every["view"]["counts"]["tables"].as_array().unwrap() {
+        assert!(table.get("unmatched_leagues").is_none(), "{table}");
+    }
+
+    list_tabs(&mut s, "pc", "Allflame", json!([tab("a1", "Gear")]), 5);
+    let corpus = load(&s, Some("pc"));
+    let a = counted(&corpus, "", league.clone());
+    assert_eq!(
+        a["scope"]["leagues"],
+        json!(["Allflame", "Standard"]),
+        "{a}"
+    );
+    let tables = &a["view"]["counts"]["tables"];
+    assert_eq!(tables[0]["unmatched_leagues"], json!(["Allflame"]), "{a}");
+    assert!(tables[1].get("unmatched_leagues").is_none(), "{a}");
+    let c = counted(&corpus, "", cross.clone());
+    assert_eq!(
+        c["view"]["cross"]["unmatched_leagues"],
+        json!(["Allflame"]),
+        "{c}"
+    );
+    // a match none of Standard's items is: neither league has a bucket
+    let none = counted(&corpus, "rarity=rare rarity=magic", league.clone());
+    assert_eq!(
+        none["view"]["counts"]["tables"][0]["unmatched_leagues"],
+        json!(["Allflame", "Standard"]),
+        "{none}"
+    );
+
+    // all realms: Standard's buckets are two, one per realm, and Standard
+    // is held; poe2's Dawn holds nothing
+    fetch_tab(
+        &mut s,
+        "poe2",
+        "Standard",
+        "p1",
+        "Gear",
+        vec![ring("q1", "Rare", json!({}))],
+        12,
+    );
+    list_tabs(&mut s, "poe2", "Dawn", json!([tab("d1", "Gear")]), 5);
+    let corpus = load(&s, Some("all"));
+    let a = counted(&corpus, "", league);
+    let buckets = a["view"]["counts"]["tables"][0]["buckets"]
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        buckets.iter().filter(|b| b["value"] == "Standard").count(),
+        2,
+        "{a}"
+    );
+    assert_eq!(
+        a["view"]["counts"]["tables"][0]["unmatched_leagues"],
+        json!(["Allflame", "Dawn"]),
+        "{a}"
+    );
+    let c = counted(&corpus, "", cross);
+    assert_eq!(
+        c["view"]["cross"]["unmatched_leagues"],
+        json!(["Allflame", "Dawn"]),
+        "{c}"
+    );
+}
+
 /// C115, a row as slim as the decision view allows (C53, C100): a row says
 /// each term it touched by its path, which the terms block names, and the
 /// lines it touched with their values, and nothing else of the term; a

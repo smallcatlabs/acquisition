@@ -222,6 +222,7 @@ an answer, key by key
   before                       key         where a request is sent back with the `count` it was printed with, and the `counted_at` basis it came from
   rows                         key         id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`
   view                         key         the view as it ran
+  unmatched_leagues            key         the leagues of `scope.leagues` no match is in, beside a counts table or a cross keyed by `league`
   view.rows.next               key         rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after
   zero                         key         in place of rows when the total is zero
   terms                        key         for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`
