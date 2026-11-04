@@ -653,8 +653,14 @@ three times under two cold reviews), went to the second parked
 worker and landed on 2026-11-04 as one commit (`077c80c8`); reviewed
 (two P3s), fixed in one round (`a6e50ab8`) and reviewed clean; closed
 the same day (`LEDGER.md`), #105 closed on its third item and #12 on
-the owner's answer to the map's question 7. Current: round 3, every
-time a document carries has its words (`briefs/every-epoch-words.md`,
-C163 as amended on 2026-11-04), landed on 2026-11-04 as one commit on
-the first parked worker, and its review is pending; after it, the
-group's seat.
+the owner's answer to the map's question 7. Round 3, every time a document carries has its words
+(`briefs/every-epoch-words.md`, cut three times under two cold
+reviews; C163 entered and amended on the owner's word, #164), built
+by the first parked worker handed its brief by message, landed on
+2026-11-04 as one commit (`06a3f650`); reviewed (two P2s), fixed in
+one round (`b55c8359`), reviewed (one P3), fixed in a second
+(`4fd14018`) read by the orchestrating session; closed the same day
+(`LEDGER.md`), #164 closed. Every round of the group has landed.
+Current: the group's seat (`audits/answer-facts-2026-11/seat/`), two
+blind runners at the release build of this tree, the CLI door and the
+MCP door; then the group's close.
