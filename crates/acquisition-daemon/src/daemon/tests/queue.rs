@@ -1035,6 +1035,77 @@ fn c164_a_refused_substash_names_its_parents_fetch_which_lets_it_through() {
     });
 }
 
+/// C164, the review of round D, finding 2: a store whose presence cannot
+/// be told is refused as an unreadable one is, never taken for absent.
+/// Alice's store, its listing naming A alone, sits in a store directory
+/// that has lost its search permission, so asking whether the file is
+/// there fails; a stash job for a tab that listing does not name is
+/// refused, nothing admitted and nothing sent. The permission is put
+/// back when the test ends, failure included, so the directory can go.
+#[cfg(unix)]
+#[test]
+fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
+    use std::os::unix::fs::PermissionsExt as _;
+    /// Puts the directory's permission back on drop.
+    struct Searchable<'a>(&'a std::path::Path);
+    impl Drop for Searchable<'_> {
+        fn drop(&mut self) {
+            let _ = std::fs::set_permissions(self.0, std::fs::Permissions::from_mode(0o700));
+        }
+    }
+    let store_dir = TestPath::dir();
+    let file = account_path(&store_dir, "Alice#1234");
+    let mut store = Store::open(&file).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "A", "name": "A", "type": "PremiumStash", "index": 0 } ] }),
+            acquisition_store::now() - 7200,
+        )
+        .unwrap();
+    drop(store);
+    std::fs::set_permissions(&*store_dir, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let _searchable = Searchable(&store_dir);
+    assert!(
+        file.try_exists().is_err(),
+        "the seam holds: whether the store is there cannot be told"
+    );
+    Door::open(
+        Server::Account(NO_HOLD),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(live_sessions(&ParkingClock::new()))
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let submit = submit_of(
+            "stash",
+            json!({ "league": "Standard", "id": "C" }),
+            0,
+            "client",
+            Some("Alice#1234"),
+        );
+        let what = "c164: a stash job beside a store that cannot be told present";
+        assert_refused(
+            door.request(submit).await,
+            what,
+            ErrorKind::Refused,
+            &["could not be read".to_string()],
+            &[],
+        );
+        assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
+        door.settle().await;
+        assert!(door.sent().is_empty(), "{what}: sent");
+        assert!(door.journal().is_empty(), "{what}: journaled");
+        door.finish().await;
+    });
+}
+
 /// C127 (a sleep is bounded), the admission table's rows of
 /// `c127_a_sleep_with_bad_seconds_is_refused_at_submit` beside it: a
 /// sleep within the bound, zero seconds, is admitted as job 1 and runs to

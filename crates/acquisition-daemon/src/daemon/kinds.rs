@@ -304,7 +304,9 @@ impl Daemon {
     /// store directory is set, the account has no store file yet (none is
     /// created to judge it) or no listing of that realm and league is
     /// stored; refused where the store cannot be read, as the job would
-    /// fail at its landing after a send (C144). Any other kind passes.
+    /// fail at its landing after a send (C144), and where whether the
+    /// file is there cannot be told, never taken for absent (the review of
+    /// round D, finding 2). Any other kind passes.
     pub(super) fn admit_listed(
         &self,
         kind: &str,
@@ -326,14 +328,22 @@ impl Daemon {
         else {
             return Ok(());
         };
-        if !account_path(dir, account).exists() {
-            return Ok(());
-        }
         let unread = |fault: String| {
             refused(format!(
                 "the stash listing stored for {realm} {league} could not be read to judge this tab: {fault}"
             ))
         };
+        let path = account_path(dir, account);
+        match path.try_exists() {
+            Ok(true) => {}
+            Ok(false) => return Ok(()),
+            Err(e) => {
+                return Err(unread(format!(
+                    "whether {} is there cannot be told: {e}",
+                    path.display()
+                )));
+            }
+        }
         let listing = self
             .with_store(dir, account, |store| store.stash_listing(&realm, &league))
             .map_err(unread)?
