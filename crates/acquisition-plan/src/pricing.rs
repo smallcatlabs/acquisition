@@ -36,11 +36,19 @@
 //!   refuses such a target saying it has a row and where it is listed.
 //! - A blind write never lands over a row this build cannot read
 //!   ([`Expect::Current`]): the prior would be intent it cannot restore.
-//! - The write is last: [`set`] reads everything its receipt reports,
-//!   the facts included, before the write and nothing after it, so a
-//!   read that fails refuses before anything changes and no write lands
-//!   whose receipt was lost. A target the facts do not hold is noted,
-//!   never refused (C64).
+//! - What a set must refuse on is read before the write: [`set`] reads
+//!   whether the facts hold the target and the substash note first, so
+//!   a read that fails there refuses before anything changes. A target
+//!   the facts do not hold is noted, never refused (C64).
+//! - What a container's receipt counts is read after the write, and
+//!   never fails it: a read that cannot answer leaves the receipt whole
+//!   with `counts_unavailable` in place of the counts ([`Uncounted`], the
+//!   review of round B), its follow-up read the bare `price show`, which
+//!   finds where the facts hold the target when it runs (the review of
+//!   round B's fix round).
+//! - `show` naming neither realm nor league reads where the facts hold
+//!   the target live ([`held_places`]), and refuses one held in several
+//!   places naming each.
 
 use std::str::FromStr;
 
@@ -1105,10 +1113,11 @@ pub fn set(
     let target = read_target(target)?;
     let shown = read_back(&target, account, quote);
     let value = read_buyout(kind, amount, currency)?;
-    // Everything the receipt reports is read before the write and nothing
-    // after it, so a read that fails refuses before anything changes: the
-    // note, whether the facts hold the target at all, in any league,
-    // removed included.
+    // What the receipt needs to refuse on is read before the write, so a
+    // read that fails refuses before anything changes: the note, whether
+    // the facts hold the target at all, in any league, removed included.
+    // The container's counts are read after it and never fail it
+    // (`covering`).
     let in_facts = store
         .holds(&FactAddress::from(&target))
         .context("reading the facts for the target")?;

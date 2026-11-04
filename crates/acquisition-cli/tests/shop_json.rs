@@ -1,6 +1,8 @@
 //! Process-level pin of `acq shop render` (C74, C72, C53): the `--json`
 //! document is the [`ShopRender`] the text is a function of, `--page N`
-//! prints exactly one page's text, a template file wraps each page, and
+//! prints exactly one page's text on stdout (the render's lines on
+//! stderr; its `--json` the page beside the render's context), a
+//! template file wraps each page, and
 //! nothing contacts a daemon (`ACQ_NO_SPAWN=1` makes any contact an
 //! error). Facts and intent are seeded through the store crate, as
 //! `price_json.rs` does.
@@ -254,8 +256,9 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     // --page N is the page's text and nothing else on stdout, for the
     // clipboard; the render's lines stand on stderr: the head, the facts
     // and coverage lines, the page's label (#169; the answer-facts seat,
-    // MCP run 1 call 50 against 51). --json is the render's document,
-    // its `pages` the one asked, beside the page's own fields.
+    // MCP run 1 call 50 against 51). --json is the page's own fields and
+    // beside them every key of the render but `pages`, the text once
+    // (the review of round B, finding 4).
     let out = acq(&base, &["shop", "render", "--page", "1"]);
     assert!(out.status.success(), "{}", stderr(&out));
     assert_eq!(String::from_utf8_lossy(&out.stdout), page_text);
