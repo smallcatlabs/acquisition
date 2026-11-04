@@ -1,0 +1,19 @@
+`aee07f64..6483b9f6`: the brief’s done-when does not fully hold; all four fault commits and named pins exist, but the clock rule, scope gloss, and boundary pins remain incomplete.
+
+- **[P2] [plan_cmd.rs:798](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/plan_cmd.rs:798), shape 3:** The audit renderer still prints frozen listing ages without naming their clock. For a saved plan made two hours ago over a listing 53 seconds older, `refresh --plan=FILE --expand` still says `stash listing 53s old`, with no plan age. This meets a persisted plan envelope. Apply the same “before the plan; plan made … ago” rule to the audit basis and pin that rendering. Removing the default header suffix itself loses nothing: its age remains in the facts line.
+
+- **[P2] [describe.rs:231](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-search/src/describe.rs:231), shape 1:** The gloss’s two cases omit the fixed-league fallback. With persisted Allflame and Standard listings, no character list, and client query `league=Nowhere`, `list_seen_in` returns none and the answer retains the realm’s oldest listing—already asserted in `acquisition-search/tests/answer.rs:793`. `coverage::span` simply takes the minimum timestamp of the supplied listings. Qualify the gloss: narrowing applies when a matching listing exists; otherwise the realm-wide minimum remains.
+
+- **[P3] [events.rs:144](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-verbs/src/events.rs:144), shape 1:** Zero returned events do not establish an empty window when client input sets `limit: 0`. With a persisted event from one hour ago, `item_events {summary:true, limit:0}` now carries `newest_on_record`, despite its documented absence for populated windows; widening `hours` cannot remedy this cut. Require `!listed.limit_reached` before adding the empty-window field, and pin the zero-limit case.
+
+- **[P3] [seat_faults.rs:1993](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/tests/seat_faults.rs:1993), shape 2:** The newest-on-record pin cannot distinguish newest from oldest because every seeded event has the same timestamp. The production read correctly uses descending event time, but an oldest-event implementation would satisfy this fixture too. Seed events at two distinct ages outside the window and assert the newer event’s exact epoch and words.
+
+- **[P3] [seat_faults.rs:1287](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/tests/seat_faults.rs:1287), shape 2:** The scope pin exercises only a store with listings, leaving the new `no location list seen` branch unpinned. A profile-only persisted store is the missing input; reverting that branch to `location list seen never` would leave the changed test green. Add that case to the existing scope transcript and hold the new sentence explicitly.
+
+- **[P3] [plan_cmd.rs:334](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-cli/src/plan_cmd.rs:334):** Fresh-plan rendering measures the newly added plan age using a timestamp captured before compilation and the awaited quote. A five-second quote timeout therefore produces `plan made 0s ago` when the answer is emitted about five seconds later. Read the rendering time after the awaited work, as the selection and web paths do.
+
+Execution, gate status, test count, and commands running as printed: **not verified**, because this was a read-only review; the unavailable call outputs were judged through the brief’s quotations.
+
+The zero-limit event-summary case and the few-second fresh-plan clock discrepancy are the findings I would call practical nitpicks. The missing pins are explicit acceptance gaps.
+
+The brief and plan did not obstruct the review. I would change nothing in the prompt.
