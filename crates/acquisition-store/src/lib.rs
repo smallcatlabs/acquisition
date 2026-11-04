@@ -998,6 +998,17 @@ impl Status {
     }
 }
 
+/// When a tab `t` left: its own retirement, or its parent's, which takes
+/// a substash with it though the substash keeps its row (C54). The one
+/// test of a live tab, `{TAB_GONE} IS NULL`: the corpus's locations and
+/// coverage, `tabs`' rows and `store status`'s tab count (the review of
+/// round C, finding 2). The planner's and the pricing snapshots read a
+/// row's own `removed_at`, to report a retired parent's substashes as
+/// the orphans they are.
+pub(crate) const TAB_GONE: &str =
+    "COALESCE(t.removed_at, (SELECT p.removed_at FROM tabs p WHERE p.realm = t.realm
+                                  AND p.league = t.league AND p.id = t.parent))";
+
 /// A league's live tabs in listing order (folder children after their
 /// folder, substashes after their tab), over `conn`: the store's own
 /// connection, or a read transaction a document's reads share (the
@@ -1009,7 +1020,7 @@ fn tabs_in(conn: &Connection, realm: &str, league: &str) -> Result<Vec<TabRow>> 
                 (SELECT count(*) FROM items i WHERE i.realm = t.realm AND i.league = t.league AND i.location_kind = 'stash' AND i.location_id = t.id AND i.removed_at IS NULL),
                 CASE WHEN t.fetched_at IS NULL THEN NULL
                      ELSE COALESCE(json_extract(t.json, '$.stash._split.items'), json_extract(t.json, '$._split.items')) END
-           FROM tabs t WHERE t.realm = ?1 AND t.league = ?2 AND t.removed_at IS NULL ORDER BY {TAB_ORDER_KEYS}"
+           FROM tabs t WHERE t.realm = ?1 AND t.league = ?2 AND {TAB_GONE} IS NULL ORDER BY {TAB_ORDER_KEYS}"
     ))?;
     let rows = stmt.query_map([realm, league], |r| {
         Ok(TabRow {
@@ -2257,7 +2268,7 @@ impl Store {
                 }
             },
             characters: count("SELECT count(*) FROM characters WHERE removed_at IS NULL")?,
-            tabs: count("SELECT count(*) FROM tabs WHERE removed_at IS NULL")?,
+            tabs: count(&format!("SELECT count(*) FROM tabs t WHERE {TAB_GONE} IS NULL"))?,
             items: count("SELECT count(*) FROM items WHERE removed_at IS NULL")?,
             items_removed: count("SELECT count(*) FROM items WHERE removed_at IS NOT NULL")?,
             events: count("SELECT count(*) FROM item_events")?,

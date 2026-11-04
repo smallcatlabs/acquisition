@@ -2201,17 +2201,24 @@ fn substash_membership_follows_the_parents_fetch_and_the_parents_fate() {
         .record(&listing, &json!({}), 200, &json!({ "stashes": [] }), 6)
         .unwrap();
     assert_eq!(ing.removed, 1);
-    let ids: Vec<String> = s
-        .tabs("pc", "Standard")
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    assert_eq!(ids, vec!["s2"]);
+    // the orphan's row, read as the planner's snapshot reads a row (its
+    // own `removed_at`), where `tabs` reads live locations alone, a
+    // retired parent's substash among the gone (the review of round C,
+    // finding 2)
+    let orphans = |s: &Store| -> Vec<(String, Option<i64>)> {
+        let mut stmt = s
+            .conn
+            .prepare("SELECT id, fetched_at FROM tabs WHERE removed_at IS NULL ORDER BY id")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    assert!(s.tabs("pc", "Standard").unwrap().is_empty());
     assert!(s.item("map2").unwrap().unwrap().removed_at.is_some());
-    let s2 = &s.tabs("pc", "Standard").unwrap()[0];
     // …and its freshness went with its facts: no fetch on record.
-    assert_eq!((s2.item_count, s2.fetched_at), (0, None));
+    assert_eq!(orphans(&s), [("s2".to_string(), None)]);
     // With the parent retired, a late fetch of the substash is
     // withheld (its parent is not live), and a late fetch of the
     // parent neither revives it nor rewrites its children: the orphan
@@ -2225,13 +2232,7 @@ fn substash_membership_follows_the_parents_fetch_and_the_parents_fate() {
         .record(&stash_ep("m1"), &json!({}), 200, &parent(&["s9"]), 8)
         .unwrap();
     assert_eq!((ing.items, ing.withheld), (0, Some(0)));
-    let ids: Vec<String> = s
-        .tabs("pc", "Standard")
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    assert_eq!(ids, vec!["s2"]);
+    assert_eq!(orphans(&s), [("s2".to_string(), None)]);
 }
 
 /// Removal events name exactly the items this response retired: two
@@ -2843,4 +2844,66 @@ fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
     let st = a.status().unwrap();
     assert_eq!(st.items as usize, st.facts.items, "{st:?}");
     assert_eq!(st.facts.fetched, 0, "{st:?}");
+}
+
+/// The review of round C, finding 2: a substash whose map tab a listing
+/// retired keeps its row (the planner reports it as orphaned, C54) and
+/// is no live location; `tabs` counted it while the facts left it out
+/// through its parent. One reading of a live tab, the parent's fate
+/// included: gone in `tabs`' rows and in every coverage alike.
+#[test]
+fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
+    let mut s = Store::open_memory().unwrap();
+    let listing = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Standard".into(),
+    };
+    s.record(
+        &listing,
+        &json!({}),
+        200,
+        &json!({ "stashes": [ { "id": "m1", "name": "Maps", "type": "MapStash", "index": 0 },
+                              { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 1 } ] }),
+        1,
+    )
+    .unwrap();
+    s.record(
+        &stash_ep("m1"),
+        &json!({}),
+        200,
+        &json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
+                 "children": [ { "id": "s1", "name": "", "type": "MapStash", "parent": "m1", "metadata": { "items": 1 } } ] } }),
+        2,
+    )
+    .unwrap();
+    // the listing drops the map tab: s1's row stays, orphaned
+    s.record(
+        &listing,
+        &json!({}),
+        200,
+        &json!({ "stashes": [ { "id": "k1", "name": "Keep", "type": "PremiumStash", "index": 0 } ] }),
+        3,
+    )
+    .unwrap();
+    let orphan: Option<i64> = s
+        .conn
+        .query_row("SELECT removed_at FROM tabs WHERE id = 's1'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(
+        orphan, None,
+        "the orphan's row stays, its own removed_at unset"
+    );
+    let (rows, coverage) = s.tabs_document("pc", "Standard", 10).unwrap();
+    let ids: Vec<&str> = rows.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(ids, ["k1"], "{rows:?}");
+    assert_eq!(
+        rows.len(),
+        coverage.fetched + coverage.never_fetched + coverage.folders,
+        "{coverage:?}"
+    );
+    let st = s.status().unwrap();
+    assert_eq!(st.tabs, 1, "{st:?}");
+    assert_eq!(st.facts.fetched + st.facts.never_fetched, 1, "{st:?}");
 }

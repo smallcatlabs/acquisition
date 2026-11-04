@@ -366,11 +366,7 @@ fn read_listings(tx: &rusqlite::Transaction, realm: Option<&str>) -> Result<Vec<
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
-/// When a tab left: its own retirement, or its parent's, which takes a
-/// substash with it though the substash keeps its row (C54).
-const TAB_GONE: &str =
-    "COALESCE(t.removed_at, (SELECT p.removed_at FROM tabs p WHERE p.realm = t.realm
-                                  AND p.league = t.league AND p.id = t.parent))";
+use crate::TAB_GONE;
 
 fn read_locations(
     tx: &rusqlite::Transaction,
