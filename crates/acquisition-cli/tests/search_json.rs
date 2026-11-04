@@ -641,11 +641,14 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     let mut t = Transcript::offline(&base);
     let shown = text(&t.run(
         &["search", "--realm", "pc", LIFE, "--routes"],
-        &[
-            "2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together",
-            "total   2 matches · 1 undecided",
-        ],
+        &["2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together"],
     ));
+    assert!(
+        harness::normalise(&shown, &base).contains(
+            "\ntotal   2 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Dump) · 1 undecided\n"
+        ),
+        "{shown}"
+    );
     for digest in [&a["basis"]["store"], &a["basis"]["build"]] {
         assert!(
             shown.contains(digest.as_str().unwrap()),
@@ -2113,9 +2116,17 @@ fn step_10_membership_all_at_a_terminal() {
         ],
         &[
             " · all · 4 items live · 1 removed · ",
+            // the matches' oldest and newest fetch on the total line, each
+            // with its place (#11, #155)
             "each term counted alone over all live and removed pc items",
         ],
     ));
+    assert!(
+        harness::normalise(&shown, &base).contains(
+            "\ntotal   4 matches (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Rings)\n"
+        ),
+        "{shown}"
+    );
     assert!(
         shown
             .lines()
@@ -2137,11 +2148,17 @@ fn step_10_membership_all_at_a_terminal() {
         &["search", "--realm", "pc", "id:r2"],
         &[
             "id:r2 — it left the scope, as its term says",
-            // the scope's oldest and newest fetch, each with its place (#11)
-            ", Standard / Dump; the newest ",
-            ", Standard / Rings)",
+            // nothing matched, so no fetch is the matches' (#155)
+            "total   0 matches\n",
         ],
     ));
+    // the scope line carries its counts, the ages the matches' alone
+    assert!(
+        gone.lines()
+            .any(|l| l.starts_with("scope ") && l.ends_with(" locations fetched")),
+        "{gone}"
+    );
+    assert!(!gone.contains("the oldest fetch"), "{gone}");
     let said = gone
         .lines()
         .find(|l| l.contains("this id is an item that left the scope"))

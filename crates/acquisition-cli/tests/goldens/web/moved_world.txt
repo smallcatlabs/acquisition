@@ -64,9 +64,9 @@ trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the si
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
         NOT RUN   stats.0.0  no row of the stat table is `explicit.stat_9999999999`
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   5 matches
+total   5 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch)
 </pre>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
@@ -94,9 +94,9 @@ GET search?<every ring>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   category=&quot;accessory.ring&quot;
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   3 matches · 1 undecided
+total   3 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch) · 1 undecided
 </pre>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>

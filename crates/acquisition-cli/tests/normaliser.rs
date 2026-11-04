@@ -313,22 +313,37 @@ fn normalising_a_committed_golden_changes_nothing() {
     );
 }
 
-/// A world fetched in real time writes the scope's two fetch places
+/// A world fetched in real time writes the total's fetch places
 /// `<place>`, since which location is the newest hangs on a second's
 /// boundary (#11; the journey's flipped between runs); the rest of the
 /// line, every other line and a fact stand.
 #[test]
-fn the_fetch_place_rule_writes_the_scopes_two_places_and_nothing_else() {
+fn the_fetch_place_rule_writes_the_totals_places_and_nothing_else() {
     use crate::harness::fetch_place_rule;
-    let text = "scope   account a · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / u001)\n\
-                # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
-                rows    Ring · Standard / Dump · fetched <age> ago\n";
-    let once = fetch_place_rule(text);
-    assert_eq!(
-        once,
-        "scope   account a · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>)\n\
+    let rule = |text: &str, expected: &str| {
+        let once = fetch_place_rule(text);
+        assert_eq!(once, expected);
+        assert_eq!(fetch_place_rule(&once), once);
+    };
+    rule(
+        "scope   account a · pc · live · 49 items · 16 locations fetched\n\
+         total   12 matches (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / u001)\n\
          # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
-         rows    Ring · Standard / Dump · fetched <age> ago\n"
+         rows    Ring · Standard / Dump · fetched <age> ago\n",
+        "scope   account a · pc · live · 49 items · 16 locations fetched\n\
+         total   12 matches (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>)\n\
+         # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
+         rows    Ring · Standard / Dump · fetched <age> ago\n",
     );
-    assert_eq!(fetch_place_rule(&once), once);
+    // a character's place carries a ")" of its own, and an undecided
+    // count may follow the clause
+    rule(
+        "total   3 matches (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Exile (character)) · 1 undecided\n",
+        "total   3 matches (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>) · 1 undecided\n",
+    );
+    // one location, named once
+    rule(
+        "total   2 matches (fetched <age> ago, Standard / Dump)\n",
+        "total   2 matches (fetched <age> ago, <place>)\n",
+    );
 }

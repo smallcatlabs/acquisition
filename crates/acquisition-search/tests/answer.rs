@@ -6,6 +6,7 @@
 
 use crate::common;
 
+use acquisition_search::answer::Membership;
 use acquisition_search::{Corpus, Realm};
 use acquisition_store::Store;
 use common::answer;
@@ -883,4 +884,476 @@ fn a_printed_word_is_quoted_for_the_declared_shell() {
         let expected = &quoted.iter().find(|(shell, _)| *shell == here).unwrap().1;
         assert_eq!(&shell_quoted(&word), expected, "{word}");
     }
+}
+
+// ---- the matches' fetch span on `total` (#155; C118, C162) ----------------------------------
+
+const DAY: i64 = 86_400;
+/// The answer's time for the span's ages: eight days after the first
+/// fetch of [`three_tabs`].
+const AT: i64 = 1_000 + 8 * DAY;
+/// The span's keys on `total`, beside `matched`.
+const SPAN: [&str; 9] = [
+    "places",
+    "oldest_fetch",
+    "oldest_fetch_age",
+    "oldest_fetch_location",
+    "newest_fetch",
+    "newest_fetch_age",
+    "newest_fetch_location",
+    "list_seen",
+    "list_seen_age",
+];
+
+/// The span's keys `total` carries, and nothing else of it.
+fn subject(a: &Value) -> Value {
+    Value::Object(
+        SPAN.iter()
+            .filter_map(|k| a["total"].get(*k).map(|v| (k.to_string(), v.clone())))
+            .collect(),
+    )
+}
+
+fn stash(id: &str, name: &str, league: &str) -> Value {
+    json!({ "kind": "stash", "id": id, "name": name, "league": league })
+}
+
+fn asked_at(corpus: &Corpus, request: Value) -> Value {
+    let request = serde_json::from_value(request).unwrap();
+    as_json(&answer(corpus, &request).unwrap().aged(AT))
+}
+
+/// Standard's list seen at 500; `Old` (t3) fetched at 1,000 holding a
+/// magic ring; `Rings` (t1) two days later holding three rares; `Dump`
+/// (t2) five days later holding one.
+fn three_tabs() -> Store {
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("t1", "Rings"), tab("t2", "Dump"), tab("t3", "Old")]),
+        500,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t3",
+        "Old",
+        vec![ring("m1", "Magic", json!({}))],
+        1_000,
+    );
+    let rares = ["r1", "r2", "r4"].map(|id| ring(id, "Rare", json!({})));
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Rings",
+        rares.to_vec(),
+        1_000 + 2 * DAY,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t2",
+        "Dump",
+        vec![ring("r3", "Rare", json!({}))],
+        1_000 + 5 * DAY,
+    );
+    s
+}
+
+/// The seat quoted the scope's ages for the matches (#155): `total` says
+/// the matches' own, over their two locations, on the rows however
+/// limited, on the counts and on the cross view alike, and the scope's
+/// oldest is its own older location's.
+#[test]
+fn c162_total_carries_the_matches_fetch_span_on_every_view() {
+    let corpus = load(&three_tabs(), Some("pc"));
+    let expected = json!({
+        "places": 2,
+        "oldest_fetch": 1_000 + 2 * DAY,
+        "oldest_fetch_age": "6d ago",
+        "oldest_fetch_location": stash("t1", "Rings", "Standard"),
+        "newest_fetch": 1_000 + 5 * DAY,
+        "newest_fetch_age": "3d ago",
+        "newest_fetch_location": stash("t2", "Dump", "Standard"),
+        "list_seen": 500,
+        "list_seen_age": "8d ago",
+    });
+    let query = json!({ "text": "rarity=rare" });
+    for view in [
+        json!({}),
+        json!({ "rows": { "limit": 1 } }),
+        json!({ "counts": { "keys": ["league"] } }),
+        json!({ "cross": { "keys": ["league", "rarity"] } }),
+    ] {
+        let a = asked_at(&corpus, json!({ "query": query, "view": view }));
+        assert_eq!(a["total"]["matched"], 4, "{view}");
+        assert_eq!(subject(&a), expected, "{view}");
+        // the scope's oldest is the older location no match is in
+        assert_eq!(
+            (
+                &a["scope"]["oldest_fetch"],
+                &a["scope"]["oldest_fetch_location"]["id"]
+            ),
+            (&json!(1_000), &json!("t3")),
+            "{view}"
+        );
+    }
+}
+
+#[test]
+fn c162_matches_in_one_location_are_one_place_its_fetch_both_ways() {
+    let corpus = load(&three_tabs(), Some("pc"));
+    let a = asked_at(&corpus, json!({ "query": { "text": "id:r3" } }));
+    let dump = stash("t2", "Dump", "Standard");
+    assert_eq!(a["total"]["places"], 1);
+    assert_eq!(
+        (
+            &a["total"]["oldest_fetch"],
+            &a["total"]["oldest_fetch_location"]
+        ),
+        (&json!(1_000 + 5 * DAY), &dump)
+    );
+    assert_eq!(
+        (
+            &a["total"]["newest_fetch"],
+            &a["total"]["newest_fetch_location"]
+        ),
+        (&json!(1_000 + 5 * DAY), &dump)
+    );
+}
+
+#[test]
+fn c162_a_location_holding_three_matches_is_counted_once() {
+    let corpus = load(&three_tabs(), Some("pc"));
+    let a = asked_at(
+        &corpus,
+        json!({ "query": { "text": "rarity=rare -id:r3" } }),
+    );
+    assert_eq!(
+        (&a["total"]["matched"], &a["total"]["places"]),
+        (&json!(3), &json!(1))
+    );
+    assert_eq!(
+        a["total"]["oldest_fetch_location"],
+        stash("t1", "Rings", "Standard")
+    );
+    assert_eq!(
+        a["total"]["oldest_fetch_location"],
+        a["total"]["newest_fetch_location"]
+    );
+}
+
+/// Nothing matched: no span, and no place.
+#[test]
+fn c162_no_match_has_no_places_and_no_span() {
+    let corpus = load(&three_tabs(), Some("pc"));
+    let a = asked_at(&corpus, json!({ "query": { "text": "rarity=unique" } }));
+    assert_eq!(subject(&a), json!({ "places": 0 }));
+}
+
+/// A socketed item sits where its holder does: the two are one place.
+#[test]
+fn c162_a_socketed_match_is_its_holders_place() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Gear")]), 10);
+    let gem = item("g1", "", "Fireball", "Gem", json!({}));
+    let holder = ring("r1", "Rare", json!({ "socketedItems": [gem] }));
+    fetch_tab(&mut s, "pc", "Standard", "t1", "Gear", vec![holder], 20);
+    let corpus = load(&s, Some("pc"));
+    let a = asked_at(&corpus, json!({ "query": { "text": "" } }));
+    assert_eq!(ids(&a), ["g1", "r1"]);
+    assert_eq!(a["total"]["places"], 1);
+    assert_eq!(
+        a["total"]["oldest_fetch_location"],
+        stash("t1", "Gear", "Standard")
+    );
+}
+
+/// A tab id recurs across leagues and is two places; a character's does
+/// not, so one character matched in two of its leagues is one place.
+#[test]
+fn c162_places_are_keyed_as_the_corpus_keys_a_location() {
+    let mut s = store();
+    for (league, item_id, at) in [("Old", "r-old", 20), ("Standard", "r-std", 40)] {
+        list_tabs(&mut s, "pc", league, json!([tab("x1", "Shared")]), at - 5);
+        fetch_tab(
+            &mut s,
+            "pc",
+            league,
+            "x1",
+            "Shared",
+            vec![ring(item_id, "Rare", json!({}))],
+            at,
+        );
+    }
+    let a = asked_at(
+        &load(&s, Some("pc")),
+        json!({ "query": { "text": "rarity=rare" } }),
+    );
+    assert_eq!(a["total"]["places"], 2);
+    assert_eq!(
+        (
+            &a["total"]["oldest_fetch_location"],
+            &a["total"]["newest_fetch_location"]
+        ),
+        (
+            &stash("x1", "Shared", "Old"),
+            &stash("x1", "Shared", "Standard")
+        )
+    );
+    // both tab lists name a place of the set: the older is Old's
+    assert_eq!(a["total"]["list_seen"], 15);
+
+    let mut s = store();
+    let in_league = |league: &str, equipment: Vec<Value>| json!({ "id": "c1", "name": "Mover", "league": league, "equipment": equipment });
+    let listed = |league: &str| json!([{ "id": "c1", "name": "Mover", "league": league }]);
+    list_characters(&mut s, "pc", listed("Settlers"), 10);
+    let both = vec![
+        ring("kept", "Rare", json!({})),
+        ring("gone", "Rare", json!({})),
+    ];
+    fetch_character(&mut s, "pc", in_league("Settlers", both), 20);
+    list_characters(&mut s, "pc", listed("Standard"), 30);
+    fetch_character(
+        &mut s,
+        "pc",
+        in_league("Standard", vec![ring("kept", "Rare", json!({}))]),
+        40,
+    );
+    for membership in [Membership::All, Membership::Removed] {
+        let corpus = Corpus::load_of(
+            &s,
+            &intent(&s),
+            Some(&Realm::parse("pc").unwrap()),
+            membership,
+        )
+        .unwrap();
+        let a = asked_at(
+            &corpus,
+            json!({ "scope": { "membership": membership }, "query": { "text": "rarity=rare" } }),
+        );
+        assert_eq!(a["scope"]["membership"], json!(membership));
+        assert_eq!(a["total"]["places"], 1, "{membership:?}");
+        assert_eq!(a["total"]["oldest_fetch_location"]["kind"], "character");
+        assert_eq!(
+            a["total"]["list_seen"], 30,
+            "{membership:?}: the character list"
+        );
+    }
+}
+
+/// Under `all`, a retired tab keeps its last fetch, so its removed item's
+/// place stands inside the span; a retired tab's substashes lose theirs,
+/// so their removed items' places are counted and fetched by none.
+#[test]
+fn c162_a_retired_places_fetch_is_its_locations_last_or_none() {
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("t1", "Rings"), tab("t2", "Gone"), { "id": "m1", "name": "Maps", "type": "MapStash" }]),
+        10,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t2",
+        "Gone",
+        vec![ring("c", "Magic", json!({}))],
+        30,
+    );
+    let stash_of = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "m1".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &stash_of(None),
+        &json!({ "id": "m1" }),
+        200,
+        &json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [], "children": [
+            { "id": "s1", "name": "Tier 1", "type": "MapStash" },
+            { "id": "s2", "name": "Tier 2", "type": "MapStash" } ] } }),
+        31,
+    )
+    .unwrap();
+    for (sub, id) in [("s1", "x1"), ("s2", "x2")] {
+        s.record(
+            &stash_of(Some(sub)),
+            &json!({ "id": "m1", "sub": sub }),
+            200,
+            &json!({ "stash": { "id": sub, "name": sub, "type": "MapStash", "items": [ring(id, "Rare", json!({}))] } }),
+            32,
+        )
+        .unwrap();
+    }
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Rings",
+        vec![ring("a", "Rare", json!({}))],
+        50,
+    );
+    // Gone and Maps leave the list: Maps' substashes with it
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Rings")]), 60);
+    let over = |membership: Membership, text: &str| {
+        let corpus = Corpus::load_of(
+            &s,
+            &intent(&s),
+            Some(&Realm::parse("pc").unwrap()),
+            membership,
+        )
+        .unwrap();
+        asked_at(
+            &corpus,
+            json!({ "scope": { "membership": membership }, "query": { "text": text } }),
+        )
+    };
+
+    // the retired tab's fetch is kept: the oldest, apart from the scope's
+    let a = over(Membership::All, "-id:x1 -id:x2");
+    assert_eq!(ids(&a), ["a", "c"]);
+    assert_eq!(a["total"]["places"], 2);
+    assert_eq!(
+        (
+            &a["total"]["oldest_fetch"],
+            &a["total"]["oldest_fetch_location"]
+        ),
+        (&json!(30), &stash("t2", "Gone", "Standard"))
+    );
+    assert_eq!(a["total"]["newest_fetch"], 50);
+    assert_eq!(a["scope"]["oldest_fetch"], 50);
+
+    // a cleared substash is a place, outside the fetch extremes
+    let a = over(Membership::All, "rarity=rare");
+    assert_eq!(ids(&a), ["a", "x1", "x2"]);
+    assert_eq!(a["total"]["places"], 3);
+    assert_eq!(
+        (&a["total"]["oldest_fetch"], &a["total"]["newest_fetch"]),
+        (&json!(50), &json!(50))
+    );
+
+    // such places alone: the span with no fetch, and the list that names them
+    for membership in [Membership::All, Membership::Removed] {
+        let a = over(membership, "id:x1 or id:x2");
+        assert_eq!(
+            subject(&a),
+            json!({
+                "places": 2,
+                "oldest_fetch": null,
+                "newest_fetch": null,
+                "list_seen": 60,
+                "list_seen_age": "8d ago",
+            }),
+            "{membership:?}"
+        );
+    }
+}
+
+/// Over every realm, the matches' lists are their own realm's: an older
+/// list of the same league in another realm is the scope's alone.
+#[test]
+fn c162_the_matches_lists_are_their_realms_over_every_realm() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Rings")]), 300);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Rings",
+        vec![ring("r1", "Rare", json!({}))],
+        310,
+    );
+    list_tabs(&mut s, "xbox", "Standard", json!([tab("x1", "Box")]), 100);
+    fetch_tab(
+        &mut s,
+        "xbox",
+        "Standard",
+        "x1",
+        "Box",
+        vec![ring("m1", "Magic", json!({}))],
+        110,
+    );
+    let a = asked_at(
+        &load(&s, Some("all")),
+        json!({ "query": { "text": "rarity=rare" } }),
+    );
+    assert_eq!(a["scope"]["realm"], "all");
+    assert_eq!(
+        (&a["total"]["list_seen"], &a["scope"]["list_seen"]),
+        (&json!(300), &json!(100))
+    );
+}
+
+/// The lists that name the matches' places: a stash place's league's tab
+/// list, and the character list where a character is among them; the
+/// scope's narrowing under a fixed league is its own.
+#[test]
+fn c162_the_matches_lists_are_those_that_name_their_places() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Other", json!([tab("o1", "Elsewhere")]), 100);
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "c1", "name": "Mover", "league": "Standard" }]),
+        200,
+    );
+    list_tabs(&mut s, "pc", "Standard", json!([tab("t1", "Rings")]), 300);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Rings",
+        vec![ring("s1", "Rare", json!({}))],
+        400,
+    );
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "c1", "name": "Mover", "league": "Standard",
+                "equipment": [ring("ch1", "Magic", json!({}))] }),
+        410,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Other",
+        "o1",
+        "Elsewhere",
+        vec![ring("o-r", "Rare", json!({}))],
+        420,
+    );
+    let corpus = load(&s, Some("pc"));
+    // a stash item and a character item: the older of the two lists
+    let a = asked_at(&corpus, json!({ "query": { "text": "league=Standard" } }));
+    assert_eq!(ids(&a), ["ch1", "s1"]);
+    assert_eq!(
+        (&a["total"]["places"], &a["total"]["list_seen"]),
+        (&json!(2), &json!(200))
+    );
+    assert_eq!(a["scope"]["list_seen"], 200);
+    // stash items of one league alone: that league's tab list, where the
+    // scope narrows to the league's lists, the characters' among them
+    let a = asked_at(
+        &corpus,
+        json!({ "query": { "text": "league=Standard rarity=rare" } }),
+    );
+    assert_eq!(ids(&a), ["s1"]);
+    assert_eq!(
+        (&a["total"]["list_seen"], &a["scope"]["list_seen"]),
+        (&json!(300), &json!(200))
+    );
 }

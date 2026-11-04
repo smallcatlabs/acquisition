@@ -974,7 +974,7 @@ pub(crate) fn answer_head(a: &Answer) -> String {
 
     let scope = &a.scope;
     let account = scope.account.name.as_deref().unwrap_or(&scope.account.uuid);
-    let mut first = format!(
+    let first = format!(
         "scope   account {account} · {} · {} · {} fetched",
         scope.realm.as_str(),
         match (scope.membership, scope.coverage.removed) {
@@ -991,38 +991,6 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         },
         plural(scope.coverage.fetched, "location", "locations"),
     );
-    if let (Some(oldest), Some(newest)) = (
-        scope.coverage.span.oldest_fetch,
-        scope.coverage.span.newest_fetch,
-    ) {
-        // each age is one location's last fetch (C146: "newest 4d ago"
-        // named no location, the release seat: cli-opus call 35,
-        // cli-sonnet call 25, cli-opus-2 call 34); a row's place carries
-        // its own age, which the line need not say again (the h2 fix
-        // round: a line carries its counts, not an instruction); each
-        // names its location as a row's place does, league first (#11)
-        let at = |l: &Option<acquisition_search::corpus::FetchedLocation>| {
-            l.as_ref().map_or(String::new(), |l| {
-                format!(
-                    ", {} / {}{}",
-                    l.league.as_deref().unwrap_or("no league"),
-                    l.name.as_deref().unwrap_or(&l.id),
-                    if l.kind == "character" {
-                        " (character)"
-                    } else {
-                        ""
-                    }
-                )
-            })
-        };
-        first.push_str(&format!(
-            " (the oldest fetch {}{}; the newest {}{})",
-            ago(now, Some(oldest)),
-            at(&scope.coverage.span.oldest_fetch_location),
-            ago(now, Some(newest)),
-            at(&scope.coverage.span.newest_fetch_location),
-        ));
-    }
     line(first);
     let mut never = format!(
         "        {}{} · location list seen {}",
@@ -1058,6 +1026,47 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         ));
     }
     let mut total = format!("total   {}", plural(a.total.matched, "match", "matches"));
+    if let Some(span) = &a.total.span
+        && let (Some(oldest), Some(newest)) = (span.oldest_fetch, span.newest_fetch)
+    {
+        // the matches' ages, not the scope's: a seat quoted the scope's
+        // oldest fetch for 187 matches (#155). Each age is one location's
+        // last fetch (C146: "newest 4d ago" named no location, the release
+        // seat: cli-opus call 35, cli-sonnet call 25, cli-opus-2 call 34);
+        // a row's place carries its own age, which the line need not say
+        // again (the h2 fix round: a line carries its counts, not an
+        // instruction); each names its location as a row's place does,
+        // league first (#11), and one location is named once
+        let at = |l: &Option<acquisition_search::corpus::FetchedLocation>| {
+            l.as_ref().map_or(String::new(), |l| {
+                format!(
+                    ", {} / {}{}",
+                    l.league.as_deref().unwrap_or("no league"),
+                    l.name.as_deref().unwrap_or(&l.id),
+                    if l.kind == "character" {
+                        " (character)"
+                    } else {
+                        ""
+                    }
+                )
+            })
+        };
+        if span.oldest_fetch_location == span.newest_fetch_location {
+            total.push_str(&format!(
+                " (fetched {}{})",
+                ago(now, Some(oldest)),
+                at(&span.oldest_fetch_location),
+            ));
+        } else {
+            total.push_str(&format!(
+                " (the oldest fetch {}{}; the newest {}{})",
+                ago(now, Some(oldest)),
+                at(&span.oldest_fetch_location),
+                ago(now, Some(newest)),
+                at(&span.newest_fetch_location),
+            ));
+        }
+    }
     if a.total.undecided.count > 0 {
         total.push_str(&format!(" · {} undecided", a.total.undecided.count));
     }

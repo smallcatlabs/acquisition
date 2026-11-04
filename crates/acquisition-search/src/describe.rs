@@ -228,7 +228,7 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "scope",
-            "what was searched: account, realm, `items` every live item in scope before any term — under membership all and removed `items` counts the live and `removed` the removed, whichever were searched — and what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches, each one location's, named in `oldest_fetch_location` and `newest_fetch_location` (`kind`, `id`, `name`, `league`), where a row's `place.fetched_at` is its own, and `list_seen` when the oldest location list read was last seen. A time is seconds since 1970, UTC, and beside each the answer says as an age its words stand under the time's name and `_age` (`oldest_fetch_age`: `45s ago`, `12m ago`, `5h ago`, `9d ago`, or `never`), made when the answer was",
+            "what was searched: account, realm, `items` every live item in scope before any term — under membership all and removed `items` counts the live and `removed` the removed, whichever were searched — and what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches over every location in scope, each one location's, named in `oldest_fetch_location` and `newest_fetch_location` (`kind`, `id`, `name`, `league`), the matches' own under `total`, where a row's `place.fetched_at` is its own, and `list_seen` when the oldest location list read was last seen. A time is seconds since 1970, UTC, and beside each the answer says as an age its words stand under the time's name and `_age` (`oldest_fetch_age`: `45s ago`, `12m ago`, `5h ago`, `9d ago`, or `never`), made when the answer was",
         ),
         key(
             "scope.never_fetched",
@@ -244,7 +244,7 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "total",
-            "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`",
+            "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`; `places` the locations the matches sit in, each once; `oldest_fetch` and `newest_fetch`, each with its `_age` and `_location` as under `scope`, the earliest and the latest of those locations' last fetches — the locations' fetches, not a removed item's last sighting — and `list_seen` when the oldest of the lists that name those locations was last seen; the fetch fields are null where no matched location was fetched, and all of them absent where nothing matched",
         ),
         key(
             "before",

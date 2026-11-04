@@ -1481,24 +1481,109 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         &["search", "--realm", "pc", "league=Standard"],
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     ));
-    // the scope line carries its counts and ends after the two ages,
-    // each naming its location as a row's place does (#11): the row's
-    // place says its own age, and the line repeated that as an
-    // instruction (the h2 fix round)
-    let scope = shown
-        .lines()
-        .find(|l| l.starts_with("scope "))
-        .unwrap_or_else(|| panic!("{shown}"));
+    // the total line ends after the matches' age, its one location named
+    // once as a row's place names it (#11, #155): the row's place says its
+    // own age, and the line repeated that as an instruction (the h2 fix
+    // round); the scope line carries its counts alone, the scope's newest
+    // fetch, Allflame's, kept in its JSON
+    let line = |starts: &str| {
+        shown
+            .lines()
+            .find(|l| l.starts_with(starts))
+            .unwrap_or_else(|| panic!("{shown}"))
+    };
     assert!(
-        scope.contains("(the oldest fetch 3d ago, Standard / Gear; the newest ")
-            && scope.ends_with(" ago, Allflame / Gear)"),
-        "{scope}"
+        line("total ").ends_with(" (fetched 3d ago, Standard / Gear)"),
+        "{shown}"
     );
+    assert!(line("scope ").ends_with(" locations fetched"), "{shown}");
+    let json = sole_json(&acq(
+        &base,
+        &["search", "--realm", "pc", "league=Standard", "--json"],
+    ));
+    assert_eq!(json["scope"]["newest_fetch_location"]["league"], "Allflame");
+    assert_eq!(json["total"]["newest_fetch_location"]["league"], "Standard");
     t.run(
         &["show", "i-std"],
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     );
     golden(file!(), "place_and_its_age", &t);
+}
+
+/// A seat quoted the scope's oldest fetch for 187 matches and named it
+/// the fault a person would quote wrong (#155; MCP-2 calls 32 and 37):
+/// the total line says the matches' own oldest and newest fetch, each
+/// with its location, and the scope line its counts alone, though the
+/// scope holds a location older than every match's.
+#[test]
+fn the_total_says_how_old_the_matches_are_and_the_scope_its_counts() {
+    const USER: &str = "Alice#1234";
+    let scratch = harness::scratch("seat-matches-age");
+    let base = scratch.0.clone();
+    let mock = base.join("store").join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    let now = acquisition_store::now();
+    Index::load(&mock)
+        .unwrap()
+        .record_login(USER, "u-seat", false, now, &[])
+        .unwrap();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let mut record = |ep: Endpoint, body: Value, at: i64| {
+        store.record(&ep, &json!({}), 200, &body, at).unwrap();
+    };
+    record(
+        Endpoint::Profile,
+        json!({ "uuid": "u-seat", "name": USER }),
+        now,
+    );
+    // two matched tabs, three days and two old, and an unmatched one in
+    // another league nine days old: the scope's oldest
+    for (league, tabs) in [
+        ("Standard", &[("a1", "Gear"), ("a2", "Dump")][..]),
+        ("Allflame", &[("b1", "Old")][..]),
+    ] {
+        let listed: Vec<Value> = tabs
+            .iter()
+            .enumerate()
+            .map(|(i, (id, name))| json!({ "id": id, "name": name, "type": "PremiumStash", "index": i }))
+            .collect();
+        record(
+            Endpoint::Stashes {
+                realm: "pc".into(),
+                league: league.into(),
+            },
+            json!({ "stashes": listed }),
+            now,
+        );
+    }
+    for (league, tab, name, item, days) in [
+        ("Standard", "a1", "Gear", "i-gear", 3),
+        ("Standard", "a2", "Dump", "i-dump", 2),
+        ("Allflame", "b1", "Old", "i-old", 9),
+    ] {
+        record(
+            Endpoint::Stash {
+                realm: "pc".into(),
+                league: league.into(),
+                id: tab.into(),
+                sub: None,
+            },
+            json!({ "stash": { "id": tab, "name": name, "type": "PremiumStash", "items": [
+                { "id": item, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            now - days * 86_400 - 60,
+        );
+    }
+    drop(store);
+    let mut t = Transcript::new(&base);
+    let shown = stdout(&t.run(
+        &["search", "--realm", "pc", "league=Standard"],
+        &[
+            "total   2 matches (the oldest fetch 3d ago, Standard / Gear; the newest 2d ago, Standard / Dump)\n",
+            "· 3 locations fetched\n        0 locations never fetched",
+        ],
+    ));
+    assert!(!shown.contains("9d ago"), "{shown}");
+    golden(file!(), "the_matches_age_on_the_total", &t);
 }
 
 /// `price show` refused the bare id every other verb prints, and the

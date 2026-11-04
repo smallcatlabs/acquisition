@@ -1184,6 +1184,45 @@ fn the_search_tool_is_acq_search_request() {
     assert_eq!(offered["total"]["matched"], 5, "{offered}");
 }
 
+/// The matches' fetch span (#155) survives the tool's serialization whole:
+/// on a match every key of `total`'s span, beside the CLI's same
+/// document; on none, `places` 0 and no other.
+#[test]
+fn the_totals_fetch_span_reaches_the_tool_whole() {
+    let mut seat = Seat::new();
+    let span = [
+        "oldest_fetch",
+        "oldest_fetch_age",
+        "oldest_fetch_location",
+        "newest_fetch",
+        "newest_fetch_age",
+        "newest_fetch_location",
+        "list_seen",
+        "list_seen_age",
+    ];
+    let (a, refused) = seat.search_beside_the_cli(&json!({ "query": { "text": "rarity=rare" } }));
+    assert!(!refused, "{a}");
+    let total = &a["total"];
+    assert!(total["places"].as_u64().unwrap() > 0, "{total}");
+    for key in span {
+        assert!(!total[key].is_null(), "{key}: {total}");
+    }
+    for location in ["oldest_fetch_location", "newest_fetch_location"] {
+        for key in ["kind", "id", "league"] {
+            assert!(
+                total[location][key].is_string(),
+                "{location}.{key}: {total}"
+            );
+        }
+    }
+    let (zero, _) = seat.search(&json!({ "query": { "text": "rarity=rare name:kaom" } }));
+    let total = &zero["total"];
+    assert_eq!(total["places"], 0, "{total}");
+    for key in span {
+        assert!(total.get(key).is_none(), "{key}: {total}");
+    }
+}
+
 /// `item_events`' window: `hours` how far back, 24 by default, and
 /// `limit` how many of the newest. Beside the fixture's five events from
 /// 1970, two tabs fetched 23 and 25 hours ago add an item each, so the

@@ -415,9 +415,9 @@ pub(crate) struct Left {
     pub removed_at: i64,
 }
 
-type Coordinate = (String, String, String, Option<String>);
+pub(crate) type Coordinate = (String, String, String, Option<String>);
 
-fn coordinate(realm: &str, kind: &str, id: &str, league: Option<&str>) -> Coordinate {
+pub(crate) fn coordinate(realm: &str, kind: &str, id: &str, league: Option<&str>) -> Coordinate {
     // a tab's coordinate carries its league; a character's is its realm's
     let league = (kind == "stash").then(|| league.unwrap_or_default().to_string());
     (realm.to_string(), kind.to_string(), id.to_string(), league)

@@ -38,9 +38,9 @@
 //!
 //! ```text
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
-//! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
+//! scope   account A · pc · live · 7 items · 2 locations fetched
 //!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc --league Standard --never-fetched
-//! total   1 match · 2 undecided
+//! total   1 match (fetched 2h ago, Standard / Rings) · 2 undecided
 //! rows    r1  Two-Stone Ring · rare · Standard / Rings · fetched 2h ago
 //!             +95 to maximum Life (explicit) · pseudo.total_res 65
 //! next    1 of 1
@@ -305,14 +305,18 @@
 //!   being nothing more to find. Never of an id that is also a live
 //!   location's, and never of a live item's asked under `removed`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use acquisition_store::age;
+use acquisition_store::corpus::ListingSeen;
+use acquisition_store::coverage;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as Json;
 
 use crate::bind::{self, Atom, Query, Term, Thing};
-use crate::corpus::{Basis, Corpus, Coverage, Held, Place, Realm};
+use crate::corpus::{
+    Basis, Coordinate, Corpus, Coverage, FetchSpan, FetchedLocation, Held, Place, Realm, coordinate,
+};
 use crate::counts;
 use crate::error::{LanguageError, SearchError};
 use crate::eval::{self, Outcome, Scalar, Truth};
@@ -1374,6 +1378,18 @@ pub struct Carried {
 #[derive(Debug, Clone, Serialize)]
 pub struct Total {
     pub matched: usize,
+    /// The locations the matches sit in, each once: a socketed match's is
+    /// its holder's, a tab's carries its league and a character's none,
+    /// as the corpus keys a location.
+    pub places: usize,
+    /// C118, C162: the matches' fetch span, the store's one derivation
+    /// over their places' last fetches and the lists that name those
+    /// places — a stash place's realm-and-league tab list, the realm's
+    /// character list where a character is among them. Present whenever
+    /// there is a match, its fetch epochs null where no matched location
+    /// was fetched; flattened, so `oldest_fetch` stands beside `matched`.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub span: Option<FetchSpan>,
     pub undecided: Count,
     /// Why items are undecided at the root: one entry per distinct reason
     /// — by what was unread, the kind a count tallies (C105) — with one
@@ -1604,11 +1620,14 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
 
 impl Answer {
     /// C53 (an age the text prints stands in words beside its epoch,
-    /// made at the answer's own time): the scope's fetch and list ages,
-    /// each row's place and removal, and each term's removed id, said
+    /// made at the answer's own time): the scope's and the matches' fetch
+    /// and list ages, each row's place and removal, and each term's removed id, said
     /// at `now`. Said again at another `now`, the words are that time's.
     pub fn aged(mut self, now: i64) -> Answer {
         self.scope.coverage.aged(now);
+        if let Some(span) = &mut self.total.span {
+            span.aged(now);
+        }
         for row in &mut self.rows {
             row.place.aged(now);
             row.removed_at_age = row.removed_at.map(|at| age::ago(now, Some(at)));
@@ -1620,6 +1639,51 @@ impl Answer {
         }
         self
     }
+}
+
+/// The answer's subject (C162: every answer applies the one derivation
+/// to the set it is about): the matches at `at` in `corpus`, in order,
+/// counted by their places, each once and the first kept, and their fetch
+/// span over those places and the listing bases that name them, none
+/// where nothing matched.
+fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<FetchSpan>) {
+    let mut seen: HashSet<Coordinate> = HashSet::new();
+    let places: Vec<&Place> = at
+        .map(|at| &corpus.items[at].place)
+        .filter(|p| seen.insert(coordinate(&p.realm, &p.kind, &p.id, p.league.as_deref())))
+        .collect();
+    if places.is_empty() {
+        return (0, None);
+    }
+    let fetched: Vec<(i64, FetchedLocation)> = places
+        .iter()
+        .filter_map(|p| {
+            Some((
+                p.fetched_at?,
+                FetchedLocation {
+                    kind: p.kind.clone(),
+                    id: p.id.clone(),
+                    name: p.name.clone(),
+                    league: p.league.clone(),
+                },
+            ))
+        })
+        .collect();
+    // the lists that name a place in the set: a tab's, by its realm and
+    // league; the character list of a realm one of its characters is from
+    let bases: Vec<ListingSeen> = corpus
+        .listings
+        .iter()
+        .filter(|l| {
+            places.iter().any(|p| {
+                p.realm == l.realm
+                    && p.kind == l.kind
+                    && (p.kind != "stash" || p.league == l.league)
+            })
+        })
+        .cloned()
+        .collect();
+    (places.len(), Some(coverage::span(&fetched, &bases)))
 }
 
 fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
@@ -1882,8 +1946,11 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     let root_undecided = (!is_empty(&query.root))
         .then(|| Node::Undecided(Probe::Term(Box::new(query.root.clone()))));
     let (reasons, reasons_left_out) = bounded(reasons, None, false);
+    let (places, span) = subject(corpus, matches.iter().map(|(at, _)| *at));
     let total = Total {
         matched: matches.len(),
+        places,
+        span,
         undecided: count(n_undecided, root_undecided.as_ref()),
         undecided_reasons: reasons,
         reasons_left_out,

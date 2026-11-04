@@ -628,5 +628,6 @@ unit tests, the search calling it through re-exports, no golden
 changed), built by an Opus worker in the orchestrating session;
 reviewed cold, no findings; closed the same day (`LEDGER.md`). Round
 2, the matches' fetch span on the search answer
-(`briefs/155-subject-block.md`), is current, its brief under its
-first cold review.
+(`briefs/155-subject-block.md`, cut three times under two cold
+reviews), landed on 2026-11-03, built by an Opus worker; its review
+is pending.
