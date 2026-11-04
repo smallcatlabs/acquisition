@@ -2998,25 +2998,30 @@ pub struct TabsPointer {
 
 impl Answer {
     /// The `tabs` command for the tabs this answer's scope never fetched,
-    /// a function of the answer's JSON: under one realm, the league the
-    /// query fixes where it holds a never-fetched tab, or, where the query
-    /// fixes none, the league holding the most; none where no league
-    /// holds one. Made by the one opening every command has.
+    /// a function of the answer's JSON: under one realm, of the leagues
+    /// the query names (`named_leagues`) the first in the scope's order
+    /// (the most never-fetched tabs first) that holds a never-fetched tab,
+    /// the rest of the named that hold one counted; where the query names
+    /// none, the league holding the most, every other counted; none where
+    /// no league it may name holds one (#36: under two `league=` terms the
+    /// pointer named the realm's most, which may be neither). Made by the
+    /// one opening every command has.
     pub fn tabs_pointer(&self) -> Option<TabsPointer> {
         let Realm::One(realm) = &self.scope.realm else {
             return None;
         };
-        let leagues = &self.scope.coverage.never_fetched_leagues;
-        let (league, other_leagues) = match fixed_league(&self.query.tree) {
-            // `=` is any-case: the command carries the store's spelling
-            Some(asked) => (
-                leagues
-                    .iter()
-                    .find(|l| bind::folded(l) == bind::folded(asked))?,
-                0,
-            ),
-            None => (leagues.first()?, leagues.len() - 1),
-        };
+        let named = named_leagues(&self.query.tree);
+        // `=` is any-case: the command carries the store's spelling
+        let mut held = self
+            .scope
+            .coverage
+            .never_fetched_leagues
+            .iter()
+            .filter(|l| {
+                named.is_empty() || named.iter().any(|n| bind::folded(l) == bind::folded(n))
+            });
+        let league = held.next()?;
+        let other_leagues = held.count();
         let mut command = opening(
             "tabs",
             Some(
@@ -3059,6 +3064,25 @@ fn fixed_league(tree: &Json) -> Option<&str> {
         [one] => Some(one),
         _ => None,
     }
+}
+
+/// The leagues a query's tree names by a `league=` term reached through
+/// and and or alone: never one under a not, `undecided( )` or
+/// `holds( )`, which do not ask for that league's items.
+fn named_leagues(tree: &Json) -> Vec<&str> {
+    fn named<'a>(t: &'a Json, found: &mut Vec<&'a str>) {
+        if t["field"] == "league" && t["op"] == "=" {
+            found.extend(t["value"].as_str());
+        }
+        for children in [&t["all"], &t["any"]] {
+            if let Some(children) = children.as_array() {
+                children.iter().for_each(|child| named(child, found));
+            }
+        }
+    }
+    let mut found = Vec::new();
+    named(tree, &mut found);
+    found
 }
 
 /// How every command the search prints opens — `show`'s `price show`

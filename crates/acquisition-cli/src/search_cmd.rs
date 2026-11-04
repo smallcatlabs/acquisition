@@ -1007,8 +1007,8 @@ pub(crate) fn answer_head(a: &Answer) -> String {
             None => "no location list seen".to_string(),
         },
     );
-    // the list that exists: `tabs` over the league the query fixes, or the
-    // one holding the most never fetched, the others counted (C118)
+    // the list that exists: `tabs` over a league the query names, or the
+    // one holding the most never fetched, the others counted (C118, #36)
     if let Some(pointer) = a.tabs_pointer() {
         never.push_str(&format!(" · each tab: {}", pointer.command));
         if pointer.other_leagues > 0 {

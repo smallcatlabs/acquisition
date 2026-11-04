@@ -793,6 +793,55 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     assert_eq!(unknown["scope"]["list_seen"], 5, "{}", unknown["scope"]);
 }
 
+/// #36 — the scope's `tabs` pointer names a league the query names: of
+/// the leagues its `league=` terms name through and and or, the first in
+/// the scope's order (the most never-fetched tabs first) that holds a
+/// never-fetched tab, the rest of the named that hold one counted. A term
+/// under a not names nothing; a query that names none points at the
+/// realm's most, every other counted, as before. Phrecia holds three
+/// never-fetched tabs, Allflame two, Standard one (`worked`'s `Never`).
+#[test]
+fn the_tabs_pointer_names_a_league_the_query_names() {
+    let mut s = worked();
+    let never = |prefix: &str, n: usize| -> Value {
+        (0..n)
+            .map(|i| tab(&format!("{prefix}{i}"), "Never"))
+            .collect()
+    };
+    list_tabs(&mut s, "pc", "Allflame", never("a", 2), 11);
+    list_tabs(&mut s, "pc", "Phrecia", never("p", 3), 11);
+    let corpus = load(&s, Some("pc"));
+    let pointer = |text: &str| {
+        ask(&corpus, text)
+            .unwrap()
+            .tabs_pointer()
+            .map(|p| (p.command, p.other_leagues))
+    };
+    let at = |league: &str, others: usize| {
+        Some((
+            format!("acq tabs --account A --realm pc --league {league} --never-fetched"),
+            others,
+        ))
+    };
+    for (text, expected) in [
+        ("", at("Phrecia", 2)),
+        ("league=Standard", at("Standard", 0)),
+        // two terms: the named league holding the most, never the realm's
+        ("league=Standard or league=Allflame", at("Allflame", 1)),
+        // and-ed, any-case: the store's spelling
+        ("league=Standard league=allflame", at("Allflame", 1)),
+        (
+            "(league=Standard or league=Nowhere) rarity=rare",
+            at("Standard", 0),
+        ),
+        // a negated term names nothing
+        ("league=Standard -league=Phrecia", at("Standard", 0)),
+        ("league=Nowhere", None),
+    ] {
+        assert_eq!(pointer(text), expected, "`{text}`");
+    }
+}
+
 /// #173 — a counts or cross view keyed by `league` names the scope's
 /// leagues no match is in (the answer-facts seat, MCP run 2, call 38:
 /// three buckets beside eight leagues): a bucket is a value a matching
