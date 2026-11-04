@@ -480,9 +480,12 @@ fn c53_the_plan_note_and_its_wrapper_measure_the_character_listing_alike() {
 /// at the answer's own time) and the envelope's schema contract (round 6
 /// of step 2g, the second cold review's finding 7): a plan's ages stand
 /// on the verbs' presentation beside the envelope — its age at the
-/// answer, its listings' measured from its own `generated_at` and named
-/// so, its quote's at the answer — and the envelope and its quote are
-/// the bytes they were, parsed back by the planner's strict reader.
+/// answer, its listings' and its snapshot's measured from its own
+/// `generated_at` and named so (C163; three times apart, the snapshot,
+/// the generation and the answer, so the clock each is read on is told
+/// by its words), its quote's at the answer — and the envelope and its
+/// quote are the bytes they were, parsed back by the planner's strict
+/// reader.
 #[test]
 fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
     use acquisition_plan::{PlanNotes, RefreshPlan};
@@ -495,7 +498,9 @@ fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
         1_900,
         json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
     );
-    let bare = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
+    let mut bare = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
+    // the snapshot taken 50 seconds before the plan was generated
+    bare.basis.snapshot_taken_at = 1_950;
     let work: Vec<QuoteJob> = bare
         .actions
         .iter()
@@ -545,12 +550,17 @@ fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
         "{doc}"
     );
     assert_eq!(doc["character_listing_fetched_at_age"], "never", "{doc}");
+    assert_eq!(
+        doc["snapshot_taken_at_age"], "50s before generated_at",
+        "{doc}"
+    );
     assert_eq!(doc["quote_observed_at_age"], "2h ago", "{doc}");
     // the envelope and its quote: the same bytes, read back strictly
     assert_eq!(serde_json::to_string(&planned.plan).unwrap(), envelope);
     for key in [
         "generated_at_age",
         "stash_listing_fetched_at_age",
+        "snapshot_taken_at_age",
         "quote_observed_at_age",
     ] {
         assert!(doc["plan"].get(key).is_none(), "{key} in the envelope");
@@ -2497,10 +2507,12 @@ fn is_sibling(time: &str, words: &str) -> bool {
 
 /// Every document a verb returns, each over a world that populates the
 /// times it carries, built through the maker each frontend calls: the
-/// facts two hours old, a ring the second fetch removed, the policy
-/// written twice, a price set, replaced, cleared and set again, and a row
-/// on a target the facts do not hold.
-fn populated() -> Vec<(&'static str, Value)> {
+/// facts two hours old, a ring the second fetch removed, a folder over a
+/// tab and a tab over a substash, each child's item priced by hand, the
+/// policy written twice and naming a league the fetched list lacks, a
+/// price set, replaced, cleared and set again, and a row on a target the
+/// facts do not hold.
+async fn populated() -> Vec<(&'static str, Value)> {
     use acquisition_plan::pricing::{self, Bound, ListArgs, ShopArgs};
     use acquisition_search::answer::Membership;
     use acquisition_search::answer::{Asked, Request};
@@ -2516,15 +2528,58 @@ fn populated() -> Vec<(&'static str, Value)> {
     let quote = |s: &str| s.to_string();
     let mut docs: Vec<(&'static str, Value)> = Vec::new();
 
-    // the facts: a listing of two tabs, one fetched twice (the second
-    // without its ring), a character listed and fetched, a body refused
+    // the facts: a listing of two tabs, a folder over a third and a map
+    // tab, one tab fetched twice (the second without its ring), the
+    // folder's tab and the map tab's substash fetched, a character listed
+    // and fetched, a body refused
     let mut store = account.facts().unwrap();
     listing(
         &mut store,
         t,
         json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
-               { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 }]),
+               { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 },
+               { "id": "f1", "name": "Sale", "type": "Folder", "index": 2,
+                 "children": [{ "id": "c1", "name": "Held", "type": "PremiumStash", "index": 3 }] },
+               { "id": "m1", "name": "Maps", "type": "MapStash", "index": 4 }]),
     );
+    let orb = |id: &str| {
+        json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                "frameType": 5, "identified": true, "ilvl": 0, "x": 0, "y": 0, "stackSize": 5 })
+    };
+    let stash = |id: &str, sub: Option<&str>| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: id.into(),
+        sub: sub.map(str::to_string),
+    };
+    for (endpoint, body) in [
+        (
+            stash("c1", None),
+            json!({ "stash": { "id": "c1", "name": "Held", "type": "PremiumStash",
+                               "items": [orb("i4")] } }),
+        ),
+        (
+            stash("m1", None),
+            json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
+                               "children": [{ "id": "s1", "name": "1", "type": "MapStash",
+                                              "metadata": { "items": 1 } }] } }),
+        ),
+        (
+            stash("m1", Some("s1")),
+            json!({ "stash": { "id": "s1", "name": "1", "type": "MapStash",
+                               "items": [orb("i3")] } }),
+        ),
+    ] {
+        store
+            .record(
+                &endpoint,
+                &json!({ "league": "Standard" }),
+                200,
+                &body,
+                t + 30,
+            )
+            .unwrap();
+    }
     let ring = |id: &str, x: i64| {
         json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring",
                 "rarity": "Normal", "frameType": 0, "identified": true, "ilvl": 1, "x": x, "y": 0 })
@@ -2595,11 +2650,15 @@ fn populated() -> Vec<(&'static str, Value)> {
     // the intent: the policy written twice and once refused; a price
     // set, replaced, cleared and set again, once refused; a row on a
     // target the facts do not hold, and one on the tab
+    // Mirage, which the fetched list lacks: the receipt's league note
+    let two_leagues = json!({ "version": 3, "realms": { "pc": { "leagues": {
+        "Standard": { "tabs": "all", "max_age_seconds": 3600 },
+        "Mirage": { "tabs": "all", "max_age_seconds": 3600 } } } } });
     account
         .set_policy(&policy(), Expect::Create, PolicyWrite::Replace)
         .unwrap();
     let replaced = account
-        .set_policy(&policy(), Expect::Exactly(1), PolicyWrite::Replace)
+        .set_policy(&two_leagues, Expect::Exactly(1), PolicyWrite::Replace)
         .unwrap();
     docs.push((
         "policy receipt",
@@ -2645,6 +2704,8 @@ fn populated() -> Vec<(&'static str, Value)> {
     let refused = set(&mut intent, "item/i1", "8", Expect::Exactly(9)).unwrap_err();
     docs.push(("price conflict", refusal::document(&refused, &Plain)));
     set(&mut intent, "item/ghost", "1", Expect::Create).unwrap();
+    set(&mut intent, "item/i3", "3", Expect::Create).unwrap();
+    set(&mut intent, "item/i4", "4", Expect::Create).unwrap();
     set(&mut intent, "tab/pc/t1", "2", Expect::Create).unwrap();
 
     // the facts' documents
@@ -2765,6 +2826,8 @@ fn populated() -> Vec<(&'static str, Value)> {
     for (name, target) in [
         ("price show, an item", "item/i1"),
         ("price show, a tab", "tab/pc/t1"),
+        ("price show, a folder", "tab/pc/f1"),
+        ("price show, a parent tab", "tab/pc/m1"),
     ] {
         docs.push((
             name,
@@ -2855,6 +2918,19 @@ fn populated() -> Vec<(&'static str, Value)> {
             .aged(now),
         )
         .unwrap(),
+    ));
+
+    // a plan for the league the list lacks, as `refresh --plan` makes it
+    // (no daemon runs, so it stands unquoted), its league note beside it
+    let lacking = account
+        .open()
+        .unwrap()
+        .plan(Realm::Pc, "Mirage")
+        .await
+        .unwrap();
+    docs.push((
+        "plan, a league the list lacks",
+        serde_json::to_value(&lacking).unwrap(),
     ));
 
     // the ledger: the open rows, one job on disk, the daemon's report
@@ -3162,6 +3238,83 @@ const INVENTORY: &[(&str, &str, &str)] = &[
         "items_here[].manual.updated_at",
         "items_here[].manual.updated_at_age",
     ),
+    ("price show, a folder", "taken_at", "taken_at_age"),
+    (
+        "price show, a folder",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price show, a folder",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price show, a folder",
+        "listing.basis.at",
+        "listing.basis.at_age",
+    ),
+    (
+        "price show, a folder",
+        "items_covered_below[].basis.at",
+        "items_covered_below[].basis.at_age",
+    ),
+    (
+        "price show, a folder",
+        "items_covered_below[].manual.updated_at",
+        "items_covered_below[].manual.updated_at_age",
+    ),
+    ("price show, a parent tab", "taken_at", "taken_at_age"),
+    (
+        "price show, a parent tab",
+        "stash_listing.fetched_at",
+        "stash_listing_fetched_at_age",
+    ),
+    (
+        "price show, a parent tab",
+        "character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "price show, a parent tab",
+        "listing.basis.at",
+        "listing.basis.at_age",
+    ),
+    (
+        "price show, a parent tab",
+        "items_covered_below[].basis.at",
+        "items_covered_below[].basis.at_age",
+    ),
+    (
+        "price show, a parent tab",
+        "items_covered_below[].manual.updated_at",
+        "items_covered_below[].manual.updated_at_age",
+    ),
+    (
+        "policy receipt",
+        "league_notes[].list_fetched_at",
+        "league_notes[].list_fetched_at_age",
+    ),
+    (
+        "plan, a league the list lacks",
+        "plan.generated_at",
+        "generated_at_age",
+    ),
+    (
+        "plan, a league the list lacks",
+        "plan.basis.snapshot_taken_at",
+        "snapshot_taken_at_age",
+    ),
+    (
+        "plan, a league the list lacks",
+        "plan.basis.character_listing.fetched_at",
+        "character_listing_fetched_at_age",
+    ),
+    (
+        "plan, a league the list lacks",
+        "notes.league.list_fetched_at",
+        "notes.league.list_fetched_at_age",
+    ),
     ("shop render", "rendered_at", "rendered_at_age"),
     ("shop render", "listing.taken_at", "listing.taken_at_age"),
     (
@@ -3218,23 +3371,24 @@ const NULL_ON_EVERY_ROW: [(&str, &str); 1] = [("tabs", "rows[].removed_at")];
 /// and a null time says `never` or carries none, as its maker says; every
 /// row names a time its document carries, and every document is one of
 /// the world's.
-#[test]
-fn c163_every_time_of_the_inventory_has_its_words() {
-    let docs = populated();
+#[tokio::test]
+async fn c163_every_time_of_the_inventory_has_its_words() {
+    let docs = populated().await;
     let mut bare = Vec::new();
     for (document, time, words) in INVENTORY {
-        let doc = &docs
-            .iter()
-            .find(|(name, _)| name == document)
-            .unwrap_or_else(|| panic!("no document {document}"))
-            .1;
+        let Some((_, doc)) = docs.iter().find(|(name, _)| name == document) else {
+            bare.push(format!("{document}: no such document in the world"));
+            continue;
+        };
         let found = at(doc, time);
-        assert!(!found.is_empty(), "{document}: no {time} in {doc}");
-        let populated = found.iter().any(|(_, v)| !v.is_null());
-        assert!(
-            populated || NULL_ON_EVERY_ROW.contains(&(document, time)),
-            "{document}: {time} is null on every row the world gives it"
-        );
+        if !found.iter().any(|(_, v)| !v.is_null())
+            && !NULL_ON_EVERY_ROW.contains(&(document, time))
+        {
+            bare.push(format!(
+                "{document}: {time} is absent or null on every row the world gives it"
+            ));
+            continue;
+        }
         for (taken, value) in found {
             let said_here = at_taken(doc, words, &taken);
             let holds = match value {
@@ -3256,10 +3410,10 @@ fn c163_every_time_of_the_inventory_has_its_words() {
 /// returns carries a time, under a name that says so, without its words
 /// beside it or at the path the inventory declares; and the walk fails
 /// on a bare time under a name the inventory does not hold.
-#[test]
-fn c163_no_document_carries_a_time_without_its_words() {
+#[tokio::test]
+async fn c163_no_document_carries_a_time_without_its_words() {
     let mut bare = Vec::new();
-    for (document, doc) in populated() {
+    for (document, doc) in populated().await {
         bare.extend(
             bare_times(document, &doc, INVENTORY)
                 .into_iter()
