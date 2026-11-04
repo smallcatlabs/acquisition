@@ -47,7 +47,8 @@
       "id": "ch1",
       "kind": "character",
       "league": "Standard",
-      "name": "Exile"
+      "name": "Exile",
+      "realm": "pc"
     },
     "oldest_fetch": 110,
     "oldest_fetch_age": "61m ago",
@@ -55,7 +56,8 @@
       "id": "c1",
       "kind": "stash",
       "league": "Standard",
-      "name": "~price 3 chaos (A)"
+      "name": "~price 3 chaos (A)",
+      "realm": "pc"
     },
     "places": 7,
     "tabs": 6

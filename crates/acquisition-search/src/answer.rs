@@ -1703,6 +1703,7 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
                     kind: p.kind.clone(),
                     id: p.id.clone(),
                     name: p.name.clone(),
+                    realm: p.realm.clone(),
                     league: p.league.clone(),
                 },
             ))

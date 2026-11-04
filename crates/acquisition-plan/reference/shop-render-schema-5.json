@@ -41,7 +41,8 @@
         "id": "c1",
         "kind": "stash",
         "league": "Standard",
-        "name": "~price 3 chaos"
+        "name": "~price 3 chaos",
+        "realm": "pc"
       },
       "oldest_fetch": 100,
       "oldest_fetch_age": "81m ago",
@@ -49,7 +50,8 @@
         "id": "t2",
         "kind": "stash",
         "league": "Standard",
-        "name": "~price 9 chaos (Remove-only)"
+        "name": "~price 9 chaos (Remove-only)",
+        "realm": "pc"
       },
       "places": 3,
       "tabs": 2

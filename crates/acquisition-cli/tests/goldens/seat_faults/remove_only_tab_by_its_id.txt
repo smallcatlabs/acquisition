@@ -1,13 +1,13 @@
 # golden seat_faults/remove_only_tab_by_its_id: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq search --realm pc league=Standard
-# holds "total   1 match (fetched 3d ago, Standard / a1)"
+# holds "total   1 match (fetched 3d ago, pc · Standard / a1)"
 # holds "rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched 3d ago"
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   1 match (fetched <age> ago, Standard / a1)
+total   1 match (fetched <age> ago, pc · Standard / a1)
 rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched <age> ago
             id i-std
 terms   each term counted alone over all live pc items in all leagues, never over the matches

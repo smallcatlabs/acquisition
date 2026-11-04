@@ -426,6 +426,7 @@ mod tests {
             kind: "stash".into(),
             id: id.into(),
             name: Some(name.into()),
+            realm: "pc".into(),
             league: Some("Standard".into()),
         };
         let mut facts = Facts::of(
@@ -590,7 +591,7 @@ mod tests {
         );
         // C162, #156: how old the posted items' facts are, first, under
         // every policy state; the stale line's oldest is another set's
-        let facts = "facts: 3 posted items at 2 locations, 2 fetched (the oldest fetch 63m ago, Standard / Dump; the newest 58m ago, Standard / ~price 1 chaos); stash listing 66m ago";
+        let facts = "facts: 3 posted items at 2 locations, 2 fetched (the oldest fetch 63m ago, pc · Standard / Dump; the newest 58m ago, pc · Standard / ~price 1 chaos); stash listing 66m ago";
         assert_eq!(lines[1], facts);
         // what else the realm holds, after the facts (round 5)
         assert_eq!(lines[2], leagues.trim_end());

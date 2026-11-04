@@ -177,13 +177,21 @@ fn c96_c100_a_row_names_its_realm_under_all_and_says_what_it_left_out() {
             "the text lacks `{needle}`:\n{shown}"
         );
     }
-    // one realm in scope: the scope line has said it
+    // one realm in scope: the scope line has said it, and a row does not
+    // repeat it; a fetch span's location names its realm on every scope
+    // (the answer-facts seat, CLI fault 4)
     let shown = text(&acq(
         &base,
         &["search", "--realm", "pc", "line(template:spirit)"],
     ));
-    assert!(shown.contains(" · Standard / Never"), "{shown}");
-    assert!(!shown.contains("pc · Standard / Never"), "{shown}");
+    let row = shown
+        .lines()
+        .find(|l| l.starts_with("rows "))
+        .unwrap_or_else(|| panic!("no rows line:\n{shown}"));
+    assert!(row.contains(" · Standard / Never"), "{shown}");
+    assert!(!row.contains("pc · Standard / Never"), "{shown}");
+    let total = shown.lines().find(|l| l.starts_with("total ")).unwrap();
+    assert!(total.contains(", pc · Standard / Never)"), "{shown}");
 }
 
 /// Every `acq …` a text prints, to the end of its line — but a hint that
@@ -645,7 +653,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     ));
     assert!(
         harness::normalise(&shown, &base).contains(
-            "\ntotal   2 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Dump) · 1 undecided\n"
+            "\ntotal   2 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump) · 1 undecided\n"
         ),
         "{shown}"
     );
@@ -2123,7 +2131,7 @@ fn step_10_membership_all_at_a_terminal() {
     ));
     assert!(
         harness::normalise(&shown, &base).contains(
-            "\ntotal   4 matches (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Rings)\n"
+            "\ntotal   4 matches (the oldest fetch <age> ago, pc · Standard / Dump; the newest <age> ago, pc · Standard / Rings)\n"
         ),
         "{shown}"
     );

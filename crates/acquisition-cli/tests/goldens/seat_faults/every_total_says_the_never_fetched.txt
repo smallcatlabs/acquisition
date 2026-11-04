@@ -7,7 +7,7 @@ $ acq search --realm pc league=Standard
 query   league=Standard
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
-total   1 match (fetched <age> ago, Standard / Gear)
+total   1 match (fetched <age> ago, pc · Standard / Gear)
             1 location was never fetched: nothing here says what they hold
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-std

@@ -8,7 +8,7 @@ $ acq price status
 # holds "2 for other leagues"
 --- stdout
 1 item in Standard: 0 the game decides, 0 decided by hand, 1 nothing applies
-facts: 1 location, 1 fetched (fetched <age> ago, Standard / Gear); stash listing <age> ago
+facts: 1 location, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 sides: nothing priced
 rows: 0 of 3 apply here; 1 name nothing in this league's facts, 0 unreadable, 2 for other leagues, 0 for other realms
@@ -19,7 +19,7 @@ $ acq price status --league Allflame
 # holds "rows: 2 of 3 apply here"
 --- stdout
 1 item in Allflame: 0 the game decides, 1 decided by hand, 0 nothing applies
-facts: 1 location, 1 fetched (fetched <age> ago, Allflame / Gear); stash listing <age> ago
+facts: 1 location, 1 fetched (fetched <age> ago, pc · Allflame / Gear); stash listing <age> ago
 leagues: Allflame (this); also held: Standard (1 tab, no policy)
 sides: 1 priced by hand (1 by hand alone, 0 agree with the game's price, 0 conflict with it); 0 priced in game
 rows: 2 of 3 apply here; 1 name nothing in this league's facts, 0 unreadable, 0 for other leagues, 0 for other realms

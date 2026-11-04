@@ -1146,6 +1146,7 @@ fn posted_facts(report: &ListingReport, entries: &[Entry], now: i64) -> Facts {
                 name: report
                     .find(&target)
                     .and_then(|l| location_name(&l.subject.name)),
+                realm: report.header.realm.to_string(),
                 league: Some(report.header.league.clone()),
             };
             (at, seen)

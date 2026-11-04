@@ -25,13 +25,16 @@ use crate::age;
 use crate::corpus::{ListingSeen, LocationRow, RealmScope};
 
 /// A location the scope names by its fetch: `stash` or `character`, its
-/// id, its name as GGG gives it (none where it gives no text), and its
-/// league.
+/// id, its name as GGG gives it (none where it gives no text), its realm
+/// and its league: a location is named with its realm as a row's place
+/// is, so a poe2 character is never read as pc's (the answer-facts seat,
+/// CLI fault 4).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchedLocation {
     pub kind: String,
     pub id: String,
     pub name: Option<String>,
+    pub realm: String,
     pub league: Option<String>,
 }
 
@@ -41,6 +44,7 @@ impl FetchedLocation {
             kind: l.kind.clone(),
             id: l.id.clone(),
             name: location_name(&l.name),
+            realm: l.realm.clone(),
             league: l.league.clone(),
         }
     }

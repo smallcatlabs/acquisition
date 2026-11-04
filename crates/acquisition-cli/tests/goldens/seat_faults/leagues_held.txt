@@ -4,7 +4,7 @@ $ acq price status
 # holds "leagues: Standard (this); also held: Allflame (1 tab, no policy), Rehearsal (3 tabs, 2 characters, no policy), no league (1 character)"
 --- stdout
 1 item in Standard: 0 the game decides, 0 decided by hand, 1 nothing applies
-facts: 2 locations, 1 fetched (fetched <age> ago, Standard / Gear); stash listing <age> ago, characters listed <age> ago
+facts: 2 locations, 1 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago, characters listed <age> ago
 leagues: Standard (this); also held: Allflame (1 tab, no policy), Rehearsal (3 tabs, 2 characters, no policy), no league (1 character)
 sides: nothing priced
 next: `acq price list --account 'Alice#1234' --realm pc --league Standard` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Standard <target>` is one listing
@@ -18,7 +18,7 @@ $ acq price status --league Allflame
 # holds "leagues: Allflame (this); also held: Rehearsal (3 tabs, 2 characters, named), Standard (1 tab, named), no league (1 character)"
 --- stdout
 1 item in Allflame: 0 the game decides, 0 decided by hand, 1 nothing applies
-facts: 2 locations, 1 fetched (fetched <age> ago, Allflame / Gear); stash listing <age> ago, characters listed <age> ago
+facts: 2 locations, 1 fetched (fetched <age> ago, pc · Allflame / Gear); stash listing <age> ago, characters listed <age> ago
 leagues: Allflame (this); also held: Rehearsal (3 tabs, 2 characters, named), Standard (1 tab, named), no league (1 character)
 sides: nothing priced
 next: `acq price list --account 'Alice#1234' --realm pc --league Allflame` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Allflame <target>` is one listing

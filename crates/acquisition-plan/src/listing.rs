@@ -1926,6 +1926,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
                 kind: "stash".into(),
                 id: info.tab.id.clone(),
                 name: location_name(&info.tab.name),
+                realm: snapshot.realm.clone(),
                 league: Some(snapshot.league.clone()),
             };
             (at, info.tab.fetched_at)
@@ -1935,6 +1936,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
                 kind: "character".into(),
                 id: c.id.clone(),
                 name: location_name(&c.name),
+                realm: snapshot.realm.clone(),
                 league: c.league.clone(),
             };
             (at, c.fetched_at)

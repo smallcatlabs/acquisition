@@ -1,13 +1,13 @@
 # golden seat_faults/the_matches_age_on_the_total: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq search --realm pc league=Standard
-# holds "total   2 matches (the oldest fetch 3d ago, Standard / Gear; the newest 2d ago, Standard / Dump)\n"
+# holds "total   2 matches (the oldest fetch 3d ago, pc · Standard / Gear; the newest 2d ago, pc · Standard / Dump)\n"
 # holds "· 3 locations fetched\n        0 locations never fetched"
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 3 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   2 matches (the oldest fetch <age> ago, Standard / Gear; the newest <age> ago, Standard / Dump)
+total   2 matches (the oldest fetch <age> ago, pc · Standard / Gear; the newest <age> ago, pc · Standard / Dump)
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-gear
         Chaos Orb · Standard / Dump · x 0, y 0 · fetched <age> ago

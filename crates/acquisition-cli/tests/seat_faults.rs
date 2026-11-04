@@ -1508,7 +1508,7 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
             .unwrap_or_else(|| panic!("{shown}"))
     };
     assert!(
-        line("total ").ends_with(" (fetched 3d ago, Standard / Gear)"),
+        line("total ").ends_with(" (fetched 3d ago, pc · Standard / Gear)"),
         "{shown}"
     );
     assert!(line("scope ").ends_with(" locations fetched"), "{shown}");
@@ -1559,7 +1559,7 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
     t.run(
         &["search", "--realm", "pc", "league=Standard"],
         &[
-            "total   1 match (fetched 3d ago, Standard / a1)",
+            "total   1 match (fetched 3d ago, pc · Standard / a1)",
             "rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched 3d ago",
         ],
     );
@@ -1567,7 +1567,8 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
         &base,
         &["search", "--realm", "pc", "league=Standard", "--json"],
     ));
-    let a1 = json!({ "kind": "stash", "id": "a1", "name": null, "league": "Standard" });
+    let a1 =
+        json!({ "kind": "stash", "id": "a1", "name": null, "realm": "pc", "league": "Standard" });
     assert_eq!(
         json["scope"]["oldest_fetch_location"], a1,
         "{}",
@@ -1585,6 +1586,76 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
         json["rows"][0]
     );
     golden(file!(), "remove_only_tab_by_its_id", &t);
+}
+
+/// The answer-facts seat (run 1, CLI fault 4; calls 50, 63, 98): the
+/// span named `Standard / gerwarshot (character)` for a poe2 character
+/// under `--realm all`, and the runner read it as pc's. A location named
+/// on a span names its realm as a row's place does, on the scope's line
+/// and the total's, and in the JSON beside its league.
+#[test]
+fn cli4_a_spans_location_names_its_realm() {
+    let scratch = harness::scratch("seat-span-realm");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    // a poe2 character fetched a day before pc's two tabs
+    let then = acquisition_store::now() - 86_400 - 60;
+    store
+        .record(
+            &Endpoint::Characters {
+                realm: "poe2".into(),
+            },
+            &json!({ "realm": "poe2" }),
+            200,
+            &json!({ "characters": [{ "id": "c1", "name": "Shot", "league": "Standard" }] }),
+            then,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Character {
+                realm: "poe2".into(),
+                name: "Shot".into(),
+            },
+            &json!({ "realm": "poe2", "name": "Shot" }),
+            200,
+            &json!({ "character": { "id": "c1", "name": "Shot", "league": "Standard", "equipment": [
+                { "id": "i-shot", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            then,
+        )
+        .unwrap();
+    drop(store);
+    let shown = text(&acq(
+        &base,
+        &["search", "--realm", "all", "base=\"Chaos Orb\""],
+    ));
+    let total = shown
+        .lines()
+        .find(|l| l.starts_with("total "))
+        .unwrap_or_else(|| panic!("no total line:\n{shown}"));
+    assert!(
+        total.contains(" ago, poe2 · Standard / Shot (character); the newest "),
+        "{shown}"
+    );
+    assert!(total.contains(" ago, pc · Allflame / Gear)"), "{shown}");
+    let json = sole_json(&acq(
+        &base,
+        &["search", "--realm", "all", "base=\"Chaos Orb\"", "--json"],
+    ));
+    for at in ["scope", "total"] {
+        assert_eq!(
+            json[at]["oldest_fetch_location"]["realm"], "poe2",
+            "{at}: {}",
+            json[at]
+        );
+        assert_eq!(
+            json[at]["newest_fetch_location"]["realm"], "pc",
+            "{at}: {}",
+            json[at]
+        );
+    }
 }
 
 /// A seat quoted the scope's oldest fetch for 187 matches and named it
@@ -1655,7 +1726,7 @@ fn the_total_says_how_old_the_matches_are_and_the_scope_its_counts() {
     let shown = stdout(&t.run(
         &["search", "--realm", "pc", "league=Standard"],
         &[
-            "total   2 matches (the oldest fetch 3d ago, Standard / Gear; the newest 2d ago, Standard / Dump)\n",
+            "total   2 matches (the oldest fetch 3d ago, pc · Standard / Gear; the newest 2d ago, pc · Standard / Dump)\n",
             "· 3 locations fetched\n        0 locations never fetched",
         ],
     ));

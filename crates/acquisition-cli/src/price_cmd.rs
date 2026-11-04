@@ -1358,7 +1358,7 @@ mod tests {
             "15 items in Standard: 12 the game decides, 0 decided by hand, 3 nothing applies"
         );
         // C162: how old the facts are, over the non-folder containers
-        let facts = "facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago";
+        let facts = "facts: 4 locations, 4 fetched (the oldest fetch 1h ago, pc · Standard / ~price 3 chaos (A); the newest 1h ago, pc · Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago";
         assert_eq!(lines[1], facts);
         // what else the realm holds, after the facts (round 5)
         assert_eq!(lines[2], leagues.trim_end());
@@ -1511,7 +1511,7 @@ mod tests {
         assert!(
             text.starts_with(
                 "no items on record for Standard: 4 locations, 4 fetched, none with items; no stash listing, no character listing\n\
-                 facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash never listed, characters never listed\n"
+                 facts: 4 locations, 4 fetched (the oldest fetch 1h ago, pc · Standard / ~price 3 chaos (A); the newest 1h ago, pc · Standard / Exile (character)); stash never listed, characters never listed\n"
             ),
             "{text}"
         );
@@ -1548,7 +1548,7 @@ mod tests {
         assert_eq!(
             facts_line(&one).as_deref(),
             Some(
-                "facts: 1 location, 1 fetched (fetched 1h ago, Standard / ~price 3 chaos (A)); stash listing 1h ago"
+                "facts: 1 location, 1 fetched (fetched 1h ago, pc · Standard / ~price 3 chaos (A)); stash listing 1h ago"
             )
         );
         let mut unfetched = snapshot();
@@ -1967,7 +1967,7 @@ mod tests {
         assert_eq!(
             text,
             "no items on record for Standard: 4 tabs and characters listed, 4 fetched, none with items\n\
-             facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago\n\
+             facts: 4 locations, 4 fetched (the oldest fetch 1h ago, pc · Standard / ~price 3 chaos (A); the newest 1h ago, pc · Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago\n\
              rows: 0 of 3 apply here; 2 name nothing in this league's facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
              next: `acq price status --account a --realm pc --league Standard --expand` lists the rows that cannot be read\n"
         );

@@ -1079,7 +1079,8 @@ pub(crate) fn answer_head(a: &Answer) -> String {
 
 /// A fetch span's extremes as a line says them, each with its own age:
 /// two locations named apart, one named once (round 2's form, #155),
-/// each named as a row's place is, league first (#11).
+/// each named as a row's place is, realm and league first (#11; the
+/// answer-facts seat, CLI fault 4: a poe2 character read as pc's).
 pub(crate) fn span_words(
     span: &acquisition_store::coverage::FetchSpan,
     oldest: String,
@@ -1088,7 +1089,8 @@ pub(crate) fn span_words(
     let at = |l: &Option<acquisition_store::coverage::FetchedLocation>| {
         l.as_ref().map_or(String::new(), |l| {
             format!(
-                ", {} / {}{}",
+                ", {} · {} / {}{}",
+                l.realm,
                 l.league.as_deref().unwrap_or("no league"),
                 l.name.as_deref().unwrap_or(&l.id),
                 if l.kind == "character" {

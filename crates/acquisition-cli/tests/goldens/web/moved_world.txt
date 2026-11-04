@@ -66,7 +66,7 @@ trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the si
 query   (every item in scope)
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   5 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch)
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
 </pre>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
@@ -96,7 +96,7 @@ trade   from the query JSON: exact — every clause with a stash meaning ran as 
 query   category=&quot;accessory.ring&quot;
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   3 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Launch) · 1 undecided
+total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · 1 undecided
 </pre>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>

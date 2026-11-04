@@ -7,7 +7,7 @@ $ acq search '(category=armour or category=accessory) (reqlevel=..30 or -has:req
 query   (category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) (line(template:resistance) or line(template:life) or line(template:damage))
 scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   5 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Never)
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             category accessory.ring · +95 to maximum Life (explicit)
             id r1
@@ -91,7 +91,7 @@ $ acq search --count category --routes
 query   (every item in scope)
 scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   10 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Never)
+total   10 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 count   category · 7 values
         4  accessory.ring
         1  armour.boots

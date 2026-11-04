@@ -22,7 +22,7 @@ $ acq search --realm pc --sort ilvl --desc --limit 1
 query   (every item in scope)
 scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   6 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Never)
+total   6 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by ilvl 84
             id r1
@@ -35,7 +35,7 @@ $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1' --de
 query   rarity=rare
 scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   5 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Never)
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by line("# to maximum Life").arg1 95 · +95 to maximum Life (explicit)
             id r1
@@ -52,7 +52,7 @@ $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1'
 query   rarity=rare
 scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
         0 locations never fetched · location list seen <age> ago
-total   5 matches (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Never)
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Never)
 rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by line("# to maximum Life").arg1 75 · +75 to maximum Life (explicit)
             id r2

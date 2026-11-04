@@ -1254,7 +1254,7 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     // round 6: the parent's name kept the mark)
     assert_eq!(
         a["scope"]["oldest_fetch_location"],
-        json!({ "kind": "stash", "id": "u2", "name": null, "league": "Standard" }),
+        json!({ "kind": "stash", "id": "u2", "name": null, "realm": "pc", "league": "Standard" }),
         "{}",
         a["scope"]
     );
@@ -1265,7 +1265,7 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
     for at in ["scope", "total"] {
         assert_eq!(
             a[at]["newest_fetch_location"],
-            json!({ "kind": "stash", "id": "p2", "name": null, "league": "Standard" }),
+            json!({ "kind": "stash", "id": "p2", "name": null, "realm": "pc", "league": "Standard" }),
             "{at}: {}",
             a[at]
         );

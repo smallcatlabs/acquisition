@@ -13,7 +13,7 @@ trade   from the query JSON: ambiguous — every clause ran, 2 as the site may n
 query   sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)
 scope   account Alice#1234 · pc · live · 2 items · 1 location fetched
         0 locations never fetched · location list seen <age> ago
-total   2 matches (fetched <age> ago, Standard / Rings)
+total   2 matches (fetched <age> ago, pc · Standard / Rings)
 rows    Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago
             sum(line("#% increased Rarity of Items found" source=explicit).arg1) 30 · 30% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
             id both

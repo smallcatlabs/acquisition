@@ -179,6 +179,7 @@ fn c162_a_character_is_its_own_type_and_no_leagues_never_fetched() {
             kind: "character".into(),
             id: "x".into(),
             name: Some("char x".into()),
+            realm: "pc".into(),
             league: Some("Hc".into()),
         })
     );
@@ -229,6 +230,7 @@ fn c162_a_blank_name_is_no_name() {
             kind: "stash".into(),
             id: "a".into(),
             name: None,
+            realm: "pc".into(),
             league: Some("Std".into()),
         })
     );
@@ -373,6 +375,7 @@ fn c162_a_spans_tie_is_the_first_in_the_order_given_both_ways() {
                 kind: "stash".into(),
                 id: id.into(),
                 name: None,
+                realm: "pc".into(),
                 league: Some("Std".into()),
             },
         )
@@ -436,8 +439,8 @@ fn c162_a_coverage_serializes_its_span_in_place_populated_and_empty_aged_or_not(
     let text = |c: &Coverage| serde_json::to_string(c).unwrap();
     let head = r#"{"items":3,"realms_held":["pc"],"leagues":["Hc","Std"],"fetched":2,"never_fetched":1,"never_fetched_by_type":[{"type":"MapStash","tabs":1,"fetched":0,"never":1,"items":0}],"never_fetched_leagues":["Std"],"folders":0,"#;
     let (a, x) = (
-        r#"{"kind":"stash","id":"a","name":"tab a","league":"Std"}"#,
-        r#"{"kind":"character","id":"x","name":"char x","league":"Hc"}"#,
+        r#"{"kind":"stash","id":"a","name":"tab a","realm":"pc","league":"Std"}"#,
+        r#"{"kind":"character","id":"x","name":"char x","realm":"pc","league":"Hc"}"#,
     );
     assert_eq!(
         text(&some),

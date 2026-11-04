@@ -915,7 +915,7 @@ fn subject(a: &Value) -> Value {
 }
 
 fn stash(id: &str, name: &str, league: &str) -> Value {
-    json!({ "kind": "stash", "id": id, "name": name, "league": league })
+    json!({ "kind": "stash", "id": id, "name": name, "realm": "pc", "league": league })
 }
 
 fn asked_at(corpus: &Corpus, request: Value) -> Value {
