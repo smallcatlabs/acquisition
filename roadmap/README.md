@@ -618,11 +618,15 @@ autonomy"): the map `reviews/answer-facts-map.md` (reviewed cold
 twice, its eight recommendations accepted as a set), its rulings
 C118 amended and C162 entered at `f3db3427`, and its rounds in the
 map's §10 order: the coverage fold in the store (S2,
-`briefs/155-coverage-fold.md`, cut twice under cold reviews), then the
-subject's block on the search (S1, #155), the named-paths pin (S4),
-the shop's and price status's blocks (S3, #156), the scope of
-league-taking surfaces (S5, #157, #22), the words round (S6 to S10),
-and a seat. Current: round 1, its brief under its second cold review.
-Round 1 landed on 2026-11-03 as one commit, this line's (the store's
-`coverage` module and its unit tests, the search calling it through
-re-exports, no golden changed); its review is pending.
+`briefs/155-coverage-fold.md`, cut three times under two cold
+reviews), then the subject's block on the search (S1, #155), the
+named-paths pin (S4), the shop's and price status's blocks (S3,
+#156), the scope of league-taking surfaces (S5, #157, #22), the words
+round (S6 to S10), and a seat. Round 1 landed on 2026-11-03 as one
+commit, `fb6c5c02` (the store's `coverage` module and its sixteen
+unit tests, the search calling it through re-exports, no golden
+changed), built by an Opus worker in the orchestrating session;
+reviewed cold, no findings; closed the same day (`LEDGER.md`). Round
+2, the matches' fetch span on the search answer
+(`briefs/155-subject-block.md`), is current, its brief under its
+first cold review.
