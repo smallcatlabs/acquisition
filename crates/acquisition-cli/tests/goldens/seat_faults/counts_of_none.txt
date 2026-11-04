@@ -1,25 +1,25 @@
 # golden seat_faults/counts_of_none: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq tabs --limit 0
-# holds "1 tabs in Standard: 1 fetched; 1 items in tabs"
+# holds "1 tabs in Standard: 1 fetched; 2 items in tabs"
 # holds "lists all 1"
 --- stdout
-1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+1 tabs in Standard: 1 fetched; 2 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 type           tabs  fetched   items
-PremiumStash      1        1       1
+PremiumStash      1        1       2
 next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 1; `acq search --account 'Alice#1234' --realm pc league=Standard --count tab` counts what a query matches by tab
 
 $ acq tabs --type PremiumStash --limit 0
 # holds "0 of 1 shown: "
 --- stdout
-1 tabs in Standard: 1 fetched; 1 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
+1 tabs in Standard: 1 fetched; 2 items in tabs (characters apart: `acq store characters --account 'Alice#1234' --realm pc --league Standard`)
 leagues: Standard (this); also held: Allflame (1 tab, no policy)
 1 PremiumStash tabs
 0 of 1 shown: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand --type PremiumStash` lists all
 
 $ acq store events --summary
-# holds "0 events in the last 24 h; the newest on record 53d ago (`--hours N` widens the window)"
+# holds "0 events in the last 24 h; the newest on record 40d ago (`--hours N` widens the window)"
 --- stdout
 0 events in the last 24 h; the newest on record <age> ago (`--hours N` widens the window)
 

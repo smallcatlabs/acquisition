@@ -117,7 +117,8 @@ pub struct EventSummary {
     /// all: a count of none says which none and how to read further
     /// (C146; answer-facts seat run 2, cli fault 14: `0 events in the
     /// last 24 h` on a store whose newest was 53 days old). Absent where
-    /// the window holds one.
+    /// the window holds one, and where a `limit` of 0 read none, which
+    /// says nothing of the window.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub newest_on_record: Option<NewestOnRecord>,
 }
@@ -141,7 +142,9 @@ impl EventSummary {
         now: i64,
     ) -> anyhow::Result<EventSummary> {
         let mut listed = EventSummary::of(events, summary(store, &events.rows), expand, now);
-        if listed.events == 0 {
+        // an empty window, never one a `limit` of 0 cut (the review of
+        // the seat's third round, finding 3)
+        if listed.events == 0 && !listed.limit_reached {
             let at = store.events_since(i64::MIN, 1)?.first().map(|row| row.at);
             listed.newest_on_record = Some(NewestOnRecord {
                 at,

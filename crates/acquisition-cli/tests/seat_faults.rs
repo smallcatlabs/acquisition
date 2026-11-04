@@ -2009,11 +2009,34 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
     let scratch = harness::scratch("seat-none");
     let base = scratch.0.clone();
     seed_two_leagues_at(&base, acquisition_store::now() - 53 * 86_400);
+    // a newer event outside the window, 40 days ago, so the line is the
+    // newest's and never the oldest's (the review of the seat's third
+    // round, finding 4)
+    let newer = acquisition_store::now() - 40 * 86_400;
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "a1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
+                { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 },
+                { "id": "i-new", "name": "", "typeLine": "Exalted Orb", "baseType": "Exalted Orb", "x": 1, "y": 0 } ] } }),
+            newer,
+        )
+        .unwrap();
+    drop(store);
     let mut t = Transcript::new(&base);
     let said = stdout(&t.run(
         &["tabs", "--limit", "0"],
         &[
-            "1 tabs in Standard: 1 fetched; 1 items in tabs",
+            "1 tabs in Standard: 1 fetched; 2 items in tabs",
             "lists all 1",
         ],
     ));
@@ -2029,13 +2052,37 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
     }
     t.run(
         &["store", "events", "--summary"],
-        &["0 events in the last 24 h; the newest on record 53d ago (`--hours N` widens the window)"],
+        &["0 events in the last 24 h; the newest on record 40d ago (`--hours N` widens the window)"],
     );
     let doc = sole_json(&acq(&base, &["store", "events", "--summary", "--json"]));
-    assert_eq!(doc["newest_on_record"]["at_age"], "53d ago", "{doc}");
+    assert_eq!(
+        doc["newest_on_record"],
+        json!({ "at": newer, "at_age": "40d ago" }),
+        "{doc}"
+    );
+    // a `limit` of 0 reads none over a window that holds some, and says
+    // nothing of an empty window (finding 3)
+    let cut = sole_json(&acq(
+        &base,
+        &[
+            "store",
+            "events",
+            "--summary",
+            "--hours",
+            "100000",
+            "--limit",
+            "0",
+            "--json",
+        ],
+    ));
+    assert_eq!(
+        (cut["events"].as_u64(), cut["limit_reached"].as_bool()),
+        (Some(0), Some(true)),
+        "{cut}"
+    );
+    assert!(cut.get("newest_on_record").is_none(), "{cut}");
 
     // a second account, its store holding no event at all
-    let mock = base.join("store").join("mock");
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-empty", false, acquisition_store::now(), &[])
