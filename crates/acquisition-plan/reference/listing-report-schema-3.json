@@ -29,6 +29,8 @@
     "game_priced": 5,
     "inherited": 6,
     "invalid_notes": 1,
+    "invalid_tab_name_items": 0,
+    "invalid_tab_names": 0,
     "items": 9,
     "league_unknown": 0,
     "priced_tabs": 2,

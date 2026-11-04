@@ -1958,6 +1958,89 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
     golden(file!(), "skip_count_names_its_list", &t);
 }
 
+/// #170 (the answer-facts seat, CLI run 1 calls 53, 75; CLI run 2 calls
+/// 59, 60; MCP run 2 calls 31, 41): a public tab named `~b/o 5000/2
+/// chaos` reads invalid, a ratio in a tab name listing nothing, and
+/// `price status` counted it nowhere. A tab name that starts like a
+/// price and does not read as one is counted as an invalid note is, the
+/// tabs and the items in them, its route on the same line; run as
+/// printed, the route lists the tab's items under their tab.
+#[test]
+fn an_invalid_tab_name_is_counted_with_the_list_that_holds_its_items() {
+    let scratch = harness::scratch("seat-invalid-tab-name");
+    let base = scratch.0.clone();
+    let at = acquisition_store::now();
+    seed_two_leagues_at(&base, at);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let orb = |id: &str| json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 });
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                { "id": "r1", "name": "~b/o 5000/2 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "r1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "r1", "name": "~b/o 5000/2 chaos", "type": "PremiumStash",
+                                "items": [ orb("v1"), orb("v2") ] } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let mut t = Transcript::new(&base);
+    let said = stdout(&t.run(
+        &["price", "status"],
+        &[
+            "1 tab name starts like a price and does not read as one, over 2 items (no effect: a note or a hand row applies, where either does; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text invalid_tab_name` lists them)",
+        ],
+    ));
+    let status = sole_json(&acq(&base, &["price", "status", "--json"]));
+    assert_eq!(status["counts"]["invalid_tab_names"], 1, "{status}");
+    assert_eq!(status["counts"]["invalid_tab_name_items"], 2, "{status}");
+    assert_eq!(status["counts"]["invalid_notes"], 0, "{status}");
+    let route = said
+        .split('`')
+        .find(|c| c.ends_with("--game-text invalid_tab_name"))
+        .unwrap_or_else(|| panic!("no route:\n{said}"));
+    let out = run_as_printed(&base, &format!("{route} --json"));
+    assert!(out.status.success(), "`{route}`: {}", text(&out));
+    let listed = sole_json(&out);
+    assert_eq!(listed["total"], 2, "{listed}");
+    let mut ids: Vec<&str> = listed["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|i| i["subject"]["target"]["id"].as_str())
+        .collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["v1", "v2"], "{listed}");
+    t.run(
+        &["price", "list", "--game-text", "invalid_tab_name"],
+        &[
+            "with a tab name that starts like a price and does not read as one",
+            "~b/o 5000/2 chaos (public)",
+        ],
+    );
+    golden(file!(), "invalid_tab_name_counted", &t);
+}
+
 /// A seat quoted the scope's oldest fetch for 187 matches and named it
 /// the fault a person would quote wrong (#155; MCP-2 calls 32 and 37):
 /// the total line says the matches' own oldest and newest fetch, each

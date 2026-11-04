@@ -1,0 +1,22 @@
+# golden seat_faults/invalid_tab_name_counted: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price status
+# holds "1 tab name starts like a price and does not read as one, over 2 items (no effect: a note or a hand row applies, where either does; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text invalid_tab_name` lists them)"
+--- stdout
+3 items in Standard: 0 the game decides, 0 decided by hand, 3 nothing applies
+facts: 2 locations, 2 fetched (fetched <age> ago, pc · Standard / Gear); stash listing <age> ago
+leagues: Standard (this); also held: Allflame (1 tab, no policy)
+sides: nothing priced
+in game also: 0 items with a game-side ~skip statement in a public tab (a hand row nearer the item still applies), 0 notes start like a price and do not read as one (no effect: a hand row or its tab's name applies, where either does), 1 tab name starts like a price and does not read as one, over 2 items (no effect: a note or a hand row applies, where either does; `acq price list --account 'Alice#1234' --realm pc --league Standard --game-text invalid_tab_name` lists them)
+next: `acq price list --account 'Alice#1234' --realm pc --league Standard` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Standard <target>` is one listing
+
+$ acq price list --game-text invalid_tab_name
+# holds "with a tab name that starts like a price and does not read as one"
+# holds "~b/o 5000/2 chaos (public)"
+--- stdout
+2 items listed in Standard with a tab name that starts like a price and does not read as one: 2 unlisted; in 1 container
+  relation     wins  by hand            in game            item                                     id
+~b/o 5000/2 chaos (public)  2 items: 2 unlisted  tab/pc/r1
+  none         -     -                  -                  Chaos Orb                                v1
+  none         -     -                  -                  Chaos Orb                                v2
+next: `acq price show --account 'Alice#1234' --realm pc --league Standard item/<id>` is one listing with its texts

@@ -457,6 +457,76 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         "{residue}"
     );
 
+    // A tab name that starts like a price and does not read as one is
+    // counted, the tabs and their items, and the list of `game_text`
+    // `invalid_tab_name` holds them, alike on both surfaces (#170; the
+    // answer-facts seat, MCP run 2 calls 31, 41): a public tab named
+    // `~b/o 5000/2 chaos` recorded beside the seeded ones.
+    {
+        let mock = base.join("store").join("mock");
+        let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+        let at = acquisition_store::now();
+        let stash = |id: &str| Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: id.into(),
+            sub: None,
+        };
+        // the seed's listing, the tab added
+        let listing = json!({ "stashes": [
+            { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
+              "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
+            { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
+            { "id": "r1", "name": "~b/o 5000/2 chaos", "type": "PremiumStash", "index": 3, "metadata": { "public": true } } ] });
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: "Standard".into(),
+                },
+                &json!({ "league": "Standard" }),
+                200,
+                &listing,
+                at,
+            )
+            .unwrap();
+        store
+            .record(
+                &stash("r1"),
+                &json!({}),
+                200,
+                &json!({ "stash": { "id": "r1", "name": "~b/o 5000/2 chaos", "type": "PremiumStash", "items": [
+                    { "id": "i-ratio-1", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+                at,
+            )
+            .unwrap();
+    }
+    let (_, status) = tool(&mut mcp, "price_status", json!({}));
+    assert_eq!(status["counts"]["invalid_tab_names"], json!(1), "{status}");
+    assert_eq!(
+        status["counts"]["invalid_tab_name_items"],
+        json!(1),
+        "{status}"
+    );
+    let (ok, by_tool) = tool(
+        &mut mcp,
+        "price_list",
+        json!({ "game_text": "invalid_tab_name" }),
+    );
+    assert!(ok, "{by_tool}");
+    assert_eq!(by_tool["total"], json!(1), "{by_tool}");
+    assert_eq!(
+        by_tool["items"][0]["subject"]["target"]["id"],
+        json!("i-ratio-1"),
+        "{by_tool}"
+    );
+    let (_, by_cli) = cli(base, &["price", "list", "--game-text", "invalid_tab_name"]);
+    assert_spoken_as(
+        &steady(by_tool, CLOCK),
+        &steady(by_cli, CLOCK),
+        "price_list invalid_tab_name is not what acq price list --json prints",
+    );
+
     // The template is text to the tool and a file to the CLI: one page.
     let template = "[spoiler=\"shop\"]\n[items]\n[/spoiler]";
     std::fs::write(base.join("template.txt"), template).unwrap();

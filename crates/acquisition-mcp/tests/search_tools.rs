@@ -716,10 +716,12 @@ fn describe_is_as_large_as_its_text_says() {
     // seat's run 2, cli fault 8)
     assert!(size(&mut seat, json!(["answer"])) < 7_500);
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
-    // some 7 KB since a show's counts joined it (step 2g, round 2: 4,541
-    // bytes of entries then) and the shop's substash rule the receipt's
-    // `note` (the league seat, fault 4: 7,131 bytes)
-    assert!(size(&mut seat, json!(["pricing"])) < 8_000);
+    // some 8 KB since a show's counts joined it (step 2g, round 2: 4,541
+    // bytes of entries then), the shop's substash rule the receipt's
+    // `note` (the league seat, fault 4: 7,131 bytes) and the invalid tab
+    // names the status counts (#170: 8,210 bytes)
+    let pricing = size(&mut seat, json!(["pricing"]));
+    assert!(pricing < 9_000, "pricing: {pricing} bytes");
     assert!(size(&mut seat, json!(["pricing"])) > 6_000);
     // some 5 KB since the leagues held and the stored list joined it
     // (round 5 of the answer-facts group: 5,150 bytes, from just under
@@ -759,7 +761,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed some 80 KB",
         "fields and trade 20 KB each",
         "categories 10 KB",
-        "pricing 7 KB, answer 5 KB",
+        "pricing 8 KB, answer 5 KB",
         "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

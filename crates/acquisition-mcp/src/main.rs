@@ -1031,11 +1031,10 @@ struct PriceListParams {
     /// Only items a row on this target would cover: a folder's tabs'
     /// items, a map or unique tab's substashes' items too.
     covered_by: Option<String>,
-    /// Only the members of a count of price_status: residue
-    /// (`counts.residue`), price text the trade site cannot see;
-    /// invalid_note (`counts.invalid_notes`), a note that starts like a
-    /// price and does not read as one; skip (`counts.by_game_statement`'s
-    /// `skip`), a ~skip statement in a public tab.
+    /// Only the members of a count of price_status: residue, price text
+    /// the trade site cannot see; invalid_note and invalid_tab_name, a
+    /// note or an item's tab name that starts like a price and does not
+    /// read as one; skip, a ~skip statement in a public tab.
     game_text: Option<String>,
     /// List this many items in place of ten, the first in listing order;
     /// `total` says how many the selection holds.
@@ -1605,7 +1604,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 7 KB, answer 5 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows."
+        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 5 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {

@@ -671,8 +671,9 @@ enum PriceCmd {
         /// residue, a note or tab name that reads as a price where the
         /// trade site cannot see it (a character's item, a tab that is not
         /// public); invalid_note, a note that starts like a price and does
-        /// not read as one; skip, a game-side ~skip statement in a public
-        /// tab.
+        /// not read as one; invalid_tab_name, an item whose tab's name
+        /// starts like a price and does not read as one; skip, a game-side
+        /// ~skip statement in a public tab.
         #[arg(long, value_name = "TEXT")]
         game_text: Option<String>,
         /// List at most N items, the first in listing order; the first

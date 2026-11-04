@@ -552,6 +552,18 @@ pub struct Counts {
     /// and does not read as one: no effect, a hand row or its tab's name
     /// applies, where either does.
     pub invalid_notes: usize,
+    /// Tabs (folders and substashes excluded) whose own name starts like
+    /// a price and does not read as one, public or not: no effect, an
+    /// item's note or a hand row applies, where either does (#170; the
+    /// answer-facts seat: `~b/o 5000/2 chaos`, a ratio in a tab name,
+    /// counted nowhere). Additive.
+    #[serde(default)]
+    pub invalid_tab_names: usize,
+    /// The items whose tab name (their own tab's, or a substash's
+    /// parent's, C80) is such a name: `--game-text invalid_tab_name`
+    /// lists them.
+    #[serde(default)]
+    pub invalid_tab_name_items: usize,
     /// Items with a game-side price statement (exact or negotiable);
     /// public by construction.
     pub game_priced: usize,
@@ -761,6 +773,10 @@ pub enum GameText {
     /// A note that starts like a price and does not read as one:
     /// `Counts::invalid_notes`, `game.note.reading` invalid on the item.
     InvalidNote,
+    /// A tab name that starts like a price and does not read as one:
+    /// `Counts::invalid_tab_name_items`, `game.tab_name.reading` invalid
+    /// on the item (#170).
+    InvalidTabName,
     /// The game side's `~skip` statement in a public tab:
     /// `Counts::by_game_statement`'s `skip`, `game.reading` skip on the
     /// item (the answer-facts seat, CLI fault 10: the status counted
@@ -769,12 +785,18 @@ pub enum GameText {
 }
 
 impl GameText {
-    pub const ALL: [GameText; 3] = [GameText::Residue, GameText::InvalidNote, GameText::Skip];
+    pub const ALL: [GameText; 4] = [
+        GameText::Residue,
+        GameText::InvalidNote,
+        GameText::InvalidTabName,
+        GameText::Skip,
+    ];
 
     pub fn as_str(self) -> &'static str {
         match self {
             GameText::Residue => "residue",
             GameText::InvalidNote => "invalid_note",
+            GameText::InvalidTabName => "invalid_tab_name",
             GameText::Skip => "skip",
         }
     }
@@ -789,6 +811,10 @@ impl GameText {
             GameText::Residue => game.residue,
             GameText::InvalidNote => game
                 .note
+                .as_ref()
+                .is_some_and(|n| matches!(n.reading, GamePrice::Invalid { .. })),
+            GameText::InvalidTabName => game
+                .tab_name
                 .as_ref()
                 .is_some_and(|n| matches!(n.reading, GamePrice::Invalid { .. })),
             GameText::Skip => matches!(game.reading, GamePrice::Skip),
@@ -1774,6 +1800,15 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
                 counts.priced_tabs_public += 1;
             }
         }
+        if info.kind != TabKind::Folder
+            && info.kind != TabKind::Substash
+            && game
+                .tab_name
+                .as_ref()
+                .is_some_and(|t| matches!(t.reading, GamePrice::Invalid { .. }))
+        {
+            counts.invalid_tab_names += 1;
+        }
         let basis = Basis {
             response: info.tab.listed_response,
             at: info.tab.listed_at,
@@ -1900,6 +1935,9 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
             .is_some_and(|n| matches!(n.reading, GamePrice::Invalid { .. }))
         {
             counts.invalid_notes += 1;
+        }
+        if GameText::InvalidTabName.holds(&l.game) {
+            counts.invalid_tab_name_items += 1;
         }
         if l.game.reading.price().is_some() {
             counts.game_priced += 1;

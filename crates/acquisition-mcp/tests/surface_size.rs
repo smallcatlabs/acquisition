@@ -110,7 +110,9 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`counts.residue` the items carrying price text the trade site cannot see",
                 "`counts.invalid_notes` the notes that start like a price",
-                "price_list with `game_text` `residue`, `invalid_note` or `skip` lists each count's items",
+                // #170: the tab names, their items, their list
+                "`counts.invalid_tab_names` the tabs whose name starts like a price",
+                "price_list with `game_text` `residue`, `invalid_note`, `invalid_tab_name` or `skip` lists each count's items",
                 "`rows` accounts for every hand-written row",
             ][..],
         ),
