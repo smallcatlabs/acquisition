@@ -495,7 +495,10 @@ async fn apply_plan(
             if json {
                 println!("{}", serde_json::to_string(&nothing)?);
             } else {
-                print!("{}", render_nothing_to_do(&plan, acquisition_store::now()));
+                print!(
+                    "{}",
+                    render_nothing_to_do(&plan, acquisition_store::now(), true)
+                );
             }
             return Ok(());
         }
@@ -777,49 +780,8 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
             account,
             authority(plan),
         );
-        let has_tabs = plan.actions.iter().any(|a| {
-            matches!(
-                a,
-                RefreshAction::ListStashes { .. }
-                    | RefreshAction::FetchTab { .. }
-                    | RefreshAction::FetchSubstash { .. }
-            )
-        }) || !plan.skipped_tabs.is_empty()
-            || !plan.unknown_tabs.is_empty();
-        let has_characters = plan.actions.iter().any(|a| {
-            matches!(
-                a,
-                RefreshAction::ListCharacters { .. } | RefreshAction::FetchCharacter { .. }
-            )
-        }) || !plan.skipped_characters.is_empty()
-            || !plan.unknown_characters.is_empty();
-        let stash_age = plan
-            .basis
-            .stash_listing
-            .as_ref()
-            .map(|l| dur(plan.generated_at - l.fetched_at));
-        let character_age = plan
-            .basis
-            .character_listing
-            .as_ref()
-            .map(|l| dur(plan.generated_at - l.fetched_at));
-        // Each listing keeps its own age, even when the two agree: a fold
-        // on equal ages printed one shape or the other by which second
-        // each listing landed in (issue #76), and the store holds no fact
-        // that ties the two, which are always two responses.
-        let facts = match (has_tabs, has_characters, stash_age, character_age) {
-            (true, true, stash, characters) => format!(
-                "stash {}; characters {}",
-                basis_age(stash),
-                basis_age(characters)
-            ),
-            (true, false, stash, _) => format!("stash {}", basis_age(stash)),
-            (false, true, _, characters) => {
-                format!("characters {}", basis_age(characters))
-            }
-            (false, false, _, _) => "no covered facts".into(),
-        };
-        out.push_str(&format!("facts: {facts}\n\n"));
+        out.push_str(&facts_line(plan));
+        out.push('\n');
         return out;
     }
     let mut out = format!(
@@ -853,6 +815,56 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     };
     out.push_str(&format!("basis: {stash}, {characters}\n\n"));
     out
+}
+
+/// The plan's facts line: how old each listing it reads was when it was
+/// planned. Printed on every text path of a plan, the nothing-to-do
+/// path included (the answer-facts seat, CLI fault 12: the line was
+/// dropped where nothing was to do).
+fn facts_line(plan: &RefreshPlan) -> String {
+    let has_tabs = plan.actions.iter().any(|a| {
+        matches!(
+            a,
+            RefreshAction::ListStashes { .. }
+                | RefreshAction::FetchTab { .. }
+                | RefreshAction::FetchSubstash { .. }
+        )
+    }) || !plan.skipped_tabs.is_empty()
+        || !plan.unknown_tabs.is_empty();
+    let has_characters = plan.actions.iter().any(|a| {
+        matches!(
+            a,
+            RefreshAction::ListCharacters { .. } | RefreshAction::FetchCharacter { .. }
+        )
+    }) || !plan.skipped_characters.is_empty()
+        || !plan.unknown_characters.is_empty();
+    let stash_age = plan
+        .basis
+        .stash_listing
+        .as_ref()
+        .map(|l| dur(plan.generated_at - l.fetched_at));
+    let character_age = plan
+        .basis
+        .character_listing
+        .as_ref()
+        .map(|l| dur(plan.generated_at - l.fetched_at));
+    // Each listing keeps its own age, even when the two agree: a fold
+    // on equal ages printed one shape or the other by which second
+    // each listing landed in (issue #76), and the store holds no fact
+    // that ties the two, which are always two responses.
+    let facts = match (has_tabs, has_characters, stash_age, character_age) {
+        (true, true, stash, characters) => format!(
+            "stash {}; characters {}",
+            basis_age(stash),
+            basis_age(characters)
+        ),
+        (true, false, stash, _) => format!("stash {}", basis_age(stash)),
+        (false, true, _, characters) => {
+            format!("characters {}", basis_age(characters))
+        }
+        (false, false, _, _) => "no covered facts".into(),
+    };
+    format!("facts: {facts}\n")
 }
 
 fn basis_age(age: Option<String>) -> String {
@@ -905,11 +917,13 @@ pub(crate) fn render_plan(
 ) -> String {
     let outside = uncovered_line(uncovered, account);
     if plan.actions.is_empty() && !expand {
-        return render_nothing_to_do(plan, now) + &plan_note_lines(plan, notes, now) + &outside;
+        return render_nothing_to_do(plan, now, true)
+            + &plan_note_lines(plan, notes, now)
+            + &outside;
     }
     let mut out = render_header(plan, now, expand);
     if plan.actions.is_empty() {
-        out.push_str(&render_nothing_to_do(plan, now));
+        out.push_str(&render_nothing_to_do(plan, now, false));
         out.push_str(&plan_note_lines(plan, notes, now));
         out.push_str(&outside);
         return out;
@@ -1028,8 +1042,19 @@ fn render_skips(plan: &RefreshPlan, audit: bool) -> String {
     out
 }
 
+/// What a plan with no actions says, the facts line under its first
+/// line where `facts` (every path but the audit view, whose header says
+/// its basis).
+fn render_nothing_to_do(plan: &RefreshPlan, now: i64, facts: bool) -> String {
+    let said = nothing_to_do(plan, now);
+    match said.split_once('\n') {
+        Some((first, rest)) if facts => format!("{first}\n{}{rest}", facts_line(plan)),
+        _ => said,
+    }
+}
+
 /// The no-op apply's text: what is fresh and for how long, then the claim.
-fn render_nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
+fn nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
     // the league the claim is about, as every line about its work names it
     let head = format!(
         "nothing to do in {}{}",
@@ -2319,13 +2344,13 @@ mod tests {
             .collect();
         plan.actions.clear();
         plan.logical_requests = 0;
-        let text = render_nothing_to_do(&plan, plan.generated_at);
+        let text = render_nothing_to_do(&plan, plan.generated_at, false);
         assert_eq!(
             text,
             "nothing to do in Standard: 69 tabs and 41 characters are fresh (under 1h)\n"
         );
         assert_eq!(
-            render_nothing_to_do(&plan, plan.generated_at + 7_200),
+            render_nothing_to_do(&plan, plan.generated_at + 7_200, false),
             "nothing to do in Standard: this 2h-old plan found 69 tabs and 41 characters fresh (under 1h)\n"
         );
 
@@ -2335,7 +2360,7 @@ mod tests {
             reason: SkipReason::Folder,
         });
         assert_eq!(
-            render_nothing_to_do(&plan, plan.generated_at),
+            render_nothing_to_do(&plan, plan.generated_at, false),
             concat!(
                 "nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching\n",
                 "skipped 70 tabs: 69 fresh, 1 folder — container only\n",
@@ -2346,7 +2371,7 @@ mod tests {
         plan.skipped_tabs.retain(|tab| tab.id == "folder");
         plan.skipped_characters.clear();
         assert_eq!(
-            render_nothing_to_do(&plan, plan.generated_at),
+            render_nothing_to_do(&plan, plan.generated_at, false),
             concat!(
                 "nothing to do in Standard: covered entries do not need fetching\n",
                 "skipped 1 tab: 1 folder — container only\n",

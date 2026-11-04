@@ -109,6 +109,7 @@ $ acq refresh --plan --league Rehearsal
 # holds "nothing to do in Rehearsal:"
 --- stdout
 nothing to do in Rehearsal: covered entries are fresh (under 1h) or do not need fetching
+facts: stash listed <age> ago
 skipped 8 tabs: 7 fresh, 1 folder — container only
 characters: none in Rehearsal (the realm's character listing, listed <age> before the plan)
 
@@ -185,6 +186,7 @@ $ acq refresh --plan
 # holds "nothing to do in Standard:"
 --- stdout
 nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
+facts: stash listed <age> ago; characters listed <age> ago
 skipped 15 tabs: 14 fresh, 1 folder — container only
 skipped 2 characters: 2 fresh
 

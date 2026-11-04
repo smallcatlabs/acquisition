@@ -496,7 +496,16 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     assert_eq!(out.status.code(), Some(0), "{}", text(&out));
 
     let mut t = Transcript::new(&base);
-    let said = stdout(&t.run(&["refresh", "--plan"], &["nothing to do"]));
+    // the facts line prints where nothing is to do, as on every plan (the
+    // answer-facts seat, run 1, CLI fault 12: it was dropped here)
+    let said = stdout(&t.run(
+        &["refresh", "--plan"],
+        &[
+            "nothing to do",
+            "facts: stash listed ",
+            "; characters listed ",
+        ],
+    ));
     assert!(said.contains("nothing to do"), "{said}");
     golden(file!(), "the_second_round_leaves_nothing_planned", &t);
 }
