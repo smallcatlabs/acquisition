@@ -1,0 +1,17 @@
+# golden seat_faults/account_to_pick_every_path: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq --account Missing tabs
+# holds "no login made a store for `Missing`"
+--- stderr
+Error: no login made a store for `Missing`; the names known: Alice#1234, Bob#5678 (see `acq accounts`)
+  `acq --account 'Alice#1234' tabs`
+  `acq --account 'Bob#5678' tabs`
+--- exit 1
+
+$ acq search --request <scratch>/request.json
+# holds "2 accounts are known and one is to be picked"
+--- stderr
+Error: 2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT
+  `acq --account 'Alice#1234' search --request=<scratch>/request.json`
+  `acq --account 'Bob#5678' search --request=<scratch>/request.json`
+--- exit 1

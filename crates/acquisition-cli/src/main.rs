@@ -1122,24 +1122,28 @@ pub(crate) fn failure_words(e: &anyhow::Error) -> String {
     format!("{e:#}")
 }
 
-/// Under a text refusal naming accounts to pick from (#168's text half;
-/// the answer-facts seat, CLI run 1 call 11), one ready command per
-/// account: the lines of the JSON document's own offers ([`error_report`],
-/// never a second construction), this command as each account, each
-/// running as printed (C156); the first of the store's bound
-/// (`acquisition_store::bound::LISTED`), the rest counted with the
-/// command that lists every account. Nothing for any other refusal.
-fn ready_accounts(e: &anyhow::Error) -> String {
+/// Under a text refusal whose JSON offers accounts (#168's text half;
+/// the answer-facts seat, CLI run 1 call 11; the review of round C,
+/// finding 4) — an account to pick from those known, or one no login
+/// made, with the names known — one ready command per account: the
+/// lines of the JSON document's own offers ([`error_report`], never a
+/// second construction), this command as typed as each account, a
+/// request file kept, each running as printed (C156); the first of the
+/// store's bound (`acquisition_store::bound::LISTED`), the rest counted
+/// with the command that lists every account. Every text path that
+/// reports such a refusal prints it: main's, and `search --request`'s
+/// own. Nothing for any other refusal.
+pub(crate) fn ready_accounts(e: &anyhow::Error) -> String {
     let picking = e.chain().any(|c| {
         matches!(
             c.downcast_ref::<Fault>(),
-            Some(Fault::AmbiguousAccount { .. })
+            Some(Fault::AmbiguousAccount { .. } | Fault::UnknownAccount { .. })
         )
     });
     if !picking {
         return String::new();
     }
-    let doc = error_report(e);
+    let doc = acquisition_verbs::refusal::document(e, &Terminal::typed());
     let lines: Vec<&str> = doc["offers"]
         .as_array()
         .into_iter()
@@ -1195,6 +1199,16 @@ impl Terminal {
     pub(crate) fn this_command() -> Terminal {
         Terminal {
             repeat: parsed_line().map_or(Repeat::None, Repeat::Line),
+        }
+    }
+
+    /// This process's command as typed, a request read whole kept as its
+    /// file ([`parsed_line_of`]): the commands a text refusal prints for
+    /// each account to run (the review of round C, finding 4), where the
+    /// JSON offers the request itself ([`Terminal::asking`]).
+    pub(crate) fn typed() -> Terminal {
+        Terminal {
+            repeat: parsed_line_of(true).map_or(Repeat::None, Repeat::Line),
         }
     }
 
@@ -1451,10 +1465,18 @@ impl acquisition_verbs::refusal::Surface for Terminal {
 /// stdin (`-`), or a request is read whole (`--request`, `--next`: its
 /// refusal offers the request itself, [`Terminal::asking`]).
 fn parsed_line() -> Option<Vec<String>> {
+    parsed_line_of(false)
+}
+
+/// [`parsed_line`], and where `whole` a request read whole kept as typed
+/// (`--request=<file>`, `--next=<token>`): the command a text refusal
+/// prints for each account to run ([`Terminal::typed`]; the review of
+/// round C, finding 4), its file read again when it runs.
+fn parsed_line_of(whole: bool) -> Option<Vec<String>> {
     let cmd = <Cli as clap::CommandFactory>::command();
     let matches = cmd.clone().try_get_matches_from(std::env::args_os()).ok()?;
     let mut words = Vec::new();
-    parsed_level(&cmd, &matches, true, &mut words)?;
+    parsed_level(&cmd, &matches, true, whole, &mut words)?;
     Some(words)
 }
 
@@ -1463,6 +1485,7 @@ fn parsed_level(
     cmd: &clap::Command,
     m: &clap::ArgMatches,
     top: bool,
+    whole: bool,
     out: &mut Vec<String>,
 ) -> Option<()> {
     let mut positionals = Vec::new();
@@ -1474,7 +1497,7 @@ fn parsed_level(
         if m.value_source(id) != Some(clap::parser::ValueSource::CommandLine) {
             continue;
         }
-        if matches!(id, "request" | "next") {
+        if matches!(id, "request" | "next") && !whole {
             return None;
         }
         let named = match (arg.get_long(), arg.get_short()) {
@@ -1514,7 +1537,7 @@ fn parsed_level(
     out.extend(positionals);
     if let Some((name, sub)) = m.subcommand() {
         out.push(name.to_string());
-        parsed_level(cmd.find_subcommand(name)?, sub, false, out)?;
+        parsed_level(cmd.find_subcommand(name)?, sub, false, whole, out)?;
     }
     Some(())
 }

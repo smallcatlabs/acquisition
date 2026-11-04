@@ -676,6 +676,10 @@ fn open_as_asked(
                 );
             } else {
                 eprintln!("Error: {}", crate::failure_words(&e));
+                // the ready commands, this command as typed (its request
+                // file kept) as each account (the review of round C,
+                // finding 4)
+                eprint!("{}", crate::ready_accounts(&e));
             }
             anyhow::Error::from(crate::AlreadyReported)
         })?;

@@ -328,6 +328,56 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let every = run_as_printed(&base, "acq accounts --expand");
     assert!(every.status.success(), "{}", text(&every));
     golden(file!(), "account_to_pick", &t);
+
+    // every text refusal whose JSON offers accounts prints them as ready
+    // commands, by the one renderer (the review of round C, finding 4):
+    // an account no login made, two known; and a request read whole with
+    // no account, two known, its file kept and `--account` added
+    let scratch = harness::scratch("seat-account-unknown");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    Store::open(&account_path(&mock, "Bob#5678"))
+        .unwrap()
+        .record(
+            &Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u-bob", "name": "Bob#5678" }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    let request = base.join("request.json");
+    std::fs::write(&request, r#"{"query":{"text":""}}"#).unwrap();
+    let request = request.to_str().unwrap().to_string();
+    let mut t = Transcript::new(&base);
+    for (args, said) in [
+        (
+            vec!["--account", "Missing", "tabs"],
+            "no login made a store for `Missing`",
+        ),
+        (
+            vec!["search", "--request", request.as_str()],
+            "2 accounts are known and one is to be picked",
+        ),
+    ] {
+        let out = t.run(&args, &[said]);
+        let printed: Vec<String> = stderr(&out)
+            .lines()
+            .filter_map(|l| l.strip_prefix("  `")?.strip_suffix('`'))
+            .map(str::to_string)
+            .collect();
+        assert_eq!(printed.len(), 2, "{args:?}: {}", stderr(&out));
+        for command in &printed {
+            let ran = run_as_printed(&base, command);
+            assert!(ran.status.success(), "`{command}`: {}", text(&ran));
+        }
+    }
+    golden(file!(), "account_to_pick_every_path", &t);
 }
 
 fn stdout(out: &std::process::Output) -> String {
