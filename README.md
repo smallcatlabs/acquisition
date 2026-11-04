@@ -118,7 +118,9 @@ Claude Desktop's configuration, with the path where you unpacked it:
 That is your own account. The server takes its knobs through `env`:
 `"env": { "ACQ_PROVIDER": "mock" }` gives the agent the stand-in's
 made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
-`ACQ_STORE_DIR` there must match your `acq`'s.
+`ACQ_STORE_DIR` there must match your `acq`'s: the store root, the
+directory whose `mock/` or `ggg/` holds the databases (`store` under
+the platform data dir when neither side sets it).
 
 It shares the store and the daemon with `acq`, and its 26 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
@@ -132,8 +134,8 @@ price items and render the shop (`price_status`, `price_list`,
 `daemon_status`).
 
 The store and pricing tools need no daemon. The tools that fetch do,
-and against GGG `acq-mcp` never starts one: it uses the daemon you
-started, which exits an hour after its last connection or job
+and against GGG `acq-mcp` never starts one (under `ACQ_PROVIDER=mock`
+it does, for the stand-in): it uses the daemon you started, which exits an hour after its last connection or job
 submitted, or as long as the idle knob under "Knobs" sets (`acq daemon
 status` says which), once no login is under way, no job is sending or
 waiting to send, and the limiter's recent history is gone; a rails halt
@@ -238,7 +240,9 @@ them.
   store holds of it; `acq leagues` fetches the list anew, a new league
   among it the day it opens. The first
   policy is written with `--if-revision 0` (the MCP's `if_revision: 0`
-  the same), which lands only where none is stored; add the league to a
+  the same), which lands only where none is stored and is the one write
+  with no undo (no verb clears a policy; a later write replaces it by
+  its revision); add the league to a
   policy by writing the realm back with every league it keeps (a
   policy naming only the new league drops Standard); then `acq refresh
   --plan --league <name>` and `--apply --league <name>` until the plan
@@ -264,7 +268,7 @@ them.
 | --- | --- | --- | --- |
 | `ACQ_PROVIDER=mock` | `ggg` | the built-in stand-in for GGG; a real daemon starts only from a terminal; the retired `ACQ_GGG` is refused | [provider.rs][provider] |
 | `ACQ_ACCOUNT=<sel>` | the sole account | the environment's `--account`, matched exactly | [main.rs][cli] |
-| `ACQ_STORE_DIR=<dir>` | the platform data dir | the store, and the daemon that serves it: one daemon per directory | [world.rs][world] |
+| `ACQ_STORE_DIR=<dir>` | `store` under the platform data dir | the store root (its `mock/` or `ggg/` holds the databases), and the daemon that serves it: one daemon per directory | [world.rs][world] |
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_SHELL=<shell>` | detected | the shell the commands acq prints are quoted for: `posix`, `pwsh` (PowerShell 7.3 or newer), `powershell5` (Windows PowerShell 5.1) or `cmd` (cmd.exe); unset, PowerShell 7.3 on Windows outside Git Bash and a POSIX shell elsewhere | [answer.rs][answer] |
