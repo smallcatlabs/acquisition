@@ -1063,7 +1063,7 @@ struct ShopRenderParams {
     /// replaces with its items; omitted, a page is the items alone.
     template: Option<String>,
     /// One page, by its number from 1: that page's fields, and beside
-    /// them the whole render's document with `pages` that page alone.
+    /// them every key of the whole render but `pages`.
     page: Option<usize>,
     /// List every entry of `posted`, `left_out` and `freshness`'s lists,
     /// past the first ten, the items nothing applies to included in
@@ -1966,7 +1966,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste; `page` keeps one, its fields at the top), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, never enforced, and in `facts` how old their locations' facts are. `describe` with names [\"pricing\"] says what each count counts, [\"store\"] what `leagues_held` holds, [\"ages\"] ages."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste; with `page`, that page's fields instead), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, never enforced, and in `facts` how old their locations' facts are. `describe` with names [\"pricing\"] says what each count counts, [\"store\"] what `leagues_held` holds, [\"ages\"] ages."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
@@ -2001,7 +2001,7 @@ impl AcqMcp {
         let expand = p.expand.unwrap_or(false);
         match p.page {
             Some(n) => priced(rendered.and_then(|r| {
-                let page = acquisition_plan::pricing::shop_page_answer(r, n)?;
+                let page = acquisition_plan::pricing::shop_page_answer(&r, n)?;
                 Held::read(page, &store, &intent, realm, league, expand)
             })),
             None => {

@@ -1215,24 +1215,79 @@ pub fn shop_page(rendered: &ShopRender, n: usize) -> Result<&Page> {
 /// One page of a render as an answer (#169; the answer-facts seat, MCP
 /// run 1 call 50 against 51: a page alone dropped the facts' age, what
 /// was left out and the policy): the page's own fields, as a page alone
-/// answered them, and beside them the render's document with `pages`
-/// narrowed to that page, so `counts`, `left_out`, `policy` and
-/// `freshness` stand as for the whole render.
+/// answered them, and beside them the render's context, every key the
+/// whole render carries but `pages`, so `counts`, `left_out`, `policy`
+/// and `freshness` stand as for the whole render and the page's text
+/// once (the review of round B, finding 4: a second `pages` held it
+/// twice, some 50 KB a page).
 #[derive(Debug, Clone, Serialize)]
 pub struct ShopPage {
     #[serde(flatten)]
     pub page: Page,
     #[serde(flatten)]
-    pub render: ShopRender,
+    pub context: ShopContext,
 }
 
-/// [`shop_page`] as an answer: the render, its `pages` the one asked.
-pub fn shop_page_answer(mut rendered: ShopRender, n: usize) -> Result<ShopPage> {
-    let page = shop_page(&rendered, n)?.clone();
-    rendered.pages = vec![page.clone()];
+/// A [`ShopRender`] but its `pages`, in its order: [`shop_page_answer`]
+/// takes the render apart naming every field, so a field the render
+/// gains is a compile error here until the page's answer carries it.
+#[derive(Debug, Clone, Serialize)]
+pub struct ShopContext {
+    pub schema: u32,
+    pub listing: crate::listing::ReportHeader,
+    pub rendered_at: i64,
+    pub rendered_at_age: String,
+    pub size: usize,
+    pub template: String,
+    pub policy: Vec<crate::shop::PolicyRow>,
+    pub counts: crate::shop::ShopCounts,
+    pub posted: Vec<crate::shop::Posted>,
+    pub posted_total: usize,
+    pub left_out: Vec<crate::shop::LeftOut>,
+    pub left_out_total: usize,
+    pub off_page_listed: bool,
+    pub freshness: crate::shop::Freshness,
+}
+
+/// [`shop_page`] as an answer: the page asked, and the render's context
+/// beside it.
+pub fn shop_page_answer(rendered: &ShopRender, n: usize) -> Result<ShopPage> {
+    let page = shop_page(rendered, n)?.clone();
+    let ShopRender {
+        schema,
+        listing,
+        rendered_at,
+        rendered_at_age,
+        size,
+        template,
+        policy,
+        counts,
+        posted,
+        posted_total,
+        left_out,
+        left_out_total,
+        off_page_listed,
+        pages: _,
+        freshness,
+    } = rendered.clone();
     Ok(ShopPage {
         page,
-        render: rendered,
+        context: ShopContext {
+            schema,
+            listing,
+            rendered_at,
+            rendered_at_age,
+            size,
+            template,
+            policy,
+            counts,
+            posted,
+            posted_total,
+            left_out,
+            left_out_total,
+            off_page_listed,
+            freshness,
+        },
     })
 }
 

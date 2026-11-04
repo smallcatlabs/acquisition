@@ -272,12 +272,15 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     let doc = sole_json(&out);
     let page: Page = serde_json::from_value(doc.clone()).unwrap();
     assert_eq!(page.text, page_text);
-    let narrowed: ShopRender = serde_json::from_value(doc.clone()).unwrap();
-    assert_eq!(narrowed.pages, vec![page]);
-    assert_eq!(narrowed.counts, r.counts);
-    assert_eq!(narrowed.left_out, r.left_out);
-    assert_eq!(narrowed.policy, r.policy);
-    assert_eq!(narrowed.freshness, r.freshness);
+    // the render's context beside the page, no `pages`: the text stands
+    // once (the review of round B, finding 4)
+    let whole = serde_json::to_value(&r).unwrap();
+    for key in ["counts", "left_out", "policy", "freshness"] {
+        assert_eq!(doc[key], whole[key], "{key}: {doc}");
+    }
+    assert_eq!(doc.get("pages"), None, "{doc}");
+    let quoted = serde_json::to_string(&page.text).unwrap();
+    assert_eq!(doc.to_string().matches(&quoted).count(), 1, "{doc}");
     assert!(doc["leagues_held"].is_object(), "{doc}");
     let out = acq(&base, &["shop", "render", "--page", "2"]);
     assert!(!out.status.success());

@@ -755,8 +755,8 @@ enum ShopCmd {
         template: Option<std::path::PathBuf>,
         /// Print one page's text alone on stdout, for the clipboard, and
         /// the render's lines (counts, facts, coverage, the page's label)
-        /// on stderr; with --json, the render's document with that page
-        /// alone in `pages` and the page's own fields beside it.
+        /// on stderr; with --json, the page's own fields and beside them
+        /// every key of the whole render but `pages`.
         #[arg(long)]
         page: Option<usize>,
         /// The whole policy table with each row's rule and count, and

@@ -425,10 +425,12 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         );
     }
 
-    // A page's answer is the render's document, its `pages` the one
-    // asked, beside the page's own fields (#169; the answer-facts seat,
-    // MCP run 1 call 50 against 51): freshness, left_out, counts and
-    // policy stand as for the whole render.
+    // A page's answer is the page's own fields and beside them the
+    // render's context, every key the whole render carries but `pages`
+    // (#169; the answer-facts seat, MCP run 1 call 50 against 51):
+    // freshness, left_out, counts and policy stand as for the whole
+    // render, and the page's text stands once (the review of round B,
+    // finding 4: twice, under `text` and `pages[0].text`).
     let (_, whole) = tool(&mut mcp, "shop_render", json!({}));
     let (_, page) = tool(&mut mcp, "shop_render", json!({ "page": 1 }));
     for key in [
@@ -441,9 +443,21 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     ] {
         assert_eq!(page[key], whole[key], "{key}: {page}");
     }
-    assert_eq!(page["pages"], json!([whole["pages"][0]]), "{page}");
+    assert_eq!(page.get("pages"), None, "{page}");
     assert_eq!(page["number"], json!(1), "{page}");
     assert_eq!(page["text"], whole["pages"][0]["text"], "{page}");
+    let text = serde_json::to_string(&page["text"]).unwrap();
+    assert_eq!(page.to_string().matches(&text).count(), 1, "{page}");
+    let keys = |doc: &Value| -> Vec<String> { doc.as_object().unwrap().keys().cloned().collect() };
+    let mut expected: Vec<String> = keys(&whole)
+        .into_iter()
+        .filter(|k| k != "pages")
+        .chain(keys(&whole["pages"][0]))
+        .collect();
+    expected.sort();
+    let mut said = keys(&page);
+    said.sort();
+    assert_eq!(said, expected, "{page}");
 
     // The residue the status counts is the list's total, and its items
     // (#11): the character's noted item, which carries `game.residue`.

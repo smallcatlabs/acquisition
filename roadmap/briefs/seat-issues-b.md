@@ -34,8 +34,11 @@ calls each item cites before its rule.
    policy** (MCP run 1 call 50 against 51; MCP run 2 calls 53, 54). The
    MCP's page branch (`crates/acquisition-mcp/src/main.rs`, about line
    1998) answers `pricing::shop_page(&rendered, n)` alone. Rule: a
-   page's answer is the render's document with `pages` narrowed to the
-   one asked (its number said), so `freshness` (its `facts`),
+   page's answer is the page's own fields with the render's context
+   beside them, every key the whole render carries but `pages` (Settled
+   in the round: the review of round B, finding 4, found "the render's
+   document with `pages` narrowed to the one asked" carried the page's
+   text twice), so `freshness` (its `facts`),
    `left_out`, `counts` and `policy` stand as for the whole render; the
    CLI's `--page` (`crates/acquisition-cli/src/shop_cmd.rs`) checked
    against the same rule and fixed if it drops any of them in text or

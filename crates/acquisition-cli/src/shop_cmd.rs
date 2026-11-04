@@ -19,7 +19,7 @@
 //! `--expand` adds the whole policy table with every row's rule and
 //! count, and every item left off with its cell; `--page N` prints one
 //! page's text alone on stdout, for the clipboard, and the render's lines
-//! before it on stderr, its `--json` the render with that page alone
+//! before it on stderr, its `--json` the page beside the render's context
 //! (`pricing::ShopPage`, #169); `--json` is the [`ShopRender`], of
 //! which every line here is a function (`tests/shop_json.rs` pins it
 //! from the spawned binary).
@@ -77,11 +77,11 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
     )?;
 
     if let Some(n) = args.page {
-        // the render's document, its pages the one asked (#169): the
-        // page's text alone on stdout, for the clipboard, and the
-        // render's lines on stderr
+        // the page and the render's context beside it (#169): the page's
+        // text alone on stdout, for the clipboard, and the render's lines
+        // on stderr
         let held = acquisition_verbs::Held::read(
-            pricing::shop_page_answer(rendered, n)?,
+            pricing::shop_page_answer(&rendered, n)?,
             &opened.facts,
             &opened.intent,
             realm,
@@ -95,7 +95,7 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
             eprint!(
                 "{}{}",
                 head_text(
-                    &held.answer.render,
+                    &rendered,
                     now,
                     args.expand,
                     &opened.account.entry.username,
