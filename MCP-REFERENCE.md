@@ -111,7 +111,7 @@ The items of one league that are priced, each with both sides of its listing (no
 
 ### `price_set`
 
-Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision (price_show reads it); omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names ["pricing"] gives the revision rule and the undo.
+Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision; omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), after a replace `clear`, `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names ["pricing"] gives the revision rule and the undo.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `amount` (string | null) — For exact and negotiable: a decimal of up to four places (`12.5`), or a `wanted/lot` ratio (`1/5`), as a string.

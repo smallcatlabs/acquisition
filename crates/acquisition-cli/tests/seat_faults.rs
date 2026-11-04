@@ -3108,9 +3108,17 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
             .into_iter()
             .filter(|c| !c.starts_with("acq price show"))
             .collect();
-        let [undo] = &undo[..] else {
-            panic!("one undo in the next line: {said}");
+        // the undo first; after a replace the clear that stays current
+        // beside it (#167)
+        let (undo, beside) = match &undo[..] {
+            [undo] => (undo, None),
+            [undo, clear] => (undo, Some(clear)),
+            _ => panic!("one undo in the next line: {said}"),
         };
+        assert!(
+            beside.is_none_or(|c| c.starts_with("acq price clear ")),
+            "{said}"
+        );
         assert!(undo.contains("--account "), "{undo}");
         let out = run_as_printed(&base, undo);
         assert!(out.status.success(), "{undo}: {}", text(&out));

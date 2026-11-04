@@ -16,6 +16,14 @@
 //!   surface spells it, [`Surface::request`]); or, where nothing puts it
 //!   back, `no_undo` beside its absence, the reason in words — never both,
 //!   never neither;
+//! - `clear`, beside a replace's `undo` or `no_undo`: the clear of the
+//!   row at the revision it wrote, an offer in the same shape, so a
+//!   reader who wants no price by hand has the request that stays
+//!   current (#167: after a set then a replace, the create's clear named
+//!   the revision the replace moved past, and the replace's undo puts the
+//!   prior back). Absent where the undo is that clear (a create) and
+//!   where no row stands (a clear), and on a policy's write, which no
+//!   verb clears;
 //! - the write's own facts: `in_facts` on a price set, `league_notes` on
 //!   a policy write (C126), and on a price set or clear over a container's
 //!   row `items_here_counts` and `items_covered_below_counts`, what its
@@ -38,7 +46,28 @@ pub fn price_set<'a>(
     account: &str,
     surface: &dyn Surface,
 ) -> Receipt<'a, SetReceipt> {
-    shaped(receipt, price_undo(&receipt.write, account), surface)
+    let mut shaped = shaped(receipt, price_undo(&receipt.write, account), surface);
+    shaped.clear = price_clear_offer(&receipt.write, account)
+        .and_then(|(way, says)| offer(&way, &says, surface));
+    shaped
+}
+
+/// The clear of the row a write left standing, at the revision it wrote,
+/// where its undo is not that clear (#167): after a replace, whatever its
+/// undo; none after a create, whose undo it is, or after a clear.
+pub fn price_clear_offer(write: &PriceWrite, account: &str) -> Option<(Way, String)> {
+    let row = write.written.as_ref()?;
+    if matches!(write.undo(), Ok(Undo::Clear { .. })) {
+        return None;
+    }
+    Some((
+        Way::PriceClear {
+            target: write.target.to_string(),
+            account: account.to_string(),
+            if_revision: row.revision,
+        },
+        "clears it: no price by hand".to_string(),
+    ))
 }
 
 /// `price clear`'s receipt, as [`price_set`]'s.
@@ -152,6 +181,9 @@ pub struct Receipt<'a, T: Serialize> {
     pub undo: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub no_undo: Option<String>,
+    /// A price write's [`price_clear_offer`], spelled as `undo` is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clear: Option<Value>,
 }
 
 /// `document` with `undo` spelled by `surface`, or `no_undo` beside its
@@ -172,5 +204,6 @@ fn shaped<'a, T: Serialize>(
         document,
         undo,
         no_undo,
+        clear: None,
     }
 }

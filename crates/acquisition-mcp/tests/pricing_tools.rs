@@ -175,6 +175,7 @@ const RECEIPT: &[&str] = &[
     "updated_at",
     "written_via",
     "undo",
+    "clear",
 ];
 
 /// Two refusals of one write offer the same ways, each spelled by its
@@ -210,21 +211,24 @@ fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
 /// Round 5 of the 2g build: two receipts for one write offer one undo,
 /// each spelled by its surface — the tool's a request naming the tool it
 /// goes to where another's, the CLI's a command line — saying the same,
-/// or both none, `no_undo` then compared with the rest.
+/// or both none, `no_undo` then compared with the rest; and so the
+/// clear a replace offers beside it (#167).
 fn undo_alike(by_tool: &Value, by_cli: &Value) {
-    match (by_tool.get("undo"), by_cli.get("undo")) {
-        (None, None) => {}
-        (Some(tool), Some(cli)) => {
-            assert_eq!(tool["says"], cli["says"], "{by_tool}\n{by_cli}");
-            assert!(tool["request"].is_object(), "{by_tool}");
-            assert!(
-                cli["request"]
-                    .as_str()
-                    .is_some_and(|l| l.starts_with("acq price ")),
-                "{by_cli}"
-            );
+    for key in ["undo", "clear"] {
+        match (by_tool.get(key), by_cli.get(key)) {
+            (None, None) => {}
+            (Some(tool), Some(cli)) => {
+                assert_eq!(tool["says"], cli["says"], "{by_tool}\n{by_cli}");
+                assert!(tool["request"].is_object(), "{by_tool}");
+                assert!(
+                    cli["request"]
+                        .as_str()
+                        .is_some_and(|l| l.starts_with("acq price ")),
+                    "{by_cli}"
+                );
+            }
+            _ => panic!("one surface offers a {key}, the other none:\n{by_tool}\n{by_cli}"),
         }
-        _ => panic!("one surface offers an undo, the other none:\n{by_tool}\n{by_cli}"),
     }
 }
 
@@ -1223,12 +1227,35 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
         None,
         "the same tool: {replaced}"
     );
+    // #167 (the answer-facts seat, MCP run 1 calls 43, 45, 52; run 2
+    // calls 55, 57): the create's clear went stale once the replace moved
+    // the row, and the replace's undo puts the prior back, never "no
+    // price". Beside its undo a replace offers the clear of the row at
+    // the revision it wrote; a create offers none, its undo the clear.
+    assert_eq!(created.get("clear"), None, "{created}");
+    assert_eq!(cleared.get("clear"), None, "{cleared}");
+    assert_eq!(
+        replaced["clear"],
+        json!({
+            "request": { "target": "item/i-map", "if_revision": 4, "account": USER },
+            "says": "clears it: no price by hand",
+            "tool": "price_clear",
+        })
+    );
     let (_, restored) = sent(&mut mcp, "price_set", &replaced);
     assert_eq!(
         harness::unaged(restored["prior"].clone()),
         harness::unaged(replaced["written"].clone())
     );
     assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
+    // sent back as printed, the restore's clear leaves no row
+    let (ok, gone) = tool(
+        &mut mcp,
+        "price_clear",
+        restored["clear"]["request"].clone(),
+    );
+    assert!(ok, "{gone}");
+    assert_eq!(manual(&mut mcp), Value::Null);
     assert!(no_daemon_appeared(&dir.0));
 }
 

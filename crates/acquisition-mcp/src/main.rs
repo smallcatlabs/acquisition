@@ -2020,7 +2020,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision (price_show reads it); omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names [\"pricing\"] gives the revision rule and the undo."
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision; omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), after a replace `clear`, `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names [\"pricing\"] gives the revision rule and the undo."
     )]
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {

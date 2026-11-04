@@ -2417,6 +2417,22 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
     );
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&restored)));
+    // #167 (the answer-facts seat, CLI run 1 calls 82, 91): beside a
+    // replace's undo, the clear of the row at the revision it wrote; a
+    // create's undo is that clear, and it offers none beside it
+    assert_eq!(created.get("clear"), None, "{created}");
+    assert_eq!(cleared.get("clear"), None, "{cleared}");
+    assert_eq!(
+        replaced["clear"]["request"],
+        json!(format!(
+            "acq price clear --account 'Alice#1234' item/i-map --if-revision {}",
+            at(&replaced)
+        ))
+    );
+    assert_eq!(
+        replaced["clear"]["says"],
+        json!("clears it: no price by hand")
+    );
 
     // C156, the review of #146's build, its third finding: the undo's
     // words run with no shell from the same state put back the same row
@@ -2435,6 +2451,32 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         &rev,
     ]);
     harness::offered_line(&again["undo"]);
+    // the clear beside it, run as printed: no row is left
+    let line = harness::offered_line(&again["clear"]);
+    let gone = run_offered(&base, &format!("{line} --json"));
+    assert_eq!(gone["written"], Value::Null, "{gone}");
+    assert_eq!(manual(), Value::Null);
+    // the price set again, then the same replace, for the words below
+    let again = write(&[
+        "price",
+        "set",
+        "item/i-map",
+        "exact",
+        "12.5",
+        "chaos",
+        "--if-revision",
+        "0",
+    ]);
+    let again = write(&[
+        "price",
+        "set",
+        "item/i-map",
+        "b/o",
+        "1/5",
+        "divine",
+        "--if-revision",
+        &at(&again).to_string(),
+    ]);
     let by_words = harness::run_argv(&base, &again["undo"], &["--json"]);
     assert_eq!(
         harness::unaged(by_words["prior"].clone()),

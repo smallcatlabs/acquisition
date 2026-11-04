@@ -20,4 +20,4 @@ $ acq price set item/i-map skip --if-revision 1
 --- stdout
 item/i-map: skip (revision 2), was an unreadable value {"reserve":"5 chaos","type":"auction","version":2} (revision 1)
 note: the shop blocks what this row prices (substash): the website's stash view offers no link for an item in a map or unique substash, and no other code for one has been observed: blocked until one is
-next: `acq price show --account 'Alice#1234' item/i-map` reads it beside the game side; the prior cannot be put back: this build cannot read it
+next: `acq price show --account 'Alice#1234' item/i-map` reads it beside the game side; the prior cannot be put back: this build cannot read it; `acq price clear --account 'Alice#1234' item/i-map --if-revision 2` clears it: no price by hand

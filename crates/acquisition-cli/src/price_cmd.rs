@@ -1215,10 +1215,14 @@ fn render_write(
         ),
         (None, None) => "was unset".to_string(),
     };
-    let undo = match receipt::price_undo(write, account) {
+    let mut undo = match receipt::price_undo(write, account) {
         Ok((way, says)) => format!("`{}` {says}", offered_line(&way)),
         Err(why) => why,
     };
+    // beside a replace's undo, the clear that stays current (#167)
+    if let Some((way, says)) = receipt::price_clear_offer(write, account) {
+        undo.push_str(&format!("; `{}` {says}", offered_line(&way)));
+    }
     let mut out = String::new();
     match &write.written {
         Some(row) => {
@@ -2119,7 +2123,8 @@ mod tests {
             render_write(&replaced, None, None, None, "a"),
             "item/i1: 1/5 divine b/o (revision 2), was 12.5 chaos (revision 1)\n\
              next: `acq price show --account a item/i1` reads it beside the game side; \
-             `acq price set --account a item/i1 exact 12.5 chaos --if-revision 2` puts the prior back\n"
+             `acq price set --account a item/i1 exact 12.5 chaos --if-revision 2` puts the prior back; \
+             `acq price clear --account a item/i1 --if-revision 2` clears it: no price by hand\n"
         );
         let cleared = PriceWrite {
             target: target.clone(),
@@ -2166,7 +2171,8 @@ mod tests {
         assert!(
             text.ends_with(
                 "next: `acq price show --account a item/i1` reads it beside the game side; \
-                 the prior cannot be put back: this build cannot read it\n"
+                 the prior cannot be put back: this build cannot read it; \
+                 `acq price clear --account a item/i1 --if-revision 4` clears it: no price by hand\n"
             ),
             "{text}"
         );
