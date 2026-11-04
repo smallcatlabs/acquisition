@@ -10,13 +10,21 @@ fn c53_a_note_and_a_spent_fetch_say_their_epochs_as_ages() {
     let list = LeagueList {
         fetched_at: 1_000,
         ids: vec!["Standard".into()],
+        entries: vec![acquisition_store::LeagueEntry {
+            id: "Standard".into(),
+            realm: Some("pc".into()),
+        }],
     };
-    let notes = league_notes(["Mirage", "Standard"], Some(&list), now);
+    let notes = league_notes(
+        [(Realm::Pc, "Mirage"), (Realm::Pc, "Standard")],
+        Some(&list),
+        now,
+    );
     assert_eq!(notes.len(), 1, "{notes:?}");
     let note = serde_json::to_value(&notes[0]).unwrap();
     assert_eq!(note["list_fetched_at"], 1_000);
     assert_eq!(note["list_fetched_at_age"], "2d ago", "{note}");
-    let unread = league_notes(["Mirage"], None, now);
+    let unread = league_notes([(Realm::Pc, "Mirage")], None, now);
     assert_eq!(unread[0].list_fetched_at_age, "never");
 
     let spent = Spent {
@@ -34,6 +42,38 @@ fn c53_a_note_and_a_spent_fetch_say_their_epochs_as_ages() {
     assert!(unaged.get("fetched_at_age").is_none(), "{unaged}");
     let aged = serde_json::to_value(spent.aged(now)).unwrap();
     assert_eq!(aged["fetched_at_age"], "30s ago", "{aged}");
+}
+
+/// C126's match by realm and league: a policy naming `Standard` under
+/// xbox where the list holds `Standard` for pc alone is noted; a list
+/// entry with no realm matches by id in any realm.
+#[test]
+fn c126_a_league_the_list_holds_in_another_realm_is_noted() {
+    let entry = |id: &str, realm: Option<&str>| acquisition_store::LeagueEntry {
+        id: id.into(),
+        realm: realm.map(str::to_string),
+    };
+    let list = LeagueList {
+        fetched_at: 1_000,
+        ids: vec!["Standard".into(), "Hardcore".into()],
+        entries: vec![entry("Standard", Some("pc")), entry("Hardcore", None)],
+    };
+    let notes = league_notes(
+        [
+            (Realm::Pc, "Standard"),
+            (Realm::Xbox, "Standard"),
+            (Realm::Xbox, "Hardcore"),
+        ],
+        Some(&list),
+        2_000,
+    );
+    assert_eq!(
+        notes
+            .iter()
+            .map(|n| (n.realm, n.league.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(Realm::Xbox, "Standard")]
+    );
 }
 
 /// C53: a plan's note that the realm's character listing names no

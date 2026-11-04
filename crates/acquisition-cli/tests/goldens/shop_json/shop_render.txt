@@ -8,6 +8,7 @@ $ acq shop render
 --- stdout
 6 items in Standard: 2 items to post on 1 page; 2 omitted (2 the game lists); 2 blocked (1 a ratio, 1 in a substash); 0 nothing applies
 facts: 2 posted items at 2 locations, 2 fetched (fetched <age> ago, Standard / ~price 3 chaos); stash listing <age> ago, characters listed <age> ago
+leagues: Standard (this); none other
 coverage: 1 container on the page outside the sync policy (revision 1): character/ch1; add them with `acq policy set --account 'Alice#1234'`
 blocked:
   ratio              Chaos Orb                        tab/pc/p1                                item/i-ratio

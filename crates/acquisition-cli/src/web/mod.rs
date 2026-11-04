@@ -355,20 +355,40 @@ impl Web {
         Ok(acquisition_search::answer(&corpus, request)?)
     }
 
-    /// The store's league list (the `leagues` job's latest answer), each
-    /// league marked with whether this realm has tabs of it on disk: what
-    /// both pages' league control lists. None where no list was fetched.
+    /// The store's league list (the `leagues` job's latest answer), whole,
+    /// each league marked with whether this realm has tabs of it on disk:
+    /// what both pages' league control lists, through the verbs' two
+    /// reads (C46), the list and what the realm holds; a word that is no
+    /// realm holds nothing. None where no list was fetched.
     fn leagues(&self, realm: &str) -> Result<Option<Vec<(String, bool)>>, Failure> {
-        let facts = self.account.facts()?;
-        let Some(list) = facts.league_list()? else {
+        let list = self.account.league_list(true)?;
+        if list.fetched_at.is_none() {
             return Ok(None);
-        };
-        let mut out = Vec::with_capacity(list.ids.len());
-        for id in list.ids {
-            let on_disk = !facts.tabs(realm, &id)?.is_empty();
-            out.push((id, on_disk));
         }
-        Ok(Some(out))
+        let held = match Realm::parse(realm) {
+            Some(realm) => {
+                acquisition_verbs::LeaguesHeld::read(
+                    &self.account.facts()?,
+                    &acquisition_verbs::leagues::PolicyRead::of(None),
+                    realm,
+                    None,
+                    true,
+                )?
+                .leagues
+            }
+            None => Vec::new(),
+        };
+        Ok(Some(
+            list.leagues
+                .into_iter()
+                .map(|l| {
+                    let on_disk = held
+                        .iter()
+                        .any(|h| h.league.as_deref() == Some(l.id.as_str()) && h.tabs > 0);
+                    (l.id, on_disk)
+                })
+                .collect(),
+        ))
     }
 }
 
@@ -748,6 +768,7 @@ async fn plan(
         false,
         None,
         &web.account.entry.username,
+        planned.uncovered_tabs.as_ref(),
     ));
     if !planned.plan.actions.is_empty() {
         match serde_json::to_string(&planned.plan) {

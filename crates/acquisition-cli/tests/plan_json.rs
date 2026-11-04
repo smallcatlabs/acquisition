@@ -123,12 +123,22 @@ fn json_stdout_is_the_contract_surface() {
     let base = scratch.0.clone();
     seed_store(&base);
 
-    // No policy yet: `policy show --json` answers `{"policy": null}`, exit
+    // No policy yet: `policy show --json` answers `"policy": null`, exit
     // 0 — absent intent is data, not an error, and a success is one
     // object, never a bare null (C149), the MCP's `sync_policy` shape.
+    // `leagues_held` beside it: the seeded tab's league, which no policy
+    // names (round 5 of the answer-facts group)
     let out = acq(&base, &["policy", "show", "--json"]);
     assert!(out.status.success(), "{out:?}");
-    assert_eq!(sole_json(&out), json!({ "policy": null }));
+    let no_policy = json!({
+        "policy": null,
+        "leagues_held": [{
+            "realm": "pc", "policy": "none", "policy_revision": null, "policy_names_realm": false,
+            "leagues_total": 1, "left_out": 0,
+            "leagues": [{ "league": "Standard", "tabs": 1, "characters": 0, "named": false }],
+        }],
+    });
+    assert_eq!(sole_json(&out), no_policy);
 
     // `--json` is total: a refusal is {"error": …} on stdout with exit 1,
     // not prose on stderr.
@@ -159,7 +169,7 @@ fn json_stdout_is_the_contract_surface() {
             .contains("max_age_secs")
     );
     let out = acq(&base, &["policy", "show", "--json"]);
-    assert_eq!(sole_json(&out), json!({ "policy": null }));
+    assert_eq!(sole_json(&out), no_policy);
 
     // A valid write answers the stored row, and C126's note on a league
     // the fetched league list does not hold: here no list was ever
@@ -170,8 +180,10 @@ fn json_stdout_is_the_contract_surface() {
     let mut row = sole_json(&out);
     assert_eq!(
         row.as_object_mut().unwrap().remove("league_notes"),
-        Some(json!([{ "league": "Standard", "list_fetched_at": null,
-                       "list_fetched_at_age": "never" }]))
+        Some(
+            json!([{ "realm": "pc", "league": "Standard", "list_fetched_at": null,
+                       "list_fetched_at_age": "never" }])
+        )
     );
     assert_eq!(row["revision"], json!(1));
     assert_eq!(row["value"], serde_json::from_str::<Value>(policy).unwrap());

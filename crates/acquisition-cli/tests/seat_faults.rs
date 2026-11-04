@@ -7,7 +7,9 @@
 
 use std::path::{Path, PathBuf};
 
-use acquisition_store::{Endpoint, Index, Store, account_path};
+use acquisition_store::{
+    Annotations, Endpoint, Index, IntentValue, Provenance, Store, account_path,
+};
 use serde_json::{Value, json};
 
 use crate::harness;
@@ -154,6 +156,9 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
         &[
             "facts: 1 location, 1 fetched (fetched ",
             "Standard / Gear); stash listing ",
+            // the league the rows price is named beside the one read
+            // (round 5 of the answer-facts group; the CLI-2 seat's fault 6)
+            "leagues: Standard (this); also held: Allflame (1 tab, no policy)",
             "1 name nothing in the facts",
             "2 for other leagues",
         ],
@@ -1626,11 +1631,271 @@ fn store_status_says_what_its_league_and_tab_counts_count() {
     t.run(
         &["store", "status"],
         &[
-            "league list never fetched (`acq leagues`)",
+            "league ids seen across every league fetch: 0 (never fetched: `acq leagues`)",
             "tabs 2 (every realm and league)",
         ],
     );
+    // the kept count names its set beside the latest list (round 5 of
+    // the answer-facts group): a union of two fetches, the latest of one
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    for ids in [&["Standard", "Allflame"][..], &["Standard"]] {
+        store
+            .record(
+                &Endpoint::Leagues,
+                &json!({}),
+                200,
+                &json!({ "leagues": ids.iter().map(|id| json!({ "id": id, "realm": "pc" })).collect::<Vec<_>>() }),
+                acquisition_store::now(),
+            )
+            .unwrap();
+    }
+    t.run(
+        &["store", "status"],
+        &["league ids seen across every league fetch: 2 (the latest fetch: 1 league, "],
+    );
+    let status = sole_json(&acq(&base, &["store", "status", "--json"]));
+    assert_eq!(
+        (
+            &status["leagues"],
+            &status["league_list"],
+            &status["league_list_latest"]["count"]
+        ),
+        (&json!(2), &json!("fetched"), &json!(1)),
+        "{status}"
+    );
     golden(file!(), "store_status_counts", &t);
+}
+
+/// A sync policy as a newer build would write it: this build's parse
+/// refuses the stamp.
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+struct NewerPolicy(Value);
+
+impl IntentValue for NewerPolicy {
+    const KIND: &'static str = acquisition_store::SYNC_POLICY_KIND;
+    const VERSION: i64 = 99;
+    fn parse(value: &Value) -> Result<Self, String> {
+        Ok(NewerPolicy(value.clone()))
+    }
+}
+
+/// [`seed_two_leagues`] and beside it, in pc, Rehearsal with tabs `r1`
+/// to `r3` and two characters, and one character with no league; in
+/// xbox, Standard with tab `x1`.
+fn seed_held(base: &Path) {
+    seed_two_leagues(base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let at = acquisition_store::now();
+    let tab = |id: &str| json!({ "id": id, "name": id, "type": "PremiumStash", "index": 0 });
+    for (realm, league, tabs) in [
+        ("pc", "Rehearsal", json!([tab("r1"), tab("r2"), tab("r3")])),
+        ("xbox", "Standard", json!([tab("x1")])),
+    ] {
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: realm.into(),
+                    league: league.into(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": tabs }),
+                at,
+            )
+            .unwrap();
+    }
+    store
+        .record(
+            &Endpoint::Characters { realm: "pc".into() },
+            &json!({}),
+            200,
+            &json!({ "characters": [
+                { "id": "c-r1", "name": "Rone", "class": "Witch", "level": 2, "league": "Rehearsal" },
+                { "id": "c-r2", "name": "Rtwo", "class": "Witch", "level": 2, "league": "Rehearsal" },
+                { "id": "c-none", "name": "Nobody", "class": "Witch", "level": 2 },
+            ] }),
+            at,
+        )
+        .unwrap();
+}
+
+/// Round 5 of the answer-facts group (#157, #22, #19's comment): an
+/// answer that takes one league says what else its realm holds. `price
+/// status`, `shop render` and `tabs` print a `leagues:` line after their
+/// facts line or their head, the policy's word on each league (no
+/// policy, named, not named, unreadable), `none other` where the realm
+/// holds one; `policy show` says every realm the store holds, a realm the
+/// policy does not name among them; `leagues --stored` reads the stored
+/// list with no daemon; a plan counts the league's tabs outside the
+/// policy, on stderr under `--json`; twelve leagues are ten and the rest
+/// counted on every surface, `--expand` listing all.
+#[test]
+fn an_answer_about_one_league_says_what_else_the_store_holds() {
+    let scratch = harness::scratch("seat-held");
+    let base = scratch.0.clone();
+    seed_held(&base);
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["price", "status"],
+        &["leagues: Standard (this); also held: Allflame (1 tab, no policy), Rehearsal (3 tabs, 2 characters, no policy), no league (1 character)"],
+    );
+    t.run(
+        &["leagues", "--stored"],
+        &["no league list on record; `acq leagues` fetches it"],
+    );
+    let out = acq(
+        &base,
+        &[
+            "policy",
+            "set",
+            r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600},"Rehearsal":{"tabs":["r1"],"max_age_seconds":3600}}}}}"#,
+        ],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    t.run(
+        &["price", "status", "--league", "Allflame"],
+        &["leagues: Allflame (this); also held: Rehearsal (3 tabs, 2 characters, named), Standard (1 tab, named), no league (1 character)"],
+    );
+    t.run(
+        &["shop", "render"],
+        &[
+            "nothing to paste for Standard",
+            "leagues: Standard (this); also held: Allflame (1 tab, not named)",
+        ],
+    );
+    t.run(
+        &["tabs"],
+        &[
+            "1 tabs in Standard",
+            "leagues: Standard (this); also held: Allflame (1 tab, not named)",
+        ],
+    );
+    t.run(
+        &["tabs", "--realm", "xbox"],
+        &["leagues: Standard (this); none other"],
+    );
+    t.run(
+        &["policy", "show"],
+        &["held: pc Allflame (not named), Rehearsal (named), Standard (named), characters with no league; xbox Standard (no policy for xbox)"],
+    );
+    t.run(
+        &["refresh", "--plan", "--league", "Rehearsal"],
+        &["outside the policy: 2 of 3 tabs (`acq policy set --account 'Alice#1234'` names them)"],
+    );
+    let out = acq(
+        &base,
+        &["refresh", "--plan", "--league", "Rehearsal", "--json"],
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("outside the policy: 2 of 3 tabs"),
+        "{}",
+        text(&out)
+    );
+    assert!(
+        sole_json(&out).get("uncovered_tabs").is_none(),
+        "the envelope alone"
+    );
+    for args in [
+        &["price", "status", "--json"][..],
+        &["shop", "render", "--json"],
+        &["tabs", "--json"],
+    ] {
+        let held = &sole_json(&acq(&base, args))["leagues_held"];
+        assert_eq!(
+            (&held["league"], &held["policy"], &held["leagues_total"]),
+            (&json!("Standard"), &json!("set"), &json!(4)),
+            "{args:?}: {held}"
+        );
+    }
+
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": [
+                { "id": "Standard", "realm": "pc" },
+                { "id": "Rehearsal", "realm": "pc" },
+                { "id": "Mirage", "realm": "pc" },
+            ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    t.run(
+        &["leagues", "--stored"],
+        &["Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)"],
+    );
+    let listed = sole_json(&acq(&base, &["leagues", "--stored", "--json"]));
+    assert_eq!(listed["leagues_total"], 3, "{listed}");
+
+    // the newer build's policy, written as that build would
+    Annotations::open_for(&mock, "u-seat")
+        .unwrap()
+        .put::<NewerPolicy>(
+            acquisition_store::SYNC_POLICY_SCOPE,
+            acquisition_store::SYNC_POLICY_KEY,
+            &json!({ "version": 99, "realms": {} }),
+            Some(1),
+            &Provenance::via("future"),
+        )
+        .unwrap();
+    t.run(
+        &["tabs"],
+        &["leagues: Standard (this); also held: Allflame (1 tab, policy unreadable)"],
+    );
+
+    // twelve leagues on disk (the no-league characters one of them): ten
+    // named, the rest counted, `--expand` all
+    for n in 1..=8 {
+        let league = format!("Extra{n}");
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.clone(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": [ { "id": format!("e{n}"), "name": "Gear", "type": "PremiumStash", "index": 0 } ] }),
+                acquisition_store::now(),
+            )
+            .unwrap();
+    }
+    t.run(
+        &["tabs"],
+        &["Extra8 (1 tab, policy unreadable) … and 2 more: `--expand` lists them"],
+    );
+    for (args, at) in [
+        (&["price", "status", "--json"][..], "/leagues_held"),
+        (&["shop", "render", "--json"], "/leagues_held"),
+        (&["tabs", "--json"], "/leagues_held"),
+        (&["policy", "show", "--json"], "/leagues_held/0"),
+    ] {
+        let held = sole_json(&acq(&base, args));
+        let held = held.pointer(at).unwrap();
+        assert_eq!(
+            (
+                held["leagues"].as_array().unwrap().len(),
+                &held["leagues_total"],
+                &held["left_out"]
+            ),
+            (10, &json!(12), &json!(2)),
+            "{args:?}: {held}"
+        );
+        let expanded = sole_json(&acq(&base, &[args, &["--expand"]].concat()));
+        let expanded = expanded.pointer(at).unwrap();
+        assert_eq!(
+            expanded["leagues"].as_array().unwrap().len(),
+            12,
+            "{args:?}"
+        );
+    }
+    golden(file!(), "leagues_held", &t);
 }
 
 /// A unique tab's page with no name printed as its bare id after its tab,

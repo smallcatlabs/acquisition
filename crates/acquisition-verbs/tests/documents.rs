@@ -477,6 +477,7 @@ fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
         ages: PlanAges::default(),
         quote_note: None,
         notes: PlanNotes::default(),
+        uncovered_tabs: None,
     }
     .aged(2_000 + 3 * 3_600);
     let doc = serde_json::to_value(&planned).unwrap();
@@ -1094,7 +1095,11 @@ fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
             &acquisition_store::Provenance::via("test"),
         )
         .unwrap();
-    let shown = acquisition_verbs::PolicyShown::of(Some(row.clone()), row.updated_at + 2 * 86_400);
+    let shown = acquisition_verbs::PolicyShown::of(
+        Some(row.clone()),
+        Vec::new(),
+        row.updated_at + 2 * 86_400,
+    );
     let doc = serde_json::to_value(&shown).unwrap();
     assert_eq!(doc["policy"]["updated_at"], row.updated_at, "{doc}");
     assert_eq!(doc["policy"]["updated_at_age"], "2d ago", "{doc}");
@@ -1103,8 +1108,8 @@ fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
         "the row stands whole: {doc}"
     );
     assert_eq!(
-        serde_json::to_value(acquisition_verbs::PolicyShown::of(None, AT)).unwrap(),
-        json!({ "policy": null })
+        serde_json::to_value(acquisition_verbs::PolicyShown::of(None, Vec::new(), AT)).unwrap(),
+        json!({ "policy": null, "leagues_held": [] })
     );
 }
 
@@ -1287,7 +1292,11 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
         ),
         (
             "policy shown",
-            serde_json::to_value(acquisition_verbs::PolicyShown { policy: None }).unwrap(),
+            serde_json::to_value(acquisition_verbs::PolicyShown {
+                policy: None,
+                leagues_held: Vec::new(),
+            })
+            .unwrap(),
         ),
         (
             "refused bodies",
@@ -1306,7 +1315,367 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
     for (name, doc) in &documents {
         assert!(doc.is_object(), "{name}: {doc}");
     }
-    assert_eq!(documents[7].1, json!({ "policy": null }));
+    assert_eq!(
+        documents[7].1,
+        json!({ "policy": null, "leagues_held": [] })
+    );
+}
+
+// ---- what the store holds beyond the league (round 5, #157, #22) -------
+
+/// The world of round 5's documents: in pc, Standard with two tabs,
+/// Allflame with one, Rehearsal with two characters and one character
+/// with no league; in xbox, Standard with one tab. The listings are
+/// recorded at `at`.
+fn three_leagues(store: &mut Store, at: i64) {
+    let mut listing = |realm: &str, league: &str, tabs: Value| {
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: realm.into(),
+                    league: league.into(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": tabs }),
+                at,
+            )
+            .unwrap();
+    };
+    let tab = |id: &str| json!({ "id": id, "name": id, "type": "PremiumStash", "index": 0 });
+    listing("pc", "Standard", json!([tab("s1"), tab("s2")]));
+    listing("pc", "Allflame", json!([tab("a1")]));
+    listing("xbox", "Standard", json!([tab("x1")]));
+    store
+        .record(
+            &Endpoint::Characters { realm: "pc".into() },
+            &json!({}),
+            200,
+            &json!({ "characters": [
+                { "id": "c1", "name": "R1", "class": "Witch", "level": 1, "league": "Rehearsal" },
+                { "id": "c2", "name": "R2", "class": "Witch", "level": 1, "league": "Rehearsal" },
+                { "id": "c3", "name": "None", "class": "Witch", "level": 1 },
+            ] }),
+            at,
+        )
+        .unwrap();
+}
+
+/// A policy naming pc's Standard tabs and Rehearsal's characters alone.
+fn two_entries() -> Value {
+    json!({ "version": 3, "realms": { "pc": { "leagues": {
+        "Standard": { "tabs": "all", "max_age_seconds": 3600 },
+        "Rehearsal": { "characters": "all", "max_age_seconds": 3600 } } } } })
+}
+
+/// The leagues of a document as (league, tabs, characters, named).
+fn held_rows(doc: &Value) -> Vec<(Value, i64, i64, bool)> {
+    doc["leagues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| {
+            (
+                l["league"].clone(),
+                l["tabs"].as_i64().unwrap(),
+                l["characters"].as_i64().unwrap(),
+                l["named"].as_bool().unwrap(),
+            )
+        })
+        .collect()
+}
+
+/// #19's comment and the CLI-2 seat's fault 6: an answer about one league
+/// says every other league of its realm the store holds, with its counts
+/// and whether the policy names it — a characters-only entry is named,
+/// the league-less characters are a row of their own and never named —
+/// the league read first; `policy show` says each realm the store holds,
+/// a realm the policy does not name among them; with no policy or one
+/// this build cannot read, `named` is false and `policy` says which.
+#[test]
+fn leagues_held_says_each_league_of_the_realm_beside_the_policys_word() {
+    use acquisition_verbs::LeaguesHeld;
+    use acquisition_verbs::leagues::PolicyRead;
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let mut store = account.facts().unwrap();
+    three_leagues(&mut store, 1_000);
+    account
+        .set_policy(&two_entries(), Expect::Create, PolicyWrite::Replace)
+        .unwrap();
+    let intent = account.intent().unwrap();
+    let policy = PolicyRead::read(&intent).unwrap();
+    let held = LeaguesHeld::read(&store, &policy, Realm::Pc, Some("Allflame"), false).unwrap();
+    let doc = serde_json::to_value(&held).unwrap();
+    assert_eq!(
+        held_rows(&doc),
+        vec![
+            (json!("Allflame"), 1, 0, false),
+            (json!("Rehearsal"), 0, 2, true),
+            (json!("Standard"), 2, 0, true),
+            (Value::Null, 0, 1, false),
+        ],
+        "{doc}"
+    );
+    assert_eq!(
+        (
+            &doc["realm"],
+            &doc["league"],
+            &doc["policy"],
+            &doc["policy_revision"],
+            &doc["policy_names_realm"],
+            &doc["leagues_total"],
+            &doc["left_out"]
+        ),
+        (
+            &json!("pc"),
+            &json!("Allflame"),
+            &json!("set"),
+            &json!(1),
+            &json!(true),
+            &json!(4),
+            &json!(0)
+        ),
+        "{doc}"
+    );
+    assert!(doc.get("left_out_needs").is_none(), "{doc}");
+
+    let shown = serde_json::to_value(account.policy_shown(false).unwrap()).unwrap();
+    let realms = shown["leagues_held"].as_array().unwrap();
+    assert_eq!(realms.len(), 2, "{shown}");
+    assert_eq!(realms[1]["realm"], "xbox", "{shown}");
+    assert_eq!(realms[1]["policy_names_realm"], false, "{shown}");
+    assert_eq!(
+        held_rows(&realms[1]),
+        vec![(json!("Standard"), 1, 0, false)]
+    );
+    assert!(realms[0].get("league").is_none(), "{shown}");
+
+    let none = LeaguesHeld::read(
+        &store,
+        &PolicyRead::of(None),
+        Realm::Pc,
+        Some("Standard"),
+        false,
+    )
+    .unwrap();
+    let doc = serde_json::to_value(&none).unwrap();
+    assert_eq!(doc["policy"], "none", "{doc}");
+    assert_eq!(
+        doc["leagues"][0]["league"], "Standard",
+        "the read first: {doc}"
+    );
+    assert!(held_rows(&doc).iter().all(|row| !row.3), "{doc}");
+
+    // the newer build's value, planted as that build would
+    rusqlite::Connection::open(acquisition_store::annotations_path(&s.mock, UUID))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = '{\"version\":99,\"realms\":{}}' WHERE kind = ?1",
+            [SYNC_POLICY_KIND],
+        )
+        .unwrap();
+    let unreadable = PolicyRead::read(&account.intent().unwrap()).unwrap();
+    let doc = serde_json::to_value(
+        LeaguesHeld::read(&store, &unreadable, Realm::Pc, Some("Standard"), false).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        (&doc["policy"], &doc["policy_revision"]),
+        (&json!("unreadable"), &json!(1))
+    );
+    assert!(held_rows(&doc).iter().all(|row| !row.3), "{doc}");
+}
+
+/// C53 and C149: twelve leagues on disk are ten listed, the one read
+/// among them first though it sorts last, two left out with what lists
+/// them, the whole counted; `expand` lists all twelve.
+#[test]
+fn twelve_leagues_held_list_ten_with_the_one_read_first() {
+    use acquisition_verbs::LeaguesHeld;
+    use acquisition_verbs::leagues::PolicyRead;
+    let rows = || {
+        (1..=12)
+            .map(|n| acquisition_store::LeagueHeld {
+                league: Some(format!("L{n:02}")),
+                tabs: 1,
+                characters: 0,
+            })
+            .collect::<Vec<_>>()
+    };
+    let none = PolicyRead::of(None);
+    let held = LeaguesHeld::of(rows(), &none, Realm::Pc, Some("L12"), false);
+    let doc = serde_json::to_value(&held).unwrap();
+    assert_eq!(doc["leagues"].as_array().unwrap().len(), 10, "{doc}");
+    assert_eq!(doc["leagues"][0]["league"], "L12", "{doc}");
+    assert_eq!(doc["leagues"][1]["league"], "L01", "{doc}");
+    assert_eq!(
+        (
+            &doc["leagues_total"],
+            &doc["left_out"],
+            &doc["left_out_needs"]
+        ),
+        (&json!(12), &json!(2), &json!("expand")),
+        "{doc}"
+    );
+    let all = LeaguesHeld::of(rows(), &none, Realm::Pc, Some("L12"), true);
+    assert_eq!((all.leagues.len(), all.left_out), (12, 0));
+}
+
+/// #157: the stored league list read with no daemon, each league beside
+/// whether the policy names it — in the entry's realm, or in any realm
+/// for an entry naming none — and what the store holds of it; never
+/// fetched is a document that says so; a list of twelve is ten and the
+/// rest counted; with no policy or an unreadable one `named` is false.
+#[test]
+fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let mut store = account.facts().unwrap();
+    assert_eq!(
+        serde_json::to_value(account.league_list(false).unwrap()).unwrap(),
+        json!({ "fetched_at": null, "fetched_at_age": "never", "policy": "none",
+                "policy_revision": null, "leagues_total": 0, "leagues": [], "left_out": 0 })
+    );
+    three_leagues(&mut store, 1_000);
+    store
+        .record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": [
+                { "id": "Standard", "realm": "pc" },
+                { "id": "Allflame", "realm": "pc" },
+                { "id": "Mirage", "realm": "pc" },
+                { "id": "Rehearsal" },
+            ] }),
+            1_000,
+        )
+        .unwrap();
+    let unnamed = serde_json::to_value(account.league_list(false).unwrap()).unwrap();
+    assert_eq!(unnamed["policy"], "none", "{unnamed}");
+    assert!(
+        unnamed["leagues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|l| l["named"] == false),
+        "{unnamed}"
+    );
+    account
+        .set_policy(&two_entries(), Expect::Create, PolicyWrite::Replace)
+        .unwrap();
+    let doc = serde_json::to_value(account.league_list(false).unwrap()).unwrap();
+    assert_eq!(doc["fetched_at"], 1_000, "{doc}");
+    assert_eq!(
+        (&doc["policy"], &doc["leagues_total"]),
+        (&json!("set"), &json!(4))
+    );
+    assert_eq!(
+        doc["leagues"],
+        json!([
+            { "id": "Standard", "realm": "pc", "named": true, "held": { "tabs": 2, "characters": 0 } },
+            { "id": "Allflame", "realm": "pc", "named": false, "held": { "tabs": 1, "characters": 0 } },
+            { "id": "Mirage", "realm": "pc", "named": false, "held": { "tabs": 0, "characters": 0 } },
+            { "id": "Rehearsal", "realm": null, "named": true, "held": { "tabs": 0, "characters": 2 } },
+        ]),
+        "{doc}"
+    );
+
+    store
+        .record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": (1..=12).map(|n| json!({ "id": format!("L{n:02}"), "realm": "pc" })).collect::<Vec<_>>() }),
+            1_100,
+        )
+        .unwrap();
+    let doc = serde_json::to_value(account.league_list(false).unwrap()).unwrap();
+    assert_eq!(
+        (
+            doc["leagues"].as_array().unwrap().len(),
+            &doc["leagues_total"],
+            &doc["left_out"],
+            &doc["left_out_needs"]
+        ),
+        (10, &json!(12), &json!(2), &json!("expand")),
+        "{doc}"
+    );
+    assert_eq!(account.league_list(true).unwrap().leagues.len(), 12);
+
+    rusqlite::Connection::open(acquisition_store::annotations_path(&s.mock, UUID))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = '{\"version\":99,\"realms\":{}}' WHERE kind = ?1",
+            [SYNC_POLICY_KIND],
+        )
+        .unwrap();
+    let doc = serde_json::to_value(account.league_list(false).unwrap()).unwrap();
+    assert_eq!(doc["policy"], "unreadable", "{doc}");
+}
+
+/// #22: a policy plan counts the league's non-folder tabs its entry does
+/// not cover beside all of them (C37: a folder's id covers its child),
+/// from the snapshot it compiled over; a policy naming every tab counts
+/// none; a selection plan carries no count.
+#[tokio::test]
+async fn a_policy_plan_counts_the_leagues_tabs_outside_the_policy() {
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let mut store = account.facts().unwrap();
+    let tab = |id: &str| json!({ "id": id, "name": id, "type": "PremiumStash", "index": 0 });
+    let folder = |id: &str, child: &str| json!({ "id": id, "name": id, "type": "Folder", "index": 0, "children": [tab(child)] });
+    let mut tabs = vec![folder("f1", "c1"), folder("f2", "c2")];
+    tabs.extend((1..=8).map(|n| tab(&format!("t{n}"))));
+    listing(&mut store, 1_000, Value::Array(tabs));
+    let named = |ids: Value| {
+        json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+            { "tabs": ids, "max_age_seconds": 3600 } } } } })
+    };
+    account
+        .set_policy(
+            &named(json!(["t1", "f1"])),
+            Expect::Create,
+            PolicyWrite::Replace,
+        )
+        .unwrap();
+    let mut opened = account.open().unwrap();
+    let planned = opened.plan(Realm::Pc, "Standard").await.unwrap();
+    assert_eq!(
+        serde_json::to_value(&planned).unwrap()["uncovered_tabs"],
+        json!({ "count": 8, "of": 10 })
+    );
+    assert!(
+        serde_json::to_value(&planned.plan)
+            .unwrap()
+            .get("uncovered_tabs")
+            .is_none(),
+        "never in the envelope (C38)"
+    );
+    let selection = acquisition_plan::PlanSelection {
+        tabs: Some(acquisition_plan::Selection::All),
+        characters: Vec::new(),
+        deep: false,
+    };
+    let chosen = opened
+        .plan_selection(Realm::Pc, "Standard", &selection)
+        .await
+        .unwrap();
+    assert_eq!(chosen.uncovered_tabs, None);
+    account
+        .set_policy(
+            &named(json!("all")),
+            Expect::Exactly(1),
+            PolicyWrite::Replace,
+        )
+        .unwrap();
+    let mut opened = account.open().unwrap();
+    let planned = opened.plan(Realm::Pc, "Standard").await.unwrap();
+    assert_eq!(
+        planned.uncovered_tabs,
+        Some(acquisition_verbs::UncoveredTabs { count: 0, of: 10 })
+    );
 }
 
 // ---- the one refusal shape (C11, C149; round 4 of the 2g build) ---------

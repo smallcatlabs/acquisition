@@ -83,13 +83,29 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
         }
         return Ok(());
     }
+    // what the store holds beyond this league, beside it (the CLI-2
+    // seat's fault 6)
+    let held = acquisition_verbs::Held::read(
+        rendered,
+        &opened.facts,
+        &opened.intent,
+        realm,
+        league,
+        args.expand,
+    )?;
     if args.json {
-        println!("{}", serde_json::to_string_pretty(&rendered)?);
+        println!("{}", serde_json::to_string_pretty(&held)?);
         return Ok(());
     }
     print!(
         "{}",
-        render_text(&rendered, now, args.expand, &opened.account.entry.username)
+        render_text(
+            &held.answer,
+            now,
+            args.expand,
+            &opened.account.entry.username,
+            &crate::leagues_cmd::held_line(&held.leagues_held)
+        )
     );
     Ok(())
 }
@@ -131,12 +147,13 @@ fn breakdown(r: &ShopRender, verdict: Verdict) -> String {
     parts.join(", ")
 }
 
-/// The C72 lines: only those that change the next decision.
-fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
+/// The C72 lines: only those that change the next decision; the
+/// `leagues:` line after the facts line, or first where none prints.
+fn freshness_lines(r: &ShopRender, now: i64, account: &str, leagues: &str) -> String {
     let mut out = String::new();
     let f = &r.freshness;
     if r.counts.posted == 0 {
-        return out;
+        return leagues.to_string();
     }
     // how old the posted items' facts are, under every policy state
     // (#156: no policy said nothing while the ranks were fifty days old)
@@ -152,6 +169,7 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str) -> String {
             now,
         ));
     }
+    out.push_str(leagues);
     match f.policy.as_str() {
         "not_set" => out.push_str(
             "policy: none set, so no refresh covers the page's facts; `acq policy set` declares coverage\n",
@@ -243,7 +261,9 @@ fn left_out_line(l: &LeftOut) -> String {
     )
 }
 
-fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String {
+/// `leagues` is the `leagues:` line ([`crate::leagues_cmd::held_line`]),
+/// printed after the facts line, or after the head where none prints.
+fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str, leagues: &str) -> String {
     // every printed `acq price` command carries the render's scope
     let flags = crate::price_cmd::scope_flags(&r.listing, account);
     let write = crate::price_cmd::write_flags(account);
@@ -254,6 +274,7 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String 
         out.push_str(&format!(
             "no items on record for {place}: nothing to render\n"
         ));
+        out.push_str(leagues);
         out.push_str(&format!(
             "next: `acq price status {flags}` says what is on record\n"
         ));
@@ -290,7 +311,7 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String 
             plural(c.pages, "page", "pages")
         ));
     }
-    out.push_str(&freshness_lines(r, now, account));
+    out.push_str(&freshness_lines(r, now, account, leagues));
     let blocked: Vec<_> = r
         .left_out
         .iter()
@@ -559,7 +580,8 @@ mod tests {
     #[test]
     fn c53_shop_render_opens_with_one_line_and_labels_every_page() {
         let r = rendered();
-        let text = render_text(&r, 5000, false, "a");
+        let leagues = "leagues: Standard (this); none other\n";
+        let text = render_text(&r, 5000, false, "a", leagues);
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
@@ -569,57 +591,59 @@ mod tests {
         // every policy state; the stale line's oldest is another set's
         let facts = "facts: 3 posted items at 2 locations, 2 fetched (the oldest fetch 63m ago, Standard / Dump; the newest 58m ago, Standard / ~price 1 chaos); stash listing 66m ago";
         assert_eq!(lines[1], facts);
+        // what else the realm holds, after the facts (round 5)
+        assert_eq!(lines[2], leagues.trim_end());
         assert_eq!(
-            lines[2],
+            lines[3],
             "coverage: 1 container on the page outside the sync policy (revision 4): tab/pc/t2; add them with `acq policy set --account a` (1 of their items past the window too)"
         );
         assert_eq!(
-            lines[3],
+            lines[4],
             "stale: 1 item on the page last seen past the policy's window of 3600s (oldest covered stale item 63m ago); `acq refresh --plan --account a --realm pc --league Standard` would send 7 requests"
         );
         assert!(
-            lines[4]
+            lines[5]
                 .starts_with("positions: 1 item on the page seen before the current stash listing"),
             "{}",
-            lines[4]
+            lines[5]
         );
-        assert_eq!(lines[5], "blocked:");
+        assert_eq!(lines[6], "blocked:");
         assert!(
-            lines[6].starts_with(
+            lines[7].starts_with(
                 "  substash           Map                              substash/pc/m1/s1"
             ),
             "{}",
-            lines[6]
-        );
-        assert!(lines[6].ends_with("item/s"), "{}", lines[6]);
-        assert!(
-            lines[7].starts_with("  unresolved         Ring"),
-            "{}",
             lines[7]
         );
+        assert!(lines[7].ends_with("item/s"), "{}", lines[7]);
+        assert!(
+            lines[8].starts_with("  unresolved         Ring"),
+            "{}",
+            lines[8]
+        );
         // C146 — each page names the tabs its `Stash<n>` links write
-        assert_eq!(lines[8], "page 1 of 2: 40 characters, 2 items");
+        assert_eq!(lines[9], "page 1 of 2: 40 characters, 2 items");
         assert_eq!(
-            lines[9],
+            lines[10],
             "  Stash1 is the tab \"Dump\" (tab/pc/c1): 2 items"
         );
-        assert_eq!(lines[10], "page one body");
-        assert_eq!(lines[11], "");
-        assert_eq!(lines[12], "page 2 of 2: 20 characters, 1 item");
+        assert_eq!(lines[11], "page one body");
+        assert_eq!(lines[12], "");
+        assert_eq!(lines[13], "page 2 of 2: 20 characters, 1 item");
         assert_eq!(
-            lines[13],
+            lines[14],
             "  Stash2 is the tab \"~price 1 chaos\" (tab/pc/t2): 1 item"
         );
-        assert_eq!(lines[14], "page two body");
-        assert_eq!(lines[15], "");
+        assert_eq!(lines[15], "page two body");
+        assert_eq!(lines[16], "");
         assert_eq!(
-            lines[16],
+            lines[17],
             "next: paste page 1 of 2 into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone"
         );
-        assert_eq!(lines.len(), 17, "{text}");
+        assert_eq!(lines.len(), 18, "{text}");
         assert!(!text.contains("policy table"), "{text}");
 
-        let text = render_text(&r, 5000, true, "a");
+        let text = render_text(&r, 5000, true, "a", "");
         assert!(
             text.contains("policy table (page size 200, template 7 characters):\n"),
             "{text}"
@@ -644,7 +668,7 @@ mod tests {
         none.counts.blocked = 5;
         none.posted_total = 0;
         none.freshness.facts = None;
-        let text = render_text(&none, 5000, false, "a");
+        let text = render_text(&none, 5000, false, "a", "");
         assert!(
             text.starts_with("nothing to paste for Standard: 13 items — 5 omitted"),
             "{text}"
@@ -662,7 +686,7 @@ mod tests {
         let mut broken = rendered();
         broken.freshness.refresh_requests = None;
         broken.freshness.refresh_problem = Some("no such league".into());
-        let text = render_text(&broken, 5000, false, "a");
+        let text = render_text(&broken, 5000, false, "a", "");
         assert!(
             text.contains("; `acq refresh --plan --account a --realm pc --league Standard` could not be compiled: no such league\n"),
             "{text}"
@@ -671,7 +695,7 @@ mod tests {
         // No policy: the one line names the remedy.
         let mut unset = rendered();
         unset.freshness.policy = "not_set".into();
-        let text = render_text(&unset, 5000, false, "a");
+        let text = render_text(&unset, 5000, false, "a", "");
         assert!(
             text.contains(&format!("\n{facts}\npolicy: none set")),
             "{text}"
@@ -687,7 +711,7 @@ mod tests {
             pages: vec![],
             ..rendered()
         };
-        let text = render_text(&empty, 5000, false, "a");
+        let text = render_text(&empty, 5000, false, "a", "");
         assert_eq!(
             text,
             "no items on record for Standard: nothing to render\nnext: `acq price status --account a --realm pc --league Standard` says what is on record\n"
@@ -723,7 +747,7 @@ mod tests {
         assert_eq!(r.left_out.len(), (1977 - 31) * 32);
 
         let t = Instant::now();
-        let text = render_text(&r, s.taken_at, true, "a");
+        let text = render_text(&r, s.taken_at, true, "a", "");
         let took = t.elapsed();
         eprintln!(
             "the expanded render took {took:?} over {} items",

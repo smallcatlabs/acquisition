@@ -4,6 +4,7 @@ $ acq tabs
 # holds "1 tabs in Standard: 1 fetched; 1 items"
 --- stdout
 1 tabs in Standard: 1 fetched; 1 items
+leagues: Standard (this); also held: Allflame (1 tab, no policy)
 name type          items  fetched      parent       id
 Gear PremiumStash      1  <age> ago                 a1
 
@@ -12,6 +13,7 @@ $ acq tabs
 # holds "next: `acq tabs --account 'Alice#1234' --realm pc --league Standard --expand` lists all 41"
 --- stdout
 41 tabs in Standard: 1 fetched, 40 never fetched; 1 items
+leagues: Standard (this); also held: Allflame (1 tab, no policy)
 type           tabs  fetched   items
 PremiumStash      1        1       1
 QuadStash        40        0       0
@@ -34,6 +36,7 @@ $ acq tabs --league 'Hard Mode'
 # holds "`acq search --account 'Alice#1234' --realm pc 'league=\"Hard Mode\"' --count tab`"
 --- stdout
 41 tabs in Hard Mode: 0 fetched, 41 never fetched; 0 items
+leagues: Hard Mode (this); also held: Allflame (1 tab, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
 QuadStash        40        0       0
@@ -57,6 +60,7 @@ $ acq tabs --league Small
 # holds "`acq tabs --account 'Alice#1234' --realm pc --league Small --expand` lists all 20"
 --- stdout
 20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+leagues: Small (this); also held: Allflame (1 tab, no policy), Hard Mode (41 tabs, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
 QuadStash        19        0       0
@@ -78,6 +82,7 @@ $ acq tabs --league Small --limit 15
 # holds "the 15 with the most items:"
 --- stdout
 20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+leagues: Small (this); also held: Allflame (1 tab, no policy), Hard Mode (41 tabs, no policy), Standard (41 tabs, no policy)
 type           tabs  fetched   items
 PremiumStash      1        0       0
 QuadStash        19        0       0

@@ -42,6 +42,7 @@ use anyhow::Result;
 
 use crate::store_cmd::{ago, clip, realm_prefix};
 use crate::{Ctx, Terminal};
+use acquisition_verbs::Held;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{Surface as _, Way};
 
@@ -61,11 +62,22 @@ pub fn status(cx: &Ctx, realm: Realm, league: &str, expand: bool, json: bool) ->
     // each counted whole (C53)
     let now = acquisition_store::now();
     let r = pricing::report(&store, &annotations, realm, league)?.status(expand, now);
+    // what the store holds beyond this league, beside it (#19's comment)
+    let held = Held::read(r, &store, &annotations, realm, league, expand)?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&r)?);
+        println!("{}", serde_json::to_string_pretty(&held)?);
         return Ok(());
     }
-    print!("{}", render_status(&r, now, expand, &username));
+    print!(
+        "{}",
+        render_status(
+            &held.answer,
+            now,
+            expand,
+            &username,
+            &crate::leagues_cmd::held_line(&held.leagues_held)
+        )
+    );
     Ok(())
 }
 
@@ -335,7 +347,15 @@ pub(crate) fn facts_line(lead: &str, facts: &Facts, h: &ReportHeader, now: i64) 
     format!("facts: {lead}, {fetched}; {}\n", lists.join(", "))
 }
 
-fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
+/// `leagues` is the `leagues:` line ([`crate::leagues_cmd::held_line`]),
+/// printed after the facts line on every path.
+fn render_status(
+    r: &ListingReport,
+    now: i64,
+    expand: bool,
+    account: &str,
+    leagues: &str,
+) -> String {
     // Every command the next step prints, as it runs ([`scope_flags`]).
     let scope = scope_flags(&r.header, account);
     let mut out = String::new();
@@ -354,6 +374,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             ));
         }
         out.push_str(&status_facts(r, now));
+        out.push_str(leagues);
         if let Some(line) = rows_line(r) {
             out.push_str(&line);
         } else if r.rows.total > 0 {
@@ -399,6 +420,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
         }
     ));
     out.push_str(&status_facts(r, now));
+    out.push_str(leagues);
     // Each count says what it counts (C146, a count says what it counts):
     // the hand side is the sum of its three relations, written out, since
     // "89 by hand" beside "39 decided by hand" read as a contradiction (the
@@ -1305,7 +1327,8 @@ mod tests {
     #[test]
     fn c53_price_status_opens_with_one_line_and_ends_with_the_next_action() {
         let r = report();
-        let text = render_status(&r, 8_000, false, "a");
+        let leagues = "leagues: Standard (this); none other\n";
+        let text = render_status(&r, 8_000, false, "a", leagues);
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
@@ -1314,26 +1337,28 @@ mod tests {
         // C162: how old the facts are, over the non-folder containers
         let facts = "facts: 4 locations, 4 fetched (the oldest fetch 1h ago, Standard / ~price 3 chaos (A); the newest 1h ago, Standard / Exile (character)); stash listing 1h ago, characters listed 1h ago";
         assert_eq!(lines[1], facts);
+        // what else the realm holds, after the facts (round 5)
+        assert_eq!(lines[2], leagues.trim_end());
         assert_eq!(
-            lines[2],
+            lines[3],
             "sides: 1 priced by hand (0 by hand alone, 0 agree with the game's price, 1 conflict with it); 12 priced in game"
         );
         assert_eq!(
-            lines[3],
+            lines[4],
             "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account a --realm pc --league Standard --game-text residue` lists them"
         );
         assert_eq!(
-            lines[4],
+            lines[5],
             "rows: 1 of 2 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms"
         );
         assert_eq!(
-            lines[5],
+            lines[6],
             "next: `acq price list --account a --realm pc --league Standard --relation conflict --expand` names each conflict"
         );
-        assert_eq!(lines.len(), 6, "{text}");
+        assert_eq!(lines.len(), 7, "{text}");
         assert!(!text.contains("parser"), "{text}");
 
-        let text = render_status(&r, 8_000, true, "a");
+        let text = render_status(&r, 8_000, true, "a", "");
         assert!(
             text.contains("game side: 2 priced tab names (1 public); 12 priced items in public tabs; note parser v2, currency table v1"),
             "{text}"
@@ -1357,7 +1382,7 @@ mod tests {
         invalid.items[3].note = Some("~price  chaos".into());
         let r = resolve(&invalid).unwrap();
         assert_eq!(r.counts.invalid_notes, 1);
-        let text = render_status(&r, 8_000, false, "a");
+        let text = render_status(&r, 8_000, false, "a", "");
         assert!(
             text.contains(
                 "in game also: 0 items skipped (~skip), 1 note starts like a price and does not read as one (no effect: a hand row or its tab's name applies, where either does); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
@@ -1368,7 +1393,7 @@ mod tests {
         // Zeros collapse: no hand row drops the hand side's parenthesis,
         // and nothing priced on either side says so (the h2 fix round).
         let sides = |s: &PricingSnapshot| {
-            render_status(&resolve(s).unwrap(), 8_000, false, "a")
+            render_status(&resolve(s).unwrap(), 8_000, false, "a", "")
                 .lines()
                 .find(|l| l.starts_with("sides: "))
                 .map(str::to_string)
@@ -1384,7 +1409,7 @@ mod tests {
 
         let mut empty = snapshot();
         empty.items.clear();
-        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
+        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a", "");
         // no items is not no locations: the full view's facts line
         assert!(text.starts_with(&format!("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n{facts}\n")), "{text}");
         assert!(
@@ -1395,7 +1420,7 @@ mod tests {
         );
         empty.stash_listing = None;
         empty.character_listing = None;
-        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
+        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a", "");
         assert!(
             text.starts_with(
                 "nothing on record for Standard: no stash listing, no character listing\n\
@@ -1412,7 +1437,7 @@ mod tests {
     #[test]
     fn c162_the_status_facts_line_takes_its_form_from_the_facts() {
         let facts_line = |s: &PricingSnapshot| {
-            render_status(&resolve(s).unwrap(), 8_000, false, "a")
+            render_status(&resolve(s).unwrap(), 8_000, false, "a", "")
                 .lines()
                 .find(|l| l.starts_with("facts: "))
                 .map(str::to_string)
@@ -1463,7 +1488,7 @@ mod tests {
         s.items[0].note = Some("~price 5 chaos".into());
         let r = resolve(&s).unwrap();
         assert_eq!(r.counts.residue, 1);
-        let text = render_status(&r, 8_000, false, "a");
+        let text = render_status(&r, 8_000, false, "a", "");
         assert!(
             text.contains(
                 "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account a --realm pc --league Standard --game-text residue` lists them\n"
@@ -1507,7 +1532,7 @@ mod tests {
                 why: "a tab's address is realm/id".into(),
             });
         r.rows.unreadable_total = 2;
-        let text = render_status(&r, 8_000, true, "a");
+        let text = render_status(&r, 8_000, true, "a", "");
         let malformed = text
             .lines()
             .find(|l| l.starts_with("  tab/pc revision 9: a tab's address is realm/id"))
@@ -1836,7 +1861,7 @@ mod tests {
             actor: None,
         });
         let r = resolve(&empty).unwrap();
-        let text = render_status(&r, 8_000, false, "a");
+        let text = render_status(&r, 8_000, false, "a", "");
         assert_eq!(
             text,
             "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
@@ -1844,7 +1869,7 @@ mod tests {
              rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
              next: `acq price status --account a --realm pc --league Standard --expand` lists the rows that cannot be read\n"
         );
-        let text = render_status(&r, 8_000, true, "a");
+        let text = render_status(&r, 8_000, true, "a", "");
         assert!(
             text.contains("rows that cannot be read:\n  item/i-new revision 7:"),
             "{text}"
@@ -2011,7 +2036,7 @@ mod tests {
             },
             "a",
         );
-        let status = render_status(&r, now, true, "a");
+        let status = render_status(&r, now, true, "a", "");
         let took = t.elapsed();
         eprintln!(
             "the expanded views took {took:?} over {} items",

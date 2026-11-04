@@ -293,16 +293,30 @@ pub fn tabs(
         expand,
         now,
     );
+    // what the store holds beyond this league, beside it: `tabs` lists
+    // one league, and the line names the others to ask for
+    let held = acquisition_verbs::Held::with(
+        listed,
+        &store,
+        &acquisition_verbs::leagues::PolicyRead::of_account(&account),
+        realm,
+        league,
+        expand,
+    )?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&listed)?);
+        println!("{}", serde_json::to_string_pretty(&held)?);
         return Ok(());
     }
+    let leagues = crate::leagues_cmd::held_line(&held.leagues_held);
+    let listed = held.answer;
     if listed.tabs == 0 {
         println!("{}", no_tabs_text(realm, league, &store, &username));
+        print!("{leagues}");
         return Ok(());
     }
     // The answer first (C53), so it is never under a screen of rows.
     println!("{}", tabs_head(&listed, realm, league));
+    print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (the re-sit:
     // every run asked which never-fetched tabs of a type to refresh)
@@ -574,12 +588,20 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
     // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a
     // contradiction (the trade seat: cli-opus calls 3, 5, its fault 7;
     // mcp-opus call 5)
+    // the kept count names its set, a union across every fetch, beside
+    // the latest list's count and age (C146; the answer-facts map, Root 2)
+    let latest = &st.league_list_latest;
     out.push_str(&format!(
-        "responses {}  league list {}  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}\n",
+        "responses {}  league ids seen across every league fetch: {} ({})  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}\n",
         st.responses,
-        match st.league_list.as_str() {
-            "never fetched" => "never fetched (`acq leagues`)".to_string(),
-            _ => format!("{} leagues", st.leagues),
+        st.leagues,
+        match latest.count {
+            None => "never fetched: `acq leagues`".to_string(),
+            Some(n) => format!(
+                "the latest fetch: {}, {}",
+                counted(n as i64, "league", "leagues"),
+                latest.fetched_at_age
+            ),
         },
         st.characters,
         st.tabs,
@@ -1060,8 +1082,32 @@ mod tests {
             refused_bodies: 1,
             granted_skills: 8,
             last_event: 9,
+            league_list_latest: Default::default(),
         };
         let text = status_text(&st);
+        // the kept count names its set, beside the latest list (C146)
+        assert!(
+            text.contains(
+                "league ids seen across every league fetch: 0 (never fetched: `acq leagues`)"
+            ),
+            "{text}"
+        );
+        let fetched = status_text(&acquisition_store::Status {
+            leagues: 5,
+            league_list: "fetched".into(),
+            league_list_latest: acquisition_store::LeagueListLatest {
+                count: Some(3),
+                fetched_at: Some(100),
+                fetched_at_age: "2d ago".into(),
+            },
+            ..st.clone()
+        });
+        assert!(
+            fetched.contains(
+                "league ids seen across every league fetch: 5 (the latest fetch: 3 leagues, 2d ago)"
+            ),
+            "{fetched}"
+        );
         for line in [
             "withheld: 1 fetch of tabs or characters the latest list no longer named, carrying 4 items: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
             "drift: 2 item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",

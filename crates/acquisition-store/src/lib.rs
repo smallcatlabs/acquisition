@@ -795,6 +795,45 @@ pub struct LeagueList {
     pub fetched_at: i64,
     /// The league ids it listed, in its order.
     pub ids: Vec<String>,
+    /// The same entries with the realm each carries (the real endpoint's
+    /// and the mock's carry one), `None` where an entry carries none: a
+    /// league's id is unique only within its realm (C58), so a reader
+    /// that asks whether the list holds a (realm, league) matches both
+    /// where the entry has a realm ([`LeagueEntry::holds`]).
+    pub entries: Vec<LeagueEntry>,
+}
+
+/// One entry of the stored league list: its id and the realm it names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LeagueEntry {
+    pub id: String,
+    pub realm: Option<String>,
+}
+
+impl LeagueEntry {
+    /// C126: whether this entry is `league` in `realm`: by realm and id
+    /// where the entry carries a realm, by id alone where it carries none.
+    pub fn holds(&self, realm: &str, league: &str) -> bool {
+        self.id == league && self.realm.as_deref().is_none_or(|r| r == realm)
+    }
+}
+
+impl LeagueList {
+    /// C126: whether the list holds `league` in `realm` ([`LeagueEntry::holds`]).
+    pub fn holds(&self, realm: &str, league: &str) -> bool {
+        self.entries.iter().any(|e| e.holds(realm, league))
+    }
+}
+
+/// What the store holds of one league of a realm: its live tabs and its
+/// live characters, `league` `None` for the realm's characters the
+/// listing gave no league ([`Store::leagues_held`]). Neutral (C39): no
+/// policy in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LeagueHeld {
+    pub league: Option<String>,
+    pub tabs: i64,
+    pub characters: i64,
 }
 
 /// The latest successful `leagues` response's list, or none when no list
@@ -817,14 +856,24 @@ pub(crate) fn league_list_in(conn: &Connection) -> Result<Option<LeagueList>> {
     };
     let body: Value = serde_json::from_str(&envelope)
         .with_context(|| format!("response {id}: the stored league list does not parse"))?;
-    let ids = body
+    let entries: Vec<LeagueEntry> = body
         .get("leagues")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|l| l.get("id").and_then(Value::as_str).map(str::to_string))
+        .filter_map(|l| {
+            Some(LeagueEntry {
+                id: l.get("id").and_then(Value::as_str)?.to_string(),
+                realm: l.get("realm").and_then(Value::as_str).map(str::to_string),
+            })
+        })
         .collect();
-    Ok(Some(LeagueList { fetched_at, ids }))
+    let ids = entries.iter().map(|e| e.id.clone()).collect();
+    Ok(Some(LeagueList {
+        fetched_at,
+        ids,
+        entries,
+    }))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -856,6 +905,12 @@ pub struct Status {
     /// zero is not a fetch of none (review 2 of the re-sit).
     #[serde(default)]
     pub league_list: String,
+    /// The latest league list alone, beside the two above (C146, a count
+    /// says what it counts): `leagues` counts every league id seen across
+    /// every league fetch, a union that never retires a row, where this
+    /// is what the latest fetch listed and when.
+    #[serde(default)]
+    pub league_list_latest: LeagueListLatest,
     pub characters: i64,
     pub tabs: i64,
     pub items: i64,
@@ -894,6 +949,17 @@ pub struct Status {
     /// not printed with the counts.
     #[serde(skip)]
     pub last_event: i64,
+}
+
+/// The latest league list's count and age ([`Status::league_list_latest`]):
+/// `count` and `fetched_at` null and the age `never` where no list was
+/// ever fetched; a list fetched empty counts 0 (C53: the age in words
+/// beside its epoch, at the answer's time).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LeagueListLatest {
+    pub count: Option<usize>,
+    pub fetched_at: Option<i64>,
+    pub fetched_at_age: String,
 }
 
 pub mod age;
@@ -2047,6 +2113,29 @@ impl Store {
         league_list_in(&self.conn)
     }
 
+    /// What the store holds of each league of `realm`: its live tabs and
+    /// live characters, one row per league with either, the realm's
+    /// characters with no league under `None`, last; the leagues in name
+    /// order. One query; neutral (C39), the caller adds the policy and
+    /// bounds the list (C53).
+    pub fn leagues_held(&self, realm: &str) -> Result<Vec<LeagueHeld>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT league, SUM(t), SUM(c) FROM (
+                 SELECT league, 1 AS t, 0 AS c FROM tabs WHERE realm = ?1 AND removed_at IS NULL
+                 UNION ALL
+                 SELECT league, 0, 1 FROM characters WHERE realm = ?1 AND removed_at IS NULL)
+              GROUP BY league ORDER BY league IS NULL, league",
+        )?;
+        let rows = stmt.query_map([realm], |r| {
+            Ok(LeagueHeld {
+                league: r.get(0)?,
+                tabs: r.get(1)?,
+                characters: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     pub fn status(&self) -> Result<Status> {
         let count = |sql: &str| -> Result<i64> { Ok(self.conn.query_row(sql, [], |r| r.get(0))?) };
         Ok(Status {
@@ -2061,6 +2150,14 @@ impl Store {
                 "never fetched".to_string()
             } else {
                 "fetched".to_string()
+            },
+            league_list_latest: {
+                let latest = league_list_in(&self.conn)?;
+                LeagueListLatest {
+                    count: latest.as_ref().map(|l| l.ids.len()),
+                    fetched_at: latest.as_ref().map(|l| l.fetched_at),
+                    fetched_at_age: age::ago(now(), latest.map(|l| l.fetched_at)),
+                }
             },
             characters: count("SELECT count(*) FROM characters WHERE removed_at IS NULL")?,
             tabs: count("SELECT count(*) FROM tabs WHERE removed_at IS NULL")?,

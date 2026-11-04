@@ -1,0 +1,111 @@
+# golden seat_faults/leagues_held: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price status
+# holds "leagues: Standard (this); also held: Allflame (1 tab, no policy), Rehearsal (3 tabs, 2 characters, no policy), no league (1 character)"
+--- stdout
+1 item in Standard: 0 the game decides, 0 decided by hand, 1 nothing applies
+facts: 2 locations, 1 fetched (fetched <age> ago, Standard / Gear); stash listing <age> ago, characters listed <age> ago
+leagues: Standard (this); also held: Allflame (1 tab, no policy), Rehearsal (3 tabs, 2 characters, no policy), no league (1 character)
+sides: nothing priced
+next: `acq price list --account 'Alice#1234' --realm pc --league Standard` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Standard <target>` is one listing
+
+$ acq leagues --stored
+# holds "no league list on record; `acq leagues` fetches it"
+--- stdout
+no league list on record; `acq leagues` fetches it
+
+$ acq price status --league Allflame
+# holds "leagues: Allflame (this); also held: Rehearsal (3 tabs, 2 characters, named), Standard (1 tab, named), no league (1 character)"
+--- stdout
+1 item in Allflame: 0 the game decides, 0 decided by hand, 1 nothing applies
+facts: 2 locations, 1 fetched (fetched <age> ago, Allflame / Gear); stash listing <age> ago, characters listed <age> ago
+leagues: Allflame (this); also held: Rehearsal (3 tabs, 2 characters, named), Standard (1 tab, named), no league (1 character)
+sides: nothing priced
+next: `acq price list --account 'Alice#1234' --realm pc --league Allflame` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Allflame <target>` is one listing
+
+$ acq shop render
+# holds "nothing to paste for Standard"
+# holds "leagues: Standard (this); also held: Allflame (1 tab, not named)"
+--- stdout
+nothing to paste for Standard: 1 item — 0 omitted; 0 blocked; 1 nothing applies
+leagues: Standard (this); also held: Allflame (1 tab, not named), Rehearsal (3 tabs, 2 characters, named), no league (1 character)
+next: `acq price set --account 'Alice#1234' item/<id> exact <amount> <tag>` prices one by hand; `acq price list --account 'Alice#1234' --realm pc --league Standard` shows what the game already lists
+
+$ acq tabs
+# holds "1 tabs in Standard"
+# holds "leagues: Standard (this); also held: Allflame (1 tab, not named)"
+--- stdout
+1 tabs in Standard: 1 fetched; 1 items
+leagues: Standard (this); also held: Allflame (1 tab, not named), Rehearsal (3 tabs, 2 characters, named), no league (1 character)
+name type          items  fetched      parent       id
+Gear PremiumStash      1  <age> ago                 a1
+
+$ acq tabs --realm xbox
+# holds "leagues: Standard (this); none other"
+--- stdout
+1 tabs in xbox/Standard: 0 fetched, 1 never fetched; 0 items
+leagues: Standard (this); none other
+name type          items  fetched      parent       id
+x1   PremiumStash      -  never                     x1
+
+$ acq policy show
+# holds "held: pc Allflame (not named), Rehearsal (named), Standard (named), characters with no league; xbox Standard (no policy for xbox)"
+--- stdout
+{
+  "realms": {
+    "pc": {
+      "leagues": {
+        "Rehearsal": {
+          "max_age_seconds": 3600,
+          "tabs": [
+            "r1"
+          ]
+        },
+        "Standard": {
+          "max_age_seconds": 3600,
+          "tabs": "all"
+        }
+      }
+    }
+  },
+  "version": 3
+}
+revision 1, updated <age> ago
+held: pc Allflame (not named), Rehearsal (named), Standard (named), characters with no league; xbox Standard (no policy for xbox)
+
+$ acq refresh --plan --league Rehearsal
+# holds "outside the policy: 2 of 3 tabs (`acq policy set --account 'Alice#1234'` names them)"
+--- stdout
+refresh Rehearsal on mock as Alice#1234 — policy 1
+facts: stash listed <age> ago
+
+1 request:
+  fetch 1 tab
+    r1  r1
+reason: selected tabs never fetched
+outside the policy: 2 of 3 tabs (`acq policy set --account 'Alice#1234'` names them)
+
+quote: unavailable — no daemon running
+wire: 1–3 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply --account 'Alice#1234' --realm pc --league Rehearsal
+
+$ acq leagues --stored
+# holds "Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)"
+--- stdout
+league list fetched <age> ago: Standard (pc, named, 1 tab on disk), Rehearsal (pc, named, 3 tabs, 2 characters), Mirage (pc, not named, nothing on disk)
+
+$ acq tabs
+# holds "leagues: Standard (this); also held: Allflame (1 tab, policy unreadable)"
+--- stdout
+1 tabs in Standard: 1 fetched; 1 items
+leagues: Standard (this); also held: Allflame (1 tab, policy unreadable), Rehearsal (3 tabs, 2 characters, policy unreadable), no league (1 character)
+name type          items  fetched      parent       id
+Gear PremiumStash      1  <age> ago                 a1
+
+$ acq tabs
+# holds "Extra8 (1 tab, policy unreadable) … and 2 more: `--expand` lists them"
+--- stdout
+1 tabs in Standard: 1 fetched; 1 items
+leagues: Standard (this); also held: Allflame (1 tab, policy unreadable), Extra1 (1 tab, policy unreadable), Extra2 (1 tab, policy unreadable), Extra3 (1 tab, policy unreadable), Extra4 (1 tab, policy unreadable), Extra5 (1 tab, policy unreadable), Extra6 (1 tab, policy unreadable), Extra7 (1 tab, policy unreadable), Extra8 (1 tab, policy unreadable) … and 2 more: `--expand` lists them
+name type          items  fetched      parent       id
+Gear PremiumStash      1  <age> ago                 a1

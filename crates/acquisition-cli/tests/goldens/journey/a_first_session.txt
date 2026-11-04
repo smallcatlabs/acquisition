@@ -91,6 +91,7 @@ $ acq tabs
 # holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
 --- stdout
 15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items
+leagues: Standard (this); none other
 type            tabs  fetched   items
 PremiumStash       2        2      13
 MapStash           6        6      10
@@ -247,6 +248,7 @@ $ acq shop render
 --- stdout
 49 items in Standard: 1 item to post on 1 page; 1 omitted (1 the game lists); 0 blocked; 47 nothing applies
 facts: 1 posted item at 1 location, 1 fetched (<fetches>); stash listing <age> ago
+leagues: Standard (this); none other
 page 1 of 1: 156 characters, 1 item
   Stash2 is the tab "Dump" (tab/pc/dump): 1 item
 [spoiler="Shop Post 1 of 1 (1 item)"]

@@ -57,7 +57,8 @@ fn a_league_that_left_the_list_is_not_held() {
         s.league_list().unwrap(),
         Some(LeagueList {
             fetched_at: 60,
-            ids: vec!["Standard".into(), "Rehearsal".into()]
+            ids: vec!["Standard".into(), "Rehearsal".into()],
+            entries: entries(&["Standard", "Rehearsal"]),
         })
     );
     assert_eq!(
@@ -93,7 +94,8 @@ fn the_later_list_is_read_though_its_clock_ran_back() {
         s.league_list().unwrap(),
         Some(LeagueList {
             fetched_at: 99,
-            ids: vec!["Standard".into(), "Rehearsal".into()]
+            ids: vec!["Standard".into(), "Rehearsal".into()],
+            entries: entries(&["Standard", "Rehearsal"]),
         })
     );
 }
@@ -110,8 +112,91 @@ fn a_list_fetched_empty_is_a_fetched_list() {
         s.league_list().unwrap(),
         Some(LeagueList {
             fetched_at: 70,
-            ids: vec![]
+            ids: vec![],
+            entries: vec![],
         })
+    );
+}
+
+fn entries(ids: &[&str]) -> Vec<LeagueEntry> {
+    ids.iter()
+        .map(|id| LeagueEntry {
+            id: id.to_string(),
+            realm: Some("pc".into()),
+        })
+        .collect()
+}
+
+/// C126's match by realm and league: the list keeps each entry's realm,
+/// so `Standard` for pc is not `Standard` for xbox; an entry with no
+/// realm (a list stored by a build that kept none, or a body without
+/// one) matches by id in every realm.
+#[test]
+fn c126_the_list_holds_a_league_in_its_own_realm_and_a_realmless_entry_in_every_one() {
+    let mut s = Store::open_memory().unwrap();
+    s.record(
+        &Endpoint::Leagues,
+        &json!({}),
+        200,
+        &json!({ "leagues": [ { "id": "Standard", "realm": "pc" }, { "id": "Hardcore" } ] }),
+        50,
+    )
+    .unwrap();
+    let list = s.league_list().unwrap().unwrap();
+    assert_eq!(
+        list.entries,
+        vec![
+            LeagueEntry {
+                id: "Standard".into(),
+                realm: Some("pc".into())
+            },
+            LeagueEntry {
+                id: "Hardcore".into(),
+                realm: None
+            },
+        ]
+    );
+    assert!(list.holds("pc", "Standard"));
+    assert!(!list.holds("xbox", "Standard"));
+    assert!(list.holds("xbox", "Hardcore"));
+    assert!(!list.holds("pc", "Mirage"));
+}
+
+/// `store status` keeps the union's count and the fetched word (C53,
+/// additive) and says the latest list beside them: its count and its
+/// fetch, `never` before one.
+#[test]
+fn status_says_the_latest_list_beside_the_union() {
+    let mut s = Store::open_memory().unwrap();
+    let never = s.status().unwrap().league_list_latest;
+    assert_eq!(
+        (never.count, never.fetched_at, never.fetched_at_age.as_str()),
+        (None, None, "never")
+    );
+    s.record(
+        &Endpoint::Leagues,
+        &json!({}),
+        200,
+        &leagues(&["Standard", "Mercenaries"]),
+        50,
+    )
+    .unwrap();
+    s.record(
+        &Endpoint::Leagues,
+        &json!({}),
+        200,
+        &leagues(&["Standard"]),
+        60,
+    )
+    .unwrap();
+    let st = s.status().unwrap();
+    assert_eq!((st.leagues, st.league_list.as_str()), (2, "fetched"));
+    assert_eq!(
+        (
+            st.league_list_latest.count,
+            st.league_list_latest.fetched_at
+        ),
+        (Some(1), Some(60))
     );
 }
 
@@ -2579,4 +2664,80 @@ fn c137_ensure_wal_at_zero_gives_up_on_a_held_writer_at_once() {
         .query_row("PRAGMA journal_mode", [], |r| r.get(0))
         .unwrap();
     assert_eq!(mode, "wal");
+}
+
+/// What the store holds of each league of a realm: live tabs and live
+/// characters counted per league, the realm's league-less characters
+/// last under no league, another realm's rows and a retired tab in none.
+#[test]
+fn leagues_held_counts_each_leagues_tabs_and_characters_in_one_realm() {
+    let mut s = Store::open_memory().unwrap();
+    let listing = |realm: &str, league: &str| Endpoint::Stashes {
+        realm: realm.into(),
+        league: league.into(),
+    };
+    let tabs = |ids: &[&str]| json!({ "stashes": ids.iter().enumerate().map(|(i, id)| json!({ "id": id, "name": id, "type": "PremiumStash", "index": i })).collect::<Vec<_>>() });
+    s.record(
+        &listing("pc", "Standard"),
+        &json!({}),
+        200,
+        &tabs(&["s1", "s2", "gone"]),
+        10,
+    )
+    .unwrap();
+    s.record(
+        &listing("pc", "Standard"),
+        &json!({}),
+        200,
+        &tabs(&["s1", "s2"]),
+        11,
+    )
+    .unwrap();
+    s.record(
+        &listing("pc", "Allflame"),
+        &json!({}),
+        200,
+        &tabs(&["a1"]),
+        12,
+    )
+    .unwrap();
+    s.record(
+        &listing("xbox", "Standard"),
+        &json!({}),
+        200,
+        &tabs(&["x1"]),
+        13,
+    )
+    .unwrap();
+    s.record(
+        &Endpoint::Characters { realm: "pc".into() },
+        &json!({}),
+        200,
+        &json!({ "characters": [
+            { "id": "c-a", "name": "A", "class": "Witch", "level": 3, "league": "Rehearsal" },
+            { "id": "c-b", "name": "B", "class": "Witch", "level": 3, "league": "Standard" },
+            { "id": "c-c", "name": "C", "class": "Witch", "level": 3 },
+        ] }),
+        14,
+    )
+    .unwrap();
+    let held = |league: Option<&str>, tabs: i64, characters: i64| LeagueHeld {
+        league: league.map(str::to_string),
+        tabs,
+        characters,
+    };
+    assert_eq!(
+        s.leagues_held("pc").unwrap(),
+        vec![
+            held(Some("Allflame"), 1, 0),
+            held(Some("Rehearsal"), 0, 1),
+            held(Some("Standard"), 2, 1),
+            held(None, 0, 1),
+        ]
+    );
+    assert_eq!(
+        s.leagues_held("xbox").unwrap(),
+        vec![held(Some("Standard"), 1, 0)]
+    );
+    assert_eq!(s.leagues_held("sony").unwrap(), vec![]);
 }

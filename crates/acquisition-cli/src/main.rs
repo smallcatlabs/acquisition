@@ -5,6 +5,7 @@
 
 mod dash;
 mod diagnose_cmd;
+mod leagues_cmd;
 mod plan_cmd;
 mod price_cmd;
 #[cfg(test)]
@@ -263,8 +264,19 @@ enum Cmd {
     },
     /// List the account's leagues: one a line, with its realm and category
     /// (`--json`: GGG's answer whole). A new league is listed here the day
-    /// it opens.
-    Leagues,
+    /// it opens. `--stored` reads the list last fetched instead, with no
+    /// daemon: each league beside whether the sync policy names it and what
+    /// the store holds of it, ten unless `--expand`.
+    Leagues {
+        /// Read the stored list (the latest fetch) with no daemon, each
+        /// league beside the policy's word and its tabs and characters on
+        /// disk.
+        #[arg(long)]
+        stored: bool,
+        /// With `--stored`, list every league, not ten.
+        #[arg(long, requires = "stored")]
+        expand: bool,
+    },
     /// Accounts this machine has logged into (the store's index; no
     /// daemon): ten, --expand every one, the count of all of them beside.
     /// `--json` is one document: `provider`, `total`, `accounts` (the
@@ -831,8 +843,14 @@ enum StoreCmd {
 
 #[derive(Subcommand)]
 enum PolicyCmd {
-    /// Print the stored policy value and its revision (the default).
-    Show,
+    /// Print the stored policy value and its revision (the default), and
+    /// each realm's leagues on disk with whether the policy names them,
+    /// ten a realm.
+    Show {
+        /// List every league on disk, not ten a realm.
+        #[arg(long)]
+        expand: bool,
+    },
     /// Write the policy: inline JSON, `-` to read stdin, or `@<path>` to
     /// read a file. Validated before it is stored — a typo'd field or an
     /// unknown version is refused, never half-honored. Each realm the
@@ -1667,7 +1685,11 @@ async fn run(cli: Cli) -> Result<()> {
             .await?;
             block_on_job(&mut client, id, cli.json).await
         }
-        Cmd::Leagues => {
+        Cmd::Leagues {
+            stored: true,
+            expand,
+        } => leagues_cmd::stored(cx, expand, cli.json),
+        Cmd::Leagues { stored: false, .. } => {
             let mut client = connect(cx).await?;
             let id = submit(cx, &mut client, "leagues".into(), json!({}), 0).await?;
             if cli.json {
@@ -1923,7 +1945,8 @@ async fn run(cli: Cli) -> Result<()> {
             ),
         },
         Cmd::Policy { cmd } => match cmd {
-            None | Some(PolicyCmd::Show) => plan_cmd::policy_show(cx, cli.json),
+            None => plan_cmd::policy_show(cx, false, cli.json),
+            Some(PolicyCmd::Show { expand }) => plan_cmd::policy_show(cx, expand, cli.json),
             Some(PolicyCmd::Set {
                 value,
                 if_revision,

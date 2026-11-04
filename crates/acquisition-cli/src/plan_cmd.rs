@@ -77,7 +77,7 @@ use acquisition_protocol::protocol::{Quote, QuoteScope};
 use acquisition_protocol::realm::Realm;
 use acquisition_verbs::refresh::{holding_jobs, spent_phrase};
 use acquisition_verbs::refusal::Way;
-use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges};
+use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges, UncoveredTabs};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
@@ -114,16 +114,19 @@ pub(crate) fn policy_set_line(account: &str, json: &str) -> String {
 /// groups are counted (the ruling's threshold; `--expand` lists every one).
 const LIST_UP_TO: usize = 10;
 
-/// `acq policy show`: the stored row and its revision; `--json` the
-/// MCP's `sync_policy` document, `{"policy": row}`, row null when none is
-/// set (C149: a success is never a bare `null`).
-pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
+/// `acq policy show`: the stored row and its revision, then the `held:`
+/// line, each realm's leagues on disk with the policy's word on each,
+/// ten a realm unless `--expand`; `--json` the MCP's `sync_policy`
+/// document, `{"policy": row, "leagues_held": […]}`, row null when none
+/// is set (C149: a success is never a bare `null`).
+pub fn policy_show(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
     let account = cx.account()?;
-    let shown = account.policy_shown()?;
+    let shown = account.policy_shown(expand)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&shown)?);
         return Ok(());
     }
+    let held = crate::leagues_cmd::policy_held_line(&shown.leagues_held);
     match shown.policy {
         None => {
             println!(
@@ -140,6 +143,7 @@ pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
             );
         }
     }
+    print!("{held}");
     Ok(())
 }
 
@@ -240,10 +244,10 @@ fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String 
 /// league when no list was ever fetched. Nothing refuses on it.
 fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
     let mut out = String::new();
-    let unread: Vec<&str> = notes
+    let unread: Vec<String> = notes
         .iter()
         .filter(|n| n.list_fetched_at.is_none())
-        .map(|n| n.league.as_str())
+        .map(|n| format!("{}{}", store_cmd::realm_prefix(n.realm), n.league))
         .collect();
     if !unread.is_empty() {
         out.push_str(&format!(
@@ -255,7 +259,8 @@ fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
     for note in notes {
         if let Some(at) = note.list_fetched_at {
             out.push_str(&format!(
-                "note: {} is not among the leagues fetched {} (`acq leagues`)\n",
+                "note: {}{} is not among the leagues fetched {} (`acq leagues`)\n",
+                store_cmd::realm_prefix(note.realm),
                 note.league,
                 store_cmd::ago(now, Some(at))
             ));
@@ -319,6 +324,7 @@ pub async fn refresh_plan(
             plan,
             quote_note,
             notes,
+            uncovered_tabs,
             ..
         },
         account,
@@ -332,6 +338,7 @@ pub async fn refresh_plan(
                     ages: acquisition_verbs::refresh::PlanAges::default(),
                     quote_note: None,
                     notes: PlanNotes::default(),
+                    uncovered_tabs: None,
                 },
                 account,
             )
@@ -350,6 +357,7 @@ pub async fn refresh_plan(
             eprintln!("note: {note}");
         }
         eprint!("{}", plan_note_lines(&plan, &notes, now));
+        eprint!("{}", uncovered_line(uncovered_tabs.as_ref(), &account));
         println!("{}", serde_json::to_string_pretty(&plan)?);
         return Ok(());
     }
@@ -362,7 +370,8 @@ pub async fn refresh_plan(
             now,
             expand,
             source,
-            &account
+            &account,
+            uncovered_tabs.as_ref()
         )
     );
     Ok(())
@@ -439,7 +448,8 @@ pub async fn refresh_selection(
                 acquisition_store::now(),
                 false,
                 None,
-                &opened.account.entry.username
+                &opened.account.entry.username,
+                None
             )
         );
     }
@@ -869,6 +879,7 @@ fn render_wire(plan: &RefreshPlan) -> String {
 /// The full text of `acq refresh --plan`: header, verdict, the grouped (or
 /// expanded) actions, the skips, the quote or why there is none, and what
 /// to type next.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_plan(
     plan: &RefreshPlan,
     quote_note: Option<&QuoteNote>,
@@ -877,14 +888,17 @@ pub(crate) fn render_plan(
     expand: bool,
     source: Option<&str>,
     account: &str,
+    uncovered: Option<&UncoveredTabs>,
 ) -> String {
+    let outside = uncovered_line(uncovered, account);
     if plan.actions.is_empty() && !expand {
-        return render_nothing_to_do(plan, now) + &plan_note_lines(plan, notes, now);
+        return render_nothing_to_do(plan, now) + &plan_note_lines(plan, notes, now) + &outside;
     }
     let mut out = render_header(plan, now, expand);
     if plan.actions.is_empty() {
         out.push_str(&render_nothing_to_do(plan, now));
         out.push_str(&plan_note_lines(plan, notes, now));
+        out.push_str(&outside);
         return out;
     }
     out.push_str(&plan_note_lines(plan, notes, now));
@@ -910,6 +924,7 @@ pub(crate) fn render_plan(
         }
     }
     out.push_str(&render_skips(plan, expand));
+    out.push_str(&outside);
     out.push('\n');
     match (&plan.quote, quote_note) {
         (Some(quote), _) if expand => out.push_str(&render_quote(quote, now, true)),
@@ -941,6 +956,22 @@ pub(crate) fn render_plan(
         (None, None) => {}
     }
     out
+}
+
+/// #22: the league's tabs the policy's entry does not cover, against all
+/// of them, and the command that names them; nothing where every tab is
+/// covered, or where the plan carries no count (a selection plan, a plan
+/// read from a file).
+fn uncovered_line(uncovered: Option<&UncoveredTabs>, account: &str) -> String {
+    match uncovered {
+        Some(u) if u.count > 0 => format!(
+            "outside the policy: {} of {} (`acq policy set {}` names them)\n",
+            u.count,
+            plural(u.of, "tab", "tabs"),
+            crate::price_cmd::write_flags(account)
+        ),
+        _ => String::new(),
+    }
 }
 
 /// The skip and unknown-id lines, one per facet — counts by reason; the
@@ -2142,6 +2173,7 @@ mod tests {
             false,
             None,
             "a",
+            None,
         );
         let expanded = render_plan(
             &plan,
@@ -2151,6 +2183,7 @@ mod tests {
             true,
             None,
             "a",
+            None,
         );
         assert_eq!(
             expanded.matches("\n  fetch ").count(),
@@ -2188,6 +2221,7 @@ mod tests {
             false,
             Some("/tmp/p.json"),
             "a",
+            None,
         );
         assert!(
             from_file.contains("next: acq refresh --apply=/tmp/p.json"),
@@ -2201,9 +2235,54 @@ mod tests {
             false,
             Some("/tmp/p.json"),
             "a",
+            None,
         );
         assert!(old.contains("on mock as Alice#1234"), "{old}");
         assert!(old.contains("(plan 2h old)"), "{old}");
+    }
+
+    /// #22: the league's tabs outside the policy, after the skipped line
+    /// on a plan with actions and on one with none; nothing where every
+    /// tab is covered or the plan carries no count.
+    #[test]
+    fn the_tabs_outside_the_policy_print_on_every_text_path() {
+        let line = "outside the policy: 8 of 10 tabs (`acq policy set --account a` names them)\n";
+        let eight = UncoveredTabs { count: 8, of: 10 };
+        let render = |plan: &RefreshPlan, expand: bool, uncovered: Option<&UncoveredTabs>| {
+            render_plan(
+                plan,
+                None,
+                &PlanNotes::default(),
+                plan.generated_at,
+                expand,
+                None,
+                "a",
+                uncovered,
+            )
+        };
+        let plan = tiny_plan();
+        assert!(!plan.actions.is_empty());
+        for expand in [false, true] {
+            assert!(
+                render(&plan, expand, Some(&eight)).contains(line),
+                "{expand}"
+            );
+        }
+        let mut empty = tiny_plan();
+        empty.actions.clear();
+        empty.logical_requests = 0;
+        for expand in [false, true] {
+            assert!(
+                render(&empty, expand, Some(&eight)).ends_with(line),
+                "{expand}"
+            );
+        }
+        for plan in [&plan, &empty] {
+            assert!(
+                !render(plan, false, Some(&UncoveredTabs { count: 0, of: 10 })).contains("outside")
+            );
+            assert!(!render(plan, false, None).contains("outside"));
+        }
     }
 
     #[test]
@@ -2266,6 +2345,7 @@ mod tests {
             false,
             None,
             "a",
+            None,
         );
         assert!(rendered.contains("nothing to do"), "{rendered}");
         assert!(!rendered.contains("next:"), "{rendered}");

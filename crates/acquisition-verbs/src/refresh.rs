@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use acquisition_client::client::{Client, Observed};
 use acquisition_plan::{
-    PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, apply_params_of, plan_notes,
+    PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, SyncPolicy, apply_params_of, plan_notes,
     plan_refresh, plan_selection,
 };
 use acquisition_protocol::job::{JobInfo, Outcome};
@@ -45,6 +45,51 @@ pub struct Planned {
     /// plan read from a file, which reads no store.
     #[serde(skip_serializing_if = "PlanNotes::is_empty")]
     pub notes: PlanNotes,
+    /// #22: the league's non-folder tabs the policy's entry does not
+    /// cover, against all of them, from the snapshot the policy plan
+    /// compiled over; the verbs' own observation beside the envelope
+    /// (C38), absent on a selection plan and on a plan read from a file.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uncovered_tabs: Option<UncoveredTabs>,
+}
+
+/// The league's tabs outside the policy ([`Planned::uncovered_tabs`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct UncoveredTabs {
+    /// The league's non-folder tabs on disk the policy's entry does not
+    /// cover (C37: a tab is covered when its id or its parent's is named;
+    /// none is where the entry names no tabs).
+    pub count: usize,
+    /// The league's non-folder tabs on disk.
+    pub of: usize,
+}
+
+impl UncoveredTabs {
+    /// Over `snapshot`, whose policy names its league: none where the
+    /// snapshot has no policy this build reads, or the policy does not
+    /// name the league (the compile refuses those first).
+    pub fn of(snapshot: &RefreshSnapshot) -> Option<UncoveredTabs> {
+        let policy = SyncPolicy::from_value(&snapshot.policy.as_ref()?.value).ok()?;
+        let entry = policy.league(Realm::parse(&snapshot.realm)?, &snapshot.league)?;
+        let tabs: Vec<_> = snapshot
+            .tabs
+            .iter()
+            .filter(|t| t.r#type != "Folder")
+            .collect();
+        let count = tabs
+            .iter()
+            .filter(|t| {
+                !entry
+                    .tabs
+                    .as_ref()
+                    .is_some_and(|s| s.covers_tab(&t.id, t.parent.as_deref()))
+            })
+            .count();
+        Some(UncoveredTabs {
+            count,
+            of: tabs.len(),
+        })
+    }
 }
 
 /// C53 (an age the text prints stands in words beside its epoch, made at
@@ -150,8 +195,10 @@ pub struct Submitted {
     pub requests: usize,
     pub spent: Vec<Spent>,
     pub skipped: Skipped,
+    /// Boxed: the status is the largest part of an apply's answer, and
+    /// [`Apply`]'s arms stay of a size.
     #[serde(skip)]
-    pub before: Status,
+    pub before: Box<Status>,
 }
 
 /// What an apply did once its job finished: the outcome, the store's
@@ -265,6 +312,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
             ages: PlanAges::default(),
             quote_note: Some(QuoteNote::NoAccountName),
             notes: PlanNotes::default(),
+            uncovered_tabs: None,
         };
     };
     let jobs: Vec<QuoteJob> = plan
@@ -301,6 +349,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
                     ages: PlanAges::default(),
                     quote_note: None,
                     notes: PlanNotes::default(),
+                    uncovered_tabs: None,
                 };
             }
             // The daemon answered about something other than this plan —
@@ -313,6 +362,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
         ages: PlanAges::default(),
         quote_note: Some(miss),
         notes: PlanNotes::default(),
+        uncovered_tabs: None,
     }
 }
 
@@ -456,6 +506,7 @@ impl Opened {
         let mut planned = quote(&self.account.frontend.root, plan).await;
         let now = acquisition_store::now();
         planned.notes = plan_notes(&snapshot, now);
+        planned.uncovered_tabs = UncoveredTabs::of(&snapshot);
         Ok(planned.aged(now))
     }
 
@@ -608,7 +659,7 @@ impl Opened {
             requests: unspent.len(),
             spent,
             skipped,
-            before,
+            before: Box::new(before),
         }))
     }
 

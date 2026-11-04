@@ -36,6 +36,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::fault::Fault;
+use crate::leagues::{LeagueListShown, LeaguesHeld, PolicyRead};
 
 /// The connect policy a frontend's verbs use (C10, the doors; C13, the
 /// MCP never spawns in real mode).
@@ -383,9 +384,30 @@ impl Account {
     }
 
     /// The stored sync policy as an answer (C149): the row under
-    /// `policy`, null when none is set.
-    pub fn policy_shown(&self) -> Result<PolicyShown, Fault> {
-        Ok(PolicyShown::of(self.policy()?, acquisition_store::now()))
+    /// `policy`, null when none is set, and beside it what the store holds
+    /// of each realm's leagues with the policy's word on each, ten a realm
+    /// unless `expand` ([`LeaguesHeld::every_realm`]). A facts file this
+    /// build cannot read leaves `leagues_held` empty, never the read
+    /// refused (the policy is intent alone).
+    pub fn policy_shown(&self, expand: bool) -> Result<PolicyShown, Fault> {
+        let row = self.policy()?;
+        let policy = PolicyRead::of(row.as_ref());
+        let held = self
+            .facts()
+            .ok()
+            .and_then(|facts| LeaguesHeld::every_realm(&facts, &policy, expand).ok())
+            .unwrap_or_default();
+        Ok(PolicyShown::of(row, held, acquisition_store::now()))
+    }
+
+    /// The stored league list, each league beside the policy's word and
+    /// what the store holds of it, no daemon (#157): ten unless `expand`.
+    /// An intent file that cannot be opened reads as a policy that cannot
+    /// be read ([`PolicyRead::of_account`]): the list is the facts'.
+    pub fn league_list(&self, expand: bool) -> Result<LeagueListShown, Fault> {
+        let policy = PolicyRead::of_account(self);
+        LeagueListShown::read(&self.facts()?, &policy, expand, acquisition_store::now())
+            .map_err(Fault::Other)
     }
 
     /// C52 (no blind clobber) and C35: write the sync policy through the
@@ -496,10 +518,12 @@ fn replaced_realms(value: &Value, prior: Option<&AnnotationRow>, write: PolicyWr
 
 /// The sync policy as both doors show it (C149: every answer one object,
 /// so a success is never a bare `null`): `policy`, the stored row, null
-/// when none is set.
+/// when none is set; `leagues_held`, one per realm the store holds tabs
+/// or characters of, each league beside whether the policy names it.
 #[derive(Clone, Debug, Serialize)]
 pub struct PolicyShown {
     pub policy: Option<ShownPolicy>,
+    pub leagues_held: Vec<LeaguesHeld>,
 }
 
 /// The stored policy row as shown: the row whole, and beside its
@@ -514,8 +538,9 @@ pub struct ShownPolicy {
 
 impl PolicyShown {
     /// The stored row, or none, its last write said as an age at `now`.
-    pub fn of(row: Option<AnnotationRow>, now: i64) -> PolicyShown {
+    pub fn of(row: Option<AnnotationRow>, leagues_held: Vec<LeaguesHeld>, now: i64) -> PolicyShown {
         PolicyShown {
+            leagues_held,
             policy: row.map(|row| ShownPolicy {
                 updated_at_age: acquisition_store::age::ago(now, Some(row.updated_at)),
                 row,

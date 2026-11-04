@@ -285,7 +285,10 @@ fn c149_every_json_answer_the_step_wrapped_is_one_object() {
     }
     let accounts = answer(&["accounts"]);
     assert_eq!(accounts["total"], 1, "{accounts}");
-    assert_eq!(answer(&["policy", "show"]), json!({ "policy": null }));
+    assert_eq!(
+        answer(&["policy", "show"]),
+        json!({ "policy": null, "leagues_held": [] })
+    );
     let refused = answer(&["store", "refused"]);
     assert_eq!(
         refused,

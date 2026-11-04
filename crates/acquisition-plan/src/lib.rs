@@ -728,6 +728,9 @@ impl SyncPolicy {
 /// once, not on every plan.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LeagueNote {
+    /// The realm the league is named under: the list holds a league in
+    /// its own realm (`LeagueList::holds`).
+    pub realm: Realm,
     pub league: String,
     pub list_fetched_at: Option<i64>,
     /// C53: `list_fetched_at` in words at the answer's time (`2d ago`,
@@ -735,19 +738,22 @@ pub struct LeagueNote {
     pub list_fetched_at_age: String,
 }
 
-/// C126: a note for each of `leagues` the list does not hold, in the
-/// order given, each league once, the list's fetch said as an age at
-/// `now`, the answer's time (C53).
+/// C126: a note for each of `leagues`, each a (realm, league), the list
+/// does not hold, in the order given, each once, the list's fetch said as
+/// an age at `now`, the answer's time (C53). The match is by realm and
+/// league where the list's entry carries a realm, by id where it carries
+/// none ([`LeagueList::holds`]).
 pub fn league_notes<'a>(
-    leagues: impl IntoIterator<Item = &'a str>,
+    leagues: impl IntoIterator<Item = (Realm, &'a str)>,
     list: Option<&LeagueList>,
     now: i64,
 ) -> Vec<LeagueNote> {
     let mut notes: Vec<LeagueNote> = Vec::new();
-    for league in leagues {
-        let held = list.is_some_and(|l| l.ids.iter().any(|id| id == league));
-        if !held && !notes.iter().any(|n| n.league == league) {
+    for (realm, league) in leagues {
+        let held = list.is_some_and(|l| l.holds(realm.as_str(), league));
+        if !held && !notes.iter().any(|n| n.realm == realm && n.league == league) {
             notes.push(LeagueNote {
+                realm,
                 league: league.to_string(),
                 list_fetched_at: list.map(|l| l.fetched_at),
                 list_fetched_at_age: acquisition_store::age::ago(now, list.map(|l| l.fetched_at)),
@@ -758,17 +764,12 @@ pub fn league_notes<'a>(
 }
 
 impl SyncPolicy {
-    /// Every league the policy names, realm by realm, each once.
-    pub fn leagues(&self) -> Vec<&str> {
-        let mut out: Vec<&str> = Vec::new();
-        for realm in self.realms.values() {
-            for league in realm.leagues.keys() {
-                if !out.contains(&league.as_str()) {
-                    out.push(league);
-                }
-            }
-        }
-        out
+    /// Every (realm, league) the policy names, realm by realm.
+    pub fn leagues(&self) -> Vec<(Realm, &str)> {
+        self.realms
+            .iter()
+            .flat_map(|(realm, policy)| policy.leagues.keys().map(|l| (*realm, l.as_str())))
+            .collect()
     }
 }
 
@@ -822,13 +823,16 @@ pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64) -> PlanNotes {
         && snapshot.character_listing.is_some()
         && snapshot.characters.is_empty();
     PlanNotes {
-        league: league_notes(
-            [snapshot.league.as_str()],
-            snapshot.league_list.as_ref(),
-            now,
-        )
-        .pop()
-        .filter(|note| note.list_fetched_at.is_some()),
+        league: Realm::parse(&snapshot.realm)
+            .and_then(|realm| {
+                league_notes(
+                    [(realm, snapshot.league.as_str())],
+                    snapshot.league_list.as_ref(),
+                    now,
+                )
+                .pop()
+            })
+            .filter(|note| note.list_fetched_at.is_some()),
         no_characters_listed,
         character_listing_fetched_at_age: snapshot
             .character_listing

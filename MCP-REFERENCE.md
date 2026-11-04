@@ -72,6 +72,14 @@ One job's state, ETA and retries. A waiting job with a large ETA is the rate lim
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 
+### `leagues`
+
+The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names ["store"] says what each count counts.
+
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — List every league of the list, not ten.
+- `stored` (boolean, required) — Must be true: this tool reads the league list last fetched, with no daemon. A `leagues` job (submit_job) fetches it anew.
+
 ### `list_jobs`
 
 Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts, and ["ages"] what an age's words say.
@@ -125,7 +133,7 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 
 ### `price_status`
 
-The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
+The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `leagues_held`, the realm's other leagues on disk (`describe` ["store"]); `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every row of `rows.unmatched`, `rows.unreadable` and `rows.other_league`, past the first ten.
@@ -140,7 +148,7 @@ The currency table this build ships (no store, no daemon): every row — `tag`, 
 
 ### `refresh_plan`
 
-Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan. Its ages: `describe` ["ages"].
+Compile a refresh plan for one realm and league offline, sending nothing: from the stored sync policy, or from an explicit `selection`, which needs none. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why none). A policy plan's `notes` names a league the fetched list lacks or a covered league with no character listed; `uncovered_tabs`, the league's tabs outside the policy. Review it, then hand `plan` to apply_plan. Its ages: `describe` ["ages"].
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `league` (string | null) — League name; defaults to "Standard".
@@ -171,7 +179,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 ### `shop_render`
 
-The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
+The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names ["pricing"] says what each count counts, ["store"] what `leagues_held` holds, ["ages"] ages.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
@@ -207,13 +215,14 @@ Submit a job to the daemon and return its id at once; poll job_status, then job_
 
 ### `sync_policy`
 
-The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set. Each age is in words beside its time (`describe` with names ["ages"]).
+The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set; `leagues_held`, each realm's leagues on disk with `named` where the policy names them, ten a realm, `expand` all (`describe` ["store"]). Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — List every league on disk in `leagues_held`, not ten a realm.
 
 ### `tabs`
 
-The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
+The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every tab of the league, or of the selection.

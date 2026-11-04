@@ -27,6 +27,8 @@
 //! - [`diagnose`]: one redacted document for a bug report, composed of
 //!   the others (#79).
 //! - [`events`]: the item events by location (C53).
+//! - [`leagues`]: what the store holds beyond the league an answer took,
+//!   and the stored league list, each league beside the policy's word.
 //! - [`characters`]: the characters on record, counted beside their
 //!   rows (C149, C53).
 //! - [`refusal`]: the one refusal shape every frontend prints, its
@@ -51,6 +53,7 @@ pub mod events;
 pub mod fault;
 pub mod frontend;
 pub mod jobs;
+pub mod leagues;
 pub mod receipt;
 pub mod refresh;
 pub mod refusal;
@@ -68,5 +71,8 @@ pub use jobs::{
     ByState, ChildTally, FailedChild, Job, JobCounts, JobResult, Jobs, Listed, PersistedJobs,
     Progress,
 };
-pub use refresh::{Apply, Landed, Planned, QuoteNote, Skipped, StoreChanges, Submitted};
+pub use leagues::{Held, LeagueListShown, LeaguesHeld};
+pub use refresh::{
+    Apply, Landed, Planned, QuoteNote, Skipped, StoreChanges, Submitted, UncoveredTabs,
+};
 pub use refused::RefusedBodies;

@@ -30,6 +30,7 @@ $ acq policy
   "version": 3
 }
 revision 1, updated <age> ago
+held: pc Standard (named)
 
 $ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
 # holds "revision 2"
@@ -115,6 +116,7 @@ $ acq tabs --league Rehearsal
 # holds "8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items"
 --- stdout
 8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items
+leagues: Rehearsal (this); also held: Standard (15 tabs, 2 characters, named)
 name         type           items  fetched      parent       id
 Currency     CurrencyStash      0  <age> ago                 rh-cur1
 Dump         PremiumStash       0  <age> ago                 rh-dump
@@ -129,6 +131,7 @@ $ acq tabs
 # holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
 --- stdout
 15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items
+leagues: Standard (this); also held: Rehearsal (8 tabs, named)
 type            tabs  fetched   items
 PremiumStash       2        2      13
 MapStash           6        6      10
@@ -170,6 +173,7 @@ $ acq price status --league Rehearsal
 --- stdout
 no items on record for Rehearsal: 8 tabs and characters listed, none fetched with items
 facts: 7 locations, 7 fetched (<fetches>); stash listing <age> ago
+leagues: Rehearsal (this); also held: Standard (15 tabs, 2 characters, named)
 next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` shows what a refresh would fetch
 
 $ acq store characters --league Rehearsal

@@ -29,7 +29,7 @@ last log: <logs>/mock/daemon.log
 
 == store
 <store>/mock/<account 1>.db  (0.1 MB)
-responses 1  league list never fetched (`acq leagues`)  characters 0  tabs 0 (every realm and league)  items 0 (+0 removed)  events 0
+responses 1  league ids seen across every league fetch: 0 (never fetched: `acq leagues`)  characters 0  tabs 0 (every realm and league)  items 0 (+0 removed)  events 0
 
 == rails
 no daemon of this client's runs; the world's rails file (<store>/mock/rails.json) holds

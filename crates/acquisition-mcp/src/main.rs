@@ -144,9 +144,10 @@ use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
 use acquisition_store::{Annotations, Provenance, Store};
 use acquisition_verbs::fault::door_word;
+use acquisition_verbs::leagues::PolicyRead;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{self, Arguments, Way};
-use acquisition_verbs::{Account, Fault, Frontend};
+use acquisition_verbs::{Account, Fault, Frontend, Held};
 use anyhow::Result;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ServerCapabilities, ServerConfig};
@@ -717,10 +718,10 @@ const DAEMON: [(&str, &str); 8] = [
 /// description names. The words are the ones those descriptions carried,
 /// whole, and the CLI footers' (C149: the counts a text prints stand in
 /// its JSON under one set of words).
-const STORE: [(&str, &str); 5] = [
+const STORE: [(&str, &str); 7] = [
     (
         "store counts",
-        "store_status: the store file's path, size and row counts. `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
+        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
     ),
     (
         "tab counts",
@@ -733,6 +734,14 @@ const STORE: [(&str, &str); 5] = [
     (
         "event counts",
         "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
+    ),
+    (
+        "leagues held",
+        "price_status, shop_render and tabs carry `leagues_held` beside the league they read, sync_policy one per realm the store holds: the realm's leagues with tabs or characters on disk, `leagues_total` all, `leagues` ten (the one read first; `expand` all), `left_out` the rest, each with `tabs`, `characters` and `named`, whether the policy names the league in that realm whatever it covers; false under `policy` `none` or `unreadable` and for characters with no league (`league` null); `policy_names_realm` false where the policy names other realms alone",
+    ),
+    (
+        "league list",
+        "leagues (`stored: true`): the list last fetched, `fetched_at` with its age (null and no leagues if never), `leagues_total` all, `leagues` ten in its order (`expand` all), each with `realm` (null where it names none), `named` (the policy names it in that realm, or any realm where none; false under `policy` `none` or `unreadable`) and `held`, its tabs and characters on disk in that realm, summed where none",
     ),
     ("ages", acquisition_store::age::SAID),
 ];
@@ -832,6 +841,25 @@ struct ShowParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct StoreParams {
+    #[schemars(description = ACCOUNT)]
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct PolicyShowParams {
+    /// List every league on disk in `leagues_held`, not ten a realm.
+    expand: Option<bool>,
+    #[schemars(description = ACCOUNT)]
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct LeaguesParams {
+    /// Must be true: this tool reads the league list last fetched, with no
+    /// daemon. A `leagues` job (submit_job) fetches it anew.
+    stored: bool,
+    /// List every league of the list, not ten.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1495,7 +1523,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
+        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -1507,7 +1535,8 @@ impl AcqMcp {
                 .as_deref()
                 .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
             let rows = store.tabs(realm.as_str(), league)?;
-            Ok(acquisition_search::tabs::Tabs::of(
+            let expand = p.expand.unwrap_or(false);
+            let listed = acquisition_search::tabs::Tabs::of(
                 realm.as_str(),
                 league,
                 rows,
@@ -1516,9 +1545,11 @@ impl AcqMcp {
                     never_fetched: p.never_fetched.unwrap_or(false),
                 },
                 p.limit,
-                p.expand.unwrap_or(false),
+                expand,
                 acquisition_store::now(),
-            ))
+            );
+            let policy = PolicyRead::of_account(&self.account(p.account.as_deref())?);
+            Held::with(listed, &store, &policy, realm, league, expand)
         })
     }
 
@@ -1737,13 +1768,32 @@ impl AcqMcp {
     // ---- the intent/plan slice (tracer step 8): policy → plan → apply ----
 
     #[tool(
-        description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set; `leagues_held`, each realm's leagues on disk with `named` where the policy names them, ten a realm, `expand` all (`describe` [\"store\"]). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
-    fn sync_policy(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
+    fn sync_policy(&self, Parameters(p): Parameters<Args<PolicyShowParams>>) -> Told {
         answer(|| {
+            let p = p.parse()?;
             Ok(self
-                .account(p.parse()?.account.as_deref())?
-                .policy_shown()?)
+                .account(p.account.as_deref())?
+                .policy_shown(p.expand.unwrap_or(false))?)
+        })
+    }
+
+    #[tool(
+        description = "The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names [\"store\"] says what each count counts."
+    )]
+    fn leagues(&self, Parameters(p): Parameters<Args<LeaguesParams>>) -> Told {
+        answer(|| {
+            let p = p.parse()?;
+            if !p.stored {
+                return Err(Arguments(
+                    "this tool reads the stored league list and takes `stored: true`; a `leagues` job (submit_job) fetches it anew".into(),
+                )
+                .into());
+            }
+            Ok(self
+                .account(p.account.as_deref())?
+                .league_list(p.expand.unwrap_or(false))?)
         })
     }
 
@@ -1773,7 +1823,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan. Its ages: `describe` [\"ages\"]."
+        description = "Compile a refresh plan for one realm and league offline, sending nothing: from the stored sync policy, or from an explicit `selection`, which needs none. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why none). A policy plan's `notes` names a league the fetched list lacks or a covered league with no character listed; `uncovered_tabs`, the league's tabs outside the policy. Review it, then hand `plan` to apply_plan. Its ages: `describe` [\"ages\"]."
     )]
     async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
         settled(
@@ -1812,7 +1862,7 @@ impl AcqMcp {
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
 
     #[tool(
-        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `leagues_held`, the realm's other leagues on disk (`describe` [\"store\"]); `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
@@ -1831,9 +1881,18 @@ impl AcqMcp {
             .league
             .as_deref()
             .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE);
+        let expand = p.expand.unwrap_or(false);
         priced(
-            acquisition_plan::pricing::report(&store, &intent, realm, league)
-                .map(|r| r.status(p.expand.unwrap_or(false), acquisition_store::now())),
+            acquisition_plan::pricing::report(&store, &intent, realm, league).and_then(|r| {
+                Held::read(
+                    r.status(expand, acquisition_store::now()),
+                    &store,
+                    &intent,
+                    realm,
+                    league,
+                    expand,
+                )
+            }),
         )
     }
 
@@ -1904,7 +1963,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, reported never enforced, and in `facts` how old the posted items' locations' facts are. `describe` with names [\"pricing\"] says what each count counts, [\"store\"] what `leagues_held` holds, [\"ages\"] ages."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
@@ -1919,14 +1978,16 @@ impl AcqMcp {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
+        let league = p
+            .league
+            .as_deref()
+            .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE);
         let rendered = acquisition_plan::pricing::shop_render(
             &store,
             &intent,
             self.frontend.provider,
             realm,
-            p.league
-                .as_deref()
-                .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE),
+            league,
             &acquisition_plan::pricing::ShopArgs {
                 size: p.size.unwrap_or(acquisition_plan::shop::DEFAULT_PAGE_SIZE),
                 template: p.template.as_deref(),
@@ -1938,7 +1999,9 @@ impl AcqMcp {
             (Ok(rendered), Some(n)) => {
                 priced(acquisition_plan::pricing::shop_page(&rendered, n).cloned())
             }
-            (rendered, _) => priced(rendered),
+            (rendered, _) => priced(rendered.and_then(|r| {
+                Held::read(r, &store, &intent, realm, league, p.expand.unwrap_or(false))
+            })),
         }
     }
 

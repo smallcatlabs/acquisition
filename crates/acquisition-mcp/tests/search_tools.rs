@@ -424,7 +424,9 @@ fn describe_is_the_clis_and_reads_no_store() {
     );
     assert!(said.starts_with(&own), "{said}");
     assert!(
-        said.ends_with(", wedged, store counts, tab counts, character counts, event counts, ages"),
+        said.ends_with(
+            ", wedged, store counts, tab counts, character counts, event counts, leagues held, league list, ages"
+        ),
         "{said}"
     );
     assert_eq!(e["readings"], printed["readings"]);
@@ -717,6 +719,11 @@ fn describe_is_as_large_as_its_text_says() {
     // `note` (the league seat, fault 4: 7,131 bytes)
     assert!(size(&mut seat, json!(["pricing"])) < 8_000);
     assert!(size(&mut seat, json!(["pricing"])) > 6_000);
+    // some 5 KB since the leagues held and the stored list joined it
+    // (round 5 of the answer-facts group: 5,150 bytes, from just under
+    // the small sections' 4,000 before)
+    assert!(size(&mut seat, json!(["store"])) < 6_000);
+    assert!(size(&mut seat, json!(["store"])) > 4_000);
     let large = [
         "computed",
         "trade",
@@ -724,6 +731,7 @@ fn describe_is_as_large_as_its_text_says() {
         "categories",
         "answer",
         "pricing",
+        "store",
     ];
     // the pricing model and the daemon's entries are this tool's own
     // sections beside the language's (#83)
@@ -1389,7 +1397,124 @@ fn c149_every_answer_the_step_wrapped_is_one_object() {
     assert!(summary["by_kind"]["added"].is_number(), "{summary}");
     let accounts = answer("accounts", json!({}));
     assert_eq!(accounts["total"], 1, "{accounts}");
-    assert_eq!(answer("sync_policy", json!({})), json!({ "policy": null }));
+    assert_eq!(
+        answer("sync_policy", json!({})),
+        json!({
+            "policy": null,
+            "leagues_held": [{
+                "realm": "pc", "policy": "none", "policy_revision": null, "policy_names_realm": false,
+                "leagues_total": 1, "left_out": 0,
+                "leagues": [{ "league": "Standard", "tabs": 2, "characters": 0, "named": false }],
+            }],
+        })
+    );
     let jobs = answer("list_jobs", json!({}));
     assert_eq!(jobs["running"], false, "{jobs}");
+}
+
+/// Round 5 of the answer-facts group (#157): the `leagues` tool reads the
+/// stored league list with no daemon, `stored: true` required, the same
+/// document `acq leagues --stored --json` prints; never fetched says so;
+/// a list of twelve is ten with the rest counted and `expand` all, as is
+/// `leagues_held` on price_status, shop_render, tabs and sync_policy over
+/// twelve leagues on disk; with a second account known, naming none is
+/// the standard ambiguity refusal and naming one answers.
+#[test]
+fn the_leagues_tool_reads_the_stored_list_and_each_one_league_tool_says_what_else_is_held() {
+    let scratch = scratch("mcp-leagues");
+    let base = scratch.0.clone();
+    seed(&base);
+    let mut seat = Seat::over(scratch);
+    let (never, refused) = seat.call("leagues", &json!({ "stored": true }));
+    assert!(!refused, "{never}");
+    assert_eq!(
+        never,
+        json!({ "fetched_at": null, "fetched_at_age": "never", "policy": "none",
+                "policy_revision": null, "leagues_total": 0, "leagues": [], "left_out": 0 })
+    );
+    let (e, refused) = seat.call("leagues", &json!({ "stored": false }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "arguments", "{e}");
+
+    let mut store = Store::open(&account_path(&stores(&base), USER)).unwrap();
+    for n in 1..=11 {
+        let league = format!("L{n:02}");
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.clone(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": [ { "id": format!("l{n}"), "name": "Gear", "type": "PremiumStash" } ] }),
+                40,
+            )
+            .unwrap();
+    }
+    let ids: Vec<Value> = std::iter::once("Standard".to_string())
+        .chain((1..=11).map(|n| format!("L{n:02}")))
+        .map(|id| json!({ "id": id, "realm": "pc" }))
+        .collect();
+    store
+        .record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": ids }),
+            50,
+        )
+        .unwrap();
+    let (listed, refused) = seat.call("leagues", &json!({ "stored": true }));
+    assert!(!refused, "{listed}");
+    assert_eq!(
+        (
+            listed["leagues"].as_array().unwrap().len(),
+            &listed["leagues_total"],
+            &listed["left_out"],
+            &listed["left_out_needs"]
+        ),
+        (10, &json!(12), &json!(2), &json!("expand")),
+        "{listed}"
+    );
+    assert_eq!(
+        listed["leagues"][0],
+        json!({ "id": "Standard", "realm": "pc", "named": false, "held": { "tabs": 2, "characters": 0 } })
+    );
+    let (printed, ok) = cli(&base, &["leagues", "--stored"]);
+    assert!(ok, "{printed}");
+    assert_eq!(printed["leagues"], listed["leagues"]);
+    let (all, _) = seat.call("leagues", &json!({ "stored": true, "expand": true }));
+    assert_eq!(all["leagues"].as_array().unwrap().len(), 12, "{all}");
+
+    for (tool, at) in [
+        ("price_status", "/leagues_held"),
+        ("shop_render", "/leagues_held"),
+        ("tabs", "/leagues_held"),
+        ("sync_policy", "/leagues_held/0"),
+    ] {
+        let (doc, refused) = seat.call(tool, &json!({}));
+        assert!(!refused, "{tool}: {doc}");
+        let held = doc.pointer(at).unwrap();
+        assert_eq!(
+            (
+                held["leagues"].as_array().unwrap().len(),
+                &held["leagues_total"],
+                &held["left_out"]
+            ),
+            (10, &json!(12), &json!(2)),
+            "{tool}: {held}"
+        );
+        let (doc, _) = seat.call(tool, &json!({ "expand": true }));
+        let held = doc.pointer(at).unwrap();
+        assert_eq!(held["leagues"].as_array().unwrap().len(), 12, "{tool}");
+    }
+
+    seed_bob(&base);
+    let (e, refused) = seat.call("leagues", &json!({ "stored": true }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "ambiguous_account", "{e}");
+    let (alice, refused) = seat.call("leagues", &json!({ "stored": true, "account": USER }));
+    assert!(!refused, "{alice}");
+    assert_eq!(alice["leagues_total"], 12, "{alice}");
 }

@@ -642,6 +642,8 @@ own facts (`briefs/156-facts-blocks.md`, cut three times under two
 cold reviews), went ahead of round 3 to a second parked worker, handed
 its brief by message, and landed on 2026-11-04 as one commit
 (`052e0fe4`); reviewed cold, no findings; closed the same day
-(`LEDGER.md`), #156 closed. Current: round 3, waiting on two
-amendments of C163 the owner has before him; the first parked worker
-waits for its brief.
+(`LEDGER.md`), #156 closed. Current: round 5, the scope of the
+league-taking surfaces (`briefs/157-leagues-held.md`), went to the
+first parked worker ahead of round 3 and landed on 2026-11-04 in the
+commit carrying this line, its review pending, while round 3 waits on
+two amendments of C163 the owner has before him.

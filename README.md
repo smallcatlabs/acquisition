@@ -171,7 +171,7 @@ acq jobs [--watch] [--all] | status <id> | result <id> [--wait]   # every job co
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 
 # keeping a league fresh: a policy, then a plan you read before it runs
-acq policy [show]   # sync policy and revision
+acq policy [show]   # sync policy and revision; each realm's leagues on disk, named or not
 acq policy set '<json>'|-|@FILE [--if-revision N] [--replace]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}: a realm is written whole, so name every league it keeps; realms not named are kept
 acq refresh --plan [--realm R] [--league L] [--expand] [--json]   # compile offline; a running daemon adds its quote
 acq refresh --apply[=plan.json] [--max-requests N]   # fetch exactly the plan; ends on what a new plan would still fetch
@@ -184,6 +184,7 @@ acq price clear <target> [--if-revision N]   # remove a price, with undo
 acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pages to paste, omissions counted
 
 # the store: no daemon, no network
+acq leagues --stored [--expand]   # the league list last fetched, each league beside whether the policy names it and its tabs and characters on disk
 acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--limit N] [--expand]   # counts, then the ten tabs with the most items; --limit more, --expand all
 acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts, then ten characters: locations, ages and live items; --expand all
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
@@ -228,8 +229,12 @@ them.
   `price status` and `shop render` read or fetch Standard without
   `--league` (a saved plan carries its own); `price show` reads the
   league the facts hold the target in, `store characters` every
-  league. `acq leagues` lists yours.
-- **A new league.** `acq leagues` names it the day it opens. The first
+  league. `acq leagues` lists yours, and `price status`, `shop render`
+  and `tabs` name the other leagues the store holds.
+- **A new league.** `acq leagues --stored` reads the list last
+  fetched with no daemon, each league beside whether your policy names
+  it and what the store holds of it; `acq leagues` fetches the list
+  anew and names a new league the day it opens. The first
   policy is written with `--if-revision 0` (the MCP's `if_revision: 0`
   the same), which lands only where none is stored; add the league to a
   policy by writing the realm back with every league it keeps (a
