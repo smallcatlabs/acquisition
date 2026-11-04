@@ -1,0 +1,5 @@
+- `fb6c5c02` — the brief’s done-when holds for all conditions checkable by reading the commit.
+- Findings: none. Against `6544366c`, the moved text preserves field order, serde attributes, comments and computation. The call site preserves location order, resolved realm, count lookup with zero fallback, item-total expression and both overrides. The sixteen unit tests stage the sixteen listed inputs. Retirement holders exist and are included by the gate’s test command. No forbidden file changed or invariant bypass was found.
+- Not checked: gate results, architecture-check output, executed test totals, mutation runs or regeneration history—not verified because this review was read-only and execution evidence was deliberately excluded.
+- Nitpicks: none.
+- Brief: no change suggested. Plan: no change suggested. Prompt: no change suggested.
