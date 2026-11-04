@@ -117,6 +117,15 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             ][..],
         ),
         (
+            "price_set",
+            "pricing",
+            &[
+                // #171 and #167: the receipt's counts and its clear
+                "`items_here_counts` and `items_covered_below_counts` count what its items resolve to after the write",
+                "`clear`, the clear of the row at the written revision",
+            ][..],
+        ),
+        (
             "price_list",
             "pricing",
             &[
