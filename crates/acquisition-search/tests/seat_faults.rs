@@ -1163,7 +1163,8 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
         &mut s,
         "pc",
         "Standard",
-        json!([{ "id": "u1", "name": "~price 1 chaos", "type": "UniqueStash" }]),
+        json!([{ "id": "u1", "name": "~price 1 chaos", "type": "UniqueStash" },
+               { "id": "u2", "name": " (Remove-only)", "type": "UniqueStash" }]),
         10,
     );
     let sub = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
@@ -1172,6 +1173,33 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
         id: "u1".into(),
         sub: sub.map(str::to_string),
     };
+    // a unique tab named by the mark alone, fetched first, so the scope's
+    // oldest fetch names it, and a page of it whose row names it as its
+    // parent
+    let tab2 = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "u2".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &tab2(None),
+        &json!({ "id": "u2" }),
+        200,
+        &json!({ "stash": { "id": "u2", "name": " (Remove-only)", "type": "UniqueStash", "items": [],
+                            "children": [{ "id": "q1", "name": "Belts", "type": "UniqueStash" }] } }),
+        15,
+    )
+    .unwrap();
+    s.record(
+        &tab2(Some("q1")),
+        &json!({ "id": "u2", "sub": "q1" }),
+        200,
+        &json!({ "stash": { "id": "q1", "name": "Belts", "type": "UniqueStash",
+                            "items": [item("i-q1", "Headhunter", "Leather Belt", "Unique", json!({}))] } }),
+        22,
+    )
+    .unwrap();
     s.record(
         &sub(None),
         &json!({ "id": "u1" }),
@@ -1218,7 +1246,17 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
             ("i-p1".to_string(), Value::Null, json!("~price 1 chaos")),
             ("i-p2".to_string(), Value::Null, json!("~price 1 chaos")),
             ("i-p3".to_string(), json!("Rings"), json!("~price 1 chaos")),
+            ("i-q1".to_string(), json!("Belts"), Value::Null),
         ]
+    );
+    // the tab named by the mark alone is named by its id alike as the
+    // scope's oldest fetch and as a row's parent (the build review of
+    // round 6: the parent's name kept the mark)
+    assert_eq!(
+        a["scope"]["oldest_fetch_location"],
+        json!({ "kind": "stash", "id": "u2", "name": null, "league": "Standard" }),
+        "{}",
+        a["scope"]
     );
     // the scope's and the total's newest fetch name that page as the
     // row's place does: by its id, no name (round 2's close: the scope

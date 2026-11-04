@@ -473,9 +473,10 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
             .filter(|l| l.kind == "stash")
             .and_then(|l| l.tab_type.clone())
             .or_else(|| tab.and_then(|t| t.tab_type.clone())),
+        // the parent's name by the store's one rule, as the scope names it
         parent: tab.map(|p| Named {
             id: p.id.clone(),
-            name: Some(p.name.clone()),
+            name: location_name(&p.name),
         }),
         container: row.container.clone(),
         socketed_in: row.socketed_in.clone().map(|id| Named { id, name: None }),

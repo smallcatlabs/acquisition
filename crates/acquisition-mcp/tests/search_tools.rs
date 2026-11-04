@@ -1159,6 +1159,10 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     let text = described(&mut seat, "answer");
     for said in [
         "`never_fetched_by_type` is the same by tab type",
+        // what each type row counts, `never` among them (round 6's
+        // build review: the corrected extent was printed and unpinned)
+        "`fetched` how many of them were and `never` how many were not",
+        "`items` the live items at every location of the type, fetched or not",
         "`tabs` lists a league's tabs",
         "`never_fetched_leagues`",
     ] {
