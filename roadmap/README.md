@@ -671,5 +671,13 @@ release build of `f87e645d` (the CLI door 107 calls, the MCP door 65),
 and none of run 1's faults recurred. The seat's third round
 (`briefs/answer-facts-seat-fixes-2.md`, run 2's four word faults, one
 commit each, reviewed cold and not sat again) landed the same day
-(`eecb6ef4` to `6483b9f6`). Its review (two P2s, four P3s) is answered
-in four commits, this line's the last. Current: the group's close.
+(`eecb6ef4` to `6483b9f6`). Its review (two P2s, four P3s) was
+answered in four commits (`ded97bad..a805e002`), one finding left
+unpinned by its nature. The seat closed on 2026-11-04 (`LEDGER.md`,
+`audits/answer-facts-2026-11/seat/README.md`): run 2 met none of run
+1's nine, three README sentences (`9ea28af9`), ten issues filed (#165
+to #174), the worlds torn down, the pristine kept. The group closed
+the same day (`HISTORY.md`), its agent-facing design decisions listed
+in the close's commit message for the owner's re-read. Next, Phase 3,
+the owner's league run, at his word; the seat's issues are a backlog
+his to order.
