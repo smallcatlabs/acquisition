@@ -2412,6 +2412,70 @@ fn a_container_receipt_that_cannot_count_its_items_still_stands_and_says_where_t
     golden(file!(), "a_receipt_uncounted", &t);
 }
 
+/// The review of round B, finding 3: a character's address names no
+/// realm, and its receipt counted its items in pc, so a poe2 character's
+/// set and clear carried no counts though the facts held its items. Its
+/// realm is the facts', as its league is.
+#[test]
+fn a_poe2_characters_receipt_counts_its_items_in_the_realm_the_facts_hold_it_in() {
+    let scratch = harness::scratch("price-poe2-character");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    let at = acquisition_store::now();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    store
+        .record(
+            &Endpoint::Characters {
+                realm: "poe2".into(),
+            },
+            &json!({ "realm": "poe2" }),
+            200,
+            &json!({ "characters": [ { "id": "ch2", "name": "Mage", "league": "Standard" } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Character {
+                realm: "poe2".into(),
+                name: "Mage".into(),
+            },
+            &json!({ "realm": "poe2", "name": "Mage" }),
+            200,
+            &json!({ "character": { "id": "ch2", "name": "Mage", "league": "Standard",
+                "equipment": [ { "id": "i-mage", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ],
+                "inventory": [] } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let set = sole_json(&acq(
+        &base,
+        &[
+            "price",
+            "set",
+            "character/ch2",
+            "exact",
+            "1",
+            "chaos",
+            "--json",
+        ],
+    ));
+    assert_eq!(set["items_here_counts"]["total"], json!(1), "{set}");
+    let cleared = sole_json(&acq(
+        &base,
+        &[
+            "price",
+            "clear",
+            "character/ch2",
+            "--if-revision",
+            "1",
+            "--json",
+        ],
+    ));
+    assert_eq!(cleared["items_here_counts"]["total"], json!(1), "{cleared}");
+}
+
 /// Round 5 of the 2g build (the receipt shape; its design's Q6, the cold
 /// review's finding 2): every write's `--json` receipt carries `revision`,
 /// the one the next write names — a clear's its tombstone's, from the

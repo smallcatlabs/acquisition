@@ -895,8 +895,8 @@ impl Covering {
 }
 
 /// [`Covered`] for `target` as the store (or why it could not be read)
-/// and intent now stand, after a write that landed: its realm and league
-/// read as `show` reads them, and any read that cannot answer an
+/// and intent now stand, after a write that landed: in the one realm and
+/// league the facts hold it in live, and any read that cannot answer an
 /// [`Uncounted`] in place of the counts.
 fn covering(
     store: Result<&Store, &str>,
@@ -935,9 +935,11 @@ fn covering(
             );
         }
     };
-    let league = match places.as_slice() {
+    // the realm and the league are the facts' (the review of round B,
+    // finding 3: a character's address names no realm, and pc was read)
+    let (realm, league) = match places.as_slice() {
         [] => return Covering::Nothing,
-        [(_, league)] => league.clone(),
+        [(realm, league)] => (*realm, league.clone()),
         many => {
             let held = many
                 .iter()
@@ -950,9 +952,7 @@ fn covering(
             );
         }
     };
-    let counted = realm_of(&[target], None)
-        .and_then(|realm| report(store, annotations, realm, &league))
-        .map(|r| r.show_view(target));
+    let counted = report(store, annotations, realm, &league).map(|r| r.show_view(target));
     match counted {
         Ok(Some(view)) => {
             let view = view.bounded(Some(0), false);
