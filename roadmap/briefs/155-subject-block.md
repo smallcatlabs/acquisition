@@ -9,12 +9,13 @@ on the text is the map's §11 question 4, (a): the scope line's ages
 leave the CLI text once the subject's stand under the total ("I agree
 with your approach", 2026-11-03). The JSON shape in Do 1 and Do 2 and
 the text's words in Do 3 are the session's agent-facing design,
-listed at the close for his review. Cut twice: the first draft
-(`263ab9db`) was reviewed cold
-(`roadmap/reviews/155-subject-block-brief-263ab9db.md`, the prompt
-beside: eight findings, no nitpick); this cut answers each, listed at
-the foot under "Taken from the review". To be reviewed cold again
-before a worker reads it.
+listed at the close for his review. Cut three times: the first draft
+(`263ab9db`) and the re-cut (`b8b768d1`) were each reviewed cold
+(`roadmap/reviews/155-subject-block-brief-<sha>.md`, the prompts
+beside: eight findings, then six, none a nitpick, none structural);
+this cut answers the second review's six, listed at the foot under
+"Taken from the reviews" with the first's eight. Not reviewed a third
+time: the roadmap's rule.
 
 ## Goal
 
@@ -159,8 +160,14 @@ scope's provenance stays where a program keeps it (C53).
   - under `all`, a removed match in a retired tab: its place's fetch
     retained (`lib.rs:1842`), so inside the span as its location's
     last fetch; and a removed match in a retired substash: its fetch
-    cleared (`:1869`), so in `places` and outside the span; a set of
-    such matches alone: `places` 2, no span, no clause;
+    cleared (`:1869`), so in `places` and outside the fetch extremes;
+    a set of such matches alone, their tab listing known: `places` 2,
+    the span present with null fetch epochs, no fetch words or
+    locations, `list_seen` the listing's, and no clause in the text;
+  - a search over every realm (`--realm all`) with matches in one
+    realm and an older tab listing of the same league in another
+    realm: `total.list_seen` the matched realm's listing, `scope`'s
+    the older one's;
   - the matches' lists: a query fixing one league whose matches are
     stash items of that league and one character item: `total`'s
     `list_seen` the older of that league's tab listing and the
@@ -194,15 +201,25 @@ scope's provenance stays where a program keeps it (C53).
    ways; a unit test over two orders as round 1's) and takes
    `list_seen` as the minimum over the bases given; `of` builds the
    pairs from its fetched locations, passes the in-realm bases it
-   filters today, and calls it. The callers that name the eight
-   fields directly move to `.span.`: the unit test at 68 and the CLI's
-   scope clause (`search_cmd.rs:994–1022`), mechanically, their
-   assertions and output unchanged. Unit tests: the tie rule over two
-   orders, `of`'s span equal to `span` over the same places and bases,
-   and the serialized key order of `Coverage` (the eight after
-   `folders`, by name, once). Checkpoint before item 2: `cargo nextest
-   run --workspace` green and no golden changed (a check, not the
-   gate; the one gate runs before the built commit).
+   filters today, and calls it. Every constructor and access of the
+   eight fields moves to `.span.`, mechanically, logic and output
+   unchanged: the store's unit tests throughout
+   `unit/tests/coverage.rs` (68 and after), the CLI's scope clause
+   (`search_cmd.rs:994–1022`) and its never-fetched line (`:1029`),
+   and the answer's narrowing (`answer.rs:2092`, which becomes
+   `coverage.span.list_seen = Some(seen)`, its logic untouched).
+   `Corpus.listings` (388, filled at 792) keeps the `ListingSeen`
+   values whole in place of `(league, fetched_at)` pairs, and
+   `list_seen_in` reads the same two fields from them and returns
+   what it returns today. Unit tests: the tie rule over two orders,
+   `of`'s span equal to `span` over the same places and bases, and
+   the serialized text of `Coverage` as fixed expectations, for a
+   populated coverage and for an empty one, each before and after
+   `aged` (the key order, the three nulls, the five omitted keys,
+   `list_seen_age` `never` on the empty aged one), compared as text
+   and never as a sorted value. Checkpoint before item 2: `cargo
+   nextest run --workspace` green and no golden changed (a check, not
+   the gate; the one gate runs before the built commit).
 2. In the search's `Total`: `pub places: usize` and `#[serde(flatten,
    skip_serializing_if = "Option::is_none")] pub span:
    Option<FetchSpan>`, after `matched` and before `undecided`. After
@@ -210,21 +227,30 @@ scope's provenance stays where a program keeps it (C53).
    for each match in order its `Place` keyed by `coordinate(realm,
    kind, id, league)` as the corpus keys a location (413–417: the
    league for a stash, none for a character), the first occurrence
-   kept; `places` is their count. The span is `Some` iff at least one
-   place has a `fetched_at`: `coverage::span` over those as
-   `(fetched_at, FetchedLocation { kind, id, name, league })`, with
-   the bases from `corpus.listings` that name a place in the set (a
-   stash place's league's tab listing; the realm's character listing
-   where a character place is in the set); aged where the answer's
-   other ages are made. No fetched place: `None`, absent from the
-   JSON, `places` still counted.
+   kept; `places` is their count. The span is `Some` whenever there is
+   a match: `coverage::span` over the places that have a `fetched_at`,
+   as `(fetched_at, FetchedLocation { kind, id, name, league })`, with
+   the bases from `corpus.listings` (the `ListingSeen` values, Do 1)
+   that name a place in the set, chosen by realm, kind and league: a
+   stash place's realm-and-league tab listing, and the realm's
+   character listing where a character place of that realm is in the
+   set; aged where the answer's other ages are made. With no fetched
+   place the fetch epochs are null and their words and locations
+   absent, and `list_seen` is still the bases' minimum: the lists
+   were seen whether or not a fetch landed, and C118 asks for them.
+   With no match: `None`, absent from the JSON, `places` 0.
 3. The text (`answer_head`): the clause moves from the scope line to
-   the total line. With two or more fetched places: `total   187
-   matches (the oldest fetch 57d ago, Standard / Dump Tab; the newest
-   53d ago, Allflame / TheAbsenceOfPatience (character))`, the
-   clause's words those of 1017–1022 verbatim and the location's form
-   unchanged; with one fetched place: `total   1 match (fetched 57d
-   ago, Standard / Dump Tab)`; with none fetched, or no match, no
+   the total line, its form chosen from `total`'s own fields, so the
+   text stays a function of the JSON (C53). Where the oldest and the
+   newest fetch name two locations: `total   187 matches (the oldest
+   fetch 57d ago, Standard / Dump Tab; the newest 53d ago, Allflame /
+   TheAbsenceOfPatience (character))`, the clause's words those of
+   1017–1022 verbatim and the location's form unchanged; where they
+   name one location (`oldest_fetch_location` equal to
+   `newest_fetch_location`, which one fetched place gives, and which
+   two places fetched at one time also give, since both extremes name
+   the first): `total   1 match (fetched 57d ago, Standard / Dump
+   Tab)`; where the span has no fetch, or there is no match: no
    clause. The undecided count follows the clause: `total   187
    matches (the oldest fetch …) · 3 undecided`. The scope line keeps
    `account · realm · membership · items · locations fetched` and
@@ -242,18 +268,23 @@ scope's provenance stays where a program keeps it (C53).
    with their `_age` and `_location` the earliest and latest of those
    locations' last fetches, the locations' fetches and not a removed
    item's last sighting; `list_seen` the oldest of the lists that
-   name those locations; absent where no matched location was
-   fetched. The `scope` entry's sentence on its ages says they are
+   name those locations; the fetch fields null where no matched
+   location was fetched, the block absent where nothing matched. The
+   `scope` entry's sentence on its ages says they are
    over every location in scope, the matches' under `total`. No id in
    either (C116); `surface_size.rs:89`'s sample and
    `search_tools.rs:679`'s bounds checked after the edit.
 5. The assertions named in Read are moved before regeneration, each
    to the fact that replaces it: `search_json.rs:2140`'s zero-match
-   command no longer requires the clause on the scope line and
-   requires its absence; `membership_all.txt:31`'s `# holds` lines
-   name the clause on the total line; `search_json.rs:646`'s literal
-   is the total line in its new form; `seat_faults.rs:1493` asserts
-   the clause on the total line. Then `ACQ_UPDATE_FIXTURES=1` once
+   command (`membership_all.txt:29–31`, `id:r2`, total 0) holds
+   `total   0 matches` and the clause's absence from its scope line,
+   and a matching command of the same test holds the clause on its
+   total line; `search_json.rs:646`'s literal is the total line in
+   its new form; `seat_faults.rs:1480–1493`'s `league=Standard` search
+   has one matched place, so its assertion becomes the one-location
+   form, the Allflame newest it names today staying in the scope's
+   JSON alone; `tests/normaliser.rs`'s existing case is updated beside
+   the two new ones. Then `ACQ_UPDATE_FIXTURES=1` once
    over the workspace, and every changed line read, each one of: the
    clause leaving a `scope ` line; the clause joining a `total ` line;
    a `# holds` line moved with it; the `total` gloss and its index
@@ -282,15 +313,18 @@ scope's provenance stays where a program keeps it (C53).
 - `FetchSpan` and `span` exist in `crates/acquisition-store/src/coverage.rs`,
   `Coverage` embeds the span flattened at its position, and the unit
   tests hold the tie rule over two orders, `of`'s span against
-  `span`, and `Coverage`'s serialized key order.
-- `Total` carries `places` and the optional flattened span; `grep -n
-  'places' crates/acquisition-search/src/answer.rs` finds the field
-  and the fold, and the fold keys by `coordinate`.
+  `span`, and `Coverage`'s serialized text populated and empty,
+  before and after aging.
+- `Total` carries `places` and the optional flattened span, present
+  whenever there is a match; `grep -n 'places'
+  crates/acquisition-search/src/answer.rs` finds the field and the
+  fold, the fold keys by `coordinate`, and `Corpus.listings` holds
+  `ListingSeen` values.
 - `tests/answer.rs` holds the complete span on the first fixture
   across the three views and a limited request, `scope`'s oldest
   apart from it, and one test per other failing input of Input,
-  the across-league and retired cases included; the MCP check holds
-  the complete block.
+  the across-league, retired, cleared-fetch and all-realms cases
+  included; the MCP check holds the complete block.
 - Every regenerated line is one of Do 5's kinds, read by the reviewer
   over the diff; the new `seat_faults` golden holds the total's clause
   and the scope line without it; no `scope ` line in any golden holds
@@ -330,11 +364,35 @@ scope's provenance stays where a program keeps it (C53).
 the count of changed lines by kind, the describe's measured size
 before and after, and the test count before and after.
 
-## Taken from the review
+## Taken from the reviews
 
-The cold review of `263ab9db`
-(`roadmap/reviews/155-subject-block-brief-263ab9db.md`): eight
+The second cold review, of `b8b768d1`
+(`roadmap/reviews/155-subject-block-brief-b8b768d1.md`): six
 findings, no nitpick, each answered in this cut.
+
+1. The span conditioned on a fetch discarded the subject's known
+   listing time: the span is present whenever there is a match, its
+   fetch epochs null without a fetch, `list_seen` kept; the clause
+   alone is conditional on a fetch; a cleared-fetch fixture with a
+   known listing is staged.
+2. `Corpus.listings` had dropped the realm: it keeps the `ListingSeen`
+   values, the bases are chosen by realm, kind and league, and an
+   all-realms case is staged.
+3. The text's forms are chosen from `total`'s own fields: two
+   locations or one, by the extremes' locations, which keeps the text
+   a function of the JSON.
+4. Every access of the eight fields migrates in Do 1, the narrowing
+   and the never-fetched line named, their logic unchanged.
+5. The zero-match golden holds `total   0 matches` and the clause's
+   absence, a matching command holds the clause; the one-place
+   `league=Standard` assertion takes the one-location form; the
+   existing normaliser case is updated.
+6. The serialization pin is the serialized text, populated and empty,
+   before and after aging, never a key order alone.
+
+The first cold review, of `263ab9db`
+(`roadmap/reviews/155-subject-block-brief-263ab9db.md`): eight
+findings, no nitpick, each answered in the second cut.
 
 1. C118 as entered requires the subject's "when its lists were seen";
    the first cut excluded it. The span is the eight contiguous fields
