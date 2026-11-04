@@ -16,13 +16,10 @@
 //! Both lists are bounded by the one bound (C53), counted whole beside
 //! the rows they keep, `expand` listing all (C149).
 
-use acquisition_plan::SyncPolicy;
+use acquisition_plan::{StoredPolicy, SyncPolicy, stored_policy};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::bound::bounded;
-use acquisition_store::{
-    AnnotationRow, Annotations, LeagueHeld, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
-    Store,
-};
+use acquisition_store::{AnnotationRow, Annotations, LeagueHeld, Store};
 use serde::Serialize;
 
 /// The sync policy's state as these documents read it: none set, a row
@@ -44,36 +41,40 @@ pub struct PolicyRead {
 }
 
 impl PolicyRead {
-    /// The policy a stored row holds, or none.
-    pub fn of(row: Option<&AnnotationRow>) -> PolicyRead {
-        match row {
-            None => PolicyRead {
+    /// The policy as the planner's one reader gives it
+    /// ([`acquisition_plan::stored_policy`]).
+    pub fn of_stored(stored: StoredPolicy) -> PolicyRead {
+        match stored {
+            StoredPolicy::NotSet => PolicyRead {
                 state: PolicyState::None,
                 revision: None,
                 policy: None,
             },
-            Some(row) => match SyncPolicy::from_value(&row.value) {
-                Ok(policy) => PolicyRead {
-                    state: PolicyState::Set,
-                    revision: Some(row.revision),
-                    policy: Some(policy),
-                },
-                Err(_) => PolicyRead {
-                    state: PolicyState::Unreadable,
-                    revision: Some(row.revision),
-                    policy: None,
-                },
+            StoredPolicy::Unreadable { revision, .. } => PolicyRead {
+                state: PolicyState::Unreadable,
+                revision: Some(revision),
+                policy: None,
+            },
+            StoredPolicy::Set { revision, policy } => PolicyRead {
+                state: PolicyState::Set,
+                revision: Some(revision),
+                policy: Some(policy),
             },
         }
     }
 
-    /// The account's stored policy, as [`crate::Account::policy`] reads it,
-    /// for a verb that opens no intent file of its own (`tabs`): an intent
-    /// file that cannot be opened is a policy that cannot be read.
+    /// The policy a stored row holds, or none.
+    pub fn of(row: Option<&AnnotationRow>) -> PolicyRead {
+        PolicyRead::of_stored(StoredPolicy::of_row(row))
+    }
+
+    /// The account's stored policy, for a verb that opens no intent file
+    /// of its own (`tabs`, `leagues --stored`): an intent file that cannot
+    /// be opened is a policy that cannot be read.
     pub fn of_account(account: &crate::Account) -> PolicyRead {
-        match account.policy() {
-            Ok(row) => PolicyRead::of(row.as_ref()),
-            Err(_) => PolicyRead {
+        match account.intent().map(|intent| PolicyRead::read(&intent)) {
+            Ok(Ok(read)) => read,
+            _ => PolicyRead {
                 state: PolicyState::Unreadable,
                 revision: None,
                 policy: None,
@@ -81,10 +82,12 @@ impl PolicyRead {
         }
     }
 
-    /// The account's stored policy, read from its intent file.
+    /// The account's stored policy, read from its intent file through the
+    /// planner's one reader: a row this build cannot read, malformed or
+    /// newer, is `unreadable` with its revision (C151), never a failure of
+    /// the answer that carries it.
     pub fn read(intent: &Annotations) -> anyhow::Result<PolicyRead> {
-        let row = intent.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
-        Ok(PolicyRead::of(row.as_ref()))
+        Ok(PolicyRead::of_stored(stored_policy(intent)?))
     }
 
     /// Whether the policy names `league` in `realm`, whatever its entry

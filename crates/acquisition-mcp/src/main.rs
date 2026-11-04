@@ -737,7 +737,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "leagues held",
-        "price_status, shop_render and tabs carry `leagues_held` beside the league they read, sync_policy one per realm the store holds: the realm's leagues with tabs or characters on disk, `leagues_total` all, `leagues` ten (the one read first; `expand` all), `left_out` the rest, each with `tabs`, `characters` and `named`, whether the policy names the league in that realm whatever it covers; false under `policy` `none` or `unreadable` and for characters with no league (`league` null); `policy_names_realm` false where the policy names other realms alone",
+        "price_status, shop_render and tabs carry `leagues_held` beside the league they read, sync_policy one per realm the store holds: the realm's leagues with tabs or characters on disk, `leagues_total` all, `leagues` ten (the one read first; `expand` all), `left_out` the rest, each with `tabs`, `characters` and `named`, whether the policy names the league in that realm whatever it covers; false under `policy` `none` or `unreadable` and for characters with no league (`league` null); `policy_names_realm` false where the policy names other realms alone; sync_policy's `leagues_held_unavailable` says why where the facts file could not be read",
     ),
     (
         "league list",

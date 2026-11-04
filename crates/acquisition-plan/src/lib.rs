@@ -714,6 +714,53 @@ impl SyncPolicy {
     }
 }
 
+/// The stored sync policy as every reader of it takes it (C151, a row
+/// this build cannot read is named, never a wall): none set, a row this
+/// build cannot read — a value that is not JSON, or one the policy's
+/// parse refuses, such as a newer version — with its revision and why,
+/// or the policy at its revision. A reader that reports the policy
+/// rather than writing it answers on the first two too; the write's own
+/// read refuses them (C52).
+#[derive(Debug, Clone)]
+pub enum StoredPolicy {
+    NotSet,
+    Unreadable { revision: i64, why: String },
+    Set { revision: i64, policy: SyncPolicy },
+}
+
+/// The account's stored sync policy ([`StoredPolicy`]). A fault reading
+/// the file itself, not the row, is the store's error.
+pub fn stored_policy(annotations: &Annotations) -> Result<StoredPolicy, AnnotationError> {
+    match annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND) {
+        Ok(row) => Ok(StoredPolicy::of_row(row.as_ref())),
+        Err(AnnotationError::Unreadable(row)) => Ok(StoredPolicy::Unreadable {
+            revision: row.revision,
+            why: row.fault,
+        }),
+        Err(e) => Err(e),
+    }
+}
+
+impl StoredPolicy {
+    /// A row already read, or none: the policy its value parses to, or
+    /// the row named unreadable.
+    pub fn of_row(row: Option<&AnnotationRow>) -> StoredPolicy {
+        match row {
+            None => StoredPolicy::NotSet,
+            Some(row) => match SyncPolicy::from_value(&row.value) {
+                Ok(policy) => StoredPolicy::Set {
+                    revision: row.revision,
+                    policy,
+                },
+                Err(e) => StoredPolicy::Unreadable {
+                    revision: row.revision,
+                    why: e.to_string(),
+                },
+            },
+        }
+    }
+}
+
 /// C126 — a league the list lacks is a note: a league a policy or a plan
 /// names that the account's fetched league list does not hold. The list
 /// is the latest successful leagues response (`LeagueList`), never an

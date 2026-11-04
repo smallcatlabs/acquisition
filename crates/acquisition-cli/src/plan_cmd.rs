@@ -126,7 +126,10 @@ pub fn policy_show(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&shown)?);
         return Ok(());
     }
-    let held = crate::leagues_cmd::policy_held_line(&shown.leagues_held);
+    let held = match &shown.leagues_held_unavailable {
+        Some(why) => format!("held: unknown, the facts file could not be read: {why}\n"),
+        None => crate::leagues_cmd::policy_held_line(&shown.leagues_held),
+    };
     match shown.policy {
         None => {
             println!(

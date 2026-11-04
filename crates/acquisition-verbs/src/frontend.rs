@@ -387,17 +387,23 @@ impl Account {
     /// `policy`, null when none is set, and beside it what the store holds
     /// of each realm's leagues with the policy's word on each, ten a realm
     /// unless `expand` ([`LeaguesHeld::every_realm`]). A facts file this
-    /// build cannot read leaves `leagues_held` empty, never the read
-    /// refused (the policy is intent alone).
+    /// build cannot read leaves the policy shown (it is intent alone) and
+    /// `leagues_held` unknown, its failure under
+    /// `leagues_held_unavailable`, never a claim the store holds nothing.
     pub fn policy_shown(&self, expand: bool) -> Result<PolicyShown, Fault> {
         let row = self.policy()?;
         let policy = PolicyRead::of(row.as_ref());
         let held = self
             .facts()
-            .ok()
-            .and_then(|facts| LeaguesHeld::every_realm(&facts, &policy, expand).ok())
-            .unwrap_or_default();
-        Ok(PolicyShown::of(row, held, acquisition_store::now()))
+            .map_err(anyhow::Error::from)
+            .and_then(|facts| LeaguesHeld::every_realm(&facts, &policy, expand));
+        let mut shown = PolicyShown::of(
+            row,
+            held.as_ref().cloned().unwrap_or_default(),
+            acquisition_store::now(),
+        );
+        shown.leagues_held_unavailable = held.err().map(|e| format!("{e:#}"));
+        Ok(shown)
     }
 
     /// The stored league list, each league beside the policy's word and
@@ -524,6 +530,12 @@ fn replaced_realms(value: &Value, prior: Option<&AnnotationRow>, write: PolicyWr
 pub struct PolicyShown {
     pub policy: Option<ShownPolicy>,
     pub leagues_held: Vec<LeaguesHeld>,
+    /// Why `leagues_held` is unknown, where the facts file could not be
+    /// read: the read's failure in words, `leagues_held` then empty for
+    /// want of a read, not because the store holds nothing. Absent where
+    /// the read succeeded.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub leagues_held_unavailable: Option<String>,
 }
 
 /// The stored policy row as shown: the row whole, and beside its
@@ -541,6 +553,7 @@ impl PolicyShown {
     pub fn of(row: Option<AnnotationRow>, leagues_held: Vec<LeaguesHeld>, now: i64) -> PolicyShown {
         PolicyShown {
             leagues_held,
+            leagues_held_unavailable: None,
             policy: row.map(|row| ShownPolicy {
                 updated_at_age: acquisition_store::age::ago(now, Some(row.updated_at)),
                 row,

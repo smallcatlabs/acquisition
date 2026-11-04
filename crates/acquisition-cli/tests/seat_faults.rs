@@ -1896,6 +1896,22 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
         );
     }
     golden(file!(), "leagues_held", &t);
+
+    // a facts file a newer build stamped (SQLite's header keeps the
+    // stamp at byte 60): the policy shown, its leagues held unknown and
+    // why, never "none on disk" (the build review of round 5, its second
+    // finding)
+    let facts = account_path(&mock, "Alice#1234");
+    let mut bytes = std::fs::read(&facts).unwrap();
+    bytes[60..64].copy_from_slice(&99u32.to_be_bytes());
+    std::fs::write(&facts, bytes).unwrap();
+    let out = acq(&base, &["policy", "show"]);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    assert!(
+        said.contains("held: unknown, the facts file could not be read: ") && said.contains("99"),
+        "{said}"
+    );
 }
 
 /// A unique tab's page with no name printed as its bare id after its tab,

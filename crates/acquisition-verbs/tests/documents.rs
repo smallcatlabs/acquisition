@@ -1232,7 +1232,8 @@ fn c149_the_accounts_are_counted_beside_ten() {
 /// C149, the pin: every document a verb returns serializes to one JSON
 /// object, never a bare array or a bare null — each answer this step
 /// wrapped (characters, the events and their summary, the job list live
-/// and absent, the accounts, the policy shown, the refused bodies) and
+/// and absent, the accounts, the policy shown, the refused bodies; round
+/// 5's leagues held and stored league list) and
 /// the daemon's report beside them, each over an empty world, where a
 /// bare list would have been `[]` and a missing row `null`.
 #[test]
@@ -1295,7 +1296,30 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
             serde_json::to_value(acquisition_verbs::PolicyShown {
                 policy: None,
                 leagues_held: Vec::new(),
+                leagues_held_unavailable: None,
             })
+            .unwrap(),
+        ),
+        (
+            "leagues held",
+            serde_json::to_value(acquisition_verbs::LeaguesHeld::of(
+                Vec::new(),
+                &acquisition_verbs::leagues::PolicyRead::of(None),
+                Realm::Pc,
+                None,
+                false,
+            ))
+            .unwrap(),
+        ),
+        (
+            "league list",
+            serde_json::to_value(
+                frontend(&s.mock)
+                    .account(None)
+                    .unwrap()
+                    .league_list(false)
+                    .unwrap(),
+            )
             .unwrap(),
         ),
         (
@@ -1485,6 +1509,103 @@ fn leagues_held_says_each_league_of_the_realm_beside_the_policys_word() {
         (&json!("unreadable"), &json!(1))
     );
     assert!(held_rows(&doc).iter().all(|row| !row.3), "{doc}");
+}
+
+/// The build review of round 5 (`roadmap/reviews/157-leagues-held-a6c2b121.md`,
+/// its first finding): a sync-policy row that is not JSON (C151, a row
+/// this build cannot read) is `unreadable` with its revision on every
+/// answer that carries the policy's word, through the planner's one
+/// reader — the price status and shop render each frontend makes, `tabs`'
+/// and `leagues --stored`'s read of the account — and none of them fails
+/// on it; `policy show`, whose answer is the row, refuses naming it.
+#[test]
+fn a_malformed_policy_row_is_unreadable_on_every_answer_that_carries_its_word() {
+    use acquisition_verbs::Held;
+    use acquisition_verbs::leagues::PolicyRead;
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let mut store = account.facts().unwrap();
+    three_leagues(&mut store, 1_000);
+    account
+        .set_policy(&two_entries(), Expect::Create, PolicyWrite::Replace)
+        .unwrap();
+    rusqlite::Connection::open(acquisition_store::annotations_path(&s.mock, UUID))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = '{nope' WHERE kind = ?1",
+            [SYNC_POLICY_KIND],
+        )
+        .unwrap();
+    let intent = account.intent().unwrap();
+    let unreadable = (json!("unreadable"), json!(1));
+    let word = |doc: &Value| (doc["policy"].clone(), doc["policy_revision"].clone());
+
+    let report = acquisition_plan::pricing::report(&store, &intent, Realm::Pc, "Standard")
+        .unwrap()
+        .status(false, 2_000);
+    let status = Held::read(report, &store, &intent, Realm::Pc, "Standard", false).unwrap();
+    assert_eq!(
+        word(&serde_json::to_value(&status.leagues_held).unwrap()),
+        unreadable
+    );
+
+    let rendered = acquisition_plan::pricing::shop_render(
+        &store,
+        &intent,
+        "mock",
+        Realm::Pc,
+        "Standard",
+        &acquisition_plan::pricing::ShopArgs {
+            size: acquisition_plan::shop::DEFAULT_PAGE_SIZE,
+            template: None,
+            now: 2_000,
+            expand: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(rendered.freshness.policy, "unreadable");
+    assert_eq!(rendered.freshness.policy_revision, Some(1));
+    let shop = Held::read(rendered, &store, &intent, Realm::Pc, "Standard", false).unwrap();
+    assert_eq!(
+        word(&serde_json::to_value(&shop.leagues_held).unwrap()),
+        unreadable
+    );
+
+    let tabs = PolicyRead::of_account(&account);
+    assert_eq!(
+        (tabs.state, tabs.revision),
+        (acquisition_verbs::leagues::PolicyState::Unreadable, Some(1))
+    );
+    let listed = serde_json::to_value(account.league_list(false).unwrap()).unwrap();
+    assert_eq!(word(&listed), unreadable, "{listed}");
+
+    let refused = account.policy_shown(false).unwrap_err().to_string();
+    assert!(refused.contains("revision 1"), "{refused}");
+}
+
+/// The build review of round 5, its second finding: a facts file this
+/// build cannot read (a newer schema's stamp) beside readable intent:
+/// `policy show` shows the policy, and says its leagues held are unknown
+/// and why, never that the store holds none.
+#[test]
+fn a_facts_file_this_build_cannot_read_leaves_the_policy_shown_and_its_leagues_unknown() {
+    let s = scratch();
+    let account = profiled(&s.mock);
+    three_leagues(&mut account.facts().unwrap(), 1_000);
+    account
+        .set_policy(&two_entries(), Expect::Create, PolicyWrite::Replace)
+        .unwrap();
+    rusqlite::Connection::open(account_path(&s.mock, USER))
+        .unwrap()
+        .pragma_update(None, "user_version", 99)
+        .unwrap();
+    let shown = serde_json::to_value(account.policy_shown(false).unwrap()).unwrap();
+    assert_eq!(shown["policy"]["revision"], 1, "{shown}");
+    assert_eq!(shown["leagues_held"], json!([]), "{shown}");
+    let why = shown["leagues_held_unavailable"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(why.contains("99"), "the read's failure, named: {shown}");
 }
 
 /// C53 and C149: twelve leagues on disk are ten listed, the one read

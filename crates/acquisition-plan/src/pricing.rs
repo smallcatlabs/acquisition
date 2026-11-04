@@ -46,8 +46,8 @@ use std::str::FromStr;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{
-    AnnotationError, AnnotationRow, Annotations, FactAddress, IntentValue, Provenance,
-    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, check_value,
+    AnnotationError, AnnotationRow, Annotations, FactAddress, IntentValue, Provenance, Store,
+    check_value,
 };
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
@@ -62,7 +62,7 @@ use crate::price::{
     set_buyout,
 };
 use crate::shop::{ITEMS_TOKEN, Page, PolicySource, RenderOptions, ShopRender, render};
-use crate::{SyncPolicy, plan_refresh};
+use crate::{StoredPolicy, plan_refresh, stored_policy};
 
 /// A refusal an agent branches on, beside its words (C11): what kind it
 /// is, and for a write refused for its revision the row's revision now
@@ -989,17 +989,14 @@ pub fn shop_render(
 ) -> Result<ShopRender> {
     let snapshot = store.pricing_snapshot(realm.as_str(), league, annotations)?;
     let report = resolve(&snapshot).context("resolving the listing state")?;
-    let row = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
-    let parsed = row
-        .as_ref()
-        .map(|row| (row.revision, SyncPolicy::from_value(&row.value)));
-    let policy = match &parsed {
-        None => PolicySource::NotSet,
-        Some((revision, Err(e))) => PolicySource::Unreadable {
+    let stored = stored_policy(annotations)?;
+    let policy = match &stored {
+        StoredPolicy::NotSet => PolicySource::NotSet,
+        StoredPolicy::Unreadable { revision, why } => PolicySource::Unreadable {
             revision: *revision,
-            why: e.to_string(),
+            why: why.clone(),
         },
-        Some((revision, Ok(policy))) => {
+        StoredPolicy::Set { revision, policy } => {
             // The plan the staleness line cites, or why there is none: a
             // snapshot or compile failure is reported, never swallowed.
             let refresh = store
