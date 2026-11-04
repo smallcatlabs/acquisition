@@ -686,7 +686,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "jobs",
-        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes",
+        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes. A stash job for a tab the account's stored listing of its realm and league does not name, or names as gone, is refused at submit, the listing's age said and nothing sent; a `stashes` job fetches the listing again. With none of that league stored it is admitted",
     ),
     (
         "no daemon",
@@ -1609,7 +1609,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows."
+        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions alone. An unknown name is refused with every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -2106,7 +2106,7 @@ impl AcqMcp {
     // ---- daemon jobs ----
 
     #[tool(
-        description = "Submit a job to the daemon and return its id at once; poll job_status, then job_result. `describe` with names [\"daemon\"] says what the job tools answer."
+        description = "Submit a job to the daemon and return its id at once; poll job_status, then job_result. A stash job for a tab the account's stored listing of its realm and league does not name is refused, nothing sent. `describe` with names [\"daemon\"] says what the job tools answer."
     )]
     async fn submit_job(&self, Parameters(p): Parameters<SubmitParams>) -> Told {
         settled(

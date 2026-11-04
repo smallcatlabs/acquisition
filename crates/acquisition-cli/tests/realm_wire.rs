@@ -10,6 +10,9 @@
 //!   each probed before its first counted send;
 //! - the mock's empty console listing lands nothing under xbox while pc's
 //!   tabs stay pc's — the store keeps realms apart;
+//! - a tab the stored listing does not name is refused at submit, its
+//!   realm's and league's listing named with its age, and nothing is
+//!   sent for it (C164, #166);
 //! - a realm the stash family does not take (poe2) is refused at admission,
 //!   with nothing journaled.
 
@@ -20,7 +23,7 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::sole_json;
+use harness::{Transcript, golden, sole_json};
 
 /// The binary under test with the send journal at `base/sends.jsonl`, the
 /// GGG-side surface this file reads (TESTING-NOTES.md): set on every
@@ -78,13 +81,34 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     assert_eq!(omitted["stashes"], explicit["stashes"]);
     assert!(!omitted["stashes"].as_array().unwrap().is_empty());
 
-    // xbox: its own route, the mock's empty console listing, and a tab
-    // fetch the mock answers 404 (the job fails honestly; the send is
-    // journaled on the xbox route).
+    // xbox: its own route and the mock's empty console listing; a tab
+    // that listing does not name is refused at submit, before an id
+    // exists, and nothing is sent for it (C164, #166: the 404 the stored
+    // listing predicted was a request spent for nothing). pc's listing
+    // names the mock's tabs, and not `nope`.
     let xbox = payload(&base, &["stashes", "--realm", "xbox", "--json"]);
     assert_eq!(xbox["stashes"], json!([]));
     let out = acq(&base, &["stash", "cur1", "--realm", "xbox", "--json"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let refused = sole_json(&out);
+    assert_eq!(refused["kind"], json!("refused"), "{refused}");
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["stash", "cur1", "--realm", "xbox"],
+        &[
+            "the stash listing stored for xbox Standard (fetched ",
+            r#"names no tab "cur1" that stands"#,
+            "a stashes job for xbox Standard fetches the listing again",
+        ],
+    );
+    t.run(
+        &["stash", "nope"],
+        &[
+            r#"the stash listing stored for pc Standard (fetched "#,
+            r#"no tab "nope""#,
+        ],
+    );
+    golden(file!(), "unlisted_tab", &t);
 
     // poe2: the stash family does not take it — refused at admission,
     // before a job id exists.
@@ -140,10 +164,13 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     );
     assert_eq!(
         on(&format!("stash/xbox@{account}")),
-        vec![
-            ("HEAD".to_string(), Some(204)),
-            ("GET".to_string(), Some(404))
-        ]
+        vec![],
+        "a stash job its listing does not name sends nothing, not even the route's probe"
+    );
+    assert!(
+        all.iter()
+            .all(|send| send.route != format!("stash@{account}")),
+        "a pc tab its listing does not name was sent: {all:?}"
     );
     assert!(
         all.iter().all(|send| !send.route.contains("poe2")),

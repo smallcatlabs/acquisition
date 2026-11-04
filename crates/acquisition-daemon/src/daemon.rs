@@ -160,7 +160,7 @@ use endpoint::{Accept, BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, admit_client, admit_client_submitter, admit_realm,
-    admit_segments, bounded_message, check_sleep, describe, describe_str,
+    admit_segments, bounded_message, check_sleep, describe, describe_str, judge_listed,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;

@@ -278,6 +278,11 @@ impl Daemon {
                     };
                 match admitted
                     .and_then(|()| self.resolve_account(&kind, account.as_deref()))
+                    // C164: a stash job against the account's stored listing
+                    .and_then(|account| {
+                        self.admit_listed(&kind, &params, account.as_deref())
+                            .map(|()| account)
+                    })
                     .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
                 {
                     Ok(id) => Response::Submitted { id },

@@ -46,7 +46,7 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions, never pricing, daemon or store. An unknown name is refused with every name it knows.
+What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions alone. An unknown name is refused with every name it knows.
 
 - `names` (array | null) — Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, answer, trade, pricing), an entry (league, total_res), a category's id; all, everything. "~resist": the language's entries whose name or definition matches, whole if ten or fewer, else their lines.
 
@@ -206,7 +206,7 @@ Store file path, size, and row counts (no daemon), and `facts`: how old the fact
 
 ### `submit_job`
 
-Submit a job to the daemon and return its id at once; poll job_status, then job_result. `describe` with names ["daemon"] says what the job tools answer.
+Submit a job to the daemon and return its id at once; poll job_status, then job_result. A stash job for a tab the account's stored listing of its realm and league does not name is refused, nothing sent. `describe` with names ["daemon"] says what the job tools answer.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `kind` (string, required) — Job kind, one a client may submit: profile, characters, character, leagues, stashes, stash, apply, sleep, fetch, whoami. sleep, fetch, whoami run against the mock daemon alone and are refused in real mode. apply_plan sends a reviewed plan, with the checks an apply here skips.

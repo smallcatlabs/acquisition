@@ -731,6 +731,11 @@ fn describe_is_as_large_as_its_text_says() {
     let store = size(&mut seat, json!(["store"]));
     assert!(store < 7_000, "store: {store} bytes");
     assert!(size(&mut seat, json!(["store"])) > 4_000);
+    // some 4 KB since a stash job judged against the stored listing
+    // joined the jobs entry (C164, #166: 3,972 bytes before it)
+    let daemon = size(&mut seat, json!(["daemon"]));
+    assert!(daemon < 5_000, "daemon: {daemon} bytes");
+    assert!(daemon > 4_000, "daemon: {daemon} bytes");
     let large = [
         "computed",
         "trade",
@@ -739,6 +744,7 @@ fn describe_is_as_large_as_its_text_says() {
         "answer",
         "pricing",
         "store",
+        "daemon",
     ];
     // the pricing model and the daemon's entries are this tool's own
     // sections beside the language's (#83)
@@ -764,7 +770,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed some 80 KB",
         "fields and trade 20 KB each",
         "categories 10 KB",
-        "pricing 8 KB, answer 7 KB, store 6 KB",
+        "pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB",
         "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

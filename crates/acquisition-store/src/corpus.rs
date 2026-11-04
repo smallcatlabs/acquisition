@@ -496,7 +496,39 @@ pub(crate) fn coverage_in(
     Ok(coverage)
 }
 
+/// A league's stash listing as the store holds it (C164): when the
+/// latest listing of the realm and league was fetched, the clock `tabs`
+/// says its age by, and the tabs that stand, by the one test of a live
+/// tab (`TAB_GONE`): a tab the listing dropped, or a retired parent's
+/// substash, is in none of them.
+#[derive(Debug, Clone)]
+pub struct StashListing {
+    pub fetched_at: i64,
+    pub tabs: Vec<crate::TabRow>,
+}
+
 impl Store {
+    /// The stash listing of `realm` and `league` the store last took and
+    /// the tabs that stand in it, read in one read transaction; none
+    /// where no listing of that realm and league is stored. What the
+    /// daemon judges a client's stash job against (C164), through this
+    /// read API, never its SQL.
+    pub fn stash_listing(&self, realm: &str, league: &str) -> Result<Option<StashListing>> {
+        let tx = self.conn.unchecked_transaction()?;
+        let seen = read_listings(&tx, Some(realm))?
+            .into_iter()
+            .find(|l| l.kind == "stash" && l.league.as_deref() == Some(league));
+        let listing = match seen {
+            Some(seen) => Some(StashListing {
+                fetched_at: seen.fetched_at,
+                tabs: crate::tabs_in(&tx, realm, league)?,
+            }),
+            None => None,
+        };
+        tx.finish()?;
+        Ok(listing)
+    }
+
     /// A league's tabs, the coverage of its tabs (#172) and what the
     /// store holds of each of the realm's leagues ([`Store::leagues_held`],
     /// the `leagues_held` beside them), for `tabs`: one read transaction,

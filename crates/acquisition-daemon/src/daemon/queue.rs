@@ -1231,6 +1231,56 @@ a client cannot submit one"
     Ok(())
 }
 
+/// C164 — A client's stash job for tab `id` (and substash `sub`) of
+/// `realm` and `league`, judged against the account's stored listing of
+/// them: the tab must stand in it (a tab the listing dropped, or names
+/// under a retired parent, is not among its tabs); a substash is judged
+/// only where the stored rows name the tab's substashes, so one of a tab
+/// never fetched, or a folder, is admitted. The words name the listing,
+/// its age at `now` (the store's clock, as `tabs` says it), the tab
+/// described, never echoed whole (C127), and the `stashes` job that
+/// fetches the listing again. Judged in `admit_listed` (`kinds.rs`), after
+/// the account resolves and before an id exists; the daemon's own
+/// submissions never pass it.
+pub(super) fn judge_listed(
+    listing: &acquisition_store::StashListing,
+    realm: &str,
+    league: &str,
+    id: &str,
+    sub: Option<&str>,
+    now: i64,
+) -> Result<(), String> {
+    let stored = || {
+        format!(
+            "the stash listing stored for {realm} {league} (fetched {})",
+            acquisition_store::age::ago(now, Some(listing.fetched_at))
+        )
+    };
+    let again = format!("a stashes job for {realm} {league} fetches the listing again");
+    let Some(tab) = listing.tabs.iter().find(|t| t.id == id) else {
+        return Err(format!(
+            "{} names no tab {} that stands; {again}",
+            stored(),
+            describe_str(id)
+        ));
+    };
+    let Some(sub) = sub else { return Ok(()) };
+    let mut subs = listing
+        .tabs
+        .iter()
+        .filter(|t| tab.r#type != "Folder" && t.parent.as_deref() == Some(id))
+        .peekable();
+    if subs.peek().is_none() || subs.any(|t| t.id == sub) {
+        return Ok(());
+    }
+    Err(format!(
+        "{} names no substash {} of tab {} that stands; {again}",
+        stored(),
+        describe_str(sub),
+        describe_str(id)
+    ))
+}
+
 /// A child submission's parent is no longer there to take it.
 fn parent_gone(parent: JobId) -> Refusal {
     Refusal::new(ErrorKind::Refused, format!("parent job {parent} is gone"))

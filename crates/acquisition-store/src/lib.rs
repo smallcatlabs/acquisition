@@ -1096,7 +1096,7 @@ pub use annotations::{
 };
 pub use corpus::{
     CorpusHeader, CorpusItem, CorpusItems, Gone, ListingSeen, LocationRow, Membership, RealmScope,
-    Revision,
+    Revision, StashListing,
 };
 pub use index::{AccountEntry, Index, Resolve, account_matches, account_path, index_path};
 pub use snapshot::{

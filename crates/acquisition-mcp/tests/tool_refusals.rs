@@ -203,6 +203,59 @@ fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
     assert!(!described.contains("refresh"), "{described}");
 }
 
+/// C164 (#166; the answer-facts seat, MCP run 1 calls 57 to 60: a stash
+/// job for `rh-nope`, a tab the stored listing never named, was admitted
+/// and its 404 spent a request): with the mock's pc Standard listing
+/// stored, `submit_job` of a stash for a tab it does not name is refused
+/// at submit, kind `refused` in the daemon's data, its words naming the
+/// listing, its age and the `stashes` job that fetches it again, and no
+/// job is admitted; a tab it names is admitted and fetched.
+#[test]
+fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_submit() {
+    let scratch = harness::scratch("mcp-unlisted");
+    let base = scratch.0.clone();
+    let (mut daemon, _pid) = harness::start_daemon_with(&base, &[]);
+    harness::login_as_mock(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    let listing = mcp.expect_ok("submit_job", json!({ "kind": "stashes" }));
+    let outcome = harness::finish_job(&mut mcp, &listing["job_id"]);
+    assert_eq!(outcome["outcome"], "success", "{outcome}");
+    let named = outcome["payload"]["stashes"][0]["id"].clone();
+    assert!(named.is_string(), "{outcome}");
+
+    let error = mcp.expect_rpc_error(
+        "submit_job",
+        json!({ "kind": "stash", "params": { "league": "Standard", "id": "nope" } }),
+    );
+    assert_eq!(error["data"]["kind"], "refused", "{error}");
+    let message = error["message"].as_str().unwrap_or_default();
+    for words in [
+        "the stash listing stored for pc Standard (fetched ",
+        r#"names no tab "nope" that stands"#,
+        "a stashes job for pc Standard fetches the listing again",
+    ] {
+        assert!(message.contains(words), "{words:?}: {message}");
+    }
+    let jobs = mcp.expect_ok("list_jobs", json!({ "expand": true }));
+    let rows = jobs["rows"].as_array().cloned().unwrap_or_default();
+    assert!(
+        rows.iter().all(|job| job["params"]["id"] != json!("nope")),
+        "the refused stash job was admitted: {jobs}"
+    );
+
+    let fetched = mcp.expect_ok(
+        "submit_job",
+        json!({ "kind": "stash", "params": { "league": "Standard", "id": named } }),
+    );
+    let outcome = harness::finish_job(&mut mcp, &fetched["job_id"]);
+    assert_eq!(outcome["outcome"], "success", "{outcome}");
+
+    drop(mcp);
+    let stop = harness::acq(&base, &["daemon", "stop"]);
+    assert!(stop.status.success(), "{stop:?}");
+    daemon.wait_exit(Duration::from_secs(120));
+}
+
 /// A request the server cannot read gets its own reply, and the server
 /// answers the next call: a query tree of 123 nots or 62 groups, or any
 /// message past 127 JSON levels, was dropped before any tool saw it,

@@ -242,28 +242,11 @@ impl Daemon {
                 "the job has no account to file the {kind} response under"
             )));
         };
-        let mut guard = self.store.lock().unwrap();
-        if guard.as_ref().is_none_or(|(u, _)| u != account) {
-            let path = account_path(dir, account);
-            match Store::open(&path) {
-                Ok(store) => {
-                    self.log(&format!("store: {} opened for {account}", path.display()));
-                    *guard = Some((account.to_string(), store));
-                }
-                Err(e) => {
-                    drop(guard);
-                    return Err(not_recorded(format!(
-                        "could not open {}: {e:#}",
-                        path.display()
-                    )));
-                }
-            }
-        }
-        let Some((_, store)) = guard.as_mut() else {
-            unreachable!("the store was opened above")
-        };
-        let result = store.record(&endpoint, params, 200, body, acquisition_store::now());
-        drop(guard);
+        let result = self
+            .with_store(dir, account, |store| {
+                store.record(&endpoint, params, 200, body, acquisition_store::now())
+            })
+            .map_err(not_recorded)?;
         match result {
             Ok(ingest) => {
                 self.log(&format!(
@@ -289,6 +272,84 @@ impl Daemon {
                 None => Err(not_recorded(format!("recording failed: {e:#}"))),
             },
         }
+    }
+
+    /// `account`'s store under `dir`, opened where the one held is
+    /// another account's or none, and `f` run on it under the lock; the
+    /// open's fault in words, its path named, where it cannot be opened.
+    fn with_store<R>(
+        &self,
+        dir: &Path,
+        account: &str,
+        f: impl FnOnce(&mut Store) -> R,
+    ) -> Result<R, String> {
+        let mut guard = self.store.lock().unwrap();
+        if guard.as_ref().is_none_or(|(u, _)| u != account) {
+            let path = account_path(dir, account);
+            let store = Store::open(&path)
+                .map_err(|e| format!("could not open {}: {e:#}", path.display()))?;
+            self.log(&format!("store: {} opened for {account}", path.display()));
+            *guard = Some((account.to_string(), store));
+        }
+        let Some((_, store)) = guard.as_mut() else {
+            unreachable!("the store was opened above")
+        };
+        Ok(f(store))
+    }
+
+    /// C164 — A client's `stash` job, after its account resolves and
+    /// before an id exists, judged against the account's stored listing
+    /// of its realm and league (`judge_listed`), read through the store's
+    /// read API; it reads the store and sends nothing. Admitted where no
+    /// store directory is set, the account has no store file yet (none is
+    /// created to judge it) or no listing of that realm and league is
+    /// stored; refused where the store cannot be read, as the job would
+    /// fail at its landing after a send (C144). Any other kind passes.
+    pub(super) fn admit_listed(
+        &self,
+        kind: &str,
+        params: &Value,
+        account: Option<&str>,
+    ) -> Result<(), Refusal> {
+        let refused = |message: String| Refusal::new(ErrorKind::Refused, message);
+        let (Some(dir), Some(account)) = (&self.store_dir, account) else {
+            return Ok(());
+        };
+        let Some(Endpoint::Stash {
+            realm,
+            league,
+            id,
+            sub,
+        }) = (kind == "stash")
+            .then(|| Endpoint::from_job(kind, params))
+            .flatten()
+        else {
+            return Ok(());
+        };
+        if !account_path(dir, account).exists() {
+            return Ok(());
+        }
+        let unread = |fault: String| {
+            refused(format!(
+                "the stash listing stored for {realm} {league} could not be read to judge this tab: {fault}"
+            ))
+        };
+        let listing = self
+            .with_store(dir, account, |store| store.stash_listing(&realm, &league))
+            .map_err(unread)?
+            .map_err(|e| unread(format!("{e:#}")))?;
+        let Some(listing) = listing else {
+            return Ok(());
+        };
+        judge_listed(
+            &listing,
+            &realm,
+            &league,
+            &id,
+            sub.as_deref(),
+            acquisition_store::now(),
+        )
+        .map_err(refused)
     }
 
     /// C127 — render, then authenticate: the URL a session's job sends

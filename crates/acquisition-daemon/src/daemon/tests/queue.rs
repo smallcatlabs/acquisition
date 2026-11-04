@@ -785,6 +785,144 @@ fn c136_a_frontends_submit_of_the_same_fetch_is_admitted_and_sends_once() {
     });
 }
 
+/// C164 (#166; the answer-facts seat, MCP run 1 calls 57 to 60, a stash
+/// job for a tab its listing never named sent and failed on the 404):
+/// a client's stash job is judged against the account's stored listing
+/// of its realm and league. Alice's store lists A, B and map tab M (its
+/// substash S1 on record from M's fetch) in pc Standard, after a listing
+/// that named G too. Through the door, Alice's session live: a tab the
+/// listing does not name, one it names as gone, and a substash of M its
+/// rows do not name are each refused in words that name the listing, its
+/// age and the `stashes` job that fetches it again, the tab quoted
+/// bounded; nothing is admitted and nothing reaches the wire. Then A,
+/// M's S1, a substash of B (no substash of B on record), a tab of a
+/// league and of a realm no listing of which is stored are admitted, and
+/// the refused tabs are on no send the journal holds.
+#[test]
+fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_sends_nothing() {
+    let store_dir = TestPath::dir();
+    let mut store = Store::open(&account_path(&store_dir, "Alice#1234")).unwrap();
+    let listing = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Standard".into(),
+    };
+    let tab = |id: &str, kind: &str, index: usize| json!({ "id": id, "name": id, "type": kind, "index": index });
+    let at = acquisition_store::now() - 7200;
+    store
+        .record(
+            &listing,
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ tab("A", "PremiumStash", 0), tab("B", "PremiumStash", 1),
+                                  tab("M", "MapStash", 2), tab("G", "PremiumStash", 3) ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "M".into(),
+                sub: None,
+            },
+            &json!({ "league": "Standard", "id": "M" }),
+            200,
+            &json!({ "stash": { "id": "M", "name": "M", "type": "MapStash", "items": [],
+                     "children": [ { "id": "S1", "name": "", "type": "MapStash", "parent": "M",
+                                     "metadata": { "items": 1 } } ] } }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &listing,
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ tab("A", "PremiumStash", 0), tab("B", "PremiumStash", 1),
+                                  tab("M", "MapStash", 2) ] }),
+            at + 60,
+        )
+        .unwrap();
+    drop(store);
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    Door::open(
+        Server::Account(NO_HOLD),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let stash = |params: Value| submit_of("stash", params, 0, "client", Some("Alice#1234"));
+        for (params, quoted) in [
+            (json!({ "league": "Standard", "id": "C" }), r#""C""#),
+            (
+                json!({ "realm": "pc", "league": "Standard", "id": "G" }),
+                r#""G""#,
+            ),
+            (
+                json!({ "league": "Standard", "id": "M", "sub": "S9" }),
+                r#""S9""#,
+            ),
+        ] {
+            let what = format!("c164: stash {params}");
+            assert_refused(
+                door.request(stash(params)).await,
+                &what,
+                ErrorKind::Refused,
+                &[
+                    quoted.to_string(),
+                    "pc Standard".to_string(),
+                    "listing".to_string(),
+                    " ago".to_string(),
+                    "a stashes job".to_string(),
+                ],
+                &[],
+            );
+            assert!(listed(&mut door).await.is_empty(), "{what}: admitted");
+        }
+        door.settle().await;
+        assert!(
+            door.sent().is_empty(),
+            "a refused stash job reached the wire"
+        );
+        assert!(
+            door.journal().is_empty(),
+            "a refused stash job was journaled"
+        );
+
+        for params in [
+            json!({ "league": "Standard", "id": "A" }),
+            json!({ "league": "Standard", "id": "M", "sub": "S1" }),
+            json!({ "league": "Standard", "id": "B", "sub": "X" }),
+            json!({ "league": "Other", "id": "Z" }),
+            json!({ "realm": "xbox", "league": "Standard", "id": "Z" }),
+        ] {
+            let what = format!("c164: stash {params}");
+            let id = submitted(door.request(stash(params)).await, &what);
+            door.await_terminal(id).await;
+        }
+        let paths: Vec<String> = door
+            .journal()
+            .iter()
+            .filter_map(|send| send["path"].as_str().map(str::to_string))
+            .collect();
+        for refused in ["/C", "/G", "/S9"] {
+            assert!(
+                paths.iter().all(|path| !path.ends_with(refused)),
+                "{refused} was sent: {paths:?}"
+            );
+        }
+        assert!(
+            paths.iter().any(|path| path.ends_with("/Standard/A")),
+            "the admitted tab was sent: {paths:?}"
+        );
+        door.finish().await;
+    });
+}
+
 /// C127 (a sleep is bounded), the admission table's rows of
 /// `c127_a_sleep_with_bad_seconds_is_refused_at_submit` beside it: a
 /// sleep within the bound, zero seconds, is admitted as job 1 and runs to
