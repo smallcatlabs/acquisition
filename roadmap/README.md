@@ -680,4 +680,12 @@ to #174), the worlds torn down, the pristine kept. The group closed
 the same day (`HISTORY.md`), its agent-facing design decisions listed
 in the close's commit message for the owner's re-read. Next, Phase 3,
 the owner's league run, at his word; the seat's issues are a backlog
-his to order.
+his to order. He ordered them on 2026-11-04 into four rounds by area
+(A the search: #174, #173, #36; B pricing: #169, #171, #170, #167;
+C the store: #172 and #168's text; D jobs: #166), #165 and #168's
+kind waiting on his rulings, all by one parked Opus worker handed
+each round by message. Round A (`briefs/seat-issues-a.md`) landed as
+`7690703f..a5e6b58c`, reviewed (two P2s, a P3), fixed in one round
+(`1aaeb410..e3b5c217`) reviewed clean; #174, #173 and #36 closed the
+same day. Next, round B, its first commit the pricing golden that
+reads two clocks (`cli10_the_skip_count_names_the_list_that_holds_them`).
