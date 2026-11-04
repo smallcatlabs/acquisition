@@ -665,6 +665,11 @@ The group's seat (`audits/answer-facts-2026-11/seat/`, run 1: two Opus
 runners at the release build of `2bed3ba5`, the MCP door and the CLI
 door) sat on 2026-11-04; its fix round
 (`briefs/answer-facts-seat-fixes.md`, nine faults, one rule each) landed
-the same day as nine commits, one per fault, this line's the last; its
-review is pending. Current: that review, then the seat's rerun where
-the round changed what an agent meets, then the group's close.
+the same day as nine commits, one per fault; reviewed, its review's
+fixes in a second round (`f87e645d`). Run 2 sat the same day at the
+release build of `f87e645d` (the CLI door 107 calls, the MCP door 65),
+and none of run 1's faults recurred. The seat's third round
+(`briefs/answer-facts-seat-fixes-2.md`, run 2's four word faults, one
+commit each, reviewed cold and not sat again) landed the same day,
+this line's the last; its review is pending. Current: that review,
+then the group's close.

@@ -113,9 +113,44 @@ pub struct EventSummary {
     pub left_out: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
+    /// Where the window holds no event, the newest the store holds at
+    /// all: a count of none says which none and how to read further
+    /// (C146; answer-facts seat run 2, cli fault 14: `0 events in the
+    /// last 24 h` on a store whose newest was 53 days old). Absent where
+    /// the window holds one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub newest_on_record: Option<NewestOnRecord>,
+}
+
+/// The store's newest event, or none on record (`at` null, its words
+/// `never`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct NewestOnRecord {
+    pub at: Option<i64>,
+    /// C163: `at` in words at the answer's time.
+    pub at_age: String,
 }
 
 impl EventSummary {
+    /// [`EventSummary::of`] over `store`'s locations for `events`, and
+    /// where the window holds none, the newest event `store` holds.
+    pub fn read(
+        store: &Store,
+        events: &Events,
+        expand: bool,
+        now: i64,
+    ) -> anyhow::Result<EventSummary> {
+        let mut listed = EventSummary::of(events, summary(store, &events.rows), expand, now);
+        if listed.events == 0 {
+            let at = store.events_since(i64::MIN, 1)?.first().map(|row| row.at);
+            listed.newest_on_record = Some(NewestOnRecord {
+                at,
+                at_age: acquisition_store::age::ago(now, at),
+            });
+        }
+        Ok(listed)
+    }
+
     /// `events` grouped by location (`summary`), counted whole, then cut,
     /// each listed location's earliest and latest event said as an age at
     /// `now`, the answer's time (C53, C163).
@@ -146,6 +181,7 @@ impl EventSummary {
             rows,
             left_out,
             left_out_needs: (left_out > 0).then_some("expand"),
+            newest_on_record: None,
         }
     }
 }

@@ -2761,6 +2761,13 @@ async fn populated() -> Vec<(&'static str, Value)> {
         "event summary",
         serde_json::to_value(EventSummary::of(&events, rows, false, now)).unwrap(),
     ));
+    // a window a week ahead holds none, and says the newest on record
+    let later = now + 7 * 86_400;
+    let empty = Events::read(&store, later, 24.0, None).unwrap();
+    docs.push((
+        "event summary, an empty window",
+        serde_json::to_value(EventSummary::read(&store, &empty, false, later).unwrap()).unwrap(),
+    ));
     docs.push((
         "refused bodies",
         serde_json::to_value(acquisition_verbs::RefusedBodies::read(&store, 50, now).unwrap())
@@ -3001,6 +3008,11 @@ const INVENTORY: &[(&str, &str, &str)] = &[
     ("events", "rows[].at", "rows[].at_age"),
     ("event summary", "rows[].first", "rows[].first_age"),
     ("event summary", "rows[].last", "rows[].last_age"),
+    (
+        "event summary, an empty window",
+        "newest_on_record.at",
+        "newest_on_record.at_age",
+    ),
     (
         "refused bodies",
         "rows[].fetched_at",

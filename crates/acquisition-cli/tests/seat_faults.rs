@@ -20,11 +20,15 @@ use harness::{Transcript, acq, golden, login, sole_json, start_daemon, text};
 /// crate with no daemon: Standard holds tab `a1` with item `i-std`,
 /// Allflame holds tab `b1` with item `i-all`.
 fn seed_two_leagues(base: &Path) {
+    seed_two_leagues_at(base, acquisition_store::now());
+}
+
+/// [`seed_two_leagues`], every response recorded at `at`.
+fn seed_two_leagues_at(base: &Path, at: i64) {
     const USER: &str = "Alice#1234";
     const UUID: &str = "u-seat";
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
     Index::load(&mock)
         .unwrap()
         .record_login(USER, UUID, false, at, &[])
@@ -1977,6 +1981,55 @@ fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
 /// (the trade seat: cli-opus calls 3, 5, its fault 7). The line says what
 /// each counts: the account's league list, which this store never
 /// fetched, and the tabs of every realm and league.
+/// A count of none says which none and what to do (C146): `tabs --limit
+/// 0` printed `the 0 with the most items:` over an empty table, and
+/// `store events --summary` said `0 events in the last 24 h` on a store
+/// whose newest event was 53 days old (answer-facts seat run 2, cli
+/// fault 14).
+#[test]
+fn a_count_of_none_says_which_none_and_what_to_do() {
+    let scratch = harness::scratch("seat-none");
+    let base = scratch.0.clone();
+    seed_two_leagues_at(&base, acquisition_store::now() - 53 * 86_400);
+    let mut t = Transcript::new(&base);
+    let said = stdout(&t.run(
+        &["tabs", "--limit", "0"],
+        &[
+            "1 tabs in Standard: 1 fetched; 1 items in tabs",
+            "lists all 1",
+        ],
+    ));
+    let selected = stdout(&t.run(
+        &["tabs", "--type", "PremiumStash", "--limit", "0"],
+        &["0 of 1 shown: "],
+    ));
+    for said in [said, selected] {
+        assert!(
+            !said.contains("with the most items") && !said.lines().any(|l| l.starts_with("name ")),
+            "a header over no rows:\n{said}"
+        );
+    }
+    t.run(
+        &["store", "events", "--summary"],
+        &["0 events in the last 24 h; the newest on record 53d ago (`--hours N` widens the window)"],
+    );
+    let doc = sole_json(&acq(&base, &["store", "events", "--summary", "--json"]));
+    assert_eq!(doc["newest_on_record"]["at_age"], "53d ago", "{doc}");
+
+    // a second account, its store holding no event at all
+    let mock = base.join("store").join("mock");
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-empty", false, acquisition_store::now(), &[])
+        .unwrap();
+    drop(Store::open(&account_path(&mock, "Bob#5678")).unwrap());
+    t.run(
+        &["store", "events", "--summary", "--account", "Bob#5678"],
+        &["0 events in the last 24 h; none on record"],
+    );
+    golden(file!(), "counts_of_none", &t);
+}
+
 #[test]
 fn store_status_says_what_its_league_and_tab_counts_count() {
     let scratch = harness::scratch("seat-status");

@@ -733,7 +733,7 @@ const STORE: [(&str, &str); 7] = [
     ),
     (
         "event counts",
-        "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, the returned ones, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
+        "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, the returned ones, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed. A summary of a window with no event carries `newest_on_record`, the newest event the store holds at all (`at`, its words `at_age`; `at` null and `never` where none is on record): a larger `hours` reaches it",
     ),
     (
         "leagues held",
@@ -1741,7 +1741,7 @@ impl AcqMcp {
         description = "Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say."
     )]
     fn item_events(&self, Parameters(p): Parameters<Args<EventsParams>>) -> Told {
-        use acquisition_verbs::events::{EventSummary, Events, summary};
+        use acquisition_verbs::events::{EventSummary, Events};
         answer(|| -> Result<Value> {
             let p = p.parse()?;
             let store = self.facts(p.account.as_deref())?;
@@ -1753,12 +1753,12 @@ impl AcqMcp {
                 p.limit,
             )?;
             Ok(if p.summary.unwrap_or(false) {
-                serde_json::to_value(EventSummary::of(
+                serde_json::to_value(EventSummary::read(
+                    &store,
                     &events,
-                    summary(&store, &events.rows),
                     p.expand.unwrap_or(false),
                     now,
-                ))?
+                )?)?
             } else {
                 serde_json::to_value(events)?
             })

@@ -345,7 +345,9 @@ pub fn tabs(
     // every run asked which never-fetched tabs of a type to refresh)
     if let (Some(selected), Some(selection)) = (listed.selected, &listed.selection) {
         println!("{selected} {}", selection.words());
-        print!("{}", render_tabs_table(&listed.rows, now));
+        if !listed.rows.is_empty() {
+            print!("{}", render_tabs_table(&listed.rows, now));
+        }
         print!("{}", remove_only_said(&listed.rows));
         if listed.left_out > 0 {
             let (expand, _) = tabs_next(&username, realm, league);
@@ -385,8 +387,12 @@ pub fn tabs(
             t.kind, t.tabs, t.fetched, t.items
         );
     }
-    println!("the {} with the most items:", listed.rows.len());
-    print!("{}", render_tabs_table(&listed.rows, now));
+    // none listed (`--limit 0`): the counts stand alone, no header over
+    // an empty table (answer-facts seat run 2, cli fault 14)
+    if !listed.rows.is_empty() {
+        println!("the {} with the most items:", listed.rows.len());
+        print!("{}", render_tabs_table(&listed.rows, now));
+    }
     print!("{}", remove_only_said(&listed.rows));
     let (expand, count) = tabs_next(&username, realm, league);
     println!(
@@ -776,12 +782,7 @@ pub fn events(
     let ev = Events::read(&store, now, since_hours, limit)?;
     let summarize = summary || (!expand && !json);
     if summarize {
-        let listed = EventSummary::of(
-            &ev,
-            acquisition_verbs::events::summary(&store, &ev.rows),
-            summary && expand,
-            now,
-        );
+        let listed = EventSummary::read(&store, &ev, summary && expand, now)?;
         if json {
             println!("{}", serde_json::to_string_pretty(&listed)?);
             return Ok(());
@@ -859,7 +860,16 @@ pub(crate) fn event_summary_text(
         return if listed.limit_reached {
             format!("the newest 0 events in the last {hours} h ({MAY_HOLD_MORE})\n")
         } else {
-            format!("0 events in the last {hours} h\n")
+            // which none, and the way to read further (C146)
+            match &listed.newest_on_record {
+                Some(acquisition_verbs::events::NewestOnRecord {
+                    at: Some(_),
+                    at_age,
+                }) => format!(
+                    "0 events in the last {hours} h; the newest on record {at_age} (`--hours N` widens the window)\n"
+                ),
+                _ => format!("0 events in the last {hours} h; none on record\n"),
+            }
         };
     }
     let total = LocationChanges {
