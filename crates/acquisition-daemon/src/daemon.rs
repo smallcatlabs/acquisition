@@ -110,7 +110,7 @@ use acquisition_store::world::{Lock, World, app_runtime_dir};
 use acquisition_store::{Endpoint, Index, Store, account_matches, account_path};
 use anyhow::Result;
 use serde_json::{Value, json};
-use tokio::io::{AsyncWriteExt, BufReader, WriteHalf};
+use tokio::io::{AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::{Notify, broadcast, watch};
 

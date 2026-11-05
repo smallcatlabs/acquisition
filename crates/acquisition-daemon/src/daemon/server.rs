@@ -1182,11 +1182,22 @@ async fn recv_event(rx: &mut Option<broadcast::Receiver<JobInfo>>) -> Signal {
     }
 }
 
-async fn write_line<T: serde::Serialize>(
-    write: &mut WriteHalf<Stream>,
+/// C47, #56: what a connection is answered when its answer cannot be
+/// serialized: an `internal` refusal in the protocol's `error` shape,
+/// written as a literal so that answering the failure cannot itself fail
+/// (`a_response_that_cannot_be_serialized_is_answered_internal` reads it
+/// back as the protocol's).
+pub(super) const UNSERIALIZABLE: &str = r#"{"resp":"error","kind":"internal","message":"the daemon could not serialize its answer to this request; the connection stays open"}"#;
+
+/// One frame out: `response` as one line, or, when it cannot be
+/// serialized, [`UNSERIALIZABLE`] in its place, so the peer is answered
+/// and the connection kept rather than its task panicking. Only the
+/// write's own failure is an error, the connection's end.
+pub(super) async fn write_line<W: AsyncWrite + Unpin, T: serde::Serialize>(
+    write: &mut W,
     response: &T,
 ) -> std::io::Result<()> {
-    let mut line = serde_json::to_string(response).expect("response serializes");
+    let mut line = serde_json::to_string(response).unwrap_or_else(|_| UNSERIALIZABLE.into());
     line.push('\n');
     write.write_all(line.as_bytes()).await
 }

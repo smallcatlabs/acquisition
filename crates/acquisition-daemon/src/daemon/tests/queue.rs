@@ -1731,6 +1731,47 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
     assert_eq!(own, ["probe"]);
 }
 
+/// C47, #56: an answer that cannot be serialized is answered, not a
+/// panic in the connection's task: the writer puts the protocol's
+/// `internal` refusal on the line in its place, one frame a client reads
+/// as an `error` of kind `internal`, and a write after it is a frame of
+/// its own, so the connection carries on. A component test of the
+/// writer: no request's answer fails to serialize today, so no request
+/// reaches the fallback.
+#[tokio::test]
+async fn a_response_that_cannot_be_serialized_is_answered_internal() {
+    use crate::daemon::server::write_line;
+    struct Unserializable;
+    impl serde::Serialize for Unserializable {
+        fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+            Err(serde::ser::Error::custom("a value with no JSON form"))
+        }
+    }
+    let mut wire = Vec::new();
+    write_line(&mut wire, &Unserializable).await.unwrap();
+    write_line(&mut wire, &Response::ResyncRequired { missed: 1 })
+        .await
+        .unwrap();
+    let text = String::from_utf8(wire).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    match serde_json::from_str::<Response>(lines[0]).unwrap() {
+        Response::Error { kind, message } => {
+            assert_eq!(kind, ErrorKind::Internal, "{message}");
+            assert!(message.contains("could not serialize"), "{message}");
+        }
+        other => panic!("the fallback reads as {other:?}"),
+    }
+    assert!(
+        matches!(
+            serde_json::from_str::<Response>(lines[1]).unwrap(),
+            Response::ResyncRequired { missed: 1 }
+        ),
+        "the next frame is intact: {}",
+        lines[1]
+    );
+}
+
 // ---- persistence (C6) ------------------------------------------------
 
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
