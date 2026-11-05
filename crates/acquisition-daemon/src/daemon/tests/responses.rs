@@ -159,17 +159,18 @@ fn malformed_success_body_remains_a_json_failure() {
 
 /// C165 (a failed job says what kind of failure it is), read from the
 /// status, never the words: a 404 is `not_found`, whose way on is the
-/// listing's fetch; a 403 and a 503, never retried (invariant 3),
-/// `blocked`, whose way on sends nothing; any other refusal or fault of
-/// GGG's `upstream`.
+/// listing's fetch; a 403 and a 503 without Cloudflare's signatures,
+/// never retried (invariant 3), `not_retried`, and only the choke
+/// point's block verdict `blocked` (the review of round E, finding 1);
+/// any other refusal or fault of GGG's `upstream`.
 #[test]
 fn c165_a_failed_responses_kind_is_read_from_its_status() {
     for (status, kind) in [
         (reqwest::StatusCode::NOT_FOUND, FailureKind::NotFound),
-        (reqwest::StatusCode::FORBIDDEN, FailureKind::Blocked),
+        (reqwest::StatusCode::FORBIDDEN, FailureKind::NotRetried),
         (
             reqwest::StatusCode::SERVICE_UNAVAILABLE,
-            FailureKind::Blocked,
+            FailureKind::NotRetried,
         ),
         (reqwest::StatusCode::BAD_REQUEST, FailureKind::Upstream),
         (reqwest::StatusCode::UNAUTHORIZED, FailureKind::Upstream),

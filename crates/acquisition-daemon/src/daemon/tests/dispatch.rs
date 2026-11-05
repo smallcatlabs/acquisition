@@ -1813,7 +1813,7 @@ fn wire_rows() -> Vec<Row> {
             ScriptedResponse::origin_503(),
             503,
             "origin",
-            FailureKind::Blocked,
+            FailureKind::NotRetried,
         ),
         (
             "GGG's 500 echoing CloudflareFan",
@@ -1884,13 +1884,14 @@ fn wire_rows() -> Vec<Row> {
             "unclassified",
             FailureKind::NotFound,
         ),
-        // never retried (invariant 3), whatever its body says
+        // never retried (invariant 3), whatever its body says, and no
+        // block: it sets no mark (the review of round E, finding 1)
         (
             "an auth error",
             auth_error,
             403,
             "cloudflare",
-            FailureKind::Blocked,
+            FailureKind::NotRetried,
         ),
         (
             "GGG's 404 echoing CloudflareFan",
@@ -2009,7 +2010,7 @@ fn wire_rows() -> Vec<Row> {
         ],
         jobs: vec![
             Job::fetch(Failed)
-                .fails(FailureKind::Blocked)
+                .fails(FailureKind::NotRetried)
                 .carries(&["origin error page"]),
             Job::fetch(Done).marker("done"),
             Job::probe(Done),
@@ -2141,7 +2142,7 @@ fn wire_rows() -> Vec<Row> {
             steps: fetched(Failed),
             jobs: vec![
                 Job::fetch(Failed)
-                    .fails(FailureKind::Blocked)
+                    .fails(FailureKind::NotRetried)
                     .carries(&["NOT retrying", words]),
                 Job::probe(Done),
             ],

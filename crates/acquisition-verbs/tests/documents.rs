@@ -1082,11 +1082,27 @@ fn c165_a_failures_way_on_follows_its_kind() {
     );
     for kind in [
         FailureKind::Blocked,
+        FailureKind::NotRetried,
         FailureKind::NotLoggedIn,
         FailureKind::Internal,
     ] {
         assert_eq!(ways(kind, ("stash", &tab)), [], "{kind}");
     }
+    // a 403 or 503 never retried sends nothing, and says no halt stops
+    // every send: it set none (the review of round E, finding 1)
+    let not_retried = way_on(
+        &Outcome::failure(FailureKind::NotRetried, "words"),
+        9,
+        None,
+        Some(("stash", &tab)),
+        &[],
+    )
+    .unwrap();
+    assert!(
+        not_retried.words.contains("never retried") && !not_retried.words.contains("sends nothing"),
+        "{}",
+        not_retried.words
+    );
     let blocked = way_on(
         &Outcome::failure(FailureKind::Blocked, "words"),
         9,

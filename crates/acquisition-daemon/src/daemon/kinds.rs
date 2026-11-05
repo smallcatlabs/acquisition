@@ -1202,9 +1202,10 @@ pub(super) fn classify_api_body(
                 FailureKind::RateLimited,
                 format!("terminal rate limit: {evidence}; {retry_after}; NOT retrying"),
             ),
-            // never retried (invariant 3), so nothing offered sends
+            // never retried (invariant 3), so nothing offered sends; no
+            // block, which is the verdict's alone (above), and sets none
             403 | 503 => ApiError::Other(
-                FailureKind::Blocked,
+                FailureKind::NotRetried,
                 format!(
                     "{evidence} — {}; NOT retrying (invariant 3)",
                     shape.describe()

@@ -254,9 +254,16 @@ pub enum FailureKind {
     /// limiter's hold has passed.
     RateLimited,
     /// Invariant 3: Cloudflare answered in GGG's place or could not reach
-    /// it, or GGG answered 403 or 503, which the daemon never retries.
-    /// No way on sends anything: not this job again, not another.
+    /// it — the choke point's verdict, the block mark or the halt it sets
+    /// (C129), and nothing else. No way on sends anything: not this job
+    /// again, not another, until a person clears the halt.
     Blocked,
+    /// GGG answered 403 or 503 without Cloudflare's signatures: an answer
+    /// the daemon never retries, since one like it may be Cloudflare's
+    /// (invariant 3). Sends go on; the way on is a person's look, a
+    /// login where the 403 names an authorization error, and no offer
+    /// sends this job again.
+    NotRetried,
     /// C144: the response was fetched and the store could not record it;
     /// the body is kept in the failure's `payload`, which is where the
     /// way on reads it.
@@ -278,11 +285,12 @@ pub enum FailureKind {
 
 impl FailureKind {
     /// Every kind, in declaration order: the closed set the fixture pins.
-    pub const ALL: [FailureKind; 9] = [
+    pub const ALL: [FailureKind; 10] = [
         FailureKind::NotFound,
         FailureKind::Upstream,
         FailureKind::RateLimited,
         FailureKind::Blocked,
+        FailureKind::NotRetried,
         FailureKind::NotRecorded,
         FailureKind::Children,
         FailureKind::NotLoggedIn,
@@ -297,6 +305,7 @@ impl FailureKind {
             FailureKind::Upstream => "upstream",
             FailureKind::RateLimited => "rate_limited",
             FailureKind::Blocked => "blocked",
+            FailureKind::NotRetried => "not_retried",
             FailureKind::NotRecorded => "not_recorded",
             FailureKind::Children => "children",
             FailureKind::NotLoggedIn => "not_logged_in",

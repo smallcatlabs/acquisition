@@ -3,6 +3,7 @@
   "upstream",
   "rate_limited",
   "blocked",
+  "not_retried",
   "not_recorded",
   "children",
   "not_logged_in",

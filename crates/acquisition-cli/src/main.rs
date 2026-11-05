@@ -571,7 +571,9 @@ is the per-location summary.")]
     /// says its `kind` — not_found (GGG has nothing there: the listing
     /// that names it is fetched again), upstream (GGG's answer could not
     /// be used: the same job, later), rate_limited (the same job once the
-    /// hold has passed), blocked (never retried: submit nothing again),
+    /// hold has passed), blocked (Cloudflare in GGG's place: submit
+    /// nothing again), not_retried (GGG's 403 or 503: a person looks
+    /// before anything like it is sent again),
     /// not_recorded (what it fetched is kept with the result), children
     /// (each failed child's result), not_logged_in (a login, a person's),
     /// interrupted (the same job again) or internal — and one line of the

@@ -390,8 +390,9 @@ pub struct WayOn {
 /// on by its kind, from the failed job's own `kind` and `params` where
 /// the reader holds them. A 404's is the fetch of the listing that names
 /// what was asked for; a refusal or fault of GGG's, a 429 that ended the
-/// job and an interruption, the same job again; a block, nothing that
-/// sends (invariant 3, never retried); a body not recorded, the result
+/// job and an interruption, the same job again; a block, and a 403 or
+/// 503 never retried, nothing that sends (invariant 3); a body not
+/// recorded, the result
 /// that keeps it; a parent, each failed child's result; a session that
 /// cannot give a token, a login, a person's. None for a failure with no
 /// kind (one from before the field), a success or a cancellation.
@@ -462,9 +463,14 @@ pub fn way_on(
             again("the same job again, once the limiter's hold has passed"),
         ),
         FailureKind::Blocked => (
-            "do not submit it again, nor work like it: this answer is never retried (Cloudflare \
-             in GGG's place, or a 403 or 503), and a block stops every send until a person \
-             clears it",
+            "do not submit it again, nor work like it: Cloudflare answered in GGG's place, \
+             which is never retried, and the daemon sends nothing until a person clears it",
+            Vec::new(),
+        ),
+        FailureKind::NotRetried => (
+            "GGG answered 403 or 503, which is never retried: do not submit it again until a \
+             person has looked; a 403 that names an authorization error asks for a login, a \
+             person's (`acq auth`)",
             Vec::new(),
         ),
         FailureKind::NotRecorded => (
