@@ -246,9 +246,9 @@ pub fn error_message(frame: &[u8]) -> Option<String> {
 pub enum ErrorKind {
     /// The frame was not a request the daemon could perform: not JSON,
     /// not UTF-8, over the frame bound, not a request of this version, a
-    /// request missing fields, a field outside its range — or a
-    /// versioned request on a connection that has subscribed. The
-    /// connection stays; nothing was done.
+    /// request missing fields or naming one it does not know, a field
+    /// outside its range — or a versioned request on a connection that
+    /// has subscribed. The connection stays; nothing was done.
     BadRequest,
     /// No live session can serve the request: none at all, none for the
     /// named account the account index holds, or the account's grant is
@@ -491,8 +491,14 @@ pub struct ListCounts {
     pub latest_eta_seconds: Option<u64>,
 }
 
+/// The versioned requests. C85: each refuses a field it does not know
+/// (`deny_unknown_fields`), answered `bad_request` with serde's words,
+/// which name the field; only the bootstrap plane ignores one. A request
+/// with no fields is an empty struct variant (`Subscribe {}`), never a
+/// unit one: serde reads an internally tagged unit variant past any
+/// field, the container's `deny_unknown_fields` notwithstanding.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "req", rename_all = "snake_case")]
+#[serde(tag = "req", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
     Submit {
         kind: String,
@@ -540,12 +546,12 @@ pub enum Request {
     /// `resync_required` frames on it and answers any further versioned
     /// request `bad_request`. A subscriber snapshots over a request
     /// connection after subscribing.
-    Subscribe,
+    Subscribe {},
     /// Begin an OAuth login. The daemon sets up PKCE + a loopback redirect
     /// listener and returns the URL for the user's browser; clients then poll
     /// `auth_status` until `pending` clears.
-    AuthStart,
-    AuthStatus,
+    AuthStart {},
+    AuthStatus {},
     /// Active verification: prove the session works by obtaining a valid
     /// access token (refreshing through the provider if needed), unlike
     /// `auth_status` which only reports local belief.
@@ -574,15 +580,15 @@ pub enum Request {
         #[serde(default)]
         account: Option<String>,
     },
-    DaemonStatus,
+    DaemonStatus {},
     /// Clear a halt: a Cloudflare block's mark (C129) and the live-test
     /// rails' trip. A met ceiling stands for the daemon's lifetime. After
     /// a trip, wait 360 s before clearing; a trip or a block is evidence
     /// to read.
-    ResetTripwire,
+    ResetTripwire {},
     /// Everything the live dashboard renders, in one round-trip: daemon
     /// vitals, auth state, limiter policies, jobs, HTTP sends, recent errors.
-    Dashboard,
+    Dashboard {},
 }
 
 /// What a logout or a forget did with the account's keyring entries

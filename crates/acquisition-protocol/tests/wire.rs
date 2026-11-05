@@ -251,15 +251,15 @@ fn request_name(r: &Request) -> &'static str {
         Request::Cancel { .. } => "cancel",
         Request::SetPriority { .. } => "set_priority",
         Request::List { .. } => "list",
-        Request::Subscribe => "subscribe",
-        Request::AuthStart => "auth_start",
-        Request::AuthStatus => "auth_status",
+        Request::Subscribe {} => "subscribe",
+        Request::AuthStart {} => "auth_start",
+        Request::AuthStatus {} => "auth_status",
         Request::AuthCheck { .. } => "auth_check",
         Request::AuthLogout { .. } => "auth_logout",
         Request::Quote { .. } => "quote",
-        Request::DaemonStatus => "daemon_status",
-        Request::ResetTripwire => "reset_tripwire",
-        Request::Dashboard => "dashboard",
+        Request::DaemonStatus {} => "daemon_status",
+        Request::ResetTripwire {} => "reset_tripwire",
+        Request::Dashboard {} => "dashboard",
     }
 }
 
@@ -284,9 +284,9 @@ fn requests() -> Vec<Request> {
             limit: 10,
             after: Some(42),
         },
-        Request::Subscribe,
-        Request::AuthStart,
-        Request::AuthStatus,
+        Request::Subscribe {},
+        Request::AuthStart {},
+        Request::AuthStatus {},
         Request::AuthCheck {
             account: Some("Alice#1234".into()),
         },
@@ -298,9 +298,9 @@ fn requests() -> Vec<Request> {
             }],
             account: Some("Alice#1234".into()),
         },
-        Request::DaemonStatus,
-        Request::ResetTripwire,
-        Request::Dashboard,
+        Request::DaemonStatus {},
+        Request::ResetTripwire {},
+        Request::Dashboard {},
     ]
 }
 
@@ -934,6 +934,43 @@ fn c166_a_bare_list_is_the_first_page_of_open_jobs() {
     })
     .unwrap();
     assert!(last.get("next").is_none(), "{last}");
+}
+
+/// C85 as amended 2026-11-05: every versioned request refuses a field it
+/// does not know, and serde's words name it; the bootstrap plane's
+/// `hello` and `daemon_stop` still read past one. Each request variant
+/// is tried with its fixture plus one unknown field, so a variant that
+/// would read past one fails here by name.
+#[test]
+fn c85_a_versioned_request_refuses_a_field_it_does_not_know() {
+    for request in requests() {
+        let name = request_name(&request);
+        let mut wire = serde_json::to_value(&request).unwrap();
+        wire.as_object_mut()
+            .unwrap()
+            .insert("stat".into(), json!("finished"));
+        let refused = serde_json::from_value::<Request>(wire).unwrap_err();
+        assert!(
+            refused.to_string().contains("unknown field `stat`"),
+            "{name}: {refused}"
+        );
+    }
+    let misspelled = serde_json::from_str::<Request>(r#"{"req":"list","stat":"finished"}"#)
+        .unwrap_err()
+        .to_string();
+    assert!(misspelled.contains("unknown field `stat`"), "{misspelled}");
+    assert_eq!(
+        Bootstrap::read(br#"{"req":"hello","version":"1","contract":"c","world":"/w","stat":1}"#),
+        Some(Bootstrap::Hello {
+            version: "1".into(),
+            contract: "c".into(),
+            world: "/w".into(),
+        })
+    );
+    assert_eq!(
+        Bootstrap::read(br#"{"req":"daemon_stop","stat":1}"#),
+        Some(Bootstrap::DaemonStop)
+    );
 }
 
 /// The frame bound is a wire fact both sides share.

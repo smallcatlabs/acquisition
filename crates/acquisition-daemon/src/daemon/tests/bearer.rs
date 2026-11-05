@@ -633,12 +633,12 @@ fn a_cloudflare_401_on_the_get_keeps_the_access_token() {
     .run(|mut door| async move {
         let (info, _) = characters_job(&mut door).await;
         assert_eq!(info.state, JobState::Failed);
-        let halted = match door.request(Request::DaemonStatus).await {
+        let halted = match door.request(Request::DaemonStatus {}).await {
             Response::DaemonStatus { rails, .. } => rails.halted,
             other => panic!("the daemon's status reads {other:?}"),
         };
         assert!(halted.is_some(), "the block halts");
-        let reset = door.request(Request::ResetTripwire).await;
+        let reset = door.request(Request::ResetTripwire {}).await;
         assert!(matches!(reset, Response::Ack { .. }), "{reset:?}");
         let (info, outcome) = characters_job(&mut door).await;
         let sends = door.journal();

@@ -126,7 +126,7 @@ fn logged_out(
 
 /// `AuthStart` through the door: the authorize URL the user opens.
 async fn authorize(door: &mut Door) -> String {
-    match door.request(Request::AuthStart).await {
+    match door.request(Request::AuthStart {}).await {
         Response::AuthUrl { authorize_url } => authorize_url,
         other => panic!("a login's start answered {other:?}"),
     }
@@ -144,7 +144,7 @@ async fn log_in(door: &mut Door, code: &str) -> AuthAnswer {
 
 /// `DaemonStatus`'s rails, as a frontend reads them.
 async fn rails_status(door: &mut Door) -> RailsStatus {
-    match door.request(Request::DaemonStatus).await {
+    match door.request(Request::DaemonStatus {}).await {
         Response::DaemonStatus { rails, .. } => rails,
         other => panic!("the daemon's status answered {other:?}"),
     }
@@ -152,7 +152,7 @@ async fn rails_status(door: &mut Door) -> RailsStatus {
 
 /// `Dashboard`'s errors, newest first.
 async fn dashboard_errors(door: &mut Door) -> Vec<String> {
-    match door.request(Request::Dashboard).await {
+    match door.request(Request::Dashboard {}).await {
         Response::Dashboard { errors, .. } => errors.into_iter().map(|e| e.message).collect(),
         other => panic!("the dashboard answered {other:?}"),
     }
@@ -581,7 +581,7 @@ fn a_block_on_the_code_exchange_is_announced_when_it_lands() {
                 "the exchange's block is announced: {logged:?}"
             );
 
-            match door.request(Request::ResetTripwire).await {
+            match door.request(Request::ResetTripwire {}).await {
                 Response::Ack { .. } => {}
                 other => panic!("the reset answered {other:?}"),
             }

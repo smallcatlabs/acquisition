@@ -457,6 +457,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | --- | --- | --- |
 /// | `handle_conn`: a frame that is not JSON/UTF-8, or not a request of this version | `bad request: …` | `bad_request` |
 /// | `handle_conn`: a frame over `MAX_FRAME_BYTES` | `frame exceeds …` | `bad_request` |
+/// | `handle_conn`: a request naming a field it does not know (C85) | `bad request: unknown field …` | `bad_request` |
 /// | `job_page`: a `list` limit outside 1 to `LIST_LIMIT_MAX` (C166) | `a list page holds 1 to … jobs; … were asked for` | `bad_request` |
 /// | `job_page`, `job_list`: the queue unreadable | `could not read the persisted queue: …` | `queue_failed` |
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |

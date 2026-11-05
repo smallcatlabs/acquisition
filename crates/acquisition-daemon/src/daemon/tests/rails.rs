@@ -21,7 +21,7 @@ use acquisition_store::jobs::daemon_db_path;
 /// `DaemonStatus`'s rails, as a frontend reads them: `halted` is the
 /// halt's bare cause.
 async fn rails_status(door: &mut Door) -> RailsStatus {
-    match door.request(Request::DaemonStatus).await {
+    match door.request(Request::DaemonStatus {}).await {
         Response::DaemonStatus { rails, .. } => rails,
         other => panic!("the daemon's status answered {other:?}"),
     }
@@ -42,7 +42,7 @@ async fn quote_halted(door: &mut Door) -> Option<String> {
 
 /// `Dashboard`'s errors, newest first.
 async fn dashboard_errors(door: &mut Door) -> Vec<String> {
-    match door.request(Request::Dashboard).await {
+    match door.request(Request::Dashboard {}).await {
         Response::Dashboard { errors, .. } => errors.into_iter().map(|e| e.message).collect(),
         other => panic!("the dashboard answered {other:?}"),
     }
@@ -58,7 +58,7 @@ async fn status(door: &mut Door, id: JobId) -> JobInfo {
 
 /// `ResetTripwire`, acknowledged.
 async fn reset(door: &mut Door) {
-    match door.request(Request::ResetTripwire).await {
+    match door.request(Request::ResetTripwire {}).await {
         Response::Ack { .. } => {}
         other => panic!("the reset answered {other:?}"),
     }
@@ -411,7 +411,7 @@ fn a_head_522_halts_this_lifetime() {
         assert_eq!(job.state, JobState::Waiting, "the job waits on the halt");
         let Response::Dashboard {
             degraded_endpoints, ..
-        } = door.request(Request::Dashboard).await
+        } = door.request(Request::Dashboard {}).await
         else {
             panic!("the dashboard did not answer")
         };
@@ -690,7 +690,7 @@ fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
                 "the unwritten grant and block are each logged: {errors:?}"
             );
 
-            let (kind, message) = match door.request(Request::ResetTripwire).await {
+            let (kind, message) = match door.request(Request::ResetTripwire {}).await {
                 Response::Error { kind, message } => (kind, message),
                 other => {
                     panic!("a reset that did not reach disk is not reported done: {other:?}")

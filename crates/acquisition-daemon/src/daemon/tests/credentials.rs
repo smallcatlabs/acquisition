@@ -273,9 +273,9 @@ async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands()
         answered(async move {
             let mut answers = Vec::new();
             for req in [
-                Request::DaemonStatus,
-                Request::AuthStatus,
-                Request::AuthStart,
+                Request::DaemonStatus {},
+                Request::AuthStatus {},
+                Request::AuthStart {},
             ] {
                 answers.push(daemon.handle_request(req, &mut None).await);
             }
@@ -644,9 +644,9 @@ async fn restoring_daemon_on(
 async fn keyring_words(daemon: &Arc<Daemon>) -> Vec<String> {
     let mut words = Vec::new();
     for request in [
-        Request::AuthStatus,
-        Request::DaemonStatus,
-        Request::Dashboard,
+        Request::AuthStatus {},
+        Request::DaemonStatus {},
+        Request::Dashboard {},
     ] {
         let daemon = daemon.clone();
         let response = answered(async move { daemon.handle_request(request, &mut None).await })
@@ -854,7 +854,7 @@ async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
     assert!(daemon.begin_exit("test: exit"));
     let mut events = None;
-    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart, &mut events));
+    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart {}, &mut events));
     let before = polled_once(start.as_mut());
     held.release.send(()).unwrap();
 
@@ -871,7 +871,9 @@ async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
         async move { daemon.await_restore().await }
     })
     .expect("the restore lands once released");
-    let after = daemon.handle_request(Request::AuthStart, &mut None).await;
+    let after = daemon
+        .handle_request(Request::AuthStart {}, &mut None)
+        .await;
     assert!(stopping(&after), "{after:?}");
     finish_harness(None, &log_path);
 }
@@ -885,7 +887,7 @@ async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
 async fn c148_a_request_waiting_for_the_restore_when_the_exit_begins_is_refused() {
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
     let mut events = None;
-    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart, &mut events));
+    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart {}, &mut events));
     let waiting = polled_once(start.as_mut()).is_pending();
     assert!(daemon.begin_exit("test: exit"));
     held.release.send(()).unwrap();

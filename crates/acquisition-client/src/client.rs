@@ -491,18 +491,18 @@ fn asked(req: &Request) -> Option<&'static str> {
         Request::Status { .. } => Some("the job's status"),
         Request::Result { .. } => Some("the job's result"),
         Request::List { .. } => Some("the job list"),
-        Request::Subscribe => Some("the subscription"),
-        Request::AuthStatus => Some("the login's status"),
-        Request::DaemonStatus => Some("its status"),
-        Request::Dashboard => Some("the dashboard"),
+        Request::Subscribe {} => Some("the subscription"),
+        Request::AuthStatus {} => Some("the login's status"),
+        Request::DaemonStatus {} => Some("its status"),
+        Request::Dashboard {} => Some("the dashboard"),
         Request::Quote { .. }
         | Request::Submit { .. }
         | Request::Cancel { .. }
         | Request::SetPriority { .. }
-        | Request::AuthStart
+        | Request::AuthStart {}
         | Request::AuthCheck { .. }
         | Request::AuthLogout { .. }
-        | Request::ResetTripwire => None,
+        | Request::ResetTripwire {} => None,
     }
 }
 
@@ -1922,7 +1922,7 @@ impl Client {
     /// Turn this connection into a subscription: `subscribe`, then
     /// `subscribed`, after which no request is sent on it.
     async fn subscribe(mut self) -> Result<Subscription> {
-        match self.request(&Request::Subscribe).await? {
+        match self.request(&Request::Subscribe {}).await? {
             Response::Subscribed => Ok(Subscription {
                 reader: self.reader,
                 _write: self.write,

@@ -426,7 +426,7 @@ fn token_rows() -> Vec<Row> {
 
 /// `DaemonStatus.rails`'s two marks, as a frontend reads them.
 async fn marks(door: &mut Door) -> (Option<String>, Option<String>) {
-    match door.request(Request::DaemonStatus).await {
+    match door.request(Request::DaemonStatus {}).await {
         Response::DaemonStatus { rails, .. } => (rails.refresh_failed, rails.halted),
         other => panic!("the daemon's status reads {other:?}"),
     }
@@ -445,7 +445,7 @@ fn assert_mark(name: &str, mark: &str, read: Option<&str>, want: Option<&str>) {
 
 /// `Dashboard.errors`, newest first.
 async fn dashboard_errors(door: &mut Door) -> Vec<String> {
-    match door.request(Request::Dashboard).await {
+    match door.request(Request::Dashboard {}).await {
         Response::Dashboard { errors, .. } => errors.into_iter().map(|e| e.message).collect(),
         other => panic!("the dashboard reads {other:?}"),
     }
@@ -530,7 +530,7 @@ fn c158_the_token_table_through_the_door() {
                             assert_mark(name, "the halt", halt.as_deref(), halted);
                         }
                         Step::Reset => {
-                            let answer = door.request(Request::ResetTripwire).await;
+                            let answer = door.request(Request::ResetTripwire {}).await;
                             assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
                         }
                         Step::Logout => {

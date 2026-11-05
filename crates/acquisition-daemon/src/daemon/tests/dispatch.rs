@@ -318,7 +318,7 @@ fn declared_route_knowledge_holds_against_the_mock() {
             policyless_endpoints,
             policies,
             ..
-        } = door.request(Request::Dashboard).await
+        } = door.request(Request::Dashboard {}).await
         else {
             panic!("the dashboard did not answer")
         };
@@ -1180,12 +1180,12 @@ enum Step {
     Await(Vec<(usize, JobState)>),
     /// `Request::Cancel` of the submitted job named, acknowledged.
     Cancel(usize),
-    /// `Request::ResetTripwire`, acknowledged.
+    /// `Request::ResetTripwire {}`, acknowledged.
     ResetTripwire,
-    /// `Request::DaemonStatus`: its `rails.halted` carries these words,
+    /// `Request::DaemonStatus {}`: its `rails.halted` carries these words,
     /// or is `None`.
     DaemonStatus { halted: Option<String> },
-    /// `Request::Dashboard`: its `degraded_endpoints` name these.
+    /// `Request::Dashboard {}`: its `degraded_endpoints` name these.
     Dashboard { degraded: Vec<&'static str> },
     /// A second lifetime while this one is live: a door opened beside
     /// this one on the same rails state path, facing no server, whose
@@ -2558,18 +2558,18 @@ fn c158_the_wire_table_through_the_door() {
                         assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
                     }
                     Step::ResetTripwire => {
-                        let answer = door.request(Request::ResetTripwire).await;
+                        let answer = door.request(Request::ResetTripwire {}).await;
                         assert!(matches!(answer, Response::Ack { .. }), "{name}: {answer:?}");
                     }
                     Step::DaemonStatus { halted } => {
-                        let read = halted_of(door.request(Request::DaemonStatus).await);
+                        let read = halted_of(door.request(Request::DaemonStatus {}).await);
                         assert_halted(&name, "this lifetime", read.as_deref(), halted.as_deref());
                         halts.extend(read);
                     }
                     Step::Dashboard { degraded } => {
                         let Response::Dashboard {
                             degraded_endpoints, ..
-                        } = door.request(Request::Dashboard).await
+                        } = door.request(Request::Dashboard {}).await
                         else {
                             panic!("{name}: the dashboard did not answer")
                         };
@@ -2591,7 +2591,7 @@ fn c158_the_wire_table_through_the_door() {
                         })
                         .beside(&door)
                         .await;
-                        let read = halted_of(second.request(Request::DaemonStatus).await);
+                        let read = halted_of(second.request(Request::DaemonStatus {}).await);
                         second.finish().await;
                         assert_halted(
                             &name,
@@ -2682,7 +2682,7 @@ fn c158_the_wire_table_through_the_door() {
 
             let sends = door.journal();
             assert_eq!(journal_projection(&sends), journal, "{name}: the journal");
-            let dashboard_errors = match door.request(Request::Dashboard).await {
+            let dashboard_errors = match door.request(Request::Dashboard {}).await {
                 Response::Dashboard { errors, .. } => serde_json::to_string(&errors).unwrap(),
                 other => panic!("{name}: the dashboard reads {other:?}"),
             };

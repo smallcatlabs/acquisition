@@ -850,7 +850,7 @@ fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
             "{message}"
         );
         assert_eq!(door.journal().len(), 1, "no second POST");
-        let rails = match door.request(Request::DaemonStatus).await {
+        let rails = match door.request(Request::DaemonStatus {}).await {
             Response::DaemonStatus { rails, .. } => rails,
             other => panic!("the daemon's status answered {other:?}"),
         };

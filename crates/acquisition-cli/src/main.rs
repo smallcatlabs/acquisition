@@ -170,7 +170,7 @@ pub(crate) fn mismatch_remedy(found: &acquisition_client::client::DaemonId) -> &
 /// C83) — never recomputed from this shell's environment, which may
 /// differ from the daemon's (review 2026-09-11).
 pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
-    match client.request(&Request::DaemonStatus).await {
+    match client.request(&Request::DaemonStatus {}).await {
         Ok(Response::DaemonStatus { log, .. }) => log,
         _ => None,
     }
@@ -1715,7 +1715,7 @@ async fn run(cli: Cli) -> Result<()> {
                 let Some(mut client) = cx.frontend.observe().await? else {
                     return store_cmd::auth_status_absent(cx, cli.json);
                 };
-                let status = client.request(&Request::AuthStatus).await?;
+                let status = client.request(&Request::AuthStatus {}).await?;
                 print_auth(&status, cli.json)?;
                 if !cli.json {
                     store_cmd::print_other_accounts(
@@ -2249,7 +2249,7 @@ async fn run(cli: Cli) -> Result<()> {
             DaemonCmd::ResetTripwire => {
                 match Client::observe_at(&cx.frontend.root).await? {
                     Observed::Compatible(mut client) => {
-                        let resp = client.request(&Request::ResetTripwire).await?;
+                        let resp = client.request(&Request::ResetTripwire {}).await?;
                         // A reset the daemon could not write is refused,
                         // the halt standing; never reported done.
                         if let Response::Error { kind, message } = resp {
@@ -2383,7 +2383,7 @@ async fn run(cli: Cli) -> Result<()> {
                 if let Ok(Observed::Compatible(mut client)) =
                     Client::observe_at(&cx.frontend.root).await
                     && let Ok(Response::Auth { accounts, .. }) =
-                        client.request(&Request::AuthStatus).await
+                        client.request(&Request::AuthStatus {}).await
                 {
                     ended = accounts
                         .into_iter()
@@ -2446,7 +2446,7 @@ async fn run(cli: Cli) -> Result<()> {
 /// interrupt.
 async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
     let mut client = connect(cx).await?;
-    let url = match client.request(&Request::AuthStart).await? {
+    let url = match client.request(&Request::AuthStart {}).await? {
         Response::AuthUrl { authorize_url } => authorize_url,
         Response::Error { kind, message } => return Err(DaemonError { kind, message }.into()),
         other => bail!("unexpected response: {other:?}"),
@@ -2467,7 +2467,7 @@ async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
     }
     loop {
         tokio::time::sleep(Duration::from_millis(500)).await;
-        let status = client.request(&Request::AuthStatus).await?;
+        let status = client.request(&Request::AuthStatus {}).await?;
         let Response::Auth {
             pending,
             ref login_ok,

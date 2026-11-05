@@ -741,7 +741,7 @@ fn exit_waits_for_a_login_code_exchange() {
             // wait no count of the hook's sees: the clock is held across
             // it, until the exchange it starts has reached the transport.
             let hold = door.hold_clock();
-            let url = match door.request(Request::AuthStart).await {
+            let url = match door.request(Request::AuthStart {}).await {
                 Response::AuthUrl { authorize_url } => authorize_url,
                 other => panic!("expected the authorize URL, got {other:?}"),
             };
@@ -1664,7 +1664,7 @@ fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
             ..tripwire_config()
         })
         .run(|mut door| async move {
-            let halted = match door.request(Request::DaemonStatus).await {
+            let halted = match door.request(Request::DaemonStatus {}).await {
                 Response::DaemonStatus { rails, .. } => rails.halted,
                 other => panic!("the daemon's status reads {other:?}"),
             };
@@ -1672,7 +1672,7 @@ fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
             assert_failed_on_the_closed_route(&mut door).await;
             door.settle().await;
             door.advance(crate::ratelimit::PROBE_COOLDOWN + Duration::from_secs(1));
-            let reset = door.request(Request::ResetTripwire).await;
+            let reset = door.request(Request::ResetTripwire {}).await;
             assert!(matches!(reset, Response::Ack { .. }), "{reset:?}");
             door.settle().await;
             assert!(

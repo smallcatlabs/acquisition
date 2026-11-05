@@ -66,7 +66,7 @@ struct Snap {
 pub async fn run(cx: &crate::Ctx, json: bool) -> Result<()> {
     let mut client = attach(cx).await?;
     if json {
-        let resp = client.request(&Request::Dashboard).await?;
+        let resp = client.request(&Request::Dashboard {}).await?;
         println!("{}", serde_json::to_string_pretty(&resp)?);
         return Ok(());
     }
@@ -128,7 +128,7 @@ async fn event_loop(terminal: &mut ratatui::DefaultTerminal, client: &mut Client
 }
 
 async fn fetch(client: &mut Client) -> Result<Snap> {
-    match client.request(&Request::Dashboard).await? {
+    match client.request(&Request::Dashboard {}).await? {
         Response::Dashboard {
             pid,
             version,

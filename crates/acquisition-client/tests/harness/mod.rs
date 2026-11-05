@@ -979,7 +979,7 @@ pub async fn start_daemon_in_process(s: &Session, acqd: &Path) -> Proc {
         match Client::observe().await {
             Ok(Observed::Compatible(mut client)) => {
                 if let Ok(Response::DaemonStatus { keyring, .. }) =
-                    client.request(&Request::DaemonStatus).await
+                    client.request(&Request::DaemonStatus {}).await
                     && keyring != "restoring"
                 {
                     return daemon;
@@ -1013,7 +1013,7 @@ pub async fn compatible_client() -> Client {
 /// start the flow, [`approve`] it, and wait for the daemon to register
 /// this flow's own completion.
 pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
-    let url = match client.request(&Request::AuthStart).await.unwrap() {
+    let url = match client.request(&Request::AuthStart {}).await.unwrap() {
         Response::AuthUrl { authorize_url } => authorize_url,
         other => panic!("{other:?}"),
     };
@@ -1023,7 +1023,7 @@ pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
         .expect("the approve step");
     let deadline = Instant::now() + HANG;
     loop {
-        match client.request(&Request::AuthStatus).await.unwrap() {
+        match client.request(&Request::AuthStatus {}).await.unwrap() {
             Response::Auth {
                 pending: false,
                 login_ok: Some(_),

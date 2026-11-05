@@ -164,7 +164,7 @@ impl Frontend {
         };
         let identity = Box::new(client.daemon().clone());
         match client
-            .request(&Request::DaemonStatus)
+            .request(&Request::DaemonStatus {})
             .await
             .map_err(Fault::from_client)?
         {

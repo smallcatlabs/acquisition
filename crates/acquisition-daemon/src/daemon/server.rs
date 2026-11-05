@@ -363,7 +363,7 @@ impl Daemon {
                     refusal.into()
                 }
             },
-            Request::Subscribe => {
+            Request::Subscribe {} => {
                 *events = Some(self.events.subscribe());
                 Response::Subscribed
             }
@@ -371,14 +371,14 @@ impl Daemon {
             // each waits for the start's restore first, refused as
             // stopping before and after the wait; so does a quote, which
             // resolves its account as a submit does.
-            Request::AuthStart => match self.restored().await {
+            Request::AuthStart {} => match self.restored().await {
                 Err(refusal) => refusal.into(),
                 Ok(daemon) => match daemon.auth_start().await {
                     Ok(authorize_url) => Response::AuthUrl { authorize_url },
                     Err(refusal) => refusal.into(),
                 },
             },
-            Request::AuthStatus => self.auth_status(),
+            Request::AuthStatus {} => self.auth_status(),
             Request::AuthCheck { account } => {
                 match self
                     .restored()
@@ -422,7 +422,7 @@ impl Daemon {
                     Err(refusal) => self.judged(refusal).await.into(),
                 }
             }
-            Request::DaemonStatus => {
+            Request::DaemonStatus {} => {
                 let s = self.shared.lock().unwrap();
                 let (in_flight, max_in_flight) = self.choke.actual_send_occupancy();
                 let (waiting, running) =
@@ -451,11 +451,11 @@ impl Daemon {
                     log: self.log_path.clone(),
                 }
             }
-            Request::ResetTripwire => match self.reset_rails() {
+            Request::ResetTripwire {} => match self.reset_rails() {
                 Ok(()) => Response::Ack { keyring: None },
                 Err(refusal) => refusal.into(),
             },
-            Request::Dashboard => {
+            Request::Dashboard {} => {
                 let jobs = match self.job_list() {
                     Ok(jobs) => jobs,
                     Err(refusal) => {

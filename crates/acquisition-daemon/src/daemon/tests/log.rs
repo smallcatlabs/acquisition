@@ -87,7 +87,7 @@ fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     .store_dir(store_dir.to_path_buf())
     .run(|mut door| async move {
         // The login.
-        let authorize = match door.request(Request::AuthStart).await {
+        let authorize = match door.request(Request::AuthStart {}).await {
             Response::AuthUrl { authorize_url } => authorize_url,
             other => panic!("a login's start answered {other:?}"),
         };

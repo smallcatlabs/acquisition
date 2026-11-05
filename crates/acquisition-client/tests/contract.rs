@@ -543,7 +543,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
     // refused as the deadline's expiry whatever the peer did.
     s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
     let (refused, served) = tokio::join!(
-        client.request(&Request::DaemonStatus),
+        client.request(&Request::DaemonStatus {}),
         peer.serve(&scripted)
     );
     assert_eq!(served, "daemon_status");
@@ -1133,14 +1133,23 @@ async fn c85_malformed_and_oversize_frames_get_bad_request_and_the_connection_st
     let reply = raw.ask(json!({ "req": "list" })).await;
     assert_eq!(reply["resp"], "jobs", "{reply}");
 
-    // Exactly the bound is a frame.
+    // Exactly the bound is a frame: read whole and parsed, and refused
+    // for the field it does not know (C85 as amended 2026-11-05), which
+    // the refusal names, not for its size.
     let mut at_bound = Vec::with_capacity(MAX_FRAME_BYTES);
     at_bound.extend_from_slice(head);
     at_bound.resize(MAX_FRAME_BYTES - tail.len(), b'x');
     at_bound.extend_from_slice(tail);
     raw.send(&at_bound).await;
     let reply = raw.next().await;
-    assert_eq!(reply["resp"], "jobs", "{reply}");
+    assert_eq!(error_kind(&reply), ErrorKind::BadRequest, "{reply}");
+    assert!(
+        reply["message"]
+            .as_str()
+            .unwrap()
+            .contains("unknown field `pad`"),
+        "{reply}"
+    );
 
     // Blank lines are skipped; pipelined frames are answered in order.
     raw.send(b"").await;

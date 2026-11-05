@@ -1016,7 +1016,7 @@ impl Door {
     /// [`Self::request`], answered `subscribed`, and the daemon's job
     /// events from then on, as the subscribed connection carries them.
     pub(super) async fn subscribe(&mut self) -> broadcast::Receiver<JobInfo> {
-        match self.request(Request::Subscribe).await {
+        match self.request(Request::Subscribe {}).await {
             Response::Subscribed => {}
             other => panic!("a subscribe answered {other:?}"),
         }
@@ -1291,7 +1291,7 @@ impl Door {
                     let changed = daemon.auth_changed.notified();
                     tokio::pin!(changed);
                     changed.as_mut().enable();
-                    let answer = match self.request(Request::AuthStatus).await {
+                    let answer = match self.request(Request::AuthStatus {}).await {
                         Response::Auth {
                             logged_in,
                             pending,
