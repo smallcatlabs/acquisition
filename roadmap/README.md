@@ -742,6 +742,7 @@ On 2026-11-05 the owner ruled the report's drafts (C166, C85, C6,
 C143, three "Not doing" lines), and #56's wire step
 (`briefs/56-list-paging.md`) closed on C166 and C85, reviewed (a P1,
 a P2), fixed twice, the last fix reviewed clean. Unbuilt from his
-rulings: C143 beyond refusals (#97). #102's sticky restore delete
+rulings: none. #102's sticky restore delete
 (`briefs/102-sticky-delete.md`) closed the same day, reviewed (a P3,
-fixed in its docs).
+fixed in its docs), and #97's C143 round (`briefs/97-c143-reach.md`)
+in two parts, reviewed three times, the last finding not taken.
