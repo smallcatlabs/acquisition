@@ -730,4 +730,6 @@ the first turn held to a bound, reviewed (a P3) and its pin added;
 and fixed; #44 (`briefs/44-folder-once.md`) closed, reviewed clean;
 #102 (`briefs/102-queue-leftovers.md`) closed, reviewed clean; #56's
 internal items (`briefs/56-frame-internals.md`) closed, reviewed clean,
-its wire items parked for the owner.
+its wire items parked for the owner; #99 (`briefs/99-web-leftovers.md`)
+closed, its script seam declined, reviewed (a P2, a P3), fixed, the
+fix reviewed (a P3) and fixed in a second round.
