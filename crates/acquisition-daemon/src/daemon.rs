@@ -1153,6 +1153,13 @@ pub struct Daemon {
     /// Running jobs finish (their sends are committed); everything else
     /// refuses until a restart finds a working `daemon.db`.
     queue_failure: Mutex<Option<String>>,
+    /// C165 (the review of round E's fix round, finding 2): the failure
+    /// kind each route's probe closed it with, beside the closure's own
+    /// `until` as the limiter holds it, so a job that meets that closure
+    /// takes the probe's kind. Kept beside the limiter, never in it: the
+    /// limiter's state, its pacing and its closures stand as they were;
+    /// this reads them only (`ChokePoint::endpoint_state`).
+    closed_with: Mutex<HashMap<String, (Instant, FailureKind)>>,
     /// The browser wait of a login: [`LOGIN_WITHIN`], or `ACQ_LOGIN_WITHIN`
     /// read at the start (`start::login_within_from_env`); a test sets it
     /// to zero to force the expiry (C137).
@@ -1387,6 +1394,7 @@ impl Builder {
             store: Mutex::new(None),
             jobs_db: Mutex::new(jobs_db),
             queue_failure: Mutex::new(None),
+            closed_with: Mutex::new(HashMap::new()),
             exit: self.exit,
             restore: watch::channel(self.restore_landed).0,
             login_within: self.login_within,
@@ -1741,6 +1749,29 @@ impl Daemon {
         found
             .map(Some)
             .ok_or_else(|| Self::unmatched(sel, no_session(sel)))
+    }
+
+    /// C165: a probe that failed with `kind` records it against the
+    /// closure the limiter now holds its route under, by the closure's
+    /// `until`. Nothing where the route is not closed (a block halts and
+    /// closes nothing).
+    pub(super) fn record_closure(&self, route: &str, kind: FailureKind) {
+        if let EndpointState::Degraded { until, .. } = self.choke.endpoint_state(route) {
+            self.closed_with
+                .lock()
+                .unwrap()
+                .insert(route.to_string(), (until, kind));
+        }
+    }
+
+    /// C165: the failure kind of a job that meets `route` closed until
+    /// `until`: its probe's, where the daemon recorded that very closure;
+    /// any other closure's, which no probe of the daemon's made, upstream.
+    pub(super) fn closure_kind(&self, route: &str, until: Instant) -> FailureKind {
+        match self.closed_with.lock().unwrap().get(route) {
+            Some((closed, kind)) if *closed == until => *kind,
+            _ => FailureKind::Upstream,
+        }
     }
 
     /// C121, the daemon alike (#168): the refusal of a selector no live

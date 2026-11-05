@@ -1106,6 +1106,28 @@ fn c165_a_failures_way_on_follows_its_kind() {
         "{}",
         not_retried.words
     );
+    // a client's job its probe's closure failed takes the probe's kind
+    // and that kind's way on (the review of round E's fix round, finding
+    // 2): after a rejected grant, a login named and nothing resubmitted;
+    // after a HEAD's 429, the same job once the hold has passed
+    let characters = json!({ "realm": "pc" });
+    assert_eq!(
+        ways(FailureKind::NotLoggedIn, ("characters", &characters)),
+        []
+    );
+    let login = way_on(
+        &Outcome::failure(FailureKind::NotLoggedIn, "words"),
+        9,
+        Some(USER),
+        Some(("characters", &characters)),
+        &[],
+    )
+    .unwrap();
+    assert!(login.words.contains("`acq auth`"), "{}", login.words);
+    assert_eq!(
+        ways(FailureKind::RateLimited, ("characters", &characters)),
+        [submit("characters", characters.clone())]
+    );
     let blocked = way_on(
         &Outcome::failure(FailureKind::Blocked, "words"),
         9,

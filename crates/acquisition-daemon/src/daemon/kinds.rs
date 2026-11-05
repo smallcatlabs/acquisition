@@ -784,8 +784,10 @@ impl Daemon {
                             return turned_away(error, |message| {
                                 // Close the endpoint too, or the waiting job
                                 // would just ask for another probe; login
-                                // reopens it.
+                                // reopens it. The job meets the closure
+                                // with this kind (C165).
                                 self.choke.degrade(&route, &message);
+                                self.record_closure(&route, kind);
                                 Ok(Outcome::failure(kind, message))
                             });
                         }
@@ -834,6 +836,7 @@ impl Daemon {
                                     let kind = token_failure(&error);
                                     return turned_away(error, |message| {
                                         self.choke.degrade(&route, &message);
+                                        self.record_closure(&route, kind);
                                         Ok(Outcome::failure(kind, message))
                                     });
                                 }
@@ -902,6 +905,8 @@ impl Daemon {
                             // is re-closed with the whole story.
                             self.choke.degrade(&route, &message);
                         }
+                        // the closure its route's jobs meet, with its kind
+                        self.record_closure(&route, kind);
                         Outcome::failure(kind, message)
                     }
                 }

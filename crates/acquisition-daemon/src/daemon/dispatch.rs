@@ -166,7 +166,9 @@ impl Daemon {
                     let left = until.saturating_duration_since(self.choke.now()).as_secs();
                     let error = format!("route {route} is degraded for another {left}s: {reason}");
                     self.note_error(&format!("job {id}: {error}"));
-                    self.start_and_finish(id, Outcome::failure(FailureKind::Upstream, error));
+                    // C165: the probe's own kind, where it closed this route
+                    let kind = self.closure_kind(route, until);
+                    self.start_and_finish(id, Outcome::failure(kind, error));
                     return;
                 }
                 // A no-probe route's first GET is what teaches the limiter.

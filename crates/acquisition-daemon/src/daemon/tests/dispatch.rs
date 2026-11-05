@@ -1618,7 +1618,9 @@ fn wire_rows() -> Vec<Row> {
                 }])
                 .collect(),
             jobs: vec![
-                Job::fetch(Failed).fails(FailureKind::Upstream),
+                // the probe's cause handed to the job its closed route
+                // fails (the review of round E's fix round, finding 2)
+                Job::fetch(Failed).fails(FailureKind::RateLimited),
                 // the HEAD's own 429 ends the probe (the review of round E,
                 // finding 3); its job meets the closed route
                 Job::probe(Failed).fails(FailureKind::RateLimited),
@@ -2223,7 +2225,7 @@ fn wire_rows() -> Vec<Row> {
                 .collect(),
             jobs: vec![
                 Job::fetch(Failed)
-                    .fails(FailureKind::Upstream)
+                    .fails(FailureKind::NotRetried)
                     .carries(&["degraded"]),
                 Job::probe(Failed).fails(FailureKind::NotRetried),
             ],
@@ -2352,6 +2354,44 @@ fn wire_rows() -> Vec<Row> {
         ..Row::default()
     });
     rows
+}
+
+/// C165, the review of round E's fix round, finding 2: a client's job
+/// behind a probe whose refresh GGG answers `400 invalid_grant` fails
+/// `not_logged_in`, the probe's own kind, handed through the route the
+/// probe closed, never `upstream` in its place: a login is its way on,
+/// not a resubmit.
+#[test]
+fn c165_a_job_behind_a_probe_whose_grant_was_rejected_fails_not_logged_in() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = Sessions::with(AuthSession {
+        access_token: Some("at-expired".into()),
+        access_expires_at: Some(clock.wall()),
+        refresh_token: Some("rt-old".into()),
+        username: Some("test-user".into()),
+        keyring: "ok".into(),
+        ..AuthSession::default()
+    });
+    Door::open(
+        Server::Script(vec![token_answer(
+            "400 Bad Request",
+            TOKEN_HEADERS,
+            Some(r#"{"error":"invalid_grant"}"#),
+        )]),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let id = door.submit("characters", Some("test-user")).await;
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Failed, "{outcome:?}");
+        let Outcome::Failure { kind, error, .. } = &outcome else {
+            panic!("{outcome:?}")
+        };
+        assert_eq!(*kind, Some(FailureKind::NotLoggedIn), "{error}");
+        door.finish().await;
+    });
 }
 
 /// C165, the review of round E's fix round, finding 1: a job whose token
