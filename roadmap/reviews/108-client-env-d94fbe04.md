@@ -1,0 +1,7 @@
+- `d94fbe04` — the brief’s source-level done-when conditions hold; execution-dependent conditions remain unconfirmed.
+- **Low — `crates/acquisition-client/src/client.rs:1632`, shape 3:** The seam documentation still says the replacement pin passes an exited child and expired deadline into `open_door`, although this commit retires that caller. A maintainer reading it would infer integration coverage that now lives in separate machine and driver tests. Smallest fix: remove the replacement reference and describe the remaining last-poll caller.
+- **Not verified:** compilation, tests without a built `acqd`, and the gate’s exit status; this review used static inspection only, as requested.
+- **Nitpicks:** The stale seam documentation above is a nitpick; I found no behavioural regression or loss of the retired test’s deadline property.
+- **Brief:** Change Do 3’s command to `cargo nextest run -p acquisition-client --lib`; the package-wide command includes process tests that require the built daemon and are explicitly outside scope.
+- **Plan:** No other change suggested.
+- **Prompt:** No impediment.
