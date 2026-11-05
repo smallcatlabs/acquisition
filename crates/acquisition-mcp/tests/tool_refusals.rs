@@ -203,6 +203,22 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         "arguments",
     );
 
+    // The schema advertises `null` for every optional argument (the trim
+    // of #104 was declined), so an explicit `null` is an absent one: the
+    // same answer, a store tool's refusal included, never `arguments`.
+    assert_eq!(
+        mcp.expect_ok("list_jobs", json!({ "expand": null })),
+        mcp.expect_ok("list_jobs", json!({})),
+    );
+    let nulled = json!({ "league": null, "limit": null, "expand": null, "type": null,
+        "never_fetched": null, "realm": null, "account": null });
+    let (with, without) = (mcp.call("tabs", nulled), mcp.call("tabs", json!({})));
+    assert_eq!(with, without);
+    assert!(
+        !format!("{with:?}").contains("not arguments the tool takes"),
+        "{with:?}"
+    );
+
     // A daemon's own refusal is still a JSON-RPC error with its kind.
     let _daemon = spawn_daemon(&base, &[]);
     let deadline = Instant::now() + Duration::from_secs(120);
