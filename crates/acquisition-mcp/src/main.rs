@@ -196,18 +196,25 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }
-        Fault::NotCovered { covered, .. } => match covered.len() {
+        // a read-back names the account it was refused for (#97)
+        Fault::NotCovered {
+            covered, username, ..
+        } => match covered.len() {
             0 => format!("{fault}: set_sync_policy covers a league"),
             n if n <= acquisition_store::bound::LISTED => {
                 format!("{fault}: `league` names one")
             }
-            _ => format!("{fault}: `league` names one; sync_policy lists them all"),
+            _ => format!(
+                "{fault}: `league` names one; sync_policy with `{named}` {username} lists them all"
+            ),
         },
         // A merge reads the stored row to merge into, so the retry is a
         // whole write naming the revision.
-        Fault::UnreadablePolicy { revision, .. } => format!(
+        Fault::UnreadablePolicy {
+            username, revision, ..
+        } => format!(
             "{fault} — `replace: true` with `if_revision: {revision}` writes a whole policy over \
-             it deliberately; sync_policy reads it"
+             it deliberately; sync_policy with `{named}` {username} reads it"
         ),
         // Absent by this server's own policy in real mode: the remedy is
         // the human's, and the words say so rather than promising a spawn.
@@ -2329,11 +2336,13 @@ mod tests {
     use super::*;
 
     /// The unreadable policy's remedy names both arguments the retry
-    /// needs: the merge would read the row it cannot.
+    /// needs: the merge would read the row it cannot; and its read-back
+    /// names the account it was refused for (#97).
     #[test]
     fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
         let words = fault_words(
             &Fault::UnreadablePolicy {
+                username: "Alice#1234".into(),
                 revision: 3,
                 detail: "newer".into(),
             },
@@ -2343,6 +2352,9 @@ mod tests {
             words.contains("`replace: true` with `if_revision: 3`"),
             "{words}"
         );
-        assert!(words.contains("sync_policy"), "{words}");
+        assert!(
+            words.contains("sync_policy with `account` Alice#1234 reads it"),
+            "{words}"
+        );
     }
 }

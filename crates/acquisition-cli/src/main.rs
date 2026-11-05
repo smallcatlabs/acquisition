@@ -1122,10 +1122,14 @@ fn fault_words(fault: &Fault) -> String {
         ),
         Fault::Spend(_) => fault.to_string(),
         // A merge reads the stored row to merge into, so the retry is a
-        // whole write naming the revision.
-        Fault::UnreadablePolicy { revision, .. } => format!(
+        // whole write naming the revision; the read-back as the account it
+        // was refused for, as every printed command names it (#97).
+        Fault::UnreadablePolicy {
+            username, revision, ..
+        } => format!(
             "{fault} — `--replace --if-revision {revision}` writes a whole policy over it \
-             deliberately; `acq policy show` names it"
+             deliberately; `{}` names it",
+            printed_line(&policy_show_words(username))
         ),
         Fault::NoDaemon { because: None, .. } => {
             "daemon is not running (a job command or `acq auth` starts one)".into()
@@ -3613,15 +3617,20 @@ mod tests {
     }
 
     /// The unreadable policy's remedy names both flags the retry needs:
-    /// the merge would read the row it cannot.
+    /// the merge would read the row it cannot; and its read-back names
+    /// the account it was refused for (#97).
     #[test]
     fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
         let words = fault_words(&Fault::UnreadablePolicy {
+            username: "Alice#1234".into(),
             revision: 3,
             detail: "newer".into(),
         });
         assert!(words.contains("`--replace --if-revision 3`"), "{words}");
-        assert!(words.contains("`acq policy show`"), "{words}");
+        assert!(
+            words.contains("`acq policy show --account 'Alice#1234'` names it"),
+            "{words}"
+        );
     }
 
     /// A parent's result as the layer gives it: the daemon's sentence,

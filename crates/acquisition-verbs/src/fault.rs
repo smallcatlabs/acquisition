@@ -85,8 +85,13 @@ pub enum Fault {
     Policy(PutPolicyError),
     /// A write that names no revision over a stored policy this build
     /// cannot read: never replaced blind (C35, intent is irreplaceable).
-    /// Kind `refused`.
-    UnreadablePolicy { revision: i64, detail: String },
+    /// Kind `refused`. `username` is the account it was refused for, which
+    /// the read-back each frontend prints names (#97).
+    UnreadablePolicy {
+        username: String,
+        revision: i64,
+        detail: String,
+    },
     /// No daemon answers, and this door does not start one: `because` is
     /// the use door's reason, `None` for an observation. Kind
     /// `no_daemon`, with `next` (C10, C13).
@@ -271,7 +276,9 @@ impl fmt::Display for Fault {
             Fault::Spend(e) => write!(f, "{e}"),
             Fault::Replan { error, .. } => write!(f, "{error}"),
             Fault::Policy(e) => write!(f, "{e}"),
-            Fault::UnreadablePolicy { revision, detail } => write!(
+            Fault::UnreadablePolicy {
+                revision, detail, ..
+            } => write!(
                 f,
                 "the stored sync policy holds a value this build cannot read (revision \
                  {revision}: {detail}); not replaced blind"

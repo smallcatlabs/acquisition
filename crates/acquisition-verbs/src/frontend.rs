@@ -478,6 +478,7 @@ impl Account {
                         Ok(_) => Some(row),
                         Err(e) => {
                             return Err(Fault::UnreadablePolicy {
+                                username: self.entry.username.clone(),
                                 revision: row.revision,
                                 detail: e.to_string(),
                             });

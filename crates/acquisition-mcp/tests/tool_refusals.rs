@@ -188,7 +188,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     assert!(
         doc["error"].as_str().unwrap().starts_with(
             "the sync policy covers L01, L02, L03, L04, L05, L06, L07, L08, L09, L10 and 1 more \
-             on realm pc, not Allflame: `league` names one; sync_policy lists them all"
+             on realm pc, not Allflame: `league` names one; sync_policy with `account` \
+             Alice#1234 lists them all"
         ),
         "{doc}"
     );

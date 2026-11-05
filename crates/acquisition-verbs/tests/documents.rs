@@ -297,12 +297,14 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
             [SYNC_POLICY_KIND],
         )
         .unwrap();
+    // each naming the account it was refused for, which the read-back a
+    // frontend prints names (#97)
     for write in [PolicyWrite::Merge, PolicyWrite::Replace] {
         let fault = account
             .set_policy(&policy(), Expect::Current, write)
             .unwrap_err();
         assert!(
-            matches!(fault, Fault::UnreadablePolicy { revision: 1, .. }),
+            matches!(&fault, Fault::UnreadablePolicy { username, revision: 1, .. } if username == USER),
             "{fault}"
         );
     }
