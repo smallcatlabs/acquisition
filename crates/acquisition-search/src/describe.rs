@@ -715,6 +715,10 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     // the operator entry's own name.
     let (patterns, names): (Vec<&String>, Vec<&String>) =
         names.iter().partition(|name| pattern(name).is_some());
+    // a flag as a terminal types it is the request's word it spells,
+    // each one in the name, before any lookup, a built entry's or an
+    // unbuilt one's: `show --against` is `show against`, `--rebind` is
+    // `rebind` (C143: an entry is named by the request's word, #97)
     let names: Vec<String> = names
         .into_iter()
         .map(|name| {
@@ -722,7 +726,10 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
                 .or_else(|| name.strip_suffix('('))
                 .filter(|call| !call.is_empty() && !call.contains(char::is_whitespace))
                 .unwrap_or(name)
-                .to_string()
+                .split_whitespace()
+                .map(|word| word.strip_prefix("--").unwrap_or(word))
+                .collect::<Vec<_>>()
+                .join(" ")
         })
         .collect();
     let names = names.as_slice();
@@ -730,10 +737,6 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     // word of it, a computed value to its name without `pseudo.`, the
     // positional slots to any `arg<N>`, a block to its own
     let answers = |entry: &str, asked: &str| {
-        // a flag as a terminal types it is the request's word it spells:
-        // `--count` is `count` (C143: an entry is named by the request's
-        // word, #97)
-        let asked = asked.strip_prefix("--").unwrap_or(asked);
         entry.eq_ignore_ascii_case(asked)
             // a dotted entry answers to its head: `sockets.<colour>` to `sockets`
             || entry

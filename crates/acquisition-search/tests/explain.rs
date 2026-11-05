@@ -843,3 +843,37 @@ fn c143_the_view_selections_refusals_name_the_requests_fields() {
         assert!(!e.message.contains("--"), "a flag in: {}", e.message);
     }
 }
+
+/// The review of #97's fix round and Part B, its finding P3: a name
+/// asked as a terminal types it, each flag in it as its word, is asked
+/// as the request's words, for a built entry and an unbuilt one alike:
+/// `show --against` is the entry `show against`, `--rebind` is refused
+/// as not built, and `show --basis` answers as `show basis` does.
+#[test]
+fn a_name_typed_with_flags_is_asked_as_the_requests_words() {
+    use acquisition_search::describe;
+    let asked = |name: &str| {
+        describe(&[name.to_string()])
+            .map(|d| serde_json::to_value(d).unwrap())
+            .map_err(|e| e.kind().to_string())
+    };
+    let mut wrong = Vec::new();
+    match asked("show --against") {
+        Ok(d)
+            if d["explain"]
+                .as_array()
+                .is_some_and(|e| e.iter().any(|n| n["name"] == "show against")) => {}
+        other => wrong.push(format!("show --against: {other:?}")),
+    }
+    if asked("--rebind") != Err("not_built".to_string()) {
+        wrong.push(format!("--rebind: {:?}", asked("--rebind")));
+    }
+    if asked("show --basis") != asked("show basis") {
+        wrong.push(format!(
+            "show --basis: {:?} where show basis is {:?}",
+            asked("show --basis").map(|_| "an answer"),
+            asked("show basis").map(|_| "an answer")
+        ));
+    }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
