@@ -1270,13 +1270,6 @@ impl Terminal {
         }
     }
 
-    /// No command to repeat: a page's refusal.
-    pub(crate) fn page() -> Terminal {
-        Terminal {
-            repeat: Repeat::None,
-        }
-    }
-
     /// A write's receipt: its one offer is the undo, a command line made
     /// from the receipt, and nothing is repeated.
     pub(crate) fn writing() -> Terminal {

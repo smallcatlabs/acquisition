@@ -933,6 +933,48 @@ pub(crate) fn render_plan(
     account: &str,
     uncovered: Option<&UncoveredTabs>,
 ) -> String {
+    rendered(
+        plan,
+        quote_note,
+        notes,
+        now,
+        expand,
+        Some(source),
+        account,
+        uncovered,
+    )
+}
+
+/// [`render_plan`] as the plan page renders it, grouped: all but the
+/// command to type next, since the page's way on is its own Apply button,
+/// the route that takes the apply (#97, each surface spells its own ways
+/// on).
+pub(crate) fn render_plan_on_a_page(
+    plan: &RefreshPlan,
+    quote_note: Option<&QuoteNote>,
+    notes: &PlanNotes,
+    now: i64,
+    account: &str,
+    uncovered: Option<&UncoveredTabs>,
+) -> String {
+    rendered(
+        plan, quote_note, notes, now, false, None, account, uncovered,
+    )
+}
+
+/// The plan's text, and where `next` is given the command to type next,
+/// its plan read from that file where one is named.
+#[allow(clippy::too_many_arguments)]
+fn rendered(
+    plan: &RefreshPlan,
+    quote_note: Option<&QuoteNote>,
+    notes: &PlanNotes,
+    now: i64,
+    expand: bool,
+    next: Option<Option<&str>>,
+    account: &str,
+    uncovered: Option<&UncoveredTabs>,
+) -> String {
     let outside = uncovered_line(uncovered, account);
     if plan.actions.is_empty() && !expand {
         return render_nothing_to_do(plan, now, true)
@@ -995,10 +1037,10 @@ pub(crate) fn render_plan(
             plan: plan_file.map(str::to_string),
         }))
     };
-    match (source, plan.basis.policy_revision) {
-        (Some(path), _) => out.push_str(&format!("next: {}\n", apply(Some(path)))),
-        (None, Some(_)) => out.push_str(&format!("next: {}\n", apply(None))),
-        (None, None) => {}
+    match (next, plan.basis.policy_revision) {
+        (Some(Some(path)), _) => out.push_str(&format!("next: {}\n", apply(Some(path)))),
+        (Some(None), Some(_)) => out.push_str(&format!("next: {}\n", apply(None))),
+        _ => {}
     }
     out
 }

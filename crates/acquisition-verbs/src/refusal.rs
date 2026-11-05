@@ -140,8 +140,8 @@ pub trait Surface {
 
     /// `way` as this surface sends it back: the request, and the tool
     /// it goes to where that is another tool than the one refused; none
-    /// where this surface holds no request to send (a page has no
-    /// command line to repeat).
+    /// where this surface holds no request to send (no page of the web
+    /// UI takes the way).
     fn request(&self, way: &Way) -> Option<(Value, Option<&'static str>)>;
 
     /// `way` as the words of the command line this surface prints for

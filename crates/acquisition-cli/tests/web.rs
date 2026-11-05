@@ -469,6 +469,33 @@ fn every_search_page_is_a_wording_golden() {
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
+    // a tab's id: the refusal's way on is the page's own, a link to the
+    // search the form asks, never a command line (#97); followed, it
+    // answers
+    let tab = web.get("item/t1");
+    assert_eq!(tab.status, 400, "{}", tab.body);
+    assert!(!tab.body.contains("acq "), "{}", tab.body);
+    pages.page(
+        "GET item/t1",
+        &tab,
+        &[
+            "not an item",
+            "class=\"offers\"",
+            "search?realm=pc&amp;text=id%3At1\">the search of what is in the tab `Rings`</a>",
+        ],
+    );
+    let asked = web.raw(
+        "GET",
+        &format!("/{}/item/t1", web.token),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let offered: Value = serde_json::from_str(&asked.body).unwrap();
+    let link = offered["offers"][0]["request"].as_str().unwrap();
+    let listed = web.raw("GET", link, None, &[], "");
+    assert_eq!(listed.status, 200, "{link}: {}", listed.body);
+    assert!(listed.body.contains("Doom Loop"), "{}", listed.body);
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }
@@ -651,6 +678,34 @@ fn the_refresh_loop_runs_through_the_pages() {
             ">Apply</button>",
         ],
     );
+    // the page's way on is its Apply button, never the command a terminal
+    // prints beside the plan (#97)
+    assert!(!plan.body.contains("next: acq"), "{}", plan.body);
+    // a league the policy does not cover: its way on is the plan of the
+    // one it does, a link to that page (#97)
+    let uncovered = web.get("plan?realm=pc&league=Hardcore");
+    assert_eq!(uncovered.status, 400, "{}", uncovered.body);
+    pages.page(
+        "GET plan?realm=pc&league=Hardcore",
+        &uncovered,
+        &[
+            "not Hardcore",
+            "plan?realm=pc&amp;league=Standard\">the plan of pc Standard, which the policy covers</a>",
+        ],
+    );
+    let asked = web.raw(
+        "GET",
+        &format!("/{}/plan?realm=pc&league=Hardcore", web.token),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let refused: Value = serde_json::from_str(&asked.body).unwrap();
+    let link = refused["offers"][0]["request"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(web.raw("GET", &link, None, &[], "").status, 200, "{link}");
     let envelope = hidden_plan(&plan.body);
     let applied = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(applied.status, 303, "{}", applied.body);

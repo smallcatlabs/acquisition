@@ -13,6 +13,7 @@ use acquisition_search::trade::translate::{Fidelity, Status};
 
 use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
 use crate::search_cmd;
+use serde_json::Value;
 
 use crate::plural;
 
@@ -88,6 +89,41 @@ pub(crate) fn pre(text: &str) -> String {
 /// A refusal, in the words the CLI would print after `Error:`.
 pub(crate) fn refusal(words: &str) -> String {
     format!("<div class=\"refusal\">{}</div>\n", pre(words))
+}
+
+/// A refusal's document as a page renders it (#97): its words and each
+/// reading on a line of its own, as a terminal prints them, then each way
+/// on as a link to the page that takes it, saying what it is — never a
+/// command line.
+pub(crate) fn refused(doc: &Value) -> String {
+    let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let words = std::iter::once(said(&doc["error"]))
+        .chain(
+            doc["readings"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|r| format!("    {}", said(r))),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+    let offers: String = doc["offers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|o| {
+            format!(
+                "<li><a href=\"{}\">{}</a></li>\n",
+                esc(&said(&o["request"])),
+                esc(&said(&o["says"]))
+            )
+        })
+        .collect();
+    let offers = match offers.is_empty() {
+        true => offers,
+        false => format!("<ul class=\"offers\">\n{offers}</ul>\n"),
+    };
+    format!("<div class=\"refusal\">{}{offers}</div>\n", pre(&words))
 }
 
 fn fate_span(fate: Option<&Fate>) -> String {

@@ -272,8 +272,8 @@ fn fail(e: SearchError, json: bool) -> anyhow::Error {
 }
 
 /// A search refusal's words: its message, then each reading on a line of
-/// its own — what a terminal prints after `Error:` and the web UI's
-/// refusal page states.
+/// its own — what a terminal prints after `Error:` (a page renders the
+/// refusal's document, its ways on as links: `web::Paged`).
 pub(crate) fn search_error_text(e: &SearchError) -> String {
     match e {
         SearchError::Language(e) => std::iter::once(e.message.clone())

@@ -184,3 +184,20 @@ expected the value to end, found `s`
 </div>
 
 </main>
+
+GET item/t1
+# holds "not an item"
+# holds "class=\"offers\""
+# holds "search?realm=pc&amp;text=id%3At1\">the search of what is in the tab `Rings`</a>"
+--- status 400
+<main>
+<h1>Item</h1>
+<div class="refusal"><pre>
+`t1` is the tab `Rings`, not an item: a search lists what is in it
+</pre>
+<ul class="offers">
+<li><a href="/<token>/search?realm=pc&amp;text=id%3At1">the search of what is in the tab `Rings`</a></li>
+</ul>
+</div>
+
+</main>

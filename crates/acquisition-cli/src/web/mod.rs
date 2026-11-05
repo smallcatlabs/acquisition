@@ -60,6 +60,17 @@
 //!   `application/json` is answered with the document the page renders —
 //!   the answer, the item, the plan, the jobs — which is how the tests
 //!   compare a page with the CLI's `--json` (C11).
+//! - **A refusal's ways on are the pages' own** (#97,
+//!   `roadmap/briefs/97-own-terms.md`): a refusal is the one refusal
+//!   shape spelled by [`Paged`], the page's `Surface`, and the page renders
+//!   that document — its words, its readings, then each offer as a link
+//!   to the route that takes it, saying what it is. A search is a link
+//!   where the form's own fields fold back to the request offered; a
+//!   league's plan, or its tabs, a link to that page; any other way on is
+//!   no page's, and no link stands for it. The plan page prints no
+//!   command to type next: its Apply button is that way on. The words are
+//!   still the CLI's (`failure_words`), as are the command lines the
+//!   refresh and jobs pages print, which no route takes.
 
 mod form;
 mod page;
@@ -80,8 +91,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use serde_json::{Value, json};
 
-use crate::{Ctx, plan_cmd, search_cmd, store_cmd};
-use page::{Head, esc, pre, refusal};
+use crate::{Ctx, plan_cmd, store_cmd};
+use page::{Head, enc, esc, pre, refusal};
 
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
@@ -144,16 +155,6 @@ impl From<Fault> for Failure {
 impl From<anyhow::Error> for Failure {
     fn from(e: anyhow::Error) -> Failure {
         Failure::Other(e)
-    }
-}
-
-impl Failure {
-    fn words(&self) -> String {
-        match self {
-            Failure::Search(e) => search_cmd::search_error_text(e),
-            Failure::Usage(words) => words.clone(),
-            Failure::Other(e) => crate::failure_words(e),
-        }
     }
 }
 
@@ -366,32 +367,100 @@ impl Web {
         html(StatusCode::OK, page::page(&self.token, title, head, body))
     }
 
-    /// A refusal as a page, or as `{"error"}` where JSON is asked (C11).
+    /// A refusal's document, in the one refusal shape (round 4 of the 2g
+    /// build) as a page spells it ([`Paged`]).
+    fn refusal(&self, failure: &Failure) -> Value {
+        match failure {
+            Failure::Usage(words) => json!({ "error": words, "kind": "usage" }),
+            Failure::Search(e) => acquisition_verbs::refusal::of_search(e, &Paged { web: self }),
+            Failure::Other(e) => acquisition_verbs::refusal::document(e, &Paged { web: self }),
+        }
+    }
+
+    /// A refusal as a page, or as its document where JSON is asked (C11):
+    /// the page renders the document (C16).
     fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap) -> Response {
-        let words = failure.words();
+        let doc = self.refusal(failure);
         if wants_json(headers) {
             return (
                 StatusCode::BAD_REQUEST,
                 [(header::CONTENT_TYPE, "application/json")],
-                // the one refusal shape (round 4 of the 2g build), a page
-                // having no command line for an offer to repeat
-                match failure {
-                    Failure::Usage(_) => json!({ "error": words, "kind": "usage" }),
-                    Failure::Search(e) => {
-                        acquisition_verbs::refusal::of_search(e, &crate::Terminal::page())
-                    }
-                    Failure::Other(e) => {
-                        acquisition_verbs::refusal::document(e, &crate::Terminal::page())
-                    }
-                }
-                .to_string(),
+                doc.to_string(),
             )
                 .into_response();
         }
         html(
             StatusCode::BAD_REQUEST,
-            page::page(&self.token, title, Head::default(), &refusal(&words)),
+            page::page(&self.token, title, Head::default(), &page::refused(&doc)),
         )
+    }
+
+    /// Whether `account` names the account this server serves, by its
+    /// name or its uuid (a store's read names it by the uuid).
+    fn serves(&self, account: &str) -> bool {
+        self.account.get().is_some_and(|served| {
+            served.entry.username == account || served.entry.uuid.as_deref() == Some(account)
+        })
+    }
+
+    /// `path` on this server with `fields` as its query: a link a page
+    /// prints, the token first as every link's is (C138).
+    fn link(&self, path: &str, fields: &[(&str, String)]) -> String {
+        let query: Vec<String> = fields
+            .iter()
+            .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
+            .collect();
+        format!("/{}/{path}?{}", self.token, query.join("&"))
+    }
+
+    /// A search request as the search form's own fields — its realm, its
+    /// text and its rows' limit and order — kept only where the form folds
+    /// them back to that request, as the account this server serves: what
+    /// a page can ask. None for any other (a site search, a tree, another
+    /// membership, account or view): no page takes it.
+    fn asked_by_the_form(&self, request: &Request) -> Option<Vec<(&'static str, String)>> {
+        if !request
+            .scope
+            .account
+            .as_deref()
+            .is_none_or(|a| self.serves(a))
+        {
+            return None;
+        }
+        let mut fields = Vec::new();
+        if let Some(realm) = &request.scope.realm {
+            fields.push(("realm", realm.as_str().to_string()));
+        }
+        fields.push(("text", request.query.text.clone()?));
+        if let acquisition_search::answer::Shape::Rows(rows) = &request.view.shape {
+            if let Some(limit) = rows.limit {
+                fields.push(("view.limit", limit.to_string()));
+            }
+            if let Some(sort) = &rows.sort {
+                fields.push(("view.sort", sort.clone()));
+            }
+            if rows.desc {
+                fields.push(("view.desc", "true".to_string()));
+            }
+        }
+        let pairs: Vec<(String, String)> = fields
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
+        let folded = form::fold(&self.form, &pairs).ok()?;
+        let asked = Asked::read(&folded.request().ok()?).ok()?.request;
+        // the page's rows carry their art (C140), and its account is the
+        // one served
+        let mut offered = request.clone();
+        offered.scope.account = None;
+        if let (
+            acquisition_search::answer::Shape::Rows(rows),
+            acquisition_search::answer::Shape::Rows(own),
+        ) = (&mut offered.view.shape, &asked.view.shape)
+        {
+            rows.fields = own.fields.clone();
+        }
+        (asked == offered).then_some(fields)
     }
 
     /// The request answered over the held corpus (C98): checked first,
@@ -441,6 +510,52 @@ impl Web {
     }
 }
 
+/// A page's side of the one refusal shape (#97, each surface spells its
+/// own ways on): its words the CLI's, and a way on a link to the page
+/// that takes it — a search the form can ask, its own fields; a league's
+/// plan or its tabs and characters — for the account this server serves.
+/// A way no page takes is offered nowhere on a page: another account, a
+/// write, a job, `describe`, a search the form cannot ask.
+struct Paged<'a> {
+    web: &'a Web,
+}
+
+impl acquisition_verbs::refusal::Surface for Paged<'_> {
+    fn words(&self, e: &anyhow::Error) -> String {
+        crate::failure_words(e)
+    }
+
+    fn request(
+        &self,
+        way: &acquisition_verbs::refusal::Way,
+    ) -> Option<(Value, Option<&'static str>)> {
+        use acquisition_verbs::refusal::Way;
+        let league = |realm: &Realm, league: &str| {
+            vec![
+                ("realm", realm.as_str().to_string()),
+                ("league", league.to_string()),
+            ]
+        };
+        let link = match way {
+            Way::Search(request) => self
+                .web
+                .link("search", &self.web.asked_by_the_form(request)?),
+            Way::RefreshPlan {
+                account,
+                realm,
+                league: named,
+            } if self.web.serves(account) => self.web.link("plan", &league(realm, named)),
+            Way::Tabs {
+                account,
+                realm,
+                league: named,
+            } if self.web.serves(account) => self.web.link("refresh", &league(realm, named)),
+            _ => return None,
+        };
+        Some((json!(link), None))
+    }
+}
+
 /// Run a page's blocking work — store reads, a corpus load — off the
 /// server's threads.
 async fn blocking<T: Send + 'static>(
@@ -482,7 +597,7 @@ async fn home(
     let shown = realm.clone();
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
         Ok(leagues) => (leagues, String::new()),
-        Err(failure) => (None, refusal(&failure.words())),
+        Err(failure) => (None, page::refused(&web.refusal(&failure))),
     })
     .await;
     let body = format!(
@@ -824,13 +939,11 @@ async fn plan(
         return document(&planned);
     }
     let now = acquisition_store::now();
-    let mut body = pre(&plan_cmd::render_plan(
+    let mut body = pre(&plan_cmd::render_plan_on_a_page(
         &planned.plan,
         planned.quote_note.as_ref(),
         &planned.notes,
         now,
-        false,
-        None,
         &account.entry.username,
         planned.uncovered_tabs.as_ref(),
     ));

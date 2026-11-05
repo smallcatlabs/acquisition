@@ -19,9 +19,24 @@ reason: stash and characters never listed
 
 quote: ETA unavailable until 2 rate-limit policies are learned
 wire: 2–6 sends; plus first-contact probes and token refresh if needed
-next: acq refresh --apply --account ExileTester --realm pc --league Standard
 </pre>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+
+</main>
+
+GET plan?realm=pc&league=Hardcore
+# holds "not Hardcore"
+# holds "plan?realm=pc&amp;league=Standard\">the plan of pc Standard, which the policy covers</a>"
+--- status 400
+<main>
+<h1>Plan</h1>
+<div class="refusal"><pre>
+the sync policy covers Standard on realm pc, not Hardcore: name one with `--league`
+</pre>
+<ul class="offers">
+<li><a href="/<token>/plan?realm=pc&amp;league=Standard">the plan of pc Standard, which the policy covers</a></li>
+</ul>
+</div>
 
 </main>
 
