@@ -322,10 +322,12 @@ async fn c166_a_page_is_one_state_newest_first_and_the_counts_are_the_whole_list
 }
 
 /// C166: a page stops at its byte budget before its row limit, and
-/// carries one row however small the budget. Each job's params are
-/// 10,000 bytes as JSON, so a row is a little over that: a budget of
-/// 25,000 bytes holds two rows of a limit of ten, and one of 5,000
-/// bytes holds one; `next` resumes after the last row held.
+/// carries one row however small the budget. A page is chosen by each
+/// row's bound (`row_bound`): each job's params are 10,000 bytes as JSON
+/// and its kind and submitter six, so its bound is 10,000, 36 and 512,
+/// and with its comma 10,549: a budget of 25,000 bytes holds two rows of
+/// a limit of ten, and one of 5,000 bytes holds one; `next` resumes after
+/// the last row held.
 #[tokio::test]
 async fn c166_a_page_stops_at_its_byte_budget_before_its_limit() {
     let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
@@ -354,4 +356,96 @@ async fn c166_a_page_stops_at_its_byte_budget_before_its_limit() {
     assert_eq!((ids(&one), one.next), (vec![4], Some(4)));
     assert_eq!(one.counts.total, 4, "the counts are the whole list's");
     finish_harness(None, &log);
+}
+
+/// C166, the review of fef5eadb, P1: a page is chosen before its rows
+/// are built, and no row past it is built, from memory or from the
+/// table. Six jobs of 10,000 bytes of params each, the three oldest
+/// finished and gone from memory: a page of `all` under a budget of two
+/// rows builds two (both memory's), one of `finished` with a limit of one
+/// builds one (the table's), and one reaching across both sources under
+/// a budget of three builds three.
+#[tokio::test]
+async fn c166_no_row_past_a_page_is_built() {
+    use std::sync::atomic::Ordering;
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
+    let params = json!({ "pad": "x".repeat(9_990) });
+    for _ in 0..6 {
+        daemon
+            .submit("sleep".into(), params.clone(), 0, "t".into(), None)
+            .unwrap();
+    }
+    for id in [1, 2, 3] {
+        daemon.start_and_finish(id, Outcome::Success { payload: json!({}) });
+    }
+    let built = |state, limit, after, budget| {
+        let before = daemon.list_rows_built.load(Ordering::Relaxed);
+        let page = daemon.job_page_within(state, limit, after, budget).unwrap();
+        let ids: Vec<JobId> = page.jobs.iter().map(|job| job.id).collect();
+        (
+            ids,
+            page.next,
+            daemon.list_rows_built.load(Ordering::Relaxed) - before,
+        )
+    };
+    assert_eq!(
+        built(ListState::All, 10, None, 25_000),
+        (vec![6, 5], Some(5), 2)
+    );
+    assert_eq!(
+        built(
+            ListState::Finished,
+            1,
+            None,
+            crate::daemon::queue::LIST_PAGE_BUDGET
+        ),
+        (vec![3], Some(3), 1)
+    );
+    assert_eq!(
+        built(ListState::All, 10, Some(5), 35_000),
+        (vec![4, 3, 2], Some(2), 3)
+    );
+    finish_harness(None, &log);
+}
+
+/// C166: a row's bound holds its widest row: every number at its widest,
+/// every string of control characters (six bytes each as JSON), the
+/// times set, params of nested escapes.
+#[test]
+fn c166_a_rows_bound_holds_its_widest_row() {
+    let text = "\u{1}".repeat(128);
+    let widest = JobInfo {
+        id: JobId::MAX,
+        kind: text.clone(),
+        state: JobState::Cancelled,
+        priority: Priority::MAX,
+        submitted_by: text.clone(),
+        eta_seconds: Some(u64::MAX),
+        parent: Some(JobId::MAX),
+        retries: u32::MAX,
+        account: Some(text),
+        params: json!({ "s": "\u{1}\"\\".repeat(100), "n": [i64::MIN, u64::MAX] }),
+        times: JobTimes {
+            submitted_at: Some(i64::MIN),
+            started_at: Some(i64::MIN),
+            finished_at: Some(i64::MIN),
+            ..JobTimes::default()
+        },
+    };
+    let row = crate::daemon::queue::json_len(&widest);
+    let bound = crate::daemon::queue::info_bound(&widest);
+    assert!(
+        row <= bound,
+        "a row of {row} bytes over its bound of {bound}"
+    );
+    // the fixed part alone is held with room
+    let bare = JobInfo {
+        kind: String::new(),
+        submitted_by: String::new(),
+        account: None,
+        params: json!(null),
+        ..widest
+    };
+    let fixed = crate::daemon::queue::json_len(&bare);
+    assert!(fixed < 400, "the fixed part is {fixed} bytes");
 }

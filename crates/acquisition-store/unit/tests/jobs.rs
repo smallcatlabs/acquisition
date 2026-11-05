@@ -169,6 +169,20 @@ fn listed_reads_name_the_finished_rows_from_an_id_on() {
     );
     assert_eq!(below(1, 4, 1), [2], "below the id given, the last `limit`");
     assert_eq!(below(2, 4, 10), [2], "from `first` on");
+    // the sizes read the same rows, the bytes of their text and none of it
+    let sized = db.finished_sizes_below(1, u64::MAX, 10).unwrap();
+    assert_eq!(sized.iter().map(|r| r.id).collect::<Vec<_>>(), [4, 2, 1]);
+    let two = db.listed(2).unwrap().unwrap();
+    assert_eq!(
+        sized[1],
+        ListedSize {
+            id: 2,
+            params: two.params.to_string().len() as u64,
+            text: (two.kind.len() + two.submitted_by.len() + two.account.map_or(0, |a| a.len()))
+                as u64,
+        }
+    );
+    assert_eq!(db.finished_sizes(&[1, 3, 4]).unwrap(), [sized[0], sized[2]]);
     let ids: Vec<u64> = db
         .listed_finished(&[4, 3, 1, 9])
         .unwrap()

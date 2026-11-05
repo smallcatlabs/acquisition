@@ -78,10 +78,12 @@ pub(super) const LIST_PAGE: usize = 256;
 /// carries: half the frame ([`MAX_FRAME_BYTES`]). The rest of the answer
 /// (its tag, `next` and the counts) is under a kilobyte, so the half left
 /// over is headroom no page reaches, and a page always fits its frame
-/// whatever its row count. One row always fits: a page carries at least
-/// one row when any remain, and a row is its params, at most
-/// [`PARAMS_MAX_BYTES`] (an eighth of the frame), its submitter, at most
-/// [`SUBMITTER_MAX_BYTES`], and fields of a few hundred bytes.
+/// whatever its row count. The page is cut by each row's [`row_bound`],
+/// never above the row's bytes, and chosen before a row is built. One row
+/// always fits: a page carries at least one row when any remain, and a
+/// row's bound is its params, at most [`PARAMS_MAX_BYTES`] (an eighth of
+/// the frame), six times its strings (a submitter at most
+/// [`SUBMITTER_MAX_BYTES`]) and [`ROW_FIXED`].
 pub(super) const LIST_PAGE_BUDGET: usize = MAX_FRAME_BYTES / 2;
 
 /// C166: one page of the job list ([`Daemon::job_page`]).
@@ -148,6 +150,33 @@ impl Shared {
             counts.running + counts.waiting + counts.done + counts.failed + counts.cancelled;
         counts
     }
+}
+
+/// C166: what a row's fields take as JSON besides its params and its
+/// three strings: the keys, the state, and every number at its widest
+/// (a job id, a parent and an ETA of twenty digits, three times of
+/// twenty, a priority and a retry count), under 400 bytes, held to 512
+/// so a field added is not over it at once
+/// (`c166_a_rows_bound_holds_its_widest_row` pins it).
+pub(super) const ROW_FIXED: usize = 512;
+
+/// C166: the most bytes a job's row takes as JSON in a list page, from
+/// the bytes of its params' JSON text and of its kind, submitter and
+/// account together: the params as they are, each byte of the strings
+/// at worst six (`\u00XX`), and [`ROW_FIXED`] for the rest. A page is
+/// chosen by this bound before any row is built, so it never carries
+/// more than its budget.
+pub(super) fn row_bound(params: usize, text: usize) -> usize {
+    params
+        .saturating_add(text.saturating_mul(6))
+        .saturating_add(ROW_FIXED)
+}
+
+/// [`row_bound`] of a job memory holds.
+pub(super) fn info_bound(info: &JobInfo) -> usize {
+    let text =
+        info.kind.len() + info.submitted_by.len() + info.account.as_deref().map_or(0, str::len);
+    row_bound(json_len(&info.params), text)
 }
 
 /// The bytes `value` takes as JSON, counted without building it.
@@ -590,8 +619,18 @@ resubmit if still wanted",
     /// list; under `finished`, one that finishes between pages above the
     /// page being read is not on it.
     ///
-    /// Each source is read to `limit + 1` of its candidates, so a page
-    /// knows whether a job remains below it without an empty last page.
+    /// The page is chosen before any row is built: each source names its
+    /// candidates by id and [`row_bound`], the most bytes the row can take
+    /// as JSON, memory's from its entry and the table's from its sizes
+    /// ([`acquisition_store::jobs::ListedSize`]), read without a row's
+    /// text. The candidates are cut by `limit` and the budget, and only
+    /// the rows the page carries are built: memory's cloned under a second
+    /// take of `shared` (one that left memory since is read from the
+    /// table, its row written before it left; one whose state no longer
+    /// matches is left off), the table's read by their ids. Each source
+    /// names `limit + 1` candidates, so a page knows whether a job remains
+    /// below it without an empty last page, and holds no more than that
+    /// many ids and sizes.
     pub(super) fn job_page(
         &self,
         state: ListState,
@@ -616,9 +655,16 @@ resubmit if still wanted",
                 format!("a list page holds 1 to {LIST_LIMIT_MAX} jobs; {limit} were asked for"),
             ));
         }
+        let queue_failed = |e: anyhow::Error| {
+            Refusal::new(
+                ErrorKind::QueueFailed,
+                format!("could not read the persisted queue: {e:#}"),
+            )
+        };
         let below = after.unwrap_or(JobId::MAX);
         let wanted = limit + 1;
-        let (mut candidates, held, first, restored, counts) = {
+        // (id, the row's bound)
+        let (mut candidates, held, first, restored, etas, counts) = {
             let s = self.shared.lock().unwrap();
             let etas = s.waiting_etas(self, None);
             let mut ids: Vec<JobId> = s
@@ -627,19 +673,11 @@ resubmit if still wanted",
                 .filter(|e| e.info.id < below && state.holds(e.info.state))
                 .map(|e| e.info.id)
                 .collect();
-            ids.sort_unstable_by(|a, b| b.cmp(a));
+            ids.sort_unstable_by_key(|id| std::cmp::Reverse(*id));
             ids.truncate(wanted);
-            let candidates: Vec<JobInfo> = ids
+            let candidates: Vec<(JobId, usize)> = ids
                 .iter()
-                .map(|id| {
-                    let mut info = s.jobs[id].info.clone();
-                    info.eta_seconds = if info.state == JobState::Waiting {
-                        etas.get(id).copied()
-                    } else {
-                        None
-                    };
-                    info
-                })
+                .map(|id| (*id, info_bound(&s.jobs[id].info)))
                 .collect();
             let held: HashSet<JobId> = s.jobs.keys().copied().collect();
             // A restored job still in memory is listed from memory.
@@ -650,10 +688,10 @@ resubmit if still wanted",
                 .filter(|id| *id < below && !held.contains(id))
                 .collect();
             let counts = s.counts(&etas);
-            (candidates, held, s.first_id, restored, counts)
+            (candidates, held, s.first_id, restored, etas, counts)
         };
         if state != ListState::Open {
-            let read = || -> anyhow::Result<Vec<ListedJob>> {
+            let sizes = || -> anyhow::Result<Vec<acquisition_store::jobs::ListedSize>> {
                 let mut rows = Vec::new();
                 // This daemon's own finished rows, down from the page's
                 // start.
@@ -664,12 +702,14 @@ resubmit if still wanted",
                         .jobs_db
                         .lock()
                         .unwrap()
-                        .listed_finished_below(first, from, LIST_PAGE)?;
+                        .finished_sizes_below(first, from, LIST_PAGE)?;
                     let last = page.last().map(|row| row.id);
                     let full = page.len() == LIST_PAGE;
                     for row in page.into_iter().filter(|row| !held.contains(&row.id)) {
-                        own += 1;
-                        rows.push(row);
+                        if own < wanted {
+                            own += 1;
+                            rows.push(row);
+                        }
                     }
                     match last {
                         Some(id) if full => from = id,
@@ -683,36 +723,76 @@ resubmit if still wanted",
                     if back >= wanted {
                         break;
                     }
-                    let mut page = self.jobs_db.lock().unwrap().listed_finished(ids)?;
-                    page.reverse();
-                    back += page.len();
-                    rows.extend(page);
+                    let page = self.jobs_db.lock().unwrap().finished_sizes(ids)?;
+                    for row in page.into_iter().take(wanted - back) {
+                        back += 1;
+                        rows.push(row);
+                    }
                 }
                 Ok(rows)
             };
-            let finished = read().map_err(|e| {
-                Refusal::new(
-                    ErrorKind::QueueFailed,
-                    format!("could not read the persisted queue: {e:#}"),
-                )
-            })?;
-            candidates.extend(finished.into_iter().filter_map(listed_info));
+            candidates.extend(sizes().map_err(queue_failed)?.into_iter().map(|row| {
+                let bound = row_bound(
+                    usize::try_from(row.params).unwrap_or(usize::MAX),
+                    usize::try_from(row.text).unwrap_or(usize::MAX),
+                );
+                (row.id, bound)
+            }));
         }
-        candidates.sort_unstable_by_key(|job| std::cmp::Reverse(job.id));
-        let mut jobs = Vec::new();
-        let mut bytes = 0;
-        for job in candidates.iter().take(limit) {
+        candidates.sort_unstable_by_key(|(id, _)| std::cmp::Reverse(*id));
+        let mut chosen = Vec::new();
+        let mut bytes = 0usize;
+        for &(id, bound) in candidates.iter().take(limit) {
             // A row and the comma after it.
-            let size = json_len(job) + 1;
-            if !jobs.is_empty() && bytes + size > budget {
+            let size = bound.saturating_add(1);
+            if !chosen.is_empty() && bytes.saturating_add(size) > budget {
                 break;
             }
-            bytes += size;
-            jobs.push(job.clone());
+            bytes = bytes.saturating_add(size);
+            chosen.push(id);
         }
-        let next = (candidates.len() > jobs.len())
-            .then(|| jobs.last().map(|job| job.id))
+        let next = (candidates.len() > chosen.len())
+            .then(|| chosen.last().copied())
             .flatten();
+        // Build the chosen rows, and only those. A job never comes back
+        // to memory, so one memory no longer holds has left it, its row
+        // written first: the table reads it.
+        let mut jobs = Vec::with_capacity(chosen.len());
+        let mut from_table: Vec<JobId> = Vec::new();
+        {
+            let s = self.shared.lock().unwrap();
+            for &id in &chosen {
+                match s.jobs.get(&id) {
+                    Some(e) if state.holds(e.info.state) => {
+                        let mut info = e.info.clone();
+                        info.eta_seconds = if info.state == JobState::Waiting {
+                            etas.get(&id).copied()
+                        } else {
+                            None
+                        };
+                        jobs.push(info);
+                    }
+                    // Its state has moved off the list's since the first
+                    // read: left off.
+                    Some(_) => {}
+                    None => from_table.push(id),
+                }
+            }
+        }
+        if state != ListState::Open && !from_table.is_empty() {
+            from_table.sort_unstable();
+            let rows = self
+                .jobs_db
+                .lock()
+                .unwrap()
+                .listed_finished(&from_table)
+                .map_err(queue_failed)?;
+            jobs.extend(rows.into_iter().filter_map(listed_info));
+        }
+        #[cfg(test)]
+        self.list_rows_built
+            .fetch_add(jobs.len(), std::sync::atomic::Ordering::Relaxed);
+        jobs.sort_unstable_by_key(|job| std::cmp::Reverse(job.id));
         Ok(JobPage { jobs, next, counts })
     }
 

@@ -82,6 +82,17 @@ pub struct JobRow {
 }
 
 /// One job as a list names it: the columns that lead the row, before its
+/// C166: a finished row's id and the bytes of its text, read without
+/// its text: what a job list page is chosen by before any row is built.
+/// `params` is the bytes of the params' JSON text as stored, `text` those
+/// of its kind, submitter and account together, unescaped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ListedSize {
+    pub id: u64,
+    pub params: u64,
+    pub text: u64,
+}
+
 /// bulk ones (`outcome`, `deferred`, which can be a whole refresh), so a
 /// read of many never walks a body. Column for column the daemon's
 /// `JobInfo`, its ETA aside: what the daemon answers `status` and its job
@@ -383,6 +394,56 @@ impl JobDb {
              ORDER BY id DESC LIMIT ?3",
             params![first, below, limit],
         )
+    }
+
+    /// C166: [`Self::listed_finished_below`]'s rows as their sizes alone
+    /// ([`ListedSize`]), newest first: no column's text is returned, so a
+    /// page is chosen without holding a row's params.
+    pub fn finished_sizes_below(
+        &self,
+        first: u64,
+        below: u64,
+        limit: usize,
+    ) -> Result<Vec<ListedSize>> {
+        let below = below.min(i64::MAX as u64);
+        self.sizes_where(
+            "id >= ?1 AND id < ?2 AND state IN ('done', 'failed', 'cancelled')
+             ORDER BY id DESC LIMIT ?3",
+            params![first, below, limit],
+        )
+    }
+
+    /// C166: the terminal rows among `ids` as their sizes alone, newest
+    /// first, one primary-key lookup each.
+    pub fn finished_sizes(&self, ids: &[u64]) -> Result<Vec<ListedSize>> {
+        let mut rows = Vec::new();
+        for &id in ids {
+            rows.extend(self.sizes_where(
+                "id = ?1 AND state IN ('done', 'failed', 'cancelled')",
+                params![id],
+            )?);
+        }
+        rows.sort_by_key(|row| std::cmp::Reverse(row.id));
+        Ok(rows)
+    }
+
+    /// Sizes by `octet_length`, the bytes of a column's text, which SQLite
+    /// counts without returning the text.
+    fn sizes_where(&self, filter: &str, args: impl rusqlite::Params) -> Result<Vec<ListedSize>> {
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT id, octet_length(params),
+                    octet_length(kind) + octet_length(submitted_by)
+                        + coalesce(octet_length(account), 0)
+             FROM jobs WHERE {filter}"
+        ))?;
+        let rows = stmt.query_map(args, |r| {
+            Ok(ListedSize {
+                id: r.get(0)?,
+                params: r.get(1)?,
+                text: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
     /// The terminal rows among `ids`, by id, as a list names them: a

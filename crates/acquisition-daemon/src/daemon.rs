@@ -1219,6 +1219,10 @@ pub struct Daemon {
             tokio::sync::oneshot::Receiver<()>,
         )>,
     >,
+    /// C166: the rows a list page has built, from memory or the table, so
+    /// a test sees that no row past a page is built.
+    #[cfg(test)]
+    list_rows_built: AtomicUsize,
 }
 
 /// The one constructor of a [`Daemon`] (t5's "construct with a base URL, a
@@ -1441,6 +1445,8 @@ impl Builder {
             life_probe: OnceLock::new(),
             #[cfg(test)]
             blocking_probe: Mutex::new(None),
+            #[cfg(test)]
+            list_rows_built: AtomicUsize::new(0),
         })
     }
 }
