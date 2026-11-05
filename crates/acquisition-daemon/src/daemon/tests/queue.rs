@@ -1769,6 +1769,59 @@ async fn a_response_that_cannot_be_serialized_is_answered_internal() {
     );
 }
 
+/// C166: an answer whose line would pass the frame bound is never
+/// written: the writer puts the protocol's `internal` refusal in its
+/// place, which says it was too large and that the connection stays, and
+/// the next frame is a frame of its own. A component test of the writer
+/// at a bound of 100 bytes: a line of exactly the bound is written as it
+/// is, one byte more is answered in the refusal's place.
+#[tokio::test]
+async fn c166_an_answer_past_the_frame_bound_is_answered_internal() {
+    use crate::daemon::server::write_line_within;
+    const BOUND: usize = 100;
+    // {"resp":"error","kind":"refused","message":"…"} is 46 bytes and
+    // the message
+    let answer = |message_bytes: usize| Response::Error {
+        kind: ErrorKind::Refused,
+        message: "m".repeat(message_bytes),
+    };
+    assert_eq!(serde_json::to_string(&answer(54)).unwrap().len(), BOUND);
+    let mut wire = Vec::new();
+    write_line_within(&mut wire, &answer(54), BOUND)
+        .await
+        .unwrap();
+    write_line_within(&mut wire, &answer(55), BOUND)
+        .await
+        .unwrap();
+    write_line_within(&mut wire, &Response::ResyncRequired { missed: 1 }, BOUND)
+        .await
+        .unwrap();
+    let text = String::from_utf8(wire).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 3, "{text}");
+    assert_eq!(
+        lines[0],
+        serde_json::to_string(&answer(54)).unwrap(),
+        "the bound is a frame"
+    );
+    match serde_json::from_str::<Response>(lines[1]).unwrap() {
+        Response::Error { kind, message } => {
+            assert_eq!(kind, ErrorKind::Internal, "{message}");
+            assert!(message.contains("too large to send"), "{message}");
+            assert!(message.contains("the connection stays open"), "{message}");
+        }
+        other => panic!("the answer past the bound reads as {other:?}"),
+    }
+    assert!(
+        matches!(
+            serde_json::from_str::<Response>(lines[2]).unwrap(),
+            Response::ResyncRequired { missed: 1 }
+        ),
+        "the next frame is intact: {}",
+        lines[2]
+    );
+}
+
 // ---- persistence (C6) ------------------------------------------------
 
 /// A harness daemon on a file-backed `daemon.db` (test daemons default

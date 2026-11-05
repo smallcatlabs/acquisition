@@ -285,8 +285,10 @@ pub enum ErrorKind {
     /// what clears it.
     Upstream,
     /// The daemon's own failure to do its part — a local resource it
-    /// needed (a loopback listener, the accounts index) refused. Never an
-    /// expected domain failure: those have a kind above.
+    /// needed (a loopback listener, the accounts index) refused, or an
+    /// answer it could not send: one that would not serialize, or one
+    /// past the frame bound (C166). Never an expected domain failure:
+    /// those have a kind above.
     Internal,
 }
 

@@ -461,6 +461,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `job_page`: a `list` limit outside 1 to `LIST_LIMIT_MAX` (C166) | `a list page holds 1 to … jobs; … were asked for` | `bad_request` |
 /// | `job_page`, `job_list`: the queue unreadable | `could not read the persisted queue: …` | `queue_failed` |
 /// | `quote`: more jobs than `APPLY_MAX_ACTIONS` (C166, `admit_work_count`, an apply's words) | `a quote of N jobs exceeds the bound of … jobs — nothing was quoted; …` | `refused` |
+/// | `write_line`: an answer that would not serialize, or whose line passes `MAX_FRAME_BYTES` (C166), written in its place | `the daemon could not serialize its answer …` / `the daemon's answer to this request was too large to send …` | `internal` |
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |

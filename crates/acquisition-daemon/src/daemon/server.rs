@@ -1199,15 +1199,38 @@ async fn recv_event(rx: &mut Option<broadcast::Receiver<JobInfo>>) -> Signal {
 /// back as the protocol's).
 pub(super) const UNSERIALIZABLE: &str = r#"{"resp":"error","kind":"internal","message":"the daemon could not serialize its answer to this request; the connection stays open"}"#;
 
+/// C166: what a connection is answered when its answer's line would pass
+/// [`MAX_FRAME_BYTES`]: an `internal` refusal in the protocol's `error`
+/// shape, a literal as [`UNSERIALIZABLE`] is. The answer is never
+/// written: a peer reads a frame to the bound and discards the rest, so
+/// an answer past it would be lost with no request to blame.
+pub(super) const TOO_LARGE: &str = r#"{"resp":"error","kind":"internal","message":"the daemon's answer to this request was too large to send, past the frame bound; the connection stays open"}"#;
+
 /// One frame out: `response` as one line, or, when it cannot be
-/// serialized, [`UNSERIALIZABLE`] in its place, so the peer is answered
-/// and the connection kept rather than its task panicking. Only the
-/// write's own failure is an error, the connection's end.
+/// serialized, [`UNSERIALIZABLE`] in its place, and when its line passes
+/// [`MAX_FRAME_BYTES`], [`TOO_LARGE`] (C166), so the peer is answered
+/// and the connection kept rather than its task panicking or the peer
+/// discarding the frame. Only the write's own failure is an error, the
+/// connection's end.
 pub(super) async fn write_line<W: AsyncWrite + Unpin, T: serde::Serialize>(
     write: &mut W,
     response: &T,
 ) -> std::io::Result<()> {
+    write_line_within(write, response, MAX_FRAME_BYTES).await
+}
+
+/// [`write_line`] under a frame bound of `bound` bytes, the line's
+/// newline apart, as a peer's frame reader counts it: the daemon's is
+/// [`MAX_FRAME_BYTES`]; a test passes one it can reach.
+pub(super) async fn write_line_within<W: AsyncWrite + Unpin, T: serde::Serialize>(
+    write: &mut W,
+    response: &T,
+    bound: usize,
+) -> std::io::Result<()> {
     let mut line = serde_json::to_string(response).unwrap_or_else(|_| UNSERIALIZABLE.into());
+    if line.len() > bound {
+        line = TOO_LARGE.into();
+    }
     line.push('\n');
     write.write_all(line.as_bytes()).await
 }
