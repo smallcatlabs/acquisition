@@ -18,7 +18,8 @@ use serde_json::{Value, json};
 use crate::harness;
 
 use harness::{
-    Pages, WebUi, offline_acq, offline_command, page_golden, sole_json, start_web, unaged,
+    Pages, WebUi, offline_acq, offline_command, page_golden, panes_golden, sole_json, start_web,
+    unaged,
 };
 
 const USER: &str = "Alice#1234";
@@ -468,6 +469,7 @@ fn every_search_page_is_a_wording_golden() {
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }
 
@@ -546,6 +548,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
             &["no tabs known for", said],
         );
     }
+    panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "console_realm", &pages);
 }
 

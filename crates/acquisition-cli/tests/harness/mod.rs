@@ -1409,17 +1409,33 @@ pub fn form_encoded(text: &str) -> String {
     out
 }
 
+/// The search form's panes and controls, from the panes' opening line to
+/// the form's close: the part of the page goldens every page carrying
+/// the form repeated whole (51 KB of the form page's 54 KB), whatever its realm
+/// (`roadmap/briefs/99-web-leftovers.md`, Do 2). It is cut from each page
+/// that carries it, which says so in one line, and pinned once, in the
+/// golden named here ([`panes_golden`]), so an edit to the form changes
+/// one golden.
+const FORM_PANES: (&str, &str, &str) = ("<div class=\"panes\">\n", "</form>\n", "search_form");
+
 /// The pages of a golden (C122): each page as `GET <path>` or `POST
 /// <path>`, the facts it must hold as `# holds` lines — checked against
 /// the page's own body as it is recorded — then its status where it is
 /// not 200 and its `<main>`, the token, the address and a plan page's
-/// envelope masked and the transcript's rules applied.
+/// envelope masked, the search form's panes cut ([`FORM_PANES`]) and the
+/// transcript's rules applied.
 pub struct Pages {
     base: PathBuf,
     web_token: String,
     web_addr: String,
     text: String,
     facts: usize,
+    /// The search form's panes as the pages carrying them render them,
+    /// with the first page that did: one text, or the recording fails.
+    form_panes: Option<(String, String)>,
+    /// [`panes_golden`] compared them: [`page_golden`] refuses a
+    /// recording whose cut panes no golden holds.
+    panes_pinned: bool,
     /// The world was fetched in real time, as [`Transcript::fetched_live`]
     /// says of a transcript's: [`fetch_place_rule`] applies.
     fetched_live: bool,
@@ -1433,6 +1449,8 @@ impl Pages {
             web_addr: web.addr.clone(),
             text: String::new(),
             facts: 0,
+            form_panes: None,
+            panes_pinned: false,
             fetched_live: false,
         }
     }
@@ -1444,6 +1462,17 @@ impl Pages {
     pub fn fetched_live(mut self) -> Pages {
         self.fetched_live = true;
         self
+    }
+
+    /// The transcript's rules over a recording's text, as its golden
+    /// holds it.
+    fn rules(&self, text: &str) -> String {
+        let text = normalise(&job_tables(&pid_words(text)), &self.base);
+        if self.fetched_live {
+            fetch_place_rule(&text)
+        } else {
+            text
+        }
     }
 
     /// Record a page under `label` (`GET search?…`), checking each fact
@@ -1484,6 +1513,25 @@ impl Pages {
                 masked.replace_range(from..from + len, "<the plan envelope>");
             }
         }
+        let (open, close, name) = FORM_PANES;
+        if let Some(from) = masked.find(open)
+            && let Some(len) = masked[from..].find(close)
+        {
+            let to = from + len + close.len();
+            let panes = masked[from..to].to_string();
+            match &self.form_panes {
+                Some((first, held)) => assert!(
+                    *held == panes,
+                    "{label}: the search form's panes differ from {first}'s; one golden holds them, \
+                     so the pages carrying them must render them alike"
+                ),
+                None => self.form_panes = Some((label.to_string(), panes)),
+            }
+            masked.replace_range(
+                from..to,
+                &format!("<the search form's panes and controls: golden web/{name}>\n"),
+            );
+        }
         self.text.push_str(&masked);
         self.text.push('\n');
     }
@@ -1498,37 +1546,74 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
         pages.facts > 0,
         "page golden {name}: no page carries a fact; name the words a reader must find (C122)"
     );
+    assert!(
+        pages.form_panes.is_none() || pages.panes_pinned,
+        "page golden {name}: a page carries the search form's panes, cut from it; pin them first \
+         with panes_golden(file!(), \"{}\", …)",
+        FORM_PANES.2
+    );
     let stem = Path::new(file)
         .file_stem()
         .and_then(|s| s.to_str())
         .expect("a test file's stem");
+    page_text(
+        stem,
+        name,
+        &format!(
+            "# golden {stem}/{name}: acq web's pages, each page's <main>, normalised (C122). Each \
+             `# holds` line is a fact checked in that page as served; regenerate under \
+             ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
+            pages.rules(&pages.text)
+        ),
+    );
+}
+
+/// Compare the search form's panes the recording cut ([`FORM_PANES`])
+/// with their one golden, `<stem>/<name>.txt`, or write it under
+/// `ACQ_UPDATE_FIXTURES=1`: every test whose pages carry them names it,
+/// before its [`page_golden`]. Its header names no page, since every
+/// recording carrying the panes compares them with it.
+pub fn panes_golden(file: &str, name: &str, pages: &mut Pages) {
+    let (_, _, cut) = FORM_PANES;
+    assert_eq!(name, cut, "the search form's panes are cut as golden {cut}");
+    let (_, panes) = pages
+        .form_panes
+        .as_ref()
+        .expect("no page of this recording carries the search form's panes");
+    let stem = Path::new(file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("a test file's stem");
+    page_text(
+        stem,
+        name,
+        &format!(
+            "# golden {stem}/{name}: the search form's panes and controls, cut from every page \
+             golden whose page carries them, each page's facts checked in that page as served \
+             (C122). Regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
+            pages.rules(panes)
+        ),
+    );
+    pages.panes_pinned = true;
+}
+
+/// Compare `actual` with the golden `<stem>/<name>.txt`, or write it
+/// under `ACQ_UPDATE_FIXTURES=1`.
+fn page_text(stem: &str, name: &str, actual: &str) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/goldens")
         .join(stem)
         .join(format!("{name}.txt"));
     let shown = format!("crates/acquisition-cli/tests/goldens/{stem}/{name}.txt");
-    let actual = format!(
-        "# golden {stem}/{name}: acq web's pages, each page's <main>, normalised (C122). Each \
-         `# holds` line is a fact checked in that page as served; regenerate under \
-         ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
-        {
-            let text = normalise(&job_tables(&pid_words(&pages.text)), &pages.base);
-            if pages.fetched_live {
-                fetch_place_rule(&text)
-            } else {
-                text
-            }
-        }
-    );
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::create_dir_all(path.parent().expect("a parent")).expect("the goldens directory");
-        std::fs::write(&path, &actual).expect("writing the golden");
+        std::fs::write(&path, actual).expect("writing the golden");
         return;
     }
     let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{shown}: {e}"));
     same_text(
         &expected,
-        &actual,
+        actual,
         &shown,
         &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main {stem}"),
     );
