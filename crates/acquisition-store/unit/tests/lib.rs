@@ -2958,3 +2958,27 @@ fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
     assert_eq!(st.tabs, 1, "{st:?}");
     assert_eq!(st.facts.fetched + st.facts.never_fetched, 1, "{st:?}");
 }
+
+/// #175: `ACQ_NOW` unset is the system clock; whole seconds since 1970
+/// are the instant every process of a test reads; anything else is
+/// refused in words that say the form, the refusal each binary makes at
+/// start.
+#[test]
+fn the_now_knob_fixes_whole_seconds_and_refuses_anything_else() {
+    use std::ffi::OsStr;
+    assert_eq!(parse_now(None), Ok(None));
+    assert_eq!(parse_now(Some(OsStr::new("0"))), Ok(Some(0)));
+    assert_eq!(
+        parse_now(Some(OsStr::new("1762300000"))),
+        Ok(Some(1_762_300_000))
+    );
+    for bad in ["-1", "now", "1.5", "", " 1762300000"] {
+        assert_eq!(
+            parse_now(Some(OsStr::new(bad))),
+            Err(format!(
+                "ACQ_NOW={bad} is refused: it takes whole seconds since 1970, the one instant \
+                 every process of a test reads as now (unset, the system clock)"
+            )),
+        );
+    }
+}

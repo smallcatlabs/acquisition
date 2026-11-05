@@ -36,5 +36,11 @@ async fn main() -> Result<()> {
         eprintln!("acqd: {e}");
         std::process::exit(2);
     }
+    // #175: likewise a clock fixed to a value that is not whole seconds,
+    // before the store stamps a time against it.
+    if let Err(e) = acquisition_store::check_now() {
+        eprintln!("acqd: {e}");
+        std::process::exit(2);
+    }
     acquisition_daemon::daemon::run().await
 }

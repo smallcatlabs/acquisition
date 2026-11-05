@@ -1130,11 +1130,65 @@ fn sql_limit(limit: usize) -> i64 {
     i64::try_from(limit).unwrap_or(i64::MAX)
 }
 
+/// The knob that fixes [`now`]: whole seconds since 1970.
+pub const NOW_KNOB: &str = "ACQ_NOW";
+
+/// This process's now, in whole seconds since 1970: every time the store
+/// stamps and every age a frontend says is measured against it.
+/// `ACQ_NOW=<secs>` fixes it, so every process of one test reads one
+/// instant and two runs compared whole cannot straddle a second (#175;
+/// the test harness's isolation list sets it). Unset, the system clock.
+///
+/// It reaches only this function. The daemon's limiter and its job
+/// times read the limiter's own wall, deadlines and waits run on
+/// `Instant`, and neither moves with it.
+///
+/// A value that is not whole seconds is refused at each binary's start,
+/// by [`check_now`], which is this knob's first read; the value is read
+/// once and kept. A caller that skips the start's check and holds a bad
+/// value reads the system clock.
 pub fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+    match fixed_now() {
+        Ok(Some(at)) => *at,
+        _ => SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0),
+    }
+}
+
+/// The refusal every binary makes at start, beside the provider's
+/// (C88): `ACQ_NOW` set to anything but whole seconds since 1970 stops
+/// the process in words, never a silent fall back to the system clock.
+pub fn check_now() -> std::result::Result<(), String> {
+    fixed_now().as_ref().map(|_| ()).map_err(String::clone)
+}
+
+/// [`NOW_KNOB`] as read once by this process: absent, the instant it
+/// fixes, or the refusal's words.
+fn fixed_now() -> &'static std::result::Result<Option<i64>, String> {
+    static FIXED: std::sync::OnceLock<std::result::Result<Option<i64>, String>> =
+        std::sync::OnceLock::new();
+    FIXED.get_or_init(|| parse_now(std::env::var_os(NOW_KNOB).as_deref()))
+}
+
+/// [`NOW_KNOB`]'s value as the instant it fixes: unset is none; whole
+/// seconds since 1970 is that instant; anything else is refused in words
+/// that say the form.
+pub(crate) fn parse_now(
+    value: Option<&std::ffi::OsStr>,
+) -> std::result::Result<Option<i64>, String> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    match value.to_str().and_then(|v| v.parse::<i64>().ok()) {
+        Some(at) if at >= 0 => Ok(Some(at)),
+        _ => Err(format!(
+            "{NOW_KNOB}={} is refused: it takes whole seconds since 1970, the one instant \
+             every process of a test reads as now (unset, the system clock)",
+            value.to_string_lossy()
+        )),
+    }
 }
 
 pub struct Store {

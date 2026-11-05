@@ -178,6 +178,9 @@ impl Frontend {
         // C156: the declared shell, checked once with the provider, so a
         // mistyped value is refused before any command is printed
         acquisition_search::answer::Shell::declared().map_err(Fault::Environment)?;
+        // #175: a clock fixed to a value that is not whole seconds is
+        // refused before any age is said against it
+        acquisition_store::check_now().map_err(Fault::Environment)?;
         let provider = acquisition_protocol::provider::wanted();
         Ok(Frontend {
             via,
