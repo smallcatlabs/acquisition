@@ -2,7 +2,7 @@
 
 Issue #104, built at the owner's word of 2026-11-04 (the night run),
 `trigger:seat` waived. Written by the orchestrating session against
-the tree at the close of #18 (`2bcd2800` and after).
+the tree at the close of #18 (`61884c9e` and after).
 
 ## Goal
 

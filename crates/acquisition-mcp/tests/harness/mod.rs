@@ -159,6 +159,8 @@ pub struct Mcp {
     next_id: i64,
     /// The server's `instructions` from `initialize`.
     pub instructions: String,
+    /// The `initialize` result, as sent.
+    pub initialize: Value,
 }
 
 impl Drop for Mcp {
@@ -195,6 +197,7 @@ impl Mcp {
             lines,
             next_id: 0,
             instructions: String::new(),
+            initialize: Value::Null,
         };
         let init = mcp.rpc(
             "initialize",
@@ -209,17 +212,23 @@ impl Mcp {
             .as_str()
             .unwrap_or_default()
             .to_string();
+        mcp.initialize = init["result"].clone();
         mcp.send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }));
         mcp
     }
 
     /// `tools/list`: every tool the server advertises, as sent.
     pub fn list_tools(&mut self) -> Vec<Value> {
-        let resp = self.rpc("tools/list", json!({}));
-        resp["result"]["tools"]
+        self.list_tools_result()["tools"]
             .as_array()
-            .unwrap_or_else(|| panic!("tools/list: {resp}"))
+            .unwrap_or_else(|| panic!("tools/list"))
             .clone()
+    }
+
+    /// `tools/list`'s `result`, as sent.
+    pub fn list_tools_result(&mut self) -> Value {
+        let resp = self.rpc("tools/list", json!({}));
+        resp["result"].clone()
     }
 
     fn send(&mut self, msg: &Value) {

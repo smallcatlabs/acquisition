@@ -18,6 +18,13 @@ const DESCRIPTION: usize = 600;
 const PARAMETER: usize = 300;
 /// The instructions, in bytes.
 const INSTRUCTIONS: usize = 1_000;
+/// The whole first turn, in bytes (#104): `serde_json::to_string` of the
+/// `initialize` result plus that of the `tools/list` result, as the
+/// harness receives them. Measured at 37,824 (1,127 and 36,697) and held
+/// at the next 1,000 above. A schema trim (no `$schema`, no `title`, no
+/// `null` on an optional argument) was measured at 35,628 and declined:
+/// 5.8% of the turn, under the 10% the step set.
+const FIRST_TURN: usize = 38_000;
 
 fn surface() -> (String, Vec<Value>) {
     let scratch = harness::scratch("mcp-surface-size");
@@ -256,4 +263,24 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     }
     assert!(observe.contains("without one"), "{observe}");
     let _ = mcp.child.kill();
+}
+
+/// #104: an agent pays for `initialize` and all of `tools/list` before
+/// its first call, so the two together are held to a bound, and the
+/// per-text bounds cannot be met one at a time while the whole grows
+/// back in the schemas around them.
+#[test]
+fn the_whole_first_turn_is_held_to_its_bound() {
+    let scratch = harness::scratch("mcp-surface-total");
+    let mut mcp = Mcp::start(&scratch.0, &[]);
+    let initialize = serde_json::to_string(&mcp.initialize).unwrap().len();
+    let tools = serde_json::to_string(&mcp.list_tools_result())
+        .unwrap()
+        .len();
+    let _ = mcp.child.kill();
+    assert!(
+        initialize + tools <= FIRST_TURN,
+        "the first turn is {} bytes (initialize {initialize}, tools/list {tools}), bound {FIRST_TURN}",
+        initialize + tools
+    );
 }
