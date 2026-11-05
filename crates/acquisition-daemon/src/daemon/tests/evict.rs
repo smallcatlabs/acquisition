@@ -6,6 +6,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
+use crate::daemon::queue::LIST_PAGE;
 use crate::daemon::*;
 
 /// What a client reads for `req`, as JSON: the daemon's answer whole.
@@ -180,7 +181,8 @@ async fn an_evicted_tree_answers_from_the_table_as_memory_did() {
 /// A thousand single jobs concluded leave none in memory: the daemon's
 /// memory is bounded by its live work, not by its lifetime, while the
 /// list still names every one of them, finished, and any of them
-/// answers from the table.
+/// answers from the table. The list reads them over several of its
+/// pages, and names each once, in order.
 #[tokio::test]
 async fn a_thousand_single_jobs_concluded_leave_none_in_memory() {
     let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
@@ -197,6 +199,10 @@ async fn a_thousand_single_jobs_concluded_leave_none_in_memory() {
     assert!(
         daemon.shared.lock().unwrap().jobs.is_empty(),
         "every concluded job left memory"
+    );
+    assert!(
+        ids.len() > 2 * LIST_PAGE && !ids.len().is_multiple_of(LIST_PAGE),
+        "the list reads several pages and a short last one"
     );
     let listed = daemon.job_list().unwrap();
     assert_eq!(listed.len(), 1000);

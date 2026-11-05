@@ -67,6 +67,13 @@ still wanted";
 const LOST_LOGIN_WORDS: &str = "this profile fetch was a login's, and the login was lost when \
 the daemon that ran it ended, so nothing is sent for it; log in again (`acq auth`)";
 
+/// C6: the finished rows the job list reads from the table under one
+/// take of its lock. A persist (every state change's) waits on the lock,
+/// so the page bounds that wait to one page's read, however long the
+/// daemon has run; a few hundred narrow rows is a short read, and a
+/// list costs a lifetime's rows over this many takes.
+pub(super) const LIST_PAGE: usize = 256;
+
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
@@ -410,7 +417,13 @@ resubmit if still wanted",
     /// daemon's list. Memory is read first
     /// and the table after, so a tree evicted between the two reads is in
     /// the second; a job in both is memory's. The table is read outside
-    /// `shared`, and without the bulk columns.
+    /// `shared`, and without the bulk columns, in pages of [`LIST_PAGE`]
+    /// rows, the table's lock taken and released per page, so a persist
+    /// waits on at most one page, never on a lifetime's list. Paging after
+    /// the memory read loses nothing: a row is written before its job
+    /// leaves memory, so a job evicted while the pages are read was in
+    /// memory at the first read and is listed from there, and a row the
+    /// pages read twice cannot be, since each page starts past the last.
     pub(super) fn job_list(&self) -> Result<Vec<JobInfo>, Refusal> {
         let (mut jobs, first, restored) = {
             let s = self.shared.lock().unwrap();
@@ -424,14 +437,28 @@ resubmit if still wanted",
                 .collect();
             (s.list(self), s.first_id, restored)
         };
-        let read = {
-            let db = self.jobs_db.lock().unwrap();
-            db.listed_finished(&restored).and_then(|mut rows| {
-                rows.extend(db.listed_finished_from(first)?);
-                Ok(rows)
-            })
+        let read = || -> anyhow::Result<Vec<acquisition_store::jobs::ListedJob>> {
+            let mut rows = Vec::new();
+            for ids in restored.chunks(LIST_PAGE) {
+                rows.extend(self.jobs_db.lock().unwrap().listed_finished(ids)?);
+            }
+            let mut from = first;
+            loop {
+                let page = self
+                    .jobs_db
+                    .lock()
+                    .unwrap()
+                    .listed_finished_from(from, LIST_PAGE)?;
+                let last = page.last().map(|row| row.id);
+                let full = page.len() == LIST_PAGE;
+                rows.extend(page);
+                match last {
+                    Some(id) if full => from = id + 1,
+                    _ => return Ok(rows),
+                }
+            }
         };
-        let finished = read.map_err(|e| {
+        let finished = read().map_err(|e| {
             Refusal::new(
                 ErrorKind::QueueFailed,
                 format!("could not read the persisted queue: {e:#}"),

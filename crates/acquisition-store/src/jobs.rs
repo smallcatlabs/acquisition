@@ -352,13 +352,15 @@ impl JobDb {
         Ok(rows.pop())
     }
 
-    /// The terminal rows of id `first` and after, by id, as a list names
-    /// them: a daemon's list reads its own work from the first id it
-    /// issued. A range of the primary key, read without the bulk columns.
-    pub fn listed_finished_from(&self, first: u64) -> Result<Vec<ListedJob>> {
+    /// The first `limit` terminal rows of id `first` and after, by id, as a
+    /// list names them: a daemon's list reads its own work from the first
+    /// id it issued, a page at a time, the next page from one past the
+    /// last id of this one; a page shorter than `limit` is the last. A
+    /// range of the primary key, read without the bulk columns.
+    pub fn listed_finished_from(&self, first: u64, limit: usize) -> Result<Vec<ListedJob>> {
         self.list_where(
-            "id >= ?1 AND state IN ('done', 'failed', 'cancelled')",
-            params![first],
+            "id >= ?1 AND state IN ('done', 'failed', 'cancelled') ORDER BY id LIMIT ?2",
+            params![first, limit],
         )
     }
 
@@ -385,7 +387,7 @@ impl JobDb {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params,
                     submitted_at, started_at, finished_at
-             FROM jobs WHERE {filter} ORDER BY id"
+             FROM jobs WHERE {filter}"
         ))?;
         let rows = stmt.query_map(args, listed_row)?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)

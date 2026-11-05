@@ -142,12 +142,19 @@ fn listed_reads_name_the_finished_rows_from_an_id_on() {
     );
     assert_eq!(db.listed(9).unwrap(), None);
     let ids: Vec<u64> = db
-        .listed_finished_from(2)
+        .listed_finished_from(2, 10)
         .unwrap()
         .iter()
         .map(|j| j.id)
         .collect();
     assert_eq!(ids, [2, 4], "from id 2 on, terminal rows only");
+    let ids: Vec<u64> = db
+        .listed_finished_from(1, 2)
+        .unwrap()
+        .iter()
+        .map(|j| j.id)
+        .collect();
+    assert_eq!(ids, [1, 2], "a page is the first `limit` of the range");
     let ids: Vec<u64> = db
         .listed_finished(&[4, 3, 1, 9])
         .unwrap()
