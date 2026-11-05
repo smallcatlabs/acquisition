@@ -69,10 +69,9 @@ fn c45_one_job_is_read_from_disk_on_both_surfaces() {
         ("finished_at", 1_700_000_040),
     ] {
         assert_eq!(result[time], at, "{result}");
-        assert!(
-            result[format!("{time}_age")]
-                .as_str()
-                .is_some_and(|a| a.ends_with(" ago")),
+        assert_eq!(
+            result[format!("{time}_age")],
+            acquisition_store::age::ago(harness::now(), Some(at)),
             "{time}: {result}"
         );
     }

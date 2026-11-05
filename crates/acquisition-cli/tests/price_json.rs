@@ -811,12 +811,8 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     let unmatched = &report["rows"]["unmatched"];
     let updated_at = unmatched[0]["updated_at"].as_i64();
     assert!(updated_at.is_some(), "{unmatched}");
-    // C163: its time's words beside it
-    let updated_at_age = unmatched[0]["updated_at_age"].as_str();
-    assert!(
-        updated_at_age.is_some_and(|a| a.ends_with(" ago")),
-        "{unmatched}"
-    );
+    // C163: its time's words beside it, said at the harness's one instant
+    let updated_at_age = acquisition_store::age::ago(harness::now(), updated_at);
     assert_eq!(
         unmatched,
         &json!([{
@@ -1817,12 +1813,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         let line = harness::offered_line(offer);
         let printed = run_offered(&base, &line);
         // C156: the words beside the line answer the same with no shell
-        // (but for the clock's fields, read a second apart: #149).
-        assert_eq!(
-            harness::but_for_the_clock(&harness::run_argv(&base, offer, &[])),
-            harness::but_for_the_clock(&printed),
-            "{offer}"
-        );
+        assert_eq!(harness::run_argv(&base, offer, &[]), printed, "{offer}");
     }
 
     // a target held nowhere: the search of the realm, a request, and the
@@ -1857,8 +1848,8 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     );
     let line = harness::offered_line(&offers[1]);
     assert_eq!(
-        harness::but_for_the_clock(&harness::run_argv(&base, &offers[1], &["--json"])),
-        harness::but_for_the_clock(&run_offered(&base, &format!("{line} --json")))
+        harness::run_argv(&base, &offers[1], &["--json"]),
+        run_offered(&base, &format!("{line} --json"))
     );
     // the words say each way on in the request's words, and print none
     // (C143): the offers are the commands
@@ -1898,10 +1889,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
             &base,
             &format!("{} --json", harness::offered_line(&offers[0])),
         );
-        assert_eq!(
-            harness::but_for_the_clock(&harness::run_argv(&base, &offers[0], &["--json"])),
-            harness::but_for_the_clock(&shown)
-        );
+        assert_eq!(harness::run_argv(&base, &offers[0], &["--json"]), shown);
         assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
     }
 }
