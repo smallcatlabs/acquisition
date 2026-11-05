@@ -709,5 +709,12 @@ C28, which the owner amended to name it, `ccb5c360`), fixed in one
 round (`22c9bc4d..5746304c`), reviewed (a P3: the realm quoted before
 it was judged), fixed at the owner's word in a second (`f6a020b7`)
 read by the orchestrating session and not reviewed a third time; #166
-closed the same day. The rounds are done; #165 and #168's kind wait on
-the owner's rulings.
+closed the same day. The owner ruled the two left on 2026-11-04 (C165 new, C121
+amended), and round E (`briefs/seat-issues-e.md`: `unknown_account`,
+a job's three times, a failed job's kind and its way on) landed as
+`63913171..f9254373`; reviewed (five P2s, a P3), fixed in one round
+(`ea6d65ba..7209e902`), reviewed (two P2s: the kinds unapplied on a
+refresh's and a probe's sends and through a probe's closure), fixed at
+the owner's word in a second (`dff98337`, `8aa46913`) read by the
+orchestrating session and not reviewed a third time; #165 and #168
+closed the same day. The seat's issues are done.
