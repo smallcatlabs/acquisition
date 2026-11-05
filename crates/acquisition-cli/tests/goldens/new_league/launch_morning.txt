@@ -224,6 +224,7 @@ next: acq refresh --apply --account ExileTester --realm pc --league Typo
 
 $ acq refresh --apply --league Typo
 # holds "stashes Typo  GET /stash/Typo returned 404 Not Found"
+# holds "its children failed; each failed child's own result says why: `acq result "
 --- stdout
 applying 1 request as job <j7>
 changed: no items — 0 responses recorded, nothing added, changed, moved, or removed
@@ -231,6 +232,7 @@ changed: no items — 0 responses recorded, nothing added, changed, moved, or re
 job <j7> (ExileTester): 0/1 done, 1 failed; submitted <age> ago, started <age> ago, finished <age> ago
 job <j7> failed: 1 of 1 child jobs failed, 0 done
   job <j8>  stashes Typo  GET /stash/Typo returned 404 Not Found; no rate headers; a body of 26 bytes
+  its children failed; each failed child's own result says why: `acq result <j8> --json`
 daemon log: <scratch>/logs/<world>/mock/daemon.log
 --- exit 1
 

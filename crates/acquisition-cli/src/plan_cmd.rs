@@ -552,19 +552,23 @@ async fn apply_plan(
             submitted,
             (!json).then_some(&mut report as &mut (dyn FnMut(&acquisition_verbs::Progress) + Send)),
         )
-        .await?;
+        .await?
+        // C165 and C143: a failure's way on as this terminal's commands
+        .offered(&crate::Terminal::writing());
     if json {
         println!("{}", serde_json::to_string_pretty(&landed)?);
-        return match landed.outcome {
+        return match landed.result.outcome {
             Outcome::Success { .. } => Ok(()),
             _ => Err(crate::AlreadyReported.into()),
         };
     }
     // The job's report on the stream `acq result` prints it on: stdout
     // for a success, stderr for a failure or a cancel, which left nothing
-    // on stdout to use (#101). What the store took is stdout either way.
-    let report = crate::job_report(id, &landed.outcome, &landed.failed_children);
-    match landed.outcome {
+    // on stdout to use (#101); a failure's way on after it, as `acq
+    // result` says it. What the store took is stdout either way.
+    let mut report = crate::job_report(id, &landed.result.outcome, &landed.result.failed_children);
+    report.push_str(&crate::way_on_line(&landed.result));
+    match landed.result.outcome {
         Outcome::Success { .. } => {
             print!("{report}");
             println!("{}", changes_line(&landed.store_changes));

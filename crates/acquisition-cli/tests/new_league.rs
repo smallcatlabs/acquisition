@@ -177,15 +177,19 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
                 "1 request:".into(),
             ],
         ),
-        // the apply over the typo fails naming it, on the mock's 404
+        // the apply over the typo fails naming it, on the mock's 404, and
+        // says its way on as `acq result` does (C165, the review of round
+        // E, finding 5): the failed child's own result, run below
         Step {
             exit: 1,
             ..step(
                 &["refresh", "--apply", typo[0], typo[1]],
                 1,
-                &[format!(
-                    "stashes {TYPO}  GET /stash/{TYPO} returned 404 Not Found"
-                )],
+                &[
+                    format!("stashes {TYPO}  GET /stash/{TYPO} returned 404 Not Found"),
+                    "its children failed; each failed child's own result says why: `acq result "
+                        .into(),
+                ],
             )
         },
     ]);
@@ -198,6 +202,22 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         let out = t.run(&args, &facts);
         assert_eq!(out.status.code(), Some(s.exit), "acq {args:?}: {out:?}");
         said.push_str(&harness::text(&out));
+        if args.first() == Some(&"refresh") && s.exit == 1 {
+            // the way on, run as printed: the failed child's result, its
+            // 404 and its kind
+            let shown = harness::text(&out);
+            let line = shown
+                .lines()
+                .find(|l| l.contains("each failed child's own result"))
+                .and_then(|l| l.split('`').nth(1))
+                .unwrap_or_else(|| panic!("no way on printed: {shown}"));
+            let ran = harness::printed(&base, line).output().unwrap();
+            let child = harness::text(&ran);
+            assert!(
+                child.contains("returned 404") && child.contains(r#""kind": "not_found""#),
+                "`{line}`: {child}"
+            );
+        }
     }
     // The league's items are Standard's alone: no fetch moved one.
     assert!(

@@ -389,8 +389,9 @@ with `jq` over `acq refresh --plan --json` rather than parsing prose —
   jq '[.actions[] | .action] | group_by(.) | map({(.[0]): length}) | add'          # requests by kind
   jq '[.actions[] | select(.action == \"fetch_substash\") | .parent] | group_by(.) | map({(.[0]): length}) | add'   # substashes per parent
   jq '[.skipped_tabs[], .skipped_characters[] | .reason.kind] | group_by(.) | map({(.[0]): length}) | add'   # skips by reason
-`acq refresh --apply --json` adds `store_changes` beside the outcome; `acq store events --summary --json` \
-is the per-location summary.")]
+`acq refresh --apply --json` is the apply job's result as `acq result --json` gives it (its times, a failure's \
+`kind` and `offers`) with `store_changes` beside it; `acq store events --summary --json` is the per-location \
+summary.")]
     Refresh {
         /// Every tab in the league (folder children included, folders
         /// not), and no character: `--characters` names those.
@@ -3099,7 +3100,7 @@ fn print_outcome(result: &JobResult, json: bool, waited: bool) -> Result<()> {
 /// (C53): the words, and the first offer's command line, where the kind
 /// offers one; the rest counted. Nothing for a body not recorded, whose
 /// line [`job_report`] prints already, or a failure with no kind.
-fn way_on_line(result: &JobResult) -> String {
+pub(crate) fn way_on_line(result: &JobResult) -> String {
     let Some(way) = &result.way_on else {
         return String::new();
     };

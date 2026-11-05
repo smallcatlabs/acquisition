@@ -362,7 +362,7 @@ async fn a_plan_applied_twice_is_spent_the_second_time() {
         .await
         .unwrap();
     assert!(
-        matches!(landed.outcome, Outcome::Success { .. }),
+        matches!(landed.result.outcome, Outcome::Success { .. }),
         "{landed:?}"
     );
     assert!(landed.store_changes.responses > 0, "{landed:?}");
@@ -441,7 +441,7 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
         .landed(&mut client, &plan, submitted, None)
         .await
         .unwrap();
-    let Outcome::Failure { children, .. } = &landed.outcome else {
+    let Outcome::Failure { children, .. } = &landed.result.outcome else {
         panic!("{landed:?}")
     };
     let children = children.as_ref().expect("the tally as a field");
@@ -451,9 +451,22 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     // The failed child, detailed in the one answer: live, with its kind,
     // target and own error ...
     let child = children.failed_ids[0];
-    assert_eq!(landed.failed_children.len(), 1, "{landed:?}");
-    let live = frontend.result(landed.job_id).await.unwrap();
-    assert_eq!(live.failed_children, landed.failed_children);
+    assert_eq!(landed.result.failed_children.len(), 1, "{landed:?}");
+    let live = frontend.result(landed.result.job_id).await.unwrap();
+    assert_eq!(live.failed_children, landed.result.failed_children);
+    // the landing is the shared result (C165, the review of round E,
+    // finding 5): its times, the failure's kind and its way on, the
+    // failed child's result, as `result` gives them
+    assert_eq!(
+        landed.result.way_on.as_ref().map(|w| w.ways.clone()),
+        Some(vec![(
+            acquisition_verbs::refusal::Way::Result { id: child },
+            format!("failed child {child}'s own result")
+        )]),
+        "{landed:?}"
+    );
+    assert!(landed.result.times.finished_at_age.is_some(), "{landed:?}");
+    assert_eq!(landed.result.way_on, live.way_on);
     let row = &live.failed_children[0];
     assert_eq!((row.job_id, row.kind.as_str()), (child, "stash"), "{row:?}");
     assert!(row.target.contains("no-such-tab"), "{row:?}");
@@ -472,7 +485,7 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
         assert!(Instant::now() < deadline, "the daemon did not stop");
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    let from_disk = frontend.result(landed.job_id).await.unwrap();
+    let from_disk = frontend.result(landed.result.job_id).await.unwrap();
     assert_eq!(from_disk.failed_children, live.failed_children);
 }
 

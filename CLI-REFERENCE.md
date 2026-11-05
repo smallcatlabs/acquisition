@@ -420,7 +420,7 @@ Reading a plan as an agent: the text is a function of the envelope, so count wit
   jq '[.actions[] | .action] | group_by(.) | map({(.[0]): length}) | add'          # requests by kind
   jq '[.actions[] | select(.action == "fetch_substash") | .parent] | group_by(.) | map({(.[0]): length}) | add'   # substashes per parent
   jq '[.skipped_tabs[], .skipped_characters[] | .reason.kind] | group_by(.) | map({(.[0]): length}) | add'   # skips by reason
-`acq refresh --apply --json` adds `store_changes` beside the outcome; `acq store events --summary --json` is the per-location summary.
+`acq refresh --apply --json` is the apply job's result as `acq result --json` gives it (its times, a failure's `kind` and `offers`) with `store_changes` beside it; `acq store events --summary --json` is the per-location summary.
 ```
 
 ## `acq policy`

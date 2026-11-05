@@ -14,7 +14,7 @@ use acquisition_plan::{
     PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, SyncPolicy, apply_params_of, plan_notes,
     plan_refresh, plan_selection,
 };
-use acquisition_protocol::job::{JobInfo, Outcome};
+use acquisition_protocol::job::JobInfo;
 use acquisition_protocol::protocol::{QuoteJob, Request, Response};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{RefreshSnapshot, Status, Store};
@@ -22,7 +22,7 @@ use serde::Serialize;
 
 use crate::fault::Fault;
 use crate::frontend::Opened;
-use crate::jobs::{FailedChild, Progress, failed_children_live, submit, wait};
+use crate::jobs::{JobResult, Progress, result_live, submit, wait};
 
 /// The quote attempt's bound: the plan in hand is the deliverable, and a
 /// wedged daemon or socket peer must not keep an offline plan from
@@ -212,22 +212,29 @@ pub struct Submitted {
     pub before: Box<Status>,
 }
 
-/// What an apply did once its job finished: the outcome, the store's
-/// changes since the submit, and what a plan compiled now would still
-/// fetch (C53: the next action).
+/// What an apply did once its job finished: its job's result, made by
+/// the one derivation every result is (`jobs::result_live`: the outcome,
+/// `job_id` and `account`, the times, a failure's kind, its first failed
+/// children and the way on, spelled per surface by
+/// [`Landed::offered`]; C165, the review of round E, finding 5), then
+/// the store's changes since the submit and what a plan compiled now
+/// would still fetch (C53: the next action).
 #[derive(Debug, Serialize)]
 pub struct Landed {
     #[serde(flatten)]
-    pub outcome: Outcome,
-    pub job_id: u64,
-    pub account: String,
+    pub result: JobResult,
     pub store_changes: StoreChanges,
     pub remaining_requests: Option<u64>,
     pub spent: Vec<Spent>,
-    /// A failed apply's first failed children, as a result details them
-    /// ([`crate::JobResult::failed_children`]); absent otherwise.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub failed_children: Vec<FailedChild>,
+}
+
+impl Landed {
+    /// The landing with its result's way on spelled by `surface`
+    /// ([`JobResult::offered`]).
+    pub fn offered(mut self, surface: &dyn crate::refusal::Surface) -> Landed {
+        self.result = self.result.offered(surface);
+        self
+    }
 }
 
 /// What the store recorded between an apply's submit and its end: the
@@ -684,17 +691,16 @@ impl Opened {
         submitted: Submitted,
         progress: Option<&mut (dyn FnMut(&Progress) + Send)>,
     ) -> Result<Landed, Fault> {
-        let outcome = wait(client, submitted.job_id, progress).await?;
-        let failed_children = failed_children_live(client, &outcome).await;
+        wait(client, submitted.job_id, progress).await?;
+        let mut result = result_live(client, submitted.job_id).await?;
+        // the account the apply was submitted as, whatever the status says
+        result.account = Some(submitted.account);
         let store_changes = StoreChanges::since(&self.facts, &submitted.before)?;
         Ok(Landed {
-            outcome,
-            job_id: submitted.job_id,
-            account: submitted.account,
+            result,
             store_changes,
             remaining_requests: self.remaining(plan),
             spent: aged(submitted.spent, acquisition_store::now()),
-            failed_children,
         })
     }
 }
