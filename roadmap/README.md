@@ -746,3 +746,6 @@ rulings: none. #102's sticky restore delete
 (`briefs/102-sticky-delete.md`) closed the same day, reviewed (a P3,
 fixed in its docs), and #97's C143 round (`briefs/97-c143-reach.md`)
 in two parts, reviewed three times, the last finding not taken.
+The age flake's class (#175) closed the same day
+(`briefs/175-one-test-clock.md`): one instant per test, the fix round
+narrowed by the owner to its first finding.
