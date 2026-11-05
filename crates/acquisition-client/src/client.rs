@@ -2609,119 +2609,47 @@ mod tests {
         }
     }
 
-    /// C147 and C137, a spawn begins with a fresh startup deadline: the
-    /// review's replacement schedule. A child this door spawned has
-    /// exited on the world lock another pid holds, seen with the door's
-    /// startup deadline already spent; the look finds the winner, a
-    /// scripted peer of another contract, and the interactive door stops
-    /// it — the peer lets the lock go, leaves the socket and acknowledges
-    /// — and spawns its replacement, the real `acqd` beside this test.
-    /// The replacement binds under a deadline of its own, the knob at its
-    /// largest, and the door opens on it: a budget spent on the loser
-    /// would have reported the spawn failed without a look. Every step
-    /// waits on a signal or a state; the hang bound is the runner's.
-    #[cfg(unix)]
+    /// C147 and C137, a spawn begins with a fresh startup deadline, the
+    /// driver's part (the machine's is the door table's row of a
+    /// replacement spawned after a lost race): an `Arm` replaces whatever
+    /// end the timer had, so a startup deadline armed after a spent one is
+    /// pending, never the spent one's expiry. The spent deadline is the
+    /// seam's, at zero; the fresh one is the knob at its largest. No
+    /// process and no wait.
     #[tokio::test]
-    async fn c147_a_replacement_spawned_after_the_budget_ran_out_gets_its_own() {
-        use tokio::io::AsyncBufReadExt;
+    async fn c147_a_startup_deadline_armed_after_a_spent_one_is_pending() {
         let env = ENV.lock().await;
-        // The `acqd` the workspace build wrote, placed beside this test
-        // as the harness places it for the process tests (C82, C84).
-        let exe = std::env::current_exe().unwrap();
-        let deps = exe.parent().unwrap();
-        let built = deps.parent().unwrap().join(locator::ACQD);
-        assert!(
-            built.exists(),
-            "{} is missing: run `cargo build --workspace` first",
-            built.display()
-        );
-        let link = deps.join(locator::ACQD);
-        let target = Path::new("..").join(locator::ACQD);
-        if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
-            let _ = std::fs::remove_file(&link);
-            if let Err(e) = std::os::unix::fs::symlink(&target, &link)
-                && std::fs::read_link(&link).ok().as_deref() != Some(target.as_path())
-            {
-                panic!("placing {}: {e}", link.display());
-            }
-        }
-        // The replacement is a real daemon, so it inherits a mock
-        // world's knobs and nothing of the caller's.
         let mut moved = Moved::new(&env);
-        let dir = moved.dir.path().to_path_buf();
-        for (key, _) in std::env::vars_os() {
-            if key.to_str().is_some_and(|k| k.starts_with("ACQ_")) {
-                moved.remove(key);
-            }
-        }
-        moved.set("ACQ_PROVIDER", "mock");
-        moved.temp_to(&dir);
-        moved.set("ACQ_LOG_DIR", dir.join("logs"));
-        moved.set("ACQ_NO_KEYRING", "1");
-        moved.set("ACQ_JOURNAL", "0");
-        moved.set("ACQ_IDLE_SHUTDOWN", "30");
-        moved.set("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
         moved.set("ACQ_STARTUP_WITHIN", MAX_WITHIN_SECS.to_string());
-        acquisition_store::world::app_runtime_dir().unwrap();
-        let root = dir.join("store");
-        let world = World::create_at(&root).unwrap();
-        let held = Lock::acquire(&world.lock_path()).unwrap();
-        // The loser: a child of this door that has exited.
-        let mut loser = std::process::Command::new("true").spawn().unwrap();
-        loser.wait().unwrap();
-        let spawned = Spawned {
-            pid: loser.id(),
-            child: Some(loser),
-            acqd: PathBuf::from("true"),
-            log: dir.join("acqd.log"),
-            log_from: 0,
+        let absent = AbsentWorld {
+            intended: "nowhere".into(),
+            reason: "a driver that only keeps time".into(),
         };
-        let socket = world.socket_path().unwrap();
-        let name = world.name();
-        let winner = async move {
-            LOOKING.notified().await;
-            let listener = tokio::net::UnixListener::bind(&socket).unwrap();
-            let (stream, _) = listener.accept().await.unwrap();
-            let (read, mut write) = stream.into_split();
-            let mut lines = tokio::io::BufReader::new(read).lines();
-            let _hello = lines.next_line().await;
-            let hello = json!({
-                "resp": "hello",
-                "version": "9.9.9",
-                "contract": "ffffffffffff",
-                "pid": 4242,
-                "provider": "mock",
-                "world": name,
-            });
-            let _ = write.write_all(format!("{hello}\n").as_bytes()).await;
-            // The stop: the winner goes — its lock, its socket — then
-            // acknowledges, and hangs up.
-            let _stop = lines.next_line().await;
-            drop(held);
-            drop(listener);
-            let _ = std::fs::remove_file(&socket);
-            let _ = write
-                .write_all(format!("{}\n", json!({ "resp": "stopping" })).as_bytes())
-                .await;
-        };
-        let (door, ()) = tokio::join!(
-            Client::open_door(
-                &root,
-                ConnectOptions::interactive(true),
-                Some((spawned, Armed::after(Duration::ZERO)))
-            ),
-            winner
+        let mut driver = Driver::new(
+            Door::Use {
+                spawn: true,
+                replace: true,
+            },
+            Err(absent),
+            None,
         );
-        let mut client = match door {
-            Ok(client) => client,
-            Err(other) => panic!("the door reported {other}, not the replacement"),
-        };
-        assert_ne!(client.daemon.pid(), 4242, "the winner was stopped");
+        driver.startup = Some(Armed::after(Duration::ZERO));
+        let consult = Effect::Consult(Timer::Startup);
         assert!(
-            client.spawned(),
-            "the door opened on the replacement it spawned"
+            matches!(
+                driver.perform(consult.clone()).await,
+                Some(Event::Deadline(Timer::Startup))
+            ),
+            "the seam's deadline is spent"
         );
-        client.stop().await.expect("the replacement stops");
+        assert!(driver.perform(Effect::Arm(Timer::Startup)).await.is_none());
+        assert!(
+            matches!(
+                driver.perform(consult).await,
+                Some(Event::Pending(Timer::Startup))
+            ),
+            "the fresh deadline replaced the spent one"
+        );
     }
 
     /// Every test in this module that reads or sets the process
@@ -2875,15 +2803,12 @@ mod tests {
     /// under `ACQ_PROVIDER=mock`, so "mock" is the wanted provider.
     #[test]
     fn c84_a_daemon_of_another_contract_artifact_or_provider_is_not_this_clients() {
-        let _env = ENV.blocking_lock();
-        let temp = tempfile::tempdir().unwrap();
-        let dir = temp.path();
-        // SAFETY: `ENV` is held; the crate's other environment-reading
-        // tests take it too.
-        unsafe {
-            std::env::set_var("ACQ_STORE_DIR", dir);
-            std::env::set_var("ACQ_PROVIDER", "mock");
-        }
+        let env = ENV.blocking_lock();
+        let mut moved = Moved::new(&env);
+        let temp = moved.dir.path().to_path_buf();
+        let dir = temp.as_path();
+        moved.set("ACQ_STORE_DIR", dir);
+        moved.set("ACQ_PROVIDER", "mock");
         assert_eq!(CONTRACT_REVISION.len(), 12);
         assert!(CONTRACT_REVISION.bytes().all(|b| b.is_ascii_hexdigit()));
         assert!(acquisition_protocol::VERSION_WITH_CONTRACT.contains(CONTRACT_REVISION));
@@ -2991,9 +2916,7 @@ mod tests {
         std::fs::create_dir_all(dir).unwrap();
         // An absent world of this process's own matches no daemon and
         // says why under `wanted`.
-        unsafe {
-            std::env::set_var("ACQ_STORE_DIR", dir.join("missing"));
-        }
+        moved.set("ACQ_STORE_DIR", dir.join("missing"));
         let nowhere = id(CONTRACT_REVISION, "mock");
         assert!(!nowhere.world_matches(), "{nowhere}");
         let report = nowhere.report();
@@ -3005,9 +2928,6 @@ mod tests {
             "{report}"
         );
         assert!(nowhere.to_string().contains("absent"), "{nowhere}");
-        unsafe {
-            std::env::remove_var("ACQ_STORE_DIR");
-        }
     }
 
     /// The absence reason is the caller's policy before the knob, and the
@@ -3018,15 +2938,11 @@ mod tests {
     /// from it), and a door that may not spawn creates no root.
     #[tokio::test]
     async fn an_absent_daemon_names_why_it_was_not_started() {
-        let _env = ENV.lock().await;
-        let temp = tempfile::tempdir().unwrap();
-        let dir = temp.path();
-        // SAFETY: `ENV` is held; the crate's other environment-reading
-        // tests take it too.
-        unsafe {
-            std::env::set_var("ACQ_STORE_DIR", dir.join("never-made"));
-            std::env::remove_var("ACQ_NO_SPAWN");
-        }
+        let env = ENV.lock().await;
+        let mut moved = Moved::new(&env);
+        let dir = moved.dir.path().to_path_buf();
+        moved.set("ACQ_STORE_DIR", dir.join("never-made"));
+        moved.remove("ACQ_NO_SPAWN");
         let err = Client::connect(ConnectOptions::autonomous(false))
             .await
             .err()
@@ -3049,9 +2965,7 @@ mod tests {
             text.contains("does not start one") && !text.contains("on demand"),
             "{text}"
         );
-        unsafe {
-            std::env::set_var("ACQ_NO_SPAWN", "1");
-        }
+        moved.set("ACQ_NO_SPAWN", "1");
         let err = Client::connect(ConnectOptions::interactive(true))
             .await
             .err()
@@ -3070,10 +2984,6 @@ mod tests {
             !dir.join("never-made").exists(),
             "a door the knob closed created the root"
         );
-        unsafe {
-            std::env::remove_var("ACQ_NO_SPAWN");
-            std::env::remove_var("ACQ_STORE_DIR");
-        }
     }
 
     /// A scripted peer on a scratch socket: answers the handshake as a

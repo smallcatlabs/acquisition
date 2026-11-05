@@ -1018,6 +1018,44 @@ mod tests {
                     ],
                 ),
             ),
+            // C147 and C137, a spawn begins with a fresh startup deadline:
+            // the loser's look cancelled the first, the winner of another
+            // build is stopped, and the replacement's spawn arms its own,
+            // consulted before it is called unbound.
+            named(
+                "use: a replacement spawned after a lost race arms its own startup deadline and opens, started here",
+                lost(
+                    vec![
+                        Found,
+                        stale(WINNER),
+                        Event::Stopped(Stopped::Gone),
+                        Deadline(Timer::Settle),
+                        Nothing,
+                        Spawned { pid: 88 },
+                        Pending(Timer::Startup),
+                        Deadline(Timer::BindPoll),
+                        Reached,
+                        ours(88),
+                    ],
+                    vec![
+                        DropChild,
+                        Arm(Timer::Hello),
+                        SendHello,
+                        Stop,
+                        DropChild,
+                        Arm(Timer::Settle),
+                        Connect,
+                        Spawn,
+                        Arm(Timer::Startup),
+                        Consult(Timer::Startup),
+                        Arm(Timer::BindPoll),
+                        Connect,
+                        Arm(Timer::Hello),
+                        SendHello,
+                        Report(Outcome::Opened { started_here: true }),
+                    ],
+                ),
+            ),
             // The stop door's answers.
             on(
                 Door::Stop,
