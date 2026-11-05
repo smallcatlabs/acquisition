@@ -1441,6 +1441,32 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
         (0, 790)
     );
 
+    // The review of fef5eadb, P2: the view's two first pages are two
+    // reads, and a job running at the open read and finished by the
+    // finished one is in both; it is one row, the later reading, and the
+    // counts (the later read's) leave nothing out.
+    let running = {
+        let mut job = job_info(&job_row(5, "running")).unwrap();
+        job.eta_seconds = None;
+        job
+    };
+    let waiting = job_info(&job_row(6, "waiting")).unwrap();
+    let finished_since = job_info(&job_row(5, "done")).unwrap();
+    let after = ListCounts {
+        total: 2,
+        waiting: 1,
+        done: 1,
+        ..ListCounts::default()
+    };
+    let twice = acquisition_verbs::Listed::of(
+        vec![running, waiting, finished_since],
+        &after,
+        ListState::All,
+    );
+    let rows: Vec<(u64, JobState)> = twice.rows.iter().map(|j| (j.id, j.state)).collect();
+    assert_eq!(rows, [(5, JobState::Done), (6, JobState::Waiting)]);
+    assert_eq!((twice.open_left_out, twice.finished_left_out), (0, 0));
+
     let persisted = acquisition_store::jobs::Persisted {
         jobs: (1..=12).map(|id| job_row(id, "waiting")).collect(),
         written_at: Some(20),

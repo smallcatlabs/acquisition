@@ -319,6 +319,8 @@ impl Listed {
             let (rows, counts) = pages(client, view, |_| false).await?;
             return Ok(Listed::of(rows, &counts, view));
         }
+        // The open page first, so a job that finishes between the two
+        // reads is kept as the finished read has it.
         let mut rows = Vec::new();
         let mut counts = ListCounts::default();
         for state in [ListState::Open, ListState::Finished] {
@@ -331,14 +333,19 @@ impl Listed {
         Ok(Listed::of(rows, &counts, view))
     }
 
-    /// The document of `rows` read from a view of the list and the
-    /// daemon's `counts` beside them: the rows by id, each one's times
-    /// said now ([`aged`], C165), and what the view holds that they do
-    /// not, by the counts.
+    /// The document of `rows` read from a view of the list, in the order
+    /// they were read, and the daemon's `counts` beside them: the rows by
+    /// id, each one's times said now ([`aged`], C165), and what the view
+    /// holds that they do not, by the counts. The view's two first pages
+    /// are two reads, so a job can be in both (running at the open read,
+    /// finished by the finished one): it is one row, its later reading.
     pub fn of(rows: Vec<JobInfo>, counts: &ListCounts, view: ListState) -> Listed {
         let now = acquisition_store::now();
-        let mut rows: Vec<JobInfo> = rows.into_iter().map(|job| aged(job, now)).collect();
-        rows.sort_by_key(|j| j.id);
+        let by_id: std::collections::BTreeMap<u64, JobInfo> = rows
+            .into_iter()
+            .map(|job| (job.id, aged(job, now)))
+            .collect();
+        let rows: Vec<JobInfo> = by_id.into_values().collect();
         let counts = JobCounts::from(counts);
         let by = &counts.by_state;
         let shown = |finished: bool| {
