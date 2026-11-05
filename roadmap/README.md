@@ -723,4 +723,6 @@ The night run of 2026-11-04 (the owner's word that day: nine issues in
 series on `main`, each `trigger:*` waived, agent-facing design the
 session's, rulings parked for him; its morning report
 is written last, under `reviews/`): #18 (`briefs/18-store-refused.md`)
-closed, reviewed (a P2, a P3), fixed in one round reviewed clean.
+closed, reviewed (a P2, a P3), fixed in one round reviewed clean; #104
+(`briefs/104-schema-trim.md`) closed, the trim measured and declined,
+the first turn held to a bound, reviewed (a P3) and its pin added.
