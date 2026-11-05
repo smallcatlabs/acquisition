@@ -2044,6 +2044,15 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
                 ],
                 "no-probe replays fail; a mid-fan-out parent holds for its children"
             );
+            // C165 (the review of round E, finding 4): the rows record no
+            // start, as schema v1 wrote them, and a parent the restore
+            // persists still running, its result held or its children
+            // waiting, never ran again: none is invented
+            for job in listed(&mut door).await {
+                if [1, 6].contains(&job.id) {
+                    assert_eq!(job.times.started_at, None, "{job:?}");
+                }
+            }
             let (_, outcome) = door.await_terminal(5).await;
             let Outcome::Failure {
                 error,
@@ -2551,17 +2560,18 @@ fn c165_each_time_is_set_at_its_transition_and_the_result_and_row_carry_them() {
     });
 }
 
-/// C165, a component test of `Entry::stamp` (each transition by hand,
-/// which a scenario cannot stage without a 429 script): a waiting job
-/// has no start; its first run sets one, which a 429's re-queue and a
-/// second run keep; its end sets the finish, once.
+/// C165, a component test of `Entry::start` and `Entry::stamp` (each
+/// transition by hand, which a scenario cannot stage without a 429
+/// script): a waiting job has no start; its first run sets one, which a
+/// 429's re-queue and a second run keep; a persist of a running job
+/// starts nothing; its end sets the finish, once.
 #[test]
 fn c165_a_requeued_job_keeps_its_first_start() {
-    let mut entry = Entry {
+    let fresh = |state: JobState| Entry {
         info: JobInfo {
             id: 1,
             kind: "stash".into(),
-            state: JobState::Waiting,
+            state,
             priority: 0,
             submitted_by: "client".into(),
             eta_seconds: None,
@@ -2578,18 +2588,24 @@ fn c165_a_requeued_job_keeps_its_first_start() {
         cancel_requested: false,
         deferred: None,
     };
+    let mut entry = fresh(JobState::Waiting);
     let at = |entry: &Entry| (entry.info.times.started_at, entry.info.times.finished_at);
     entry.stamp(101);
     assert_eq!(at(&entry), (None, None), "waiting: no start");
-    entry.info.state = JobState::Running;
+    entry.start(105);
     entry.stamp(105);
     assert_eq!(at(&entry), (Some(105), None), "the first start");
     entry.info.state = JobState::Waiting;
     entry.info.retries = 1;
     entry.stamp(106);
-    entry.info.state = JobState::Running;
+    entry.start(140);
     entry.stamp(140);
     assert_eq!(at(&entry), (Some(105), None), "a 429's re-queue keeps it");
+    // a persist of a running job is no start (the review of round E,
+    // finding 4)
+    let mut held = fresh(JobState::Running);
+    held.stamp(150);
+    assert_eq!(at(&held), (None, None), "a persist starts nothing");
     entry.info.state = JobState::Done;
     entry.stamp(141);
     entry.stamp(150);

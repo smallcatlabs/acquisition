@@ -231,7 +231,7 @@ impl Daemon {
                 return;
             }
             let first_start = entry.info.times.started_at;
-            entry.info.state = JobState::Running;
+            entry.start(self.unix_now());
             if !self.persist(entry) {
                 // Disk still says waiting: after a restart this run would
                 // be invisible (a no-probe job would replay blind). A send
@@ -543,7 +543,7 @@ impl Daemon {
             if entry.info.state != JobState::Waiting {
                 return;
             }
-            entry.info.state = JobState::Running;
+            entry.start(self.unix_now());
             self.persist(entry);
             entry.info.clone()
         };

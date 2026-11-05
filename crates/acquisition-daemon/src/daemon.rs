@@ -334,18 +334,23 @@ struct Entry {
 }
 
 impl Entry {
-    /// C165: the time this state makes true, each set once at its
-    /// transition and never moved after: the first start when the job
-    /// runs (a 429's re-queue and a restart's keep it), the finish when it
-    /// is terminal. The submission is set at submit. [`Daemon::persist`]
-    /// calls it before every write, so memory and the row agree.
+    /// C165: the job's transition into running, the one place a start is
+    /// set: its first, kept by a 429's re-queue and a restart. A record
+    /// that never had one (a running row of schema v1, a parent restored
+    /// still running) keeps none: a persist is no start (the review of
+    /// round E, finding 4).
+    fn start(&mut self, now: i64) {
+        self.info.state = JobState::Running;
+        self.info.times.started_at.get_or_insert(now);
+    }
+
+    /// C165: the finish this state makes true, set once when the job is
+    /// terminal and never moved after. [`Daemon::persist`] calls it before
+    /// every write, so memory and the row agree. The submission is set at
+    /// submit, the start by [`Self::start`].
     fn stamp(&mut self, now: i64) {
-        let times = &mut self.info.times;
-        if self.info.state == JobState::Running {
-            times.started_at.get_or_insert(now);
-        }
         if self.info.state.is_terminal() {
-            times.finished_at.get_or_insert(now);
+            self.info.times.finished_at.get_or_insert(now);
         }
     }
 
