@@ -764,7 +764,7 @@ resubmit if still wanted",
             for &id in &chosen {
                 match s.jobs.get(&id) {
                     Some(e) if state.holds(e.info.state) => {
-                        let mut info = e.info.clone();
+                        let mut info = self.page_row(&e.info);
                         info.eta_seconds = if info.state == JobState::Waiting {
                             etas.get(&id).copied()
                         } else {
@@ -782,18 +782,35 @@ resubmit if still wanted",
         if state != ListState::Open && !from_table.is_empty() {
             from_table.sort_unstable();
             let rows = self
-                .jobs_db
-                .lock()
-                .unwrap()
-                .listed_finished(&from_table)
+                .page_rows(|db| db.listed_finished(&from_table))
                 .map_err(queue_failed)?;
             jobs.extend(rows.into_iter().filter_map(listed_info));
         }
-        #[cfg(test)]
-        self.list_rows_built
-            .fetch_add(jobs.len(), std::sync::atomic::Ordering::Relaxed);
         jobs.sort_unstable_by_key(|job| std::cmp::Reverse(job.id));
         Ok(JobPage { jobs, next, counts })
+    }
+
+    /// C166: a list page's row made from memory, a clone of the job's
+    /// record: the one place a page clones one, counted for a test.
+    fn page_row(&self, info: &JobInfo) -> JobInfo {
+        #[cfg(test)]
+        self.list_rows_built
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        info.clone()
+    }
+
+    /// C166: a list page's whole rows read from the table by `read`,
+    /// under one take of its lock: the one place a page reads one,
+    /// every row read counted for a test, whatever the page keeps.
+    fn page_rows(
+        &self,
+        read: impl FnOnce(&JobDb) -> anyhow::Result<Vec<ListedJob>>,
+    ) -> anyhow::Result<Vec<ListedJob>> {
+        let rows = read(&self.jobs_db.lock().unwrap())?;
+        #[cfg(test)]
+        self.list_rows_built
+            .fetch_add(rows.len(), std::sync::atomic::Ordering::Relaxed);
+        Ok(rows)
     }
 
     pub(super) fn submit(

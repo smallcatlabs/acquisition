@@ -1219,8 +1219,10 @@ pub struct Daemon {
             tokio::sync::oneshot::Receiver<()>,
         )>,
     >,
-    /// C166: the rows a list page has built, from memory or the table, so
-    /// a test sees that no row past a page is built.
+    /// C166: the rows list pages have made, each clone from memory and
+    /// each whole row read from the table, kept or not
+    /// (`Daemon::page_row`, `Daemon::page_rows`), so a test sees that no
+    /// row past a page is made.
     #[cfg(test)]
     list_rows_built: AtomicUsize,
 }

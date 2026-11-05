@@ -360,7 +360,9 @@ async fn c166_a_page_stops_at_its_byte_budget_before_its_limit() {
 
 /// C166, the review of fef5eadb, P1: a page is chosen before its rows
 /// are built, and no row past it is built, from memory or from the
-/// table. Six jobs of 10,000 bytes of params each, the three oldest
+/// table: the count is of every row made, a clone from memory or a whole
+/// row read from the table, kept or thrown away (the review of
+/// d9be0d31: a count of the rows returned could not fail). Six jobs of 10,000 bytes of params each, the three oldest
 /// finished and gone from memory: a page of `all` under a budget of two
 /// rows builds two (both memory's), one of `finished` with a limit of one
 /// builds one (the table's), and one reaching across both sources under
