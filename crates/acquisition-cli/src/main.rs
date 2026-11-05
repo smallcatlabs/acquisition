@@ -20,7 +20,7 @@ use std::io::{IsTerminal as _, Write as _};
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, DaemonError, Observed, Signal, Subscription};
-use acquisition_protocol::job::{JobInfo, JobState, JobTimes, Outcome};
+use acquisition_protocol::job::{FailureKind, JobInfo, JobState, JobTimes, Outcome};
 use acquisition_protocol::protocol::{ErrorKind, KeyringOutcome, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
@@ -567,7 +567,15 @@ is the per-location summary.")]
     Status { id: u64 },
     /// A finished job's payload or error, and on stderr when it was
     /// submitted, started and finished (`--json`: `submitted_at`,
-    /// `started_at`, `finished_at`, each with its `_age`). Kept on disk
+    /// `started_at`, `finished_at`, each with its `_age`). A failure
+    /// says its `kind` — not_found (GGG has nothing there: the listing
+    /// that names it is fetched again), upstream (GGG's answer could not
+    /// be used: the same job, later), rate_limited (the same job once the
+    /// hold has passed), blocked (never retried: submit nothing again),
+    /// not_recorded (what it fetched is kept with the result), children
+    /// (each failed child's result), not_logged_in (a login, a person's),
+    /// interrupted (the same job again) or internal — and one line of the
+    /// way on, `--json`'s `offers` the commands it names. Kept on disk
     /// (7 days done, 30 failed, by default) and answered whether or not a
     /// daemon runs; a
     /// job still waiting or running is an error unless --wait. A failed
@@ -1468,6 +1476,22 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 ]),
             ]
             .concat(),
+            // a failed job's way on (C165): the job as `acq submit` takes
+            // it, its params whole
+            Way::Submit {
+                account,
+                kind,
+                params,
+            } => [
+                words(&["acq"]),
+                account
+                    .as_deref()
+                    .map(|a| option_words("--account", a))
+                    .unwrap_or_default(),
+                words(&["submit", kind, "--params", &params.to_string()]),
+            ]
+            .concat(),
+            Way::Result { id } => words(&["acq", "result", &id.to_string(), "--json"]),
         })
     }
 
@@ -2970,6 +2994,7 @@ pub(crate) fn job_report(id: u64, outcome: &Outcome, failed: &[FailedChild]) -> 
             error,
             children,
             payload,
+            ..
         } => {
             let mut out = format!("job {id} failed: {error}\n");
             // C144: a failure that kept what its job fetched says where.
@@ -3039,6 +3064,8 @@ async fn print_result(client: &mut Client, id: u64, json: bool, waited: bool) ->
 /// line of their own beside the payload, unless `waited`: the job's last
 /// progress line said them.
 fn print_outcome(result: &JobResult, json: bool, waited: bool) -> Result<()> {
+    // C165 and C143: a failure's way on as this terminal's command lines
+    let result = &result.clone().offered(&Terminal::writing());
     if json {
         println!("{}", serde_json::to_string_pretty(result)?);
         return match result.outcome {
@@ -3057,11 +3084,41 @@ fn print_outcome(result: &JobResult, json: bool, waited: bool) -> Result<()> {
         }
         outcome => {
             let mut report = job_report(result.job_id, outcome, &result.failed_children);
+            report.push_str(&way_on_line(result));
             if let Some(words) = times {
                 report.push_str(&format!("  {words}\n"));
             }
             bail!("{}", report.trim_end())
         }
+    }
+}
+
+/// C165: a failed job's way on as one line of text, from its document
+/// (C53): the words, and the first offer's command line, where the kind
+/// offers one; the rest counted. Nothing for a body not recorded, whose
+/// line [`job_report`] prints already, or a failure with no kind.
+fn way_on_line(result: &JobResult) -> String {
+    let Some(way) = &result.way_on else {
+        return String::new();
+    };
+    if matches!(
+        result.outcome,
+        Outcome::Failure {
+            kind: Some(FailureKind::NotRecorded),
+            ..
+        }
+    ) {
+        return String::new();
+    }
+    match result.offers.first().and_then(|o| o["request"].as_str()) {
+        Some(line) => {
+            let more = match result.offers.len() - 1 {
+                0 => String::new(),
+                n => format!(", and {n} more in `--json`'s offers"),
+            };
+            format!("  {}: `{line}`{more}\n", way.words)
+        }
+        None => format!("  {}\n", way.words),
     }
 }
 
@@ -3564,6 +3621,7 @@ mod tests {
             account: None,
             outcome: Outcome::Failure {
                 error: error.into(),
+                kind: None,
                 children: Some(acquisition_protocol::job::Children {
                     done: 2,
                     failed: ids.len() as u64,
@@ -3579,11 +3637,49 @@ mod tests {
                 target: "Standard/t9".into(),
                 error: "GET /stash/Standard/t9 returned 404".into(),
             }],
+            offers: Vec::new(),
+            way_on: None,
         }
     }
 
     fn text_of(r: &JobResult) -> String {
         job_report(r.job_id, &r.outcome, &r.failed_children)
+    }
+
+    /// C165 and invariant 3 (never retry through a block): a blocked
+    /// fetch's result offers nothing at this terminal, and its one line
+    /// of text says not to submit it again, naming no command.
+    #[test]
+    fn c165_a_blocked_fetch_offers_nothing_and_says_not_to_retry() {
+        let outcome = Outcome::failure(
+            FailureKind::Blocked,
+            "GET /stash/Standard/t1 returned 403 Forbidden; NOT retrying",
+        );
+        let params = serde_json::json!({ "league": "Standard", "id": "t1" });
+        let way_on = acquisition_verbs::jobs::way_on(
+            &outcome,
+            5,
+            Some("alice"),
+            Some(("stash", &params)),
+            &[],
+        );
+        let result = JobResult {
+            job_id: 5,
+            account: Some("alice".into()),
+            outcome,
+            times: Default::default(),
+            failed_children: Vec::new(),
+            offers: Vec::new(),
+            way_on,
+        }
+        .offered(&Terminal::writing());
+        assert!(result.offers.is_empty(), "{:?}", result.offers);
+        let line = way_on_line(&result);
+        assert!(line.contains("do not submit it again"), "{line}");
+        assert!(
+            !line.contains('`'),
+            "a blocked fetch names no command: {line}"
+        );
     }
 
     /// The review's case: a restart's deferred failure (the sentence the

@@ -26,7 +26,9 @@ use super::*;
 pub(super) enum ApiError {
     RateLimited(String),
     Protocol(String),
-    Other(String),
+    /// A failure of the kind it names (C165), read here where the daemon
+    /// knows it.
+    Other(FailureKind, String),
     /// C25: a halt refused a send this job needed, after the pick (its
     /// own, its refresh's, or its probe's), or the block that sets one
     /// answered it. GGG saw nothing of the job: it returns to waiting.
@@ -43,7 +45,22 @@ pub(super) enum ApiError {
 /// the token asks again), and it concludes cancelled; any other fails it
 /// in the refusal's words.
 fn refused(refusal: Refusal) -> Result<Outcome, ApiError> {
-    turned_away(refusal, |message| Ok(Outcome::failure(message)))
+    let kind = token_failure(&refusal);
+    turned_away(refusal, |message| Ok(Outcome::failure(kind, message)))
+}
+
+/// C165: the failure kind of a token refusal that fails its job: a
+/// session that cannot give one is `not_logged_in`; the provider not
+/// answering the refresh is `upstream`; the daemon's own fault
+/// `internal`.
+fn token_failure(refusal: &Refusal) -> FailureKind {
+    match refusal.kind {
+        ErrorKind::NotLoggedIn | ErrorKind::UnknownAccount | ErrorKind::AmbiguousAccount => {
+            FailureKind::NotLoggedIn
+        }
+        ErrorKind::Upstream => FailureKind::Upstream,
+        _ => FailureKind::Internal,
+    }
 }
 
 /// [`refused`]'s split, with what any other refusal becomes given by the
@@ -268,7 +285,11 @@ impl Daemon {
                 Ok(())
             }
             Err(e) => match e.downcast_ref::<acquisition_store::MalformedBody>() {
-                Some(malformed) => Err(Outcome::failure(malformed.to_string())),
+                // GGG's answer, which the store would not take
+                Some(malformed) => Err(Outcome::failure(
+                    FailureKind::Upstream,
+                    malformed.to_string(),
+                )),
                 None => Err(not_recorded(format!("recording failed: {e:#}"))),
             },
         }
@@ -383,7 +404,10 @@ impl Daemon {
         account: Option<&str>,
     ) -> Result<(String, Auth, String), Result<Outcome, ApiError>> {
         let Some((_, url)) = self.route_for(kind, params) else {
-            return Err(Ok(Outcome::failure(why_no_url(kind, params))));
+            return Err(Ok(Outcome::failure(
+                FailureKind::Internal,
+                why_no_url(kind, params),
+            )));
         };
         let staged = (kind == "profile")
             .then(|| self.staged_profile_token(id, account))
@@ -438,6 +462,7 @@ impl Daemon {
                 // ingesting it as empty would retire every character).
                 let Some(characters) = v.get("characters").and_then(Value::as_array) else {
                     return Ok(Outcome::failure(
+                        FailureKind::Upstream,
                         "characters response without a `characters` array",
                     ));
                 };
@@ -519,6 +544,7 @@ impl Daemon {
                 // every tab and mint a false listing basis.
                 let Some(stashes) = v.get("stashes").and_then(Value::as_array) else {
                     return Ok(Outcome::failure(
+                        FailureKind::Upstream,
                         "stashes response without a `stashes` array",
                     ));
                 };
@@ -603,7 +629,7 @@ impl Daemon {
             // possibly an earlier build.
             "apply" => {
                 if let Err(error) = validate_apply(&params) {
-                    return Ok(Outcome::failure(error.to_string()));
+                    return Ok(Outcome::failure(FailureKind::Internal, error.to_string()));
                 }
                 let jobs = params
                     .get("jobs")
@@ -642,7 +668,7 @@ impl Daemon {
                 // never passed the door fails in its words rather than
                 // panic in the timer or run a default it would refuse.
                 if let Err(words) = check_sleep(&params) {
-                    return Ok(Outcome::failure(words));
+                    return Ok(Outcome::failure(FailureKind::Internal, words));
                 }
                 let seconds = params.get("seconds").and_then(Value::as_f64).unwrap_or(3.0);
                 let deadline = self.choke.now() + Duration::from_secs_f64(seconds);
@@ -662,6 +688,7 @@ impl Daemon {
                 // sent to GGG: real mode has no such endpoint.
                 if self.provider.is_real() {
                     return Ok(Outcome::failure(
+                        FailureKind::Internal,
                         "fetch is a mock-only kind; real mode has no fake data endpoint",
                     ));
                 }
@@ -683,6 +710,7 @@ impl Daemon {
                 // so in real mode it must not cost a token POST (L0 rail 6).
                 if self.provider.is_real() {
                     return Ok(Outcome::failure(
+                        FailureKind::Internal,
                         "whoami is a mock-only job kind; not run against real GGG",
                     ));
                 }
@@ -725,7 +753,10 @@ impl Daemon {
                         .and_then(Value::as_str)
                         .map(str::to_string),
                 ) else {
-                    return Ok(Outcome::failure("probe needs a route and a url"));
+                    return Ok(Outcome::failure(
+                        FailureKind::Internal,
+                        "probe needs a route and a url",
+                    ));
                 };
                 let mut session = if self.needs_auth(&route) {
                     match self.valid_access_token(account, false, Some(id)).await {
@@ -733,12 +764,13 @@ impl Daemon {
                         // C25: a halt closes nothing; the probe waits too,
                         // and a cancel closes nothing either.
                         Err(error) => {
+                            let kind = token_failure(&error);
                             return turned_away(error, |message| {
                                 // Close the endpoint too, or the waiting job
                                 // would just ask for another probe; login
                                 // reopens it.
                                 self.choke.degrade(&route, &message);
-                                Ok(Outcome::failure(message))
+                                Ok(Outcome::failure(kind, message))
                             });
                         }
                     }
@@ -783,9 +815,10 @@ impl Daemon {
                             {
                                 Ok(pair) => session = Some(pair),
                                 Err(error) => {
+                                    let kind = token_failure(&error);
                                     return turned_away(error, |message| {
                                         self.choke.degrade(&route, &message);
-                                        Ok(Outcome::failure(message))
+                                        Ok(Outcome::failure(kind, message))
                                     });
                                 }
                             }
@@ -839,17 +872,20 @@ impl Daemon {
                             // is re-closed with the whole story.
                             self.choke.degrade(&route, &message);
                         }
-                        Outcome::failure(message)
+                        Outcome::failure(FailureKind::Upstream, message)
                     }
                 }
             }
             // The door refuses a kind outside the table (C127); this is a
             // restored row from a build with another table.
-            other => Outcome::failure(format!(
-                "unknown job kind {}; a client may submit: {}",
-                describe_str(other),
-                client_kinds(self.provider.is_real())
-            )),
+            other => Outcome::failure(
+                FailureKind::Internal,
+                format!(
+                    "unknown job kind {}; a client may submit: {}",
+                    describe_str(other),
+                    client_kinds(self.provider.is_real())
+                ),
+            ),
         })
     }
 
@@ -909,16 +945,22 @@ impl Daemon {
                         }
                         Err(mut refusal) => {
                             refusal.message = format!("GET {}: {}", url_path(url), refusal.message);
-                            return turned_away(refusal, |message| Err(ApiError::Other(message)));
+                            let kind = token_failure(&refusal);
+                            return turned_away(refusal, |message| {
+                                Err(ApiError::Other(kind, message))
+                            });
                         }
                     }
                 }
                 Err(SendError::StaleBearer) => {
-                    return Err(ApiError::Other(format!(
-                        "GET {}: {} — twice; giving up",
-                        url_path(url),
-                        SendError::StaleBearer
-                    )));
+                    return Err(ApiError::Other(
+                        FailureKind::Upstream,
+                        format!(
+                            "GET {}: {} — twice; giving up",
+                            url_path(url),
+                            SendError::StaleBearer
+                        ),
+                    ));
                 }
                 Err(SendError::Protocol(error)) => {
                     return Err(ApiError::Protocol(format!(
@@ -927,7 +969,10 @@ impl Daemon {
                     )));
                 }
                 Err(SendError::Transport(error)) => {
-                    return Err(ApiError::Other(format!("GET {url} failed: {error}")));
+                    return Err(ApiError::Other(
+                        FailureKind::Upstream,
+                        format!("GET {url} failed: {error}"),
+                    ));
                 }
                 Err(SendError::Halted(cause)) => {
                     return Err(ApiError::Halted(format!(
@@ -936,7 +981,10 @@ impl Daemon {
                     )));
                 }
                 Err(SendError::OffOrigin(reason)) => {
-                    return Err(ApiError::Other(format!("GET {}: {reason}", url_path(url))));
+                    return Err(ApiError::Other(
+                        FailureKind::Upstream,
+                        format!("GET {}: {reason}", url_path(url)),
+                    ));
                 }
                 Err(SendError::Cancelled) => return Err(ApiError::Cancelled),
                 Ok(response) => response,
@@ -977,7 +1025,7 @@ impl Daemon {
             );
             if let Some(username) = cleared_for {
                 return classified.map_err(|error| match error {
-                    ApiError::Other(evidence) => ApiError::Other(format!(
+                    ApiError::Other(kind, evidence) => ApiError::Other(kind, format!(
                         "{evidence} — the access token for {username} was rejected and is forgotten; the next send refreshes it first"
                     )),
                     other => other,
@@ -1074,7 +1122,10 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
     if cancelled {
         Outcome::Cancelled
     } else {
-        Outcome::failure(format!("fan-out stopped after {submitted} children: {why}"))
+        Outcome::failure(
+            FailureKind::Internal,
+            format!("fan-out stopped after {submitted} children: {why}"),
+        )
     }
 }
 
@@ -1103,10 +1154,13 @@ fn cloudflare_failure(
             )
         }
     });
-    ApiError::Other(format!(
-        "GET {path} returned {status}; {} — NOT retrying; {halt}",
-        crate::ratelimit::rate_words(rate)
-    ))
+    ApiError::Other(
+        FailureKind::Blocked,
+        format!(
+            "GET {path} returned {status}; {} — NOT retrying; {halt}",
+            crate::ratelimit::rate_words(rate)
+        ),
+    )
 }
 
 /// A response's outcome for its job. `verdict` is the choke point's
@@ -1141,35 +1195,46 @@ pub(super) fn classify_api_body(
             "GET {path} returned {status}; {}; {body}",
             crate::ratelimit::rate_words(&rate)
         );
+        // C165: the failure's kind from the status, the way on it leaves
         return Err(match status.as_u16() {
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
-            429 => ApiError::Other(format!(
-                "terminal rate limit: {evidence}; {retry_after}; NOT retrying"
-            )),
-            403 | 503 => ApiError::Other(format!(
-                "{evidence} — {}; NOT retrying (invariant 3)",
-                shape.describe()
-            )),
-            _ => ApiError::Other(evidence),
+            429 => ApiError::Other(
+                FailureKind::RateLimited,
+                format!("terminal rate limit: {evidence}; {retry_after}; NOT retrying"),
+            ),
+            // never retried (invariant 3), so nothing offered sends
+            403 | 503 => ApiError::Other(
+                FailureKind::Blocked,
+                format!(
+                    "{evidence} — {}; NOT retrying (invariant 3)",
+                    shape.describe()
+                ),
+            ),
+            404 => ApiError::Other(FailureKind::NotFound, evidence),
+            _ => ApiError::Other(FailureKind::Upstream, evidence),
         });
     }
 
     let body = body.map_err(|error| {
-        ApiError::Other(format!(
-            "GET {path} body read transport failure after {status}: {error}"
-        ))
+        ApiError::Other(
+            FailureKind::Upstream,
+            format!("GET {path} body read transport failure after {status}: {error}"),
+        )
     })?;
     // #113: serde's message can quote a value of the body; its category
     // and position are the daemon's own.
     serde_json::from_str::<Value>(&body)
         .map(|value| (value, rate))
         .map_err(|error| {
-            ApiError::Other(format!(
-                "bad JSON from {path}: {:?} at line {} column {}",
-                error.classify(),
-                error.line(),
-                error.column()
-            ))
+            ApiError::Other(
+                FailureKind::Upstream,
+                format!(
+                    "bad JSON from {path}: {:?} at line {} column {}",
+                    error.classify(),
+                    error.line(),
+                    error.column()
+                ),
+            )
         })
 }
 

@@ -166,7 +166,7 @@ impl Daemon {
                     let left = until.saturating_duration_since(self.choke.now()).as_secs();
                     let error = format!("route {route} is degraded for another {left}s: {reason}");
                     self.note_error(&format!("job {id}: {error}"));
-                    self.start_and_finish(id, Outcome::failure(error));
+                    self.start_and_finish(id, Outcome::failure(FailureKind::Upstream, error));
                     return;
                 }
                 // A no-probe route's first GET is what teaches the limiter.
@@ -281,9 +281,12 @@ impl Daemon {
                         self.emit(info);
                         return; // scheduling key released; re-pick after the hold
                     }
-                    None => Outcome::failure(format!(
-                        "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
-                    )),
+                    None => Outcome::failure(
+                        FailureKind::RateLimited,
+                        format!(
+                            "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
+                        ),
+                    ),
                 }
             }
             // C25: turned away by a halt after the pick. Back to waiting,
@@ -408,6 +411,7 @@ impl Daemon {
                 // parent must not call that success.
                 Outcome::Success { .. } if failed == 0 => Outcome::Failure {
                     error: format!("{cancelled} of {total} child jobs were cancelled"),
+                    kind: Some(FailureKind::Children),
                     children: Some(tally),
                     payload: None,
                 },
@@ -422,13 +426,16 @@ impl Daemon {
                             String::new()
                         }
                     ),
+                    kind: Some(FailureKind::Children),
                     children: Some(tally),
                     payload: None,
                 },
                 // A held failure (the interrupted fan-out a restart
-                // installs, or the parent's own): its message stands.
-                Outcome::Failure { error, .. } => Outcome::Failure {
+                // installs, or the parent's own): its message and its
+                // kind stand.
+                Outcome::Failure { error, kind, .. } => Outcome::Failure {
                     error,
+                    kind,
                     children: Some(tally),
                     payload: None,
                 },
@@ -563,8 +570,11 @@ impl Daemon {
         {
             Ok(outcome) => Exec::Done(outcome),
             Err(ApiError::RateLimited(evidence)) => Exec::RateLimited(evidence),
-            Err(ApiError::Protocol(error)) => Exec::Done(Outcome::failure(error)),
-            Err(ApiError::Other(error)) => Exec::Done(Outcome::failure(error)),
+            // the limiter's own state unreadable: the daemon's fault
+            Err(ApiError::Protocol(error)) => {
+                Exec::Done(Outcome::failure(FailureKind::Internal, error))
+            }
+            Err(ApiError::Other(kind, error)) => Exec::Done(Outcome::failure(kind, error)),
             Err(ApiError::Halted(cause)) => Exec::Parked(cause),
             // C25: cancelled while it waited at the choke point; nothing
             // of it was sent.

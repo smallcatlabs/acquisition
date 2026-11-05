@@ -932,11 +932,12 @@ fn schema_too_new(dir: &std::path::Path, account: &str) {
 fn kept_failure(outcome: &Outcome) -> (&str, &Value) {
     let Outcome::Failure {
         error,
+        kind: Some(FailureKind::NotRecorded),
         payload: Some(payload),
         ..
     } = outcome
     else {
-        panic!("a failure keeping its body: {outcome:?}")
+        panic!("a not_recorded failure keeping its body (C165): {outcome:?}")
     };
     (error, payload)
 }
@@ -1206,6 +1207,9 @@ struct Job {
     carries: Vec<String>,
     /// Words its failure's error does not carry.
     lacks: Vec<String>,
+    /// C165: its failure's kind; every row that ends a job failed names
+    /// one.
+    fails: Option<FailureKind>,
 }
 
 impl Job {
@@ -1218,6 +1222,7 @@ impl Job {
             marker: None,
             carries: Vec::new(),
             lacks: Vec::new(),
+            fails: None,
         }
     }
 
@@ -1252,6 +1257,13 @@ impl Job {
     fn lacks(mut self, words: &[&str]) -> Job {
         self.lacks.extend(words.iter().map(|w| w.to_string()));
         self
+    }
+
+    fn fails(self, kind: FailureKind) -> Job {
+        Job {
+            fails: Some(kind),
+            ..self
+        }
     }
 }
 
@@ -1484,6 +1496,7 @@ fn wire_rows() -> Vec<Row> {
             steps: fetched(Failed),
             jobs: vec![
                 Job::fetch(Failed)
+                    .fails(FailureKind::RateLimited)
                     .retries(MAX_429_RETRIES)
                     .carries(&["giving up"]),
                 Job::probe(Done),
@@ -1573,7 +1586,7 @@ fn wire_rows() -> Vec<Row> {
                 Step::Await(vec![(1, Done)]),
             ],
             jobs: vec![
-                Job::fetch(Failed),
+                Job::fetch(Failed).fails(FailureKind::RateLimited),
                 Job::probe(Done),
                 Job::fetch(Done).marker("after"),
             ],
@@ -1604,7 +1617,10 @@ fn wire_rows() -> Vec<Row> {
                     degraded: vec!["fetch"],
                 }])
                 .collect(),
-            jobs: vec![Job::fetch(Failed), Job::probe(Failed)],
+            jobs: vec![
+                Job::fetch(Failed).fails(FailureKind::Upstream),
+                Job::probe(Failed).fails(FailureKind::Upstream),
+            ],
             journal: vec![json!([
                 "HEAD",
                 "/fetch",
@@ -1670,6 +1686,7 @@ fn wire_rows() -> Vec<Row> {
             ],
             jobs: vec![
                 Job::fetch(Failed)
+                    .fails(FailureKind::Blocked)
                     .carries(&["Cloudflare answered in GGG's place", "reset-tripwire"]),
                 Job::probe(Done),
                 Job::fetch(Waiting).kind("stashes"),
@@ -1764,7 +1781,7 @@ fn wire_rows() -> Vec<Row> {
                 Step::Await(vec![(1, Done)]),
             ],
             jobs: vec![
-                Job::fetch(Failed).carries(&[
+                Job::fetch(Failed).fails(FailureKind::Blocked).carries(&[
                     "Cloudflare could not reach GGG",
                     "this daemon lifetime",
                     "reset-tripwire",
@@ -1790,8 +1807,14 @@ fn wire_rows() -> Vec<Row> {
     // name the user chose; a page Cloudflare serves in GGG's place cannot
     // carry GGG's headers) each fail their job, never retried, and the
     // next job's GET goes out.
-    for (case, unshaped, status, shape) in [
-        ("origin 503", ScriptedResponse::origin_503(), 503, "origin"),
+    for (case, unshaped, status, shape, fails) in [
+        (
+            "origin 503",
+            ScriptedResponse::origin_503(),
+            503,
+            "origin",
+            FailureKind::Blocked,
+        ),
         (
             "GGG's 500 echoing CloudflareFan",
             ScriptedResponse::full(
@@ -1802,6 +1825,7 @@ fn wire_rows() -> Vec<Row> {
             ),
             500,
             "cloudflare",
+            FailureKind::Upstream,
         ),
     ] {
         rows.push(Row {
@@ -1813,7 +1837,9 @@ fn wire_rows() -> Vec<Row> {
             ],
             steps: not_halted_then_after(),
             jobs: vec![
-                Job::fetch(Failed).lacks(&["Cloudflare could not"]),
+                Job::fetch(Failed)
+                    .fails(fails)
+                    .lacks(&["Cloudflare could not"]),
                 Job::probe(Done),
                 Job::fetch(Done).marker("after"),
             ],
@@ -1845,7 +1871,7 @@ fn wire_rows() -> Vec<Row> {
         );
         response
     };
-    for (case, rejected, status, shape) in [
+    for (case, rejected, status, shape, fails) in [
         (
             "GGG's 404",
             ScriptedResponse::full(
@@ -1856,8 +1882,16 @@ fn wire_rows() -> Vec<Row> {
             ),
             404,
             "unclassified",
+            FailureKind::NotFound,
         ),
-        ("an auth error", auth_error, 403, "cloudflare"),
+        // never retried (invariant 3), whatever its body says
+        (
+            "an auth error",
+            auth_error,
+            403,
+            "cloudflare",
+            FailureKind::Blocked,
+        ),
         (
             "GGG's 404 echoing CloudflareFan",
             ScriptedResponse::full(
@@ -1868,6 +1902,7 @@ fn wire_rows() -> Vec<Row> {
             ),
             404,
             "cloudflare",
+            FailureKind::NotFound,
         ),
         (
             "GGG's 400 echoing a league",
@@ -1879,6 +1914,7 @@ fn wire_rows() -> Vec<Row> {
             ),
             400,
             "cloudflare",
+            FailureKind::Upstream,
         ),
     ] {
         rows.push(Row {
@@ -1890,7 +1926,9 @@ fn wire_rows() -> Vec<Row> {
             ],
             steps: not_halted_then_after(),
             jobs: vec![
-                Job::fetch(Failed).lacks(&["Cloudflare answered"]),
+                Job::fetch(Failed)
+                    .fails(fails)
+                    .lacks(&["Cloudflare answered"]),
                 Job::probe(Done),
                 Job::fetch(Done).marker("after"),
             ],
@@ -1915,7 +1953,9 @@ fn wire_rows() -> Vec<Row> {
         ],
         steps: fetched(Failed),
         jobs: vec![
-            Job::fetch(Failed).carries(&["302 Found", "https://www.pathofexile.com/login?…"]),
+            Job::fetch(Failed)
+                .fails(FailureKind::Upstream)
+                .carries(&["302 Found", "https://www.pathofexile.com/login?…"]),
             Job::probe(Done),
         ],
         journal: vec![
@@ -1968,7 +2008,9 @@ fn wire_rows() -> Vec<Row> {
             Step::Await(vec![(0, Failed), (1, Done)]),
         ],
         jobs: vec![
-            Job::fetch(Failed).carries(&["origin error page"]),
+            Job::fetch(Failed)
+                .fails(FailureKind::Blocked)
+                .carries(&["origin error page"]),
             Job::fetch(Done).marker("done"),
             Job::probe(Done),
         ],
@@ -2015,7 +2057,11 @@ fn wire_rows() -> Vec<Row> {
             Step::Await(vec![(0, Failed), (1, Done)]),
         ],
         jobs: vec![
-            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &send_expired()]),
+            Job::fetch(Failed).fails(FailureKind::Upstream).carries(&[
+                "GET http://",
+                "/fetch failed: ",
+                &send_expired(),
+            ]),
             Job::fetch(Done).marker("done"),
             Job::probe(Done),
         ],
@@ -2042,7 +2088,11 @@ fn wire_rows() -> Vec<Row> {
         quiet: vec![(1, Quiet::Delayed(Duration::from_secs(20)))],
         steps: fetched(Failed),
         jobs: vec![
-            Job::fetch(Failed).carries(&["GET http://", "/fetch failed: ", &body_expired()]),
+            Job::fetch(Failed).fails(FailureKind::Upstream).carries(&[
+                "GET http://",
+                "/fetch failed: ",
+                &body_expired(),
+            ]),
             Job::probe(Done),
         ],
         journal: vec![
@@ -2090,7 +2140,9 @@ fn wire_rows() -> Vec<Row> {
             ],
             steps: fetched(Failed),
             jobs: vec![
-                Job::fetch(Failed).carries(&["NOT retrying", words]),
+                Job::fetch(Failed)
+                    .fails(FailureKind::Blocked)
+                    .carries(&["NOT retrying", words]),
                 Job::probe(Done),
             ],
             journal: vec![
@@ -2163,8 +2215,10 @@ fn wire_rows() -> Vec<Row> {
             ])
             .collect(),
         jobs: vec![
-            Job::fetch(Failed).carries(&["degraded"]),
-            Job::probe(Failed),
+            Job::fetch(Failed)
+                .fails(FailureKind::Upstream)
+                .carries(&["degraded"]),
+            Job::probe(Failed).fails(FailureKind::Upstream),
         ],
         journal: vec![json!([
             "HEAD",
@@ -2200,7 +2254,7 @@ fn wire_rows() -> Vec<Row> {
         ],
         steps: fetched(Failed),
         jobs: vec![
-            Job::fetch(Failed)
+            Job::fetch(Failed).fails(FailureKind::Upstream)
                 .carries(&["GET http://", "/fetch failed: ", crate::transport::SHORT_BODY])
                 .lacks(&["bad JSON"]),
             Job::probe(Done),
@@ -2224,7 +2278,7 @@ fn wire_rows() -> Vec<Row> {
         ],
         steps: fetched(Failed),
         jobs: vec![
-            Job::fetch(Failed).carries(&[
+            Job::fetch(Failed).fails(FailureKind::Upstream).carries(&[
                 "returned 500",
                 &format!(
                     "a body read transport failure: {}",
@@ -2249,7 +2303,12 @@ fn wire_rows() -> Vec<Row> {
             ScriptedResponse::full("GET", "200 OK", None, "not json"),
         ],
         steps: fetched(Failed),
-        jobs: vec![Job::fetch(Failed).carries(&["bad JSON"]), Job::probe(Done)],
+        jobs: vec![
+            Job::fetch(Failed)
+                .fails(FailureKind::Upstream)
+                .carries(&["bad JSON"]),
+            Job::probe(Done),
+        ],
         journal: vec![
             probe_sent(),
             json!(["GET", "/fetch", 200, true, true, 0, null]),
@@ -2443,7 +2502,12 @@ fn c158_the_wire_table_through_the_door() {
                     assert_eq!(fetch_payload_marker(&outcome), marker, "{name}: job {id}");
                 }
                 match &outcome {
-                    Outcome::Failure { error, .. } => {
+                    Outcome::Failure { error, kind, .. } => {
+                        assert!(
+                            want.fails.is_some(),
+                            "{name}: job {id} names no failure kind"
+                        );
+                        assert_eq!(*kind, want.fails, "{name}: job {id}: {error}");
                         for words in &want.carries {
                             assert!(
                                 error.contains(words.as_str()),

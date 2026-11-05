@@ -13,7 +13,9 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
-use acquisition_protocol::job::{Children, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome};
+use acquisition_protocol::job::{
+    Children, FailureKind, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
+};
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, MAX_FRAME_BYTES, Quote,
     QuoteJob, QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
@@ -445,6 +447,7 @@ fn outcomes() -> Vec<Outcome> {
         },
         Outcome::Failure {
             error: "1 of 3 child jobs failed, 2 done".into(),
+            kind: Some(FailureKind::Children),
             children: Some(Children {
                 done: 2,
                 failed: 1,
@@ -547,6 +550,7 @@ fn c23_a_failure_without_children_reads_and_writes_without_the_field() {
         error,
         children,
         payload,
+        ..
     } = &plain
     else {
         panic!("{plain:?}")
@@ -578,6 +582,7 @@ fn c144_a_failure_with_a_payload_round_trips() {
         json!({
             "outcome": "failure",
             "error": "fetched, but the store could not record it: disk full",
+            "kind": "not_recorded",
             "payload": { "params": { "league": "Standard" }, "body": { "stashes": [] } },
         })
     );
@@ -821,6 +826,53 @@ fn c85_the_error_kind_set_is_closed_and_pinned() {
     assert!(
         serde_json::from_str::<Response>(r#"{"resp":"error","kind":"halted","message":"x"}"#)
             .is_err(),
+        "a kind outside the closed set does not parse"
+    );
+}
+
+/// C165 (a failed job says what kind of failure it is): the failure-kind
+/// set is closed, its wire names a fixture; a failure from before the
+/// field reads with none, and a name outside the set does not parse.
+#[test]
+fn c165_the_failure_kind_set_is_closed_and_pinned() {
+    let names: Vec<Value> = FailureKind::ALL
+        .iter()
+        .map(|k| serde_json::to_value(k).unwrap())
+        .collect();
+    let listed: BTreeSet<String> = names
+        .iter()
+        .map(|n| n.as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        listed,
+        variants_of::<FailureKind>(json!("__none__")),
+        "FailureKind::ALL is not the type's variants"
+    );
+    assert_eq!(listed.len(), FailureKind::ALL.len(), "a kind listed twice");
+    for (kind, name) in FailureKind::ALL.iter().zip(&names) {
+        assert_eq!(name, &json!(kind.as_str()), "{kind:?}");
+    }
+    if let Some(problem) = check("failure_kinds", &Value::Array(names)) {
+        panic!(
+            "the failure-kind set changed — a protocol change, reviewed as this diff:\n{problem}"
+        );
+    }
+    let old: Outcome =
+        serde_json::from_value(json!({ "outcome": "failure", "error": "boom" })).expect("reads");
+    assert!(
+        matches!(old, Outcome::Failure { kind: None, .. }),
+        "{old:?}"
+    );
+    let kept = Outcome::failure(FailureKind::NotFound, "GET /stash/S/t returned 404");
+    assert_eq!(
+        serde_json::to_value(&kept).unwrap(),
+        json!({ "outcome": "failure", "error": "GET /stash/S/t returned 404", "kind": "not_found" })
+    );
+    assert!(
+        serde_json::from_value::<Outcome>(
+            json!({ "outcome": "failure", "error": "x", "kind": "cloudflare" })
+        )
+        .is_err(),
         "a kind outside the closed set does not parse"
     );
 }

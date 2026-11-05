@@ -126,8 +126,8 @@ use crate::ratelimit::{
 use crate::ratelimit::{Expired, endpoint_key, split_endpoint_key, within_on};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    CLIENT_KINDS, Children, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES, MOCK_ONLY_KINDS,
-    Outcome, Priority, client_kinds, target_of,
+    CLIENT_KINDS, Children, FailureKind, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES,
+    MOCK_ONLY_KINDS, Outcome, Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,

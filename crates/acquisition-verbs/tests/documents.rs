@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshAction};
-use acquisition_protocol::job::{Children, JobState, Outcome};
+use acquisition_protocol::job::{Children, FailureKind, JobState, Outcome};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::PersistedJob;
 use acquisition_store::{
@@ -17,6 +17,7 @@ use acquisition_store::{
 };
 use acquisition_verbs::jobs::job_info;
 use acquisition_verbs::refresh::{NOTHING_TO_DO, StoreChanges, compile, quote, spent_phrase};
+use acquisition_verbs::refusal::Way;
 use acquisition_verbs::{
     Account, Apply, DaemonReport, Door, Fault, Frontend, Job, JobResult, Jobs, Opened,
     PersistedSummary, QuoteNote,
@@ -960,6 +961,7 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
         account: Some(USER.into()),
         outcome: Outcome::Failure {
             error: "1 of 2 child jobs failed, 1 done".into(),
+            kind: None,
             children: Some(Children {
                 done: 1,
                 failed: 1,
@@ -975,6 +977,8 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
             target: "Standard/t6".into(),
             error: "GET /stash/Standard/t6 returned 404".into(),
         }],
+        offers: Vec::new(),
+        way_on: None,
     };
     assert_eq!(
         serde_json::to_value(&result).unwrap(),
@@ -993,14 +997,116 @@ fn a_plain_failure_serialises_without_failed_children() {
     let result = JobResult {
         job_id: 9,
         account: None,
-        outcome: Outcome::failure("GET /stash/Standard/t9 returned 404"),
+        outcome: Outcome::failure(FailureKind::NotFound, "GET /stash/Standard/t9 returned 404"),
         times: Default::default(),
         failed_children: Vec::new(),
+        offers: Vec::new(),
+        way_on: None,
     };
     assert_eq!(
         serde_json::to_value(&result).unwrap(),
-        json!({ "job_id": 9, "outcome": "failure", "error": "GET /stash/Standard/t9 returned 404" })
+        json!({ "job_id": 9, "outcome": "failure", "error": "GET /stash/Standard/t9 returned 404",
+                "kind": "not_found" })
     );
+}
+
+/// C165 (a failed job says what kind of failure it is) and C143 (the way
+/// on in each surface's terms): each kind's way on, from the failed
+/// job's own kind and params. A stash's 404 offers the league's listing,
+/// a substash's its parent tab's fetch; a refusal or fault of GGG's, a
+/// 429 that ended the job and an interruption, the same job; a body not
+/// recorded, its result; a parent, each failed child's result. A block,
+/// a session with no token and the daemon's own fault offer nothing,
+/// and a block's words say not to retry (invariant 3); a failure from
+/// before the kinds has no way on.
+#[test]
+fn c165_a_failures_way_on_follows_its_kind() {
+    use acquisition_verbs::jobs::way_on;
+    let tab = json!({ "realm": "xbox", "league": "Rehearsal", "id": "no-such-tab", "sub": null });
+    let sub = json!({ "league": "Rehearsal", "id": "M", "sub": "S9" });
+    let child = acquisition_verbs::FailedChild {
+        job_id: 12,
+        kind: "stash".into(),
+        target: "Rehearsal/t".into(),
+        error: "x".into(),
+    };
+    let submit = |kind: &str, params: Value| Way::Submit {
+        account: Some(USER.into()),
+        kind: kind.into(),
+        params,
+    };
+    let ways = |kind: FailureKind, job: (&str, &Value)| -> Vec<Way> {
+        way_on(
+            &Outcome::failure(kind, "words"),
+            9,
+            Some(USER),
+            Some(job),
+            std::slice::from_ref(&child),
+        )
+        .expect("a kind has a way on")
+        .ways
+        .into_iter()
+        .map(|(way, _)| way)
+        .collect()
+    };
+    assert_eq!(
+        ways(FailureKind::NotFound, ("stash", &tab)),
+        [submit(
+            "stashes",
+            json!({ "realm": "xbox", "league": "Rehearsal" })
+        )]
+    );
+    assert_eq!(
+        ways(FailureKind::NotFound, ("stash", &sub)),
+        [submit("stash", json!({ "league": "Rehearsal", "id": "M" }))]
+    );
+    for kind in [
+        FailureKind::Upstream,
+        FailureKind::RateLimited,
+        FailureKind::Interrupted,
+    ] {
+        assert_eq!(ways(kind, ("stash", &tab)), [submit("stash", tab.clone())]);
+    }
+    assert_eq!(
+        ways(FailureKind::Upstream, ("probe", &tab)),
+        [],
+        "a daemon's own kind is no client's to submit"
+    );
+    assert_eq!(
+        ways(FailureKind::NotRecorded, ("stash", &tab)),
+        [Way::Result { id: 9 }]
+    );
+    assert_eq!(
+        ways(FailureKind::Children, ("apply", &tab)),
+        [Way::Result { id: 12 }]
+    );
+    for kind in [
+        FailureKind::Blocked,
+        FailureKind::NotLoggedIn,
+        FailureKind::Internal,
+    ] {
+        assert_eq!(ways(kind, ("stash", &tab)), [], "{kind}");
+    }
+    let blocked = way_on(
+        &Outcome::failure(FailureKind::Blocked, "words"),
+        9,
+        None,
+        Some(("stash", &tab)),
+        &[],
+    )
+    .unwrap();
+    assert!(
+        blocked.words.starts_with("do not submit it again"),
+        "{}",
+        blocked.words
+    );
+    let old = Outcome::Failure {
+        error: "boom".into(),
+        kind: None,
+        children: None,
+        payload: None,
+    };
+    assert_eq!(way_on(&old, 9, None, Some(("stash", &tab)), &[]), None);
 }
 
 // ---- the store's reads as documents (C149) ------------------------------
@@ -1906,7 +2012,6 @@ impl acquisition_verbs::refusal::Surface for Plain {
         &self,
         way: &acquisition_verbs::refusal::Way,
     ) -> Option<(Value, Option<&'static str>)> {
-        use acquisition_verbs::refusal::Way;
         let tool = match way {
             Way::Again { .. } => None,
             Way::Search(_) => Some("search"),
@@ -1919,6 +2024,8 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::PriceSet { .. } => Some("price_set"),
             Way::PriceClear { .. } => Some("price_clear"),
             Way::PolicySet { .. } => Some("set_sync_policy"),
+            Way::Submit { .. } => Some("submit_job"),
+            Way::Result { .. } => Some("job_result"),
         };
         Some((json!(format!("{way:?}")), tool))
     }
@@ -2209,7 +2316,7 @@ fn a_request_read_whole_is_repeated_as_another_account_by_one_rule() {
 #[test]
 fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_undo() {
     use acquisition_verbs::receipt;
-    use acquisition_verbs::refusal::Way;
+
     let s = scratch();
     let account = profiled(&s.mock);
     let surface = Plain;

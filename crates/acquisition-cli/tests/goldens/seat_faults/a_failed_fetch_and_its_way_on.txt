@@ -1,0 +1,10 @@
+# golden seat_faults/a_failed_fetch_and_its_way_on: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq stash no-such-tab
+# holds "returned 404"
+# holds "GGG has nothing there now; fetch what lists it again: `acq --account alice submit stashes"
+--- stderr
+job <j1> (alice): failed; submitted <age> ago, started <age> ago, finished <age> ago
+Error: job <j1> failed: GET /stash/Standard/no-such-tab returned 404 Not Found; no rate headers; a body of 25 bytes
+  GGG has nothing there now; fetch what lists it again: `acq --account alice submit stashes --params '{"league":"Standard","realm":"pc"}'`
+--- exit 1

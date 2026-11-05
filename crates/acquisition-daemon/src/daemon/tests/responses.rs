@@ -60,8 +60,8 @@ fn acceptable_429_is_the_only_body_outcome_that_requeues() {
         Some(headerless),
     )
     .unwrap_err();
-    let ApiError::Other(message) = error else {
-        panic!("a 429 without GGG's policy header entered the retryable arm")
+    let ApiError::Other(FailureKind::Blocked, message) = error else {
+        panic!("a 429 without GGG's policy header entered the retryable arm: {error:?}")
     };
     assert!(
         message.contains("Cloudflare answered in GGG's place"),
@@ -85,8 +85,8 @@ fn acceptable_429_is_the_only_body_outcome_that_requeues() {
             ggg_429(),
         )
         .unwrap_err();
-        let ApiError::Other(message) = error else {
-            panic!("{retry_after} entered the retryable arm")
+        let ApiError::Other(FailureKind::RateLimited, message) = error else {
+            panic!("{retry_after} entered the retryable arm: {error:?}")
         };
         assert!(message.contains("terminal rate limit"));
         assert!(message.contains("NOT retrying"));
@@ -104,8 +104,8 @@ fn body_read_transport_failure_is_not_recast_as_bad_json() {
         None,
     )
     .unwrap_err();
-    let ApiError::Other(message) = error else {
-        panic!("body transport failure used the wrong error kind")
+    let ApiError::Other(FailureKind::Upstream, message) = error else {
+        panic!("body transport failure used the wrong error kind: {error:?}")
     };
     assert!(message.contains("body read transport failure"));
     assert!(message.contains("connection closed before message completed"));
@@ -126,8 +126,8 @@ fn http_status_keeps_precedence_over_error_body_transport_failure() {
             Some(Verdict::of(500, &Value::Null, None)),
         )
         .unwrap_err();
-        let ApiError::Other(message) = error else {
-            panic!("HTTP failure used the wrong error kind")
+        let ApiError::Other(FailureKind::Upstream, message) = error else {
+            panic!("HTTP failure used the wrong error kind: {error:?}")
         };
         assert!(
             message.starts_with("GET /character returned 500 Internal Server Error"),
@@ -151,8 +151,42 @@ fn malformed_success_body_remains_a_json_failure() {
         None,
     )
     .unwrap_err();
-    let ApiError::Other(message) = error else {
-        panic!("JSON failure used the wrong error kind")
+    let ApiError::Other(FailureKind::Upstream, message) = error else {
+        panic!("JSON failure used the wrong error kind: {error:?}")
     };
     assert!(message.contains("bad JSON"));
+}
+
+/// C165 (a failed job says what kind of failure it is), read from the
+/// status, never the words: a 404 is `not_found`, whose way on is the
+/// listing's fetch; a 403 and a 503, never retried (invariant 3),
+/// `blocked`, whose way on sends nothing; any other refusal or fault of
+/// GGG's `upstream`.
+#[test]
+fn c165_a_failed_responses_kind_is_read_from_its_status() {
+    for (status, kind) in [
+        (reqwest::StatusCode::NOT_FOUND, FailureKind::NotFound),
+        (reqwest::StatusCode::FORBIDDEN, FailureKind::Blocked),
+        (
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            FailureKind::Blocked,
+        ),
+        (reqwest::StatusCode::BAD_REQUEST, FailureKind::Upstream),
+        (reqwest::StatusCode::UNAUTHORIZED, FailureKind::Upstream),
+        (reqwest::StatusCode::BAD_GATEWAY, FailureKind::Upstream),
+    ] {
+        let error = classify_api_body(
+            status,
+            &RetryAfter::Missing,
+            "/stash/Standard/t9",
+            Value::Null,
+            Ok(r#"{"error":{"code":1,"message":"Resource not found"}}"#.into()),
+            Some(Verdict::of(status.as_u16(), &Value::Null, None)),
+        )
+        .unwrap_err();
+        let ApiError::Other(read, message) = &error else {
+            panic!("{status}: {error:?}")
+        };
+        assert_eq!(*read, kind, "{status}: {message}");
+    }
 }

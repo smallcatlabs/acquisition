@@ -1,0 +1,11 @@
+[
+  "not_found",
+  "upstream",
+  "rate_limited",
+  "blocked",
+  "not_recorded",
+  "children",
+  "not_logged_in",
+  "interrupted",
+  "internal"
+]

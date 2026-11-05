@@ -235,12 +235,15 @@ impl Daemon {
                 {
                     fault += 1;
                     entry.info.state = JobState::Failed;
-                    entry.outcome = Some(Outcome::failure(match &closed_route {
-                        Some(route) if on_closed_route => {
-                            format!("not sent on route {route}: {PROBE_FAULT_WORDS}")
-                        }
-                        _ => FAULT_WORDS.to_string(),
-                    }));
+                    entry.outcome = Some(Outcome::failure(
+                        FailureKind::Interrupted,
+                        match &closed_route {
+                            Some(route) if on_closed_route => {
+                                format!("not sent on route {route}: {PROBE_FAULT_WORDS}")
+                            }
+                            _ => FAULT_WORDS.to_string(),
+                        },
+                    ));
                     fault_on_disk &= self.persist(&mut entry);
                 } else if entry.info.kind == "profile"
                     && entry.info.submitted_by == DAEMON_SUBMITTER
@@ -253,7 +256,8 @@ impl Daemon {
                     // one waiting for the uuid.
                     lost_login += 1;
                     entry.info.state = JobState::Failed;
-                    entry.outcome = Some(Outcome::failure(LOST_LOGIN_WORDS));
+                    entry.outcome =
+                        Some(Outcome::failure(FailureKind::NotLoggedIn, LOST_LOGIN_WORDS));
                     self.persist(&mut entry);
                 } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
@@ -278,6 +282,7 @@ impl Daemon {
                         // got submitted is unknowable, so once they land
                         // it finishes as interrupted, never as success.
                         entry.deferred = Some(Outcome::failure(
+                            FailureKind::Interrupted,
                             "interrupted by a daemon restart mid fan-out: the children \
                                     submitted before the restart ran (their responses are in \
                                     the store), but the full child set is unknown — resubmit \
@@ -292,12 +297,15 @@ impl Daemon {
                         // against an empty limiter.
                         not_replayed += 1;
                         entry.info.state = JobState::Failed;
-                        entry.outcome = Some(Outcome::failure(format!(
-                            "interrupted by a daemon restart and not replayed: \
+                        entry.outcome = Some(Outcome::failure(
+                            FailureKind::Interrupted,
+                            format!(
+                                "interrupted by a daemon restart and not replayed: \
 {} sends without a probe, so a replay could not learn the previous lifetime's hits first; \
 resubmit if still wanted",
-                            entry.info.kind
-                        )));
+                                entry.info.kind
+                            ),
+                        ));
                     } else {
                         entry.info.state = JobState::Waiting;
                         requeued += 1;

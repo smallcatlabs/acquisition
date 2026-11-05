@@ -174,7 +174,12 @@ async fn cancelled_children_do_not_make_a_parent_successful() {
     let child = daemon.submit_child(parent, "stash", json!({})).unwrap();
     daemon.cancel(child).unwrap();
     daemon.conclude(parent, Outcome::Success { payload: json!({}) });
-    let Outcome::Failure { error, .. } = held(&daemon, parent).unwrap().1.unwrap() else {
+    let Outcome::Failure {
+        error,
+        kind: Some(FailureKind::Children),
+        ..
+    } = held(&daemon, parent).unwrap().1.unwrap()
+    else {
         panic!("a parent with cancelled children must not succeed")
     };
     assert!(error.contains("cancelled"), "{error}");

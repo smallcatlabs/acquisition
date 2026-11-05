@@ -8,5 +8,6 @@
     ]
   },
   "error": "1 of 3 child jobs failed, 2 done",
+  "kind": "children",
   "outcome": "failure"
 }

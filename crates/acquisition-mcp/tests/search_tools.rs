@@ -740,10 +740,12 @@ fn describe_is_as_large_as_its_text_says() {
     assert!(store < 7_000, "store: {store} bytes");
     assert!(size(&mut seat, json!(["store"])) > 4_000);
     // some 4 KB since a stash job judged against the stored listing
-    // joined the jobs entry (C164, #166: 3,972 bytes before it)
+    // joined the jobs entry (C164, #166: 3,972 bytes before it); some 5
+    // KB since a job's times and a failure's kinds joined the outcome
+    // entry (C165, #165: 5,125 bytes)
     let daemon = size(&mut seat, json!(["daemon"]));
-    assert!(daemon < 5_000, "daemon: {daemon} bytes");
-    assert!(daemon > 4_000, "daemon: {daemon} bytes");
+    assert!(daemon < 6_000, "daemon: {daemon} bytes");
+    assert!(daemon > 5_000, "daemon: {daemon} bytes");
     let large = [
         "computed",
         "trade",
@@ -778,7 +780,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed some 80 KB",
         "fields and trade 20 KB each",
         "categories 10 KB",
-        "pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB",
+        "pricing 8 KB, answer 7 KB, store 6 KB, daemon 5 KB",
         "the rest under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

@@ -189,6 +189,11 @@ pub enum Outcome {
     /// never the sentence.
     Failure {
         error: String,
+        /// C165: what kind of failure it is, from the closed list
+        /// [`FailureKind`], read where the daemon failed the job, never
+        /// from `error`. Absent on a failure from before the field.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<FailureKind>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         children: Option<Children>,
         /// C144 (the daemon reports no success it did not earn): what a
@@ -203,22 +208,107 @@ pub enum Outcome {
 }
 
 impl Outcome {
-    /// A failure that is not a parent's: the message alone, no tally.
-    pub fn failure(error: impl Into<String>) -> Outcome {
+    /// A failure that is not a parent's: its kind and its message, no
+    /// tally.
+    pub fn failure(kind: FailureKind, error: impl Into<String>) -> Outcome {
         Outcome::Failure {
             error: error.into(),
+            kind: Some(kind),
             children: None,
             payload: None,
         }
     }
 
-    /// C144: a failure that keeps what the job fetched.
+    /// C144: a failure that keeps what the job fetched, of kind
+    /// [`FailureKind::NotRecorded`].
     pub fn failure_keeping(error: impl Into<String>, payload: Value) -> Outcome {
         Outcome::Failure {
             error: error.into(),
+            kind: Some(FailureKind::NotRecorded),
             children: None,
             payload: Some(payload),
         }
+    }
+}
+
+/// C165 (a failed job says what kind of failure it is): the closed list,
+/// one kind per distinct way on, each read from what the daemon knows
+/// where it fails the job, never from the failure's sentence. A frontend
+/// offers the way on in its own terms (C143); a kind added is a protocol
+/// change, pinned by the `failure_kinds` fixture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureKind {
+    /// GGG answered 404: what the job asked for is not there. The way
+    /// on is the fetch of the listing that names it: a tab's league
+    /// listing, a substash's parent tab, a character's list.
+    NotFound,
+    /// GGG answered and the answer could not be used — a status it gives
+    /// for a fault of its own or a request it refuses (other than a 403
+    /// or a 503), a response the daemon could not read, a send that never
+    /// reached it — or a route closed after its probe failed. The way on
+    /// is the same job, later.
+    Upstream,
+    /// A 429 ended the job: its re-queues spent, or a `Retry-After` the
+    /// daemon will not wait. The way on is the same job once the
+    /// limiter's hold has passed.
+    RateLimited,
+    /// Invariant 3: Cloudflare answered in GGG's place or could not reach
+    /// it, or GGG answered 403 or 503, which the daemon never retries.
+    /// No way on sends anything: not this job again, not another.
+    Blocked,
+    /// C144: the response was fetched and the store could not record it;
+    /// the body is kept in the failure's `payload`, which is where the
+    /// way on reads it.
+    NotRecorded,
+    /// C23: a parent whose children failed or were cancelled; the way on
+    /// is each failed child's own result.
+    Children,
+    /// The job's account has no session that can give a token, or the
+    /// login it belonged to was lost: the way on is a login, a person's.
+    NotLoggedIn,
+    /// A daemon's end or fault stopped the job before it finished, and
+    /// it was not replayed: the way on is the same job again.
+    Interrupted,
+    /// The daemon's own fault: a row it cannot run, a rate-limit state it
+    /// could not read, a fan-out it could not finish submitting. No way
+    /// on is offered.
+    Internal,
+}
+
+impl FailureKind {
+    /// Every kind, in declaration order: the closed set the fixture pins.
+    pub const ALL: [FailureKind; 9] = [
+        FailureKind::NotFound,
+        FailureKind::Upstream,
+        FailureKind::RateLimited,
+        FailureKind::Blocked,
+        FailureKind::NotRecorded,
+        FailureKind::Children,
+        FailureKind::NotLoggedIn,
+        FailureKind::Interrupted,
+        FailureKind::Internal,
+    ];
+
+    /// The wire name (`not_found`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FailureKind::NotFound => "not_found",
+            FailureKind::Upstream => "upstream",
+            FailureKind::RateLimited => "rate_limited",
+            FailureKind::Blocked => "blocked",
+            FailureKind::NotRecorded => "not_recorded",
+            FailureKind::Children => "children",
+            FailureKind::NotLoggedIn => "not_logged_in",
+            FailureKind::Interrupted => "interrupted",
+            FailureKind::Internal => "internal",
+        }
+    }
+}
+
+impl fmt::Display for FailureKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

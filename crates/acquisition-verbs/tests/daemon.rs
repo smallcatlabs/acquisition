@@ -605,6 +605,7 @@ async fn a_failed_child_the_daemon_does_not_know_is_no_result_live() {
     let (_daemon, _frontend, _opened, mut client) = world(&s).await;
     let outcome = Outcome::Failure {
         error: "1 of 1 child jobs failed, 0 done".into(),
+        kind: None,
         children: Some(acquisition_protocol::job::Children {
             done: 0,
             failed: 1,

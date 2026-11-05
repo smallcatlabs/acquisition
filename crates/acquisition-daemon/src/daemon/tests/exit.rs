@@ -1594,7 +1594,12 @@ fn seed_faulted_probe(dir: &std::path::Path) {
 async fn assert_failed_on_the_closed_route(door: &mut Door) {
     let (info, outcome) = door.await_terminal(2).await;
     assert_eq!(info.state, JobState::Failed, "{outcome:?}");
-    let Outcome::Failure { error, .. } = &outcome else {
+    let Outcome::Failure {
+        error,
+        kind: Some(FailureKind::Interrupted),
+        ..
+    } = &outcome
+    else {
         panic!("the waiting job failed: {outcome:?}")
     };
     assert!(error.contains("route fetch"), "{error}");

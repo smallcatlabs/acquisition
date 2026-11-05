@@ -227,7 +227,30 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
     let (mut daemon, _pid) = harness::start_daemon_with(&base, &[]);
     harness::login_as_mock(&base);
     let mut mcp = Mcp::start(&base, &[]);
-    let listing = mcp.expect_ok("submit_job", json!({ "kind": "stashes" }));
+
+    // C165 (#165, MCP run 1 calls 59 and 60): with no listing stored the
+    // stash job is admitted and GGG's 404 fails it; its result says the
+    // kind, `not_found`, and offers the league's listing as submit_job's
+    // own arguments, sent back as printed
+    let lost = mcp.expect_ok(
+        "submit_job",
+        json!({ "kind": "stash", "params": { "league": "Standard", "id": "no-such-tab" } }),
+    );
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while !matches!(
+        mcp.expect_ok("job_status", json!({ "id": lost["job_id"] }))["state"].as_str(),
+        Some("failed")
+    ) {
+        assert!(Instant::now() < deadline, "the 404 never failed its job");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let failed = mcp.expect_ok("job_result", json!({ "id": lost["job_id"] }));
+    assert_eq!(failed["kind"], "not_found", "{failed}");
+    let offers = failed["offers"].as_array().cloned().unwrap_or_default();
+    assert_eq!(offers.len(), 1, "{failed}");
+    assert_eq!(offers[0]["tool"], "submit_job", "{failed}");
+    assert_eq!(offers[0]["request"]["kind"], "stashes", "{failed}");
+    let listing = mcp.expect_ok("submit_job", offers[0]["request"].clone());
     let outcome = harness::finish_job(&mut mcp, &listing["job_id"]);
     assert_eq!(outcome["outcome"], "success", "{outcome}");
     let named = outcome["payload"]["stashes"][0]["id"].clone();

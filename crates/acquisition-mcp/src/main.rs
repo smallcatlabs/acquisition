@@ -440,6 +440,19 @@ impl refusal::Surface for Spoken<'_> {
                 }),
                 other("set_sync_policy"),
             )),
+            // a failed job's way on (C165): submit_job's own arguments
+            Way::Submit {
+                account,
+                kind,
+                params,
+            } => {
+                let mut arguments = json!({ "kind": kind, "params": params });
+                if let Some(account) = account {
+                    arguments["account"] = json!(account);
+                }
+                Some((arguments, other("submit_job")))
+            }
+            Way::Result { id } => Some((json!({ "id": id }), other("job_result"))),
         }
     }
 }
@@ -704,7 +717,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "outcome",
-        "job_result holds the payload or the error, with `job_id`, `account` and the job's times beside it (`submitted_at`, `started_at` and `finished_at`, each absent until it happens, a 429's re-queue keeping the first start, each with its `_age`), as job_status and list_jobs' rows carry them; a parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids) and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large: the store tools read the same data",
+        "job_result holds the payload or the error, with `job_id`, `account` and the job's times beside it (`submitted_at`, `started_at` and `finished_at`, each absent until it happens, a 429's re-queue keeping the first start, each with its `_age`), as job_status and list_jobs' rows carry them; a failure's `kind` is one of not_found (GGG has nothing there; the offer is the listing that names it: a tab's league `stashes`, a substash's parent `stash`), upstream (GGG's answer could not be used; the same job, later), rate_limited (the same job once the limiter's hold has passed), blocked (never retried: nothing is offered and nothing should be sent again), not_recorded (what it fetched is in `payload`), children (each failed child's job_result), not_logged_in (a login, a human's), interrupted (the same job again) and internal, with its `offers`, each sent back as printed; a parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids) and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large: the store tools read the same data",
     ),
     (
         "another daemon",
@@ -1611,7 +1624,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions alone. An unknown name is refused with every name it knows."
+        description = "What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 5 KB, the rest under 4 KB. A pattern (\"~resist\") reads the language's names and definitions alone. An unknown name is refused with every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -2148,10 +2161,12 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
+        description = "A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`); a failure's `kind` and the `offers` it leaves (`describe` with names [\"daemon\"] lists the kinds), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
     )]
     async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
-        settled(async { Ok(self.frontend.result(p.id).await?) }.await)
+        // C165 and C143: a failure's way on as this server's tool calls
+        let spoken = Spoken { named: "account" };
+        settled(async { Ok(self.frontend.result(p.id).await?.offered(&spoken)) }.await)
     }
 
     #[tool(description = "Cancel a waiting or running job; cascades to its descendants.")]

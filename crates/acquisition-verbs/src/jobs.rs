@@ -8,7 +8,9 @@
 use std::time::Duration;
 
 use acquisition_client::client::{Client, DaemonError};
-use acquisition_protocol::job::{JobInfo, JobState, JobTimes, Outcome, target_of};
+use acquisition_protocol::job::{
+    CLIENT_KINDS, FailureKind, JobInfo, JobState, JobTimes, MOCK_ONLY_KINDS, Outcome, target_of,
+};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_store::bound::bounded;
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
@@ -19,6 +21,7 @@ use serde_json::Value;
 use crate::fault::Fault;
 use crate::frontend::Frontend;
 use crate::refresh::list;
+use crate::refusal::{Surface, Way, offer};
 
 /// How often [`wait`] reads the job while it runs.
 const POLL: Duration = Duration::from_millis(500);
@@ -348,6 +351,155 @@ pub struct JobResult {
     /// JSON, for any other outcome.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub failed_children: Vec<FailedChild>,
+    /// C165 and C143: a failure's way on as the surface that answers
+    /// sends it back, each `{request, says}` ([`JobResult::offered`]);
+    /// none for a kind whose way on sends nothing, or a failure from
+    /// before the kinds.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub offers: Vec<Value>,
+    /// The way on before a surface spells it ([`way_on`]).
+    #[serde(skip)]
+    pub way_on: Option<WayOn>,
+}
+
+impl JobResult {
+    /// The result with its way on spelled by `surface` as `offers`.
+    pub fn offered(mut self, surface: &dyn Surface) -> JobResult {
+        if let Some(way_on) = &self.way_on {
+            self.offers = way_on
+                .ways
+                .iter()
+                .filter_map(|(way, says)| offer(way, says, surface))
+                .collect();
+        }
+        self
+    }
+}
+
+/// C165: a failed job's way on — the words every surface shares, and
+/// the ways each spells in its own terms (C143).
+#[derive(Clone, Debug, PartialEq)]
+pub struct WayOn {
+    /// What the failure leaves to do, in words: the reason the ways are
+    /// offered, or, where none is, why.
+    pub words: String,
+    pub ways: Vec<(Way, String)>,
+}
+
+/// C165 (a failed job says what kind of failure it is): a failure's way
+/// on by its kind, from the failed job's own `kind` and `params` where
+/// the reader holds them. A 404's is the fetch of the listing that names
+/// what was asked for; a refusal or fault of GGG's, a 429 that ended the
+/// job and an interruption, the same job again; a block, nothing that
+/// sends (invariant 3, never retried); a body not recorded, the result
+/// that keeps it; a parent, each failed child's result; a session that
+/// cannot give a token, a login, a person's. None for a failure with no
+/// kind (one from before the field), a success or a cancellation.
+pub fn way_on(
+    outcome: &Outcome,
+    id: u64,
+    account: Option<&str>,
+    job: Option<(&str, &Value)>,
+    failed: &[FailedChild],
+) -> Option<WayOn> {
+    let Outcome::Failure {
+        kind: Some(kind), ..
+    } = outcome
+    else {
+        return None;
+    };
+    let submit = |kind: &str, params: Value| Way::Submit {
+        account: account.map(str::to_string),
+        kind: kind.to_string(),
+        params,
+    };
+    // the same job again, where it is one a client may submit
+    let again = |says: &str| -> Vec<(Way, String)> {
+        job.filter(|(kind, _)| CLIENT_KINDS.contains(kind) || MOCK_ONLY_KINDS.contains(kind))
+            .map(|(kind, params)| vec![(submit(kind, params.clone()), says.to_string())])
+            .unwrap_or_default()
+    };
+    // the listing a 404's target is named in, its realm and league kept
+    let listing = || -> Vec<(Way, String)> {
+        let Some((kind, params)) = job else {
+            return Vec::new();
+        };
+        let kept = |keys: &[&str]| -> Value {
+            Value::Object(
+                keys.iter()
+                    .filter_map(|k| Some((k.to_string(), params.get(*k)?.clone())))
+                    .collect(),
+            )
+        };
+        match kind {
+            // a client's stash params carry `sub: null` for a tab
+            "stash" if params.get("sub").is_some_and(|sub| !sub.is_null()) => vec![(
+                submit("stash", kept(&["realm", "league", "id"])),
+                "the parent tab's fetch, which lists its substashes again".into(),
+            )],
+            "stash" => vec![(
+                submit("stashes", kept(&["realm", "league"])),
+                "the league's listing, which names its tabs again".into(),
+            )],
+            "character" => vec![(
+                submit("characters", kept(&["realm"])),
+                "the character list, which names the characters again".into(),
+            )],
+            _ => Vec::new(),
+        }
+    };
+    let (words, ways) = match kind {
+        FailureKind::NotFound => (
+            "GGG has nothing there now; fetch what lists it again",
+            listing(),
+        ),
+        FailureKind::Upstream => (
+            "GGG's answer could not be used; submit the same job again later",
+            again("the same job again, later"),
+        ),
+        FailureKind::RateLimited => (
+            "a rate limit ended it; submit the same job again once the limiter's hold has passed",
+            again("the same job again, once the limiter's hold has passed"),
+        ),
+        FailureKind::Blocked => (
+            "do not submit it again, nor work like it: this answer is never retried (Cloudflare \
+             in GGG's place, or a 403 or 503), and a block stops every send until a person \
+             clears it",
+            Vec::new(),
+        ),
+        FailureKind::NotRecorded => (
+            "what it fetched is kept with its result",
+            vec![(
+                Way::Result { id },
+                "the result, which keeps what it fetched".into(),
+            )],
+        ),
+        FailureKind::Children => (
+            "its children failed; each failed child's own result says why",
+            failed
+                .iter()
+                .map(|child| {
+                    (
+                        Way::Result { id: child.job_id },
+                        format!("failed child {}'s own result", child.job_id),
+                    )
+                })
+                .collect(),
+        ),
+        FailureKind::NotLoggedIn => (
+            "its account has no session to send with: a login, which is a person's (`acq auth`)",
+            Vec::new(),
+        ),
+        FailureKind::Interrupted => (
+            "a daemon's end stopped it; submit the same job again",
+            again("the same job again"),
+        ),
+        FailureKind::Internal => ("the daemon's own fault; nothing is offered", Vec::new()),
+    };
+    Some(WayOn {
+        words: words.to_string(),
+        ways,
+    })
 }
 
 /// How many of a parent's failed children a result details; the tally
@@ -511,14 +663,24 @@ fn times_of(job: &PersistedJob) -> JobTimes {
 pub async fn result_live(client: &mut Client, id: u64) -> Result<JobResult, Fault> {
     let (outcome, times) = answer_live(client, id).await?;
     // A previous lifetime's job has no status; its outcome stands alone.
-    let account = client.status(id).await.ok().and_then(|job| job.account);
+    let job = client.status(id).await.ok();
+    let account = job.as_ref().and_then(|job| job.account.clone());
     let failed_children = failed_children_live(client, &outcome).await;
+    let way_on = way_on(
+        &outcome,
+        id,
+        account.as_deref(),
+        job.as_ref().map(|job| (job.kind.as_str(), &job.params)),
+        &failed_children,
+    );
     Ok(JobResult {
         job_id: id,
         account,
         outcome,
         times: said(times, acquisition_store::now()),
         failed_children,
+        offers: Vec::new(),
+        way_on,
     })
 }
 
@@ -654,7 +816,7 @@ impl Frontend {
                 "job {id}'s outcome on disk does not parse: {e}"
             ))
         })?;
-        let failed_children = detailed(&outcome)
+        let failed_children: Vec<FailedChild> = detailed(&outcome)
             .iter()
             .map(|&cid| match self.record(cid) {
                 Ok(child) => FailedChild {
@@ -675,12 +837,21 @@ impl Frontend {
             })
             .collect();
         let job = record.job.aged(acquisition_store::now());
+        let way_on = way_on(
+            &outcome,
+            id,
+            job.account.as_deref(),
+            Some((job.kind.as_str(), &job.params)),
+            &failed_children,
+        );
         Ok(JobResult {
             job_id: id,
             outcome,
             times: times_of(&job),
             account: job.account,
             failed_children,
+            offers: Vec::new(),
+            way_on,
         })
     }
 

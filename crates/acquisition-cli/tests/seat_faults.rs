@@ -477,6 +477,68 @@ fn a_job_verb_prints_its_answer_alone_and_says_whose_job_it_was() {
     assert!(outcome["job_id"].is_u64(), "{outcome}");
 }
 
+/// C165 (#165, the answer-facts seat, CLI run 1 calls 104 and 105): a
+/// stash job for a tab no stored listing names, with none stored, is
+/// admitted and its 404 fails it, and the failure said only that GGG
+/// returned 404, nothing of what to do. It says its kind, `not_found`,
+/// and offers the fetch of the league's listing, in JSON and in one line
+/// of text; run as printed, the listing lands, and the same job is then
+/// refused at submit before anything is sent (C164).
+#[test]
+fn c165_a_failed_fetch_offers_the_listing_that_names_its_target() {
+    let scratch = harness::scratch("seat-not-found");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let _login = login(&base, "alice");
+
+    let out = acq(&base, &["stash", "no-such-tab", "--json"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let doc = sole_json(&out);
+    assert_eq!(
+        (&doc["outcome"], &doc["kind"]),
+        (&json!("failure"), &json!("not_found")),
+        "{doc}"
+    );
+    let offers = doc["offers"].as_array().unwrap_or_else(|| panic!("{doc}"));
+    assert_eq!(offers.len(), 1, "{doc}");
+    assert_eq!(
+        offers[0]["argv"],
+        json!([
+            "acq",
+            "--account",
+            "alice",
+            "submit",
+            "stashes",
+            "--params",
+            r#"{"league":"Standard","realm":"pc"}"#
+        ]),
+        "{doc}"
+    );
+
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["stash", "no-such-tab"],
+        &[
+            "returned 404",
+            "GGG has nothing there now; fetch what lists it again: `acq --account alice submit stashes",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    golden(file!(), "a_failed_fetch_and_its_way_on", &t);
+    let printed = stderr(&out)
+        .lines()
+        .find_map(|l| l.split('`').nth(1).filter(|c| c.starts_with("acq ")))
+        .map(str::to_string)
+        .unwrap_or_else(|| panic!("no command printed: {}", stderr(&out)));
+    let ran = run_as_printed(&base, &printed);
+    assert!(ran.status.success(), "`{printed}`: {}", text(&ran));
+    let again = sole_json(&acq(&base, &["stash", "no-such-tab", "--json"]));
+    assert_eq!(
+        again["kind"], "refused",
+        "the listing now refuses it: {again}"
+    );
+}
+
 /// Nothing waited for a job: a `--detach`ed job was collected by polling
 /// `result` until it stopped refusing. And `result` of a cancelled job
 /// exited 0 with nothing a caller could use, where a waiting one exited 1.

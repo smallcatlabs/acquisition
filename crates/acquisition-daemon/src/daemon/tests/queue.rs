@@ -1572,7 +1572,12 @@ fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
         .run(|mut door| async move {
             let (job, outcome) = door.await_terminal(1).await;
             assert_eq!(job.state, JobState::Failed, "{name}: {outcome:?}");
-            let Outcome::Failure { error, .. } = &outcome else {
+            let Outcome::Failure {
+                error,
+                kind: Some(FailureKind::Internal),
+                ..
+            } = &outcome
+            else {
                 panic!("{name}: {outcome:?}")
             };
             match said {
@@ -1933,7 +1938,12 @@ fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
         .run(|mut door| async move {
             let (login, outcome) = door.await_terminal(1).await;
             assert_eq!(login.state, JobState::Failed, "{outcome:?}");
-            let Outcome::Failure { error, .. } = &outcome else {
+            let Outcome::Failure {
+                error,
+                kind: Some(FailureKind::NotLoggedIn),
+                ..
+            } = &outcome
+            else {
                 panic!("{outcome:?}")
             };
             assert!(
@@ -2035,7 +2045,12 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
                 "no-probe replays fail; a mid-fan-out parent holds for its children"
             );
             let (_, outcome) = door.await_terminal(5).await;
-            let Outcome::Failure { error, .. } = outcome else {
+            let Outcome::Failure {
+                error,
+                kind: Some(FailureKind::Interrupted),
+                ..
+            } = outcome
+            else {
                 panic!("the leagues replay did not fail: {outcome:?}")
             };
             assert!(error.contains("not replayed"), "{error}");

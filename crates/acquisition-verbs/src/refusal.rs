@@ -116,6 +116,16 @@ pub enum Way {
         value: Value,
         if_revision: i64,
     },
+    /// A job submitted as a client submits one: its kind and its params,
+    /// as `account` where one is named. A failed job's way on (C165).
+    Submit {
+        account: Option<String>,
+        kind: String,
+        params: Value,
+    },
+    /// One job's result read whole: a failed job's way on where what it
+    /// needs is in a result (C165).
+    Result { id: u64 },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its
@@ -252,7 +262,7 @@ fn offered(
 /// request that is a printed command line, `tool` where it is another
 /// tool's; none where the surface holds no request to send.
 /// A refusal's `offers` and a receipt's `undo` alike ([`crate::receipt`]).
-pub(crate) fn offer(way: &Way, says: &str, surface: &dyn Surface) -> Option<Value> {
+pub fn offer(way: &Way, says: &str, surface: &dyn Surface) -> Option<Value> {
     let (request, tool) = surface.request(way)?;
     let mut offer = Map::new();
     offer.insert("request".into(), request);

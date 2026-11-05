@@ -46,7 +46,7 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 4 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions alone. An unknown name is refused with every name it knows.
+What the tools answer and the language `search` takes (no store read). No names: the index, each entry's name and one line, some 38 KB. A name answers whole: a section (fields, what a query may ask; answer, a search answer's keys; trade, what a site search becomes; pricing; daemon; store), an entry, or all: over 150 KB, computed some 80 KB, fields and trade 20 KB each, categories 10 KB, pricing 8 KB, answer 7 KB, store 6 KB, daemon 5 KB, the rest under 4 KB. A pattern ("~resist") reads the language's names and definitions alone. An unknown name is refused with every name it knows.
 
 - `names` (array | null) — Omitted: the index, an entry a line. A name answers whole: a section (fields, computed, answer, trade, pricing), an entry (league, total_res), a category's id; all, everything. "~resist": the language's entries whose name or definition matches, whole if ten or fewer, else their lines.
 
@@ -62,7 +62,7 @@ Item events (added/moved/changed/removed) from recent ingests (no daemon): the n
 
 ### `job_result`
 
-A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data.
+A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`); a failure's `kind` and the `offers` it leaves (`describe` with names ["daemon"] lists the kinds), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data.
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 
