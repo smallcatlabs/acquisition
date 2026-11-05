@@ -65,7 +65,7 @@ pub use diagnose::{Diagnosis, Redactions, Tails};
 pub use fault::Fault;
 pub use frontend::{
     Account, AccountRow, Accounts, Door, Frontend, JournalKnob, Opened, PolicyShown, ShownPolicy,
-    realm,
+    list_state, realm,
 };
 pub use jobs::{
     ByState, ChildTally, FailedChild, Job, JobCounts, JobResult, Jobs, Listed, PersistedJobs,

@@ -14,8 +14,7 @@ use acquisition_plan::{
     PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, SyncPolicy, apply_params_of, plan_notes,
     plan_refresh, plan_selection,
 };
-use acquisition_protocol::job::JobInfo;
-use acquisition_protocol::protocol::{QuoteJob, Request, Response};
+use acquisition_protocol::protocol::{ListState, QuoteJob};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{RefreshSnapshot, Status, Store};
 use serde::Serialize;
@@ -632,7 +631,7 @@ impl Opened {
                 *client = Some(frontend.connect().await?);
             }
             if let Some(connected) = client.as_mut() {
-                let jobs = list(connected).await?;
+                let jobs = crate::jobs::every(connected, ListState::Open).await?;
                 let facts = self.snapshot(plan.realm, &plan.league)?;
                 (unspent, spent) = plan.unspent(&facts, &jobs, &username);
             }
@@ -702,25 +701,5 @@ impl Opened {
             remaining_requests: self.remaining(plan),
             spent: aged(submitted.spent, acquisition_store::now()),
         })
-    }
-}
-
-/// The daemon's job list, this lifetime's.
-pub(crate) async fn list(client: &mut Client) -> Result<Vec<JobInfo>, Fault> {
-    match client
-        .request(&Request::List)
-        .await
-        .map_err(Fault::from_client)?
-    {
-        Response::Jobs { jobs } => Ok(jobs),
-        Response::Error { kind, message } => {
-            Err(Fault::Daemon(acquisition_client::client::DaemonError {
-                kind,
-                message,
-            }))
-        }
-        other => Err(Fault::Transport(anyhow::anyhow!(
-            "unexpected response: {other:?}"
-        ))),
     }
 }

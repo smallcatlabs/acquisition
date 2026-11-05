@@ -68,7 +68,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::artifact::Artifact;
-use crate::job::{JobId, JobInfo, JobTimes, Outcome, Priority};
+use crate::job::{JobId, JobInfo, JobState, JobTimes, Outcome, Priority};
 use crate::status::{DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord};
 
 /// The bound on one frame, in bytes, both directions (C85). Nothing
@@ -246,8 +246,9 @@ pub fn error_message(frame: &[u8]) -> Option<String> {
 pub enum ErrorKind {
     /// The frame was not a request the daemon could perform: not JSON,
     /// not UTF-8, over the frame bound, not a request of this version, a
-    /// request missing fields — or a versioned request on a connection
-    /// that has subscribed. The connection stays; nothing was done.
+    /// request missing fields, a field outside its range — or a
+    /// versioned request on a connection that has subscribed. The
+    /// connection stays; nothing was done.
     BadRequest,
     /// No live session can serve the request: none at all, none for the
     /// named account the account index holds, or the account's grant is
@@ -425,6 +426,71 @@ pub struct SessionStatus {
     pub keyring: String,
 }
 
+/// C166: which jobs a `list` pages through. Open jobs are those waiting
+/// or running; finished, those done, failed or cancelled.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ListState {
+    #[default]
+    Open,
+    Finished,
+    All,
+}
+
+impl ListState {
+    /// Whether a job in `state` is on this list.
+    pub fn holds(self, state: JobState) -> bool {
+        match self {
+            ListState::Open => !state.is_terminal(),
+            ListState::Finished => state.is_terminal(),
+            ListState::All => true,
+        }
+    }
+
+    /// The wire word (`open`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ListState::Open => "open",
+            ListState::Finished => "finished",
+            ListState::All => "all",
+        }
+    }
+}
+
+/// C166: the rows a `list` page holds when the request names no
+/// `limit`.
+pub const LIST_LIMIT_DEFAULT: usize = 100;
+
+/// C166: the most rows a `list` page may be asked for. A page is also
+/// cut by bytes, so this bounds the daemon's work for one page, not the
+/// frame: the byte budget keeps a page of any row count within it.
+pub const LIST_LIMIT_MAX: usize = 1000;
+
+fn list_limit_default() -> usize {
+    LIST_LIMIT_DEFAULT
+}
+
+/// C166: what a `jobs` answer counts, over every job of this daemon's
+/// list whatever state the request paged: a page cannot count what it
+/// leaves out. `total` is the sum of the five states.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListCounts {
+    pub total: u64,
+    pub running: u64,
+    pub waiting: u64,
+    pub done: u64,
+    pub failed: u64,
+    pub cancelled: u64,
+    /// Of the waiting jobs predicted to start later than now (an
+    /// `eta_seconds` above 0), the soonest start, in seconds from now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub soonest_eta_seconds: Option<u64>,
+    /// Of the same, the latest start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_eta_seconds: Option<u64>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "req", rename_all = "snake_case")]
 pub enum Request {
@@ -452,7 +518,23 @@ pub enum Request {
         id: JobId,
         priority: Priority,
     },
-    List,
+    /// C166: one page of this daemon's job list (C6), newest first by
+    /// id. Every field defaults, so `{"req":"list"}` is the first page
+    /// of open jobs.
+    List {
+        /// Which jobs: `open` (the default), `finished` or `all`.
+        #[serde(default)]
+        state: ListState,
+        /// The most rows the page holds: [`LIST_LIMIT_DEFAULT`] when
+        /// omitted, from 1 to [`LIST_LIMIT_MAX`]. A page may hold fewer,
+        /// cut by its bytes so its answer fits the frame.
+        #[serde(default = "list_limit_default")]
+        limit: usize,
+        /// Resume below this id: the previous page's `next`. Omitted is
+        /// the first page.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        after: Option<JobId>,
+    },
     /// Turn this connection into a subscription (C85): answered
     /// `subscribed`, after which the daemon writes only `event` and
     /// `resync_required` frames on it and answers any further versioned
@@ -556,8 +638,15 @@ pub enum Response {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         keyring: Option<KeyringOutcome>,
     },
+    /// C166: one page of the list, newest first, and the counts over
+    /// every job of the list.
     Jobs {
         jobs: Vec<JobInfo>,
+        /// The id to pass as `after` for the next page; absent on the
+        /// last.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        next: Option<JobId>,
+        counts: ListCounts,
     },
     Subscribed,
     AuthUrl {

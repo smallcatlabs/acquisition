@@ -58,10 +58,7 @@ fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
         // same order (ids ascend in submission order), nothing more (the
         // probes the routes needed are daemon jobs, not children of the
         // apply) — and the payload's child_jobs echoes them in that order.
-        let jobs = match door.request(Request::List).await {
-            Response::Jobs { jobs } => jobs,
-            other => panic!("the list answered {other:?}"),
-        };
+        let jobs = door.every_job().await;
         let children: Vec<(JobId, String, Value, Option<String>)> = jobs
             .into_iter()
             .filter(|job| job.parent == Some(id))

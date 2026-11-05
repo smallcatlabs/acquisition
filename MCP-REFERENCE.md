@@ -82,9 +82,10 @@ The league list last fetched, read from the store with no daemon (`stored: true`
 
 ### `list_jobs`
 
-Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts, and ["ages"] what an age's words say.
+Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: the ten newest open and ten newest finished, `state` narrowing, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts, and ["ages"] what an age's words say.
 
 - `expand` (boolean | null) — List every job, open and finished, not ten of each.
+- `state` (string | null) — `open`, `finished` or `all` (both, the default).
 
 ### `price_clear`
 

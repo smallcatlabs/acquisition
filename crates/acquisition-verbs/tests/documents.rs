@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::{Children, FailureKind, JobState, Outcome};
+use acquisition_protocol::protocol::{ListCounts, ListState};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::PersistedJob;
 use acquisition_store::{
@@ -1364,13 +1365,13 @@ fn job_row(id: u64, state: &str) -> PersistedJob {
 }
 
 /// C149 and C53, and the brief's second review, finding 2 (no exemption
-/// for the open jobs): the live list is one document, its counts made
-/// over every job before the cut — 800 done, 12 waiting with predicted
-/// starts, one running — beside ten open rows (the first by id, not by
-/// when they run) and
-/// the ten most recent finished, in id order, with what each left out;
-/// `expand` lists every job. The ledger's queue is ten of its open rows
-/// beside its counts.
+/// for the open jobs): the live list is one document, its counts the
+/// daemon's over every job (C166) — 800 done, 12 waiting with predicted
+/// starts, one running — beside the first pages it read: the ten newest
+/// open rows (by id, not by when they run) and the ten newest finished,
+/// in id order, with what each left out; `expand`'s every page lists
+/// every job, and a view narrowed to one state counts only its own left
+/// out. The ledger's queue is ten of its open rows beside its counts.
 #[test]
 fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     let mut jobs: Vec<_> = (1..=800)
@@ -1382,7 +1383,22 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
         jobs.push(waiting);
     }
     jobs.push(job_info(&job_row(813, "running")).unwrap());
-    let listed = acquisition_verbs::Listed::of(jobs.clone(), false);
+    let counts = ListCounts {
+        total: 813,
+        running: 1,
+        waiting: 12,
+        done: 800,
+        soonest_eta_seconds: Some(1),
+        latest_eta_seconds: Some(12),
+        ..ListCounts::default()
+    };
+    let newest =
+        |view: fn(u64) -> bool| -> Vec<_> { jobs.iter().filter(|j| view(j.id)).cloned().collect() };
+    let listed = acquisition_verbs::Listed::of(
+        newest(|id| (791..=800).contains(&id) || id >= 804),
+        &counts,
+        ListState::All,
+    );
     assert_eq!(listed.counts.total, 813);
     assert_eq!(
         (
@@ -1395,20 +1411,12 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     assert_eq!(listed.counts.next_starts_in_seconds, Some(1));
     assert_eq!(listed.counts.last_starts_in_seconds, Some(12));
     let ids: Vec<u64> = listed.rows.iter().map(|j| j.id).collect();
-    let expected: Vec<u64> = (791..=810).collect();
+    let expected: Vec<u64> = (791..=800).chain(804..=813).collect();
     assert_eq!(
         ids, expected,
-        "the ten most recent done, then the ten first open"
+        "the ten newest done, then the ten newest open, in id order"
     );
     assert_eq!((listed.open_left_out, listed.finished_left_out), (3, 790));
-    // the first ten open by id, not by when they run: the one running job
-    // (813) is among those left out, and counted (round 3's review, P3)
-    assert!(
-        !listed.rows.iter().any(|j| j.id == 813),
-        "{:?}",
-        listed.rows
-    );
-    assert_eq!(listed.counts.by_state.running, 1);
     assert_eq!(listed.left_out_needs, Some("expand"));
     let doc = serde_json::to_value(Jobs::Live(listed)).unwrap();
     assert_eq!(doc["running"], true, "{doc}");
@@ -1416,10 +1424,22 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     assert_eq!(doc["by_state"]["done"], 800, "{doc}");
     assert_eq!(doc["rows"].as_array().map(Vec::len), Some(20));
 
-    let all = acquisition_verbs::Listed::of(jobs, true);
+    let all = acquisition_verbs::Listed::of(jobs.clone(), &counts, ListState::All);
     assert_eq!(all.rows.len(), 813);
     assert_eq!((all.open_left_out, all.finished_left_out), (0, 0));
     assert_eq!(all.left_out_needs, None);
+
+    let open = acquisition_verbs::Listed::of(newest(|id| id >= 804), &counts, ListState::Open);
+    assert_eq!((open.open_left_out, open.finished_left_out), (3, 0));
+    let finished = acquisition_verbs::Listed::of(
+        newest(|id| (791..=800).contains(&id)),
+        &counts,
+        ListState::Finished,
+    );
+    assert_eq!(
+        (finished.open_left_out, finished.finished_left_out),
+        (0, 790)
+    );
 
     let persisted = acquisition_store::jobs::Persisted {
         jobs: (1..=12).map(|id| job_row(id, "waiting")).collect(),
@@ -1508,8 +1528,12 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
         ),
         (
             "jobs, live",
-            serde_json::to_value(Jobs::Live(acquisition_verbs::Listed::of(Vec::new(), false)))
-                .unwrap(),
+            serde_json::to_value(Jobs::Live(acquisition_verbs::Listed::of(
+                Vec::new(),
+                &ListCounts::default(),
+                ListState::All,
+            )))
+            .unwrap(),
         ),
         (
             "jobs, no queue",

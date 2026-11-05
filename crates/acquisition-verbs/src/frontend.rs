@@ -25,6 +25,7 @@ use acquisition_plan::pricing::Expect;
 use acquisition_plan::{
     LeagueNote, PolicyWrite, PutPolicyError, SyncPolicy, league_notes, put_sync_policy_over,
 };
+use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::intended_root;
@@ -337,6 +338,16 @@ pub fn realm(word: &str) -> Result<Realm, String> {
             Realm::ALL.map(Realm::as_str).join(", ")
         )
     })
+}
+
+/// C166: the one refusal sentence for a word that names no state of the
+/// job list, for every frontend's argument reader: `open` (waiting or
+/// running), `finished` (done, failed or cancelled) or `all`.
+pub fn list_state(word: &str) -> Result<ListState, String> {
+    [ListState::Open, ListState::Finished, ListState::All]
+        .into_iter()
+        .find(|state| state.as_str() == word)
+        .ok_or_else(|| format!("unknown job state {word:?} (one of open, finished, all)"))
 }
 
 /// A resolved account (C121). Only [`Frontend::account`] makes one in

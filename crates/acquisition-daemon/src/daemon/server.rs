@@ -346,10 +346,20 @@ impl Daemon {
                 }
                 Err(refusal) => refusal.into(),
             },
-            Request::List => match self.job_list() {
-                Ok(jobs) => Response::Jobs { jobs },
+            Request::List {
+                state,
+                limit,
+                after,
+            } => match self.job_page(state, limit, after) {
+                Ok(page) => Response::Jobs {
+                    jobs: page.jobs,
+                    next: page.next,
+                    counts: page.counts,
+                },
                 Err(refusal) => {
-                    self.note_error(&format!("list: {refusal}"));
+                    if refusal.kind == ErrorKind::QueueFailed {
+                        self.note_error(&format!("list: {refusal}"));
+                    }
                     refusal.into()
                 }
             },

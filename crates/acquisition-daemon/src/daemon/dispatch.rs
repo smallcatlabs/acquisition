@@ -523,7 +523,9 @@ impl Daemon {
             return;
         }
         for job in tree {
-            s.jobs.remove(&job);
+            if let Some(entry) = s.jobs.remove(&job) {
+                s.evicted.count(entry.info.state);
+            }
         }
     }
 

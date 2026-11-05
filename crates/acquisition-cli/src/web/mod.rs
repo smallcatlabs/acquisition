@@ -78,6 +78,7 @@ mod page;
 use std::sync::{Arc, OnceLock};
 
 use acquisition_plan::RefreshPlan;
+use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, Request};
 use acquisition_search::{Holder, SearchError};
@@ -1050,7 +1051,7 @@ async fn apply(
 /// The jobs (Do 7): the `jobs` document, reloading itself while a job is
 /// not done. It observes and never spawns.
 async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
-    let listed = match web.cx.frontend.jobs(false).await {
+    let listed = match web.cx.frontend.jobs(ListState::All, false).await {
         Ok(listed) => listed,
         Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
     };

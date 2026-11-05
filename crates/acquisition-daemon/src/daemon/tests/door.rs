@@ -981,6 +981,37 @@ impl Door {
         self.daemon.handle_request(req, &mut self.events).await
     }
 
+    /// C166: every job of the list, as a frontend's page loop reads it:
+    /// `all`, a page at a time from the newest, each resumed after the
+    /// last; by id.
+    pub(super) async fn every_job(&mut self) -> Vec<JobInfo> {
+        let mut jobs = Vec::new();
+        let mut after = None;
+        loop {
+            match self
+                .request(Request::List {
+                    state: ListState::All,
+                    limit: LIST_LIMIT_MAX,
+                    after,
+                })
+                .await
+            {
+                Response::Jobs {
+                    jobs: page, next, ..
+                } => {
+                    jobs.extend(page);
+                    match next {
+                        Some(id) => after = Some(id),
+                        None => break,
+                    }
+                }
+                other => panic!("the list answered {other:?}"),
+            }
+        }
+        jobs.reverse();
+        jobs
+    }
+
     /// C85, a frontend's subscription: `Subscribe` sent through
     /// [`Self::request`], answered `subscribed`, and the daemon's job
     /// events from then on, as the subscribed connection carries them.

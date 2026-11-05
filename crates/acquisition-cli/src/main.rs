@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, DaemonError, Observed, Signal, Subscription};
 use acquisition_protocol::job::{FailureKind, JobInfo, JobState, JobTimes, Outcome};
-use acquisition_protocol::protocol::{ErrorKind, KeyringOutcome, Request, Response};
+use acquisition_protocol::protocol::{ErrorKind, KeyringOutcome, ListState, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::{Lock, RailsState, World};
@@ -536,10 +536,13 @@ summary.")]
     /// Each row's JSON carries `submitted_at`, `started_at` and
     /// `finished_at`, each absent until it happens and with its age in
     /// words beside it (`submitted_at_age`, …).
-    /// The first ten waiting and running jobs by id are listed, and the ten
-    /// most recent finished ones; the last line counts every job the
-    /// daemon lists, and says when the next waiting job starts and when
-    /// the last one does, and what was left out; `--all` lists every one.
+    /// The ten newest waiting and running jobs are listed, and the ten
+    /// newest finished ones (newest by id: the order they were submitted
+    /// in, not the order they run, which priority decides); `--state`
+    /// narrows the list to one of the two. The last line counts every job
+    /// the daemon lists, whatever `--state` says, and says when the next
+    /// waiting job starts and when the last one does, and what was left
+    /// out; `--all` lists every one.
     /// `--json` is the same document: `running: true`, the counts
     /// (`total`, `by_state`, the starts), `rows`, and `open_left_out` and
     /// `finished_left_out`; the finished ones are of this daemon's work
@@ -558,14 +561,19 @@ summary.")]
         /// and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
-        /// List every job: every open one, not the first ten, and every
+        /// List every job: every open one, not the newest ten, and every
         /// finished job of this daemon's work and of what it restored from
-        /// the daemon before it, read from disk, not the ten most recent;
-        /// with --watch, in every snapshot. An earlier daemon's other
-        /// finished jobs are not listed; `acq status <id>` and `acq result
-        /// <id>` still answer them from disk while retention keeps them.
+        /// the daemon before it, read from disk, not the newest ten; with
+        /// --watch, in every snapshot. An earlier daemon's other finished
+        /// jobs are not listed; `acq status <id>` and `acq result <id>`
+        /// still answer them from disk while retention keeps them.
         #[arg(long)]
         all: bool,
+        /// Which jobs to list: `open` (waiting or running), `finished`
+        /// (done, failed or cancelled) or `all`, both, the default. With
+        /// no daemon running, the ledger's open rows whatever it says.
+        #[arg(long, default_value = "all", value_parser = acquisition_verbs::list_state)]
+        state: ListState,
     },
     /// One job's state and ETA, and when it was submitted, started and
     /// finished, as ages. A large ETA is the limiter holding, not a
@@ -2146,11 +2154,11 @@ async fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Jobs { watch, all } => {
+        Cmd::Jobs { watch, all, state } => {
             if watch {
-                return watch_jobs(cx, cli.json, all).await;
+                return watch_jobs(cx, cli.json, state, all).await;
             }
-            let jobs = cx.frontend.jobs(all).await?;
+            let jobs = cx.frontend.jobs(state, all).await?;
             let Jobs::Live(listed) = &jobs else {
                 return print_persisted_queue(&jobs, cli.json);
             };
@@ -2759,13 +2767,6 @@ async fn submit(
     .await?)
 }
 
-async fn list(client: &mut Client) -> Result<Vec<JobInfo>> {
-    match client.request(&Request::List).await? {
-        Response::Jobs { jobs } => Ok(jobs),
-        other => bail!("unexpected response: {other:?}"),
-    }
-}
-
 /// `jobs --watch`: the subscriber's sequence under C85, as the reference
 /// consumer. Subscribe first, then take the snapshot over a request
 /// connection to the same daemon instance (a restart landing between the
@@ -2779,11 +2780,11 @@ async fn list(client: &mut Client) -> Result<Vec<JobInfo>> {
 /// with a fresh subscription and snapshot; when the daemon goes, observe
 /// it again — an observer never spawns — and subscribe and snapshot
 /// afresh if it is back. Pinned by `tests/watch_recovery.rs`.
-async fn watch_jobs(cx: &Ctx, json: bool, all: bool) -> Result<()> {
-    // each snapshot the `jobs` document (C149), ten open and ten finished
-    // beside the counts of every job, every one under `--all` (C53)
-    let print_snapshot = |jobs: Vec<JobInfo>| -> Result<()> {
-        let listed = Listed::of(jobs, all);
+async fn watch_jobs(cx: &Ctx, json: bool, view: ListState, all: bool) -> Result<()> {
+    // each snapshot the `jobs` document (C149), the newest ten open and
+    // ten finished beside the counts of every job, every one under
+    // `--all` (C53, C166)
+    let print_snapshot = |listed: Listed| -> Result<()> {
         if json {
             println!("{}", serde_json::to_string_pretty(&Jobs::Live(listed))?);
         } else {
@@ -2804,7 +2805,7 @@ async fn watch_jobs(cx: &Ctx, json: bool, all: bool) -> Result<()> {
             // to a daemon that is gone. Start over.
             continue;
         }
-        print_snapshot(list(&mut client).await?)?;
+        print_snapshot(Listed::read(&mut client, view, all).await?)?;
         loop {
             let signal = match subscription.next().await {
                 Ok(signal) => signal,
@@ -3166,8 +3167,8 @@ fn latest_said(times: &JobTimes) -> String {
 
 /// `jobs` as text, a function of its document (C53, C149): the rows,
 /// the counts by state read from the document, and what it left out —
-/// the open past the ten, the earliest finished past the ten most recent
-/// — with `--all`, which lists every one. The web UI's jobs page states
+/// the earliest open and finished past the newest ten of each — with
+/// `--all`, which lists every one. The web UI's jobs page states
 /// it word for word.
 pub(crate) fn jobs_text(listed: &Listed) -> String {
     let mut out = String::new();
@@ -3177,7 +3178,7 @@ pub(crate) fn jobs_text(listed: &Listed) -> String {
     out.push_str(&summary_text(&listed.counts, Counted::Live));
     if listed.open_left_out > 0 {
         out.push_str(&format!(
-            "{} more open jobs not listed (`acq jobs --all`)\n",
+            "{} earlier open jobs not listed (`acq jobs --all`)\n",
             listed.open_left_out
         ));
     }
@@ -3339,11 +3340,16 @@ fn summary_text(counts: &JobCounts, counted: Counted) -> String {
     )
 }
 
-/// Re-render the job table once a second until every listed job is terminal.
+/// Re-render the job table once a second until every listed job is
+/// terminal. The list is read as pages, newest first, until one reaches
+/// below the earliest of `ids` (C166).
 async fn watch_table_until_done(client: &mut Client, ids: &[u64]) -> Result<()> {
     let mut printed_lines = 0usize;
+    let earliest = ids.iter().copied().min().unwrap_or(0);
     loop {
-        let jobs = list(client).await?;
+        let below = |jobs: &[JobInfo]| jobs.last().is_some_and(|job| job.id < earliest);
+        let (mut jobs, _) = acquisition_verbs::jobs::pages(client, ListState::All, below).await?;
+        jobs.reverse();
         // Move the cursor up over the previous render and redraw in place.
         if printed_lines > 0 {
             print!("\x1b[{printed_lines}A");
@@ -3403,6 +3409,7 @@ mod tests {
     }
 
     use super::*;
+    use acquisition_protocol::protocol::ListCounts;
 
     /// `auth status` while the daemon's start restores its sessions from
     /// the keyring: no session yet, and the text says the restore is
@@ -3431,7 +3438,8 @@ mod tests {
     /// C53 and C149: `jobs`' text is a function of its document — the
     /// counts line read from it over every job, and what it left out,
     /// open and finished apart, each with the flag that lists every one
-    /// (the brief's second review, finding 2: the open jobs are cut too).
+    /// (the brief's second review, finding 2: the open jobs are cut too);
+    /// C166: the counts are the daemon's, over jobs the rows leave out.
     #[test]
     fn c149_the_jobs_text_counts_every_job_and_says_what_it_left_out() {
         let job = |id: u64, state: JobState| JobInfo {
@@ -3447,11 +3455,22 @@ mod tests {
             params: serde_json::json!({}),
             times: Default::default(),
         };
-        let jobs: Vec<JobInfo> = (1..=15)
+        // the daemon's whole list: 15 done, 13 waiting, the soonest
+        // waiting starting in 16 s and the latest in 28 s
+        let counts = ListCounts {
+            total: 28,
+            waiting: 13,
+            done: 15,
+            soonest_eta_seconds: Some(16),
+            latest_eta_seconds: Some(28),
+            ..ListCounts::default()
+        };
+        // the first pages: the newest ten of each state
+        let newest: Vec<JobInfo> = (6..=15)
             .map(|id| job(id, JobState::Done))
-            .chain((16..=28).map(|id| job(id, JobState::Waiting)))
+            .chain((19..=28).map(|id| job(id, JobState::Waiting)))
             .collect();
-        let text = jobs_text(&Listed::of(jobs.clone(), false));
+        let text = jobs_text(&Listed::of(newest, &counts, ListState::All));
         assert_eq!(text.lines().filter(|l| l.contains(" sleep ")).count(), 20);
         assert!(
             text.contains(
@@ -3461,13 +3480,24 @@ mod tests {
         );
         assert!(
             text.ends_with(
-                "3 more open jobs not listed (`acq jobs --all`)\n5 earlier finished jobs not listed (`acq jobs --all`)\n"
+                "3 earlier open jobs not listed (`acq jobs --all`)\n5 earlier finished jobs not listed (`acq jobs --all`)\n"
             ),
             "{text}"
         );
-        let all = jobs_text(&Listed::of(jobs, true));
+        let every: Vec<JobInfo> = (1..=15)
+            .map(|id| job(id, JobState::Done))
+            .chain((16..=28).map(|id| job(id, JobState::Waiting)))
+            .collect();
+        let all = jobs_text(&Listed::of(every, &counts, ListState::All));
         assert_eq!(all.lines().filter(|l| l.contains(" sleep ")).count(), 28);
         assert!(!all.contains("not listed"), "{all}");
+        // a view narrowed to the open jobs leaves out none of the finished
+        let open: Vec<JobInfo> = (19..=28).map(|id| job(id, JobState::Waiting)).collect();
+        let narrowed = jobs_text(&Listed::of(open, &counts, ListState::Open));
+        assert!(
+            narrowed.ends_with("3 earlier open jobs not listed (`acq jobs --all`)\n"),
+            "{narrowed}"
+        );
         // a selected job's table keeps its own context: the jobs it shows
         let one = table_text(&[job(3, JobState::Waiting)]);
         assert!(

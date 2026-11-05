@@ -155,6 +155,20 @@ fn listed_reads_name_the_finished_rows_from_an_id_on() {
         .map(|j| j.id)
         .collect();
     assert_eq!(ids, [1, 2], "a page is the first `limit` of the range");
+    let below = |first, below, limit| -> Vec<u64> {
+        db.listed_finished_below(first, below, limit)
+            .unwrap()
+            .iter()
+            .map(|j| j.id)
+            .collect()
+    };
+    assert_eq!(
+        below(1, u64::MAX, 10),
+        [4, 2, 1],
+        "newest first, terminal rows only"
+    );
+    assert_eq!(below(1, 4, 1), [2], "below the id given, the last `limit`");
+    assert_eq!(below(2, 4, 10), [2], "from `first` on");
     let ids: Vec<u64> = db
         .listed_finished(&[4, 3, 1, 9])
         .unwrap()

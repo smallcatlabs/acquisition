@@ -1104,10 +1104,8 @@ fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() 
         .restore_jobs(Retention::default())
         .beside(&door)
         .await;
-        match restarted.request(Request::List).await {
-            Response::Jobs { jobs } => assert!(jobs.is_empty(), "no job restored: {jobs:?}"),
-            other => panic!("the list answered {other:?}"),
-        }
+        let jobs = restarted.every_job().await;
+        assert!(jobs.is_empty(), "no job restored: {jobs:?}");
         let stored = match restarted.request(Request::Result { id }).await {
             Response::Result { outcome, .. } => outcome,
             other => panic!("the failed job is answered from the table: {other:?}"),
@@ -1133,7 +1131,7 @@ fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() 
 /// frontend takes through the door in order, and what crosses the
 /// boundary back. Every job the daemon lists at the row's end, in id
 /// order (the submitted and the probes the daemon makes, as
-/// `Request::List` lists them), ends as [`Job`] says; the journal's sends
+/// `Request::List` lists them under `all`), ends as [`Job`] says; the journal's sends
 /// are the row's as [`journal_projection`] reads them; each fragment of
 /// `forbids` is absent from every surface it names; and the parking
 /// clock moved at most `virtual_at_most` over the row. A step of the
@@ -2608,10 +2606,7 @@ fn c158_the_wire_table_through_the_door() {
 
             // Every job the daemon lists, against the row's, with the
             // terminal events the subscription carried.
-            let listed = match door.request(Request::List).await {
-                Response::Jobs { jobs } => jobs,
-                other => panic!("{name}: the job list reads {other:?}"),
-            };
+            let listed = door.every_job().await;
             let mut ended: HashMap<JobId, usize> = HashMap::new();
             loop {
                 match events.try_recv() {

@@ -17,8 +17,9 @@ use acquisition_protocol::job::{
     Children, FailureKind, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
 };
 use acquisition_protocol::protocol::{
-    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, MAX_FRAME_BYTES, Quote,
-    QuoteJob, QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
+    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, LIST_LIMIT_DEFAULT,
+    LIST_LIMIT_MAX, ListCounts, ListState, MAX_FRAME_BYTES, Quote, QuoteJob, QuoteScope, Request,
+    Response, SessionStatus, UNKNOWN, error_message,
 };
 use acquisition_protocol::status::{
     DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord, WindowStatus,
@@ -249,7 +250,7 @@ fn request_name(r: &Request) -> &'static str {
         Request::Result { .. } => "result",
         Request::Cancel { .. } => "cancel",
         Request::SetPriority { .. } => "set_priority",
-        Request::List => "list",
+        Request::List { .. } => "list",
         Request::Subscribe => "subscribe",
         Request::AuthStart => "auth_start",
         Request::AuthStatus => "auth_status",
@@ -278,7 +279,11 @@ fn requests() -> Vec<Request> {
             id: 42,
             priority: 5,
         },
-        Request::List,
+        Request::List {
+            state: ListState::Finished,
+            limit: 10,
+            after: Some(42),
+        },
         Request::Subscribe,
         Request::AuthStart,
         Request::AuthStatus,
@@ -336,7 +341,20 @@ fn responses() -> Vec<Response> {
             },
         },
         Response::Ack { keyring: None },
-        Response::Jobs { jobs: vec![job()] },
+        Response::Jobs {
+            jobs: vec![job()],
+            next: Some(42),
+            counts: ListCounts {
+                total: 3,
+                running: 1,
+                waiting: 1,
+                done: 1,
+                failed: 0,
+                cancelled: 0,
+                soonest_eta_seconds: Some(17),
+                latest_eta_seconds: Some(17),
+            },
+        },
         Response::Subscribed,
         Response::AuthUrl {
             authorize_url: "http://127.0.0.1:1234/authorize?client_id=acquisition&state=st-x"
@@ -875,6 +893,47 @@ fn c165_the_failure_kind_set_is_closed_and_pinned() {
         .is_err(),
         "a kind outside the closed set does not parse"
     );
+}
+
+/// C166 (the job list is paged): `list` with no field is the first page
+/// of open jobs at the default size, and each field reads by its word;
+/// the last page's answer carries no `next`.
+#[test]
+fn c166_a_bare_list_is_the_first_page_of_open_jobs() {
+    let bare: Request = serde_json::from_str(r#"{"req":"list"}"#).unwrap();
+    assert!(
+        matches!(
+            bare,
+            Request::List {
+                state: ListState::Open,
+                limit: LIST_LIMIT_DEFAULT,
+                after: None,
+            }
+        ),
+        "{bare:?}"
+    );
+    for (word, state) in [
+        ("open", ListState::Open),
+        ("finished", ListState::Finished),
+        ("all", ListState::All),
+    ] {
+        let read: Request = serde_json::from_value(
+            json!({ "req": "list", "state": word, "limit": LIST_LIMIT_MAX }),
+        )
+        .unwrap();
+        assert!(
+            matches!(read, Request::List { state: s, limit: LIST_LIMIT_MAX, after: None } if s == state),
+            "{word}: {read:?}"
+        );
+        assert_eq!(state.as_str(), word);
+    }
+    let last = serde_json::to_value(Response::Jobs {
+        jobs: Vec::new(),
+        next: None,
+        counts: ListCounts::default(),
+    })
+    .unwrap();
+    assert!(last.get("next").is_none(), "{last}");
 }
 
 /// The frame bound is a wire fact both sides share.

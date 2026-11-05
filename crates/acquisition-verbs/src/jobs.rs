@@ -11,8 +11,10 @@ use acquisition_client::client::{Client, DaemonError};
 use acquisition_protocol::job::{
     CLIENT_KINDS, FailureKind, JobInfo, JobState, JobTimes, MOCK_ONLY_KINDS, Outcome, target_of,
 };
-use acquisition_protocol::protocol::{ErrorKind, Request, Response};
-use acquisition_store::bound::bounded;
+use acquisition_protocol::protocol::{
+    ErrorKind, LIST_LIMIT_MAX, ListCounts, ListState, Request, Response,
+};
+use acquisition_store::bound::{LISTED, bounded};
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
@@ -20,7 +22,6 @@ use serde_json::Value;
 
 use crate::fault::Fault;
 use crate::frontend::Frontend;
-use crate::refresh::list;
 use crate::refusal::{Surface, Way, offer};
 
 /// How often [`wait`] reads the job while it runs.
@@ -98,10 +99,70 @@ pub async fn wait(
     }
 }
 
-/// A parent's children, counted from the daemon's list.
+/// C166: one page of the daemon's job list, as it answered.
+#[derive(Clone, Debug)]
+pub struct Page {
+    /// Newest first.
+    pub jobs: Vec<JobInfo>,
+    /// The id after which the next page starts; `None` on the last.
+    pub next: Option<u64>,
+    /// Over every job of the list, whatever the page's state.
+    pub counts: ListCounts,
+}
+
+/// C166: one page of `state`, at most `limit` jobs below `after`.
+pub async fn page(
+    client: &mut Client,
+    state: ListState,
+    limit: usize,
+    after: Option<u64>,
+) -> Result<Page, Fault> {
+    let request = Request::List {
+        state,
+        limit,
+        after,
+    };
+    match client.request(&request).await.map_err(Fault::from_client)? {
+        Response::Jobs { jobs, next, counts } => Ok(Page { jobs, next, counts }),
+        Response::Error { kind, message } => Err(Fault::Daemon(DaemonError { kind, message })),
+        other => Err(unexpected(other)),
+    }
+}
+
+/// C166, the page loop: the jobs of `state`, newest first, read a page
+/// of the most the daemon serves at a time, each resumed after the last,
+/// until the last page or until `enough` says the jobs read so far
+/// suffice; with the counts of the last page read. Every reader that
+/// needs more than one first page reads through here.
+pub async fn pages(
+    client: &mut Client,
+    state: ListState,
+    mut enough: impl FnMut(&[JobInfo]) -> bool,
+) -> Result<(Vec<JobInfo>, ListCounts), Fault> {
+    let mut jobs = Vec::new();
+    let mut after = None;
+    loop {
+        let page = page(client, state, LIST_LIMIT_MAX, after).await?;
+        jobs.extend(page.jobs);
+        match page.next {
+            Some(next) if !enough(&jobs) => after = Some(next),
+            _ => return Ok((jobs, page.counts)),
+        }
+    }
+}
+
+/// C166: every job of `state`, newest first ([`pages`] to the last).
+pub async fn every(client: &mut Client, state: ListState) -> Result<Vec<JobInfo>, Fault> {
+    Ok(pages(client, state, |_| false).await?.0)
+}
+
+/// A parent's children, counted from the daemon's list. A child's id is
+/// above its parent's (it was submitted after it), so the pages, newest
+/// first, are read until one reaches below the parent.
 async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
     let mut tally = ChildTally::default();
-    for job in list(client).await? {
+    let below = |jobs: &[JobInfo]| jobs.last().is_some_and(|job| job.id < parent);
+    for job in pages(client, ListState::All, below).await?.0 {
         if job.parent != Some(parent) {
             continue;
         }
@@ -181,6 +242,26 @@ pub struct JobCounts {
     pub last_starts_in_seconds: Option<u64>,
 }
 
+impl From<&ListCounts> for JobCounts {
+    /// C166: the daemon's counts over its whole list, as the document
+    /// carries them.
+    fn from(counts: &ListCounts) -> JobCounts {
+        let n = |count: u64| usize::try_from(count).unwrap_or(usize::MAX);
+        JobCounts {
+            total: n(counts.total),
+            by_state: ByState {
+                running: n(counts.running),
+                waiting: n(counts.waiting),
+                done: n(counts.done),
+                failed: n(counts.failed),
+                cancelled: n(counts.cancelled),
+            },
+            next_starts_in_seconds: counts.soonest_eta_seconds,
+            last_starts_in_seconds: counts.latest_eta_seconds,
+        }
+    }
+}
+
 impl JobCounts {
     /// The counts of `jobs`, whole.
     pub fn of(jobs: &[JobInfo]) -> JobCounts {
@@ -207,21 +288,21 @@ impl JobCounts {
 }
 
 /// C149 and C53: the daemon's job list as one document — its counts over
-/// every job ([`JobCounts`]), then `rows`, in the daemon's id order: the
-/// open jobs (running or waiting), the first ten by id — not by when they
-/// run, which priority decides, so a running job can be among those left
-/// out — and the ten most recent finished; every job under
-/// `expand` (the CLI's `--all`). What is left out is counted, open and
-/// finished apart (the brief's second review, finding 2: no exemption
-/// for the open jobs).
+/// every job ([`JobCounts`], the daemon's, C166), then `rows`, in id
+/// order: the ten newest open jobs (running or waiting) and the ten
+/// newest finished, or of one of them when the view is narrowed to it;
+/// every job of the view under `expand` (the CLI's `--all`). What the
+/// view leaves out is counted, open and finished apart (the brief's
+/// second review, finding 2: no exemption for the open jobs): the
+/// earliest of each.
 #[derive(Clone, Debug, Serialize)]
 pub struct Listed {
     #[serde(flatten)]
     pub counts: JobCounts,
     pub rows: Vec<JobInfo>,
-    /// Open jobs not in `rows`.
+    /// Open jobs of the view not in `rows`: the earliest.
     pub open_left_out: usize,
-    /// Finished jobs not in `rows`: the earliest.
+    /// Finished jobs of the view not in `rows`: the earliest.
     pub finished_left_out: usize,
     /// What lists them all: the request's `expand`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -229,23 +310,55 @@ pub struct Listed {
 }
 
 impl Listed {
-    /// The daemon's list, counted whole and then cut by the one rule;
-    /// each row's times said now ([`aged`], C165).
-    pub fn of(jobs: Vec<JobInfo>, expand: bool) -> Listed {
+    /// C166: the view of the daemon's list `view` names (`all`, both
+    /// open and finished; `open` or `finished` alone), read as pages: the
+    /// first page of ten of each state the view holds, or under `expand`
+    /// every page of the view.
+    pub async fn read(client: &mut Client, view: ListState, expand: bool) -> Result<Listed, Fault> {
+        if expand {
+            let (rows, counts) = pages(client, view, |_| false).await?;
+            return Ok(Listed::of(rows, &counts, view));
+        }
+        let mut rows = Vec::new();
+        let mut counts = ListCounts::default();
+        for state in [ListState::Open, ListState::Finished] {
+            if view == state || view == ListState::All {
+                let page = page(client, state, LISTED, None).await?;
+                rows.extend(page.jobs);
+                counts = page.counts;
+            }
+        }
+        Ok(Listed::of(rows, &counts, view))
+    }
+
+    /// The document of `rows` read from a view of the list and the
+    /// daemon's `counts` beside them: the rows by id, each one's times
+    /// said now ([`aged`], C165), and what the view holds that they do
+    /// not, by the counts.
+    pub fn of(rows: Vec<JobInfo>, counts: &ListCounts, view: ListState) -> Listed {
         let now = acquisition_store::now();
-        let jobs: Vec<JobInfo> = jobs.into_iter().map(|job| aged(job, now)).collect();
-        let counts = JobCounts::of(&jobs);
-        let (open, finished): (Vec<JobInfo>, Vec<JobInfo>) =
-            jobs.into_iter().partition(|j| !j.state.is_terminal());
-        let (open, open_left_out) = bounded(open, None, expand);
-        // the most recent finished are the last by id: cut from the end
-        let mut finished = finished;
-        finished.reverse();
-        let (mut finished, finished_left_out) = bounded(finished, None, expand);
-        finished.reverse();
-        let mut rows = open;
-        rows.extend(finished);
+        let mut rows: Vec<JobInfo> = rows.into_iter().map(|job| aged(job, now)).collect();
         rows.sort_by_key(|j| j.id);
+        let counts = JobCounts::from(counts);
+        let by = &counts.by_state;
+        let shown = |finished: bool| {
+            rows.iter()
+                .filter(|j| j.state.is_terminal() == finished)
+                .count()
+        };
+        let left_out = |state: ListState, held: usize, finished: bool| {
+            if view == state || view == ListState::All {
+                held.saturating_sub(shown(finished))
+            } else {
+                0
+            }
+        };
+        let open_left_out = left_out(ListState::Open, by.running + by.waiting, false);
+        let finished_left_out = left_out(
+            ListState::Finished,
+            by.done + by.failed + by.cancelled,
+            true,
+        );
         Listed {
             counts,
             rows,
@@ -761,12 +874,14 @@ impl Frontend {
     }
 
     /// C45 (the ledger answers) and C10: the queue, live, or from the
-    /// ledger on disk when no daemon answers; never spawns. Ten open and
-    /// ten finished rows beside the counts of every job, every one under
-    /// `expand` (C53, C149).
-    pub async fn jobs(&self, expand: bool) -> Result<Jobs, Fault> {
+    /// ledger on disk when no daemon answers; never spawns. The ten
+    /// newest open and ten newest finished rows of the view beside the
+    /// counts of every job, every one of the view under `expand` (C53,
+    /// C149, C166). The ledger holds open rows alone, so with no daemon
+    /// the view does not narrow them.
+    pub async fn jobs(&self, view: ListState, expand: bool) -> Result<Jobs, Fault> {
         match self.observe().await? {
-            Some(mut client) => Ok(Jobs::Live(Listed::of(list(&mut client).await?, expand))),
+            Some(mut client) => Ok(Jobs::Live(Listed::read(&mut client, view, expand).await?)),
             None => Ok(Jobs::Absent {
                 persisted: self
                     .persisted()?

@@ -364,6 +364,27 @@ impl JobDb {
         )
     }
 
+    /// C166: the last `limit` terminal rows of id `first` and after and
+    /// below `below`, newest first, as a list names them: a daemon's list
+    /// page reads its own work down from the page's start, a read at a
+    /// time, the next read below the last id of this one; a read shorter
+    /// than `limit` is the last. A range of the primary key, read without
+    /// the bulk columns. A `below` past SQLite's integer range is read as
+    /// the top of it.
+    pub fn listed_finished_below(
+        &self,
+        first: u64,
+        below: u64,
+        limit: usize,
+    ) -> Result<Vec<ListedJob>> {
+        let below = below.min(i64::MAX as u64);
+        self.list_where(
+            "id >= ?1 AND id < ?2 AND state IN ('done', 'failed', 'cancelled')
+             ORDER BY id DESC LIMIT ?3",
+            params![first, below, limit],
+        )
+    }
+
     /// The terminal rows among `ids`, by id, as a list names them: a
     /// daemon's list reads what its restore brought back by the ids the
     /// restore took, one primary-key lookup each, never the rows between.

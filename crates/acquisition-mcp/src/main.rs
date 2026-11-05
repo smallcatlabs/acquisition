@@ -139,7 +139,7 @@ mod transport;
 use acquisition_client::client::{ConnectError, NotSpawned};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshPlan};
-use acquisition_protocol::protocol::ErrorKind;
+use acquisition_protocol::protocol::{ErrorKind, ListState};
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
@@ -718,7 +718,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "job counts",
-        "list_jobs with a daemon running: `running: true`, `total` every job this daemon holds (restored ones too), `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs by id (not by when they run: priority decides that, so a running job can be left out) and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
+        "list_jobs with a daemon running: `running: true`, `total` every job this daemon holds (restored ones too), `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the ten newest open jobs by id (newest by submission, not by when they run: priority decides that, so a running job can be left out) and the ten newest finished, or those of the one `state` names, `open_left_out` and `finished_left_out` counting the earlier ones, which `expand` lists. The counts are over every job whatever `state` names. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
     ),
     (
         "ledger",
@@ -959,6 +959,8 @@ struct AccountsParams {
 struct ListJobsParams {
     /// List every job, open and finished, not ten of each.
     expand: Option<bool>,
+    /// `open`, `finished` or `all` (both, the default).
+    state: Option<String>,
 }
 
 /// The arguments of a tool that takes none: any key is refused.
@@ -2204,14 +2206,21 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds and counts, and [\"ages\"] what an age's words say."
+        description = "Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: the ten newest open and ten newest finished, `state` narrowing, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds and counts, and [\"ages\"] what an age's words say."
     )]
     async fn list_jobs(&self, Parameters(p): Parameters<Args<ListJobsParams>>) -> Told {
-        let expand = match p.parse() {
-            Ok(p) => p.expand.unwrap_or(false),
+        let read = p.parse().and_then(|p| {
+            let state = match p.state.as_deref() {
+                None => ListState::All,
+                Some(word) => acquisition_verbs::list_state(word).map_err(Arguments)?,
+            };
+            Ok((state, p.expand.unwrap_or(false)))
+        });
+        let (state, expand) = match read {
+            Ok(read) => read,
             Err(e) => return failed(e),
         };
-        settled(async { Ok(self.frontend.jobs(expand).await?) }.await)
+        settled(async { Ok(self.frontend.jobs(state, expand).await?) }.await)
     }
 
     #[tool(

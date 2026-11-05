@@ -25,6 +25,7 @@ use acquisition_client::client::{Client, Observed};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::Outcome;
+use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use acquisition_store::world::{World, default_root, intended_root};
@@ -267,7 +268,7 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
     let s = session("queue");
     let frontend = Frontend::agent("test").unwrap();
     assert_eq!(
-        serde_json::to_value(frontend.jobs(false).await.unwrap()).unwrap(),
+        serde_json::to_value(frontend.jobs(ListState::All, false).await.unwrap()).unwrap(),
         json!({ "running": false, "persisted": null })
     );
     ledger(
@@ -300,7 +301,7 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
             },
         ],
     );
-    let jobs = serde_json::to_value(frontend.jobs(false).await.unwrap()).unwrap();
+    let jobs = serde_json::to_value(frontend.jobs(ListState::All, false).await.unwrap()).unwrap();
     assert_eq!(jobs["running"], json!(false), "{jobs}");
     assert_eq!(
         jobs["persisted"]["written_at"],

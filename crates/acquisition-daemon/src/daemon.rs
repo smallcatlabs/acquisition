@@ -130,8 +130,8 @@ use acquisition_protocol::job::{
     MOCK_ONLY_KINDS, Outcome, Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
-    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
-    QuoteScope, Request, Response, SessionStatus,
+    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, LIST_LIMIT_MAX, ListCounts, ListState,
+    MAX_FRAME_BYTES, Quote, QuoteJob, QuoteScope, Request, Response, SessionStatus,
 };
 use acquisition_protocol::provider::ggg_mode;
 use acquisition_protocol::realm::{Family, Realm};
@@ -159,8 +159,9 @@ use dispatch::RUNNING_JOB;
 use endpoint::{Accept, BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
-    APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, admit_client, admit_client_submitter, admit_realm,
-    admit_segments, bounded_message, check_sleep, describe, describe_str, judge_listed,
+    APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, Evicted, admit_client, admit_client_submitter,
+    admit_realm, admit_segments, bounded_message, check_sleep, describe, describe_str,
+    judge_listed,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;
@@ -456,6 +457,8 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | --- | --- | --- |
 /// | `handle_conn`: a frame that is not JSON/UTF-8, or not a request of this version | `bad request: …` | `bad_request` |
 /// | `handle_conn`: a frame over `MAX_FRAME_BYTES` | `frame exceeds …` | `bad_request` |
+/// | `job_page`: a `list` limit outside 1 to `LIST_LIMIT_MAX` (C166) | `a list page holds 1 to … jobs; … were asked for` | `bad_request` |
+/// | `job_page`, `job_list`: the queue unreadable | `could not read the persisted queue: …` | `queue_failed` |
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |
@@ -859,6 +862,13 @@ struct Shared {
     /// finished rows by id once they have left memory (C6). Bounded by
     /// the earlier lifetime's open work; never the rows between.
     restored: Vec<JobId>,
+    /// C166: the jobs of the list that have left memory, by their
+    /// finished state. Eviction is the one way a job leaves memory, and
+    /// only a concluded tree whose rows are persisted leaves
+    /// ([`Daemon::evict_tree`]), so memory and these count every job the
+    /// list pages through, under one lock, never by reading the table's
+    /// rows.
+    evicted: Evicted,
     auth: Sessions,
     /// C148: landings spawned and not yet returned, each a keyring or
     /// account-index write the exit's drain waits for
@@ -1393,6 +1403,7 @@ impl Builder {
                 next_id: 1,
                 first_id: 1,
                 restored: Vec::new(),
+                evicted: Evicted::default(),
                 auth: self.sessions,
                 landings: 0,
                 errors: VecDeque::new(),

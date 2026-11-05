@@ -45,7 +45,7 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, Observed};
-use acquisition_protocol::protocol::{Request, Response};
+use acquisition_protocol::protocol::{ListState, Request, Response};
 use serde_json::Value;
 
 #[allow(unused_imports)] // the adapters re-export them for the goldens
@@ -1041,16 +1041,58 @@ pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
     }
 }
 
+/// The first page of open jobs, as `{"req":"list"}` reads (C166).
+pub fn open_list() -> Request {
+    Request::List {
+        state: ListState::Open,
+        limit: acquisition_protocol::protocol::LIST_LIMIT_DEFAULT,
+        after: None,
+    }
+}
+
+/// Every job of the daemon's list, as a frontend's page loop reads it
+/// (C166): `all`, page by page from the newest; by id.
+pub async fn every_job(client: &mut Client) -> Vec<acquisition_protocol::job::JobInfo> {
+    let mut jobs = Vec::new();
+    let mut after = None;
+    loop {
+        let list = Request::List {
+            state: ListState::All,
+            limit: acquisition_protocol::protocol::LIST_LIMIT_MAX,
+            after,
+        };
+        match client.request(&list).await.expect("list") {
+            Response::Jobs {
+                jobs: page, next, ..
+            } => {
+                jobs.extend(page);
+                match next {
+                    Some(next) => after = Some(next),
+                    None => break,
+                }
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+    jobs.reverse();
+    jobs
+}
+
 /// Poll `list` until every job the daemon holds, `expected` of them, is
-/// terminal.
+/// terminal: its counts, over the whole list (C166), say none is open.
 pub async fn wait_all_terminal(client: &mut Client, expected: usize) {
     let deadline = Instant::now() + HANG;
     loop {
-        let jobs = match client.request(&Request::List).await.expect("list") {
-            Response::Jobs { jobs } => jobs,
+        let list = Request::List {
+            state: ListState::Open,
+            limit: 1,
+            after: None,
+        };
+        let counts = match client.request(&list).await.expect("list") {
+            Response::Jobs { counts, .. } => counts,
             other => panic!("{other:?}"),
         };
-        if jobs.len() == expected && jobs.iter().all(|j| j.state.is_terminal()) {
+        if counts.total == expected as u64 && counts.running + counts.waiting == 0 {
             return;
         }
         assert!(Instant::now() < deadline, "jobs did not finish");

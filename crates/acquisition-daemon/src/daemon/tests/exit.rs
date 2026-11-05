@@ -768,10 +768,7 @@ fn exit_waits_for_a_login_code_exchange() {
                 "a clean drain leaves before its bound: {drained:?}"
             );
 
-            let jobs = match door.request(Request::List).await {
-                Response::Jobs { jobs } => jobs,
-                other => panic!("expected the job list, got {other:?}"),
-            };
+            let jobs = door.every_job().await;
             let profiles: Vec<_> = jobs.iter().filter(|job| job.kind == "profile").collect();
             assert_eq!(
                 profiles.len(),
@@ -1463,10 +1460,11 @@ fn stage_fault_marker(dir: &std::path::Path) {
 
 /// The jobs `List` answers, each by its id and state.
 async fn listed_states(door: &mut Door) -> Vec<(JobId, JobState)> {
-    match door.request(Request::List).await {
-        Response::Jobs { jobs } => jobs.iter().map(|job| (job.id, job.state)).collect(),
-        other => panic!("the list answered {other:?}"),
-    }
+    door.every_job()
+        .await
+        .iter()
+        .map(|job| (job.id, job.state))
+        .collect()
 }
 
 /// Job `id`'s failure in its words, as `Result` answers it.

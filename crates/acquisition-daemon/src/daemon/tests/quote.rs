@@ -29,14 +29,12 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         let fetch = door.submit("fetch", None).await;
         let (info, outcome) = door.await_terminal(fetch).await;
         assert_eq!(info.state, JobState::Done, "{outcome:?}");
-        let list = |answer: Response| match answer {
-            Response::Jobs { jobs } => jobs
-                .into_iter()
+        let list = |jobs: Vec<JobInfo>| {
+            jobs.into_iter()
                 .map(|job| (job.id, job.state))
-                .collect::<Vec<_>>(),
-            other => panic!("the list answered {other:?}"),
+                .collect::<Vec<_>>()
         };
-        let jobs_before = list(door.request(Request::List).await);
+        let jobs_before = list(door.every_job().await);
         let journal_before = door.journal();
 
         let mut jobs: Vec<QuoteJob> = (0..8)
@@ -116,7 +114,7 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         assert!(nc.contains("429 re-sends"), "{nc}");
         assert!(nc.contains("`sleep` job(s) send nothing"), "{nc}");
         // Read-only and non-reserving: no job was added, nothing was sent.
-        assert_eq!(list(door.request(Request::List).await), jobs_before);
+        assert_eq!(list(door.every_job().await), jobs_before);
         assert_eq!(door.journal(), journal_before);
         door.finish().await;
     });

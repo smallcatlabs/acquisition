@@ -83,12 +83,9 @@ fn submitted(answer: Response, what: &str) -> JobId {
     }
 }
 
-/// The jobs `List` answers.
+/// Every job `List` answers, page by page under `all`, by id.
 async fn listed(door: &mut Door) -> Vec<JobInfo> {
-    match door.request(Request::List).await {
-        Response::Jobs { jobs } => jobs,
-        other => panic!("the list answered {other:?}"),
-    }
+    door.every_job().await
 }
 
 /// The account server's hold that no request matches: it records every
@@ -2301,6 +2298,21 @@ async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
         [5, 11, 12, 13, 15],
         "what the restore brought back and this daemon's work, nothing between"
     );
+    // C166: the finished pages read the same rows, newest first, the
+    // restored by their ids below this daemon's own; the open job is
+    // memory's.
+    let page = |state, after| {
+        let page = daemon.job_page(state, 2, after).unwrap();
+        (
+            page.jobs.iter().map(|j| j.id).collect::<Vec<_>>(),
+            page.next,
+        )
+    };
+    assert_eq!(page(ListState::Finished, None), (vec![15, 13], Some(13)));
+    assert_eq!(page(ListState::Finished, Some(13)), (vec![12, 11], None));
+    assert_eq!(page(ListState::Open, None), (vec![5], None));
+    let counts = daemon.job_page(ListState::Open, 1, None).unwrap().counts;
+    assert_eq!((counts.total, counts.waiting, counts.done), (5, 1, 4));
     for id in [9, 14] {
         assert!(
             JobDb::open(&db).unwrap().get(id).unwrap().is_some(),

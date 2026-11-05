@@ -1,3 +1,6 @@
 {
-  "req": "list"
+  "after": 42,
+  "limit": 10,
+  "req": "list",
+  "state": "finished"
 }

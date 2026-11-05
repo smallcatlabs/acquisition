@@ -74,6 +74,102 @@ the daemon that ran it ended, so nothing is sent for it; log in again (`acq auth
 /// list costs a lifetime's rows over this many takes.
 pub(super) const LIST_PAGE: usize = 256;
 
+/// C166: the most bytes of rows, as JSON, one page of the job list
+/// carries: half the frame ([`MAX_FRAME_BYTES`]). The rest of the answer
+/// (its tag, `next` and the counts) is under a kilobyte, so the half left
+/// over is headroom no page reaches, and a page always fits its frame
+/// whatever its row count. One row always fits: a page carries at least
+/// one row when any remain, and a row is its params, at most
+/// [`PARAMS_MAX_BYTES`] (an eighth of the frame), its submitter, at most
+/// [`SUBMITTER_MAX_BYTES`], and fields of a few hundred bytes.
+pub(super) const LIST_PAGE_BUDGET: usize = MAX_FRAME_BYTES / 2;
+
+/// C166: one page of the job list ([`Daemon::job_page`]).
+#[derive(Debug)]
+pub(super) struct JobPage {
+    pub(super) jobs: Vec<JobInfo>,
+    pub(super) next: Option<JobId>,
+    pub(super) counts: ListCounts,
+}
+
+/// C166: how many of the list have left memory, by finished state
+/// ([`Shared::evicted`]).
+#[derive(Debug, Default)]
+pub(super) struct Evicted {
+    done: u64,
+    failed: u64,
+    cancelled: u64,
+}
+
+impl Evicted {
+    /// One more job of `state` has left memory.
+    pub(super) fn count(&mut self, state: JobState) {
+        match state {
+            JobState::Done => self.done += 1,
+            JobState::Failed => self.failed += 1,
+            JobState::Cancelled => self.cancelled += 1,
+            // Only a concluded tree leaves memory.
+            JobState::Waiting | JobState::Running => {}
+        }
+    }
+}
+
+impl Shared {
+    /// C166: the counts over every job of the list: memory's by state,
+    /// the evicted beside them, and of the waiting jobs predicted to start
+    /// later than now the soonest and the latest start, from `etas`.
+    pub(super) fn counts(&self, etas: &HashMap<JobId, u64>) -> ListCounts {
+        let mut counts = ListCounts {
+            done: self.evicted.done,
+            failed: self.evicted.failed,
+            cancelled: self.evicted.cancelled,
+            ..ListCounts::default()
+        };
+        for e in self.jobs.values() {
+            match e.info.state {
+                JobState::Running => counts.running += 1,
+                JobState::Waiting => {
+                    counts.waiting += 1;
+                    if let Some(&eta) = etas.get(&e.info.id)
+                        && eta > 0
+                    {
+                        counts.soonest_eta_seconds =
+                            Some(counts.soonest_eta_seconds.map_or(eta, |s| s.min(eta)));
+                        counts.latest_eta_seconds =
+                            Some(counts.latest_eta_seconds.map_or(eta, |l| l.max(eta)));
+                    }
+                }
+                JobState::Done => counts.done += 1,
+                JobState::Failed => counts.failed += 1,
+                JobState::Cancelled => counts.cancelled += 1,
+            }
+        }
+        counts.total =
+            counts.running + counts.waiting + counts.done + counts.failed + counts.cancelled;
+        counts
+    }
+}
+
+/// The bytes `value` takes as JSON, counted without building it.
+pub(super) fn json_len(value: &impl serde::Serialize) -> usize {
+    /// A writer that only counts.
+    struct Count(usize);
+    impl std::io::Write for Count {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0 += buf.len();
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut count = Count(0);
+    // Serializing to a writer that never fails fails only on a value with
+    // no JSON form, which a job is not; such a value counts what it wrote.
+    let _ = serde_json::to_writer(&mut count, value);
+    count.0
+}
+
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
@@ -473,6 +569,151 @@ resubmit if still wanted",
         );
         jobs.sort_by_key(|info| info.id);
         Ok(jobs)
+    }
+
+    /// C166 (the job list is paged): one page of the job list
+    /// ([`Self::job_list`]'s jobs, of `state`), newest first by id, the
+    /// jobs below `after` when it is given, at most `limit` of them and at
+    /// most [`LIST_PAGE_BUDGET`] bytes of them as JSON; `next` is the last
+    /// listed id when jobs remain below it. The counts are over every job
+    /// of the list, whatever `state` pages: memory's jobs and those that
+    /// left it ([`Shared::evicted`]), counted under one take of `shared`.
+    ///
+    /// Read as `job_list` reads, without loss: memory first, then the
+    /// table's finished rows in reads of [`LIST_PAGE`], the table's lock
+    /// taken and released per read, a job in both memory's. Paging adds
+    /// no loss: ids are stable and never reused, and a page lists jobs
+    /// below its `after`, so the pages of `all` list each job that existed
+    /// at the first page once, newest first, and skip none of them (one
+    /// submitted since has a higher id, above every page after the
+    /// first). Under `open`, a job that finishes between pages leaves the
+    /// list; under `finished`, one that finishes between pages above the
+    /// page being read is not on it.
+    ///
+    /// Each source is read to `limit + 1` of its candidates, so a page
+    /// knows whether a job remains below it without an empty last page.
+    pub(super) fn job_page(
+        &self,
+        state: ListState,
+        limit: usize,
+        after: Option<JobId>,
+    ) -> Result<JobPage, Refusal> {
+        self.job_page_within(state, limit, after, LIST_PAGE_BUDGET)
+    }
+
+    /// [`Self::job_page`] under a byte budget of `budget`: the daemon's is
+    /// [`LIST_PAGE_BUDGET`]; a test passes one it can reach.
+    pub(super) fn job_page_within(
+        &self,
+        state: ListState,
+        limit: usize,
+        after: Option<JobId>,
+        budget: usize,
+    ) -> Result<JobPage, Refusal> {
+        if !(1..=LIST_LIMIT_MAX).contains(&limit) {
+            return Err(Refusal::new(
+                ErrorKind::BadRequest,
+                format!("a list page holds 1 to {LIST_LIMIT_MAX} jobs; {limit} were asked for"),
+            ));
+        }
+        let below = after.unwrap_or(JobId::MAX);
+        let wanted = limit + 1;
+        let (mut candidates, held, first, restored, counts) = {
+            let s = self.shared.lock().unwrap();
+            let etas = s.waiting_etas(self, None);
+            let mut ids: Vec<JobId> = s
+                .jobs
+                .values()
+                .filter(|e| e.info.id < below && state.holds(e.info.state))
+                .map(|e| e.info.id)
+                .collect();
+            ids.sort_unstable_by(|a, b| b.cmp(a));
+            ids.truncate(wanted);
+            let candidates: Vec<JobInfo> = ids
+                .iter()
+                .map(|id| {
+                    let mut info = s.jobs[id].info.clone();
+                    info.eta_seconds = if info.state == JobState::Waiting {
+                        etas.get(id).copied()
+                    } else {
+                        None
+                    };
+                    info
+                })
+                .collect();
+            let held: HashSet<JobId> = s.jobs.keys().copied().collect();
+            // A restored job still in memory is listed from memory.
+            let restored: Vec<JobId> = s
+                .restored
+                .iter()
+                .copied()
+                .filter(|id| *id < below && !held.contains(id))
+                .collect();
+            let counts = s.counts(&etas);
+            (candidates, held, s.first_id, restored, counts)
+        };
+        if state != ListState::Open {
+            let read = || -> anyhow::Result<Vec<ListedJob>> {
+                let mut rows = Vec::new();
+                // This daemon's own finished rows, down from the page's
+                // start.
+                let mut from = below;
+                let mut own = 0;
+                while own < wanted {
+                    let page = self
+                        .jobs_db
+                        .lock()
+                        .unwrap()
+                        .listed_finished_below(first, from, LIST_PAGE)?;
+                    let last = page.last().map(|row| row.id);
+                    let full = page.len() == LIST_PAGE;
+                    for row in page.into_iter().filter(|row| !held.contains(&row.id)) {
+                        own += 1;
+                        rows.push(row);
+                    }
+                    match last {
+                        Some(id) if full => from = id,
+                        _ => break,
+                    }
+                }
+                // What the restore brought back, by its ids, newest
+                // first.
+                let mut back = 0;
+                for ids in restored.rchunks(LIST_PAGE) {
+                    if back >= wanted {
+                        break;
+                    }
+                    let mut page = self.jobs_db.lock().unwrap().listed_finished(ids)?;
+                    page.reverse();
+                    back += page.len();
+                    rows.extend(page);
+                }
+                Ok(rows)
+            };
+            let finished = read().map_err(|e| {
+                Refusal::new(
+                    ErrorKind::QueueFailed,
+                    format!("could not read the persisted queue: {e:#}"),
+                )
+            })?;
+            candidates.extend(finished.into_iter().filter_map(listed_info));
+        }
+        candidates.sort_unstable_by_key(|job| std::cmp::Reverse(job.id));
+        let mut jobs = Vec::new();
+        let mut bytes = 0;
+        for job in candidates.iter().take(limit) {
+            // A row and the comma after it.
+            let size = json_len(job) + 1;
+            if !jobs.is_empty() && bytes + size > budget {
+                break;
+            }
+            bytes += size;
+            jobs.push(job.clone());
+        }
+        let next = (candidates.len() > jobs.len())
+            .then(|| jobs.last().map(|job| job.id))
+            .flatten();
+        Ok(JobPage { jobs, next, counts })
     }
 
     pub(super) fn submit(
@@ -1173,29 +1414,15 @@ pub(super) const APPLY_MAX_ACTIONS: usize = 50_000;
 /// refuses is refused in its words. The refusal names the size, never
 /// the value.
 pub(super) fn admit_params_size(params: &Value) -> Result<(), Refusal> {
-    /// A writer that only counts.
-    struct Count(usize);
-    impl std::io::Write for Count {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0 += buf.len();
-            Ok(buf.len())
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-    let mut count = Count(0);
-    // Serializing a `Value` fails only on the writer, which never does.
-    let _ = serde_json::to_writer(&mut count, params);
-    if count.0 <= PARAMS_MAX_BYTES {
+    let size = json_len(params);
+    if size <= PARAMS_MAX_BYTES {
         return Ok(());
     }
     Err(Refusal::new(
         ErrorKind::Refused,
         format!(
-            "params of {} bytes as JSON exceed the bound of {PARAMS_MAX_BYTES} bytes; \
-submit the work in parts",
-            count.0
+            "params of {size} bytes as JSON exceed the bound of {PARAMS_MAX_BYTES} bytes; \
+submit the work in parts"
         ),
     ))
 }

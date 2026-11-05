@@ -48,8 +48,8 @@ use acquisition_protocol::protocol::{ErrorKind, MAX_FRAME_BYTES, Request, Respon
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
 use acquisition_store::world::{Lock, World};
 use harness::{
-    HANG, acqd_built, compatible_client, login_in_process, session, start_daemon_in_process,
-    wait_all_terminal,
+    HANG, acqd_built, compatible_client, every_job, login_in_process, open_list, session,
+    start_daemon_in_process, wait_all_terminal,
 };
 use serde_json::{Value, json};
 use tokio::io::{AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
@@ -568,7 +568,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
     // frame. The client hangs up, and the test reads its own end to EOF:
     // the hello and the status, nothing after.
     let again = client
-        .request(&Request::List)
+        .request(&open_list())
         .await
         .expect_err("a request on a stalled connection");
     assert_eq!(format!("{again:#}"), sentence);
@@ -1271,9 +1271,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
     // gap is reported — never skipped.
     let mut subscription = open_subscription().await;
     let mut client = compatible_client().await;
-    assert!(
-        matches!(client.request(&Request::List).await.unwrap(), Response::Jobs { jobs } if jobs.is_empty())
-    );
+    assert!(every_job(&mut client).await.is_empty());
     const JOBS: usize = 800;
     for _ in 0..JOBS {
         submitted(submit(&mut client, "sleep", json!({ "seconds": 0 }), None).await);
@@ -1299,10 +1297,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
         JOBS * 3
     );
     // The snapshot is the authority; the stream was never complete.
-    let jobs = match client.request(&Request::List).await.unwrap() {
-        Response::Jobs { jobs } => jobs,
-        other => panic!("{other:?}"),
-    };
+    let jobs = every_job(&mut client).await;
     assert_eq!(jobs.len(), JOBS);
     assert!(jobs.iter().all(|j| j.state == JobState::Done));
 
@@ -1311,10 +1306,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
     // what happens after it was opened.
     drop(subscription);
     let mut subscription = open_subscription().await;
-    let jobs = match client.request(&Request::List).await.unwrap() {
-        Response::Jobs { jobs } => jobs,
-        other => panic!("{other:?}"),
-    };
+    let jobs = every_job(&mut client).await;
     let newest = jobs.iter().map(|j| j.id).max().unwrap();
     let next = submitted(submit(&mut client, "sleep", json!({ "seconds": 0 }), None).await);
     assert!(next > newest);
@@ -1361,7 +1353,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
         .expect("the stream ends");
     assert!(matches!(end, Ok(None) | Err(_)), "{end:?}");
     assert!(
-        client.request(&Request::List).await.is_err(),
+        client.request(&open_list()).await.is_err(),
         "the request connection is gone"
     );
     assert!(matches!(Client::observe().await.unwrap(), Observed::Absent));
@@ -1369,10 +1361,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
     let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut subscription = open_subscription().await;
     let mut client = compatible_client().await;
-    let live = match client.request(&Request::List).await.unwrap() {
-        Response::Jobs { jobs } => jobs,
-        other => panic!("{other:?}"),
-    };
+    let live = every_job(&mut client).await;
     assert!(
         live.is_empty(),
         "terminal jobs are history, not state: {live:?}"

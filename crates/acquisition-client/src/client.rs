@@ -490,7 +490,7 @@ fn asked(req: &Request) -> Option<&'static str> {
     match req {
         Request::Status { .. } => Some("the job's status"),
         Request::Result { .. } => Some("the job's result"),
-        Request::List => Some("the job list"),
+        Request::List { .. } => Some("the job list"),
         Request::Subscribe => Some("the subscription"),
         Request::AuthStatus => Some("the login's status"),
         Request::DaemonStatus => Some("its status"),

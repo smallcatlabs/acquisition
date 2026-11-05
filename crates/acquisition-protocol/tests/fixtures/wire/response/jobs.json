@@ -1,4 +1,14 @@
 {
+  "counts": {
+    "cancelled": 0,
+    "done": 1,
+    "failed": 0,
+    "latest_eta_seconds": 17,
+    "running": 1,
+    "soonest_eta_seconds": 17,
+    "total": 3,
+    "waiting": 1
+  },
   "jobs": [
     {
       "account": "Alice#1234",
@@ -19,5 +29,6 @@
       "submitted_by": "cli:1234"
     }
   ],
+  "next": 42,
   "resp": "jobs"
 }
