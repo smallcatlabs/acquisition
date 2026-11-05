@@ -143,12 +143,15 @@ fn a_continuation_is_refused_across_a_changed_basis_and_names_both() {
         "{e}"
     );
     // the way on is the request from its start, said in the request's
-    // words; a terminal spells it as the command it is
+    // words: the same scope and limit, no place (a terminal's spelling
+    // is the CLI's, `printed.rs`)
     assert_eq!(e["offers"][0]["says"], "the same request from its start");
     let start: Request = serde_json::from_value(e["offers"][0]["request"].clone()).unwrap();
     assert_eq!(
-        start.command(),
-        "acq search --account A --realm pc '' --limit 3"
+        serde_json::to_value(&start).unwrap(),
+        json!({ "query": { "text": "" },
+                "scope": { "account": "A", "membership": "live", "realm": "pc" },
+                "view": { "rows": { "limit": 3 } } }),
     );
     // the same request without its place is no continuation: it answers
     let mut again = next.clone();

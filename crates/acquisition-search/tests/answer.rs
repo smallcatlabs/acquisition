@@ -824,11 +824,13 @@ fn the_tabs_pointer_names_a_league_the_query_names() {
         ask(&corpus, text)
             .unwrap()
             .tabs_pointer()
-            .map(|p| (p.command, p.other_leagues))
+            .map(|p| (p.account, p.realm, p.league, p.other_leagues))
     };
     let at = |league: &str, others: usize| {
         Some((
-            format!("acq tabs --account A --realm pc --league {league} --never-fetched"),
+            "A".to_string(),
+            "pc".to_string(),
+            league.to_string(),
             others,
         ))
     };

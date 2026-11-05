@@ -120,7 +120,7 @@
 //!    bound needs a case past it.
 //! 10. **One maker for each kind of thing an answer holds.** What a group
 //!     means (`group.rs`, refused elsewhere by `tools/arch-check.sh` §7), a
-//!     command (`answer::command`: rule 5 is this rule for commands), why
+//!     command (the CLI's `printed.rs`: rule 5 is this rule for commands), why
 //!     an item is undecided (`eval::why`), a sum (`exact.rs`). A second
 //!     maker is how two parts of one answer come to disagree: look for the
 //!     first before writing one. *Held by:* §7; the CLI test that runs

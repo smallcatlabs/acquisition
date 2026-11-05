@@ -8,6 +8,7 @@ mod diagnose_cmd;
 mod leagues_cmd;
 mod plan_cmd;
 mod price_cmd;
+mod printed;
 #[cfg(test)]
 mod real_scale_fixture;
 mod reference_cmd;
@@ -16,6 +17,7 @@ mod shop_cmd;
 mod store_cmd;
 mod web;
 
+use crate::printed::Printed as _;
 use std::io::{IsTerminal as _, Write as _};
 use std::time::{Duration, Instant};
 
@@ -1245,7 +1247,7 @@ pub(crate) fn ready_ways(e: &anyhow::Error, surface: &Terminal) -> String {
 }
 
 /// An offer's request as the command a terminal prints: a line as it
-/// stands; a request object as `Request::command` spells it — what a
+/// stands; a request object as `printed.rs` spells it — what a
 /// zero answer prints for its own offers — a query given as a tree alone
 /// printed as its text, since that command has no tree of its own. None
 /// for a request that does not read or bind: no command to print.

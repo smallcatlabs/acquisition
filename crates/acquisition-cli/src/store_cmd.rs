@@ -1,6 +1,7 @@
 //! Frontend-side reads of the shared store: no daemon round-trip. The CLI
 //! opens the same SQLite file the daemon writes; WAL makes that safe.
 
+use crate::printed::Printed as _;
 use std::path::Path;
 
 use acquisition_protocol::realm::Realm;

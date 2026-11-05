@@ -157,7 +157,7 @@ pub enum SearchError {
 /// frontend's flag): a whole search's says what the search is — `the
 /// same request from its start` — and each surface spells the request
 /// after it or in its place, a terminal as its command
-/// ([`Request::command`]); a realm's is `realm pc`, a terminal adding its
+/// (the CLI's `printed.rs`); a realm's is `realm pc`, a terminal adding its
 /// flag after it ([`Offered::realm`]), and its request the search asked,
 /// in that realm (#97, the search's offers in each surface's terms).
 #[derive(Debug, Clone, PartialEq)]

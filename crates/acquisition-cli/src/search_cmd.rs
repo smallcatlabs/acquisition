@@ -33,7 +33,7 @@
 //!   view's conflicts are the crate's to say
 //!   (`Shape::of`), the context's word is the crate's to read, and what a
 //!   zero answer offers is printed as the commands the crate makes of its
-//!   requests (`Request::command`), each run by the test that runs every
+//!   requests (`printed.rs`), each run by the test that runs every
 //!   command printed.
 //! - **The query may come from a file or stdin** (`--query-file`, the
 //!   plan's gap 2): a template with an apostrophe cannot be typed plainly
@@ -52,6 +52,7 @@
 //!   listing state's (C81, C100), and every basis names the intent
 //!   revision (C98). Nothing is written to it.
 
+use crate::printed::Printed as _;
 use std::io::Read as _;
 
 use acquisition_search::answer::{
@@ -304,11 +305,11 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
 
 /// A way on as a terminal reads it (C143): the shared reading, in the
 /// request's words, and after a realm's the flag this terminal spells it
-/// with; a whole search, the command it is ([`Request::command`]), which
+/// with; a whole search, the command it is ([`Printed::command`]), which
 /// this terminal prints in its place (#97: the shared words are the
 /// MCP's and the page's).
 ///
-/// [`Request::command`]: acquisition_search::answer::Request::command
+/// [`Printed::command`]: crate::printed::Printed::command
 pub(crate) fn terminal_reading(o: &acquisition_search::error::Offered) -> String {
     match (o.realm(), &o.request) {
         (Some(realm), _) => format!("{} (--realm {realm})", o.reading),
@@ -1022,7 +1023,10 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     // the list that exists: `tabs` over a league the query names, or the
     // one holding the most never fetched, the others counted (C118, #36)
     if let Some(pointer) = a.tabs_pointer() {
-        never.push_str(&format!(" · each tab: {}", pointer.command));
+        never.push_str(&format!(
+            " · each tab: {}",
+            crate::printed::tabs_command(&pointer)
+        ));
         if pointer.other_leagues > 0 {
             never.push_str(&format!(
                 " · {} never-fetched tabs",
@@ -1219,7 +1223,7 @@ pub(crate) fn row_shows(
             by_sort.push(format!(
                 "{} more sorted: {}",
                 sorted.left_out,
-                a.show_command(&row.id)
+                crate::printed::show_command(a, &row.id)
             ));
         }
         parts.push(by_sort);
@@ -1256,7 +1260,7 @@ pub(crate) fn row_shows(
                 "{} more of term {}: {}",
                 touched.left_out,
                 touched.path,
-                a.show_command(&row.id)
+                crate::printed::show_command(a, &row.id)
             )
         })
         .collect();
@@ -2119,11 +2123,7 @@ pub(crate) fn shown_text(s: &Shown) -> String {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
         _ => format!(
             " · why: {} {target}",
-            acquisition_search::answer::opening(
-                "price show",
-                Some(&s.basis.account),
-                Some(&s.place.realm)
-            )
+            crate::printed::opening("price show", Some(&s.basis.account), Some(&s.place.realm))
         ),
     };
     match &s.price {

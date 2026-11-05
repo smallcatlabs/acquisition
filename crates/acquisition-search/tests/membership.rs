@@ -209,11 +209,6 @@ fn a_route_under_all_is_under_all_and_a_corpus_holds_one_membership() {
         in_order(&as_json(&answer(&corpus, &request).unwrap())),
         ["c"]
     );
-    assert!(
-        request.command().contains(" --membership all"),
-        "{}",
-        request.command()
-    );
     // a continuation too
     let cut = asked(
         &corpus,
@@ -232,11 +227,13 @@ fn a_route_under_all_is_under_all_and_a_corpus_holds_one_membership() {
     )
     .unwrap_err();
     assert_eq!(e["kind"], "membership_mismatch", "{e}");
-    // a live answer's command names no membership
+    // a live answer's route is under live, the default a terminal
+    // leaves unsaid (`printed.rs`)
     let live = as_json(&ask(&load(&s, Some("pc")), "rarity=rare").unwrap());
-    let request: Request =
-        serde_json::from_value(live["terms"][0]["matched"]["request"].clone()).unwrap();
-    assert!(!request.command().contains("--membership"));
+    assert_eq!(
+        live["terms"][0]["matched"]["request"]["scope"]["membership"], "live",
+        "{live}"
+    );
 }
 
 /// AQ4 across a refresh that removed the item: an id an earlier answer
@@ -429,15 +426,17 @@ fn a_retired_tab_that_held_nothing_is_said_to_have_left_either_way() {
         let e = show(&s, id, false).unwrap_err().to_json();
         assert_eq!(e["kind"], "not_an_item");
         assert!(e["error"].as_str().unwrap().contains(name), "{e}");
-        // said in the request's words, the membership among them; a
-        // terminal spells the request as its command
+        // said in the request's words, the membership among them, and
+        // made of them (a terminal's spelling is the CLI's, `printed.rs`)
         assert_eq!(
             e["offers"][0]["says"],
             format!("the search, under membership all, of what was in the tab `{name}`")
         );
         assert_eq!(
-            offered(&e).command(),
-            format!("acq search --account u-1 --realm pc id:{id} --membership all")
+            serde_json::to_value(offered(&e)).unwrap(),
+            json!({ "query": { "text": format!("id:{id}") },
+                    "scope": { "account": "u-1", "realm": "pc", "membership": "all" },
+                    "view": { "rows": {} } })
         );
     }
     // a live tab's is the live search, as it was
@@ -447,8 +446,10 @@ fn a_retired_tab_that_held_nothing_is_said_to_have_left_either_way() {
         "the search of what is in the tab `Rings`"
     );
     assert_eq!(
-        offered(&e).command(),
-        "acq search --account u-1 --realm pc id:t1"
+        serde_json::to_value(offered(&e)).unwrap(),
+        json!({ "query": { "text": "id:t1" },
+                "scope": { "account": "u-1", "realm": "pc", "membership": "live" },
+                "view": { "rows": {} } })
     );
 }
 
@@ -697,11 +698,6 @@ fn a_route_under_removed_is_under_removed() {
     assert_eq!(
         in_order(&as_json(&answer(&corpus, &request).unwrap())),
         ["c"]
-    );
-    assert!(
-        request.command().contains(" --membership removed"),
-        "{}",
-        request.command()
     );
     let cut = asked(
         &corpus,

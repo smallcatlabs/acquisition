@@ -119,7 +119,7 @@
 //!   site search; a route, an offer to explain and a forced query are
 //!   queries of their own and carry none. A command made of a request
 //!   that carries one is `--trade` and that search
-//!   ([`Request::command`]), with no `--realm` where its URL names one.
+//!   (the CLI's `printed.rs`), with no `--realm` where its URL names one.
 //!
 //! - **The request** — `{account, realm | all, membership}`, the query, a
 //!   view, and a basis when it continues (C98, C100; a route carries none, B3). A
@@ -256,7 +256,7 @@
 //!   corpus context beside the view the request had, where a query was
 //!   typed. An offer is a request, made by the one maker of a route's
 //!   (`Router::request`), and a command only as every route is one
-//!   ([`Request::command`]): the block computes no forced count.
+//!   (the CLI's `printed.rs`): the block computes no forced count.
 //! - **Explain is a view** (the build plan, step 10): it travels in the request as the rows and the counts do,
 //!   so it stands beside neither, and an adapter's flag is an encoding
 //!   of it. The path names a node of the query as returned
@@ -719,8 +719,8 @@ impl QueryInput {
         }
     }
 
-    /// The site search as a terminal types it after `--trade`.
-    fn trade_word(&self) -> Option<String> {
+    /// The site search as one word: its URL, its id or its query JSON.
+    pub fn trade_word(&self) -> Option<String> {
         match self.trade.as_ref()? {
             Json::String(input) => Some(input.clone()),
             other => Some(other.to_string()),
@@ -2955,58 +2955,28 @@ fn exactly(of: &str, value: &str) -> Node {
     }
 }
 
-/// A command a terminal takes: the one way the search prints one (the
-/// build plan's rule 5 — a command printed is a command that runs). It
-/// names the account it was answered for, since a second account makes a
-/// command without one an error, and a last word that starts with `-` —
-/// the language's not, a terminal's flag — is printed after a space
-/// inside its quotes, or `-has:note` is read as `-h`: the query reads the
-/// space as nothing, and the word reads the same in every shell C156
-/// names, with no `--` to carry.
-pub fn command(verb: &str, account: Option<&str>, realm: Option<&str>, last: &str) -> String {
-    command_with(verb, account, realm, last, "")
-}
-
-/// [`command`] with the flags a view and a context add: after the query,
-/// as a reader types them.
-fn command_with(
-    verb: &str,
-    account: Option<&str>,
-    realm: Option<&str>,
-    last: &str,
-    flags: &str,
-) -> String {
-    let mut out = opening(verb, account, realm);
-    out.push(' ');
-    if last.starts_with('-') {
-        out.push_str(&shell_quoted(&format!(" {last}")));
-    } else {
-        out.push_str(&shell_quoted(last));
-    }
-    out.push_str(flags);
-    out
-}
-
 /// Where an answer's scope points for the tabs it never fetched (C118):
-/// `tabs` over one league, as a command a terminal takes, and how many
-/// other leagues hold a never-fetched tab.
+/// the never-fetched tabs of one league, as the account the answer was
+/// made for and in its realm, which each surface spells (C143), and how
+/// many other leagues hold a never-fetched tab.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TabsPointer {
-    pub command: String,
+    pub account: String,
+    pub realm: String,
+    pub league: String,
     pub other_leagues: usize,
 }
 
 impl Answer {
-    /// The `tabs` command for the tabs this answer's scope never fetched,
-    /// a function of the answer's JSON: under one realm, of the leagues
+    /// The tabs this answer's scope never fetched, a function of the
+    /// answer's JSON: under one realm, of the leagues
     /// the query names (`league_terms`, and-ed or through an or) the first
     /// in the scope's order (the most never-fetched tabs first) that holds
     /// a never-fetched tab, the rest of the named that hold one counted;
     /// where the query names none, the league holding the most, every
     /// other counted; never a league the query excludes; none where no
     /// league it may name holds one (#36: under two `league=` terms the
-    /// pointer named the realm's most, which may be neither). Made by the
-    /// one opening every command has.
+    /// pointer named the realm's most, which may be neither).
     pub fn tabs_pointer(&self) -> Option<TabsPointer> {
         let Realm::One(realm) = &self.scope.realm else {
             return None;
@@ -3027,25 +2997,19 @@ impl Answer {
             .filter(|l| !among(l, true) && (!named || among(l, false)));
         let league = held.next()?;
         let other_leagues = held.count();
-        let mut command = opening(
-            "tabs",
-            Some(
-                self.scope
-                    .account
-                    .name
-                    .as_deref()
-                    .unwrap_or(&self.scope.account.uuid),
-            ),
-            Some(realm),
-        );
-        command.push_str(&format!(
-            " --league {} --never-fetched",
-            shell_quoted(league)
-        ));
         Some(TabsPointer {
-            command,
+            account: self.account_named(),
+            realm: realm.clone(),
+            league: league.clone(),
             other_leagues,
         })
+    }
+
+    /// The account this answer was made for, as a request names it: its
+    /// name, or its uuid where the index holds none.
+    pub fn account_named(&self) -> String {
+        let account = &self.scope.account;
+        account.name.clone().unwrap_or_else(|| account.uuid.clone())
     }
 }
 
@@ -3106,120 +3070,6 @@ fn fixed_league(tree: &Json) -> Option<&str> {
     }
 }
 
-/// How every command the search prints opens — `show`'s `price show`
-/// pointer too: the verb, the account it was answered for, the realm.
-pub fn opening(verb: &str, account: Option<&str>, realm: Option<&str>) -> String {
-    let mut out = format!("acq {verb}");
-    if let Some(account) = account {
-        out.push_str(&format!(" --account {}", shell_quoted(account)));
-    }
-    if let Some(realm) = realm {
-        out.push_str(&format!(" --realm {realm}"));
-    }
-    out
-}
-
-impl Next {
-    /// The continuation as a command a terminal takes: the token whole,
-    /// and the account it was answered for (`command`).
-    pub fn command(&self) -> String {
-        // the realm is the token's to carry
-        let mut out = opening("search", self.request.scope.account.as_deref(), None);
-        out.push_str(&format!(" --next {}", shell_quoted(&self.request.token())));
-        out
-    }
-}
-
-impl Route {
-    /// The route as a command a terminal takes ([`Request::command`]).
-    pub fn command(&self) -> String {
-        self.request.command()
-    }
-}
-
-impl Request {
-    /// The request as a command a terminal takes: the query, then the
-    /// view where it is not the default rows, then the context where it
-    /// is not the matches. A request that carries a tree and no text has
-    /// none of its own: an answer returns the text. One that carries a
-    /// site search is `--trade` and that search, and no realm where its
-    /// URL names one: `--realm` beside a URL is a conflict (K6).
-    pub fn command(&self) -> String {
-        let scope = &self.scope;
-        let mut out = String::new();
-        if scope.membership != Membership::Live {
-            out.push_str(" --membership ");
-            out.push_str(scope.membership.as_str());
-        }
-        self.view_flags(&mut out);
-        if self.context == Context::Corpus {
-            out.push_str(" --context corpus");
-        }
-        if let Some(word) = self.query.trade_word() {
-            // the realm the site search names by itself, read where every
-            // reader reads it
-            let url = self.query.read(None).ok().and_then(|read| read.realm);
-            let mut command = opening(
-                "search",
-                scope.account.as_deref(),
-                match url {
-                    Some(_) => None,
-                    None => scope.realm.as_ref().map(Realm::as_str),
-                },
-            );
-            command.push_str(&format!(" --trade {}", shell_quoted(&word)));
-            command.push_str(&out);
-            return command;
-        }
-        command_with(
-            "search",
-            scope.account.as_deref(),
-            scope.realm.as_ref().map(Realm::as_str),
-            self.query.text.as_deref().unwrap_or_default(),
-            &out,
-        )
-    }
-
-    fn view_flags(&self, out: &mut String) {
-        self.shape_flags(out);
-        if self.view.routes {
-            out.push_str(" --routes");
-        }
-    }
-
-    fn shape_flags(&self, out: &mut String) {
-        let (flag, counts) = match &self.view.shape {
-            Shape::Rows(rows) => {
-                if let Some(sort) = &rows.sort {
-                    out.push_str(&format!(" --sort {}", shell_quoted(sort)));
-                    if rows.desc {
-                        out.push_str(" --desc");
-                    }
-                }
-                if let Some(limit) = rows.limit {
-                    out.push_str(&format!(" --limit {limit}"));
-                }
-                return;
-            }
-            Shape::Explain(explain) => {
-                out.push_str(&format!(" --explain {}", shell_quoted(&explain.path)));
-                return;
-            }
-            Shape::Counts(c) => ("--count", c),
-            Shape::Cross(c) => ("--cross", c),
-        };
-        for list in counts.lists() {
-            out.push_str(&format!(" {flag} {}", shell_quoted(&list)));
-        }
-        if let Some(sum) = &counts.sum {
-            out.push_str(&format!(" --sum {}", shell_quoted(sum)));
-        }
-        if let Some(limit) = counts.limit {
-            out.push_str(&format!(" --limit {limit}"));
-        }
-    }
-}
-
 impl Answer {
     /// The routes an answer carries unasked (C115): the module doc, "The
     /// routes an answer carries". Every other count keeps its number and
@@ -3256,18 +3106,6 @@ impl Answer {
             }
             ViewOut::Rows(_) | ViewOut::Explain(_) => {}
         }
-    }
-
-    /// The command that shows one of this answer's items whole: where a
-    /// bounded block of a row sends its reader (invariant 5).
-    pub fn show_command(&self, id: &str) -> String {
-        let account = &self.scope.account;
-        command(
-            "show",
-            Some(account.name.as_deref().unwrap_or(&account.uuid)),
-            None,
-            id,
-        )
     }
 }
 
