@@ -473,11 +473,34 @@ fn every_search_page_is_a_wording_golden() {
 
 /// The form is one realm's render (the review of 4b, its fourth
 /// finding): asked for the console realm, it lists that realm's league
-/// alone and its search carries that realm.
+/// alone and its search carries that realm. A server started with no
+/// account on disk serves (`roadmap/briefs/99-web-leftovers.md`, Do 1):
+/// every page is the `not_logged_in` refusal with its remedy, a page
+/// asked as JSON its document, the stylesheet still served; once an
+/// account is on disk, a reload serves its form.
 #[test]
 fn the_form_renders_the_realm_it_is_asked_for() {
-    let (scratch, web) = offline_web("webrealm");
+    let scratch = harness::scratch("webrealm");
+    let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));
     let mut pages = Pages::new(&scratch.0, &web);
+    let none = web.get("");
+    pages.page(
+        "GET <no account on disk>",
+        &none,
+        &["no account&#39;s store in", "log in with `acq auth`"],
+    );
+    let jobs = web.raw(
+        "GET",
+        &format!("/{}/jobs", web.token),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let refused: Value = serde_json::from_str(&jobs.body).unwrap();
+    assert_eq!(refused["kind"], "not_logged_in", "{refused}");
+    assert_eq!(refused["accounts"], json!([]), "{refused}");
+    assert_eq!(web.get("assets/page.css").status, 200);
+    seed(&scratch.0);
     let form = web.get("?realm=xbox");
     // the league list is the account's, across realms; whether a league
     // has tabs on disk is the realm's

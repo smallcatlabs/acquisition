@@ -1,5 +1,18 @@
 # golden web/console_realm: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
+GET <no account on disk>
+# holds "no account&#39;s store in"
+# holds "log in with `acq auth`"
+--- status 400
+<main>
+<h1>Account</h1>
+<div class="refusal"><pre>
+no account&#39;s store in <scratch>/mock (provider mock) — log in with `acq auth`
+</pre>
+</div>
+
+</main>
+
 GET ?realm=xbox
 # holds "<option value=\"xbox\" selected>"
 # holds "Show this realm's leagues"

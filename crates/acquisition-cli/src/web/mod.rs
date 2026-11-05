@@ -34,11 +34,19 @@
 //!   submit from a page reaches the daemon as every CLI verb does, and
 //!   its jobs say `web` as their channel (C65).
 //! - **One account, named on every call**: the server resolves the
-//!   account it serves once, at its start (C121), and every read and
-//!   every submit names it — a selection's jobs, an apply's — so a
-//!   login that comes or goes while the server runs never moves a page's
-//!   submit to another account than the one the page shows (the review
-//!   of 4b, its first finding).
+//!   account it serves once (C121), and every read and every submit
+//!   names it — a selection's jobs, an apply's — so a login that comes
+//!   or goes while the server runs never moves a page's submit to
+//!   another account than the one the page shows (the review of 4b, its
+//!   first finding). Once is at its start, or, where no account is on
+//!   disk then, at the first request that finds one
+//!   (`roadmap/briefs/99-web-leftovers.md`, Do 1): until then every
+//!   page is the `not_logged_in` refusal with its remedy, so a person
+//!   who ran `acq web` to look at the tool meets the page and signs in;
+//!   from then on the account found is held for the server's life. Any
+//!   other refusal at the start — a name no login made, several
+//!   accounts and none named — is the command's, refused before the
+//!   bind.
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
 //!   loaded for the account it serves in the search crate's `Holder`,
@@ -53,7 +61,7 @@
 mod form;
 mod page;
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use acquisition_plan::RefreshPlan;
 use acquisition_protocol::realm::Realm;
@@ -93,7 +101,9 @@ const POLICY: &str = "default-src 'none'; script-src 'self'; style-src 'self'; c
 /// What the server holds for its whole life.
 struct Web {
     cx: Ctx,
-    account: Account,
+    /// The account served: set at the start, or at the first request
+    /// that finds one, and never moved after (the module doc).
+    account: OnceLock<Account>,
     token: String,
     host: String,
     origin: String,
@@ -150,7 +160,12 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         frontend: Frontend::human(VIA)?,
         account,
     };
-    let served = cx.account()?;
+    // no account on disk is a page, every other refusal the command's
+    let served = match cx.account() {
+        Ok(account) => OnceLock::from(account),
+        Err(Fault::NoAccounts { .. }) => OnceLock::new(),
+        Err(fault) => return Err(fault.into()),
+    };
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?;
     let port = listener.local_addr()?.port();
     let token = mint()?;
@@ -198,6 +213,10 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/apply"), post(apply))
         .route(&at("/leagues"), post(fetch_leagues))
         .route(&at("/jobs"), get(jobs))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&web),
+            with_account,
+        ))
         .route(&at("/assets/page.css"), get(css))
         .route(&at("/assets/picker.js"), get(picker))
         .fallback(no_such_page)
@@ -271,6 +290,20 @@ async fn guard(
     response
 }
 
+/// Every page but the assets, after the guard: the account served,
+/// resolved here if the server has none yet; while none is found the
+/// page is its refusal (the module doc, "One account").
+async fn with_account(
+    State(web): State<Arc<Web>>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    match blocking(&web, |web| web.served().map(|_| ())).await {
+        Ok(()) => next.run(request).await,
+        Err(fault) => web.failed("Account", &Failure::from(fault), request.headers()),
+    }
+}
+
 fn refused(status: StatusCode, words: &str) -> Response {
     (
         status,
@@ -314,6 +347,17 @@ fn document(value: &impl serde::Serialize) -> Response {
 }
 
 impl Web {
+    /// The account this server serves: the one it holds, else the one
+    /// the index resolves now, held from then on — a request racing this
+    /// one to it serves whichever was held first.
+    fn served(&self) -> Result<&Account, Fault> {
+        if let Some(account) = self.account.get() {
+            return Ok(account);
+        }
+        let found = self.cx.account()?;
+        Ok(self.account.get_or_init(|| found))
+    }
+
     fn page(&self, title: &str, head: Head, body: &str) -> Response {
         html(StatusCode::OK, page::page(&self.token, title, head, body))
     }
@@ -350,7 +394,7 @@ impl Web {
     /// then the holder's corpus, current and of the request's scope.
     fn answer(&self, request: &Request) -> Result<acquisition_search::Answer, Failure> {
         request.check()?;
-        let opened = self.account.open()?;
+        let opened = self.served()?.open()?;
         let corpus = self.held.corpus(request, &opened.facts, &opened.intent)?;
         Ok(acquisition_search::answer(&corpus, request)?)
     }
@@ -361,14 +405,15 @@ impl Web {
     /// reads (C46), the list and what the realm holds; a word that is no
     /// realm holds nothing. None where no list was fetched.
     fn leagues(&self, realm: &str) -> Result<Option<Vec<(String, bool)>>, Failure> {
-        let list = self.account.league_list(true)?;
+        let account = self.served()?;
+        let list = account.league_list(true)?;
         if list.fetched_at.is_none() {
             return Ok(None);
         }
         let held = match Realm::parse(realm) {
             Some(realm) => {
                 acquisition_verbs::LeaguesHeld::read(
-                    &self.account.facts()?,
+                    &account.facts()?,
                     &acquisition_verbs::leagues::PolicyRead::of(None),
                     realm,
                     None,
@@ -478,7 +523,7 @@ async fn search(
 /// One item (Do 6): `show`'s document, with its art and its badges.
 async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<String>) -> Response {
     let shown = blocking(&web, move |web| -> Result<_, Failure> {
-        let opened = web.account.open()?;
+        let opened = web.served()?.open()?;
         Ok(acquisition_search::show(
             &opened.facts,
             &opened.intent,
@@ -533,7 +578,8 @@ async fn tabs(
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
         .to_string();
     let read = blocking(&web, move |web| -> Result<_, Failure> {
-        let facts = web.account.facts()?;
+        let account = web.served()?;
+        let facts = account.facts()?;
         let listed = acquisition_search::tabs::Tabs::read(
             &facts,
             realm.as_str(),
@@ -556,7 +602,7 @@ async fn tabs(
             acquisition_store::now(),
         );
         let empty = (listed.tabs == 0)
-            .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &web.account.entry.username));
+            .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &account.entry.username));
         let leagues = web.leagues(realm.as_str())?;
         Ok((league, listed, characters, empty, leagues))
     })
@@ -692,7 +738,7 @@ async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Respo
             "leagues",
             json!({}),
             0,
-            Some(web.account.entry.username.as_str()),
+            Some(web.served()?.entry.username.as_str()),
         )
         .await?;
         anyhow::Ok(())
@@ -754,8 +800,12 @@ async fn plan(
         ));
         return web.failed("Plan", &failure, &headers);
     }
+    let account = match web.served() {
+        Ok(account) => account,
+        Err(fault) => return web.failed("Plan", &Failure::from(fault), &headers),
+    };
     let planned = async {
-        let mut opened = web.account.open()?;
+        let mut opened = account.open()?;
         match &selection {
             Some(selection) => opened.plan_selection(realm, &league, selection).await,
             None => opened.plan(realm, &league).await,
@@ -777,7 +827,7 @@ async fn plan(
         now,
         false,
         None,
-        &web.account.entry.username,
+        &account.entry.username,
         planned.uncovered_tabs.as_ref(),
     ));
     if !planned.plan.actions.is_empty() {
@@ -807,7 +857,7 @@ async fn apply(
         })?;
         let value: Value = serde_json::from_str(text)?;
         let plan = RefreshPlan::from_value(&value)?;
-        let mut opened = web.account.open()?;
+        let mut opened = web.served()?.open()?;
         let mut slot = None;
         let applied = opened.apply(&plan, None, &mut slot).await;
         if let Some(client) = &slot {
