@@ -1183,7 +1183,8 @@ struct PriceClearParams {
 
 /// The CLI's words the shared layer speaks, each with what it is here:
 /// the commands, longest first where one begins another, then the flags
-/// (the shared crates' words are the CLI's, which were first). A phrase
+/// (the shared crates' words were the CLI's, which were first; a
+/// refusal's are the request's now, and no entry translates one). A phrase
 /// follows the word in the spelling (`acq search` is `search`); an empty
 /// phrase is a person's command, which the words already give a person
 /// at a terminal, and which no tool here performs. Drawn from the words
@@ -1194,14 +1195,11 @@ struct PriceClearParams {
 /// `--realm`, `--membership`, `--trade`, `--next`, `--count`, `--cross`,
 /// `--sum`, `--limit`, `--sort`, `--desc`, `--explain`, `--routes`,
 /// `--context`, `--league`).
-const SPOKEN: [(&str, &str); 55] = [
+const SPOKEN: [(&str, &str); 46] = [
     ("acq price show", "is `price_show`"),
-    ("acq price status", "is `price_status`"),
     ("acq price list", "is `price_list`"),
     ("acq price set", "is `price_set`"),
     ("acq price clear", "is `price_clear`"),
-    ("acq shop render", "is `shop_render`"),
-    ("acq reference currency", "is `reference_currency`"),
     ("acq store status", "is `store_status`"),
     ("acq store events", "is `item_events`"),
     ("acq store characters", "is `characters`"),
@@ -1226,17 +1224,12 @@ const SPOKEN: [(&str, &str); 55] = [
     ("acq auth status", ""),
     ("acq auth", ""),
     ("acq profile", ""),
-    ("--if-revision", "is `if_revision`"),
     ("--league", "is `league`"),
     ("--realm", "is `realm` (`scope.realm` in a search request)"),
     (
         "--account",
         "is `account` (`scope.account` in a search request)",
     ),
-    ("--in", "is `in`"),
-    ("--covered-by", "is `covered_by`"),
-    ("--expand", "is `expand`"),
-    ("--replace", "is `replace`"),
     (
         "--limit",
         "is `limit` (`view.rows.limit` in a search request)",
@@ -1256,10 +1249,6 @@ const SPOKEN: [(&str, &str); 55] = [
     (
         "--next",
         "is an answer's `next`, sent back to `search` as printed",
-    ),
-    (
-        "--dir",
-        "has no spelling here: ACQ_STORE_DIR sets this server's store",
     ),
     (
         "--fields",
