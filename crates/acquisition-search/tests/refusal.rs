@@ -90,11 +90,8 @@ fn every_construct_of_the_reference_evaluates_or_is_refused_by_its_name_on_the_l
     assert!(evaluated > 0);
     // nothing the corpus can reach is on the list since step 9d-A built
     // `pseudo.defence_pct`, the last construct of the query it held: what
-    // is left there is flags, the CLI's to refuse, by the same function
-    assert!(
-        NOT_BUILT.iter().all(|n| n.construct.contains("--")),
-        "the list holds a construct of the query, and no case of the corpus met it"
-    );
+    // is left there is a request's words, a frontend's to refuse by the
+    // same function (the list whole: explain.rs)
     assert!(refusals.is_empty(), "{refusals:?}");
 }
 

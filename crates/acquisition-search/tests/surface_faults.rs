@@ -713,11 +713,21 @@ fn c53_the_index_is_every_entry_at_one_line_and_each_name_it_prints_answers_whol
             "`{id}`: {one}"
         );
     }
+    // a construct no block or entry answers to is refused as not built;
+    // `fields` is the block of fields and `basis` an answer's key, which
+    // describe answers first (#97: the list names the request's words)
     for unbuilt in acquisition_search::NOT_BUILT {
         let construct = unbuilt.construct.trim_end_matches([':', '*', '.']);
-        let e = describe::describe(&[construct.to_string()]).unwrap_err();
-        assert_eq!(e.kind(), "not_built", "`{construct}`: {e}");
+        match describe::describe(&[construct.to_string()]) {
+            Err(e) => assert_eq!(e.kind(), "not_built", "`{construct}`: {e}"),
+            Ok(_) => assert!(
+                ["fields", "show basis"].contains(&construct),
+                "`{construct}` answered"
+            ),
+        }
     }
+    let e = describe::describe(&["rebind".to_string()]).unwrap_err();
+    assert_eq!(e.kind(), "not_built", "{e}");
 }
 
 /// The entries of the eleven sections an answer holds, and the

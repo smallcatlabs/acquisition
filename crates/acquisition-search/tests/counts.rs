@@ -868,13 +868,13 @@ fn c97_describe_counts_and_every_example_binds() {
         .iter()
         .map(|e| e["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["--count", "line:", "--cross", "--sum"]);
+    assert_eq!(names, ["count", "line:", "cross", "sum"]);
     for entry in entries {
         for example in entry["examples"].as_array().unwrap() {
             let example = example.as_str().unwrap();
             let asked = match entry["name"].as_str().unwrap() {
-                "--sum" => json!({ "counts": { "keys": ["tab"], "sum": example } }),
-                "--cross" => json!({ "cross": { "keys": keys(example) } }),
+                "sum" => json!({ "counts": { "keys": ["tab"], "sum": example } }),
+                "cross" => json!({ "cross": { "keys": keys(example) } }),
                 _ => json!({ "counts": { "keys": keys(example) } }),
             };
             view(&s, "pc", "", asked).unwrap_or_else(|e| panic!("{example}: {e}"));
@@ -885,9 +885,10 @@ fn c97_describe_counts_and_every_example_binds() {
         counted(&s, "", &[key.as_str().unwrap()]);
     }
     for (word, name) in [
-        ("count", "--count"),
-        ("--sum", "--sum"),
-        ("cross", "--cross"),
+        // the request's word, and a flag as a terminal types it (#97)
+        ("count", "count"),
+        ("--sum", "sum"),
+        ("cross", "cross"),
         ("line:", "line:"),
     ] {
         let one = serde_json::to_value(describe(&[word.to_string()]).unwrap()).unwrap();

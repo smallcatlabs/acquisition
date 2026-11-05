@@ -452,8 +452,11 @@ fn describe_slices_by_pattern_as_the_cli_does() {
             pattern,
         );
     }
-    let (flagged, _) = seat.call("describe", &json!({ "names": ["~--count"] }));
-    assert_eq!(flagged["patterns"][0]["pattern"], "~--count", "{flagged}");
+    // an entry the CLI spells as a flag is named by the request's word
+    // (#97), and a pattern finds it by that word
+    let (flagged, _) = seat.call("describe", &json!({ "names": ["~^count$"] }));
+    assert_eq!(flagged["patterns"][0]["pattern"], "~^count$", "{flagged}");
+    assert_eq!(flagged["counts"][0]["name"], "count", "{flagged}");
 
     let (e, refused) = seat.call("describe", &json!({ "names": ["~qqqqq"] }));
     assert!(refused, "{e}");

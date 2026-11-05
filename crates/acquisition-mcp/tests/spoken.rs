@@ -1,18 +1,16 @@
-//! The MCP speaks its own words (C143, the shared words first and an
-//! adapter's spelling after them): the readiness seat
+//! The MCP speaks its own words (C143: a shared text speaks the
+//! request's own words, never a frontend's flag): the readiness seat
 //! (`audits/readiness-2026-10/seat/`) met the CLI's commands and flags in
 //! a refusal's readings (call 6, `--realm pc`), a refusal's next step
 //! (call 47, `acq search`, `acq tabs`), the shop's rule text (call 35,
 //! `acq price show`) and `describe`'s entries (calls 5, 12, 13:
 //! `acq store refused`, `--sort`, `--count`), and translated each by
-//! hand. The sweep reads the seat's call shapes and two more refusals
-//! over a store of two realms, and holds one fact of every string the
-//! server sends: a CLI command (`acq …`) or flag (`--…`) it speaks has
-//! this server's spelling beside it in the same string — "`--realm` is
-//! …", "`acq store refused` has …" — or the string gives the command to
-//! a person at a terminal. An entry's name (`name`, `construct`), which
-//! is how the entry is asked for, stays as the CLI spells it and its
-//! spelling stands in the entry's `what`.
+//! hand. They were spelled after the shared words first; since #97 the
+//! shared words are the request's. The sweep reads the seat's call
+//! shapes and two more refusals over a store of two realms, and holds
+//! every string the server sends that is not payload free of a CLI
+//! command (`acq …`) and flag (`--…`), a person's act apart, with no
+//! spelling after it.
 //!
 //! Payload is never spelled (the fix round's review, P2): an offer's
 //! request, a query, a continuation, an example, a refusal's readings —
@@ -101,106 +99,16 @@ fn seed(base: &Path) {
     }
 }
 
-/// Where a string speaks a CLI command or flag with no spelling beside
-/// it: each word the string speaks, in the string's own words.
-fn unspelled(said: &str) -> Vec<String> {
-    let person = ["a person", "a human", "terminal", "the CLI"]
-        .iter()
-        .any(|p| said.contains(p));
-    let spelled = |word: &str| {
-        said.contains(&format!("`{word}` is ")) || said.contains(&format!("`{word}` has "))
-    };
-    let mut found = Vec::new();
-    let bytes = said.as_bytes();
-    let word_char = |b: u8| b.is_ascii_alphanumeric() || b == b'-' || b == b'_';
-    for (at, _) in said.match_indices("acq ") {
-        if at > 0 && word_char(bytes[at - 1]) {
-            continue;
-        }
-        // the command and each shorter reading of it: `acq price show x`
-        // is `acq price show`, `acq price`, …
-        let words: Vec<&str> = said[at + 4..]
-            .split(|c: char| !(c.is_ascii_lowercase() || c == '-'))
-            .take_while(|w| !w.is_empty())
-            .take(3)
-            .collect();
-        if words.is_empty() {
-            continue;
-        }
-        let ok = (1..=words.len())
-            .rev()
-            .any(|n| spelled(&format!("acq {}", words[..n].join(" "))));
-        if !ok && !person {
-            found.push(format!("acq {}", words.join(" ")));
-        }
-    }
-    for (at, _) in said.match_indices("--") {
-        if at > 0 && word_char(bytes[at - 1]) {
-            continue;
-        }
-        let flag: String = said[at + 2..]
-            .chars()
-            .take_while(|&c| c.is_ascii_lowercase() || c == '-')
-            .collect();
-        if flag.is_empty() {
-            continue;
-        }
-        let flag = format!("--{flag}");
-        if !spelled(&flag) && !person {
-            found.push(flag);
-        }
-    }
-    found
-}
-
-/// The keys whose value is payload, never spelled and never swept.
-const PAYLOAD: [&str; 11] = [
-    "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
-    "accounts", "undo",
-];
-
-/// Every string of `doc`'s prose that speaks the CLI unspelled, with its
-/// path.
-fn sweep(doc: &Value, path: &str, out: &mut Vec<String>) {
-    match doc {
-        Value::String(s) => {
-            for word in unspelled(s) {
-                out.push(format!("{path}: {word} in {s:?}"));
-            }
-        }
-        Value::Array(items) => {
-            for (i, v) in items.iter().enumerate() {
-                sweep(v, &format!("{path}[{i}]"), out);
-            }
-        }
-        Value::Object(fields) => {
-            for (k, v) in fields {
-                if PAYLOAD.contains(&k.as_str()) {
-                    continue;
-                }
-                match (k.as_str(), v) {
-                    // a name is asked by: its spelling stands in `what`
-                    ("name" | "construct", Value::String(name)) => {
-                        let what = fields.get("what").and_then(Value::as_str).unwrap_or("");
-                        for word in unspelled(&format!("{name} {what}")) {
-                            out.push(format!("{path}.{k}: {word} in {name:?} / {what:?}"));
-                        }
-                    }
-                    _ => sweep(v, &format!("{path}.{k}"), out),
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
+/// Every shape below is read whole, every string not payload, and none
+/// speaks the CLI (C143, as the harness's rule reads an answer's words;
+/// #97): the spelling `— here, …` that this file once swept for has
+/// nothing left to spell in them.
 #[test]
-fn every_text_the_server_sends_spells_the_cli_it_speaks() {
+fn every_text_the_server_sends_speaks_its_own_words() {
     let dir = scratch("mcp-spoken");
     seed(&dir.0);
     let mut mcp = Mcp::start(&dir.0, &[]);
     let mut faults = Vec::new();
-    let mut seen = 0;
     for (tool, args, refused) in [
         // the seat's shapes: describe, the index and whole (calls 5, 12,
         // 13; the index since C53's amendment), a search
@@ -232,18 +140,13 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         // answer's or a refusal's, so no host hands the model a copy with
         // its keys sorted in the text's place (2g round 7, measured)
         assert_eq!(result.get("structuredContent"), None, "{tool} {args}");
-        // the sweep reads something: every one speaks the CLI but the
-        // account's (call 46, which names `account` alone), the realms'
-        // (their readings the request's words, C143), the gone tab's
-        // (its reading a command, payload beside its offer) and the two
-        // pricing refusals' (the request's words, #97)
-        seen += usize::from(text.contains("— here, "));
-        sweep(&doc, &format!("{tool} {args}"), &mut faults);
+        // nothing is spelled after the shared words, and no string not
+        // payload speaks the CLI
+        assert!(!text.contains("— here, "), "{tool} {args}: {text}");
+        if let Some(said) = harness::frontend_speech(&doc, true) {
+            faults.push(format!("{tool} {args}: {said}"));
+        }
     }
-    assert_eq!(
-        seen, 4,
-        "a shape no longer speaks the CLI: the sweep reads less"
-    );
     assert!(faults.is_empty(), "{}", faults.join("\n"));
 }
 

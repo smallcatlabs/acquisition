@@ -95,15 +95,16 @@ impl PriceGap {
     /// What might resolve it — never a guarantee (C93): the intent file
     /// for a row, the body for a note, and for a number the search's own
     /// rule, which no refresh and no rewrite of the row within the rule
-    /// changes.
+    /// changes. Said in the request's words, the read by its name, which
+    /// each surface spells (C143; #97).
     pub fn hint(self) -> &'static str {
         match self {
             PriceGap::Unresolved => {
-                "a refresh will not help; `acq price show <target>` names the row, and a build that reads it or a rewrite of it resolves the price"
+                "a refresh will not help; the item's price show names the row, and a build that reads it or a rewrite of it resolves the price"
             }
             PriceGap::NoteUnread => crate::eval::UNREAD_HINT,
             PriceGap::Uncovered => {
-                "a refresh of the realm's stash list would give its leagues a listing state; `acq price show <target>` resolves the item meanwhile"
+                "a refresh of the realm's stash list would give its leagues a listing state; the item's price show resolves it meanwhile"
             }
             PriceGap::NumberUnread => {
                 "the search reads at most ten whole digits and four decimals; a price within them is read"

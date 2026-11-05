@@ -798,13 +798,13 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
 }
 
 /// The review of #97's Part A, its finding P2: the rule every refusal is
-/// held to (C143, the harness's `c143_a_refusal_speaks_no_frontend`)
+/// held to (C143, the harness's `c143_a_text_speaks_no_frontend`)
 /// reads an offer's `says` and a refusal's `next`, which are words,
 /// while each offer's `request` stays payload, sent back as printed; a
 /// person's act is a command wherever it stands.
 #[test]
 fn the_refusal_rule_reads_an_offers_says_and_the_next_step() {
-    let found = |doc: Value| harness::frontend_speech(&doc);
+    let found = |doc: Value| harness::frontend_speech(&doc, true);
     let offer = |says: &str| {
         json!({ "error": "refused", "kind": "not_found", "offers": [{
             "request": { "query": { "text": "name:\"acq search --count\"" } },

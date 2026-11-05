@@ -923,7 +923,7 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
         refused["error"]
             .as_str()
             .unwrap()
-            .starts_with("not built: --fields (waits for a consumer that asks)")
+            .starts_with("not built: fields (waits for a consumer that asks)")
     );
 }
 

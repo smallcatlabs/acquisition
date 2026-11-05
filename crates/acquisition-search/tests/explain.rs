@@ -706,13 +706,13 @@ fn describe_says_what_explain_context_and_against_do() {
         .iter()
         .map(|n| n["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["--explain", "--context", "show --against"]);
+    assert_eq!(names, ["explain", "context", "show against"]);
     assert_eq!(whole["explain"][1]["values"], json!(["matches", "corpus"]));
     for (word, name) in [
-        ("explain", "--explain"),
-        ("--explain", "--explain"),
-        ("context", "--context"),
-        ("against", "show --against"),
+        ("explain", "explain"),
+        ("--explain", "explain"),
+        ("context", "context"),
+        ("against", "show against"),
     ] {
         let one = serde_json::to_value(describe(&[word.to_string()]).unwrap()).unwrap();
         assert!(
@@ -727,7 +727,7 @@ fn describe_says_what_explain_context_and_against_do() {
     }
     let one = serde_json::to_value(describe(&["context".to_string()]).unwrap()).unwrap();
     assert_eq!(one["explain"].as_array().unwrap().len(), 1);
-    for construct in ["--explain", "--context", "show --against"] {
+    for construct in ["explain", "context", "show against"] {
         assert!(
             NOT_BUILT.iter().all(|n| n.construct != construct),
             "{construct}"
@@ -737,7 +737,7 @@ fn describe_says_what_explain_context_and_against_do() {
     // `--view locations` left when `tabs` became the list it waited for
     // (C118; note 38 at `16bba23e`, step 4)
     let waiting: Vec<&str> = NOT_BUILT.iter().map(|n| n.construct).collect();
-    assert_eq!(waiting, ["--fields", "--rebind", "show --basis"]);
+    assert_eq!(waiting, ["fields", "rebind", "show basis"]);
     assert!(NOT_BUILT.iter().all(|n| n.step.is_none()));
 }
 

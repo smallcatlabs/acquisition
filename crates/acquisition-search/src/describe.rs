@@ -524,7 +524,7 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             ..named(
                 "line(P).<slot>",
                 "value",
-                "one occurrence's number: a comparison on it means what it means inside the group, and `\"T\">=90` is its shorthand; `--sort` takes it, the largest that satisfies P",
+                "one occurrence's number: a comparison on it means what it means inside the group, and `\"T\">=90` is its shorthand; `sort` takes it, the largest that satisfies P",
             )
         },
         Named {
@@ -631,7 +631,7 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             values: keys,
             examples: vec!["tab,league,rarity", "base", "line", "line:resist,life"],
             ..named(
-                "--count",
+                "count",
                 "view",
                 "the matches counted by each key, one table each, no rows: a field an item has or lacks — under `none` with none, `undecided` where it could not be read — or `line`, the vocabulary (every count has its route)",
             )
@@ -641,13 +641,13 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             ..named(
                 "line:",
                 "view",
-                "the vocabulary narrowed: the templates the matching items carry whose text holds the words, ranked, with the term that selects each, its numbers' range, and its sources and flags; `line~` a pattern; the rest of the list is texts, one table each. Beside them, marked computed, the computed values whose name or own definition holds the words — a total's rows and its limit, never the rule of what no total reads, which every total's definition prints — and none under `line` alone, which `--describe` names; each counts the matches that carry it, as `has:` of it asks",
+                "the vocabulary narrowed: the templates the matching items carry whose text holds the words, ranked, with the term that selects each, its numbers' range, and its sources and flags; `line~` a pattern; the rest of the list is texts, one table each. Beside them, marked computed, the computed values whose name or own definition holds the words — a total's rows and its limit, never the rule of what no total reads, which every total's definition prints — and none under `line` alone, which `describe` names; each counts the matches that carry it, as `has:` of it asks",
             )
         },
         Named {
             examples: vec!["league,tab", "rarity,base"],
             ..named(
-                "--cross",
+                "cross",
                 "view",
                 "one table of two fields: the cells that hold an item, each routed under both",
             )
@@ -655,7 +655,7 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
         Named {
             examples: vec!["stack", "ilvl", "sum(\"# to maximum Life\")"],
             ..named(
-                "--sum",
+                "sum",
                 "value",
                 "beside each count, one number of each item added: an item lacking it adds nothing and is counted beside the sum as lacking it, so the sum is over the items that have it; one unread leaves a subtotal marked incomplete, never a total",
             )
@@ -663,20 +663,20 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     ];
     let explain = vec![
         named(
-            "--explain",
+            "explain",
             "view",
-            "one node of the query, named by its path: the root's matched and undecided counts as given, with the node forced true, and with it forced false, each beside its transformed query — the query with that one node replaced by true() or false() and nothing else changed, answered as any query is. A path is a term's as the terms block prints it (3), a group of terms', or a condition's inside line( … ) or linked( … ), numbered under its term as a group's children are (3.1); the conditions inside sum( … ) take none; a path the query lacks lists the query's nodes with their paths. Forced is literal, never removed and never a contribution: `a or b` on an item that holds both loses nothing when a is forced false. Counts and no rows: an error beside --count, --cross, --sum or --sort",
+            "one node of the query, named by its path: the root's matched and undecided counts as given, with the node forced true, and with it forced false, each beside its transformed query — the query with that one node replaced by true() or false() and nothing else changed, answered as any query is. A path is a term's as the terms block prints it (3), a group of terms', or a condition's inside line( … ) or linked( … ), numbered under its term as a group's children are (3.1); the conditions inside sum( … ) take none; a path the query lacks lists the query's nodes with their paths. Forced is literal, never removed and never a contribution: `a or b` on an item that holds both loses nothing when a is forced false. Counts and no rows: an error beside `count`, `cross`, `sum` or `sort`",
         ),
         Named {
             values: vec!["matches", "corpus"],
             ..named(
-                "--context",
+                "context",
                 "scope",
                 "what the answer is of: matches, the query's, as every answer is; corpus, the empty query over the same scope under any view — rows, a count, a crossed table — with the query typed read, printed on one line as set aside, and counted nowhere",
             )
         },
         named(
-            "show --against",
+            "show against",
             "show",
             "beside one item, a query's canonical text, the root's outcome on the item and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at",
         ),
@@ -730,6 +730,10 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
     // word of it, a computed value to its name without `pseudo.`, the
     // positional slots to any `arg<N>`, a block to its own
     let answers = |entry: &str, asked: &str| {
+        // a flag as a terminal types it is the request's word it spells:
+        // `--count` is `count` (C143: an entry is named by the request's
+        // word, #97)
+        let asked = asked.strip_prefix("--").unwrap_or(asked);
         entry.eq_ignore_ascii_case(asked)
             // a dotted entry answers to its head: `sockets.<colour>` to `sockets`
             || entry
@@ -743,8 +747,6 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
                         head.eq_ignore_ascii_case("sockets")
                             && crate::sockets::letter(word).is_some()
                     }))
-            // a flag answers to its word: `count` is `--count`
-            || entry.trim_start_matches('-').eq_ignore_ascii_case(asked)
             || entry
                 .strip_prefix("pseudo.")
                 .is_some_and(|name| name.eq_ignore_ascii_case(asked))
@@ -755,12 +757,6 @@ pub fn describe(names: &[String]) -> Result<Describe, SearchError> {
             || entry.split_whitespace().any(|word| {
                 word.strip_suffix("()")
                     .is_some_and(|call| call.eq_ignore_ascii_case(asked))
-            })
-            // a flag among an entry's words answers to its word too:
-            // `against` is `show --against`
-            || entry.split_whitespace().any(|word| {
-                word.strip_prefix("--")
-                    .is_some_and(|flag| flag.eq_ignore_ascii_case(asked))
             })
             || (entry.starts_with("arg1") && crate::tree::arg_index(asked).is_some())
     };

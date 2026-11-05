@@ -297,7 +297,7 @@ impl Cell {
             Cell::HandSkip => "a hand skip means leave it out",
             Cell::NothingApplies => "no row applies and the game states nothing",
             Cell::Unresolved => {
-                "a row that cannot be read could decide: never treated as unpriced; read it with `acq price show`"
+                "a row that cannot be read could decide: never treated as unpriced; its price show reads it"
             }
             Cell::LeagueUnknown => {
                 "the listing gave its character no league, so the report is not evidence it belongs to this one"

@@ -344,7 +344,7 @@
       "cell": "unresolved",
       "count": 1,
       "verdict": "block",
-      "why": "a row that cannot be read could decide: never treated as unpriced; read it with `acq price show`"
+      "why": "a row that cannot be read could decide: never treated as unpriced; its price show reads it"
     },
     {
       "cell": "league_unknown",

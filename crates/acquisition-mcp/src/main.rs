@@ -81,17 +81,14 @@
 //! **Every text the server serves speaks its own words** (C143, the
 //! shared words first and an adapter's spelling after them; the readiness
 //! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
-//! a refusal the shared crates make speaks the request's words and its
-//! ways on are offers this server sends as its tools' arguments (C143 as
-//! amended; #97, the harness's `c143_a_refusal_speaks_no_frontend`).
-//! Wherever other text still speaks a CLI command or flag — `describe`,
-//! an answer's `why` or `hint`, a daemon's refusal (`acq accounts`) —
-//! `spoken` appends `— here,` and
-//! what each is here (`acq search` is `search`, `--realm` is `realm`),
-//! from one table, `SPOKEN`. A person's
-//! command (`acq auth check`) is left as the person's; an entry's name,
-//! how it is asked for, keeps the CLI's spelling and its `what` carries
-//! the spelling; every other string of an answer is data, sent verbatim.
+//! every text the shared crates make — a refusal, `describe`, an
+//! answer's `why` and `hint` — speaks the request's words, and its ways
+//! on are values this server sends as its tools' arguments (C143 as
+//! amended; #97, the harness's `c143_a_text_speaks_no_frontend`). Where
+//! a daemon's text still speaks a CLI command or flag (`acq accounts`,
+//! `--account`), `spoken` appends `— here,` and what each is here, from
+//! one table, `SPOKEN`. A person's command (`acq auth check`) is left as
+//! the person's; every other string of an answer is data, sent verbatim.
 //! The rewrite is on the serialized text, so the document's key order
 //! stands (C115). Pinned by `tests/spoken.rs`.
 //!
@@ -757,7 +754,7 @@ const DAEMON: [(&str, &str); 8] = [
 const STORE: [(&str, &str); 7] = [
     (
         "store counts",
-        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` (`store_refused`) lists, `refused_latest_at` when the newest was fetched and `refused_latest_at_age` that age in words. `facts` says how old the facts are over every realm and league the store holds, in the keys a search's `scope` names them by: `fetched` and `never_fetched` locations (by type and league), `folders`, the `oldest_fetch` and `newest_fetch` with their `_age` and `_location`, and `list_seen`, when the oldest location list was seen. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
+        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `store_refused` lists, `refused_latest_at` when the newest was fetched and `refused_latest_at_age` that age in words. `facts` says how old the facts are over every realm and league the store holds, in the keys a search's `scope` names them by: `fetched` and `never_fetched` locations (by type and league), `folders`, the `oldest_fetch` and `newest_fetch` with their `_age` and `_location`, and `list_seen`, when the oldest location list was seen. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
     ),
     (
         "tab counts",
@@ -1182,44 +1179,16 @@ struct PriceClearParams {
     account: Option<String>,
 }
 
-/// The CLI's words the shared layer speaks, each with what it is here:
-/// the commands, longest first where one begins another, then the flags
-/// (the shared crates' words were the CLI's, which were first; a refusal
-/// the shared crates make speaks the request's now, and no entry
-/// translates one of those, while a daemon's refusal still speaks the
-/// CLI: `acq accounts` and `--account`). A phrase
-/// follows the word in the spelling (`acq search` is `search`); an empty
-/// phrase is a person's command, which the words already give a person
-/// at a terminal, and which no tool here performs. Drawn from the words
-/// the readiness seat met (`audits/readiness-2026-10/seat/`: calls 5, 6,
-/// 12, 13, 35, 47), a grep of the shared crates' texts for `acq ` and
-/// `--`, and every flag the search crate's command builder prints
-/// (`Request::command`, `Next::command`, `opening`: `--account`,
-/// `--realm`, `--membership`, `--trade`, `--next`, `--count`, `--cross`,
-/// `--sum`, `--limit`, `--sort`, `--desc`, `--explain`, `--routes`,
-/// `--context`, `--league`).
-const SPOKEN: [(&str, &str); 46] = [
-    ("acq price show", "is `price_show`"),
-    ("acq price list", "is `price_list`"),
-    ("acq price set", "is `price_set`"),
-    ("acq price clear", "is `price_clear`"),
-    ("acq store status", "is `store_status`"),
-    ("acq store events", "is `item_events`"),
-    ("acq store characters", "is `characters`"),
-    ("acq store refused", "is `store_refused`"),
-    ("acq policy set", "is `set_sync_policy`"),
-    ("acq policy", "is `sync_policy`"),
-    ("acq refresh", "is `refresh_plan`, then `apply_plan`"),
-    ("acq search", "is `search`"),
-    ("acq show", "is `show`"),
-    ("acq tabs", "is `tabs`"),
+/// The CLI's words a daemon's text still speaks, each with what it is
+/// here, longest first where one begins another (C143: a shared text
+/// speaks the request's own words; since #97 every text the shared
+/// crates make does, and no entry translates one). A phrase follows the
+/// word in the spelling (`acq accounts` is `accounts`); an empty phrase
+/// is a person's command, which the words give a person at a terminal,
+/// and which no tool here performs. Drawn from a grep of the daemon's
+/// and the client's texts for `acq ` and `--`.
+const SPOKEN: [(&str, &str); 9] = [
     ("acq accounts", "is `accounts`"),
-    ("acq leagues", "is `submit_job` with kind `leagues`"),
-    ("acq submit", "is `submit_job`"),
-    ("acq jobs", "is `list_jobs`"),
-    ("acq status", "is `job_status`"),
-    ("acq result", "is `job_result`"),
-    ("acq cancel", "is `cancel_job`"),
     ("acq daemon status", "is `daemon_status`"),
     ("acq daemon stop", ""),
     ("acq daemon reset-tripwire", ""),
@@ -1227,40 +1196,11 @@ const SPOKEN: [(&str, &str); 46] = [
     ("acq auth status", ""),
     ("acq auth", ""),
     ("acq profile", ""),
-    ("--league", "is `league`"),
-    ("--realm", "is `realm` (`scope.realm` in a search request)"),
     (
         "--account",
         "is `account` (`scope.account` in a search request)",
     ),
-    (
-        "--limit",
-        "is `limit` (`view.rows.limit` in a search request)",
-    ),
-    ("--count", "is `view.counts.keys`"),
-    ("--cross", "is `view.cross.keys`"),
-    ("--sum", "is `sum` in `view.counts` or `view.cross`"),
-    ("--sort", "is `view.rows.sort`"),
-    ("--desc", "is `view.rows.desc`"),
-    ("--explain", "is `view.explain.path`"),
-    ("--context", "is `context`"),
-    ("--routes", "is `view.routes`"),
-    ("--against", "is `show`'s `against`"),
-    ("--describe", "is `describe`"),
-    ("--membership", "is `scope.membership`"),
-    ("--trade", "is `query.trade`"),
-    (
-        "--next",
-        "is an answer's `next`, sent back to `search` as printed",
-    ),
-    (
-        "--fields",
-        "has no spelling here, being built on neither surface",
-    ),
 ];
-
-/// The flags built on neither surface beside `--fields`, spelled as it is.
-const UNBUILT: [&str; 2] = ["--rebind", "--basis"];
 
 /// Where `word` stands in `words` as a word: not inside a longer one.
 fn stands(words: &str, word: &str) -> bool {
@@ -1278,10 +1218,7 @@ fn stands(words: &str, word: &str) -> bool {
 /// when they speak none. A command begun by a longer one the words also
 /// speak is the longer one's (`acq auth` in `acq auth check`).
 fn spelling(words: &str) -> String {
-    let unbuilt = UNBUILT
-        .iter()
-        .map(|&flag| (flag, "has no spelling here, being built on neither surface"));
-    let spoken: Vec<(&str, &str)> = SPOKEN.iter().copied().chain(unbuilt).collect();
+    let spoken = SPOKEN;
     let said: Vec<String> = spoken
         .iter()
         .filter(|(word, _)| stands(words, word))

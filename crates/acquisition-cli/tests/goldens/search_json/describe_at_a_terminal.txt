@@ -203,14 +203,14 @@ computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, s
   pseudo.pdps_q20                           derived       physical damage per second at 20 % quality, as the trade site's Physical DPS states it
   pseudo.defence_pct                        derived       the trade site's Base Percentile, by the site's own rule — "The percentile of all base defence rolls, averaged (0-100%)"
 counts
-  --count         view        the matches counted by each key, one table each, no rows
-  line:           view        the vocabulary narrowed
-  --cross         view        one table of two fields
-  --sum           value       beside each count, one number of each item added
+  count (--count)  view        the matches counted by each key, one table each, no rows
+  line:            view        the vocabulary narrowed
+  cross (--cross)  view        one table of two fields
+  sum (--sum)      value       beside each count, one number of each item added
 why an answer is what it is
-  --explain       view        one node of the query, named by its path
-  --context       scope       what the answer is of
-  show --against  show        beside one item, a query's canonical text, the root's outcome on the item and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at
+  explain (--explain)            view        one node of the query, named by its path
+  context (--context)            scope       what the answer is of
+  show against (show --against)  show        beside one item, a query's canonical text, the root's outcome on the item and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at
 an answer, key by key
   query                        key         the text as understood, and its tree; a trade site search's report is `query.trade`, which the trade section explains
   set_aside                    key         under the corpus context, the query typed beside it
@@ -315,9 +315,9 @@ categories — the trade site's ids, as spelled
   currency.tattoo               Tattoo
 trade — what `--trade` makes of each clause a site search can carry, 149 rows: `--describe trade`
 not built, refused by name
-  --fields              waits for a consumer that asks  the caller names a row's fields
-  --rebind              waits for a consumer that asks  run another account's request deliberately
-  show --basis          waits for a consumer that asks  one item as a named basis held it
+  fields (--fields)          waits for a consumer that asks  the caller names a row's fields
+  rebind (--rebind)          waits for a consumer that asks  run another account's request deliberately
+  show basis (show --basis)  waits for a consumer that asks  one item as a named basis held it
 limits, as the search states them
   a veiled line is shown as the placeholder it is; a value query never matches it
   a line is matched as displayed text and value; which mods made it is not known and never guessed

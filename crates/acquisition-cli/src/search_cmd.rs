@@ -328,10 +328,7 @@ fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) ->
 }
 
 pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
-    let unbuilt = [
-        ("--fields", args.fields.is_some()),
-        ("--rebind", args.rebind),
-    ];
+    let unbuilt = [("fields", args.fields.is_some()), ("rebind", args.rebind)];
     if let Some((construct, _)) = unbuilt.iter().find(|(_, typed)| *typed) {
         return Err(fail(not_built(construct).into(), json));
     }
@@ -617,7 +614,7 @@ fn whole_describe(json: bool) -> Result<()> {
 
 pub fn show_item(cx: &Ctx, args: ShowArgs, json: bool) -> Result<()> {
     if args.basis.is_some() {
-        return Err(fail(not_built("show --basis").into(), json));
+        return Err(fail(not_built("show basis").into(), json));
     }
     let against = args
         .against
@@ -1911,16 +1908,22 @@ fn describe_text(d: &Describe, totals: bool) -> String {
             }
         ));
     }
-    let mut block = |head: &str, entries: &[acquisition_search::describe::Named]| {
+    // a view's entry is named by the request's word, and this terminal
+    // spells it as its flag after it (C143; #97)
+    let mut block = |head: &str, entries: &[acquisition_search::describe::Named], flags: bool| {
         if entries.is_empty() {
             return;
         }
         out.push_str(&format!("{head}\n"));
+        let named = |e: &acquisition_search::describe::Named| match flags {
+            true => flagged(&e.name),
+            false => e.name.clone(),
+        };
         // the name column fits the block's longest name: a computed value's
         // is `pseudo.total_lightning_gem_levels`
         let name = entries
             .iter()
-            .map(|e| e.name.chars().count() + 2)
+            .map(|e| named(e).chars().count() + 2)
             .max()
             .unwrap_or(0)
             .max(16);
@@ -1931,7 +1934,12 @@ fn describe_text(d: &Describe, totals: bool) -> String {
             .unwrap_or(0)
             .max(12);
         for e in entries {
-            out.push_str(&format!("  {:<name$}{:<kind$}{}\n", e.name, e.kind, e.what));
+            out.push_str(&format!(
+                "  {:<name$}{:<kind$}{}\n",
+                named(e),
+                e.kind,
+                e.what
+            ));
             if !e.values.is_empty() {
                 out.push_str(&format!(
                     "  {:<width$}one of: {}\n",
@@ -1950,19 +1958,23 @@ fn describe_text(d: &Describe, totals: bool) -> String {
             }
         }
     };
-    block("fields", &d.fields);
-    block("inside line( … )", &d.line);
-    block("inside linked( … )", &d.linked);
-    block("values", &d.values);
-    block("composition", &d.composition);
-    block("operators", &d.operators);
-    block("slots", &d.slots);
+    block("fields", &d.fields, false);
+    block("inside line( … )", &d.line, false);
+    block("inside linked( … )", &d.linked, false);
+    block("values", &d.values, false);
+    block("composition", &d.composition, false);
+    block("operators", &d.operators, false);
+    block("slots", &d.slots, false);
     // the totals' table is named once, over the block, with its version
     // and source (C106's clause (c))
-    block(&format!("computed values — {}", d.totals), &d.computed);
-    block("counts", &d.counts);
-    block("why an answer is what it is", &d.explain);
-    block("an answer, key by key", &d.answer);
+    block(
+        &format!("computed values — {}", d.totals),
+        &d.computed,
+        false,
+    );
+    block("counts", &d.counts, true);
+    block("why an answer is what it is", &d.explain, true);
+    block("an answer, key by key", &d.answer, false);
     // `--describe totals`: the table, where no computed value's head
     // already names it
     if totals && d.computed.is_empty() {
@@ -2026,10 +2038,17 @@ fn describe_text(d: &Describe, totals: bool) -> String {
     }
     if !d.not_built.is_empty() {
         out.push_str("not built, refused by name\n");
+        let width = d
+            .not_built
+            .iter()
+            .map(|n| flagged(n.construct).chars().count() + 2)
+            .max()
+            .unwrap_or(0)
+            .max(22);
         for n in &d.not_built {
             out.push_str(&format!(
-                "  {:<22}{:<32}{}\n",
-                n.construct,
+                "  {:<width$}{:<32}{}\n",
+                flagged(n.construct),
                 n.step_text(),
                 n.what
             ));
@@ -2286,6 +2305,20 @@ pub(crate) fn shown_text(s: &Shown) -> String {
         out.push_str(&format!("body    {body}\n"));
     }
     out
+}
+
+/// A view's or a construct's name, the request's word, as this terminal
+/// prints it: the word, and the flag that spells it here after it
+/// (`count (--count)`, `show against (show --against)`); a name that is
+/// no flag here as it stands (C143; #97).
+fn flagged(name: &str) -> String {
+    let flag = match name.split_once(' ') {
+        Some(("show", word)) => format!("show --{word}"),
+        Some(_) => return name.to_string(),
+        None if name.ends_with(':') => return name.to_string(),
+        None => format!("--{name}"),
+    };
+    format!("{name} ({flag})")
 }
 
 #[cfg(test)]
