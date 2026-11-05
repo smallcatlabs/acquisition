@@ -735,4 +735,5 @@ closed, its script seam declined, reviewed (a P2, a P3), fixed, the
 fix reviewed (a P3) and fixed in a second round; #97
 (`briefs/97-own-terms.md`) closed, item 3 parked for the owner,
 reviewed (a P2, a P3), fixed, the fix reviewed (a P3) and fixed in a
-second round. The run's issues are done.
+second round. The run's issues are done; its morning report is
+`reviews/night-run-2026-11-04.md`.
