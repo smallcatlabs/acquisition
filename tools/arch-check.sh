@@ -53,6 +53,12 @@
 #      by check 5's transport edges and by the daemon having no normal
 #      dependency on reqwest, which the compiler holds.
 #
+#  14. One test clock (#175): under a crate's `tests/`, in every file that
+#      reaches the process harness, outside `harness/`, no code line reads
+#      the wall clock (`acquisition_store::now`, `store::now`, an import
+#      of it, `SystemTime::now`): test code reads the harness's `now`, the
+#      instant every child the test spawns reads as its own.
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -824,5 +830,41 @@ print(f"ok      {'timers':<13} {n} daemon source files outside tests/: tokio's t
 PY
 )"); then fail=1; fi
 printf '%s\n' "$timers"
+
+
+# ---- 14. one test clock -------------------------------------------------
+# Two process runs compared whole flaked when they landed either side of
+# a second: each child aged its times against its own wall clock (#109,
+# #149, #175). The harness now fixes one instant per test process and
+# passes it on its one isolation list (`ACQ_NOW`), which every child
+# reads as now. A time the test stages, or an age it expects, read from
+# the wall clock in the test's own code is a second clock beside it. So
+# under a crate's `tests/`, in each file that reaches the harness (names
+# `harness` in code: the process tests), outside `harness/`, no code line
+# names the store's clock (`acquisition_store::now`, `store::now`, or an
+# import group that brings in `now`) or `SystemTime::now`. Comment lines
+# are not read. A file that reaches no harness is in-process and spawns
+# nothing, and the daemon crate's tests cannot link the harness (check 9).
+if ! clock=$(python3 -I - <<'PY'
+import glob, re, sys
+CLOCK = re.compile(r"(?<![\w])(?:acquisition_)?store::now\b|SystemTime::now\b|acquisition_store::\{[^}]*(?<![\w])now\b")
+HARNESS = re.compile(r"(?<![\w])harness\b")
+bad = []; n = 0
+for path in sorted(glob.glob("crates/*/tests/**/*.rs", recursive=True)):
+    if "/harness/" in path or path.startswith("crates/acquisition-daemon/"):
+        continue
+    lines = ["" if l.lstrip().startswith("//") else l for l in open(path, encoding="utf-8").read().splitlines()]
+    if not any(HARNESS.search(l) for l in lines):
+        continue
+    n += 1
+    text = "\n".join(lines)
+    for m in CLOCK.finditer(text):
+        at = text.count("\n", 0, m.start()) + 1
+        bad.append(f"CLOCK   {path}:{at} reads the wall clock in a process test: test code reads the harness's now, the one instant every process the test spawns reads as its own, so a time it stages and the age a child says of it are measured against one clock")
+print("\n".join(bad) if bad else f"ok      {'test clock':<13} {n} process-test files outside the harness read no wall clock: each takes the harness's one instant, which every child it spawns reads as now")
+sys.exit(1 if bad else 0)
+PY
+); then fail=1; fi
+printf '%s\n' "$clock"
 
 exit $fail
