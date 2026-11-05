@@ -716,13 +716,22 @@ resubmit if still wanted",
     /// the table after `shared` is released. A job not in memory is read
     /// and never acted on: a terminal row is its end, for the caller's
     /// `wrong_state` refusal; a row still open on disk (a probe whose
-    /// delete failed at the restore) or no row at all is no job, as it
-    /// was before the table answered; a table that cannot be read is an
-    /// error.
+    /// delete failed at the restore) is `queue_failed`, since a queue
+    /// write left it there, in words that say this daemon does not hold
+    /// it and the next start drops or replays it; no row at all is no
+    /// job; a table that cannot be read is an error.
     fn ended_elsewhere(&self, id: JobId) -> Result<JobState, Refusal> {
         match self.stored_job(id)? {
             Some(job) if job.state.is_terminal() => Ok(job.state),
-            _ => Err(Refusal::no_job(id)),
+            Some(_) => Err(Refusal::new(
+                ErrorKind::QueueFailed,
+                format!(
+                    "job {id} is open on disk but this daemon does not hold it (a queue write \
+                     failed when it was restored), so nothing is done to it; the next start of \
+                     the daemon drops or replays it"
+                ),
+            )),
+            None => Err(Refusal::no_job(id)),
         }
     }
 

@@ -2426,8 +2426,9 @@ fn cancel_and_reprioritize_report_a_failed_queue_write() {
 
 /// C6: a job not in memory is read from the table and never acted on.
 /// A row still waiting on disk that memory does not hold (a probe whose
-/// delete failed at the restore) is no job to `cancel` and
-/// `set-priority`, as it was before the table answered; a finished row
+/// delete failed at the restore) is refused to `cancel` and
+/// `set-priority` as `queue_failed`, in words saying the daemon does not
+/// hold it and the next start drops or replays it; a finished row
 /// is the `wrong_state` refusal. Nothing panics, and the open row is
 /// left as it was: after the run, an observer reads it waiting. The two
 /// rows are written behind the daemon, as a neighbour connection would,
@@ -2453,11 +2454,14 @@ fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
         ] {
             let what = format!("{request:?}");
             let (kind, message) = refusal_of(door.request(request).await, &what);
-            assert_eq!(
-                (kind, message.as_str()),
-                (ErrorKind::UnknownJob, "no job 40"),
-                "{what}"
-            );
+            assert_eq!(kind, ErrorKind::QueueFailed, "{what}: {message}");
+            for words in [
+                "job 40 is open on disk",
+                "does not hold it",
+                "next start of the daemon drops or replays it",
+            ] {
+                assert!(message.contains(words), "{what}: {message}");
+            }
         }
         let (kind, message) = refusal_of(
             door.request(Request::Cancel { id: 41 }).await,
