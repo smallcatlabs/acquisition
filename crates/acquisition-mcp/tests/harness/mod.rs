@@ -367,28 +367,42 @@ pub fn c143_a_refusal_speaks_no_frontend(tool: &str, text: &str) {
         return;
     }
     let doc: Value = serde_json::from_str(text).unwrap_or_else(|_| json!(text));
-    let mut prose = Vec::new();
-    prose_of(&doc, &mut prose);
-    for words in prose {
-        if let Some(at) = frontend_word(words) {
-            let said: String = words[at..].chars().take(60).collect();
-            panic!("{tool}'s refusal speaks the CLI at {said:?}: {text}");
-        }
+    if let Some(said) = frontend_speech(&doc) {
+        panic!("{tool}'s refusal speaks the CLI at {said:?}: {text}");
     }
 }
 
+/// Where a refusal document's prose first speaks a CLI command or flag
+/// outside a person's act, the words from there: the rule
+/// [`c143_a_refusal_speaks_no_frontend`] holds every refusal to.
+pub fn frontend_speech(doc: &Value) -> Option<String> {
+    let mut prose = Vec::new();
+    prose_of(doc, &mut prose);
+    prose
+        .into_iter()
+        .find_map(|words| frontend_word(words).map(|at| words[at..].chars().take(60).collect()))
+}
+
 /// Every string of `doc` that is the tool's words: none under a payload
-/// key ([`PAYLOAD`], a receipt's `undo`, a stored `body`).
+/// key ([`PAYLOAD`], a receipt's `undo`, a stored `body`) but each
+/// offer's `says` and the refusal's `next`, which are words beside the
+/// payload (the review of #97's Part A, P2): an offer's `request` stays
+/// payload, sent back as printed.
 fn prose_of<'a>(doc: &'a Value, out: &mut Vec<&'a str>) {
     match doc {
         Value::String(s) => out.push(s),
         Value::Array(items) => items.iter().for_each(|v| prose_of(v, out)),
-        Value::Object(map) => map
-            .iter()
-            .filter(|(k, _)| {
-                !PAYLOAD.contains(&k.as_str()) && !["undo", "body"].contains(&k.as_str())
-            })
-            .for_each(|(_, v)| prose_of(v, out)),
+        Value::Object(map) => map.iter().for_each(|(k, v)| match k.as_str() {
+            "offers" => v
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|offer| offer["says"].as_str())
+                .for_each(|says| out.push(says)),
+            "next" => out.extend(v.as_str()),
+            k if PAYLOAD.contains(&k) || ["undo", "body"].contains(&k) => {}
+            _ => prose_of(v, out),
+        }),
         _ => {}
     }
 }
