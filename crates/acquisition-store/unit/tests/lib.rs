@@ -2982,3 +2982,30 @@ fn the_now_knob_fixes_whole_seconds_and_refuses_anything_else() {
         );
     }
 }
+
+/// #175: a process that pins its now reads that instant from then on, a
+/// second pin answers the first. nextest
+/// runs each test in a process of its own (C122), so this one's clock is
+/// unread when it starts.
+#[test]
+fn a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first() {
+    assert_eq!(crate::pin_now(1_762_300_000), Ok(1_762_300_000));
+    assert_eq!(crate::now(), 1_762_300_000);
+    assert_eq!(crate::pin_now(1_762_300_009), Ok(1_762_300_000));
+    assert_eq!(crate::now(), 1_762_300_000);
+}
+
+/// #175: a pin after the process read its clock unpinned is refused in
+/// words, never half applied.
+#[test]
+fn a_pin_after_an_unpinned_read_is_refused() {
+    let read = crate::now();
+    assert!(read > 0);
+    let at = 1_762_300_000;
+    assert_eq!(
+        crate::pin_now(at),
+        Err(format!(
+            "this process read the system clock before its now was pinned at {at}"
+        ))
+    );
+}

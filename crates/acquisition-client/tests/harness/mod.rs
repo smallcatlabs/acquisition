@@ -82,6 +82,8 @@ pub fn original_temp_dir() -> &'static Path {
 /// the 103-byte cap (a fourteen-letter tag did, once the counter joined).
 pub fn scratch(tag: &str) -> Scratch {
     static N: AtomicU64 = AtomicU64::new(0);
+    // the one instant, pinned before a world exists to stamp (#175)
+    now();
     let tag: String = tag.chars().take(8).collect();
     let base = original_temp_dir().join(format!(
         "acq-{tag}-{}-{}",
@@ -199,14 +201,20 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
 /// which `tools/arch-check.sh` refuses in process-test code: a time the
 /// test stages and the age a child says of it are measured against one
 /// clock (#175). nextest runs a test per process (C122), so each test
-/// has its own.
+/// has its own. The test process's own store writes read it too: it is
+/// pinned as the store's now in this process (`pin_now`), and [`scratch`]
+/// takes it before any world exists, so a row the test seeds is stamped
+/// at the instant its children read.
 pub fn now() -> i64 {
     static NOW: OnceLock<i64> = OnceLock::new();
     *NOW.get_or_init(|| {
-        std::time::SystemTime::now()
+        let wall = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
+            .unwrap_or(0);
+        acquisition_store::pin_now(wall).unwrap_or_else(|e| {
+            panic!("{e}: take harness::now() before the test's first store write")
+        })
     })
 }
 

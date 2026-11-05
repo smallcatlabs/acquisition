@@ -1164,12 +1164,35 @@ pub fn check_now() -> std::result::Result<(), String> {
     fixed_now().as_ref().map(|_| ()).map_err(String::clone)
 }
 
+/// Fix this process's [`now`] at `at`, for a process that spawns the
+/// others and stamps times itself: the test harness, whose own store
+/// writes would otherwise read the system clock while its children read
+/// `ACQ_NOW` (#175's second clock, an MCP pricing test on Windows CI).
+/// Answers the instant now reads from here on: `at`, or one this process
+/// already fixed. A process whose now was already read unfixed is
+/// refused, so a pin that came too late is said, never silently half
+/// applied.
+pub fn pin_now(at: i64) -> std::result::Result<i64, String> {
+    let _ = fixed_now_cell().set(Ok(Some(at)));
+    match fixed_now() {
+        Ok(Some(fixed)) => Ok(*fixed),
+        Ok(None) => Err(format!(
+            "this process read the system clock before its now was pinned at {at}"
+        )),
+        Err(words) => Err(words.clone()),
+    }
+}
+
 /// [`NOW_KNOB`] as read once by this process: absent, the instant it
 /// fixes, or the refusal's words.
 fn fixed_now() -> &'static std::result::Result<Option<i64>, String> {
+    fixed_now_cell().get_or_init(|| parse_now(std::env::var_os(NOW_KNOB).as_deref()))
+}
+
+fn fixed_now_cell() -> &'static std::sync::OnceLock<std::result::Result<Option<i64>, String>> {
     static FIXED: std::sync::OnceLock<std::result::Result<Option<i64>, String>> =
         std::sync::OnceLock::new();
-    FIXED.get_or_init(|| parse_now(std::env::var_os(NOW_KNOB).as_deref()))
+    &FIXED
 }
 
 /// [`NOW_KNOB`]'s value as the instant it fixes: unset is none; whole
