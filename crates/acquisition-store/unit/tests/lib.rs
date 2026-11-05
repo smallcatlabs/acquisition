@@ -2983,12 +2983,49 @@ fn the_now_knob_fixes_whole_seconds_and_refuses_anything_else() {
     }
 }
 
-/// #175: a process that pins its now reads that instant from then on, a
-/// second pin answers the first. nextest
-/// runs each test in a process of its own (C122), so this one's clock is
-/// unread when it starts.
+/// #175's pins each run in a fresh process: this process's now is one
+/// global cell, and `cargo test` runs a binary's tests side by side in
+/// one process. Unless this process is the child for `test` (in
+/// `module`, `module_path!()` at the call), run it again as a child,
+/// assert the child passed, and answer true so the caller returns; in
+/// the child, answer false so the caller runs its body.
+fn ran_as_a_fresh_process(module: &str, test: &str) -> bool {
+    const CHILD: &str = "ACQ_STORE_PIN_CHILD";
+    if std::env::var(CHILD).as_deref() == Ok(test) {
+        return false;
+    }
+    let module = module.split_once("::").map_or(module, |(_, rest)| rest);
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            format!("{module}::{test}"),
+            "--exact".into(),
+            "--nocapture".into(),
+            "--test-threads=1".into(),
+        ])
+        .env(CHILD, test)
+        .env_remove(crate::NOW_KNOB)
+        .output()
+        .unwrap();
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success() && said.contains("1 passed"),
+        "the fresh process for {test}: {}\n{said}\n{}",
+        out.status,
+        String::from_utf8_lossy(&out.stderr)
+    );
+    true
+}
+
+/// #175: a process that pins its now reads that instant from then on,
+/// and a second pin answers the first.
 #[test]
 fn a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first() {
+    if ran_as_a_fresh_process(
+        module_path!(),
+        "a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first",
+    ) {
+        return;
+    }
     assert_eq!(crate::pin_now(1_762_300_000), Ok(1_762_300_000));
     assert_eq!(crate::now(), 1_762_300_000);
     assert_eq!(crate::pin_now(1_762_300_009), Ok(1_762_300_000));
@@ -2999,6 +3036,9 @@ fn a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first() {
 /// words, never half applied.
 #[test]
 fn a_pin_after_an_unpinned_read_is_refused() {
+    if ran_as_a_fresh_process(module_path!(), "a_pin_after_an_unpinned_read_is_refused") {
+        return;
+    }
     let read = crate::now();
     assert!(read > 0);
     let at = 1_762_300_000;
