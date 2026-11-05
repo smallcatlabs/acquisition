@@ -1100,8 +1100,8 @@ fn submit_resolves_the_account_against_the_live_session() {
 /// (`resolve_account`), the quote and the auth check
 /// (`canonical_account`) and a logout's forget judge alike; a live
 /// session still resolves.
-#[test]
-fn c121_a_name_the_index_never_held_is_unknown_account_and_a_held_one_not_logged_in() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn c121_a_name_the_index_never_held_is_unknown_account_and_a_held_one_not_logged_in() {
     let store_dir = TestPath::dir();
     Index::load(&store_dir)
         .unwrap()
@@ -1114,21 +1114,32 @@ fn c121_a_name_the_index_never_held_is_unknown_account_and_a_held_one_not_logged
         ("u-held", ErrorKind::NotLoggedIn),
         ("Typo#1", ErrorKind::UnknownAccount),
     ] {
+        // each lookup's refusal judged as its request judges it
         let submit = daemon
-            .resolve_account("characters", Some(selector))
-            .unwrap_err();
+            .judged(
+                daemon
+                    .resolve_account("characters", Some(selector))
+                    .unwrap_err(),
+            )
+            .await;
         assert_eq!(submit.kind, kind, "submit as {selector}: {submit}");
-        let check = daemon.canonical_account(Some(selector)).unwrap_err();
+        let check = daemon
+            .judged(daemon.canonical_account(Some(selector)).unwrap_err())
+            .await;
         assert_eq!(check.kind, kind, "auth check as {selector}: {check}");
         let quote = daemon
-            .quote(
-                &[QuoteJob {
-                    kind: "characters".into(),
-                    params: serde_json::json!({}),
-                }],
-                Some(selector),
+            .judged(
+                daemon
+                    .quote(
+                        &[QuoteJob {
+                            kind: "characters".into(),
+                            params: serde_json::json!({}),
+                        }],
+                        Some(selector),
+                    )
+                    .unwrap_err(),
             )
-            .unwrap_err();
+            .await;
         assert_eq!(quote.kind, kind, "quote as {selector}: {quote}");
     }
     let forget = daemon.logout(Some("Typo#1")).unwrap_err();
@@ -1142,8 +1153,12 @@ fn c121_a_name_the_index_never_held_is_unknown_account_and_a_held_one_not_logged
     // no index to tell by: a selector with no session is not logged in
     let (daemon, _, log_path) = session_daemon(BASE, refused(), None, true);
     let err = daemon
-        .resolve_account("characters", Some("Typo#1"))
-        .unwrap_err();
+        .judged(
+            daemon
+                .resolve_account("characters", Some("Typo#1"))
+                .unwrap_err(),
+        )
+        .await;
     assert_eq!(err.kind, ErrorKind::NotLoggedIn, "{err}");
     finish_harness(None, &log_path);
 }

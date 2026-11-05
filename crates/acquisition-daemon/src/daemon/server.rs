@@ -291,6 +291,7 @@ impl Daemon {
                 {
                     Ok(id) => Response::Submitted { id },
                     Err(refusal) => {
+                        let refusal = self.judged(refusal).await;
                         self.note_error(&format!("submit refused: {refusal}"));
                         refusal.into()
                     }
@@ -374,7 +375,7 @@ impl Daemon {
                     .await
                     .and_then(|daemon| daemon.canonical_account(account.as_deref()))
                 {
-                    Err(refusal) => refusal.into(),
+                    Err(refusal) => self.judged(refusal).await.into(),
                     Ok(account) => match self
                         .valid_access_token(account.as_deref(), true, None)
                         .await
@@ -408,7 +409,7 @@ impl Daemon {
                     .and_then(|daemon| daemon.quote(&jobs, account.as_deref()))
                 {
                     Ok(quote) => Response::Quote { quote },
-                    Err(refusal) => refusal.into(),
+                    Err(refusal) => self.judged(refusal).await.into(),
                 }
             }
             Request::DaemonStatus => {

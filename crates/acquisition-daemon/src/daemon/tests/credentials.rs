@@ -901,3 +901,59 @@ async fn c148_a_request_waiting_for_the_restore_when_the_exit_begins_is_refused(
     );
     finish_harness(None, &log_path);
 }
+
+/// C148 with C121 (the review of round E, finding 2): a selector no live
+/// session matches is judged against the account index on the counted
+/// blocking path under `credentials`, the sessions looked at again there,
+/// never by a file read on the request's task. While `credentials` is
+/// held, as a keyring save holds it, that submit waits, counted among the
+/// landings, and an unrelated request (a `sleep` submitted) is answered;
+/// released, the submit answers `unknown_account`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_an_unmatched_selector_is_judged_under_credentials_off_the_request_task() {
+    let (mut daemon, log_path) =
+        test_daemon(Boundary::Workers, refused(), Arc::new(ParkingClock::new()));
+    let dir = TestPath::dir();
+    Index::load(&dir)
+        .unwrap()
+        .record_login("Held#1", "u-held", false, 1, &[])
+        .unwrap();
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
+    let submit = |kind: &str, params: Value, account: Option<&str>| Request::Submit {
+        kind: kind.into(),
+        params,
+        priority: 0,
+        submitted_by: "client".into(),
+        account: account.map(str::to_string),
+    };
+
+    let held = daemon.hold_credentials();
+    let landings_before = daemon.shared.lock().unwrap().landings;
+    let mut events = None;
+    let mut typo = std::pin::pin!(
+        daemon.handle_request(submit("characters", json!({}), Some("Typo#1")), &mut events,)
+    );
+    let answered_early = polled_once(typo.as_mut()).is_ready();
+    let landings_under = daemon.shared.lock().unwrap().landings;
+    let other = {
+        let daemon = daemon.clone();
+        let sleep = submit("sleep", json!({ "seconds": 0 }), None);
+        answered(async move { daemon.handle_request(sleep, &mut None).await })
+    };
+    drop(held);
+
+    assert!(!answered_early, "the judgement waits for credentials");
+    assert_eq!(landings_under, landings_before + 1, "counted as a landing");
+    assert!(
+        matches!(other, Some(Response::Submitted { .. })),
+        "an unrelated request is answered while the judgement waits: {other:?}"
+    );
+    let response = tokio::time::timeout(ANSWERED_WITHIN, typo)
+        .await
+        .expect("the submit answers once credentials are released");
+    let Response::Error { kind, message } = response else {
+        panic!("refused, not {response:?}")
+    };
+    assert_eq!(kind, ErrorKind::UnknownAccount, "{message}");
+    finish_harness(None, &log_path);
+}

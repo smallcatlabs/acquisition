@@ -454,7 +454,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |
-/// | `resolve_account`, `canonical_account` (submit, quote, auth check): a selector no live session matches that the account index never held (`unmatched`) | `no account matches … (see acq accounts)` | `unknown_account` |
+/// | `resolve_account`, `canonical_account` (submit, quote, auth check): a selector no live session matches that the account index never held (`unmatched`, then `judged` on a counted landing under `credentials`, C148) | `no account matches … (see acq accounts)` | `unknown_account` |
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session that the index holds, or with no index to tell by | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
@@ -502,6 +502,9 @@ pub struct Refusal {
     /// refresh's answer, `TokenError::failure`); `None` leaves the kind
     /// to the refusal's `kind`. Never on the wire.
     pub failure: Option<FailureKind>,
+    /// C121 with C148: the selector no live session matched, its account
+    /// index judgement still owed (`Daemon::judged`). Never on the wire.
+    pub unmatched: Option<String>,
 }
 
 impl Refusal {
@@ -512,6 +515,7 @@ impl Refusal {
             halted: false,
             cancelled: false,
             failure: None,
+            unmatched: None,
         }
     }
 
@@ -1717,7 +1721,7 @@ impl Daemon {
                 None => return s.auth.get(None).map(|session| session.username.clone()),
             }
         };
-        Err(self.unmatched(requested.unwrap_or_default(), held))
+        Err(Self::unmatched(requested.unwrap_or_default(), held))
     }
 
     /// A client's selector (username, name without discriminator, or uuid)
@@ -1731,31 +1735,69 @@ impl Daemon {
         };
         found
             .map(Some)
-            .ok_or_else(|| self.unmatched(sel, no_session(sel)))
+            .ok_or_else(|| Self::unmatched(sel, no_session(sel)))
     }
 
     /// C121, the daemon alike (#168): the refusal of a selector no live
-    /// session matches. A name the account index never held is
-    /// `unknown_account`, a typo rather than a login to make, in the
-    /// forget's words; otherwise `held`, the site's own `not_logged_in`:
-    /// the index holds the account with no session live, holds none (no
-    /// account known), cannot be read, or this daemon keeps none. The
-    /// index is read on this refusal's path alone, outside `shared`.
-    fn unmatched(&self, selector: &str, held: Refusal) -> Refusal {
-        let never_held = self.store_dir.as_deref().is_some_and(|dir| {
-            Index::load(dir).is_ok_and(|index| {
-                matches!(
-                    index.resolve(Some(selector)),
-                    Err(acquisition_store::Resolve::NotFound(_))
-                )
-            })
-        });
+    /// session matches, the site's own `not_logged_in`, marked with the
+    /// selector so the request's path judges it against the account
+    /// index ([`Self::judged`]). No I/O here: the lookups run on a
+    /// request's task, under `shared`'s brief holds.
+    fn unmatched(selector: &str, held: Refusal) -> Refusal {
+        Refusal {
+            unmatched: Some(selector.to_string()),
+            ..held
+        }
+    }
+
+    /// C121 with C148 (the review of round E, finding 2): a refusal of a
+    /// selector no live session matched, judged against the account index
+    /// where C148 reads credentials — a counted landing on a blocking
+    /// thread, under `credentials` ([`Self::index_judged`]) — never by a
+    /// file read on the request's task. Any other refusal as it is.
+    pub(super) async fn judged(self: &Arc<Self>, refusal: Refusal) -> Refusal {
+        if refusal.unmatched.is_none() {
+            return refusal;
+        }
+        let owed = refusal.clone();
+        self.spawn_landing(move |daemon| daemon.index_judged(owed))
+            .await
+            .unwrap_or(refusal)
+    }
+
+    /// [`Self::judged`]'s landing, under `credentials`, which orders it
+    /// with the logins and forgets that write the index: the sessions
+    /// looked at again first (a login that landed since makes the
+    /// selector a live one's, and the refusal stands as made, to be asked
+    /// again); then a name the index never held is `unknown_account`, a
+    /// typo rather than a login to make, in the forget's words; otherwise
+    /// the refusal as made, `not_logged_in`: the index holds the account
+    /// with no session live, holds none (no account known), cannot be
+    /// read, or this daemon keeps none.
+    fn index_judged(&self, held: Refusal) -> Refusal {
+        let Some(selector) = held.unmatched.clone() else {
+            return held;
+        };
+        let _credentials = self.hold_credentials();
+        let live = matches!(
+            self.shared.lock().unwrap().auth.matching(&selector),
+            Ok(Some(_))
+        );
+        let never_held = !live
+            && self.store_dir.as_deref().is_some_and(|dir| {
+                Index::load(dir).is_ok_and(|index| {
+                    matches!(
+                        index.resolve(Some(&selector)),
+                        Err(acquisition_store::Resolve::NotFound(_))
+                    )
+                })
+            });
         match never_held {
             true => Refusal::new(
                 ErrorKind::UnknownAccount,
                 format!(
                     "no account matches {} (see `acq accounts`)",
-                    describe_str(selector)
+                    describe_str(&selector)
                 ),
             ),
             false => held,
