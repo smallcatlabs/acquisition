@@ -38,6 +38,7 @@ use crate::daemon::login::wait_callback;
 use crate::daemon::*;
 use acquisition_protocol::protocol::KeyringOutcome;
 use acquisition_protocol::status::RailsStatus;
+use acquisition_store::jobs::daemon_db_path;
 
 // ---- tracer step 2: uuid-at-login (C50) ------------------------------
 
@@ -248,9 +249,40 @@ fn login_registers_the_session_only_when_the_profile_uuid_lands() {
 /// C50: a login whose profile fetch fails fails whole: no provisional
 /// identity — the staged tokens are dropped, no keyring entry is
 /// minted, the index is untouched, and the flow's terminal result is
-/// the failure, which the daemon's errors carry.
+/// the failure, which the daemon's errors carry. Two failures: GGG
+/// refuses the profile; or GGG answers it and the profile job concludes
+/// and leaves memory (C6), but its row cannot be read back from the
+/// queue, and that read's failure is the login's answer at once, never
+/// a wait for an event that will not come and a timeout naming none.
+/// The second's queue is the scenario's own file, staged before the door
+/// opens with a trigger that leaves a finished row's outcome unreadable:
+/// the row's write succeeds, so the queue is not failed and the job
+/// leaves memory, and only the read back fails.
 #[test]
 fn a_login_whose_profile_fetch_fails_fails_whole() {
+    let refused = (
+        profile(
+            "404 Not Found",
+            r#"{"error":{"code":1,"message":"Resource not found"}}"#.into(),
+        ),
+        false,
+        "profile fetch failed",
+    );
+    let unreadable = (
+        profile("200 OK", profile_of("Alice#1234")),
+        true,
+        "finished, but its outcome could not be read: could not read the persisted queue",
+    );
+    for (answer, unreadable_row, words) in [refused, unreadable] {
+        login_fails_whole(answer, unreadable_row, words);
+    }
+}
+
+/// One case of [`a_login_whose_profile_fetch_fails_fails_whole`]: the
+/// profile answered with `answer`, on a queue whose finished rows read
+/// back unreadable when `unreadable_row`, the login's error carrying
+/// `words`.
+fn login_fails_whole(answer: ScriptedResponse, unreadable_row: bool, words: &'static str) {
     let clock = Arc::new(ParkingClock::new());
     let credentials = Arc::new(RecordingCredentialStore::default());
     let store_dir = TestPath::dir();
@@ -258,33 +290,42 @@ fn a_login_whose_profile_fetch_fails_fails_whole() {
     let store = credentials.clone();
     let script = vec![
         exchange("200 OK", token_body("at-x", "rt-x", "Alice#1234")),
-        profile(
-            "404 Not Found",
-            r#"{"error":{"code":1,"message":"Resource not found"}}"#.into(),
-        ),
+        answer,
     ];
-    logged_out(Server::Script(script), &clock, &credentials, &store_dir).run(
-        |mut door| async move {
-            let url = authorize(&mut door).await;
-            let (status, page) = door.browser(&code_callback(&url, "code-x")).await;
-            assert_eq!(status, 200, "{page}");
-            let ended = door.await_auth(|answer| !answer.pending).await;
-            assert!(!ended.logged_in && ended.login_ok.is_none(), "{ended:?}");
-            let error = ended.login_error.expect("the login failed");
-            assert!(error.contains("profile fetch"), "{error}");
-            assert!(ended.accounts.is_empty(), "no session appeared");
-            assert!(store.saves.lock().unwrap().is_empty());
-            assert!(!acquisition_store::index_path(&dir).exists());
-            let errors = dashboard_errors(&mut door).await;
-            assert!(
-                errors
-                    .iter()
-                    .any(|e| e.contains("login failed for Alice#1234")),
-                "the failure is reported: {errors:?}"
-            );
-            door.finish().await;
-        },
-    );
+    let queue_dir = TestPath::dir();
+    let mut door = logged_out(Server::Script(script), &clock, &credentials, &store_dir);
+    if unreadable_row {
+        let path = daemon_db_path(&queue_dir);
+        let jobs = JobDb::open(&path).unwrap();
+        rusqlite::Connection::open(&path)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER unreadable AFTER INSERT ON jobs WHEN NEW.state = 'done'
+                 BEGIN UPDATE jobs SET outcome = x'ff' WHERE id = NEW.id; END",
+            )
+            .unwrap();
+        door = door.jobs_db(jobs);
+    }
+    door.run(|mut door| async move {
+        let url = authorize(&mut door).await;
+        let (status, page) = door.browser(&code_callback(&url, "code-x")).await;
+        assert_eq!(status, 200, "{page}");
+        let ended = door.await_auth(|answer| !answer.pending).await;
+        assert!(!ended.logged_in && ended.login_ok.is_none(), "{ended:?}");
+        let error = ended.login_error.expect("the login failed");
+        assert!(error.contains(words), "{error}");
+        assert!(ended.accounts.is_empty(), "no session appeared");
+        assert!(store.saves.lock().unwrap().is_empty());
+        assert!(!acquisition_store::index_path(&dir).exists());
+        let errors = dashboard_errors(&mut door).await;
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("login failed for Alice#1234")),
+            "the failure is reported: {errors:?}"
+        );
+        door.finish().await;
+    });
 }
 
 /// An aborted *re-login* leaves the previously registered session
