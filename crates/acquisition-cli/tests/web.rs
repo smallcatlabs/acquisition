@@ -479,10 +479,20 @@ fn every_search_page_is_a_wording_golden() {
 /// account on disk serves (`roadmap/briefs/99-web-leftovers.md`, Do 1):
 /// every page is the `not_logged_in` refusal with its remedy, a page
 /// asked as JSON its document, the stylesheet still served; once an
-/// account is on disk, a reload serves its form.
+/// account is on disk, a reload serves its form. A server asked for an
+/// account by name over the same empty world does not start: it refuses
+/// as `not_logged_in` before the bind (the review at 49a74010, its first
+/// finding).
 #[test]
 fn the_form_renders_the_realm_it_is_asked_for() {
     let scratch = harness::scratch("webrealm");
+    let named = offline_acq(
+        &scratch.0,
+        &["--account", "Typo", "web", "--no-browser", "--json"],
+    );
+    assert_eq!(named.status.code(), Some(1), "{named:?}");
+    let refused = sole_json(&named);
+    assert_eq!(refused["kind"], "not_logged_in", "{refused}");
     let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));
     let mut pages = Pages::new(&scratch.0, &web);
     let none = web.get("");
@@ -902,17 +912,31 @@ fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
 }
 
 /// The served account, named on every submit (the review of 4b, its
-/// first finding): a server started over Alice, the sole account on disk,
-/// keeps applying as Alice after Alice logs out and Bob logs in — the
-/// daemon's sole live session — so the apply of a selection's plan is
-/// refused for Alice and no job runs as Bob; with both logged in, where a
-/// submit naming no account would be ambiguous, the job is Alice's.
+/// first finding): a server started with no account on disk refuses
+/// every page as `not_logged_in` until Alice logs in, then serves Alice,
+/// the account it found (the review at 49a74010, its second finding),
+/// and keeps applying as Alice after Alice logs out and Bob logs in — the
+/// daemon's sole live session, and a second account in the index — so
+/// the plan page still renders for Alice, the apply of a selection's
+/// plan is refused for Alice and no job runs as Bob; with both logged
+/// in, where a submit naming no account would be ambiguous, the job is
+/// Alice's.
 #[test]
 fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let scratch = harness::scratch("webacct");
     let base = scratch.0.clone();
-    let _daemon = harness::login(&base, "Alice");
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let none = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
+    assert_eq!(none.status, 400, "{}", none.body);
+    assert!(
+        none.body.contains("log in with `acq auth`"),
+        "{}",
+        none.body
+    );
+    let _daemon = harness::login(&base, "Alice");
+    let found = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
+    assert_eq!(found.status, 200, "{}", found.body);
+    assert!(found.body.contains("Alice"), "{}", found.body);
     // The mock world's keyring is off: the logout succeeds and says it
     // cleared nothing (C144).
     let out = harness::acq(&base, &["auth", "logout", "--account", "Alice"]);
@@ -924,6 +948,8 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let _login = harness::login(&base, "Bob");
     let plan = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
     assert_eq!(plan.status, 200, "{}", plan.body);
+    assert!(plan.body.contains("Alice"), "{}", plan.body);
+    assert!(!plan.body.contains("Bob"), "{}", plan.body);
     let envelope = hidden_plan(&plan.body);
     let refused = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(refused.status, 400, "{}", refused.body);

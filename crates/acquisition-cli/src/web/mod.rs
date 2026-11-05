@@ -43,10 +43,13 @@
 //!   (`roadmap/briefs/99-web-leftovers.md`, Do 1): until then every
 //!   page is the `not_logged_in` refusal with its remedy, so a person
 //!   who ran `acq web` to look at the tool meets the page and signs in;
-//!   from then on the account found is held for the server's life. Any
-//!   other refusal at the start — a name no login made, several
-//!   accounts and none named — is the command's, refused before the
-//!   bind.
+//!   from then on the account found is held for the server's life. Only
+//!   a server started with no account named waits so: one named
+//!   (`--account`, `ACQ_ACCOUNT`) is the command's choice, refused
+//!   before the bind whatever the refusal — `not_logged_in` over an
+//!   empty index too, since a login later could make another account
+//!   than the one named (the review at 49a74010, its first finding) —
+//!   as is any refusal with none named but none (several accounts).
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
 //!   loaded for the account it serves in the search crate's `Holder`,
@@ -160,10 +163,11 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         frontend: Frontend::human(VIA)?,
         account,
     };
-    // no account on disk is a page, every other refusal the command's
+    // no account on disk with none named is a page, every other
+    // refusal the command's
     let served = match cx.account() {
         Ok(account) => OnceLock::from(account),
-        Err(Fault::NoAccounts { .. }) => OnceLock::new(),
+        Err(Fault::NoAccounts { .. }) if cx.account.is_none() => OnceLock::new(),
         Err(fault) => return Err(fault.into()),
     };
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?;
