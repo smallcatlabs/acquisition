@@ -81,11 +81,12 @@
 //! **Every text the server serves speaks its own words** (C143, the
 //! shared words first and an adapter's spelling after them; the readiness
 //! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
-//! a refusal speaks the request's words and its ways on are offers this
-//! server sends as its tools' arguments (C143 as amended; #97, the
-//! harness's `c143_a_refusal_speaks_no_frontend`). Wherever other shared
-//! text still speaks a CLI command or flag — `describe`, an answer's
-//! `why` or `hint`, a daemon's words — `spoken` appends `— here,` and
+//! a refusal the shared crates make speaks the request's words and its
+//! ways on are offers this server sends as its tools' arguments (C143 as
+//! amended; #97, the harness's `c143_a_refusal_speaks_no_frontend`).
+//! Wherever other text still speaks a CLI command or flag — `describe`,
+//! an answer's `why` or `hint`, a daemon's refusal (`acq accounts`) —
+//! `spoken` appends `— here,` and
 //! what each is here (`acq search` is `search`, `--realm` is `realm`),
 //! from one table, `SPOKEN`. A person's
 //! command (`acq auth check`) is left as the person's; an entry's name,
@@ -1183,8 +1184,10 @@ struct PriceClearParams {
 
 /// The CLI's words the shared layer speaks, each with what it is here:
 /// the commands, longest first where one begins another, then the flags
-/// (the shared crates' words were the CLI's, which were first; a
-/// refusal's are the request's now, and no entry translates one). A phrase
+/// (the shared crates' words were the CLI's, which were first; a refusal
+/// the shared crates make speaks the request's now, and no entry
+/// translates one of those, while a daemon's refusal still speaks the
+/// CLI: `acq accounts` and `--account`). A phrase
 /// follows the word in the spelling (`acq search` is `search`); an empty
 /// phrase is a person's command, which the words already give a person
 /// at a terminal, and which no tool here performs. Drawn from the words
