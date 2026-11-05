@@ -87,6 +87,11 @@ fn under_all(corpus: &Corpus, text: &str) -> Value {
     .unwrap_or_else(|e| panic!("{text}: {e}"))
 }
 
+/// The request a refusal's one offer is.
+fn offered(e: &Value) -> Request {
+    serde_json::from_value(e["offers"][0]["request"].clone()).unwrap()
+}
+
 fn in_order(answer: &Value) -> Vec<String> {
     answer["rows"]
         .as_array()
@@ -424,18 +429,26 @@ fn a_retired_tab_that_held_nothing_is_said_to_have_left_either_way() {
         let e = show(&s, id, false).unwrap_err().to_json();
         assert_eq!(e["kind"], "not_an_item");
         assert!(e["error"].as_str().unwrap().contains(name), "{e}");
+        // said in the request's words, the membership among them; a
+        // terminal spells the request as its command
         assert_eq!(
-            e["readings"],
-            json!([format!(
-                "acq search --account u-1 --realm pc id:{id} --membership all"
-            )])
+            e["offers"][0]["says"],
+            format!("the search, under membership all, of what was in the tab `{name}`")
+        );
+        assert_eq!(
+            offered(&e).command(),
+            format!("acq search --account u-1 --realm pc id:{id} --membership all")
         );
     }
     // a live tab's is the live search, as it was
     let e = show(&s, "t1", false).unwrap_err().to_json();
     assert_eq!(
-        e["readings"],
-        json!(["acq search --account u-1 --realm pc id:t1"])
+        e["offers"][0]["says"],
+        "the search of what is in the tab `Rings`"
+    );
+    assert_eq!(
+        offered(&e).command(),
+        "acq search --account u-1 --realm pc id:t1"
     );
 }
 

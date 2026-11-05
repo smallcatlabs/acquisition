@@ -304,11 +304,16 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
 
 /// A way on as a terminal reads it (C143): the shared reading, in the
 /// request's words, and after a realm's the flag this terminal spells it
-/// with.
+/// with; a whole search, the command it is ([`Request::command`]), which
+/// this terminal prints in its place (#97: the shared words are the
+/// MCP's and the page's).
+///
+/// [`Request::command`]: acquisition_search::answer::Request::command
 pub(crate) fn terminal_reading(o: &acquisition_search::error::Offered) -> String {
-    match o.realm() {
-        Some(realm) => format!("{} (--realm {realm})", o.reading),
-        None => o.reading.clone(),
+    match (o.realm(), &o.request) {
+        (Some(realm), _) => format!("{} (--realm {realm})", o.reading),
+        (None, Some(request)) => request.command(),
+        (None, None) => o.reading.clone(),
     }
 }
 

@@ -152,16 +152,18 @@ pub enum SearchError {
 
 /// One way on from a refusal (`search/LEDGER.md`, H5): what it says,
 /// and — where that is a search — the request it is, for a caller that
-/// sends requests and types nothing. Where the way on is a whole search
-/// the reading is the request's own command ([`Request::command`]),
-/// made here and nowhere else, so the two never disagree; a realm's
-/// reading is in the request's words, `realm pc` (C143, a shared refusal
-/// speaks the request's words: a terminal adds its flag after them,
-/// [`Offered::realm`]), and its request the search asked, in that realm.
+/// sends requests and types nothing. Every reading is in the request's
+/// words (C143, a shared refusal speaks the request's words, never a
+/// frontend's flag): a whole search's says what the search is — `the
+/// same request from its start` — and each surface spells the request
+/// after it or in its place, a terminal as its command
+/// ([`Request::command`]); a realm's is `realm pc`, a terminal adding its
+/// flag after it ([`Offered::realm`]), and its request the search asked,
+/// in that realm (#97, the search's offers in each surface's terms).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Offered {
-    /// What the way on says: a refusal's `readings`, and each offer's
-    /// `says`.
+    /// What the way on says, in the request's words: each offer's `says`
+    /// on a surface that adds nothing.
     pub reading: String,
     pub request: Option<Request>,
     /// Where the way on is `describe`, the names it is asked with — none
@@ -183,9 +185,9 @@ impl Offered {
         self.realm.as_ref().map(|(realm, _)| realm.as_str())
     }
 
-    fn request(request: Request) -> Offered {
+    fn request(request: Request, reading: String) -> Offered {
         Offered {
-            reading: request.command(),
+            reading,
             request: Some(request),
             describe: None,
             realm: None,
@@ -213,10 +215,14 @@ impl SearchError {
         }
     }
 
-    /// Ways on that are searches: each a request, read as its command.
-    pub(crate) fn offering(mut self, requests: Vec<Request>) -> SearchError {
+    /// Ways on that are searches: each a request, beside what it is in
+    /// the request's words.
+    pub(crate) fn offering(mut self, requests: Vec<(Request, String)>) -> SearchError {
         if let SearchError::Scope { offers, .. } = &mut self {
-            *offers = requests.into_iter().map(Offered::request).collect();
+            *offers = requests
+                .into_iter()
+                .map(|(request, reading)| Offered::request(request, reading))
+                .collect();
         }
         self
     }

@@ -552,7 +552,9 @@ fn seed_two(base: &std::path::Path) {
 /// account is `scope.account`); a target the facts do not hold offers the
 /// tools that would find it, named and with the scope it was looked for
 /// in, whether the request named the non-default realm and league or the
-/// verb took them from the address and the facts.
+/// verb took them from the address and the facts. A tab's id shown offers
+/// the search of what is in it, said in the request's words and never a
+/// terminal's command (#97).
 #[test]
 fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     let scratch = harness::scratch("mcp-offers");
@@ -591,6 +593,21 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
     assert_eq!(offer["request"]["scope"]["account"], USER, "{doc}");
     assert_eq!(offer["request"]["query"]["text"], "class:currency", "{doc}");
     let found = answered(&mut mcp, "search", offer);
+    assert_eq!(found["rows"][0]["id"], "ix", "{found}");
+
+    // a tab's id: the search of what is in it, the `search` tool's
+    let doc = refusal(
+        &mut mcp,
+        "show",
+        json!({ "id": "tx", "account": USER }),
+        "not_an_item",
+    );
+    assert!(!doc.to_string().contains("acq "), "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 1, "{doc}");
+    assert_eq!(offers[0]["tool"], "search", "{doc}");
+    assert_eq!(offers[0]["says"], "the search of what is in the tab `Box`");
+    let found = answered(&mut mcp, "show", &offers[0]);
     assert_eq!(found["rows"][0]["id"], "ix", "{found}");
 
     // a target held nowhere, its realm and league named: the search of
@@ -719,7 +736,10 @@ fn two_items(base: &std::path::Path, account: &str, prefix: &str) {
 /// account offer for a continuation kept its place, another store's
 /// basis, so Bob's was refused as `basis_changed`. A repeat as another
 /// account drops the place and says it is the request from its start;
-/// with both stores holding items, every offer is answered.
+/// with both stores holding items, every offer is answered. And the same
+/// continuation across its own store's change is `basis_changed`,
+/// offering the request from its start in the request's words, never a
+/// terminal's command (#97).
 #[test]
 fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
     let scratch = harness::scratch("mcp-offer-next");
@@ -735,7 +755,7 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
     let mut next = harness::document(&first)["view"]["rows"]["next"].clone();
     assert!(next.is_object(), "no continuation: {first}");
     next["request"]["scope"]["account"] = json!("Alicia");
-    let doc = refusal(&mut mcp, "search", next, "unknown_account");
+    let doc = refusal(&mut mcp, "search", next.clone(), "unknown_account");
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
     for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
@@ -753,4 +773,17 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
         assert_eq!(answer["scope"]["account"]["name"], name, "{answer}");
         assert_eq!(answer["view"]["rows"]["returned"], 1, "{answer}");
     }
+
+    two_items(&base, USER, "ic");
+    next["request"]["scope"]["account"] = json!(USER);
+    let doc = refusal(&mut mcp, "search", next, "basis_changed");
+    assert!(!doc.to_string().contains("acq "), "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 1, "{doc}");
+    assert_eq!(offers[0]["says"], "the same request from its start");
+    assert!(offers[0].get("tool").is_none(), "the same tool: {doc}");
+    let result = mcp.result("search", offers[0]["request"].clone());
+    assert_ne!(result["isError"], json!(true), "{result}");
+    let answer = &harness::document(&result);
+    assert_eq!(answer["view"]["rows"]["returned"], 1, "{answer}");
 }

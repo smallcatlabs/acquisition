@@ -39,10 +39,8 @@ fn a_changed_basis_offers_the_request_from_its_start() {
     assert_eq!(e["kind"], "basis_changed", "{e}");
     let offers = offered(&e);
     assert_eq!(offers.len(), 1, "{e}");
-    // one maker: the reading is the offered request's own command, and
-    // what the offer says
-    assert_eq!(e["readings"], json!([offers[0].command()]));
-    assert_eq!(e["offers"][0]["says"], e["readings"][0], "{e}");
+    // said in the request's words, never a terminal's command (#97)
+    assert_eq!(e["offers"][0]["says"], "the same request from its start");
     assert_eq!(
         e["offers"][0]["request"],
         json!({
@@ -62,7 +60,10 @@ fn an_id_that_is_a_tab_offers_the_search_of_it() {
     let e = show(&s, "t1", false).unwrap_err().to_json();
     assert_eq!(e["kind"], "not_an_item", "{e}");
     let offers = offered(&e);
-    assert_eq!(e["readings"], json!([offers[0].command()]));
+    assert_eq!(
+        e["offers"][0]["says"],
+        "the search of what is in the tab `Rings`"
+    );
     assert_eq!(offers[0].query.text.as_deref(), Some("id:t1"));
     let corpus = offers[0].corpus(&s, &intent(&s)).unwrap();
     let listed = as_json(&acquisition_search::answer(&corpus, &offers[0]).unwrap());

@@ -389,7 +389,7 @@ fn not_shown(
         } else {
             "character"
         };
-        // the one maker of a command (rule 10), which says the membership
+        // the request, which says the membership; a surface spells it
         let lists = crate::answer::Request {
             scope: crate::answer::Scope {
                 account: Some(account.to_string()),
@@ -419,7 +419,16 @@ fn not_shown(
                 ),
             },
         )
-        .offering(vec![lists]);
+        .offering(vec![(
+            lists,
+            match location.removed_at {
+                Some(_) => format!(
+                    "the search, under membership all, of what was in the {what} `{}`",
+                    location.name
+                ),
+                None => format!("the search of what is in the {what} `{}`", location.name),
+            },
+        )]);
     }
     match store.item(id) {
         Ok(Some(_)) => SearchError::scope(
