@@ -497,6 +497,11 @@ pub struct Refusal {
     /// still wanting the refresh asks again (`valid_access_token`), and a
     /// cancelled job that meets it concludes cancelled.
     pub cancelled: bool,
+    /// C165: the failure kind a job this refusal fails takes, read from
+    /// the refusal's own typed cause where one makes it (a token
+    /// refresh's answer, `TokenError::failure`); `None` leaves the kind
+    /// to the refusal's `kind`. Never on the wire.
+    pub failure: Option<FailureKind>,
 }
 
 impl Refusal {
@@ -506,6 +511,7 @@ impl Refusal {
             message: message.into(),
             halted: false,
             cancelled: false,
+            failure: None,
         }
     }
 

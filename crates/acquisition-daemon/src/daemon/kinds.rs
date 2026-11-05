@@ -25,7 +25,6 @@ use super::*;
 #[derive(Debug)]
 pub(super) enum ApiError {
     RateLimited(String),
-    Protocol(String),
     /// A failure of the kind it names (C165), read here where the daemon
     /// knows it.
     Other(FailureKind, String),
@@ -49,11 +48,28 @@ fn refused(refusal: Refusal) -> Result<Outcome, ApiError> {
     turned_away(refusal, |message| Ok(Outcome::failure(kind, message)))
 }
 
-/// C165: the failure kind of a token refusal that fails its job: a
-/// session that cannot give one is `not_logged_in`; the provider not
-/// answering the refresh is `upstream`; the daemon's own fault
-/// `internal`.
+/// C165: the failure kind of a send whose rate-limit headers the limiter
+/// could not take: each cause is GGG's answer, headers it could not
+/// parse or a policy other than the route's, so `upstream`, never the
+/// daemon's own fault.
+fn observation_failure(error: &crate::ratelimit::PolicyObservationError) -> FailureKind {
+    use crate::ratelimit::PolicyObservationError;
+    match error {
+        PolicyObservationError::Parse(_) | PolicyObservationError::PolicyMismatch { .. } => {
+            FailureKind::Upstream
+        }
+    }
+}
+
+/// C165: the failure kind of a token refusal that fails its job: the
+/// kind its typed cause made (`Refusal::failure`: a refresh's answer),
+/// else by the refusal's own kind — a session that cannot give a token
+/// `not_logged_in`, the provider not answering `upstream`, the daemon's
+/// own fault `internal`.
 fn token_failure(refusal: &Refusal) -> FailureKind {
+    if let Some(kind) = refusal.failure {
+        return kind;
+    }
     match refusal.kind {
         ErrorKind::NotLoggedIn | ErrorKind::UnknownAccount | ErrorKind::AmbiguousAccount => {
             FailureKind::NotLoggedIn
@@ -861,6 +877,14 @@ impl Daemon {
                         )));
                     }
                     Err(error) => {
+                        // C165: GGG's 429 on the HEAD is a rate limit
+                        // ending it; any other failure of the probe GGG's
+                        let kind = match &error {
+                            ProbeError::Failed {
+                                status: Some(429), ..
+                            } => FailureKind::RateLimited,
+                            _ => FailureKind::Upstream,
+                        };
                         let mut message = format!("HEAD {}: {error}", url_path(&url));
                         if let Some(username) = cleared_for {
                             message.push_str(&format!(
@@ -872,7 +896,7 @@ impl Daemon {
                             // is re-closed with the whole story.
                             self.choke.degrade(&route, &message);
                         }
-                        Outcome::failure(FailureKind::Upstream, message)
+                        Outcome::failure(kind, message)
                     }
                 }
             }
@@ -963,10 +987,13 @@ impl Daemon {
                     ));
                 }
                 Err(SendError::Protocol(error)) => {
-                    return Err(ApiError::Protocol(format!(
-                        "GET {}: rate-limit protocol failure: {error}",
-                        url_path(url)
-                    )));
+                    return Err(ApiError::Other(
+                        observation_failure(&error),
+                        format!(
+                            "GET {}: rate-limit protocol failure: {error}",
+                            url_path(url)
+                        ),
+                    ));
                 }
                 Err(SendError::Transport(error)) => {
                     return Err(ApiError::Other(

@@ -172,6 +172,22 @@ impl TokenError {
                 .status
                 .is_some_and(|status| (400..500).contains(&status) && status != 429)
     }
+
+    /// C165: the failure kind of a job this refresh ends, from its own
+    /// answer: a rejected grant is `not_logged_in` (a login is the way
+    /// on); GGG's 429, never a block's, `rate_limited`; anything else the
+    /// provider not answering, `upstream`. A halt or a block turns the job
+    /// away instead (C25), and fails nothing.
+    pub fn failure(&self) -> acquisition_protocol::job::FailureKind {
+        use acquisition_protocol::job::FailureKind;
+        if self.is_rejected_grant() {
+            FailureKind::NotLoggedIn
+        } else if !self.blocked && self.status == Some(429) {
+            FailureKind::RateLimited
+        } else {
+            FailureKind::Upstream
+        }
+    }
 }
 
 /// Holds both tokens as [`Secret`]s, so its `Debug` names neither (C144:

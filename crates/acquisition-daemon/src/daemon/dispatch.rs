@@ -570,10 +570,6 @@ impl Daemon {
         {
             Ok(outcome) => Exec::Done(outcome),
             Err(ApiError::RateLimited(evidence)) => Exec::RateLimited(evidence),
-            // the limiter's own state unreadable: the daemon's fault
-            Err(ApiError::Protocol(error)) => {
-                Exec::Done(Outcome::failure(FailureKind::Internal, error))
-            }
             Err(ApiError::Other(kind, error)) => Exec::Done(Outcome::failure(kind, error)),
             Err(ApiError::Halted(cause)) => Exec::Parked(cause),
             // C25: cancelled while it waited at the choke point; nothing

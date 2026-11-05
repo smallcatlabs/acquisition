@@ -1619,7 +1619,9 @@ fn wire_rows() -> Vec<Row> {
                 .collect(),
             jobs: vec![
                 Job::fetch(Failed).fails(FailureKind::Upstream),
-                Job::probe(Failed).fails(FailureKind::Upstream),
+                // the HEAD's own 429 ends the probe (the review of round E,
+                // finding 3); its job meets the closed route
+                Job::probe(Failed).fails(FailureKind::RateLimited),
             ],
             journal: vec![json!([
                 "HEAD",
@@ -2316,7 +2318,74 @@ fn wire_rows() -> Vec<Row> {
         ],
         ..Row::default()
     });
+    // C165, the review of round E, finding 3: a 200 whose rate-limit
+    // headers are malformed is GGG's answer the limiter could not read,
+    // `upstream` from its typed cause, never the daemon's own fault
+    rows.push(Row {
+        name: "a_200_with_malformed_rate_headers_fails_upstream".into(),
+        script: vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse {
+                method: "GET",
+                path: "/fetch",
+                status: "200 OK",
+                headers: "X-Rate-Limit-Policy: dispatcher-test-policy\r\n".into(),
+                body: r#"{"items":[]}"#.into(),
+            },
+        ],
+        steps: fetched(Failed),
+        jobs: vec![
+            Job::fetch(Failed)
+                .fails(FailureKind::Upstream)
+                .carries(&["rate-limit protocol failure"]),
+            Job::probe(Done),
+        ],
+        journal: vec![
+            probe_sent(),
+            json!(["GET", "/fetch", 200, false, true, 0, null]),
+        ],
+        ..Row::default()
+    });
     rows
+}
+
+/// C165, the review of round E, finding 3: a job whose token refresh GGG
+/// answers with its own policy-bearing 429 ends `rate_limited`, the
+/// refresh's typed cause carried through the refusal to the job, never
+/// the refusal's broad `upstream`. A `whoami`, whose one send is the
+/// refresh: an expired session, the token endpoint's 429.
+#[test]
+fn c165_a_refresh_ended_by_gggs_429_fails_its_job_rate_limited() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = Sessions::with(AuthSession {
+        access_token: Some("at-expired".into()),
+        access_expires_at: Some(clock.wall()),
+        refresh_token: Some("rt-old".into()),
+        username: Some("test-user".into()),
+        keyring: "ok".into(),
+        ..AuthSession::default()
+    });
+    let headers = format!("{}Retry-After: 0\r\n", TOKEN_HEADERS);
+    Door::open(
+        Server::Script(vec![token_answer(
+            "429 Too Many Requests",
+            &headers,
+            Some(r#"{"error":"slow_down"}"#),
+        )]),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let id = door.submit("whoami", Some("test-user")).await;
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Failed, "{outcome:?}");
+        let Outcome::Failure { kind, error, .. } = &outcome else {
+            panic!("{outcome:?}")
+        };
+        assert_eq!(*kind, Some(FailureKind::RateLimited), "{error}");
+        door.finish().await;
+    });
 }
 
 /// C158: every row of the wire table through the door on a parking

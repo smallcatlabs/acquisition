@@ -509,6 +509,7 @@ impl Daemon {
                     };
                     Refusal {
                         halted: e.met_a_halt(),
+                        failure: Some(e.failure()),
                         ..Refusal::new(kind, format!("token refresh failed: {e}"))
                     }
                 });
