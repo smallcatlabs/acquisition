@@ -725,4 +725,6 @@ session's, rulings parked for him; its morning report
 is written last, under `reviews/`): #18 (`briefs/18-store-refused.md`)
 closed, reviewed (a P2, a P3), fixed in one round reviewed clean; #104
 (`briefs/104-schema-trim.md`) closed, the trim measured and declined,
-the first turn held to a bound, reviewed (a P3) and its pin added.
+the first turn held to a bound, reviewed (a P3) and its pin added;
+#108 (`briefs/108-client-env.md`) closed, reviewed (a stale doc line)
+and fixed.
