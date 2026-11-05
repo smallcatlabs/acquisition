@@ -727,4 +727,4 @@ closed, reviewed (a P2, a P3), fixed in one round reviewed clean; #104
 (`briefs/104-schema-trim.md`) closed, the trim measured and declined,
 the first turn held to a bound, reviewed (a P3) and its pin added;
 #108 (`briefs/108-client-env.md`) closed, reviewed (a stale doc line)
-and fixed.
+and fixed; #44 (`briefs/44-folder-once.md`) closed, reviewed clean.
