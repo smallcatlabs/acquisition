@@ -1307,6 +1307,24 @@ fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
     assert_eq!(doc["rows"][0]["fetched_at"], AT + 60, "{doc}");
     assert_eq!(doc["rows"][0]["fetched_at_age"], "3h ago", "{doc}");
 
+    // one body in full by its row id, aged alike; an id the store holds
+    // none under is refused as `refused_body_not_found`, in the CLI's words
+    let id = refused.rows[0].id;
+    let one = acquisition_verbs::RefusedBodies::one(&store, id, AT + 60 + 3 * 3_600).unwrap();
+    let doc = serde_json::to_value(&one).unwrap();
+    assert_eq!(doc["fetched_at_age"], "3h ago", "{doc}");
+    assert_eq!(doc["body"]["stash"]["id"], "t1", "{doc}");
+    let missing = acquisition_verbs::RefusedBodies::one(&store, id + 100, AT).unwrap_err();
+    let doc = acquisition_verbs::refusal::document(&missing, &Plain);
+    assert_eq!(doc["kind"], "refused_body_not_found", "{doc}");
+    assert!(
+        doc["error"]
+            .as_str()
+            .unwrap()
+            .starts_with(&format!("no refused body with id {}", id + 100)),
+        "{doc}"
+    );
+
     let mut intent = Annotations::open_memory_for(UUID).unwrap();
     let row = intent
         .put::<acquisition_plan::SyncPolicy>(

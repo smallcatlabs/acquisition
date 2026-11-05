@@ -68,7 +68,50 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     let scratch = harness::scratch("mcp-refusal");
     let base = scratch.0.clone();
     seed(&base);
+    // one body the store refused as malformed: an item with no id
+    let at = acquisition_store::now();
+    let nameless = json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
+        "items": [{ "typeLine": "Iron Ring", "baseType": "Iron Ring", "x": 0, "y": 0 }] } });
+    Store::open(&account_path(&base.join("store").join("mock"), USER))
+        .unwrap()
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t1".into(),
+                sub: None,
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &nameless,
+            at,
+        )
+        .unwrap_err();
     let mut mcp = Mcp::start(&base, &[]);
+
+    // `store_refused` lists it beside its `total`, reads it whole by its
+    // row id, and refuses an id the store holds none under
+    let listed = harness::document(&mcp.result("store_refused", json!({})));
+    assert_eq!(
+        (&listed["returned"], &listed["limit"], &listed["total"]),
+        (&json!(1), &json!(10), &json!(1)),
+        "{listed}"
+    );
+    assert!(listed["rows"][0]["body"].is_null(), "{listed}");
+    let id = listed["rows"][0]["id"].clone();
+    let one = harness::document(&mcp.result("store_refused", json!({ "id": id })));
+    assert_eq!(one["body"]["stash"]["id"], "t1", "{one}");
+    assert!(one["fetched_at_age"].is_string(), "{one}");
+    let doc = refusal(
+        &mut mcp,
+        "store_refused",
+        json!({ "id": 9999 }),
+        "refused_body_not_found",
+    );
+    assert!(
+        doc["error"].as_str().unwrap().contains("`store_refused`"),
+        "the tool's words, not the CLI's: {doc}"
+    );
 
     // An account no login made, on every tool that selects one: the
     // protocol's word for it (C121 as amended; #168, MCP call 56), the
@@ -77,6 +120,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         ("tabs", json!({})),
         ("characters", json!({})),
         ("store_status", json!({})),
+        ("store_refused", json!({})),
         ("item_events", json!({})),
         ("sync_policy", json!({})),
         (

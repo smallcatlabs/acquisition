@@ -122,9 +122,9 @@ made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
 directory whose `mock/` or `ggg/` holds the databases (`store` under
 the platform data dir when neither side sets it).
 
-It shares the store and the daemon with `acq`, and its 26 tools do
+It shares the store and the daemon with `acq`, and its 27 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
-`tabs`, `characters`, `item_events`, `store_status`, `accounts`,
+`tabs`, `characters`, `item_events`, `store_status`, `store_refused`, `accounts`,
 `leagues`),
 price items and render the shop (`price_status`, `price_list`,
 `price_show`, `price_set`, `price_clear`, `shop_render`,

@@ -198,6 +198,14 @@ One item as the search derives it, live or removed (no daemon): its place, its f
 - `body` (boolean | null) — Also return the body as the store holds it, verbatim.
 - `id` (string, required) — An item's id, whole, as an answer printed it.
 
+### `store_refused`
+
+Bodies the store refused as malformed, kept verbatim as evidence (no daemon): the newest ten, `limit` more or fewer, beside `returned`, `limit` and `total`, every body on record; `id`, a row's id from that list, reads that one body in full. `describe` with names ["store"] says what `refused_bodies` counts.
+
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name that is none of the accounts known is unknown_account (with none known, not_logged_in). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.
+- `id` (integer | null) — One refused body in full, by its row `id` from the list.
+- `limit` (integer | null) — With no `id`, the most rows listed, the newest first (default ten).
+
 ### `store_status`
 
 Store file path, size, and row counts (no daemon), and `facts`: how old the facts are over every realm and league, the oldest and newest fetch with their locations; `describe` with names ["store"] says what each count counts.

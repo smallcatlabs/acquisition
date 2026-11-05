@@ -735,21 +735,17 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
     let account = cx.account()?;
     let store = account.facts()?;
     if let Some(id) = id {
-        let Some(row) = store.refused(id)? else {
-            anyhow::bail!("no refused body with id {id} (see `acq store refused`)");
-        };
+        let now = acquisition_store::now();
+        let row = acquisition_verbs::RefusedBodies::one(&store, id, now)?;
         if json {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&row.aged(acquisition_store::now()))?
-            );
+            println!("{}", serde_json::to_string_pretty(&row)?);
         } else {
             println!(
                 "refused {}  {} {}  fetched {}  status {}",
                 row.id,
                 row.endpoint,
                 row.params,
-                ago(acquisition_store::now(), Some(row.fetched_at)),
+                ago(now, Some(row.fetched_at)),
                 row.status
             );
             println!("reason: {}", row.reason);

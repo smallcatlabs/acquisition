@@ -740,7 +740,7 @@ const DAEMON: [(&str, &str); 8] = [
 const STORE: [(&str, &str); 7] = [
     (
         "store counts",
-        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists, `refused_latest_at` when the newest was fetched and `refused_latest_at_age` that age in words. `facts` says how old the facts are over every realm and league the store holds, in the keys a search's `scope` names them by: `fetched` and `never_fetched` locations (by type and league), `folders`, the `oldest_fetch` and `newest_fetch` with their `_age` and `_location`, and `list_seen`, when the oldest location list was seen. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
+        "store_status: the store file's path, size and row counts. `leagues` counts every league id seen across every league fetch, a union that never retires one, and `league_list` says whether a list was ever fetched (`acq leagues` or a `leagues` job fetches it); `league_list_latest` is the latest fetch alone: its `count`, `fetched_at` and that age in words, null and `never` before one; characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` (`store_refused`) lists, `refused_latest_at` when the newest was fetched and `refused_latest_at_age` that age in words. `facts` says how old the facts are over every realm and league the store holds, in the keys a search's `scope` names them by: `fetched` and `never_fetched` locations (by type and league), `folders`, the `oldest_fetch` and `newest_fetch` with their `_age` and `_location`, and `list_seen`, when the oldest location list was seen. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
     ),
     (
         "tab counts",
@@ -860,6 +860,16 @@ struct ShowParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct StoreParams {
+    #[schemars(description = ACCOUNT)]
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct RefusedParams {
+    /// One refused body in full, by its row `id` from the list.
+    id: Option<i64>,
+    /// With no `id`, the most rows listed, the newest first (default ten).
+    limit: Option<usize>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1160,7 +1170,7 @@ const SPOKEN: [(&str, &str); 55] = [
     ("acq store status", "is `store_status`"),
     ("acq store events", "is `item_events`"),
     ("acq store characters", "is `characters`"),
-    ("acq store refused", "has no tool here: a person runs it"),
+    ("acq store refused", "is `store_refused`"),
     ("acq policy set", "is `set_sync_policy`"),
     ("acq policy", "is `sync_policy`"),
     ("acq refresh", "is `refresh_plan`, then `apply_plan`"),
@@ -1780,6 +1790,24 @@ impl AcqMcp {
                 )?)?
             } else {
                 serde_json::to_value(events)?
+            })
+        })
+    }
+
+    #[tool(
+        description = "Bodies the store refused as malformed, kept verbatim as evidence (no daemon): the newest ten, `limit` more or fewer, beside `returned`, `limit` and `total`, every body on record; `id`, a row's id from that list, reads that one body in full. `describe` with names [\"store\"] says what `refused_bodies` counts."
+    )]
+    fn store_refused(&self, Parameters(p): Parameters<Args<RefusedParams>>) -> Told {
+        use acquisition_verbs::RefusedBodies;
+        answer(|| -> Result<Value> {
+            let p = p.parse()?;
+            let store = self.facts(p.account.as_deref())?;
+            let now = acquisition_store::now();
+            Ok(match p.id {
+                Some(id) => serde_json::to_value(RefusedBodies::one(&store, id, now)?)?,
+                None => {
+                    serde_json::to_value(RefusedBodies::read(&store, p.limit.unwrap_or(10), now)?)?
+                }
             })
         })
     }

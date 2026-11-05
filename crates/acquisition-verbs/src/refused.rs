@@ -6,6 +6,7 @@
 //! store's own, their bodies left on disk; a redesign of what a row says
 //! (#18) is additive on this object.
 
+use acquisition_search::SearchError;
 use acquisition_store::{Refused, Store};
 use serde::Serialize;
 
@@ -37,5 +38,23 @@ impl RefusedBodies {
             total: store.refused_total()?,
             rows,
         })
+    }
+
+    /// One refused body in full, its fetch aged at `now` (C53), by the
+    /// row id the listing gave. An id the store holds no body under is
+    /// refused as `refused_body_not_found`, the kind `show` gives an id
+    /// it cannot find (`item_not_found`), in words a person at a terminal
+    /// and an agent both can follow (C143: the MCP speaks the command
+    /// as its tool).
+    pub fn one(store: &Store, id: i64, now: i64) -> anyhow::Result<Refused> {
+        match store.refused(id)? {
+            Some(row) => Ok(row.aged(now)),
+            None => Err(SearchError::Scope {
+                kind: "refused_body_not_found",
+                message: format!("no refused body with id {id} (see `acq store refused`)"),
+                offers: Vec::new(),
+            }
+            .into()),
+        }
     }
 }
