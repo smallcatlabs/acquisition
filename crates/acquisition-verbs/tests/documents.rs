@@ -127,7 +127,7 @@ fn a_faults_kind_and_fields_are_the_protocols_words() {
                 selector: "carol".into(),
                 known: vec![USER.into()],
             },
-            json!({ "kind": "not_logged_in", "accounts": [USER] }),
+            json!({ "kind": "unknown_account", "accounts": [USER] }),
         ),
         (
             Fault::AmbiguousAccount {
@@ -233,14 +233,14 @@ fn c53_an_account_row_says_its_last_login_as_an_age() {
 }
 
 #[test]
-fn a_selector_matching_none_is_not_logged_in_with_the_known() {
+fn a_selector_matching_none_is_unknown_account_with_the_known() {
     let s = scratch();
     login(&s.mock, USER, UUID);
     let fault = frontend(&s.mock).account(Some("carol")).unwrap_err();
     assert!(matches!(fault, Fault::UnknownAccount { .. }), "{fault}");
     assert_eq!(
         Value::Object(fault.fields()),
-        json!({ "kind": "not_logged_in", "accounts": [USER] })
+        json!({ "kind": "unknown_account", "accounts": [USER] })
     );
 }
 
@@ -1959,7 +1959,7 @@ fn every_refusal_is_one_shape_from_one_function() {
                 known: vec!["GERWARIC#7694".into()],
             }
             .into(),
-            "not_logged_in",
+            "unknown_account",
         ),
         (
             Fault::AmbiguousAccount {
@@ -2054,7 +2054,7 @@ fn every_refusal_is_one_shape_from_one_function() {
     );
 }
 
-/// C121 kept: a name no login made is `not_logged_in` with the names
+/// C121 kept: a name no login made is `unknown_account` with the names
 /// known, its words the two readings, and an offer per name: the request
 /// refused, sent again as that account; several to pick from, the same.
 #[test]

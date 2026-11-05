@@ -35,8 +35,8 @@ pub enum Fault {
     /// The index under `dir` knows no account at all. Kind
     /// `not_logged_in`, `accounts: []` (C121).
     NoAccounts { dir: PathBuf, provider: String },
-    /// The selector names no account the index holds. Kind
-    /// `not_logged_in`, `accounts` the names known (C121).
+    /// The selector names no account the index holds: a name no login
+    /// made. Kind `unknown_account`, `accounts` the names known (C121).
     UnknownAccount {
         selector: String,
         known: Vec<String>,
@@ -144,7 +144,8 @@ impl Fault {
             | Fault::Policy(_)
             | Fault::UnreadablePolicy { .. }
             | Fault::Other(_) => "refused",
-            Fault::NoAccounts { .. } | Fault::UnknownAccount { .. } => "not_logged_in",
+            Fault::NoAccounts { .. } => "not_logged_in",
+            Fault::UnknownAccount { .. } => "unknown_account",
             Fault::AmbiguousAccount { .. } => "ambiguous_account",
             Fault::Unopened(_) => "store",
             Fault::NoDaemon { .. } => "no_daemon",

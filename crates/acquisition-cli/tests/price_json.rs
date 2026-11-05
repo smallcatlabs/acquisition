@@ -1806,7 +1806,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
             "--league",
             "Allflame",
         ],
-        "not_logged_in",
+        "unknown_account",
     );
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
@@ -2016,7 +2016,7 @@ fn a_refused_command_is_repeated_from_its_parse_and_one_that_read_stdin_is_not()
     }
     let out = child.wait_with_output().unwrap();
     let doc = sole_json(&out);
-    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    assert_eq!(doc["kind"], "unknown_account", "{doc}");
     assert_eq!(doc["accounts"], json!([USER, "Bob#5678"]), "{doc}");
     assert!(
         doc.get("offers").is_none(),
@@ -2097,7 +2097,7 @@ fn a_request_read_whole_is_offered_as_itself_with_its_account_set() {
         let out = acq(&base, &args);
         assert!(!out.status.success(), "{args:?}");
         let doc = sole_json(&out);
-        assert_eq!(doc["kind"], "not_logged_in", "{args:?}: {doc}");
+        assert_eq!(doc["kind"], "unknown_account", "{args:?}: {doc}");
         let offers = doc["offers"].as_array().unwrap();
         assert_eq!(offers.len(), 2, "{args:?}: {doc}");
         let request = &offers[0]["request"];
@@ -2184,7 +2184,7 @@ fn a_route_offered_as_another_account_keeps_its_count_at_a_terminal() {
         &["--json", "search", "--request", file.to_str().unwrap()],
     );
     let doc = sole_json(&out);
-    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    assert_eq!(doc["kind"], "unknown_account", "{doc}");
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
     for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
@@ -2242,7 +2242,7 @@ fn a_continuation_offered_as_another_account_restarts_at_a_terminal() {
     let next: acquisition_search::Request = serde_json::from_value(next).unwrap();
     let token = next.token();
     let doc = sole_json(&acq(&base, &["--json", "search", "--next", &token]));
-    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    assert_eq!(doc["kind"], "unknown_account", "{doc}");
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
     for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
@@ -2290,7 +2290,7 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
             "--routes",
         ],
     ));
-    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    assert_eq!(doc["kind"], "unknown_account", "{doc}");
     let offer = &doc["offers"][0];
     assert_eq!(offer["request"]["count"], 12, "{offer}");
     assert_eq!(

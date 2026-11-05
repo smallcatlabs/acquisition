@@ -2,6 +2,7 @@
   "bad_request",
   "not_logged_in",
   "ambiguous_account",
+  "unknown_account",
   "unknown_job",
   "wrong_state",
   "refused",

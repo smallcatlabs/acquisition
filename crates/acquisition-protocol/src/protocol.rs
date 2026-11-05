@@ -250,12 +250,17 @@ pub enum ErrorKind {
     /// that has subscribed. The connection stays; nothing was done.
     BadRequest,
     /// No live session can serve the request: none at all, none for the
-    /// named account, or the account's grant is dead (no refresh token,
-    /// or one the provider rejected). The remedy is `acq auth`.
+    /// named account the account index holds, or the account's grant is
+    /// dead (no refresh token, or one the provider rejected). The remedy
+    /// is `acq auth`.
     NotLoggedIn,
     /// Several sessions are live and the request named none, or its
     /// selector matched more than one. The remedy is `--account`.
     AmbiguousAccount,
+    /// The selector names an account the account index never held: a
+    /// name no login made, a typo rather than a login to make (C121).
+    /// The remedy is a known name (`acq accounts`).
+    UnknownAccount,
     /// The id names no job this daemon holds or remembers.
     UnknownJob,
     /// The job exists but its state does not admit the request: a result
@@ -286,10 +291,11 @@ pub enum ErrorKind {
 
 impl ErrorKind {
     /// Every kind, in declaration order — the closed set the fixture pins.
-    pub const ALL: [ErrorKind; 9] = [
+    pub const ALL: [ErrorKind; 10] = [
         ErrorKind::BadRequest,
         ErrorKind::NotLoggedIn,
         ErrorKind::AmbiguousAccount,
+        ErrorKind::UnknownAccount,
         ErrorKind::UnknownJob,
         ErrorKind::WrongState,
         ErrorKind::Refused,
@@ -304,6 +310,7 @@ impl ErrorKind {
             ErrorKind::BadRequest => "bad_request",
             ErrorKind::NotLoggedIn => "not_logged_in",
             ErrorKind::AmbiguousAccount => "ambiguous_account",
+            ErrorKind::UnknownAccount => "unknown_account",
             ErrorKind::UnknownJob => "unknown_job",
             ErrorKind::WrongState => "wrong_state",
             ErrorKind::Refused => "refused",

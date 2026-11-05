@@ -428,9 +428,10 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |
+/// | `resolve_account`, `canonical_account` (submit, quote, auth check): a selector no live session matches that the account index never held (`unmatched`) | `no account matches … (see acq accounts)` | `unknown_account` |
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
-/// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
+/// | `resolve_account`: a selector with no session that the index holds, or with no index to tell by | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
 /// | `refuse_while_stopping` (submit, once the exit has begun, C133; and, through `restored`, auth, auth check, logout and quote, before and after their wait for the start's restore, C148) | `the daemon is stopping; try again in a moment` | `refused` |
 /// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit; `admit_realm` at the client's door too, before the account resolves) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
 /// | `admit_client_submitter` (a client's submit, C136) | `this submitted_by is reserved for the daemon's own work …` | `refused` |
@@ -447,7 +448,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `valid_access_token`: the refresh owner was dropped | `token refresh owner was abandoned …` | `internal` |
 /// | `logout`, forgetting a known account that is not live: no index (harness daemons), an unreadable index | `no account index …`, `accounts index: …` | `internal` |
 /// | `logout`, forgetting (C144): a keyring clear failed, or the index could not mark the account not persisted — each said, never an `ack` (a keyring turned off with the mark written is the `ack` whose `keyring` is `off`) | `forgot account … (not restored at start), but its keyring entry could not be cleared: …; … tries again`, `… but the keyring is off (…), so no keyring entry was cleared; …`, `… but the account index could not mark it not persisted (…), so a start may still try to restore it` | `internal` |
-/// | `logout`, forgetting: the index knows no such account / several | `no account matches …` / the index's message | `not_logged_in` / `ambiguous_account` |
+/// | `logout`, forgetting: the index knows no such account / no account at all / several | `no account matches …` / the index's message | `unknown_account` / `not_logged_in` / `ambiguous_account` |
 /// | `logout` (C144): after the session was dropped, a keyring clear failed, or the index could not mark the account not persisted — the answer, never an `ack` (as the forget's row) | `logged out … (session dropped, not restored at start), but …`, in the forget's words | `internal` |
 ///
 /// Not a kind of its own: a rails halt never refuses a submit — a halted
@@ -1656,32 +1657,35 @@ impl Daemon {
         kind: &str,
         requested: Option<&str>,
     ) -> Result<Option<String>, Refusal> {
-        let s = self.shared.lock().unwrap();
-        match requested {
-            Some(req) => match s.auth.matching(req)? {
-                Some(session) => Ok(session.username.clone()),
-                None if s.auth.by_account.is_empty() => Err(Refusal::new(
-                    ErrorKind::NotLoggedIn,
-                    format!(
-                        "account {}: not logged in — run `acq auth`",
-                        describe_str(req)
+        let held = {
+            let s = self.shared.lock().unwrap();
+            match requested {
+                Some(req) => match s.auth.matching(req)? {
+                    Some(session) => return Ok(session.username.clone()),
+                    None if s.auth.by_account.is_empty() => Refusal::new(
+                        ErrorKind::NotLoggedIn,
+                        format!(
+                            "account {}: not logged in — run `acq auth`",
+                            describe_str(req)
+                        ),
                     ),
-                )),
-                None => Err(Refusal::new(
-                    ErrorKind::NotLoggedIn,
-                    format!(
-                        "account {} is not logged in (live: {}); log in as it first",
-                        describe_str(req),
-                        s.auth.usernames().join(", ")
+                    None => Refusal::new(
+                        ErrorKind::NotLoggedIn,
+                        format!(
+                            "account {} is not logged in (live: {}); log in as it first",
+                            describe_str(req),
+                            s.auth.usernames().join(", ")
+                        ),
                     ),
-                )),
-            },
-            // A job that will need a token must not exist without an
-            // account: it would slip past the token-time check. With
-            // several sessions live, nothing is guessed.
-            None if !self.kind_needs_account(kind) => Ok(None),
-            None => s.auth.get(None).map(|session| session.username.clone()),
-        }
+                },
+                // A job that will need a token must not exist without an
+                // account: it would slip past the token-time check. With
+                // several sessions live, nothing is guessed.
+                None if !self.kind_needs_account(kind) => return Ok(None),
+                None => return s.auth.get(None).map(|session| session.username.clone()),
+            }
+        };
+        Err(self.unmatched(requested.unwrap_or_default(), held))
     }
 
     /// A client's selector (username, name without discriminator, or uuid)
@@ -1689,12 +1693,41 @@ impl Daemon {
     /// sole session, or a refusal downstream when several are live).
     fn canonical_account(&self, selector: Option<&str>) -> Result<Option<String>, Refusal> {
         let Some(sel) = selector else { return Ok(None) };
-        let s = self.shared.lock().unwrap();
-        s.auth
-            .matching(sel)?
-            .and_then(|x| x.username.clone())
+        let found = {
+            let s = self.shared.lock().unwrap();
+            s.auth.matching(sel)?.and_then(|x| x.username.clone())
+        };
+        found
             .map(Some)
-            .ok_or_else(|| no_session(sel))
+            .ok_or_else(|| self.unmatched(sel, no_session(sel)))
+    }
+
+    /// C121, the daemon alike (#168): the refusal of a selector no live
+    /// session matches. A name the account index never held is
+    /// `unknown_account`, a typo rather than a login to make, in the
+    /// forget's words; otherwise `held`, the site's own `not_logged_in`:
+    /// the index holds the account with no session live, holds none (no
+    /// account known), cannot be read, or this daemon keeps none. The
+    /// index is read on this refusal's path alone, outside `shared`.
+    fn unmatched(&self, selector: &str, held: Refusal) -> Refusal {
+        let never_held = self.store_dir.as_deref().is_some_and(|dir| {
+            Index::load(dir).is_ok_and(|index| {
+                matches!(
+                    index.resolve(Some(selector)),
+                    Err(acquisition_store::Resolve::NotFound(_))
+                )
+            })
+        });
+        match never_held {
+            true => Refusal::new(
+                ErrorKind::UnknownAccount,
+                format!(
+                    "no account matches {} (see `acq accounts`)",
+                    describe_str(selector)
+                ),
+            ),
+            false => held,
+        }
     }
 
     /// Every kind that sends with a token. `sleep` never sends; the mock's

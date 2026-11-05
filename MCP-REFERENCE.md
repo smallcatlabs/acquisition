@@ -18,7 +18,7 @@ Accounts this machine has logged into (from the store's non-secret index; no dae
 
 Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result. Ages in words: `describe` ["ages"].
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `max_requests` (integer | null) — Refuse at admission — before any child job exists — if the plan authorizes more logical requests than this.
 - `plan` (object, required) — The plan envelope exactly as refresh_plan returned it (the `plan` field). Re-validated here; a tampered or hand-built envelope will not parse.
 
@@ -32,7 +32,7 @@ Cancel a waiting or running job; cascades to its descendants.
 
 Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one), and when it was listed and fetched, each age in words beside its time. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. Fresh data is a `characters` or `character` job.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every character of the selection.
 - `league` (string | null) — Restrict to one league; omitted lists every league.
 - `limit` (integer | null) — List this many characters in place of ten, in the store's order.
@@ -54,7 +54,7 @@ What the tools answer and the language `search` takes (no store read). No names:
 
 Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — With `summary`, every location.
 - `hours` (number | null) — How far back to look (default 24 hours).
 - `limit` (integer | null) — The most events read, the newest first (default ten).
@@ -76,7 +76,7 @@ One job's state, ETA and retries. A waiting job with a large ETA is the rate lim
 
 The league list last fetched, read from the store with no daemon (`stored: true`): each league with its realm, `started_at` (the newest start first), `named` (whether the sync policy names it) and `held` (its tabs and characters on disk), ten, `expand` every one, `leagues_total` all of them; `policy` says whether one is set. Never fetched: `fetched_at` null and no leagues; a `leagues` job (submit_job) fetches the list. `describe` with names ["store"] says what each count counts.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every league of the list, not ten.
 - `stored` (boolean, required) — Must be true: this tool reads the league list last fetched, with no daemon. A `leagues` job (submit_job) fetches it anew.
 
@@ -90,7 +90,7 @@ Jobs the daemon lists, with states and ETAs, counted first over every job (`tota
 
 Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns the receipt — `target`, `written` null, `prior`, the row removed, `revision`, the one the clear left, and `undo`, the price_set that puts it back, a create naming no revision, sent as printed (or `no_undo`, why none); on a container's row, its items' counts after the clear, as price_set's.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `if_revision` (integer | null) — The revision of the target's own row this clear removes, as for price_set. Required: a clear without it is refused naming the current revision.
 - `target` (string, required) — The address, as for price_set.
 
@@ -98,7 +98,7 @@ Remove one target's own price row; what it covered falls back to the next row up
 
 The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names ["pricing"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `covered_by` (string | null) — Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too.
 - `effective` (string | null) — Only items whose price this side decides: game, manual, none or unresolved.
 - `expand` (boolean | null) — List every item of the selection.
@@ -113,7 +113,7 @@ The items of one league that are priced, each with both sides of its listing (no
 
 Set one target's price by hand: one row on an item, tab, substash or character, inherited by what it covers unless a nearer row says otherwise. Local: sends nothing, changes nothing in game. Over a row, `if_revision` names its revision; omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none), after a replace `clear`, `in_facts`, and for a container's row price_show's `items_here_counts` and `items_covered_below_counts` after the write; `describe` with names ["pricing"] gives the revision rule and the undo.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `amount` (string | null) — For exact and negotiable: a decimal of up to four places (`12.5`), or a `wanted/lot` ratio (`1/5`), as a string.
 - `currency` (string | null) — For exact and negotiable: a tag of reference_currency.
 - `if_revision` (integer | null) — The revision of the target's own row this write replaces: price_show's `listing.manual.revision`, when `listing.manual.from` is the target itself, or the revision a refusal names. Required when the target has a row of its own; omit it, or give 0, only to create one.
@@ -124,7 +124,7 @@ Set one target's price by hand: one row on an item, tab, substash or character, 
 
 One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside their readings — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names ["pricing"]; ages, ["ages"]). Read it before price_set or price_clear on a target with its own row, whose revision they name.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every item of both sets.
 - `league` (string | null) — The league to read the target in. With neither `league` nor `realm`, the realm and league the facts hold the target in, so an address an answer printed reads back as printed; held in several, it is refused with one request per place.
 - `limit` (integer | null) — List this many of each item set in place of ten, the first in listing order.
@@ -135,7 +135,7 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 
 The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves, and in `facts` how old the facts are: the report's non-folder containers, the locations the facts were read from; `leagues_held`, the realm's other leagues on disk (`describe` ["store"]); `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every row of `rows.unmatched`, `rows.unreadable` and `rows.other_league`, past the first ten.
 - `league` (string | null) — The league; Standard when omitted.
 - `realm` (string | null) — pc (the default), xbox, sony or poe2.
@@ -150,7 +150,7 @@ The currency table this build ships (no store, no daemon): every row — `tag`, 
 
 Compile a refresh plan for one realm and league offline, sending nothing: from the stored sync policy, or from an explicit `selection`, which needs none. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why none). A policy plan's `notes` names a league the fetched list lacks or a covered league with no character listed; `uncovered_tabs`, the league's tabs outside the policy. Review it, then hand `plan` to apply_plan. Its ages: `describe` ["ages"].
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `league` (string | null) — League name; defaults to "Standard".
 - `realm` (string | null) — Realm: pc (default), xbox, sony, or poe2 (a poe2 plan can carry character work only).
 - `selection` (object) — An explicit selection, compiled in place of the stored policy: {"tabs": "all" or [tab ids], "characters": [character ids], "deep": true to fetch a named map or unique tab's pages on record with it}, any of them left out; ids as `tabs` and `characters` list them.
@@ -172,7 +172,7 @@ Item search over the store (no daemon): a query in the language `describe` print
 
 Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it) and its age in words (`describe` ["ages"]). Nothing refuses on a note.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `if_revision` (integer | null) — The revision this write replaces, from sync_policy: required when a policy exists, `replace` or not; omitted, or 0, only to create the first.
 - `replace` (boolean | null) — true writes the whole policy: every realm `value` does not name is removed. Default false: the realms `value` names, the rest kept.
 - `value` (object, required) — The policy, e.g. {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}: per league `tabs` and/or `characters`, "all" or an id list; a realm named with no leagues is removed. Validated strictly, landing whole or not at all.
@@ -181,7 +181,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste; with `page`, that page's fields instead), `posted`, `left_out`, `counts`, `policy` and `freshness`: whether the sync policy covers the posted items, never enforced, and in `facts` how old their locations' facts are. `describe` with names ["pricing"] says what each count counts, ["store"] what `leagues_held` holds, ["ages"] ages.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
 - `league` (string | null) — The league; Standard when omitted.
 - `page` (integer | null) — One page, by its number from 1: that page's fields, and beside them every key of the whole render but `pages`.
@@ -193,7 +193,7 @@ The forum shop pages for one league, for a person to paste by hand; this server 
 
 One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names ["answer"]). Each age is in words beside its time (`describe` with names ["ages"]).
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `against` (object) — Why the item does or does not match a query: `{"text": …}`, `{"tree": …}` or `{"trade": …}`, as a request's `query`.
 - `body` (boolean | null) — Also return the body as the store holds it, verbatim.
 - `id` (string, required) — An item's id, whole, as an answer printed it.
@@ -202,13 +202,13 @@ One item as the search derives it, live or removed (no daemon): its place, its f
 
 Store file path, size, and row counts (no daemon), and `facts`: how old the facts are over every realm and league, the oldest and newest fetch with their locations; `describe` with names ["store"] says what each count counts.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 
 ### `submit_job`
 
 Submit a job to the daemon and return its id at once; poll job_status, then job_result. A stash job for a tab the account's stored listing of its realm and league does not name is refused, nothing sent. `describe` with names ["daemon"] says what the job tools answer.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `kind` (string, required) — Job kind, one a client may submit: profile, characters, character, leagues, stashes, stash, apply, sleep, fetch, whoami. sleep, fetch, whoami run against the mock daemon alone and are refused in real mode. apply_plan sends a reviewed plan, with the checks an apply here skips.
 - `params` (object) — Kind-specific params, e.g. {"league": "Standard", "id": "..."} for stash. Passed verbatim; visible to every connected client.
 - `priority` (integer | null) — Higher runs sooner (default 0).
@@ -217,14 +217,14 @@ Submit a job to the daemon and return its id at once; poll job_status, then job_
 
 The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set; `leagues_held`, each realm's leagues on disk with `named` where the policy names them, ten a realm, `expand` all (`describe` ["store"]). Each age is in words beside its time (`describe` with names ["ages"]).
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every league on disk in `leagues_held`, not ten a realm.
 
 ### `tabs`
 
 The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it, and the league's `oldest_fetch`, `newest_fetch` and `list_seen`; `type` and `never_fetched` select the tabs listed; `leagues_held`, the realm's other leagues on disk. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
 
-- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.
 - `expand` (boolean | null) — List every tab of the league, or of the selection.
 - `league` (string | null) — League name; defaults to "Standard".
 - `limit` (integer | null) — List this many tabs in place of ten: the most items first where some are left out, else in the listing's order.

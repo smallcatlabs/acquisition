@@ -1093,6 +1093,61 @@ fn submit_resolves_the_account_against_the_live_session() {
     finish_harness(None, &log_path);
 }
 
+/// C121, the daemon alike (#168): a selector no live session matches is
+/// `unknown_account` when the account index never held it — a typo, not
+/// a login to make — and `not_logged_in` when the index holds it with
+/// no session live, or the daemon has no index to tell by. The submit
+/// (`resolve_account`), the quote and the auth check
+/// (`canonical_account`) and a logout's forget judge alike; a live
+/// session still resolves.
+#[test]
+fn c121_a_name_the_index_never_held_is_unknown_account_and_a_held_one_not_logged_in() {
+    let store_dir = TestPath::dir();
+    Index::load(&store_dir)
+        .unwrap()
+        .record_login("Held#1", "u-held", false, 1, &[])
+        .unwrap();
+    let (daemon, _, log_path) = session_daemon(BASE, refused(), Some(&store_dir), true);
+    for (selector, kind) in [
+        ("Held#1", ErrorKind::NotLoggedIn),
+        ("held", ErrorKind::NotLoggedIn),
+        ("u-held", ErrorKind::NotLoggedIn),
+        ("Typo#1", ErrorKind::UnknownAccount),
+    ] {
+        let submit = daemon
+            .resolve_account("characters", Some(selector))
+            .unwrap_err();
+        assert_eq!(submit.kind, kind, "submit as {selector}: {submit}");
+        let check = daemon.canonical_account(Some(selector)).unwrap_err();
+        assert_eq!(check.kind, kind, "auth check as {selector}: {check}");
+        let quote = daemon
+            .quote(
+                &[QuoteJob {
+                    kind: "characters".into(),
+                    params: serde_json::json!({}),
+                }],
+                Some(selector),
+            )
+            .unwrap_err();
+        assert_eq!(quote.kind, kind, "quote as {selector}: {quote}");
+    }
+    let forget = daemon.logout(Some("Typo#1")).unwrap_err();
+    assert_eq!(forget.kind, ErrorKind::UnknownAccount, "{forget}");
+    assert_eq!(
+        daemon.resolve_account("characters", Some("old-user")),
+        Ok(Some("old-user".into()))
+    );
+    finish_harness(None, &log_path);
+
+    // no index to tell by: a selector with no session is not logged in
+    let (daemon, _, log_path) = session_daemon(BASE, refused(), None, true);
+    let err = daemon
+        .resolve_account("characters", Some("Typo#1"))
+        .unwrap_err();
+    assert_eq!(err.kind, ErrorKind::NotLoggedIn, "{err}");
+    finish_harness(None, &log_path);
+}
+
 /// A job's token is its own account's, and none once that account has
 /// logged out. A component test: fabricated live tokens, their expiries
 /// from the clock's wall, read through `valid_access_token`.

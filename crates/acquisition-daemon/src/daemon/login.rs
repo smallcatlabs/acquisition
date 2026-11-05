@@ -644,9 +644,10 @@ impl Daemon {
                 acquisition_store::Resolve::Ambiguous(_) => {
                     Refusal::new(ErrorKind::AmbiguousAccount, e.to_string())
                 }
-                // The index's own words quote the selector whole (C127).
+                // The index's own words quote the selector whole (C127);
+                // a name it never held is no login to make (C121).
                 acquisition_store::Resolve::NotFound(selector) => Refusal::new(
-                    ErrorKind::NotLoggedIn,
+                    ErrorKind::UnknownAccount,
                     format!(
                         "no account matches {} (see `acq accounts`)",
                         describe_str(&selector)

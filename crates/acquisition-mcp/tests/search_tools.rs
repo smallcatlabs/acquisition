@@ -578,6 +578,14 @@ fn the_requests_account_selects_the_store() {
     let (shown, refused) = seat.call("show", &json!({ "id": "bob1", "account": "u-bob" }));
     assert!(!refused, "{shown}");
     assert_eq!(shown["item"]["facts"]["id"], "bob1");
+    // a name no login made is its own kind (C121 as amended), on the
+    // search's scope and on `show` alike
+    let (typo, refused) = seat.call("search", &json!({ "scope": { "account": "carol" } }));
+    assert!(refused, "{typo}");
+    assert_eq!(typo["kind"], "unknown_account", "{typo}");
+    let (typo, refused) = seat.call("show", &json!({ "id": "bob1", "account": "carol" }));
+    assert!(refused, "{typo}");
+    assert_eq!(typo["kind"], "unknown_account", "{typo}");
 }
 
 /// C98 through one server (#82): the corpus is held across calls and

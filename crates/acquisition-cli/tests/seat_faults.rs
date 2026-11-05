@@ -405,6 +405,34 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         }
     }
     golden(file!(), "account_to_pick_every_path", &t);
+
+    // the three kinds told apart (C121 as amended; #168, CLI run 1 call
+    // 103): a name no login made is `unknown_account`, on a store verb
+    // and on a job verb with a daemon up; an account the index holds
+    // with no session is the daemon's `not_logged_in`; and so is no
+    // account known at all
+    let (_daemon, _pid) = start_daemon(&base);
+    for (args, kind) in [
+        (
+            vec!["--account", "Missing", "--json", "store", "status"],
+            "unknown_account",
+        ),
+        (
+            vec!["--account", "Missing", "--json", "profile"],
+            "unknown_account",
+        ),
+        (
+            vec!["--account", "Bob#5678", "--json", "profile"],
+            "not_logged_in",
+        ),
+    ] {
+        let out = acq(&base, &args);
+        assert_eq!(out.status.code(), Some(1), "{args:?}: {out:?}");
+        assert_eq!(sole_json(&out)["kind"], kind, "{args:?}: {}", text(&out));
+    }
+    let none = harness::scratch("seat-account-none");
+    let out = sole_json(&acq(&none.0, &["--json", "tabs"]));
+    assert_eq!(out["kind"], "not_logged_in", "{out}");
 }
 
 fn stdout(out: &std::process::Output) -> String {

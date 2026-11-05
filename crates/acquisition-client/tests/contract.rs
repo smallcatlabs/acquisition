@@ -1195,7 +1195,7 @@ async fn c127_a_refusal_quoting_a_huge_client_value_fits_the_response_frame() {
         (
             "a logout of an account nobody knows",
             json!({ "req": "auth_logout", "account": huge }),
-            ErrorKind::NotLoggedIn,
+            ErrorKind::UnknownAccount,
             vec!["no account matches", "(a string of", &huge_len],
         ),
     ];

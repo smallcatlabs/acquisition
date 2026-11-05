@@ -70,8 +70,9 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     seed(&base);
     let mut mcp = Mcp::start(&base, &[]);
 
-    // An account no store knows, on every tool that selects one: the
-    // protocol's word for it (C121), the known names as accounts.
+    // An account no login made, on every tool that selects one: the
+    // protocol's word for it (C121 as amended; #168, MCP call 56), the
+    // known names as accounts.
     for (tool, mut args) in [
         ("tabs", json!({})),
         ("characters", json!({})),
@@ -85,7 +86,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         ("refresh_plan", json!({})),
     ] {
         args["account"] = json!("GERWARIK");
-        let doc = refusal(&mut mcp, tool, args, "not_logged_in");
+        let doc = refusal(&mut mcp, tool, args, "unknown_account");
         assert_eq!(doc["accounts"], json!([USER]), "{tool}: {doc}");
     }
 
@@ -164,6 +165,15 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     let error = mcp.expect_rpc_error("job_status", json!({ "id": 999 }));
     assert_eq!(error["data"]["kind"], "unknown_job", "{error}");
     assert_eq!(error["message"], "no job 999", "{error}");
+    // the daemon tells the account kinds apart alike (C121 as amended): a
+    // name no login made, and an account the index holds with no session
+    for (account, kind) in [("GERWARIK", "unknown_account"), (USER, "not_logged_in")] {
+        let error = mcp.expect_rpc_error(
+            "submit_job",
+            json!({ "kind": "profile", "account": account }),
+        );
+        assert_eq!(error["data"]["kind"], kind, "{account}: {error}");
+    }
 }
 
 /// C127 (one list of the kinds a client may submit): `submit_job`'s
@@ -420,9 +430,9 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
         harness::document(&result)
     };
 
-    // a typo'd account: the same call as each name, the kind kept (C121)
+    // a typo'd account: the same call as each name, its own kind (C121)
     let asked = json!({ "account": "Alicia#1234", "realm": "xbox", "league": "Allflame" });
-    let doc = refusal(&mut mcp, "tabs", asked.clone(), "not_logged_in");
+    let doc = refusal(&mut mcp, "tabs", asked.clone(), "unknown_account");
     assert_eq!(doc["accounts"], json!([USER, "Bob#5678"]), "{doc}");
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
@@ -439,7 +449,7 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
         &mut mcp,
         "search",
         json!({ "scope": { "account": "Alicia" }, "query": { "text": "class:currency" } }),
-        "not_logged_in",
+        "unknown_account",
     );
     let offer = &doc["offers"][0];
     assert_eq!(offer["request"]["scope"]["account"], USER, "{doc}");
@@ -515,7 +525,7 @@ fn a_search_offered_again_as_another_account_keeps_its_route() {
         "request": { "scope": { "account": "Alicia", "realm": "xbox" }, "query": { "text": "" } },
         "count": 12,
     });
-    let doc = refusal(&mut mcp, "search", sent.clone(), "not_logged_in");
+    let doc = refusal(&mut mcp, "search", sent.clone(), "unknown_account");
     let offer = &doc["offers"][0];
     let mut expected = sent.clone();
     expected["request"]["scope"]["account"] = json!(USER);
@@ -589,7 +599,7 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
     let mut next = harness::document(&first)["view"]["rows"]["next"].clone();
     assert!(next.is_object(), "no continuation: {first}");
     next["request"]["scope"]["account"] = json!("Alicia");
-    let doc = refusal(&mut mcp, "search", next, "not_logged_in");
+    let doc = refusal(&mut mcp, "search", next, "unknown_account");
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
     for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {

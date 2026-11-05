@@ -221,7 +221,8 @@ impl Frontend {
     /// selector names — an exact username, a name without its
     /// discriminator, or a uuid, else a name the account holds for its
     /// keyring, whole ([`Index::resolve`]) — or the sole one known.
-    /// Refused as `not_logged_in` or `ambiguous_account`, each with the
+    /// Refused as `not_logged_in` (none known), `unknown_account` (a
+    /// name the index never held) or `ambiguous_account`, each with the
     /// accounts.
     pub fn account(&self, selector: Option<&str>) -> Result<Account, Fault> {
         let index = self.index()?;

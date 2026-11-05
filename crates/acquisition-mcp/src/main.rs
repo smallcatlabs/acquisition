@@ -93,10 +93,11 @@
 //!
 //! An account that cannot be picked is refused in the protocol's words
 //! (C121): `not_logged_in` when no account's store is found (naming the
-//! directory looked in) or the selector names none, `ambiguous_account`
-//! when it names several or none among several, each with `accounts`,
-//! the names known or to pick from. Arguments a tool does not take are
-//! this adapter's own refusal (`arguments`).
+//! directory looked in), `unknown_account` when the selector names none
+//! the index ever held, `ambiguous_account` when it names several or
+//! none among several, each with `accounts`, the names known or to pick
+//! from. Arguments a tool does not take are this adapter's own refusal
+//! (`arguments`).
 //!
 //! Pinned by `tests/search_tools.rs`: AQ1–AQ5 through the tools over a
 //! fixture, each answer and each of the search crate's refusals held
@@ -474,9 +475,10 @@ fn daemon_error(kind: ErrorKind, message: String) -> ErrorData {
     let data = Some(json!({ "kind": kind }));
     match kind {
         ErrorKind::BadRequest => ErrorData::invalid_request(message, data),
-        ErrorKind::Refused | ErrorKind::AmbiguousAccount | ErrorKind::WrongState => {
-            ErrorData::invalid_params(message, data)
-        }
+        ErrorKind::Refused
+        | ErrorKind::AmbiguousAccount
+        | ErrorKind::UnknownAccount
+        | ErrorKind::WrongState => ErrorData::invalid_params(message, data),
         ErrorKind::UnknownJob => ErrorData::resource_not_found(message, data),
         ErrorKind::NotLoggedIn
         | ErrorKind::QueueFailed
@@ -585,7 +587,7 @@ fn realm_param(realm: Option<&str>) -> Result<Realm> {
 }
 
 /// Every tool's `account`, one sentence (#83: undescribed on seven).
-const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known.";
+const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.";
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct TabsParams {
@@ -686,7 +688,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "jobs",
-        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes. A stash job for a tab the account's stored listing of its realm and league does not name, or names as gone, is refused at submit, the listing's age said and nothing sent; a `stashes` job fetches the listing again. With none of that league stored it is admitted",
+        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes. A stash job for a tab the account's stored listing of its realm and league does not name, or names as gone, is refused at submit, the listing's age said and nothing sent; a `stashes` job fetches the listing again. With none of that league stored it is admitted. An `account` no login made is refused as unknown_account, one with no session live as not_logged_in",
     ),
     (
         "no daemon",
