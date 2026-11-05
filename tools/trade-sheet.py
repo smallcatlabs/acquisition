@@ -2346,6 +2346,169 @@ def round_x(earlier):
     return rows
 
 
+def round_y(earlier):
+    """y01–y06 a range whose minimum is above its maximum, in each shape a
+    query carries one (#150); y07–y08 which `#` of a text of four the site
+    compares (`stat.text.many`); y09–y12 the three percentile lines and S4
+    round v did not reach; y13 Maven's Invitations from sellers online;
+    y14–y16 a scourge line in a weighted sum (`scourge-in-sum`); y17–y19 a
+    blighted map's base (`blighted-base`); y20–y21 the twin id the site
+    leaves out of four totals (#34). Composed 2026-11-04 for the questions of
+    #33, #34 and #150, each search's answers stated in its `decides`."""
+    composed = Composed("y", 2, earlier)
+    add = composed.add
+
+    def stat(i, value=None, weight=None):
+        out = {"id": i, "disabled": False}
+        if value is not None or weight is not None:
+            out["value"] = {**(value or {}), **({"weight": weight} if weight is not None else {})}
+        return out
+
+    # 1. A range whose minimum is above its maximum (#150: the generator draws `min: 0, max: -1` and
+    # `min: 5, max: 0`, printed `=5..0` and refused by the reader). Each inverted pair beside its pair in order:
+    # the site refuses it, finds nothing, finds what the pair in order finds, or keeps one bound, the ten fetched
+    # saying which.
+    life = "explicit.stat_3299347043"  # `+# to maximum Life`
+    inverted = ("Refused: the translator refuses the pair, naming it. None, {pair} finding items: the clause matches "
+                "nothing. As many as {pair}, the ten between the two: the site swaps the pair. Otherwise the ten "
+                "say which bound it kept")
+    add("an inverted range on a stat filter: `+# to maximum Life` at `min` 80 `max` 60. " + inverted.format(pair="y02"),
+        "y02, the pair in order", batch_query([{"type": "and", "filters": [stat(life, {"min": 80, "max": 60})]}]))
+    add("the pair in order: `+# to maximum Life` at `min` 60 `max` 80, y01's control",
+        "the control: must find items", batch_query([{"type": "and", "filters": [stat(life, {"min": 60, "max": 80})]}]))
+
+    def ilvl(value):
+        return batch_query([], {"misc_filters": {"disabled": False, "filters": {"ilvl": value}}})
+
+    add("an inverted range on a property filter: `misc_filters.ilvl` at `min` 80 `max` 70. "
+        + inverted.format(pair="y04"), "y04, the pair in order", ilvl({"min": 80, "max": 70}))
+    add("the pair in order: `misc_filters.ilvl` at `min` 70 `max` 80, y03's control",
+        "the control: must find items", ilvl({"min": 70, "max": 80}))
+    resistances = (site_ids("#% to Fire Resistance", "explicit") + site_ids("#% to Cold Resistance", "explicit")
+                   + site_ids("#% to Lightning Resistance", "explicit"))
+    if len(resistances) != 3:
+        raise SystemExit(f"the three resistances name {len(resistances)} explicit ids, not 3")
+    add("an inverted range on a group's value: a `count` of the explicit fire, cold and lightning resistances at "
+        "`min` 2 `max` 1. " + inverted.format(pair="y06"),
+        "y06, the pair in order", batch_query([group("count", resistances, {"min": 2, "max": 1})]))
+    add("the pair in order: the same `count` at `min` 1 `max` 2, y05's control",
+        "the control: must find items", batch_query([group("count", resistances, {"min": 1, "max": 2})]))
+
+    # 2. Which `#` of a text of four the site compares (`stat.text.many`, the first until asked): the heist
+    # weapon's `# to # added Fire Damage\nPlayers and their Minions have # to # added Fire Damage`, its two pairs
+    # alike (u029: `16 to 23`, `16 to 22`, `20 to 22`). At 19, the ten fetched part the readings: every pair's
+    # average 19 (16 to 22, 17 to 21), or every first number 19. The pairs being alike, the first pair's average
+    # and the four's are one number here.
+    fire = "explicit.stat_190652296"
+    add("which `#` of four is compared: the heist weapon's added Fire Damage line at `min` 19 `max` 19. The ten "
+        "fetched: every pair averaging 19, the site compares the average, as a `# to #` line's; every first number "
+        "19, the first; neither, another number. None, y08 finding items: no number of the line is 19 on any listed",
+        "y08, the line with no bound", batch_query([{"type": "and", "filters": [stat(fire, {"min": 19, "max": 19})]}]))
+    add("the line with no bound, y07's control: the ten fetched show the line's numbers",
+        "u029 found it on heist weapons", batch_query([{"type": "and", "filters": [stat(fire)]}]))
+
+    # 3. The percentile's three lines and S4 round v did not reach (percentile-expected-copy.csv, `asked` "no";
+    # v051, v055 fetched none in the cell). Each narrowed to where the copy's own items carry it, read from the
+    # copy on 2026-11-04 and written out here: a crafted `+# to Armour` on a base ranging no armour (Crusader
+    # Buckler, Hubris Circlet, Lion Pelt, Slink Gloves; Lion Pelt asked), a crucible `+# to Armour` (El'Abin's
+    # Visage, a Fencer Helm), a mutated `+# to Armour` (Foulborn Bramblejack, a Plate Vest). S4, a display more
+    # than one roll gives, comes of a reduced local defence (the script's own case: `1% reduced Armour`).
+    def percentile_marks(mark, **more):
+        marks = dict(PERCENTILE_MARKS[mark])
+        marks.update({k: {"option": v} for k, v in more.items()})
+        return {**category("armour"), "misc_filters": {"disabled": False, "filters": marks}}
+
+    read = "read by scripts/percentile-expected.py over the captures, cell by cell; a found item is its own evidence"
+    crafted = site_ids("# to Armour", "crafted") + site_ids("# to Armour (Local)", "crafted")
+    add(f"the percentile ({PERCENTILE_COPY}): does the site show the reading's value of an item whose crafted "
+        f"`+# to Armour` is of a type its base ranges none of? Lion Pelt, of evasion alone, mark `neither`; the "
+        f"ten fetched carry the line ({len(crafted)} ids, a count) and the site's `base_defence_percentile`",
+        read, batch_query([group("count", crafted, {"min": 1})], percentile_marks("neither"), "Lion Pelt"))
+    nodes = crucible_nodes("+# to Armour")
+    if not nodes or len(nodes) > COUNT_AT_MOST:
+        raise SystemExit(f"the crucible `+# to Armour` names {len(nodes)} nodes")
+    add(f"the percentile ({PERCENTILE_COPY}): does the site show the reading's value of an item whose `+# to Armour` "
+        f"sits in `crucibleMods`, the node's line the item's own, as t54's was? The ten fetched carry a node "
+        f"({len(nodes)} ids, a count) and the site's `base_defence_percentile`",
+        read, batch_query([group("count", nodes, {"min": 1})], category("armour")))
+    flat = site_ids("# to Armour", "explicit") + site_ids("# to Armour (Local)", "explicit")
+    add(f"the percentile ({PERCENTILE_COPY}): does the site show the reading's value of an item whose explicit "
+        f"`+# to Armour` is the line (mutated), mark `neither`? A mutated Plate Vest, the copy's Foulborn "
+        f"Bramblejack; the ten fetched carry the line ({len(flat)} ids, a count) and the site's "
+        f"`base_defence_percentile`",
+        read, batch_query([group("count", flat, {"min": 1})], percentile_marks("neither", mutated="true"),
+                          "Plate Vest"))
+    reduced = (site_ids("#% increased Armour (Local)", "explicit")
+               + site_ids("#% increased Evasion Rating (Local)", "explicit")
+               + site_ids("#% increased Energy Shield (Local)", "explicit"))
+    if len(reduced) != 3:
+        raise SystemExit(f"the three local defences name {len(reduced)} explicit ids, not 3")
+    add(f"the percentile ({PERCENTILE_COPY}), S4: does the site show the reading's value of an item whose display "
+        "more than one roll gives? Armour with a local Armour, Evasion or Energy Shield line read below nothing (a "
+        "`reduced` line, the site's `max` -1), each with the site's `base_defence_percentile`; whether any is S4 is "
+        "the script's to say",
+        read, batch_query([{"type": "count", "filters": [stat(i, {"max": -1}) for i in reduced],
+                            "value": {"min": 1}}], category("armour")))
+
+    # 4. Maven's Invitations: Standard listed 4,811 and sent a null for every listing (u025, v092, v093, each with
+    # status `any`); Allflame listed none (x12). From sellers online alone.
+    online = batch_query([], category("map.invitation"))
+    online["status"] = {"option": "online"}
+    add("coverage, `type_filters.category=map.invitation` from sellers online: items sent, the oracle reads the leaf's "
+        "first; nulls again, the site lists invitations and sends no item of them",
+        "u025, the same with status `any`, listed 4,811 and sent nulls", online)
+
+    # 5. A scourge line in a weighted sum (`scourge-in-sum`: e043 and f005, crafted `+28%` and scourge `-28%`, the
+    # site's sum 28). t22 found a scourge id alone read in a `weight2`; what is open is the sum of both lines.
+    res = "stat_3372524247"  # `+#% to Fire Resistance`
+    both = [stat(f"crafted.{res}", {"min": 1}), stat(f"scourge.{res}", {"max": -1})]
+
+    def summed(value):
+        return batch_query([{"type": "and", "filters": both},
+                            {"type": "weight2", "filters": [stat(f"crafted.{res}", weight=1),
+                                                            stat(f"scourge.{res}", weight=1)], "value": value}])
+
+    add("scourge-in-sum, the control: an item with a crafted Fire Resistance of 1 or more and a scourge one below "
+        "nothing; the ten fetched show both numbers", "the control: must find items",
+        batch_query([{"type": "and", "filters": both}]))
+    add("scourge-in-sum: y14 and the weighted sum of its two lines at `max` 0. Found, every one's crafted number no "
+        "more than its scourge downside: the sum counts the scourge line. None, y16 as many as y14: it leaves it out",
+        "y14", summed({"max": 0}))
+    add("scourge-in-sum: y14 and the weighted sum at `min` 1. As many as y14: the sum is the crafted line alone, the "
+        "scourge line left out; fewer, y15 finding the rest: it counts it",
+        "y14", summed({"min": 1}))
+
+    # 6. A blighted map's base (`blighted-base`): t55 found `Blighted Map (Tier 13)` under `Map (Tier 13)`. Asked under
+    # its own name, and a Blight-ravaged map under the bare base and its own (x01: 7,983, the seat's at tiers 14–16).
+    add("blighted-base: `type` `Blighted Map (Tier 13)`. Found: the site's Base takes the prefixed name too; none, "
+        "t55 finding them under `Map (Tier 13)`: the Base is the unprefixed base alone",
+        "t55", batch_query([], None, "Blighted Map (Tier 13)"))
+    add("blighted-base: `type` `Map (Tier 16)` with `map_uberblighted` `true`. Found: the Base reads a Blight-ravaged "
+        "map by its unprefixed base; none, y19 finding them: by its own name alone",
+        "y19, or x01's ten", batch_query([], {"map_filters": {"disabled": False, "filters": {
+            "map_uberblighted": {"option": "true"}}}}, "Map (Tier 16)"))
+    add("blighted-base: `type` `Blight-ravaged Map (Tier 16)`. Found: the prefixed name is a Base; none, y18 finding "
+        "them: the unprefixed base alone",
+        "y18, or x01's ten", batch_query([], None, "Blight-ravaged Map (Tier 16)"))
+
+    # 7. The twin id the site leaves out of total life, Strength, Intelligence and mana (#34; c3, b1, b2, reported
+    # to GGG 2026-09-26). One `not` over the four: found, nothing changed; none, a repair the same day asks each.
+    twin = "explicit.stat_2543977012"
+    totals = ["pseudo.pseudo_total_life", "pseudo.pseudo_total_strength", "pseudo.pseudo_total_intelligence",
+              "pseudo.pseudo_total_mana"]
+    add("the twin: `+# to Strength and Intelligence` under the id That Which Was Taken carries, with total life, "
+        "Strength, Intelligence and mana in a `not`. Found: the site still leaves it out of all four; none, y21 "
+        "finding the jewels: it counts it in one at least, and a repair asks each",
+        "y21, the twin alone", batch_query([group("and", [twin]), group("not", totals)], category("jewel")))
+    add("the twin alone on a jewel, y20's control (b2's search under a category, so asked again)",
+        "b2 found the jewels", batch_query([group("and", [twin])], category("jewel")))
+    rows = composed.done()
+    # every name above is written out: the round is its length
+    if len(rows) != 21:
+        raise SystemExit(f"round y has {len(rows)} searches, its names written for 21")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2385,6 +2548,7 @@ def compose_sheet(method="site"):
         searches += round_v(searches)
         searches += round_w(searches)
         searches += round_x(searches)
+        searches += round_y(searches)
     return searches
 
 
@@ -2530,7 +2694,7 @@ def main():
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("trade" if s.startswith(("t", "u", "w", "x"))
+        kind = ("trade" if s.startswith(("t", "u", "w", "x", "y"))
                 else "park" if s.startswith("v")
                 else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))
