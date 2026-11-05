@@ -626,7 +626,7 @@ async fn tabs(
                 let tab = &group.tab;
                 // a checkbox stands only where a selection can name the
                 // tab: never on a folder, which holds tabs and no items
-                let tick = if tab.r#type == "Folder" {
+                let tick = if acquisition_store::is_folder_type(&tab.r#type) {
                     said("a folder holds tabs, not items: tick the tabs in it")
                 } else {
                     format!(

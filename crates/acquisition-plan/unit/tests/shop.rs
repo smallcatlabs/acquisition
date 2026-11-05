@@ -952,13 +952,17 @@ fn t24_stash_numbers_match_the_websites_own_list() {
                 item_count: 0,
             })
             .collect();
-        let folders: usize = tabs.iter().filter(|t| t.r#type == FOLDER).count();
+        let folders: usize = tabs
+            .iter()
+            .filter(|t| t.r#type == acquisition_store::FOLDER_TAB_TYPE)
+            .count();
         let substashes: usize = tabs
             .iter()
             .filter(|t| {
-                t.parent
-                    .as_deref()
-                    .is_some_and(|p| tabs.iter().any(|q| q.id == p && q.r#type != FOLDER))
+                t.parent.as_deref().is_some_and(|p| {
+                    tabs.iter()
+                        .any(|q| q.id == p && q.r#type != acquisition_store::FOLDER_TAB_TYPE)
+                })
             })
             .count();
         let mut snap = snapshot();
@@ -989,10 +993,12 @@ fn t24_stash_numbers_match_the_websites_own_list() {
             );
         }
         for t in &snap.tabs {
-            if t.r#type == FOLDER
-                || t.parent
-                    .as_deref()
-                    .is_some_and(|p| snap.tabs.iter().any(|q| q.id == p && q.r#type != FOLDER))
+            if t.r#type == acquisition_store::FOLDER_TAB_TYPE
+                || t.parent.as_deref().is_some_and(|p| {
+                    snap.tabs
+                        .iter()
+                        .any(|q| q.id == p && q.r#type != acquisition_store::FOLDER_TAB_TYPE)
+                })
             {
                 assert!(
                     !numbers.contains_key(&t.id),
@@ -1485,11 +1491,13 @@ mod real_scale {
         let listed: Vec<&TabSnapshot> = s
             .tabs
             .iter()
-            .filter(|t| t.r#type != FOLDER)
+            .filter(|t| t.r#type != acquisition_store::FOLDER_TAB_TYPE)
             .filter(|t| {
-                t.parent
-                    .as_deref()
-                    .is_none_or(|p| by_id.get(p).is_some_and(|q| q.r#type == FOLDER))
+                t.parent.as_deref().is_none_or(|p| {
+                    by_id
+                        .get(p)
+                        .is_some_and(|q| q.r#type == acquisition_store::FOLDER_TAB_TYPE)
+                })
             })
             .collect();
         assert_eq!(listed.len(), web.len());

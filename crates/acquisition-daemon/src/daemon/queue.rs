@@ -1294,7 +1294,9 @@ a stashes job for {realm} {league} fetches the listing again",
     let mut subs = listing
         .tabs
         .iter()
-        .filter(|t| tab.r#type != "Folder" && t.parent.as_deref() == Some(id))
+        .filter(|t| {
+            !acquisition_store::is_folder_type(&tab.r#type) && t.parent.as_deref() == Some(id)
+        })
         .peekable();
     if subs.peek().is_none() || subs.any(|t| t.id == sub) {
         return Ok(());

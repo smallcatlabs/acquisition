@@ -595,7 +595,7 @@ fn mock_stash_list(league: &str) -> Option<serde_json::Value> {
         .filter(|(_, t)| t.4.is_none())
         .map(|(i, t)| {
             let mut v = json!({ "id": format!("{prefix}{}", t.0), "name": t.1, "type": t.2, "index": i, "metadata": { "colour": "7c5436" }, "league": league });
-            if t.2 == "Folder" {
+            if acquisition_store::is_folder_type(t.2) {
                 v["children"] = json!(MOCK_TABS
                     .iter()
                     .enumerate()
@@ -624,8 +624,9 @@ fn mock_stash(league: &str, id: &str, sub: Option<&str>) -> Option<serde_json::V
     if !prefix.is_empty() {
         let t = mock_tab(id.strip_prefix(prefix)?)?;
         if sub.is_some()
-            || t.4
-                .is_some_and(|p| mock_tab(p).is_some_and(|p| p.2 != "Folder"))
+            || t.4.is_some_and(|p| {
+                mock_tab(p).is_some_and(|p| !acquisition_store::is_folder_type(p.2))
+            })
         {
             return None;
         }
@@ -1543,7 +1544,7 @@ mod tests {
                     !standard_ids.contains(&id),
                     "{league}: {id} is one of Standard's ids"
                 );
-                if kind == "Folder" {
+                if acquisition_store::is_folder_type(kind) {
                     continue;
                 }
                 let tab = mock_stash(league, id, None)

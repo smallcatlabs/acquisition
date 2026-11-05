@@ -977,7 +977,11 @@ fn render_show(view: &ShowView, now: i64, bound: pricing::Bound, account: &str) 
             public_word(g.public)
         )),
         None => {
-            let why = if s.tab_type.as_deref() == Some("Folder") {
+            let why = if s
+                .tab_type
+                .as_deref()
+                .is_some_and(acquisition_store::is_folder_type)
+            {
                 "a folder's name is never a price"
             } else if matches!(
                 s.target,

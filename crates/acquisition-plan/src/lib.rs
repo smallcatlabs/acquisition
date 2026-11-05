@@ -2096,7 +2096,7 @@ fn select_tabs(
         }
         let verdict = if listing_alone {
             Err(SkipReason::AwaitingListing)
-        } else if tab.r#type == "Folder" {
+        } else if acquisition_store::is_folder_type(&tab.r#type) {
             Err(SkipReason::Folder)
         } else if is_empty_substash(snapshot, tab) {
             Err(SkipReason::EmptyStub)
@@ -2301,7 +2301,7 @@ fn compile_tabs(
         }
         let verdict = if listing_alone {
             Err(SkipReason::AwaitingListing)
-        } else if tab.r#type == "Folder" {
+        } else if acquisition_store::is_folder_type(&tab.r#type) {
             Err(SkipReason::Folder)
         } else if is_empty_substash(snapshot, tab) {
             Err(SkipReason::EmptyStub)

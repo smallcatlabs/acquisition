@@ -179,7 +179,10 @@ pub struct TabType {
 }
 
 pub fn is_folder(location: &LocationRow) -> bool {
-    location.tab_type.as_deref() == Some("Folder")
+    location
+        .tab_type
+        .as_deref()
+        .is_some_and(crate::is_folder_type)
 }
 
 /// The coverage of a set of places over `realm`: `locations` each paired

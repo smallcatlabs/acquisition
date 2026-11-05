@@ -1866,7 +1866,7 @@ mod real_scale {
                     .iter()
                     .all(|l| l.subject.location.as_ref() != Some(target))
             );
-            if c.subject.tab_type.as_deref() == Some(FOLDER) {
+            if c.subject.tab_type.as_deref() == Some(acquisition_store::FOLDER_TAB_TYPE) {
                 assert!(v.items_here.is_empty(), "{target}: a folder holds nothing");
             }
             if !matches!(target, PriceTarget::Tab { .. }) {

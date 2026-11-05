@@ -177,9 +177,6 @@ use crate::price::{Buyout, Price, PriceTarget};
 /// `updated_at_age`; [`resolve`] makes the report unaged.
 pub const LISTING_SCHEMA: u32 = 3;
 
-/// The GGG tab type that groups tabs and holds no items.
-const FOLDER: &str = "Folder";
-
 /// What a listing is about, and what a line about it needs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subject {
@@ -1325,12 +1322,14 @@ fn tab_infos<'a>(tabs: &'a [TabSnapshot], realm: Realm) -> Vec<TabInfo<'a>> {
     tabs.iter()
         .map(|tab| {
             let parent = tab.parent.as_deref().map(|p| (p, by_id.get(p).copied()));
-            let kind = if tab.r#type == FOLDER {
+            let kind = if acquisition_store::is_folder_type(&tab.r#type) {
                 TabKind::Folder
             } else {
                 match parent {
                     None => TabKind::Top,
-                    Some((_, Some(p))) if p.r#type == FOLDER => TabKind::FolderChild,
+                    Some((_, Some(p))) if acquisition_store::is_folder_type(&p.r#type) => {
+                        TabKind::FolderChild
+                    }
                     Some(_) => TabKind::Substash,
                 }
             };

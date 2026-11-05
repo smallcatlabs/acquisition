@@ -117,7 +117,8 @@ impl Selection {
         self.kind
             .as_deref()
             .is_none_or(|kind| kind.eq_ignore_ascii_case(&tab.r#type))
-            && (!self.never_fetched || (tab.fetched_at.is_none() && tab.r#type != "Folder"))
+            && (!self.never_fetched
+                || (tab.fetched_at.is_none() && !acquisition_store::is_folder_type(&tab.r#type)))
     }
 
     /// The selection in words, for a line of text: `never-fetched
@@ -152,7 +153,10 @@ impl Tabs {
         expand: bool,
         now: i64,
     ) -> Tabs {
-        let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
+        let folders = rows
+            .iter()
+            .filter(|t| acquisition_store::is_folder_type(&t.r#type))
+            .count();
         let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
         let by_type = acquisition_store::coverage::by_type(
             rows.iter()

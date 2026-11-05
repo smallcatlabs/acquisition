@@ -1079,6 +1079,17 @@ pub struct LeagueListLatest {
     pub fetched_at_age: String,
 }
 
+/// GGG's tab type for a folder: a tab that groups other tabs and holds no
+/// items of its own, so it is listed and never fetched. The store's one
+/// spelling of the word (#44): every consumer, SQL included, asks this
+/// or [`is_folder_type`].
+pub const FOLDER_TAB_TYPE: &str = "Folder";
+
+/// Whether a GGG tab type is a folder.
+pub fn is_folder_type(tab_type: &str) -> bool {
+    tab_type == FOLDER_TAB_TYPE
+}
+
 pub mod age;
 pub mod annotations;
 pub mod bound;
@@ -2024,12 +2035,13 @@ impl Store {
             let mut stmt = tx.prepare(
                 "UPDATE tabs SET removed_at = ?3 WHERE realm = ?1 AND league = ?2 AND removed_at IS NULL
                    AND (listed_response IS NULL OR listed_response <> ?4)
-                   AND (parent IS NULL OR parent IN (SELECT id FROM tabs t2 WHERE t2.realm = ?1 AND t2.league = ?2 AND t2.type = 'Folder'))
+                   AND (parent IS NULL OR parent IN (SELECT id FROM tabs t2 WHERE t2.realm = ?1 AND t2.league = ?2 AND t2.type = ?5))
                  RETURNING id",
             )?;
-            let ids = stmt.query_map(params![realm, league, at, response_id], |r| {
-                r.get::<_, String>(0)
-            })?;
+            let ids = stmt.query_map(
+                params![realm, league, at, response_id, FOLDER_TAB_TYPE],
+                |r| r.get::<_, String>(0),
+            )?;
             let retired: Vec<String> = ids.collect::<Result<_, _>>()?;
             // A retired parent's substashes keep their rows (the planner
             // reports them as orphaned rather than guessing a path) but
@@ -3141,14 +3153,14 @@ fn container_rows<'a>(address: &FactAddress<'a>) -> Option<(&'static str, Vec<&'
         FactAddress::Tab { realm, id } => Some((
             "t.realm = ?1 AND t.id = ?2 AND (t.parent IS NULL OR EXISTS (SELECT 1 FROM tabs p
                WHERE p.realm = t.realm AND p.league = t.league AND p.id = t.parent
-                 AND p.type = 'Folder'))",
-            vec![realm, id],
+                 AND p.type = ?3))",
+            vec![realm, id, FOLDER_TAB_TYPE],
         )),
         FactAddress::Substash { realm, parent, id } => Some((
             "t.realm = ?1 AND t.parent = ?2 AND t.id = ?3 AND NOT EXISTS (SELECT 1 FROM tabs p
                WHERE p.realm = t.realm AND p.league = t.league AND p.id = t.parent
-                 AND p.type = 'Folder')",
-            vec![realm, parent, id],
+                 AND p.type = ?4)",
+            vec![realm, parent, id, FOLDER_TAB_TYPE],
         )),
         FactAddress::Item { .. } | FactAddress::Character { .. } => None,
     }

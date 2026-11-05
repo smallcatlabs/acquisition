@@ -157,9 +157,6 @@ pub const DEFAULT_PAGE_SIZE: usize = 50_000;
 /// token alone.
 pub const ITEMS_TOKEN: &str = "[items]";
 
-/// The GGG tab type that groups tabs and holds no items.
-const FOLDER: &str = "Folder";
-
 /// What the table says to do with a cell's items.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -658,7 +655,7 @@ fn stash_numbers(report: &ListingReport) -> HashMap<String, StashNumber> {
             (PriceTarget::Tab { id, .. }, Some(index)) => Some((
                 index,
                 id.as_str(),
-                l.subject.tab_type.as_deref() == Some(FOLDER),
+                l.subject.tab_type.as_deref() == Some(acquisition_store::FOLDER_TAB_TYPE),
             )),
             _ => None,
         })

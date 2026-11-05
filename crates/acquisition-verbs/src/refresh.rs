@@ -74,7 +74,7 @@ impl UncoveredTabs {
         let tabs: Vec<_> = snapshot
             .tabs
             .iter()
-            .filter(|t| t.r#type != "Folder")
+            .filter(|t| !acquisition_store::is_folder_type(&t.r#type))
             .collect();
         let count = tabs
             .iter()
