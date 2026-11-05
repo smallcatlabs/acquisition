@@ -285,6 +285,7 @@ them.
 | `ACQ_JOURNAL=<path>` | `<log dir>/sends.jsonl`, bounded; `0` disables | rail 4: one JSON line per send, never a token or body | [rails.rs][rails] |
 | `ACQ_MOCK_DEGRADED_HEAD=1` | off | the mock answers HEAD as GGG did in a December 2023 regression | [mockggg.rs][mock] |
 | `ACQ_MOCK_WINDOW_DIVISOR=<n>` | 1 | the mock's rate-limit windows and restrictions divided by `n`, each at least a second, the request counts kept; for a test run that would otherwise wait them out; anything but a whole number of 1 or more stops the daemon's start | [mockggg.rs][mock] |
+| `ACQ_NOW=<secs>` | the system clock | now, fixed at this many whole seconds since 1970, for every age said and every time the store stamps; a test seam, so every process of one test reads one instant; the daemon's rate limiting, deadlines and waits keep the real clock; anything but whole seconds stops the process at start | [lib.rs][store] |
 
 [provider]: crates/acquisition-protocol/src/provider.rs
 [cli]: crates/acquisition-cli/src/main.rs
