@@ -732,4 +732,7 @@ and fixed; #44 (`briefs/44-folder-once.md`) closed, reviewed clean;
 internal items (`briefs/56-frame-internals.md`) closed, reviewed clean,
 its wire items parked for the owner; #99 (`briefs/99-web-leftovers.md`)
 closed, its script seam declined, reviewed (a P2, a P3), fixed, the
-fix reviewed (a P3) and fixed in a second round.
+fix reviewed (a P3) and fixed in a second round; #97
+(`briefs/97-own-terms.md`) closed, item 3 parked for the owner,
+reviewed (a P2, a P3), fixed, the fix reviewed (a P3) and fixed in a
+second round. The run's issues are done.
