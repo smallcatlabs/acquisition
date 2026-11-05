@@ -6,7 +6,9 @@
 //! aligned — the daemon answers `bad_request` and keeps the connection,
 //! the client reports the answer it could not read and keeps its
 //! connection too. Bytes, not text: a frame that is not UTF-8 is the JSON
-//! parser's failure to report, like any other malformed frame.
+//! parser's failure to report, like any other malformed frame. The
+//! reader is cancel-safe, so a `select!` may race it ([`FrameReader`]
+//! says why).
 //!
 //! One copy here and one in `acquisition-client/src/frame.rs`, byte for
 //! byte below this paragraph (the daemon split's step 3): the reader
@@ -30,40 +32,74 @@ pub enum Frame {
     Closed,
 }
 
-/// Read the next frame, buffering at most `max` bytes of it.
-pub async fn read_frame<R: AsyncBufRead + Unpin>(
-    reader: &mut R,
+/// A framed connection's read side: the buffered reader, and the line
+/// read so far with whether it is being discarded as oversize.
+///
+/// Cancel-safe (#56): [`FrameReader::next`] may be dropped at any await,
+/// as a `select!` drops the branch that lost, and the next call resumes
+/// the same line. Its one await is the reader's `fill_buf`, which is
+/// cancel-safe; between two awaits it moves bytes from the buffer into
+/// the partial line and consumes them in one step, so a byte is either
+/// still in the buffer or already in the line, and the line lives here,
+/// never in the dropped future.
+#[derive(Debug)]
+pub struct FrameReader<R> {
+    reader: R,
     max: usize,
-) -> std::io::Result<Frame> {
-    let mut line = Vec::new();
-    let mut discarding = false;
-    loop {
-        let buf = reader.fill_buf().await?;
-        if buf.is_empty() {
-            return Ok(if discarding || line.is_empty() {
-                Frame::Closed
-            } else {
-                Frame::Line(line)
-            });
+    line: Vec<u8>,
+    discarding: bool,
+}
+
+impl<R: AsyncBufRead + Unpin> FrameReader<R> {
+    /// Frames over `reader`, buffering at most `max` bytes of each.
+    pub fn new(reader: R, max: usize) -> Self {
+        Self {
+            reader,
+            max,
+            line: Vec::new(),
+            discarding: false,
         }
-        let newline = buf.iter().position(|&b| b == b'\n');
-        let chunk = &buf[..newline.unwrap_or(buf.len())];
-        if !discarding {
-            if line.len() + chunk.len() > max {
-                discarding = true;
-                line = Vec::new();
-            } else {
-                line.extend_from_slice(chunk);
+    }
+
+    /// The reader underneath, for a read that is not a frame's (the
+    /// stop's wait for the close).
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.reader
+    }
+
+    /// Read the next frame.
+    pub async fn next(&mut self) -> std::io::Result<Frame> {
+        loop {
+            let buf = self.reader.fill_buf().await?;
+            if buf.is_empty() {
+                let line = std::mem::take(&mut self.line);
+                let discarding = std::mem::take(&mut self.discarding);
+                return Ok(if discarding || line.is_empty() {
+                    Frame::Closed
+                } else {
+                    Frame::Line(line)
+                });
             }
-        }
-        let consumed = chunk.len() + usize::from(newline.is_some());
-        reader.consume(consumed);
-        if newline.is_some() {
-            return Ok(if discarding {
-                Frame::Oversize
-            } else {
-                Frame::Line(line)
-            });
+            let newline = buf.iter().position(|&b| b == b'\n');
+            let chunk = &buf[..newline.unwrap_or(buf.len())];
+            if !self.discarding {
+                if self.line.len() + chunk.len() > self.max {
+                    self.discarding = true;
+                    self.line = Vec::new();
+                } else {
+                    self.line.extend_from_slice(chunk);
+                }
+            }
+            let consumed = chunk.len() + usize::from(newline.is_some());
+            self.reader.consume(consumed);
+            if newline.is_some() {
+                let line = std::mem::take(&mut self.line);
+                return Ok(if std::mem::take(&mut self.discarding) {
+                    Frame::Oversize
+                } else {
+                    Frame::Line(line)
+                });
+            }
         }
     }
 }
@@ -79,26 +115,17 @@ mod tests {
     async fn a_line_over_the_bound_is_discarded_through_its_newline() {
         let max = 8;
         let input = b"12345678\n123456789\n{}\n\nlast".to_vec();
-        let mut reader = BufReader::with_capacity(3, &input[..]);
+        let mut reader = FrameReader::new(BufReader::with_capacity(3, &input[..]), max);
         assert_eq!(
-            read_frame(&mut reader, max).await.unwrap(),
+            reader.next().await.unwrap(),
             Frame::Line(b"12345678".to_vec())
         );
-        assert_eq!(read_frame(&mut reader, max).await.unwrap(), Frame::Oversize);
-        assert_eq!(
-            read_frame(&mut reader, max).await.unwrap(),
-            Frame::Line(b"{}".to_vec())
-        );
-        assert_eq!(
-            read_frame(&mut reader, max).await.unwrap(),
-            Frame::Line(Vec::new())
-        );
+        assert_eq!(reader.next().await.unwrap(), Frame::Oversize);
+        assert_eq!(reader.next().await.unwrap(), Frame::Line(b"{}".to_vec()));
+        assert_eq!(reader.next().await.unwrap(), Frame::Line(Vec::new()));
         // An unterminated last line is still a line; then the close.
-        assert_eq!(
-            read_frame(&mut reader, max).await.unwrap(),
-            Frame::Line(b"last".to_vec())
-        );
-        assert_eq!(read_frame(&mut reader, max).await.unwrap(), Frame::Closed);
+        assert_eq!(reader.next().await.unwrap(), Frame::Line(b"last".to_vec()));
+        assert_eq!(reader.next().await.unwrap(), Frame::Closed);
     }
 
     /// An oversize line the peer never finished is a close, not a frame
@@ -106,8 +133,55 @@ mod tests {
     #[tokio::test]
     async fn an_oversize_line_cut_off_by_the_close_is_a_close() {
         let input = b"123456789".to_vec();
-        let mut reader = BufReader::with_capacity(4, &input[..]);
-        assert_eq!(read_frame(&mut reader, 8).await.unwrap(), Frame::Closed);
+        let mut reader = FrameReader::new(BufReader::with_capacity(4, &input[..]), 8);
+        assert_eq!(reader.next().await.unwrap(), Frame::Closed);
+    }
+
+    /// Poll `future` once with a waker that does nothing, then drop it:
+    /// a `select!` whose other branch won.
+    fn poll_once_and_drop<F: std::future::Future>(future: F) -> std::task::Poll<F::Output> {
+        let mut future = std::pin::pin!(future);
+        let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+        future.as_mut().poll(&mut cx)
+    }
+
+    /// #56: a read dropped midway, after half a line and before its
+    /// newline arrived, loses nothing: the next read returns the whole
+    /// line once, and the frame after it intact.
+    #[tokio::test]
+    async fn a_read_dropped_midway_resumes_its_line() {
+        use tokio::io::AsyncWriteExt;
+        let (mut peer, ours) = tokio::io::duplex(64);
+        let mut reader = FrameReader::new(BufReader::with_capacity(4, ours), 8);
+        peer.write_all(b"{\"a\"").await.unwrap();
+        assert!(
+            poll_once_and_drop(reader.next()).is_pending(),
+            "half a line, then nothing"
+        );
+        peer.write_all(b":1}\nnext\n").await.unwrap();
+        assert_eq!(
+            reader.next().await.unwrap(),
+            Frame::Line(b"{\"a\":1}".to_vec())
+        );
+        assert_eq!(reader.next().await.unwrap(), Frame::Line(b"next".to_vec()));
+    }
+
+    /// #56: an oversize line whose read is dropped midway, past the bound
+    /// and before its newline, still reads as one `Oversize`, and the
+    /// frame after it intact.
+    #[tokio::test]
+    async fn an_oversize_read_dropped_midway_is_still_one_oversize() {
+        use tokio::io::AsyncWriteExt;
+        let (mut peer, ours) = tokio::io::duplex(64);
+        let mut reader = FrameReader::new(BufReader::with_capacity(4, ours), 8);
+        peer.write_all(b"123456789").await.unwrap();
+        assert!(
+            poll_once_and_drop(reader.next()).is_pending(),
+            "past the bound, no newline"
+        );
+        peer.write_all(b"abc\nok\n").await.unwrap();
+        assert_eq!(reader.next().await.unwrap(), Frame::Oversize);
+        assert_eq!(reader.next().await.unwrap(), Frame::Line(b"ok".to_vec()));
     }
 
     // ---- generated streams (#85) ----------------------------------------
@@ -191,10 +265,10 @@ mod tests {
                 .build()
                 .expect("a current-thread runtime");
             runtime.block_on(async {
-                let mut reader = BufReader::with_capacity(capacity, input);
+                let mut reader = FrameReader::new(BufReader::with_capacity(capacity, input), max);
                 let mut frames = Vec::new();
                 for _ in 0..=input.len() + 1 {
-                    let frame = read_frame(&mut reader, max).await.expect("a slice reads");
+                    let frame = reader.next().await.expect("a slice reads");
                     let closed = frame == Frame::Closed;
                     frames.push(frame);
                     if closed {

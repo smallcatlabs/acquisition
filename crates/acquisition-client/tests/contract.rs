@@ -42,7 +42,7 @@ use acquisition_client::client::{
     Subscription, Unresponsive, hello_within,
 };
 use acquisition_client::endpoint::{self, Listener, Stream};
-use acquisition_client::frame::{Frame, read_frame};
+use acquisition_client::frame::{Frame, FrameReader};
 use acquisition_protocol::job::JobState;
 use acquisition_protocol::protocol::{ErrorKind, MAX_FRAME_BYTES, Request, Response};
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
@@ -77,7 +77,7 @@ async fn open_subscription() -> Subscription {
 
 /// A raw framed connection: what the client never sends, sent anyway.
 struct Raw {
-    reader: BufReader<OwnedReadHalf>,
+    reader: FrameReader<BufReader<OwnedReadHalf>>,
     write: OwnedWriteHalf,
 }
 
@@ -86,7 +86,7 @@ impl Raw {
         let stream = endpoint::connect(&session_socket()).await.expect("connect");
         let (read, write) = tokio::io::split(stream);
         Raw {
-            reader: BufReader::new(read),
+            reader: FrameReader::new(BufReader::new(read), MAX_FRAME_BYTES),
             write,
         }
     }
@@ -97,10 +97,7 @@ impl Raw {
     }
 
     async fn next(&mut self) -> Value {
-        match read_frame(&mut self.reader, MAX_FRAME_BYTES)
-            .await
-            .expect("read")
-        {
+        match self.reader.next().await.expect("read") {
             Frame::Line(bytes) => serde_json::from_slice(&bytes)
                 .unwrap_or_else(|e| panic!("{e}: {}", String::from_utf8_lossy(&bytes))),
             other => panic!("{other:?}"),
@@ -265,12 +262,12 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
                 () = exited.notified() => break,
             };
             let (read, mut write) = tokio::io::split(stream);
-            let mut reader = BufReader::new(read);
+            let mut reader = FrameReader::new(BufReader::new(read), MAX_FRAME_BYTES);
             let hello_reply = hello_reply.clone();
             let stop_reply = stop_reply.clone();
             let (socket, exited) = (socket.clone(), exited.clone());
             tokio::spawn(async move {
-                while let Ok(Frame::Line(bytes)) = read_frame(&mut reader, MAX_FRAME_BYTES).await {
+                while let Ok(Frame::Line(bytes)) = reader.next().await {
                     let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
                     let reply = match frame["req"].as_str() {
                         Some("hello") => hello_reply.clone(),
@@ -465,7 +462,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
     struct Peer {
         // The accepted end's halves (`endpoint::Accepted`): one type with
         // the connecting end's on Unix, the server pipe on Windows.
-        reader: BufReader<ReadHalf<endpoint::Accepted>>,
+        reader: FrameReader<BufReader<ReadHalf<endpoint::Accepted>>>,
         write: WriteHalf<endpoint::Accepted>,
         transcript: Vec<String>,
     }
@@ -473,7 +470,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
     impl Peer {
         /// Read the next request frame and answer it: the `req` read.
         async fn serve(&mut self, answer: &Value) -> String {
-            let bytes = match read_frame(&mut self.reader, MAX_FRAME_BYTES).await {
+            let bytes = match self.reader.next().await {
                 Ok(Frame::Line(bytes)) => bytes,
                 other => panic!("the peer expected a request frame: {other:?}"),
             };
@@ -497,7 +494,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
         /// daemon area's question, not this peer's.
         async fn read_to_eof(mut self) -> Vec<String> {
             loop {
-                match read_frame(&mut self.reader, MAX_FRAME_BYTES).await {
+                match self.reader.next().await {
                     Ok(Frame::Line(bytes)) => {
                         let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
                         self.transcript
@@ -527,7 +524,7 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
         let stream = listener.accept().await.expect("accept");
         let (read, write) = tokio::io::split(stream);
         let mut peer = Peer {
-            reader: BufReader::new(read),
+            reader: FrameReader::new(BufReader::new(read), MAX_FRAME_BYTES),
             write,
             transcript: Vec::new(),
         };
@@ -1207,10 +1204,7 @@ async fn c127_a_refusal_quoting_a_huge_client_value_fits_the_response_frame() {
             frame.len()
         );
         raw.send(frame.as_bytes()).await;
-        let reply = match read_frame(&mut raw.reader, MAX_FRAME_BYTES)
-            .await
-            .expect("read")
-        {
+        let reply = match raw.reader.next().await.expect("read") {
             Frame::Line(bytes) => serde_json::from_slice::<Value>(&bytes).expect("json"),
             other => panic!("{what}: the refusal did not fit the response frame: {other:?}"),
         };

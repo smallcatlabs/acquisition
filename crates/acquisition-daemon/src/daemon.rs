@@ -116,7 +116,7 @@ use tokio::sync::{Notify, broadcast, watch};
 
 use std::collections::VecDeque;
 
-use crate::frame::{Frame, read_frame};
+use crate::frame::{Frame, FrameReader};
 use crate::provider::{CALLBACK_PATH, Provider, SCOPES};
 use crate::rails::{BlockShape, Rails, RailsConfig, Verdict, verify_state};
 use crate::ratelimit::{

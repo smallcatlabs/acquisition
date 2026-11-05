@@ -200,7 +200,7 @@ use std::time::Duration;
 
 use crate::artifact::{ArtifactVerdict, SiblingError, sibling};
 use crate::door::{Door, Effect, Ended, Event, Machine, Outcome, Timer};
-use crate::frame::{Frame, read_frame};
+use crate::frame::{Frame, FrameReader};
 use crate::locator;
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
 use acquisition_protocol::job::JobInfo;
@@ -1063,7 +1063,7 @@ pub enum Observed<C = Client> {
 /// A request connection (C85): one request in flight, one response per
 /// request, never an event.
 pub struct Client {
-    reader: BufReader<OwnedReadHalf>,
+    reader: FrameReader<BufReader<OwnedReadHalf>>,
     write: OwnedWriteHalf,
     /// The daemon at the other end, as its handshake identified it.
     daemon: DaemonId,
@@ -1099,7 +1099,7 @@ pub enum Signal {
 /// returns `None` drops this subscription — what it still holds predates
 /// any snapshot taken now — opens a new one, and snapshots again.
 pub struct Subscription {
-    reader: BufReader<OwnedReadHalf>,
+    reader: FrameReader<BufReader<OwnedReadHalf>>,
     /// Held so the daemon sees the connection open; nothing is written.
     _write: OwnedWriteHalf,
     daemon: DaemonId,
@@ -1132,7 +1132,7 @@ impl Subscription {
     /// The next signal; `None` when the daemon closed the connection.
     pub async fn next(&mut self) -> Result<Option<Signal>> {
         loop {
-            let bytes = match read_frame(&mut self.reader, MAX_FRAME_BYTES).await? {
+            let bytes = match self.reader.next().await? {
                 Frame::Closed => return Ok(None),
                 Frame::Oversize => {
                     bail!("the daemon sent a frame over {MAX_FRAME_BYTES} bytes on a subscription")
@@ -1806,7 +1806,7 @@ impl Client {
                 // expires, is gone: that is what was observed, so the wait
                 // for it is polled first.
                 let at = PathBuf::from(&self.daemon.endpoint.socket);
-                let reader = &mut self.reader;
+                let reader = self.reader.get_mut();
                 let gone = async {
                     let mut rest = Vec::new();
                     match tokio::io::AsyncReadExt::read_to_end(reader, &mut rest).await {
@@ -1862,7 +1862,7 @@ impl Client {
         hello_by: Armed,
     ) -> Result<Client, Handshake> {
         let (read, write) = tokio::io::split(stream);
-        let mut reader = BufReader::new(read);
+        let mut reader = FrameReader::new(BufReader::new(read), MAX_FRAME_BYTES);
         let mut write = write;
         // What this side says about itself is for the daemon's log
         // alone: the intended root when there is no world yet.
@@ -2035,7 +2035,7 @@ impl Client {
 /// (what [`Client::exchange`] does; the handshake uses it before there is
 /// a `Client` to speak of).
 async fn exchange<T: Serialize>(
-    reader: &mut BufReader<OwnedReadHalf>,
+    reader: &mut FrameReader<BufReader<OwnedReadHalf>>,
     write: &mut OwnedWriteHalf,
     frame: &T,
 ) -> Result<Vec<u8>> {
@@ -2043,7 +2043,7 @@ async fn exchange<T: Serialize>(
     line.push('\n');
     write.write_all(line.as_bytes()).await?;
     loop {
-        match read_frame(reader, MAX_FRAME_BYTES).await? {
+        match reader.next().await? {
             Frame::Closed => bail!("daemon closed the connection"),
             Frame::Oversize => {
                 bail!("the daemon's answer exceeds {MAX_FRAME_BYTES} bytes and was discarded")

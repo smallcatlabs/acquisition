@@ -107,7 +107,7 @@ impl Daemon {
         self.mark_activity(self.choke.now());
 
         let (read, mut write) = tokio::io::split(stream);
-        let mut reader = BufReader::new(read);
+        let mut reader = FrameReader::new(BufReader::new(read), MAX_FRAME_BYTES);
         let mut events: Option<broadcast::Receiver<JobInfo>> = None;
         // Every connection begins with the hello exchange (C85): a
         // versioned request before it is refused, so a peer that never
@@ -116,7 +116,7 @@ impl Daemon {
 
         loop {
             tokio::select! {
-                frame = read_frame(&mut reader, MAX_FRAME_BYTES) => {
+                frame = reader.next() => {
                     let frame = match frame {
                         Ok(Frame::Closed) | Err(_) => break,
                         Ok(frame) => frame,
