@@ -157,7 +157,7 @@ pub use start::{DIAGNOSTIC_CAP_BYTES, rotate_if_over, run};
 
 use dispatch::RUNNING_JOB;
 use endpoint::{Accept, BoundSocket, Listener, Stream};
-use kinds::{ApiError, validate_apply};
+use kinds::{ApiError, admit_work_count, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, Evicted, admit_client, admit_client_submitter,
     admit_realm, admit_segments, bounded_message, check_sleep, describe, describe_str,
@@ -460,6 +460,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `handle_conn`: a request naming a field it does not know (C85) | `bad request: unknown field …` | `bad_request` |
 /// | `job_page`: a `list` limit outside 1 to `LIST_LIMIT_MAX` (C166) | `a list page holds 1 to … jobs; … were asked for` | `bad_request` |
 /// | `job_page`, `job_list`: the queue unreadable | `could not read the persisted queue: …` | `queue_failed` |
+/// | `quote`: more jobs than `APPLY_MAX_ACTIONS` (C166, `admit_work_count`, an apply's words) | `a quote of N jobs exceeds the bound of … jobs — nothing was quoted; …` | `refused` |
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |
@@ -468,7 +469,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session that the index holds, or with no index to tell by | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
 /// | `refuse_while_stopping` (submit, once the exit has begun, C133; and, through `restored`, auth, auth check, logout and quote, before and after their wait for the start's restore, C148) | `the daemon is stopping; try again in a moment` | `refused` |
-/// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit; `admit_realm` at the client's door too, before the account resolves) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
+/// | `validate_apply` (with `admit_work_count`), `admit_realm`, `admit_params_size`, `admit_submitter` (submit; `admit_realm` at the client's door too, before the account resolves) | `apply needs a jobs array …`, `an apply of N actions exceeds …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
 /// | `admit_client_submitter` (a client's submit, C136) | `this submitted_by is reserved for the daemon's own work …` | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |
 /// | `submit_with_parent`: the sticky queue failure, or the insert failing | `the persisted queue failed (…)` | `queue_failed` |

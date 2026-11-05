@@ -14,6 +14,9 @@ impl Daemon {
     /// follows `Submit`'s rules exactly (resolved here, refused when
     /// ambiguous), so the quote keys the same limiter state a submit would.
     pub(super) fn quote(&self, jobs: &[QuoteJob], account: Option<&str>) -> Result<Quote, Refusal> {
+        // C166: the work is bounded before anything else is judged, as an
+        // apply's actions are.
+        admit_work_count(jobs.len(), "a quote", "jobs", "quoted")?;
         // The selector is judged before anything is projected — an unknown
         // or ambiguous account refuses the quote whole even when the job
         // list is empty, exactly as a submit would refuse it. Omitted with

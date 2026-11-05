@@ -1074,6 +1074,28 @@ impl Daemon {
     }
 }
 
+/// C43 and C166: the work one request carries, an apply's actions or a
+/// quote's jobs, is at most `APPLY_MAX_ACTIONS`, judged before any of
+/// it, in one sentence: `what` the request (`an apply`), `unit` what it
+/// counts and `nothing` what was not done (`submitted`).
+pub(super) fn admit_work_count(
+    count: usize,
+    what: &str,
+    unit: &str,
+    nothing: &str,
+) -> Result<(), Refusal> {
+    if count <= APPLY_MAX_ACTIONS {
+        return Ok(());
+    }
+    Err(Refusal::new(
+        ErrorKind::Refused,
+        format!(
+            "{what} of {count} {unit} exceeds the bound of {APPLY_MAX_ACTIONS} {unit} — \
+nothing was {nothing}; a sync policy that covers fewer tabs or characters plans fewer actions"
+        ),
+    ))
+}
+
 /// The `apply` admission check (C43 — vocabulary, not meaning; C42 — the
 /// logical budget at admission; decided 2026-09-01): the vocabulary a
 /// plan-blind daemon can enforce. `params.jobs` must be a
@@ -1102,13 +1124,7 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
                 .into(),
         ));
     }
-    if jobs.len() > APPLY_MAX_ACTIONS {
-        return Err(refused(format!(
-            "an apply of {} actions exceeds the bound of {APPLY_MAX_ACTIONS} actions — \
-nothing was submitted; a sync policy that covers fewer tabs or characters plans fewer actions",
-            jobs.len()
-        )));
-    }
+    admit_work_count(jobs.len(), "an apply", "actions", "submitted")?;
     for (i, job) in jobs.iter().enumerate() {
         let kind = job.get("kind").and_then(Value::as_str).unwrap_or("");
         let params = job.get("params").cloned().unwrap_or(Value::Null);

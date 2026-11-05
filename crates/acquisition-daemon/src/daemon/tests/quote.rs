@@ -244,3 +244,35 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     }
     finish_harness_mock(None, &log_path);
 }
+
+/// C166 (a quote is bounded at the door by its work count): a quote of
+/// `APPLY_MAX_ACTIONS` jobs is projected, and one more is refused before
+/// anything is judged, in an apply's words and kind, naming the count
+/// and saying nothing was quoted.
+#[tokio::test]
+async fn c166_a_quote_over_the_action_bound_is_refused_at_the_door() {
+    let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
+    let work = |n: usize| -> Vec<QuoteJob> {
+        (0..n)
+            .map(|_| QuoteJob {
+                kind: "sleep".into(),
+                params: json!({}),
+            })
+            .collect()
+    };
+    let at = daemon.quote(&work(APPLY_MAX_ACTIONS), None).unwrap();
+    assert_eq!(at.work.len(), APPLY_MAX_ACTIONS);
+    let over = daemon
+        .quote(&work(APPLY_MAX_ACTIONS + 1), None)
+        .unwrap_err();
+    assert_eq!(over.kind, ErrorKind::Refused);
+    assert_eq!(
+        over.message,
+        format!(
+            "a quote of {} jobs exceeds the bound of {APPLY_MAX_ACTIONS} jobs — nothing was quoted; \
+a sync policy that covers fewer tabs or characters plans fewer actions",
+            APPLY_MAX_ACTIONS + 1
+        )
+    );
+    finish_harness(None, &log);
+}
