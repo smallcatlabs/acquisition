@@ -17,7 +17,7 @@
 //!   can never name a different job). A queue **write** failure is
 //!   sticky, at runtime and at the restore alike (a probe row's delete is
 //!   a queue write like any other; the row it leaves is answered by
-//!   `ended_elsewhere`): a submit whose insert fails is refused with its id rolled
+//!   `ended_elsewhere`; retention's prune is not, see `restore_jobs`): a submit whose insert fails is refused with its id rolled
 //!   back (a job exists only once its row does), later submits are refused
 //!   outright, and the dispatcher stops picking while running jobs finish.
 //!   Completions are the accepted residual: a job already running when the
@@ -227,8 +227,9 @@ impl Daemon {
     /// has diverged from memory: the sticky queue failure is set, and the
     /// first failure of a lifetime logged (safe under `shared`: `log`
     /// takes no lock but its own). From here new submits are refused as
-    /// `queue_failed` and the dispatcher picks nothing. Every queue write
-    /// that fails comes here: `persist`'s and the restore's delete.
+    /// `queue_failed` and the dispatcher picks nothing. Its callers are
+    /// `persist` and the restore's probe delete; retention's prune is
+    /// not one (`restore_jobs`).
     pub(super) fn trip_queue_failure(&self, what: &str, e: &anyhow::Error) {
         let mut failure = self.queue_failure.lock().unwrap();
         if failure.is_none() {
@@ -306,7 +307,9 @@ impl Daemon {
     /// ids from 1 against them. A write at the restore, a probe row's
     /// delete as much as a persist, is a queue write like any other: one
     /// that fails trips the sticky queue failure and the restore goes on
-    /// (C6).
+    /// (C6). Retention's prune is logged and not sticky: it deletes only
+    /// terminal rows memory never holds, so a failed one leaves old rows
+    /// on disk longer and no job that memory and disk disagree on.
     pub(super) fn restore_jobs(&self, retention: Retention) -> Result<()> {
         let db = &self.jobs_db;
         let (rows, next_id, pruned) = {
