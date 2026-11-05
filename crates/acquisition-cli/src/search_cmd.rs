@@ -10,10 +10,10 @@
 //!   rendered from that same value and from nothing else. Ages are text,
 //!   epochs JSON.
 //! - **A failure is structured on both paths (C11)**: `--json` prints
-//!   `{"error", "kind", "readings", "offers"}` — each way on that is a
-//!   search a request too, as `--request` reads one — and exits 1; the
-//!   text prints the message and each reading on a line of its own,
-//!   ready to paste.
+//!   `{"error", "kind"}`, a language error's `readings` and each way on
+//!   under `offers` — a search a request, as `--request` reads one,
+//!   saying its command — and exits 1; the text prints the message and
+//!   each reading or way on on a line of its own, ready to paste.
 //! - **An answer never prints a command this build refuses** (the build
 //!   plan, rule 5): a block invariant 5 bounds with a route to the whole
 //!   prints the count left out and the unbuilt construct's name. The flags

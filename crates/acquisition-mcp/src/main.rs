@@ -545,8 +545,8 @@ fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
 }
 
 /// A refusal the search crate made (C11), in the one shape: `error`,
-/// `kind`, `readings`, payload, a scope refusal's in the request's words
-/// as a language refusal's are the query's, and `offers`.
+/// `kind`, a language refusal's `readings`, payload, and `offers`, each
+/// saying in the request's words what it is.
 fn refused(e: impl Into<SearchError>) -> CallToolResult {
     refusing(refusal::of_search(&e.into(), &Spoken { named: "account" }))
 }

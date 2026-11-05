@@ -163,13 +163,12 @@ pub enum SearchError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Offered {
     /// What the way on says, in the request's words: each offer's `says`
-    /// on a surface that adds nothing.
+    /// on a surface that adds nothing, and never a refusal's `readings`,
+    /// which are how what was typed could be read.
     pub reading: String,
     pub request: Option<Request>,
     /// Where the way on is `describe`, the names it is asked with — none
-    /// for the index: a request each surface spells as its own, never a
-    /// reading (a refusal's `readings` are how what was typed could be
-    /// read).
+    /// for the index: a request each surface spells as its own.
     pub describe: Option<Vec<String>>,
     /// A realm offered where no request was at hand to put it in, and
     /// the account of the store that was read: the store's read knows
@@ -284,9 +283,10 @@ impl SearchError {
     }
 
     /// The failure as `--json` prints it (C11): `error`, `kind`, what
-    /// the author may have meant as `readings`, payload on every refusal,
-    /// and under `offers` each way on that is a request, as an answer's
-    /// zero block holds one, beside what it `says` (its reading).
+    /// the author may have meant as `readings` (a language error's query
+    /// texts), and under `offers` each way on that is a request, as an
+    /// answer's zero block holds one, beside what it `says` (its reading):
+    /// a scope refusal's ways on are its offers alone (#97).
     pub fn to_json(&self) -> serde_json::Value {
         let mut out = serde_json::json!({ "error": self.to_string(), "kind": self.kind() });
         match self {
@@ -303,16 +303,6 @@ impl SearchError {
                 message, offers, ..
             } => {
                 out["error"] = serde_json::json!(message);
-                // a describe offer is a request a surface spells, never a
-                // reading
-                let readings: Vec<&String> = offers
-                    .iter()
-                    .filter(|o| o.describe.is_none())
-                    .map(|o| &o.reading)
-                    .collect();
-                if !readings.is_empty() {
-                    out["readings"] = serde_json::json!(readings);
-                }
                 let requests: Vec<_> = offers
                     .iter()
                     .filter_map(|o| o.request.as_ref().map(|request| (request, &o.reading)))

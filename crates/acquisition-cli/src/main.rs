@@ -339,8 +339,9 @@ enum Cmd {
     /// step hangs on it and every one under `--routes`. `--json` is the
     /// answer whole, in the same order, the query as text and as tree, a
     /// count's request where its route is printed; a failure is `{"error",
-    /// "kind", "readings"}`, with `offers`, each `{request, says}`, where a
-    /// way on is a request `--request` reads. `--describe` prints the language, and what
+    /// "kind"}`, with `readings` where the query could be read otherwise
+    /// and `offers`, each `{request, says}`, where a way on is a request
+    /// `--request` reads. `--describe` prints the language, and what
     /// this build refuses by name.
     Search(Box<search_cmd::SearchArgs>),
     /// One item as the search derives it, live or removed (no daemon): its fields, its

@@ -104,11 +104,16 @@ fn a_realm_needed_offers_the_request_in_each_realm() {
     assert_eq!(e["kind"], "realm_needed", "{e}");
     // `all` beside each realm, as the words name it (the league seat,
     // cli call 40, mcp call 25: "pc | poe2, or all" offered pc and poe2)
-    assert_eq!(
-        e["readings"],
-        json!(["realm pc", "realm xbox", "realm all"])
-    );
-    assert_eq!(e["offers"][1]["says"], "realm xbox", "{e}");
+    // its ways on are its offers alone: no readings, which are how what
+    // was typed could be read (#97)
+    assert!(e.get("readings").is_none(), "{e}");
+    let says: Vec<&Value> = e["offers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|o| &o["says"])
+        .collect();
+    assert_eq!(says, ["realm pc", "realm xbox", "realm all"], "{e}");
     let offers = offered(&e);
     assert_eq!(offers.len(), 3, "{e}");
     for (offer, realm) in offers.iter().zip(["pc", "xbox", "all"]) {

@@ -23,7 +23,9 @@
 //!   never by reading scope again; the surface spells it
 //!   ([`Surface::request`]).
 //! - `readings`: how what was typed could be read, payload on every
-//!   refusal.
+//!   refusal: a language refusal's query texts. A scope refusal has none:
+//!   its ways on are its `offers`, each saying in the request's words what
+//!   it is (#97, one meaning per key).
 //! - `next`: one sentence or command that is a person's act, never an
 //!   agent's.
 //! - the kind's own fields: `accounts` (C121); `revision`, with
@@ -290,9 +292,9 @@ impl std::fmt::Display for Arguments {
 
 impl std::error::Error for Arguments {}
 
-/// A search's refusal: its message, its kind, its readings (payload: a
-/// language error's are query texts, a scope refusal's its offers'
-/// readings), a language error's `span`, and each offer that is a request.
+/// A search's refusal: its message, its kind, a language error's readings
+/// (payload: query texts) and `span`, and each offer that is a request,
+/// saying what it is: a scope refusal's ways on are its offers alone.
 fn searched(
     e: &SearchError,
     surface: &dyn Surface,
@@ -312,15 +314,6 @@ fn searched(
             }
         }
         SearchError::Scope { offers: ways, .. } => {
-            // a describe offer is a request, never a reading
-            let read: Vec<String> = ways
-                .iter()
-                .filter(|o| o.describe.is_none())
-                .map(|o| surface.reading(o))
-                .collect();
-            if !read.is_empty() {
-                doc.insert("readings".into(), json!(read));
-            }
             offers.extend(ways.iter().filter_map(|o| {
                 let way = match (&o.describe, &o.request) {
                     (Some(names), _) => Way::Describe {

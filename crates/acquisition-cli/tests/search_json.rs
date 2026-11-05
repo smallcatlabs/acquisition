@@ -317,7 +317,8 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
     }
     // what `show` offers when the id is a tab's
     let refused = sole_json(&acq(&base, &["--account", USER, "--json", "show", "t1"]));
-    for offered in refused["readings"].as_array().unwrap() {
+    for offered in refused["offers"].as_array().unwrap() {
+        let offered = &offered["says"];
         let out = run_printed(&base, offered.as_str().unwrap());
         assert!(out.status.success(), "{offered}");
         ran += 1;
@@ -2366,11 +2367,11 @@ fn a_printed_count_command_names_the_keys_it_was_printed_for() {
 }
 
 /// A refusal's way on that is a search is a request too, under `offers`
-/// beside the readings (`search/LEDGER.md`, H5): over two realms a search
-/// naming none offers itself in each, typed or read from a file, and
-/// each offer runs as `--request` reads it.
+/// saying what it is (`search/LEDGER.md`, H5; #97): over two realms a
+/// search naming none offers itself in each, typed or read from a file,
+/// and each offer runs as `--request` reads it.
 #[test]
-fn a_refusal_offers_requests_beside_its_readings() {
+fn a_refusal_offers_requests_each_saying_its_realm() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
     seed(&base);
@@ -2389,14 +2390,22 @@ fn a_refusal_offers_requests_beside_its_readings() {
         assert_eq!(out.status.code(), Some(1), "{args:?}");
         let refused = sole_json(&out);
         assert_eq!(refused["kind"], "realm_needed", "{refused}");
-        // the request's words, this terminal's flag after them (C143)
+        // the request's words, this terminal's flag after them (C143),
+        // said by each offer: a scope refusal has no readings (#97)
+        assert!(refused.get("readings").is_none(), "{refused}");
+        let says: Vec<&Value> = refused["offers"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{refused}"))
+            .iter()
+            .map(|o| &o["says"])
+            .collect();
         assert_eq!(
-            refused["readings"],
-            json!([
+            says,
+            [
                 "realm pc (--realm pc)",
                 "realm poe2 (--realm poe2)",
                 "realm all (--realm all)"
-            ])
+            ]
         );
         let offers = refused["offers"]
             .as_array()
