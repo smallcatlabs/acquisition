@@ -70,7 +70,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     seed(&base);
     // one body the store refused as malformed: an item with no id
     let at = acquisition_store::now();
-    let nameless = json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
+    // a string the spelling would rewrite, were the body prose
+    let nameless = json!({ "hint": "--limit", "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
         "items": [{ "typeLine": "Iron Ring", "baseType": "Iron Ring", "x": 0, "y": 0 }] } });
     Store::open(&account_path(&base.join("store").join("mock"), USER))
         .unwrap()
@@ -100,7 +101,10 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     assert!(listed["rows"][0]["body"].is_null(), "{listed}");
     let id = listed["rows"][0]["id"].clone();
     let one = harness::document(&mcp.result("store_refused", json!({ "id": id })));
-    assert_eq!(one["body"]["stash"]["id"], "t1", "{one}");
+    assert_eq!(
+        one["body"], nameless,
+        "evidence passes through verbatim: {one}"
+    );
     assert!(one["fetched_at_age"].is_string(), "{one}");
     let doc = refusal(
         &mut mcp,
@@ -225,6 +229,35 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
 /// lists, word for word, so the description cannot name a kind the door
 /// refuses (`refresh`, retired) or leave out one it admits (`apply`), as
 /// it once did both.
+/// Every tool refuses an argument it does not take, as `arguments`, the
+/// key named: walked over `tools/list`, so a tool added without it fails
+/// here and not in a seat (the review of #18's build at c1af7364, P2:
+/// `store_refused` read `{"acount": …}` as no account named).
+#[test]
+fn every_tool_refuses_an_argument_it_does_not_take() {
+    let scratch = harness::scratch("mcp-unknown-arg");
+    let base = scratch.0.clone();
+    seed(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    let tools = mcp.list_tools();
+    assert!(tools.len() >= 27, "tools/list returned {}", tools.len());
+    for tool in tools {
+        let name = tool["name"].as_str().unwrap().to_string();
+        // `search` reads its request with the search crate's own reader
+        // (H1), which refuses a key it does not know as a tree
+        let kind = if name == "search" {
+            "tree"
+        } else {
+            "arguments"
+        };
+        let doc = refusal(&mut mcp, &name, json!({ "acount": USER }), kind);
+        assert!(
+            doc["error"].as_str().unwrap().contains("acount"),
+            "{name} names the key it refused: {doc}"
+        );
+    }
+}
+
 #[test]
 fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
     let scratch = harness::scratch("mcp-kinds");

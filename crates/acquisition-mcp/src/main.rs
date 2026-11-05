@@ -603,6 +603,7 @@ fn realm_param(realm: Option<&str>) -> Result<Realm> {
 const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name that is none of the accounts known is unknown_account (with none known, not_logged_in). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.";
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct TabsParams {
     /// League name; defaults to "Standard".
     league: Option<String>,
@@ -623,6 +624,7 @@ struct TabsParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct CharactersParams {
     /// Restrict to one league; omitted lists every league.
     league: Option<String>,
@@ -859,12 +861,14 @@ struct ShowParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct StoreParams {
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct RefusedParams {
     /// One refused body in full, by its row `id` from the list.
     id: Option<i64>,
@@ -875,6 +879,7 @@ struct RefusedParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct PolicyShowParams {
     /// List every league on disk in `leagues_held`, not ten a realm.
     expand: Option<bool>,
@@ -883,6 +888,7 @@ struct PolicyShowParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct LeaguesParams {
     /// Must be true: this tool reads the league list last fetched, with no
     /// daemon. A `leagues` job (submit_job) fetches it anew.
@@ -894,6 +900,7 @@ struct LeaguesParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct EventsParams {
     /// How far back to look (default 24 hours).
     hours: Option<f64>,
@@ -920,6 +927,7 @@ refused in real mode. apply_plan sends a reviewed plan, with the checks an apply
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct SubmitParams {
     #[schemars(description = submit_kind_doc())]
     kind: String,
@@ -933,24 +941,33 @@ struct SubmitParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct AccountsParams {
     /// List every account, not ten.
     expand: Option<bool>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ListJobsParams {
     /// List every job, open and finished, not ten of each.
     expand: Option<bool>,
 }
 
+/// The arguments of a tool that takes none: any key is refused.
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct NoParams {}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct JobParams {
     /// The job id, as returned by submit_job.
     id: u64,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct SetPolicyParams {
     /// The policy, e.g.
     /// {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}:
@@ -970,6 +987,7 @@ struct SetPolicyParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct PlanParams {
     /// League name; defaults to "Standard".
     league: Option<String>,
@@ -988,6 +1006,7 @@ struct PlanParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ApplyParams {
     /// The plan envelope exactly as refresh_plan returned it (the `plan`
     /// field). Re-validated here; a tampered or hand-built envelope will
@@ -1298,10 +1317,13 @@ const NAMES: [&str; 2] = ["name", "construct"];
 /// `accounts` are data, a stored row and names, carried verbatim as the
 /// read that prints them does (round 4's review, P3); a receipt's `undo`
 /// is an offer, sent back as printed (round 5 of the 2g build);
-/// `describe`'s `patterns` echo each pattern as it was typed.
-const PAYLOAD: [&str; 12] = [
+/// `describe`'s `patterns` echo each pattern as it was typed; and a
+/// `body` is evidence, a stored upstream body (`store_refused`'s, `show`'s)
+/// returned verbatim, a string of GGG's never the tool's words (the
+/// review of #18's build at c1af7364, P3).
+const PAYLOAD: [&str; 13] = [
     "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
-    "accounts", "undo", "patterns",
+    "accounts", "undo", "patterns", "body",
 ];
 
 /// Which strings of a document are the tool's words.
@@ -2151,7 +2173,11 @@ impl AcqMcp {
     #[tool(
         description = "Submit a job to the daemon and return its id at once; poll job_status, then job_result. A stash job for a tab the account's stored listing of its realm and league does not name is refused, nothing sent. `describe` with names [\"daemon\"] says what the job tools answer."
     )]
-    async fn submit_job(&self, Parameters(p): Parameters<SubmitParams>) -> Told {
+    async fn submit_job(&self, Parameters(p): Parameters<Args<SubmitParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
         settled(
             async {
                 let mut client = self.frontend.connect().await?;
@@ -2184,28 +2210,43 @@ impl AcqMcp {
     #[tool(
         description = "One job's state, ETA and retries, and its times (`submitted_at`, `started_at`, `finished_at`, each absent until it happens, its age in words beside it). A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"]; [\"ages\"] for an age's words)."
     )]
-    async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
+    async fn job_status(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
         settled(async { Ok(self.frontend.job(p.id).await?) }.await)
     }
 
     #[tool(
         description = "A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`); a failure's `kind` and the `offers` it leaves (`describe` with names [\"daemon\"] lists the kinds), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
     )]
-    async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
+    async fn job_result(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
         // C165 and C143: a failure's way on as this server's tool calls
         let spoken = Spoken { named: "account" };
         settled(async { Ok(self.frontend.result(p.id).await?.offered(&spoken)) }.await)
     }
 
     #[tool(description = "Cancel a waiting or running job; cascades to its descendants.")]
-    async fn cancel_job(&self, Parameters(p): Parameters<JobParams>) -> Told {
+    async fn cancel_job(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
         settled(async { Ok(self.frontend.cancel(p.id).await?) }.await)
     }
 
     #[tool(
         description = "The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names [\"daemon\"] says what each holds, and [\"ages\"] what an age's words say."
     )]
-    async fn daemon_status(&self) -> Told {
+    async fn daemon_status(&self, Parameters(p): Parameters<Args<NoParams>>) -> Told {
+        if let Err(refusal) = p.read() {
+            return Ok(refusal);
+        }
         settled(async { Ok(self.frontend.daemon().await?) }.await)
     }
 }
