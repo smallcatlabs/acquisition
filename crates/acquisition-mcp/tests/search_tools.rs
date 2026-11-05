@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared};
-use harness::{Scratch, scratch, unaged};
+use harness::{Scratch, scratch};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -1022,7 +1022,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(tabs["rows"].as_array().unwrap().len(), 10);
     let (printed, ok) = cli(&seat.base, &["tabs"]);
     assert!(ok);
-    assert_eq!(unaged(printed), unaged(tabs.clone()));
+    assert_eq!(printed, tabs.clone());
     // #172: the league's facts block over its tabs, and the store's over
     // every realm and league, alike on both surfaces
     for key in ["oldest_fetch", "newest_fetch_location", "list_seen"] {
@@ -1036,18 +1036,18 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
         "{status}"
     );
     let (printed, _) = cli(&seat.base, &["store", "status"]);
-    assert_eq!(unaged(printed), unaged(status));
+    assert_eq!(printed, status);
 
     let (all, _) = seat.call("tabs", &json!({ "expand": true }));
     assert_eq!(all["rows"].as_array().unwrap().len(), 41);
     let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
-    assert_eq!(unaged(printed), unaged(all));
+    assert_eq!(printed, all);
 
     let (more, _) = seat.call("tabs", &json!({ "limit": 25 }));
     assert_eq!(more["rows"].as_array().unwrap().len(), 25, "{more}");
     assert_eq!(more["left_out"], 16);
     let (printed, _) = cli(&seat.base, &["tabs", "--limit", "25"]);
-    assert_eq!(unaged(printed), unaged(more));
+    assert_eq!(printed, more);
 
     // twenty tabs of another league: ten listed, ten counted
     let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
@@ -1076,7 +1076,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
         "{small}"
     );
     let (printed, _) = cli(&seat.base, &["tabs", "--league", "Small"]);
-    assert_eq!(unaged(printed), unaged(small));
+    assert_eq!(printed, small);
 
     // a map tab the listing retired leaves its substash's row (C54), and
     // the leagues held beside the rows count it out as the rows do (the
@@ -1126,7 +1126,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
         "{held}"
     );
     let (printed, _) = cli(&seat.base, &["tabs", "--league", "Maps"]);
-    assert_eq!(unaged(printed), unaged(held));
+    assert_eq!(printed, held);
 }
 
 /// Pc Standard listed again as 41 tabs: Rings and Dump, and 39 of `kind`
@@ -1199,7 +1199,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         &["tabs", "--type", "UniqueStash", "--never-fetched"],
     );
     assert!(ok);
-    assert_eq!(unaged(printed), unaged(tabs));
+    assert_eq!(printed, tabs);
     let (all, _) = seat.call(
         "tabs",
         &json!({ "type": "UniqueStash", "never_fetched": true, "expand": true }),
@@ -1226,7 +1226,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
             "20",
         ],
     );
-    assert_eq!(unaged(printed), unaged(more));
+    assert_eq!(printed, more);
 }
 
 /// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,
@@ -1399,10 +1399,7 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
         .mcp
         .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 1 }));
     assert_eq!(one["rows"].as_array().unwrap().len(), 1, "{one}");
-    assert_eq!(
-        unaged(one["rows"][0].clone()),
-        unaged(all["rows"][0].clone())
-    );
+    assert_eq!(one["rows"][0].clone(), all["rows"][0].clone());
     assert_eq!(one["limit_reached"], true, "{one}");
     assert_eq!(all["limit_reached"], false, "{all}");
     // the same events by location: counted apart from the events

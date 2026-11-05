@@ -20,7 +20,7 @@ use acquisition_store::{
     Annotations, Endpoint, Index, Provenance, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
     Store, account_path,
 };
-use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch, unaged};
+use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -137,16 +137,11 @@ fn seed(base: &Path) {
     .unwrap();
 }
 
-/// A document with the clock's own readings taken out — when the
-/// snapshot was taken and the render made, a second apart at most
-/// between the two processes, and every age said in words beside an
-/// epoch (an `_age` key, C53: made at each answer's own time, so two
-/// answers' can differ by a second, from two processes or from one read
-/// twice) — and, for a write's receipt, when the row was written and
-/// through which surface (`mcp` or `cli`, by design). The ages go by the
-/// harness's one rule, `unaged`, and every comparison in this file of a
-/// document read twice goes through here (#109: a row read before and
-/// after a refused write said `0s ago`, then `1s ago`).
+/// A write's receipt with the keys `keys` taken out, at any depth: what
+/// each surface says by design, apart from what both must say alike.
+/// Its times and their ages are not among them: every process of a test
+/// reads one instant as now (the harness's `ACQ_NOW`, #175), so two
+/// receipts made a second apart still say the same.
 fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
         match v {
@@ -163,21 +158,12 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
         }
     }
     strip(&mut doc, keys);
-    unaged(doc)
+    doc
 }
 
-const CLOCK: &[&str] = &["taken_at", "rendered_at"];
-/// A write's clock and channel, and `undo`, compared
+/// A write's channel, and `undo`, compared
 /// apart: one offer each surface spells (round 5 of the 2g build).
-const RECEIPT: &[&str] = &[
-    "taken_at",
-    "created_at",
-    "updated_at",
-    "written_via",
-    "undo",
-    "clear",
-    "counts_unavailable",
-];
+const RECEIPT: &[&str] = &["written_via", "undo", "clear", "counts_unavailable"];
 
 /// Two refusals of one write offer the same ways, each spelled by its
 /// surface and saying the same (the league seat, fault 3: a conflict's
@@ -419,8 +405,8 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
             "{name} {args} / acq {verb:?}: {by_tool}\n{by_cli}"
         );
         assert_spoken_as(
-            &steady(by_tool, CLOCK),
-            &steady(by_cli, CLOCK),
+            &by_tool,
+            &by_cli,
             &format!("{name} {args} is not what acq {verb:?} --json prints"),
         );
     }
@@ -541,8 +527,8 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     );
     let (_, by_cli) = cli(base, &["price", "list", "--game-text", "invalid_tab_name"]);
     assert_spoken_as(
-        &steady(by_tool, CLOCK),
-        &steady(by_cli, CLOCK),
+        &by_tool,
+        &by_cli,
         "price_list invalid_tab_name is not what acq price list --json prints",
     );
 
@@ -556,11 +542,7 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         base,
         &["shop", "render", "--template", path.to_str().unwrap()],
     );
-    assert_spoken_as(
-        &steady(by_tool, CLOCK),
-        &steady(by_cli, CLOCK),
-        "shop_render with a template",
-    );
+    assert_spoken_as(&by_tool, &by_cli, "shop_render with a template");
     assert!(no_daemon_appeared(base), "a pricing read reached a daemon");
 }
 
@@ -647,8 +629,8 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
         let (cli_ok, by_cli) = cli(base, verb);
         assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
         assert_spoken_as(
-            &steady(by_tool.clone(), CLOCK),
-            &steady(by_cli, CLOCK),
+            &by_tool,
+            &by_cli,
             &format!("shop_render {args} is not what acq {verb:?} --json prints"),
         );
         // the posted item's one tab, fetched, under no policy (C162)
@@ -840,7 +822,7 @@ fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
     let shown = |mcp: &mut Mcp| {
         let (ok, view) = tool(mcp, "price_show", json!({ "target": "item/i-plain" }));
         assert!(ok, "{view}");
-        steady(view["listing"]["manual"].clone(), &[])
+        view["listing"]["manual"].clone()
     };
     let before = shown(&mut mcp);
     assert_eq!(before["revision"], json!(1), "{before}");
@@ -1140,8 +1122,8 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
         assert_eq!(by_tool["counts"]["left_out"], 13 - n);
         let (_, by_cli) = cli(base, verb);
         assert_spoken_as(
-            &steady(by_tool, CLOCK),
-            &steady(by_cli, CLOCK),
+            &by_tool,
+            &by_cli,
             &format!("price_list {args} is not what acq {verb:?} --json prints"),
         );
     }
@@ -1163,8 +1145,8 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
         assert_eq!(by_tool["items_here_counts"]["total"], 13);
         let (_, by_cli) = cli(base, verb);
         assert_spoken_as(
-            &steady(by_tool, CLOCK),
-            &steady(by_cli, CLOCK),
+            &by_tool,
+            &by_cli,
             &format!("price_show {args} is not what acq {verb:?} --json prints"),
         );
     }
@@ -1196,10 +1178,7 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     assert!(ok, "{view}");
     let manual = view["listing"]["manual"].clone();
     assert_eq!(manual["actor"], "acq search --count tab", "{view}");
-    // each side's words beside its `updated_at` (C163) set aside: made at
-    // each answer's own time, and pinned where they are made
     assert!(manual.get("updated_at_age").is_some(), "{view}");
-    let manual = steady(manual, &[]);
     let (ok, refusal) = tool(
         &mut mcp,
         "price_set",
@@ -1207,7 +1186,7 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     );
     assert!(!ok, "{refusal}");
     assert_eq!(refusal["kind"], "conflict", "{refusal}");
-    assert_eq!(steady(refusal["current"].clone(), &[]), manual, "{refusal}");
+    assert_eq!(refusal["current"].clone(), manual, "{refusal}");
 }
 
 /// Round 5 of the 2g build (the receipt shape): a write's receipt on this
@@ -1297,10 +1276,7 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
         })
     );
     let (_, restored) = sent(&mut mcp, "price_set", &replaced);
-    assert_eq!(
-        harness::unaged(restored["prior"].clone()),
-        harness::unaged(replaced["written"].clone())
-    );
+    assert_eq!(restored["prior"].clone(), replaced["written"].clone());
     assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
     // sent back as printed, the restore's clear leaves no row
     let (ok, gone) = tool(
@@ -1473,8 +1449,5 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     );
     assert!(ok, "{back}");
     assert_eq!((&back["revision"], &back["value"]), (&json!(3), &pc));
-    assert_eq!(
-        harness::unaged(back["prior"].clone()),
-        harness::unaged(merged["written"].clone())
-    );
+    assert_eq!(back["prior"].clone(), merged["written"].clone());
 }

@@ -381,6 +381,25 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     );
 }
 
+/// #175, the one test clock: two runs in one test read one instant, the
+/// harness's, so a stored time's age is the same words in both and their
+/// documents compare whole, never with the ages set aside. The time sits
+/// 89 seconds before that instant, where one second more is `1m ago`.
+#[test]
+fn two_runs_in_one_test_say_one_age_and_their_documents_are_equal_whole() {
+    let scratch = harness::scratch("store-one-clock");
+    let base = scratch.0.clone();
+    let mock = world(&base, |_, _| {});
+    Index::load(&mock)
+        .unwrap()
+        .upsert(USER, false, harness::now() - 89, &[])
+        .unwrap();
+    let first = sole_json(&acq(&base, &["accounts", "--json"]));
+    let second = sole_json(&acq(&base, &["accounts", "--json"]));
+    assert_eq!(first["accounts"][0]["last_login_age"], "89s ago", "{first}");
+    assert_eq!(first, second);
+}
+
 /// C149, the CLI's pin: every `--json` answer this step wrapped is one
 /// object, never a bare array or a bare null, read in a world where each
 /// would have been one — the store's lists empty, no policy, the job list

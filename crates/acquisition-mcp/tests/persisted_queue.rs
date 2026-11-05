@@ -58,8 +58,8 @@ fn c45_one_job_is_read_from_disk_on_both_surfaces() {
     let result = mcp.expect_ok("job_result", json!({ "id": 3 }));
     assert_eq!(result["job_id"], 3, "{result}");
     assert_eq!(
-        harness::unaged(json_of(&harness::acq(&base, &["result", "3", "--json"]))),
-        harness::unaged(result.clone())
+        json_of(&harness::acq(&base, &["result", "3", "--json"])),
+        result.clone()
     );
     // C165: the ledger's result says when, each time beside its words,
     // in the keys a live one carries (C45)

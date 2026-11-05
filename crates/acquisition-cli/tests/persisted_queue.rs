@@ -13,9 +13,7 @@ use serde_json::json;
 
 use crate::harness;
 
-use harness::{
-    Transcript, acq, golden, scratch_tmp, sockets_under, sole_json, start_daemon, text, unaged,
-};
+use harness::{Transcript, acq, golden, scratch_tmp, sockets_under, sole_json, start_daemon, text};
 
 fn row(id: u64, state: &str, parent: Option<u64>, updated_at: i64) -> JobRow {
     JobRow {
@@ -125,5 +123,5 @@ fn result_wait_serves_a_previous_daemons_result() {
     assert!(plain.status.success(), "{}", text(&plain));
     let waited = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
     assert!(waited.status.success(), "{}", text(&waited));
-    assert_eq!(unaged(sole_json(&waited)), unaged(sole_json(&plain)));
+    assert_eq!(sole_json(&waited), sole_json(&plain));
 }

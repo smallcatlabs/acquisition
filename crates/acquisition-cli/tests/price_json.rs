@@ -623,8 +623,8 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     // (C163) set aside: made at each answer's own time, and pinned where
     // they are made, the verbs' documents test
     assert_eq!(
-        harness::unaged(doc["current"].clone()),
-        harness::unaged(shown["listing"]["manual"].clone()),
+        doc["current"].clone(),
+        shown["listing"]["manual"].clone(),
         "{doc}"
     );
     doc.as_object_mut().unwrap().remove("current");
@@ -2675,10 +2675,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         (&cleared["written"], at(&cleared)),
         (&Value::Null, at(&created) + 1)
     );
-    assert_eq!(
-        harness::unaged(cleared["prior"].clone()),
-        harness::unaged(created["written"].clone())
-    );
+    assert_eq!(cleared["prior"].clone(), created["written"].clone());
     // Its undo is a create, revision 0 at a terminal, which says so, and
     // lands at the revision after the tombstone's.
     let line = cleared["undo"]["request"].as_str().unwrap();
@@ -2709,15 +2706,9 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         "--if-revision",
         &rev,
     ]);
-    assert_eq!(
-        harness::unaged(replaced["prior"].clone()),
-        harness::unaged(recreated["written"].clone())
-    );
+    assert_eq!(replaced["prior"].clone(), recreated["written"].clone());
     let restored = undone(&replaced);
-    assert_eq!(
-        harness::unaged(restored["prior"].clone()),
-        harness::unaged(replaced["written"].clone())
-    );
+    assert_eq!(restored["prior"].clone(), replaced["written"].clone());
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&restored)));
     // #167 (the answer-facts seat, CLI run 1 calls 82, 91): beside a
@@ -2781,10 +2772,7 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         &at(&again).to_string(),
     ]);
     let by_words = harness::run_argv(&base, &again["undo"], &["--json"]);
-    assert_eq!(
-        harness::unaged(by_words["prior"].clone()),
-        harness::unaged(again["written"].clone())
-    );
+    assert_eq!(by_words["prior"].clone(), again["written"].clone());
     assert_eq!(by_words["revision"], json!(at(&again) + 1), "{by_words}");
     assert_eq!(manual()["value"], created["written"]["value"]);
     assert_eq!(manual()["revision"], json!(at(&by_words)));
