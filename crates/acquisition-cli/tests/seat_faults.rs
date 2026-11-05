@@ -433,6 +433,10 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let none = harness::scratch("seat-account-none");
     let out = sole_json(&acq(&none.0, &["--json", "tabs"]));
     assert_eq!(out["kind"], "not_logged_in", "{out}");
+    // with none known, a name is no typo of a known one: not_logged_in,
+    // as the help says (the review of round E, finding 6)
+    let out = sole_json(&acq(&none.0, &["--account", "Typo", "--json", "tabs"]));
+    assert_eq!(out["kind"], "not_logged_in", "{out}");
 }
 
 fn stdout(out: &std::process::Output) -> String {

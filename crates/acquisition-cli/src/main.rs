@@ -205,10 +205,12 @@ struct Cli {
     /// Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the
     /// store takes the sole account known on disk (`acq accounts`) and a
     /// job verb the sole account logged in (`acq auth status`); with more
-    /// than one, the verb refuses and lists them (`ambiguous_account`). A
-    /// name no login made is refused as `unknown_account`, and one with
-    /// no login live as `not_logged_in`. A job's progress line and its
-    /// JSON name the account it ran as.
+    /// than one, the verb refuses and lists them (`ambiguous_account`).
+    /// With accounts known, a name that is none of them is refused as
+    /// `unknown_account`; with none known, as `not_logged_in`. A job verb
+    /// also needs the account logged in now (`not_logged_in` where it is
+    /// not); a verb that reads the store needs only its store. A job's
+    /// progress line and its JSON name the account it ran as.
     #[arg(long, global = true, env = "ACQ_ACCOUNT")]
     account: Option<String>,
     #[command(subcommand)]

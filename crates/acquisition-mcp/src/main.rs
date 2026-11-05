@@ -600,7 +600,7 @@ fn realm_param(realm: Option<&str>) -> Result<Realm> {
 }
 
 /// Every tool's `account`, one sentence (#83: undescribed on seven).
-const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name no login made is refused as unknown_account, one with no login live as not_logged_in.";
+const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name that is none of the accounts known is unknown_account (with none known, not_logged_in). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.";
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct TabsParams {
@@ -701,7 +701,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "jobs",
-        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes. A stash job for a tab the account's stored listing of its realm and league does not name, or names as gone, is refused at submit, the listing's age said and nothing sent; a `stashes` job fetches the listing again. With none of that league stored it is admitted. An `account` no login made is refused as unknown_account, one with no session live as not_logged_in",
+        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes. A stash job for a tab the account's stored listing of its realm and league does not name, or names as gone, is refused at submit, the listing's age said and nothing sent; a `stashes` job fetches the listing again. With none of that league stored it is admitted. An `account` that is none of the accounts known is refused as unknown_account (with none known, not_logged_in), and one known with no session live as not_logged_in",
     ),
     (
         "no daemon",
