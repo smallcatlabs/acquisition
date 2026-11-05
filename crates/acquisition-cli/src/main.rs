@@ -243,9 +243,11 @@ enum Cmd {
     /// prints carries a key no other page knows, and the server answers
     /// nothing without it. Runs until Ctrl-C. The item art is fetched by
     /// your browser from GGG's image host; a page reads whole without it.
-    /// With no account on disk it starts all the same, every page saying
-    /// to log in with `acq auth`; the first account found after is the
-    /// one it serves until it stops.
+    /// With no account on disk and none named (neither --account nor
+    /// ACQ_ACCOUNT) it starts all the same, every page saying to log in
+    /// with `acq auth`; the first account found after is the one it
+    /// serves until it stops. An account named that cannot be picked
+    /// refuses before it starts.
     Web {
         /// Print the URL alone and open no browser. With --json the URL
         /// is `{"url"}`, one line, either way.
