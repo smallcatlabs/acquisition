@@ -718,3 +718,9 @@ refresh's and a probe's sends and through a probe's closure), fixed at
 the owner's word in a second (`dff98337`, `8aa46913`) read by the
 orchestrating session and not reviewed a third time; #165 and #168
 closed the same day. The seat's issues are done.
+
+The night run of 2026-11-04 (the owner's word that day: nine issues in
+series on `main`, each `trigger:*` waived, agent-facing design the
+session's, rulings parked for him; its morning report
+is written last, under `reviews/`): #18 (`briefs/18-store-refused.md`)
+closed, reviewed (a P2, a P3), fixed in one round reviewed clean.
