@@ -877,12 +877,18 @@ impl Daemon {
                         )));
                     }
                     Err(error) => {
-                        // C165: GGG's 429 on the HEAD is a rate limit
-                        // ending it; any other failure of the probe GGG's
+                        // C165: the HEAD's landed status, as a GET's: its
+                        // 429 a rate limit ending it, a 403 or 503 (a
+                        // block halts instead, above) never retried, any
+                        // other failure of the probe GGG's
                         let kind = match &error {
                             ProbeError::Failed {
                                 status: Some(429), ..
                             } => FailureKind::RateLimited,
+                            ProbeError::Failed {
+                                status: Some(403 | 503),
+                                ..
+                            } => FailureKind::NotRetried,
                             _ => FailureKind::Upstream,
                         };
                         let mut message = format!("HEAD {}: {error}", url_path(&url));

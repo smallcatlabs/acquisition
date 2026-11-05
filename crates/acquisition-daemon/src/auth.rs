@@ -174,18 +174,24 @@ impl TokenError {
     }
 
     /// C165: the failure kind of a job this refresh ends, from its own
-    /// answer: a rejected grant is `not_logged_in` (a login is the way
-    /// on); GGG's 429, never a block's, `rate_limited`; anything else the
+    /// answer: a rejected grant (a 403 among them) is `not_logged_in`, a
+    /// login the way on; GGG's 429, never a block's, `rate_limited`; a
+    /// 503 with no Cloudflare signature `not_retried`, as a GET's is (the
+    /// review of round E's fix round, finding 1); anything else the
     /// provider not answering, `upstream`. A halt or a block turns the job
     /// away instead (C25), and fails nothing.
     pub fn failure(&self) -> acquisition_protocol::job::FailureKind {
         use acquisition_protocol::job::FailureKind;
         if self.is_rejected_grant() {
             FailureKind::NotLoggedIn
-        } else if !self.blocked && self.status == Some(429) {
-            FailureKind::RateLimited
-        } else {
+        } else if self.blocked {
             FailureKind::Upstream
+        } else {
+            match self.status {
+                Some(429) => FailureKind::RateLimited,
+                Some(503) => FailureKind::NotRetried,
+                _ => FailureKind::Upstream,
+            }
         }
     }
 }

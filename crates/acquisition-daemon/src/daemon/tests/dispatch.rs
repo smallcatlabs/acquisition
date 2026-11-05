@@ -2198,42 +2198,47 @@ fn wire_rows() -> Vec<Row> {
     // The narrow HEAD rule (C129, the owner's choice): a HEAD 403 with no
     // `cf-mitigated` is no block, even with no GGG header (`/profile`'s
     // HEAD is answered so, N38). It degrades the route as before, its job
-    // fails as "route degraded", and nothing is halted.
-    rows.push(Row {
-        name: "a_head_403_without_cf_mitigated_still_degrades".into(),
-        script: vec![ScriptedResponse {
-            method: "HEAD",
-            path: "/fetch",
-            status: "403 Forbidden",
-            headers: String::new(),
-            body: String::new(),
-        }],
-        steps: fetched(Failed)
-            .into_iter()
-            .chain([
-                Step::DaemonStatus { halted: None },
-                Step::Dashboard {
-                    degraded: vec!["fetch"],
-                },
-            ])
-            .collect(),
-        jobs: vec![
-            Job::fetch(Failed)
-                .fails(FailureKind::Upstream)
-                .carries(&["degraded"]),
-            Job::probe(Failed).fails(FailureKind::Upstream),
-        ],
-        journal: vec![json!([
-            "HEAD",
-            "/fetch",
-            403,
-            false,
-            false,
-            0,
-            "unclassified"
-        ])],
-        ..Row::default()
-    });
+    // fails as "route degraded", and nothing is halted. A HEAD 503 with
+    // no page of Cloudflare's the same. Each probe is `not_retried`, as a
+    // GET's 403 or 503 is (C165, the review of round E's fix round,
+    // finding 1).
+    for (status, code) in [("403 Forbidden", 403), ("503 Service Unavailable", 503)] {
+        rows.push(Row {
+            name: format!("a_head_403_without_cf_mitigated_still_degrades: {code}"),
+            script: vec![ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status,
+                headers: String::new(),
+                body: String::new(),
+            }],
+            steps: fetched(Failed)
+                .into_iter()
+                .chain([
+                    Step::DaemonStatus { halted: None },
+                    Step::Dashboard {
+                        degraded: vec!["fetch"],
+                    },
+                ])
+                .collect(),
+            jobs: vec![
+                Job::fetch(Failed)
+                    .fails(FailureKind::Upstream)
+                    .carries(&["degraded"]),
+                Job::probe(Failed).fails(FailureKind::NotRetried),
+            ],
+            journal: vec![json!([
+                "HEAD",
+                "/fetch",
+                code,
+                false,
+                false,
+                0,
+                "unclassified"
+            ])],
+            ..Row::default()
+        });
+    }
     // The wire twins of `responses.rs`, the classification's component
     // table (`roadmap/briefs/t5-design.md` §3): three of its judgements
     // staged at the boundary, each GET carrying GGG's headers. A twin
@@ -2347,6 +2352,43 @@ fn wire_rows() -> Vec<Row> {
         ..Row::default()
     });
     rows
+}
+
+/// C165, the review of round E's fix round, finding 1: a job whose token
+/// refresh GGG's origin answers 503, no page of Cloudflare's, is
+/// `not_retried`, as a GET's 503 is: nothing offered sends the refresh
+/// again; a person looks first.
+#[test]
+fn c165_a_refresh_answered_503_fails_its_job_not_retried() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = Sessions::with(AuthSession {
+        access_token: Some("at-expired".into()),
+        access_expires_at: Some(clock.wall()),
+        refresh_token: Some("rt-old".into()),
+        username: Some("test-user".into()),
+        keyring: "ok".into(),
+        ..AuthSession::default()
+    });
+    Door::open(
+        Server::Script(vec![token_answer(
+            "503 Service Unavailable",
+            TOKEN_HEADERS,
+            Some(r#"{"error":"temporarily_unavailable"}"#),
+        )]),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let id = door.submit("whoami", Some("test-user")).await;
+        let (job, outcome) = door.await_terminal(id).await;
+        assert_eq!(job.state, JobState::Failed, "{outcome:?}");
+        let Outcome::Failure { kind, error, .. } = &outcome else {
+            panic!("{outcome:?}")
+        };
+        assert_eq!(*kind, Some(FailureKind::NotRetried), "{error}");
+        door.finish().await;
+    });
 }
 
 /// C165, the review of round E, finding 3: a job whose token refresh GGG

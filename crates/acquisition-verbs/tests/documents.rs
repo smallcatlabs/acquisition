@@ -1087,6 +1087,9 @@ fn c165_a_failures_way_on_follows_its_kind() {
         FailureKind::Internal,
     ] {
         assert_eq!(ways(kind, ("stash", &tab)), [], "{kind}");
+        // the job a refresh's 503 or a rejected grant ended offers no
+        // resubmit either (the review of round E's fix round, finding 1)
+        assert_eq!(ways(kind, ("whoami", &json!({}))), [], "{kind}");
     }
     // a 403 or 503 never retried sends nothing, and says no halt stops
     // every send: it set none (the review of round E, finding 1)
