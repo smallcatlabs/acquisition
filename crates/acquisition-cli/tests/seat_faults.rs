@@ -456,8 +456,13 @@ fn a_job_verb_prints_its_answer_alone_and_says_whose_job_it_was() {
     let (_daemon, _pid) = start_daemon(&base);
     let _login = login(&base, "alice");
 
+    // C165: the waited job's last line says when it was submitted,
+    // started and finished
     let mut t = Transcript::new(&base);
-    let out = t.run(&["profile"], &["(alice): done"]);
+    let out = t.run(
+        &["profile"],
+        &["(alice): done; submitted ", ", started ", ", finished "],
+    );
     assert!(out.status.success(), "{}", text(&out));
     let payload: Value = serde_json::from_str(&stdout(&out))
         .unwrap_or_else(|e| panic!("stdout is not the payload alone ({e}):\n{}", stdout(&out)));
@@ -508,12 +513,29 @@ fn a_detached_job_is_collected_by_waiting_and_a_cancelled_one_is_no_success() {
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     assert_eq!(sole_json(&out)["outcome"], "cancelled");
     let mut t = Transcript::new(&base);
-    let out = t.run(&["result", &id], &["was cancelled"]);
+    // C165: a result read without waiting says the job's times, the
+    // cancelled sleep's submission, start and finish
+    let out = t.run(
+        &["result", &id],
+        &["was cancelled", "submitted ", ", started ", ", finished "],
+    );
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     assert!(out.stdout.is_empty(), "{out:?}");
     assert!(
         stderr(&out).contains(&format!("job {id} was cancelled")),
         "{out:?}"
+    );
+    // and its status says all three under the table, whose `when` is
+    // the latest (asserted apart from the golden: the table's `by`
+    // holds the submitter's pid)
+    let status = acq(&base, &["status", &id]);
+    let said = text(&status);
+    assert!(status.status.success(), "{said}");
+    assert!(
+        said.contains("finished ")
+            && said.contains(&format!("job {id}: submitted "))
+            && said.contains(", started "),
+        "{said}"
     );
     golden(file!(), "a_cancelled_jobs_result", &t);
 }

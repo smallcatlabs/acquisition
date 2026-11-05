@@ -1496,6 +1496,8 @@ fn sleep_row(id: JobId, state: &str) -> acquisition_store::jobs::JobRow {
         cancel_requested: false,
         submitted_at: 0,
         updated_at: 0,
+        started_at: None,
+        finished_at: None,
     }
 }
 

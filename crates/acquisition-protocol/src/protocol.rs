@@ -68,7 +68,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::artifact::Artifact;
-use crate::job::{JobId, JobInfo, Outcome, Priority};
+use crate::job::{JobId, JobInfo, JobTimes, Outcome, Priority};
 use crate::status::{DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord};
 
 /// The bound on one frame, in bytes, both directions (C85). Nothing
@@ -543,6 +543,10 @@ pub enum Response {
     Result {
         id: JobId,
         outcome: Outcome,
+        /// C165: the job's times, as its status carries them; absent
+        /// from an older daemon's answer.
+        #[serde(flatten)]
+        times: JobTimes,
     },
     Ack {
         /// A logout's or a forget's answer alone (C144, the daemon

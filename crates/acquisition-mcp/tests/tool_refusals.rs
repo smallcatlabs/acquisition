@@ -257,6 +257,26 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_at_sub
     );
     let outcome = harness::finish_job(&mut mcp, &fetched["job_id"]);
     assert_eq!(outcome["outcome"], "success", "{outcome}");
+    // C165, live: the result and the status say when, each time beside
+    // its words, a finish no earlier than the start
+    let status = mcp.expect_ok("job_status", json!({ "id": fetched["job_id"] }));
+    for doc in [&outcome, &status] {
+        for time in ["submitted_at", "started_at", "finished_at"] {
+            assert!(doc[time].is_i64(), "{time}: {doc}");
+            assert!(doc[format!("{time}_age")].is_string(), "{time}: {doc}");
+        }
+        assert!(
+            doc["finished_at"].as_i64() >= doc["started_at"].as_i64(),
+            "{doc}"
+        );
+    }
+    let listed = mcp.expect_ok("list_jobs", json!({}));
+    let row = listed["rows"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|r| r["id"] == fetched["job_id"]))
+        .cloned()
+        .unwrap_or_else(|| panic!("{listed}"));
+    assert!(row["finished_at_age"].is_string(), "{row}");
 
     drop(mcp);
     let stop = harness::acq(&base, &["daemon", "stop"]);

@@ -73,7 +73,8 @@ impl Daemon {
     /// the sticky queue failure (logged here — safe, `log` takes no lock
     /// but its own — and refused loudly at the next submit): disk has
     /// diverged from memory, so no new work may be taken.
-    pub(super) fn persist(&self, entry: &Entry) -> bool {
+    pub(super) fn persist(&self, entry: &mut Entry) -> bool {
+        entry.stamp(self.unix_now());
         match self
             .jobs_db
             .lock()
@@ -240,7 +241,7 @@ impl Daemon {
                         }
                         _ => FAULT_WORDS.to_string(),
                     }));
-                    fault_on_disk &= self.persist(&entry);
+                    fault_on_disk &= self.persist(&mut entry);
                 } else if entry.info.kind == "profile"
                     && entry.info.submitted_by == DAEMON_SUBMITTER
                     && matches!(entry.info.state, JobState::Running | JobState::Waiting)
@@ -253,7 +254,7 @@ impl Daemon {
                     lost_login += 1;
                     entry.info.state = JobState::Failed;
                     entry.outcome = Some(Outcome::failure(LOST_LOGIN_WORDS));
-                    self.persist(&entry);
+                    self.persist(&mut entry);
                 } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
                         .keyed_route_for(
@@ -301,7 +302,7 @@ resubmit if still wanted",
                         entry.info.state = JobState::Waiting;
                         requeued += 1;
                     }
-                    self.persist(&entry);
+                    self.persist(&mut entry);
                 }
                 restored.push(entry.info.clone());
                 s.jobs.insert(entry.info.id, entry);
@@ -361,8 +362,16 @@ resubmit if still wanted",
     /// `Ok(None)` is genuinely no such job; a queue that cannot be read
     /// is an error, never mistaken for "no job".
     pub(super) fn stored_outcome(&self, id: JobId) -> Result<Option<Outcome>, Refusal> {
+        Ok(self.stored_result(id)?.map(|(outcome, _)| outcome))
+    }
+
+    /// [`Self::stored_outcome`] with the job's times beside it (C165), as
+    /// the row records them.
+    pub(super) fn stored_result(&self, id: JobId) -> Result<Option<(Outcome, JobTimes)>, Refusal> {
         match self.jobs_db.lock().unwrap().get(id) {
-            Ok(row) => Ok(row.and_then(Entry::from_row).and_then(|e| e.outcome)),
+            Ok(row) => Ok(row
+                .and_then(Entry::from_row)
+                .and_then(|e| Some((e.outcome?, e.info.times)))),
             Err(e) => Err(Refusal::new(
                 ErrorKind::QueueFailed,
                 format!("could not read the persisted queue: {e:#}"),
@@ -558,15 +567,18 @@ resubmit if still wanted",
                 retries: 0,
                 account,
                 params,
+                times: JobTimes {
+                    submitted_at: Some(self.unix_now()),
+                    ..JobTimes::default()
+                },
             };
-            let entry = Entry {
+            let mut entry = Entry {
                 info: info.clone(),
                 outcome: None,
                 cancel_requested: false,
                 deferred: None,
-                submitted_at: self.unix_now(),
             };
-            if !self.persist(&entry) {
+            if !self.persist(&mut entry) {
                 s.next_id -= 1;
                 let e = self.queue_failed().unwrap_or_default();
                 return Err(Refusal::queue_failed(&e));
@@ -620,7 +632,6 @@ resubmit if still wanted",
                     JobState::Waiting => {
                         entry.info.state = JobState::Cancelled;
                         entry.outcome = Some(Outcome::Cancelled);
-                        emits.push(entry.info.clone());
                     }
                     // A parent waiting on children isn't on any worker;
                     // cancel it outright.
@@ -628,12 +639,15 @@ resubmit if still wanted",
                         entry.deferred = None;
                         entry.info.state = JobState::Cancelled;
                         entry.outcome = Some(Outcome::Cancelled);
-                        emits.push(entry.info.clone());
                     }
                     JobState::Running => entry.cancel_requested = true,
                     _ => continue,
                 }
                 persist_failed |= !self.persist(entry);
+                // emitted once stamped, its finish with it (C165)
+                if entry.info.state == JobState::Cancelled {
+                    emits.push(entry.info.clone());
+                }
             }
             self.evict_tree(&mut s, id);
         }

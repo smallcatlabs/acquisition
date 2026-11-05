@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
-use acquisition_protocol::job::{Children, JobInfo, JobState, MAX_429_RETRIES, Outcome};
+use acquisition_protocol::job::{Children, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome};
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, MAX_FRAME_BYTES, Quote,
     QuoteJob, QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
@@ -160,6 +160,12 @@ fn job() -> JobInfo {
         retries: 1,
         account: Some("Alice#1234".into()),
         params: json!({ "league": "Standard", "id": "t1", "deep": false }),
+        // re-queued after a 429: waiting again, its first start kept
+        times: JobTimes {
+            submitted_at: Some(1_800_000_000),
+            started_at: Some(1_800_000_002),
+            ..JobTimes::default()
+        },
     }
 }
 
@@ -319,6 +325,12 @@ fn responses() -> Vec<Response> {
             id: 42,
             outcome: Outcome::Success {
                 payload: json!({ "status": 200, "body": { "stash": { "id": "t1", "items": [] } } }),
+            },
+            times: JobTimes {
+                submitted_at: Some(1_800_000_000),
+                started_at: Some(1_800_000_002),
+                finished_at: Some(1_800_000_003),
+                ..JobTimes::default()
             },
         },
         Response::Ack { keyring: None },
@@ -484,6 +496,45 @@ fn c85_every_outcome_variant_has_a_pinned_wire_shape() {
         &variants_of::<Outcome>(json!({ "outcome": "__none__" })),
         &samples,
     );
+}
+
+/// C165 (a job's record says when): each time is absent until it
+/// happens, and a record or a result from before the times reads with
+/// none and writes as it was read; the ages are a frontend's, never on
+/// a record the daemon sends.
+#[test]
+fn c165_a_jobs_times_are_absent_until_they_happen_and_an_old_record_reads_without_them() {
+    let mut waiting = job();
+    waiting.retries = 0;
+    waiting.times = JobTimes {
+        submitted_at: Some(1_800_000_000),
+        ..JobTimes::default()
+    };
+    let wire = serde_json::to_value(&waiting).expect("serializable");
+    assert_eq!(wire["submitted_at"], json!(1_800_000_000), "{wire}");
+    for absent in [
+        "started_at",
+        "finished_at",
+        "submitted_at_age",
+        "started_at_age",
+        "finished_at_age",
+    ] {
+        assert!(wire.get(absent).is_none(), "{absent}: {wire}");
+    }
+    let mut old = serde_json::to_value(job()).expect("serializable");
+    let object = old.as_object_mut().expect("an object");
+    object.retain(|key, _| !key.ends_with("_at"));
+    let read: JobInfo = serde_json::from_value(old.clone()).expect("an old record reads");
+    assert_eq!(read.times, JobTimes::default());
+    assert_eq!(serde_json::to_value(&read).expect("serializable"), old);
+    let result: Response = serde_json::from_value(json!({
+        "resp": "result", "id": 7, "outcome": { "outcome": "cancelled" }
+    }))
+    .expect("an older daemon's result reads");
+    let Response::Result { times, .. } = result else {
+        panic!("{result:?}")
+    };
+    assert_eq!(times, JobTimes::default());
 }
 
 /// A plain failure, as every daemon before the tally wrote it and every

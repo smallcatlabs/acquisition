@@ -8,7 +8,7 @@
 use std::time::Duration;
 
 use acquisition_client::client::{Client, DaemonError};
-use acquisition_protocol::job::{JobInfo, JobState, Outcome, target_of};
+use acquisition_protocol::job::{JobInfo, JobState, JobTimes, Outcome, target_of};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_store::bound::bounded;
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
@@ -122,6 +122,24 @@ async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
     Ok(tally)
 }
 
+/// C165 and C163 (every time a document carries has its words beside
+/// it): a job's times, each that happened said at `now`, the answer's
+/// time, by the store's one formatter, as [`PersistedJob::aged`] says a
+/// ledger row's. The daemon sends the times; a frontend says them.
+pub fn said(mut times: JobTimes, now: i64) -> JobTimes {
+    let words = |at: Option<i64>| at.map(|at| acquisition_store::age::ago(now, Some(at)));
+    times.submitted_at_age = words(times.submitted_at);
+    times.started_at_age = words(times.started_at);
+    times.finished_at_age = words(times.finished_at);
+    times
+}
+
+/// A job as a document carries it: its times said at `now` ([`said`]).
+pub fn aged(mut job: JobInfo, now: i64) -> JobInfo {
+    job.times = said(job.times, now);
+    job
+}
+
 /// The queue: the daemon's list, or with no daemon the ledger's open
 /// rows (C45), each one document counted beside its rows (C149, every
 /// answer one object; C53, the read economy). `persisted` is `None` when
@@ -208,8 +226,11 @@ pub struct Listed {
 }
 
 impl Listed {
-    /// The daemon's list, counted whole and then cut by the one rule.
+    /// The daemon's list, counted whole and then cut by the one rule;
+    /// each row's times said now ([`aged`], C165).
     pub fn of(jobs: Vec<JobInfo>, expand: bool) -> Listed {
+        let now = acquisition_store::now();
+        let jobs: Vec<JobInfo> = jobs.into_iter().map(|job| aged(job, now)).collect();
         let counts = JobCounts::of(&jobs);
         let (open, finished): (Vec<JobInfo>, Vec<JobInfo>) =
             jobs.into_iter().partition(|j| !j.state.is_terminal());
@@ -313,6 +334,10 @@ pub struct JobResult {
     pub account: Option<String>,
     #[serde(flatten)]
     pub outcome: Outcome,
+    /// C165: when the job was submitted, started and finished, each with
+    /// its words (C163); absent where the daemon or the row has none.
+    #[serde(flatten)]
+    pub times: JobTimes,
     /// C23 (a parent's failure carries its children's tally): for a
     /// parent whose children failed, the first
     /// [`FAILED_CHILDREN_DETAILED`] of them with their kind, target and
@@ -464,13 +489,27 @@ pub fn job_info(job: &PersistedJob) -> Result<JobInfo, Fault> {
         retries: job.retries,
         account: job.account.clone(),
         params: job.params.clone(),
+        times: times_of(job),
     })
+}
+
+/// C165: a ledger row's times as a job's record carries them, with the
+/// words the row was said with.
+fn times_of(job: &PersistedJob) -> JobTimes {
+    JobTimes {
+        submitted_at: Some(job.submitted_at),
+        submitted_at_age: job.submitted_at_age.clone(),
+        started_at: job.started_at,
+        started_at_age: job.started_at_age.clone(),
+        finished_at: job.finished_at,
+        finished_at_age: job.finished_at_age.clone(),
+    }
 }
 
 /// C4: a terminal job's outcome from the daemon, with its account where
 /// the daemon still lists the job.
 pub async fn result_live(client: &mut Client, id: u64) -> Result<JobResult, Fault> {
-    let outcome = outcome_live(client, id).await?;
+    let (outcome, times) = answer_live(client, id).await?;
     // A previous lifetime's job has no status; its outcome stands alone.
     let account = client.status(id).await.ok().and_then(|job| job.account);
     let failed_children = failed_children_live(client, &outcome).await;
@@ -478,6 +517,7 @@ pub async fn result_live(client: &mut Client, id: u64) -> Result<JobResult, Faul
         job_id: id,
         account,
         outcome,
+        times: said(times, acquisition_store::now()),
         failed_children,
     })
 }
@@ -507,12 +547,18 @@ pub async fn failed_children_live(client: &mut Client, outcome: &Outcome) -> Vec
 /// C4: a terminal job's outcome from the daemon alone; a job not yet
 /// terminal is the daemon's `wrong_state` refusal (C85).
 pub async fn outcome_live(client: &mut Client, id: u64) -> Result<Outcome, Fault> {
+    Ok(answer_live(client, id).await?.0)
+}
+
+/// [`outcome_live`] with the job's times as the daemon answers them
+/// (C165), unsaid.
+async fn answer_live(client: &mut Client, id: u64) -> Result<(Outcome, JobTimes), Fault> {
     match client
         .request(&Request::Result { id })
         .await
         .map_err(Fault::from_client)?
     {
-        Response::Result { outcome, .. } => Ok(outcome),
+        Response::Result { outcome, times, .. } => Ok((outcome, times)),
         Response::Error { kind, message } => Err(Fault::Daemon(DaemonError { kind, message })),
         other => Err(unexpected(other)),
     }
@@ -565,9 +611,10 @@ impl Frontend {
     /// no daemon answers; [`Fault::NoJobOnDisk`] when neither holds it.
     pub async fn job(&self, id: u64) -> Result<Job, Fault> {
         match self.observe().await? {
-            Some(mut client) => Ok(Job::Live(
+            Some(mut client) => Ok(Job::Live(aged(
                 client.status(id).await.map_err(Fault::from_client)?,
-            )),
+                acquisition_store::now(),
+            ))),
             None => self.job_on_disk(id),
         }
     }
@@ -627,10 +674,12 @@ impl Frontend {
                 },
             })
             .collect();
+        let job = record.job.aged(acquisition_store::now());
         Ok(JobResult {
             job_id: id,
-            account: record.job.account,
             outcome,
+            times: times_of(&job),
+            account: job.account,
             failed_children,
         })
     }

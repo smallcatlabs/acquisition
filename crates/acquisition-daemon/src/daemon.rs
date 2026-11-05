@@ -126,8 +126,8 @@ use crate::ratelimit::{
 use crate::ratelimit::{Expired, endpoint_key, split_endpoint_key, within_on};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    CLIENT_KINDS, Children, JobId, JobInfo, JobState, MAX_429_RETRIES, MOCK_ONLY_KINDS, Outcome,
-    Priority, client_kinds, target_of,
+    CLIENT_KINDS, Children, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES, MOCK_ONLY_KINDS,
+    Outcome, Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
@@ -331,11 +331,24 @@ struct Entry {
     /// A parent's own result, held back until its descendants finish. Set
     /// means "running, waiting on children, with no active dispatcher task".
     deferred: Option<Outcome>,
-    /// Unix seconds; the persisted row's `submitted_at`.
-    submitted_at: i64,
 }
 
 impl Entry {
+    /// C165: the time this state makes true, each set once at its
+    /// transition and never moved after: the first start when the job
+    /// runs (a 429's re-queue and a restart's keep it), the finish when it
+    /// is terminal. The submission is set at submit. [`Daemon::persist`]
+    /// calls it before every write, so memory and the row agree.
+    fn stamp(&mut self, now: i64) {
+        let times = &mut self.info.times;
+        if self.info.state == JobState::Running {
+            times.started_at.get_or_insert(now);
+        }
+        if self.info.state.is_terminal() {
+            times.finished_at.get_or_insert(now);
+        }
+    }
+
     /// The row `daemon.db` holds for this job (C6): `JobInfo` column for
     /// column plus the fields a restart needs. `eta_seconds` is a
     /// prediction, never stored.
@@ -354,8 +367,10 @@ impl Entry {
             outcome: self.outcome.as_ref().map(json),
             deferred: self.deferred.as_ref().map(json),
             cancel_requested: self.cancel_requested,
-            submitted_at: self.submitted_at,
+            submitted_at: self.info.times.submitted_at.unwrap_or(now),
             updated_at: now,
+            started_at: self.info.times.started_at,
+            finished_at: self.info.times.finished_at,
         }
     }
 
@@ -376,11 +391,16 @@ impl Entry {
                 retries: row.retries,
                 account: row.account,
                 params: row.params,
+                times: JobTimes {
+                    submitted_at: Some(row.submitted_at),
+                    started_at: row.started_at,
+                    finished_at: row.finished_at,
+                    ..JobTimes::default()
+                },
             },
             outcome: outcome(row.outcome),
             cancel_requested: row.cancel_requested,
             deferred: outcome(row.deferred),
-            submitted_at: row.submitted_at,
         })
     }
 }
@@ -411,6 +431,12 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
         retries: row.retries,
         account: row.account,
         params: row.params,
+        times: JobTimes {
+            submitted_at: Some(row.submitted_at),
+            started_at: row.started_at,
+            finished_at: row.finished_at,
+            ..JobTimes::default()
+        },
     })
 }
 

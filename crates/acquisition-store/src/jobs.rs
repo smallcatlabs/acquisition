@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     deferred         TEXT,               -- a parent's held-back outcome while its children run
     cancel_requested INTEGER NOT NULL DEFAULT 0,
     submitted_at     INTEGER NOT NULL,   -- unix seconds
-    updated_at       INTEGER NOT NULL
+    updated_at       INTEGER NOT NULL,
+    started_at       INTEGER,            -- the first start (schema v2)
+    finished_at      INTEGER             -- when it became terminal (v2)
 );
 CREATE INDEX IF NOT EXISTS jobs_state ON jobs (state);
 ";
@@ -73,6 +75,10 @@ pub struct JobRow {
     pub cancel_requested: bool,
     pub submitted_at: i64,
     pub updated_at: i64,
+    /// C165: the job's first start, `None` until it runs.
+    pub started_at: Option<i64>,
+    /// C165: when it became terminal, `None` until it does.
+    pub finished_at: Option<i64>,
 }
 
 /// One job as a list names it: the columns that lead the row, before its
@@ -92,6 +98,10 @@ pub struct ListedJob {
     pub retries: u32,
     pub account: Option<String>,
     pub params: Value,
+    /// C165: the job's times, as [`JobRow`] holds them.
+    pub submitted_at: i64,
+    pub started_at: Option<i64>,
+    pub finished_at: Option<i64>,
 }
 
 /// How long terminal rows are kept, in days, by final state.
@@ -132,8 +142,34 @@ fn open_read_only(path: &Path) -> Result<Connection> {
 /// The queue's schema version, stamped in `user_version` (issue #63; C48,
 /// the schema is internal). A file a build before the stamp wrote carries
 /// 0 and the same table, and is stamped on open; a file stamped newer than
-/// this build is refused ([`QueueSchemaTooNew`]), never guessed at.
-pub const JOBS_SCHEMA_VERSION: i64 = 1;
+/// this build is refused ([`QueueSchemaTooNew`]), never guessed at. v2
+/// adds `started_at` and `finished_at` (C165), each a column a daemon's
+/// open adds where the file lacks it, its old rows with neither time; a
+/// frontend's read-only read of a v1 file reads them absent.
+pub const JOBS_SCHEMA_VERSION: i64 = 2;
+
+/// The columns schema v2 added, in [`SCHEMA`]'s order.
+const V2_COLUMNS: [&str; 2] = ["started_at", "finished_at"];
+
+/// Whether the `jobs` table at `conn` has `column`.
+fn has_column(conn: &Connection, column: &str) -> rusqlite::Result<bool> {
+    let mut stmt = conn.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name = ?1")?;
+    stmt.exists([column])
+}
+
+/// The select list for the v2 columns at `conn`: the columns, or NULL
+/// in their place for a file of v1 that a read-only reader must not
+/// migrate (C45: an observer changes nothing).
+fn time_columns(conn: &Connection) -> rusqlite::Result<String> {
+    let mut out = Vec::new();
+    for column in V2_COLUMNS {
+        out.push(match has_column(conn, column)? {
+            true => column.to_string(),
+            false => format!("NULL AS {column}"),
+        });
+    }
+    Ok(out.join(", "))
+}
 
 /// `daemon.db` written by a newer build than this one. The daemon refuses
 /// to start on it (C6: a queue it cannot read is not run against), in
@@ -193,7 +229,17 @@ impl JobDb {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
         if found < JOBS_SCHEMA_VERSION {
-            conn.pragma_update(None, "user_version", JOBS_SCHEMA_VERSION)?;
+            // v1 to v2 (C165): the columns the file lacks, added in place,
+            // each old row with neither time; the stamp in the same
+            // transaction.
+            let tx = conn.unchecked_transaction()?;
+            for column in V2_COLUMNS {
+                if !has_column(&tx, column)? {
+                    tx.execute_batch(&format!("ALTER TABLE jobs ADD COLUMN {column} INTEGER"))?;
+                }
+            }
+            tx.pragma_update(None, "user_version", JOBS_SCHEMA_VERSION)?;
+            tx.commit()?;
         }
         Ok(JobDb { conn, path })
     }
@@ -215,8 +261,9 @@ impl JobDb {
         self.conn.execute(
             "INSERT OR REPLACE INTO jobs
              (id, kind, state, priority, submitted_by, parent, retries, account, params,
-              outcome, deferred, cancel_requested, submitted_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+              outcome, deferred, cancel_requested, submitted_at, updated_at,
+              started_at, finished_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 row.id,
                 row.kind,
@@ -232,6 +279,8 @@ impl JobDb {
                 row.cancel_requested,
                 row.submitted_at,
                 row.updated_at,
+                row.started_at,
+                row.finished_at,
             ],
         )?;
         Ok(())
@@ -270,7 +319,8 @@ impl JobDb {
     fn select(&self, filter: &str, args: impl rusqlite::Params) -> Result<Vec<JobRow>> {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params,
-                    outcome, deferred, cancel_requested, submitted_at, updated_at
+                    outcome, deferred, cancel_requested, submitted_at, updated_at,
+                    started_at, finished_at
              FROM jobs {filter} ORDER BY id"
         ))?;
         let rows = stmt.query_map(args, |r| {
@@ -289,6 +339,8 @@ impl JobDb {
                 cancel_requested: r.get(11)?,
                 submitted_at: r.get(12)?,
                 updated_at: r.get(13)?,
+                started_at: r.get(14)?,
+                finished_at: r.get(15)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
@@ -315,7 +367,8 @@ impl JobDb {
     /// restore took, one primary-key lookup each, never the rows between.
     pub fn listed_finished(&self, ids: &[u64]) -> Result<Vec<ListedJob>> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params
+            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params,
+                    submitted_at, started_at, finished_at
              FROM jobs WHERE id = ?1 AND state IN ('done', 'failed', 'cancelled')",
         )?;
         let mut rows = Vec::new();
@@ -330,7 +383,8 @@ impl JobDb {
 
     fn list_where(&self, filter: &str, args: impl rusqlite::Params) -> Result<Vec<ListedJob>> {
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params
+            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params,
+                    submitted_at, started_at, finished_at
              FROM jobs WHERE {filter} ORDER BY id"
         ))?;
         let rows = stmt.query_map(args, listed_row)?;
@@ -402,14 +456,30 @@ pub struct PersistedJob {
     /// with no daemon, whose text says when its row was written.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at_age: Option<String>,
+    /// C165: the job's first start, absent until it runs (and from a row
+    /// of schema v1).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<i64>,
+    /// C163: `started_at` in words at the answer's time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at_age: Option<String>,
+    /// C165: when it became terminal, absent until it does.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<i64>,
+    /// C163: `finished_at` in words at the answer's time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at_age: Option<String>,
 }
 
 impl PersistedJob {
-    /// C53 and C163: the row with its submission's and its last write's
-    /// ages said at `now`, the answer's time.
+    /// C53 and C163: the row with each of its times said at `now`, the
+    /// answer's time; a time absent has no words.
     pub fn aged(mut self, now: i64) -> PersistedJob {
-        self.submitted_at_age = Some(crate::age::ago(now, Some(self.submitted_at)));
-        self.updated_at_age = Some(crate::age::ago(now, Some(self.updated_at)));
+        let said = |at: Option<i64>| at.map(|at| crate::age::ago(now, Some(at)));
+        self.submitted_at_age = said(Some(self.submitted_at));
+        self.updated_at_age = said(Some(self.updated_at));
+        self.started_at_age = said(self.started_at);
+        self.finished_at_age = said(self.finished_at);
         self
     }
 }
@@ -474,10 +544,14 @@ impl Persisted {
             return Ok(None);
         }
         let conn = open_read_only(&path)?;
+        let context = || format!("reading job {id} in {}", path.display());
+        let times = time_columns(&conn).with_context(context)?;
         conn.query_row(
-            "SELECT id, kind, state, priority, submitted_by, parent, retries, account,
-                    params, cancel_requested, submitted_at, updated_at, outcome
-             FROM jobs WHERE id = ?1",
+            &format!(
+                "SELECT id, kind, state, priority, submitted_by, parent, retries, account,
+                        params, cancel_requested, submitted_at, updated_at, outcome, {times}
+                 FROM jobs WHERE id = ?1"
+            ),
             [id],
             |r| {
                 Ok(PersistedRecord {
@@ -496,13 +570,17 @@ impl Persisted {
                         updated_at: r.get(11)?,
                         submitted_at_age: None,
                         updated_at_age: None,
+                        started_at: r.get(13)?,
+                        started_at_age: None,
+                        finished_at: r.get(14)?,
+                        finished_at_age: None,
                     },
                     outcome: r.get::<_, Option<String>>(12)?.map(parse),
                 })
             },
         )
         .optional()
-        .with_context(|| format!("reading job {id} in {}", path.display()))
+        .with_context(context)
     }
 
     /// The provider's ledger in this shell's world, or `None` when there
@@ -537,12 +615,13 @@ impl Persisted {
         let written_at: Option<i64> = conn
             .query_row("SELECT MAX(updated_at) FROM jobs", [], |r| r.get(0))
             .with_context(context)?;
+        let times = time_columns(&conn).with_context(context)?;
         let mut stmt = conn
-            .prepare(
+            .prepare(&format!(
                 "SELECT id, kind, state, priority, submitted_by, parent, retries, account,
-                        params, cancel_requested, submitted_at, updated_at
-                 FROM jobs WHERE state IN ('waiting', 'running') ORDER BY id",
-            )
+                        params, cancel_requested, submitted_at, updated_at, {times}
+                 FROM jobs WHERE state IN ('waiting', 'running') ORDER BY id"
+            ))
             .with_context(context)?;
         let rows = stmt
             .query_map([], |r| {
@@ -561,6 +640,10 @@ impl Persisted {
                     updated_at: r.get(11)?,
                     submitted_at_age: None,
                     updated_at_age: None,
+                    started_at: r.get(12)?,
+                    started_at_age: None,
+                    finished_at: r.get(13)?,
+                    finished_at_age: None,
                 })
             })
             .with_context(context)?;
@@ -581,7 +664,8 @@ impl Persisted {
     }
 }
 
-/// One [`ListedJob`] from a select of its nine leading columns.
+/// One [`ListedJob`] from a select of its nine leading columns and its
+/// three times.
 fn listed_row(r: &rusqlite::Row) -> rusqlite::Result<ListedJob> {
     Ok(ListedJob {
         id: r.get(0)?,
@@ -593,6 +677,9 @@ fn listed_row(r: &rusqlite::Row) -> rusqlite::Result<ListedJob> {
         retries: r.get(6)?,
         account: r.get(7)?,
         params: parse(r.get::<_, String>(8)?),
+        submitted_at: r.get(9)?,
+        started_at: r.get(10)?,
+        finished_at: r.get(11)?,
     })
 }
 

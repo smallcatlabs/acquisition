@@ -2,6 +2,10 @@
 
 $ acq result <j1>
 # holds "was cancelled"
+# holds "submitted "
+# holds ", started "
+# holds ", finished "
 --- stderr
 Error: job <j1> was cancelled
+  submitted <age> ago, started <age> ago, finished <age> ago
 --- exit 1

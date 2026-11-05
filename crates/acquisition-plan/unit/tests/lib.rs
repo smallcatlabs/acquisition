@@ -1818,6 +1818,7 @@ fn an_open_apply_spends_the_requests_it_lists_and_a_child_is_named_first() {
         retries: 0,
         account: Some(account.into()),
         params,
+        times: Default::default(),
     };
     // The defaults omitted (realm, deep), as another door may spell it.
     let listed = |ids: &[&str]| {
@@ -1927,6 +1928,7 @@ fn an_action_is_spent_by_a_later_fetch_or_an_open_job_and_by_nothing_else() {
         retries: 0,
         account: Some(account.into()),
         params: plan.actions[2].job().1,
+        times: Default::default(),
     };
     let live = [
         job(8, "tom", JobState::Done),
@@ -2032,6 +2034,7 @@ fn an_open_job_spelling_no_sub_as_null_spends_the_action_naming_none() {
         retries: 0,
         account: Some("tom".into()),
         params,
+        times: Default::default(),
     }];
     let facts = snapshot_with(&s, &policy);
     let (unspent, spent) = plan.unspent(&facts, &live, "tom");

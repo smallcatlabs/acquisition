@@ -6,8 +6,28 @@ $ acq jobs
 # holds "3 jobs on disk: 1 recorded running, 2 waiting; done not recorded"
 --- stdout
 daemon is not running; on disk: 2 waiting, 1 recorded running, written <age> ago — a job command spawns a successor that restores them, and `acq cancel <id>` then acts on them
-id  parent  kind   target         state    prio  account     by   eta
- 1          stash  Standard/tab1  waiting     5  Exile#1234  cli
- 2          stash  Standard/tab2  running     5  Exile#1234  cli
- 3       2  stash  Standard/tab3  waiting     5  Exile#1234  cli
+id  parent  kind   target         state    prio  account     by   when                 eta
+ 1          stash  Standard/tab1  waiting     5  Exile#1234  cli  submitted <age> ago
+ 2          stash  Standard/tab2  running     5  Exile#1234  cli  started <age> ago
+ 3       2  stash  Standard/tab3  waiting     5  Exile#1234  cli  submitted <age> ago
 3 jobs on disk: 1 recorded running, 2 waiting; done not recorded
+
+$ acq status <j1>
+# holds "job 2: submitted"
+# holds ", started "
+--- stdout
+daemon is not running; job <j1> as the ledger on disk records it, written <age> ago
+id  parent  kind   target         state    prio  account     by   when               eta
+ 2          stash  Standard/tab2  running     5  Exile#1234  cli  started <age> ago
+1 job: 1 running, 0 waiting, 0 done
+job <j1>: submitted <age> ago, started <age> ago
+
+$ acq result <j2>
+# holds "job 4: submitted"
+# holds ", finished "
+--- stdout
+{
+  "fetched": 1
+}
+--- stderr
+job <j2>: submitted <age> ago, started <age> ago, finished <age> ago

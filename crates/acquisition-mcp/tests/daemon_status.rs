@@ -134,6 +134,8 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
         cancel_requested: false,
         submitted_at: 1_700_000_000,
         updated_at: 1_700_000_001,
+        started_at: None,
+        finished_at: None,
     })
     .unwrap();
     db.checkpoint().unwrap();

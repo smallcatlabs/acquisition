@@ -230,12 +230,15 @@ impl Daemon {
             if entry.info.state != JobState::Waiting {
                 return;
             }
+            let first_start = entry.info.times.started_at;
             entry.info.state = JobState::Running;
             if !self.persist(entry) {
                 // Disk still says waiting: after a restart this run would
                 // be invisible (a no-probe job would replay blind). A send
-                // the queue cannot see must not happen — revert, don't run.
+                // the queue cannot see must not happen — revert, don't run,
+                // and keep no start that did not happen (C165).
                 entry.info.state = JobState::Waiting;
+                entry.info.times.started_at = first_start;
                 return;
             }
             (entry.info.clone(), entry.info.params.clone())

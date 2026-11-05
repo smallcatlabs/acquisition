@@ -30,7 +30,9 @@
       "parent": 41,
       "priority": 0,
       "retries": 1,
+      "started_at": 1800000002,
       "state": "waiting",
+      "submitted_at": 1800000000,
       "submitted_by": "cli:1234"
     }
   ],

@@ -773,6 +773,10 @@ fn persisted_job(state: &str) -> PersistedJob {
         submitted_at_age: None,
         updated_at: 20,
         updated_at_age: None,
+        started_at: None,
+        started_at_age: None,
+        finished_at: None,
+        finished_at_age: None,
     }
 }
 
@@ -964,6 +968,7 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
             }),
             payload: None,
         },
+        times: Default::default(),
         failed_children: vec![acquisition_verbs::FailedChild {
             job_id: 6,
             kind: "stash".into(),
@@ -989,6 +994,7 @@ fn a_plain_failure_serialises_without_failed_children() {
         job_id: 9,
         account: None,
         outcome: Outcome::failure("GET /stash/Standard/t9 returned 404"),
+        times: Default::default(),
         failed_children: Vec::new(),
     };
     assert_eq!(

@@ -34,13 +34,13 @@ GET jobs <every job done>
 <h1>Jobs</h1>
 <pre>
 rails:  tripwire off · sends 6 since this daemon started · journal off
-id  parent  kind  target  state  prio  account  by  eta
-1  profile  done  254  ExileTester  daemon
-2  apply  plan (2 requests)  done  0  ExileTester  web:<pid>
-3  2  stashes  Standard  done  0  ExileTester  web:<pid>
-4  2  characters  done  0  ExileTester  web:<pid>
-<n>  probe  character-list@ExileTester  done  255  ExileTester  daemon
-<n>  probe  stash-list@ExileTester  done  255  ExileTester  daemon
+id  parent  kind  target  state  prio  account  by  when  eta
+1  profile  done  254  ExileTester  daemon  finished <age> ago
+2  apply  plan (2 requests)  done  0  ExileTester  web:<pid>  finished <age> ago
+3  2  stashes  Standard  done  0  ExileTester  web:<pid>  finished <age> ago
+4  2  characters  done  0  ExileTester  web:<pid>  finished <age> ago
+<n>  probe  character-list@ExileTester  done  255  ExileTester  daemon  finished <age> ago
+<n>  probe  stash-list@ExileTester  done  255  ExileTester  daemon  finished <age> ago
 6 jobs this daemon holds (its own and the restored): 0 running, 0 waiting, 6 done
 </pre>
 

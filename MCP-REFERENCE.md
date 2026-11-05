@@ -62,13 +62,13 @@ Item events (added/moved/changed/removed) from recent ingests (no daemon): the n
 
 ### `job_result`
 
-A finished job's outcome — payload or error — with its job_id and account, from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data.
+A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data.
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 
 ### `job_status`
 
-One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names ["daemon"]; ["ages"] for an age's words).
+One job's state, ETA and retries, and its times (`submitted_at`, `started_at`, `finished_at`, each absent until it happens, its age in words beside it). A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names ["daemon"]; ["ages"] for an age's words).
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 

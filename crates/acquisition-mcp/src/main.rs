@@ -704,7 +704,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "outcome",
-        "job_result holds the payload or the error, with `job_id` and `account` beside it; a parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids) and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large: the store tools read the same data",
+        "job_result holds the payload or the error, with `job_id`, `account` and the job's times beside it (`submitted_at`, `started_at` and `finished_at`, each absent until it happens, a 429's re-queue keeping the first start, each with its `_age`), as job_status and list_jobs' rows carry them; a parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids) and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large: the store tools read the same data",
     ),
     (
         "another daemon",
@@ -2141,14 +2141,14 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"]; [\"ages\"] for an age's words)."
+        description = "One job's state, ETA and retries, and its times (`submitted_at`, `started_at`, `finished_at`, each absent until it happens, its age in words beside it). A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"]; [\"ages\"] for an age's words)."
     )]
     async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
         settled(async { Ok(self.frontend.job(p.id).await?) }.await)
     }
 
     #[tool(
-        description = "A finished job's outcome — payload or error — with its job_id and account, from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
+        description = "A finished job's outcome — payload or error — with its job_id, account and times (`submitted_at`, `started_at`, `finished_at`, each with its `_age`), from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
     )]
     async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
         settled(async { Ok(self.frontend.result(p.id).await?) }.await)

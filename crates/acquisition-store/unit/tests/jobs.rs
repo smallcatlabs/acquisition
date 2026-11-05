@@ -17,7 +17,91 @@ fn row(id: u64, state: &str, at: i64) -> JobRow {
         cancel_requested: false,
         submitted_at: at,
         updated_at: at,
+        started_at: None,
+        finished_at: None,
     }
+}
+
+/// The ledger as schema v1 wrote it: no `started_at` or `finished_at`
+/// column, one row of each kind a reader meets, stamped 1.
+fn v1_file(path: &Path) {
+    let conn = Connection::open(path).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL,
+            state TEXT NOT NULL, priority INTEGER NOT NULL,
+            submitted_by TEXT NOT NULL, parent INTEGER,
+            retries INTEGER NOT NULL, account TEXT, params TEXT NOT NULL,
+            outcome TEXT, deferred TEXT,
+            cancel_requested INTEGER NOT NULL DEFAULT 0,
+            submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+         INSERT INTO jobs (id, kind, state, priority, submitted_by, retries, params,
+                           outcome, submitted_at, updated_at)
+         VALUES (1, 'stash', 'waiting', 0, 'test', 0, '{}', NULL, 100, 100),
+                (2, 'stash', 'done', 0, 'test', 0, '{}',
+                 '{\"outcome\":\"cancelled\"}', 100, 110);
+         PRAGMA user_version = 1;",
+    )
+    .unwrap();
+}
+
+/// C165 (a job's record says when): the ledger keeps a job's first
+/// start and its finish beside its submission. A file of schema v1, with
+/// no such columns, is read by a frontend with no daemon as it stands,
+/// its rows with neither time; a daemon's open adds both columns, its
+/// old rows with none, and stamps it.
+#[test]
+fn c165_a_v1_ledger_reads_with_no_start_or_finish_and_a_daemon_adds_the_columns() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = daemon_db_path(temp.path());
+    v1_file(&path);
+    let persisted = Persisted::read(temp.path()).unwrap().expect("a ledger");
+    assert_eq!(persisted.jobs.len(), 1);
+    assert_eq!(
+        (persisted.jobs[0].started_at, persisted.jobs[0].finished_at),
+        (None, None)
+    );
+    let record = Persisted::read_job(temp.path(), 2).unwrap().expect("job 2");
+    assert_eq!(
+        (record.job.submitted_at, record.job.finished_at),
+        (100, None)
+    );
+
+    let db = JobDb::open(&path).unwrap();
+    let rows = db.load().unwrap();
+    assert_eq!(
+        rows.iter()
+            .map(|r| (r.started_at, r.finished_at))
+            .collect::<Vec<_>>(),
+        [(None, None), (None, None)]
+    );
+    let mut ran = row(3, "done", 200);
+    ran.started_at = Some(201);
+    ran.finished_at = Some(205);
+    db.upsert(&ran).unwrap();
+    assert_eq!(db.get(3).unwrap(), Some(ran));
+    let listed = db.listed(3).unwrap().expect("row 3");
+    assert_eq!(
+        (listed.submitted_at, listed.started_at, listed.finished_at),
+        (200, Some(201), Some(205))
+    );
+    drop(db);
+    let stamp: i64 = Connection::open(&path)
+        .unwrap()
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(stamp, JOBS_SCHEMA_VERSION);
+    let record = Persisted::read_job(temp.path(), 3).unwrap().expect("job 3");
+    let aged = record.job.aged(215);
+    assert_eq!(
+        (
+            aged.started_at,
+            aged.started_at_age.as_deref(),
+            aged.finished_at,
+            aged.finished_at_age.as_deref()
+        ),
+        (Some(201), Some("14s ago"), Some(205), Some("10s ago"))
+    );
 }
 
 #[test]

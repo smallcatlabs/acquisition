@@ -27,6 +27,8 @@ fn row(id: u64, state: &str, updated_at: i64) -> JobRow {
         cancel_requested: false,
         submitted_at: 1_700_000_000,
         updated_at,
+        started_at: None,
+        finished_at: None,
     }
 }
 
@@ -44,6 +46,8 @@ fn c45_one_job_is_read_from_disk_on_both_surfaces() {
     db.upsert(&row(1, "waiting", 1_700_000_010)).unwrap();
     db.upsert(&JobRow {
         outcome: Some(json!({ "outcome": "success", "payload": { "fetched": 1 } })),
+        started_at: Some(1_700_000_030),
+        finished_at: Some(1_700_000_040),
         ..row(3, "done", 1_700_000_040)
     })
     .unwrap();
@@ -54,9 +58,28 @@ fn c45_one_job_is_read_from_disk_on_both_surfaces() {
     let result = mcp.expect_ok("job_result", json!({ "id": 3 }));
     assert_eq!(result["job_id"], 3, "{result}");
     assert_eq!(
-        json_of(&harness::acq(&base, &["result", "3", "--json"])),
-        result
+        harness::unaged(json_of(&harness::acq(&base, &["result", "3", "--json"]))),
+        harness::unaged(result.clone())
     );
+    // C165: the ledger's result says when, each time beside its words,
+    // in the keys a live one carries (C45)
+    for (time, at) in [
+        ("submitted_at", 1_700_000_000),
+        ("started_at", 1_700_000_030),
+        ("finished_at", 1_700_000_040),
+    ] {
+        assert_eq!(result[time], at, "{result}");
+        assert!(
+            result[format!("{time}_age")]
+                .as_str()
+                .is_some_and(|a| a.ends_with(" ago")),
+            "{time}: {result}"
+        );
+    }
+    let waiting = mcp.expect_ok("job_status", json!({ "id": 1 }));
+    let row = &waiting["persisted"];
+    assert!(row["submitted_at_age"].is_string(), "{waiting}");
+    assert!(row.get("started_at").is_none(), "{waiting}");
     let refused = mcp.result("job_result", json!({ "id": 1 }));
     assert_eq!(refused["isError"], json!(true), "{refused}");
     let doc = harness::document(&refused);

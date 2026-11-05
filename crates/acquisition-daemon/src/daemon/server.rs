@@ -235,7 +235,7 @@ impl Daemon {
                 }
                 signal = recv_event(&mut events) => {
                     let response = match signal {
-                        Signal::Event(job) => Response::Event { job },
+                        Signal::Event(job) => Response::Event { job: *job },
                         Signal::Lagged(missed) => Response::ResyncRequired { missed },
                     };
                     if write_line(&mut write, &response).await.is_err() {
@@ -312,18 +312,20 @@ impl Daemon {
             Request::Result { id } => {
                 let held = {
                     let s = self.shared.lock().unwrap();
-                    s.jobs.get(&id).map(|e| (e.info.state, e.outcome.clone()))
+                    s.jobs
+                        .get(&id)
+                        .map(|e| (e.info.state, e.outcome.clone(), e.info.times.clone()))
                 };
                 match held {
-                    Some((_, Some(outcome))) => Response::Result { id, outcome },
-                    Some((state, None)) => {
+                    Some((_, Some(outcome), times)) => Response::Result { id, outcome, times },
+                    Some((state, None, _)) => {
                         Refusal::new(ErrorKind::WrongState, format!("job {id} is still {state}"))
                             .into()
                     }
                     // Not in memory: concluded and evicted (C6), or a
                     // previous daemon's, if retention still has it.
-                    None => match self.stored_outcome(id) {
-                        Ok(Some(outcome)) => Response::Result { id, outcome },
+                    None => match self.stored_result(id) {
+                        Ok(Some((outcome, times))) => Response::Result { id, outcome, times },
                         Ok(None) => Refusal::no_job(id).into(),
                         Err(refusal) => {
                             self.note_error(&format!("result {id}: {refusal}"));
@@ -1158,7 +1160,7 @@ impl InFlight {
 /// What a subscribed connection is told next: an event, or that it
 /// missed some (C85).
 enum Signal {
-    Event(JobInfo),
+    Event(Box<JobInfo>),
     /// The broadcast channel overran this receiver; `missed` events are
     /// gone. The subscriber snapshots again.
     Lagged(u64),
@@ -1167,7 +1169,7 @@ enum Signal {
 async fn recv_event(rx: &mut Option<broadcast::Receiver<JobInfo>>) -> Signal {
     match rx {
         Some(rx) => match rx.recv().await {
-            Ok(info) => Signal::Event(info),
+            Ok(info) => Signal::Event(Box::new(info)),
             // A loss the client cannot observe cannot be recovered from,
             // so it is reported, never skipped (C85); the receiver has
             // already advanced past the gap. Closed can't happen while

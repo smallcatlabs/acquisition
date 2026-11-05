@@ -13,7 +13,9 @@ use serde_json::json;
 
 use crate::harness;
 
-use harness::{Transcript, acq, golden, scratch_tmp, sockets_under, sole_json, start_daemon, text};
+use harness::{
+    Transcript, acq, golden, scratch_tmp, sockets_under, sole_json, start_daemon, text, unaged,
+};
 
 fn row(id: u64, state: &str, parent: Option<u64>, updated_at: i64) -> JobRow {
     JobRow {
@@ -31,6 +33,8 @@ fn row(id: u64, state: &str, parent: Option<u64>, updated_at: i64) -> JobRow {
         cancel_requested: false,
         submitted_at: 1_700_000_000,
         updated_at,
+        started_at: None,
+        finished_at: None,
     }
 }
 
@@ -44,10 +48,20 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     let dir = base.join("store").join("mock");
     let db = JobDb::open(&daemon_db_path(&dir)).unwrap();
     db.upsert(&row(1, "waiting", None, 1_700_000_010)).unwrap();
-    db.upsert(&row(2, "running", None, 1_700_000_030)).unwrap();
+    db.upsert(&JobRow {
+        started_at: Some(1_700_000_001),
+        ..row(2, "running", None, 1_700_000_030)
+    })
+    .unwrap();
     db.upsert(&row(3, "waiting", Some(2), 1_700_000_020))
         .unwrap();
-    db.upsert(&row(4, "done", None, 1_700_000_005)).unwrap();
+    db.upsert(&JobRow {
+        outcome: Some(json!({ "outcome": "success", "payload": { "fetched": 1 } })),
+        started_at: Some(1_700_000_001),
+        finished_at: Some(1_700_000_005),
+        ..row(4, "done", None, 1_700_000_005)
+    })
+    .unwrap();
     db.checkpoint().unwrap();
     drop(db);
 
@@ -67,6 +81,13 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     assert!(shown.contains("2 waiting, 1 recorded running"), "{shown}");
     assert!(shown.contains("Standard/tab3"), "{shown}");
     assert!(!shown.contains("tab4"), "a done row was listed: {shown}");
+    // C165: each row says when, and one job all its times, from the
+    // ledger as a daemon would: a recorded running row its start, a
+    // finished job's result its finish beside the payload
+    let out = t.run(&["status", "2"], &["job 2: submitted", ", started "]);
+    assert!(out.status.success(), "{out:?}");
+    let out = t.run(&["result", "4"], &["job 4: submitted", ", finished "]);
+    assert!(out.status.success(), "{out:?}");
     golden(file!(), "the_queue_read_from_the_ledger", &t);
     let out = acq(&base, &["daemon", "status", "--json"]);
     assert!(out.status.success(), "{out:?}");
@@ -104,5 +125,5 @@ fn result_wait_serves_a_previous_daemons_result() {
     assert!(plain.status.success(), "{}", text(&plain));
     let waited = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
     assert!(waited.status.success(), "{}", text(&waited));
-    assert_eq!(sole_json(&waited), sole_json(&plain));
+    assert_eq!(unaged(sole_json(&waited)), unaged(sole_json(&plain)));
 }

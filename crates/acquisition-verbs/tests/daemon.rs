@@ -32,7 +32,7 @@ use acquisition_verbs::jobs::{NO_RESULT, submit, wait};
 use acquisition_verbs::refresh::{quote, quote_within};
 use acquisition_verbs::{Apply, Fault, Frontend, Job, Opened};
 use harness::{Proc, Session, acqd_built, login_in_process, session, start_daemon_in_process};
-use serde_json::json;
+use serde_json::{Value, json};
 
 // ---- the fixtures -------------------------------------------------------
 
@@ -84,6 +84,8 @@ fn row(id: u64, state: &str, outcome: Option<serde_json::Value>) -> JobRow {
         cancel_requested: false,
         submitted_at: 1_700_000_000,
         updated_at: 1_700_000_010,
+        started_at: None,
+        finished_at: None,
     }
 }
 
@@ -229,10 +231,22 @@ async fn with_no_daemon_a_job_is_answered_from_the_ledger() {
     assert_eq!(fault.kind(), "unknown_job");
     assert!(fault.fields()["next"].is_string());
 
+    // the ledger's result carries the job's times in the keys a live
+    // one does (C165, C45), each with its words; a row with no start or
+    // finish recorded has neither
     let result = frontend.result(2).await.unwrap();
+    let mut said = serde_json::to_value(&result).unwrap();
+    let age = said.as_object_mut().unwrap().remove("submitted_at_age");
+    assert!(
+        age.as_ref()
+            .and_then(Value::as_str)
+            .is_some_and(|a| a.ends_with(" ago")),
+        "{age:?}"
+    );
     assert_eq!(
-        serde_json::to_value(&result).unwrap(),
-        json!({ "job_id": 2, "account": "Alice#1234", "outcome": "success", "payload": { "n": 1 } })
+        said,
+        json!({ "job_id": 2, "account": "Alice#1234", "outcome": "success", "payload": { "n": 1 },
+                "submitted_at": 1_700_000_000 })
     );
     let fault = frontend.result(1).await.unwrap_err();
     assert!(matches!(fault, Fault::Unfinished { id: 1, .. }), "{fault}");

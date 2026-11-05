@@ -11,7 +11,7 @@ Standard   pc     Standard   <age> ago
 Hardcore   pc     Standard   <age> ago
 Rehearsal  pc     Rehearsal  <age> ago
 --- stderr
-job <j1> (ExileTester): done
+job <j1> (ExileTester): done; submitted <age> ago, started <age> ago, finished <age> ago
 
 $ acq leagues --stored
 # holds ": Rehearsal (pc, started "
@@ -71,7 +71,7 @@ job <j2> done: 1 request, 1 done (job <j3>)
 changed: no items — 1 response recorded, nothing added, changed, moved, or removed
 next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do
 --- stderr
-job <j2> (ExileTester): 1/1 done
+job <j2> (ExileTester): 1/1 done; submitted <age> ago, started <age> ago, finished <age> ago
 
 $ acq refresh --plan --league Rehearsal
 # holds "fetch 7 tabs"
@@ -109,7 +109,7 @@ job <j4> done: 7 requests, 7 done (jobs <j5>–<j6>)
 changed: no items — 7 responses recorded, nothing added, changed, moved, or removed
 left: nothing — every covered entry is fresh
 --- stderr
-job <j4> (ExileTester): 7/7 done
+job <j4> (ExileTester): 7/7 done; submitted <age> ago, started <age> ago, finished <age> ago
 
 $ acq refresh --plan --league Rehearsal
 # holds "nothing to do in Rehearsal:"
@@ -228,7 +228,7 @@ $ acq refresh --apply --league Typo
 applying 1 request as job <j7>
 changed: no items — 0 responses recorded, nothing added, changed, moved, or removed
 --- stderr
-job <j7> (ExileTester): 0/1 done, 1 failed
+job <j7> (ExileTester): 0/1 done, 1 failed; submitted <age> ago, started <age> ago, finished <age> ago
 job <j7> failed: 1 of 1 child jobs failed, 0 done
   job <j8>  stashes Typo  GET /stash/Typo returned 404 Not Found; no rate headers; a body of 26 bytes
 daemon log: <scratch>/logs/<world>/mock/daemon.log

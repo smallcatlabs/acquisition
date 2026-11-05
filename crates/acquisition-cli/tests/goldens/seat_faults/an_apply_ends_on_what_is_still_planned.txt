@@ -10,4 +10,4 @@ job <j1> done: 9 requests, 9 done (jobs <j2>–<j3>)
 changed: +30 added at 6 locations since the apply started; 9 responses recorded (acq store events)
 next: `acq refresh --plan --account alice --realm pc --league Standard` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, what it left undone, or what went stale since); plan and apply until the plan says nothing to do
 --- stderr
-job <j1> (alice): 9/9 done
+job <j1> (alice): 9/9 done; submitted <age> ago, started <age> ago, finished <age> ago

@@ -20,7 +20,7 @@ use std::io::{IsTerminal as _, Write as _};
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, DaemonError, Observed, Signal, Subscription};
-use acquisition_protocol::job::{JobInfo, JobState, Outcome};
+use acquisition_protocol::job::{JobInfo, JobState, JobTimes, Outcome};
 use acquisition_protocol::protocol::{ErrorKind, KeyringOutcome, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
@@ -146,7 +146,11 @@ fn print_persisted_job(id: u64, job: &Job, json: bool) -> Result<()> {
         "daemon is not running; job {id} as the ledger on disk records it, written {}",
         store_cmd::ago(acquisition_store::now(), Some(persisted.updated_at)),
     );
-    print_table(&[job_info(persisted)?]);
+    let job = job_info(persisted)?;
+    print_table(std::slice::from_ref(&job));
+    if let Some(words) = times_said(&job.times) {
+        println!("job {id}: {words}");
+    }
     Ok(())
 }
 
@@ -518,7 +522,11 @@ is the per-location summary.")]
         lines: Option<usize>,
     },
     /// The live jobs: id, parent, kind, target (from params), state
-    /// (`↻n` counts 429 re-queues), priority, account, submitter, ETA.
+    /// (`↻n` counts 429 re-queues), priority, account, submitter, when
+    /// (the latest of submitted, started and finished, as an age), ETA.
+    /// Each row's JSON carries `submitted_at`, `started_at` and
+    /// `finished_at`, each absent until it happens and with its age in
+    /// words beside it (`submitted_at_age`, …).
     /// The first ten waiting and running jobs by id are listed, and the ten
     /// most recent finished ones; the last line counts every job the
     /// daemon lists, and says when the next waiting job starts and when
@@ -550,21 +558,26 @@ is the per-location summary.")]
         #[arg(long)]
         all: bool,
     },
-    /// One job's state and ETA. A large ETA is the limiter holding, not a
+    /// One job's state and ETA, and when it was submitted, started and
+    /// finished, as ages. A large ETA is the limiter holding, not a
     /// hang: holds can reach 300 s plus the timing bucket. A finished job
     /// is answered from disk while retention keeps it, whichever daemon
     /// ran it. With no daemon running, the job as the ledger on disk
     /// records it (never spawns).
     Status { id: u64 },
-    /// A finished job's payload or error. Kept on disk (7 days done, 30
-    /// failed, by default) and answered whether or not a daemon runs; a
+    /// A finished job's payload or error, and on stderr when it was
+    /// submitted, started and finished (`--json`: `submitted_at`,
+    /// `started_at`, `finished_at`, each with its `_age`). Kept on disk
+    /// (7 days done, 30 failed, by default) and answered whether or not a
+    /// daemon runs; a
     /// job still waiting or running is an error unless --wait. A failed
     /// or cancelled job exits 1. A failed fetch's refused body is in
     /// `acq store refused <id>`, not here.
     Result {
         id: u64,
-        /// Block until the job finishes, printing progress on stderr,
-        /// then print the result: how a `--detach`ed job is collected.
+        /// Block until the job finishes, printing progress on stderr, its
+        /// last line the job's times, then print the result: how a
+        /// `--detach`ed job is collected.
         /// Needs the daemon that is running the job.
         #[arg(long)]
         wait: bool,
@@ -1780,7 +1793,7 @@ async fn run(cli: Cli) -> Result<()> {
                     print!("{}", store_cmd::leagues_text(payload));
                     Ok(())
                 }
-                _ => print_outcome(&result, false),
+                _ => print_outcome(&result, false, true),
             }
         }
         Cmd::Accounts { expand } => store_cmd::accounts(cx, expand, cli.json),
@@ -2119,6 +2132,9 @@ async fn run(cli: Cli) -> Result<()> {
                 println!("{}", serde_json::to_string_pretty(&job)?);
             } else {
                 print_table(std::slice::from_ref(&job));
+                if let Some(words) = times_said(&job.times) {
+                    println!("job {id}: {words}");
+                }
             }
             Ok(())
         }
@@ -2126,23 +2142,23 @@ async fn run(cli: Cli) -> Result<()> {
             let Some(mut client) = cx.frontend.observe().await? else {
                 // C45: a terminal job's outcome is final, so the ledger's
                 // prints exactly as a daemon would answer it.
-                return print_outcome(&cx.frontend.result_on_disk(id)?, cli.json);
+                return print_outcome(&cx.frontend.result_on_disk(id)?, cli.json, false);
             };
             // Only a job still in the queue is waited for: a previous
             // lifetime's result is served from retention (C45) and has no
             // status to wait on.
-            if wait
+            let waited = wait
                 && matches!(
                     client.request(&Request::Result { id }).await?,
                     Response::Error {
                         kind: ErrorKind::WrongState,
                         ..
                     }
-                )
-            {
+                );
+            if waited {
                 wait_for_job(&mut client, id, cli.json).await?;
             }
-            print_result(&mut client, id, cli.json).await
+            print_result(&mut client, id, cli.json, waited).await
         }
         Cmd::Cancel { id } => {
             let asked = cx.frontend.cancel(id).await?;
@@ -2776,6 +2792,8 @@ async fn watch_jobs(cx: &Ctx, json: bool, all: bool) -> Result<()> {
                         }
                     };
                     if json {
+                        // its times said, as every job document says them (C165)
+                        let job = acquisition_verbs::jobs::aged(job, acquisition_store::now());
                         println!("{}", serde_json::to_string(&job)?);
                     } else {
                         println!("job {:>3}  {:<8} -> {}", job.id, job.kind, job.state);
@@ -2802,7 +2820,7 @@ async fn watch_jobs(cx: &Ctx, json: bool, all: bool) -> Result<()> {
 /// its result. This is where "rate limited, retrying in 4m37s..." UX lives.
 pub(crate) async fn block_on_job(client: &mut Client, id: u64, json: bool) -> Result<()> {
     wait_for_job(client, id, json).await?;
-    print_result(client, id, json).await
+    print_result(client, id, json, true).await
 }
 
 /// Progress is redrawn in place only on a tty; captured output (the
@@ -2847,7 +2865,15 @@ impl Progressor {
     /// tty's line ended once the job is terminal.
     pub(crate) fn report(&mut self, p: &Progress) {
         let terminal = p.job.state.is_terminal();
-        let line = progress_line(p);
+        let mut line = progress_line(p);
+        // a job's end says its times (C165), said now from the daemon's
+        if terminal {
+            let times =
+                acquisition_verbs::jobs::said(p.job.times.clone(), acquisition_store::now());
+            if let Some(words) = times_said(&times) {
+                line = format!("{line}; {words}");
+            }
+        }
         let due = self
             .last_print
             .is_none_or(|t| t.elapsed() >= PROGRESS_EVERY);
@@ -2981,7 +3007,9 @@ pub(crate) fn job_report(id: u64, outcome: &Outcome, failed: &[FailedChild]) -> 
     }
 }
 
-async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
+/// `waited`: the job's last progress line said its times (C165), so the
+/// text says them no second time.
+async fn print_result(client: &mut Client, id: u64, json: bool, waited: bool) -> Result<()> {
     let result = result_live(client, id).await?;
     // An apply's success has its summary line; any other outcome prints
     // through the one renderer, whatever the job's kind. Status may be
@@ -2992,9 +3020,12 @@ async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
         && client.status(id).await.is_ok_and(|job| job.kind == "apply")
     {
         print!("{}", job_report(id, &result.outcome, &[]));
+        if !waited && let Some(words) = times_said(&result.times) {
+            eprintln!("job {id}: {words}");
+        }
         return Ok(());
     }
-    print_outcome(&result, json)
+    print_outcome(&result, json, waited)
 }
 
 /// A terminal job's outcome, from the daemon or from the ledger on disk.
@@ -3004,8 +3035,10 @@ async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
 /// a failed or cancelled job left nothing on stdout to use, so the exit
 /// says so in both modes (C11), and the text of one is [`job_report`]'s
 /// on stderr; the JSON outcome is the report, and main adds no second
-/// message.
-fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
+/// message. Its times in words (C165) follow on stderr, a success's on a
+/// line of their own beside the payload, unless `waited`: the job's last
+/// progress line said them.
+fn print_outcome(result: &JobResult, json: bool, waited: bool) -> Result<()> {
     if json {
         println!("{}", serde_json::to_string_pretty(result)?);
         return match result.outcome {
@@ -3013,16 +3046,51 @@ fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
             _ => Err(AlreadyReported.into()),
         };
     }
+    let times = times_said(&result.times).filter(|_| !waited);
     match &result.outcome {
         Outcome::Success { payload } => {
             println!("{}", serde_json::to_string_pretty(payload)?);
+            if let Some(words) = times {
+                eprintln!("job {}: {words}", result.job_id);
+            }
             Ok(())
         }
-        outcome => bail!(
-            "{}",
-            job_report(result.job_id, outcome, &result.failed_children).trim_end()
-        ),
+        outcome => {
+            let mut report = job_report(result.job_id, outcome, &result.failed_children);
+            if let Some(words) = times {
+                report.push_str(&format!("  {words}\n"));
+            }
+            bail!("{}", report.trim_end())
+        }
     }
+}
+
+/// C165: a job's times in words, as its document says them (C53, text a
+/// function of JSON): `submitted 3s ago, started 2s ago, finished 0s
+/// ago`, each that happened; `None` where none is said.
+pub(crate) fn times_said(times: &JobTimes) -> Option<String> {
+    let said: Vec<String> = [
+        ("submitted", &times.submitted_at_age),
+        ("started", &times.started_at_age),
+        ("finished", &times.finished_at_age),
+    ]
+    .into_iter()
+    .filter_map(|(what, age)| Some(format!("{what} {}", age.as_deref()?)))
+    .collect();
+    (!said.is_empty()).then(|| said.join(", "))
+}
+
+/// C165: the latest of a job's times in words, the jobs table's `when`:
+/// its finish, else its start, else its submission.
+fn latest_said(times: &JobTimes) -> String {
+    [
+        ("finished", &times.finished_at_age),
+        ("started", &times.started_at_age),
+        ("submitted", &times.submitted_at_age),
+    ]
+    .into_iter()
+    .find_map(|(what, age)| Some(format!("{what} {}", age.as_deref()?)))
+    .unwrap_or_default()
 }
 
 /// `jobs` as text, a function of its document (C53, C149): the rows,
@@ -3065,7 +3133,7 @@ fn table_text(jobs: &[JobInfo]) -> String {
 fn rows_text(jobs: &[JobInfo]) -> String {
     // Widths from the data: a route label or an account name must never
     // push the columns out of line or be cut.
-    let rows: Vec<[String; 9]> = jobs
+    let rows: Vec<[String; 10]> = jobs
         .iter()
         .map(|job| {
             [
@@ -3081,6 +3149,7 @@ fn rows_text(jobs: &[JobInfo]) -> String {
                 job.priority.to_string(),
                 job.account.clone().unwrap_or_else(|| "-".into()),
                 job.submitted_by.clone(),
+                latest_said(&job.times),
                 job.eta_seconds
                     .map(|s| format!("~{s}s"))
                     .unwrap_or_default(),
@@ -3088,9 +3157,9 @@ fn rows_text(jobs: &[JobInfo]) -> String {
         })
         .collect();
     let heads = [
-        "id", "parent", "kind", "target", "state", "prio", "account", "by", "eta",
+        "id", "parent", "kind", "target", "state", "prio", "account", "by", "when", "eta",
     ];
-    let mut w = [0usize; 9];
+    let mut w = [0usize; 10];
     for (i, h) in heads.iter().enumerate() {
         w[i] = h.len();
     }
@@ -3099,9 +3168,9 @@ fn rows_text(jobs: &[JobInfo]) -> String {
             w[i] = w[i].max(cell.chars().count());
         }
     }
-    let line = |cells: [&str; 9]| {
+    let line = |cells: [&str; 10]| {
         format!(
-            "{:>w0$}  {:>w1$}  {:<w2$}  {:<w3$}  {:<w4$}  {:>w5$}  {:<w6$}  {:<w7$}  {}",
+            "{:>w0$}  {:>w1$}  {:<w2$}  {:<w3$}  {:<w4$}  {:>w5$}  {:<w6$}  {:<w7$}  {:<w8$}  {}",
             cells[0],
             cells[1],
             cells[2],
@@ -3111,6 +3180,7 @@ fn rows_text(jobs: &[JobInfo]) -> String {
             cells[6],
             cells[7],
             cells[8],
+            cells[9],
             w0 = w[0],
             w1 = w[1],
             w2 = w[2],
@@ -3119,6 +3189,7 @@ fn rows_text(jobs: &[JobInfo]) -> String {
             w5 = w[5],
             w6 = w[6],
             w7 = w[7],
+            w8 = w[8],
         )
     };
     let mut out = format!("{}\n", line(heads).trim_end());
@@ -3126,7 +3197,7 @@ fn rows_text(jobs: &[JobInfo]) -> String {
         out.push_str(&format!(
             "{}\n",
             line([
-                &r[0], &r[1], &r[2], &r[3], &r[4], &r[5], &r[6], &r[7], &r[8]
+                &r[0], &r[1], &r[2], &r[3], &r[4], &r[5], &r[6], &r[7], &r[8], &r[9]
             ])
             .trim_end()
         ));
@@ -3303,6 +3374,7 @@ mod tests {
             retries: 0,
             account: None,
             params: serde_json::json!({}),
+            times: Default::default(),
         };
         let jobs: Vec<JobInfo> = (1..=15)
             .map(|id| job(id, JobState::Done))
@@ -3500,6 +3572,7 @@ mod tests {
                 }),
                 payload: None,
             },
+            times: Default::default(),
             failed_children: vec![FailedChild {
                 job_id: 7,
                 kind: "stash".into(),

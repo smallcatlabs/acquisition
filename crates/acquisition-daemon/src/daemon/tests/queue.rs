@@ -1554,6 +1554,8 @@ fn c127_rows_that_never_passed_the_door_fail_in_its_words() {
             cancel_requested: false,
             submitted_at: 0,
             updated_at: 0,
+            started_at: None,
+            finished_at: None,
         })
         .unwrap();
         let clock = Arc::new(ParkingClock::new());
@@ -1919,6 +1921,8 @@ fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
         cancel_requested: false,
         submitted_at: 0,
         updated_at: 0,
+        started_at: None,
+        finished_at: None,
     };
     seed.upsert(&waiting_profile(1, "daemon")).unwrap();
     seed.upsert(&waiting_profile(2, "cli:1")).unwrap();
@@ -1986,6 +1990,8 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         cancel_requested: false,
         submitted_at: 0,
         updated_at: 0,
+        started_at: None,
+        finished_at: None,
     };
     // An apply whose last child finished just before the daemon
     // died: its own result is held, deferred.
@@ -2150,6 +2156,8 @@ fn disk_row(id: u64, kind: &str, state: &str, parent: Option<u64>) -> JobRow {
         cancel_requested: false,
         submitted_at: 0,
         updated_at: 0,
+        started_at: None,
+        finished_at: None,
     }
 }
 
@@ -2451,4 +2459,124 @@ fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
     });
     let row = on_disk(&dir, 40).expect("row 40");
     assert_eq!(row.job.state, "waiting", "the open row is left as it was");
+}
+
+/// C165 (a job's record says when): each time is set at its transition
+/// on the daemon's one clock, through the door — the submission at
+/// submit, the first start when the job runs, the finish when it is
+/// terminal — and the result and the ledger's row carry the same. A
+/// `sleep` of 10 s on the parked clock: running, it has started and not
+/// finished; done, it finished 10 s after it started.
+#[test]
+fn c165_each_time_is_set_at_its_transition_and_the_result_and_row_carry_them() {
+    let store_dir = TestPath::dir();
+    let clock = Arc::new(ParkingClock::new());
+    Door::open(
+        Server::Account(NO_HOLD),
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .store_dir(store_dir.to_path_buf())
+    .run(|mut door| async move {
+        let id = submitted(
+            door.request(submit_of(
+                "sleep",
+                json!({ "seconds": 10 }),
+                0,
+                "client",
+                None,
+            ))
+            .await,
+            "a sleep",
+        );
+        let running = door
+            .await_job(id, |job| job.state == JobState::Running)
+            .await;
+        let submitted_at = running.times.submitted_at.expect("submitted");
+        assert_eq!(
+            (running.times.started_at, running.times.finished_at),
+            (Some(submitted_at), None),
+            "{running:?}"
+        );
+        let (done, _) = door.await_terminal(id).await;
+        assert_eq!(
+            (
+                done.times.submitted_at,
+                done.times.started_at,
+                done.times.finished_at
+            ),
+            (
+                Some(submitted_at),
+                Some(submitted_at),
+                Some(submitted_at + 10)
+            ),
+            "{done:?}"
+        );
+        assert!(
+            done.times.submitted_at_age.is_none(),
+            "the daemon says no age"
+        );
+        match door.request(Request::Result { id }).await {
+            Response::Result { times, .. } => assert_eq!(times, done.times),
+            other => panic!("{other:?}"),
+        }
+        let row = door
+            .daemon()
+            .jobs_db
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .expect("the row");
+        assert_eq!(
+            (row.submitted_at, row.started_at, row.finished_at),
+            (submitted_at, Some(submitted_at), Some(submitted_at + 10))
+        );
+        door.finish().await;
+    });
+}
+
+/// C165, a component test of `Entry::stamp` (each transition by hand,
+/// which a scenario cannot stage without a 429 script): a waiting job
+/// has no start; its first run sets one, which a 429's re-queue and a
+/// second run keep; its end sets the finish, once.
+#[test]
+fn c165_a_requeued_job_keeps_its_first_start() {
+    let mut entry = Entry {
+        info: JobInfo {
+            id: 1,
+            kind: "stash".into(),
+            state: JobState::Waiting,
+            priority: 0,
+            submitted_by: "client".into(),
+            eta_seconds: None,
+            parent: None,
+            retries: 0,
+            account: None,
+            params: json!({}),
+            times: JobTimes {
+                submitted_at: Some(100),
+                ..JobTimes::default()
+            },
+        },
+        outcome: None,
+        cancel_requested: false,
+        deferred: None,
+    };
+    let at = |entry: &Entry| (entry.info.times.started_at, entry.info.times.finished_at);
+    entry.stamp(101);
+    assert_eq!(at(&entry), (None, None), "waiting: no start");
+    entry.info.state = JobState::Running;
+    entry.stamp(105);
+    assert_eq!(at(&entry), (Some(105), None), "the first start");
+    entry.info.state = JobState::Waiting;
+    entry.info.retries = 1;
+    entry.stamp(106);
+    entry.info.state = JobState::Running;
+    entry.stamp(140);
+    assert_eq!(at(&entry), (Some(105), None), "a 429's re-queue keeps it");
+    entry.info.state = JobState::Done;
+    entry.stamp(141);
+    entry.stamp(150);
+    assert_eq!(at(&entry), (Some(105), Some(141)), "the finish, once");
 }

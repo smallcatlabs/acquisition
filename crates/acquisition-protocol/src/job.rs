@@ -103,6 +103,38 @@ pub struct JobInfo {
     /// a queued job identifiable to a person — the prerequisite for any
     /// queue-management UI — and what lets a client label a failed child.
     pub params: Value,
+    /// C165: when the job was submitted, started and finished, each
+    /// absent until it happens.
+    #[serde(flatten)]
+    pub times: JobTimes,
+}
+
+/// C165 (a job's record says when): unix seconds on the daemon's one
+/// clock, each absent until it happens — a waiting job has no
+/// `started_at`, an unfinished one no `finished_at`. `started_at` is the
+/// first start: a job re-queued after a 429 waits again with it kept,
+/// and a job a restarted daemon re-queues keeps its predecessor's. A
+/// record from before the field reads with none. Additive (C10, the
+/// handshake is single-version): a reader that knows none of them reads
+/// the record unchanged.
+///
+/// Each `_age` is that time in words at a frontend's answer (C53, C163),
+/// said by the frontend from the store's one formatter; the daemon never
+/// sends one.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobTimes {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submitted_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submitted_at_age: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at_age: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finished_at_age: Option<String>,
 }
 
 impl JobInfo {

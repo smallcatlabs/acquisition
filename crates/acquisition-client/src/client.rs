@@ -1081,7 +1081,7 @@ pub struct Client {
 pub enum Signal {
     /// A job changed. An invalidation hint: re-read before relying on the
     /// view, never assume the stream is complete.
-    Event(JobInfo),
+    Event(Box<JobInfo>),
     /// The daemon dropped `missed` events for this subscriber. Drop this
     /// subscription — what it still holds predates any snapshot taken
     /// now — open a new one, then snapshot again over a [`Client`] before
@@ -1143,7 +1143,7 @@ impl Subscription {
                 continue;
             }
             return match serde_json::from_slice::<Response>(&bytes)? {
-                Response::Event { job } => Ok(Some(Signal::Event(job))),
+                Response::Event { job } => Ok(Some(Signal::Event(Box::new(job)))),
                 Response::ResyncRequired { missed } => Ok(Some(Signal::ResyncRequired { missed })),
                 other => bail!("unexpected frame on a subscription: {other:?}"),
             };
