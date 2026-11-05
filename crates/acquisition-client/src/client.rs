@@ -1629,8 +1629,9 @@ impl Client {
 
     /// [`Client::connect_at`]'s body, with its seam: `child`, a daemon
     /// this door already spawned, with its startup deadline. The door
-    /// passes none; the pins of the last poll and of the replacement
-    /// pass a child that has exited and a deadline already past.
+    /// passes none; the last poll's pin passes a child that has exited
+    /// and a deadline already past (a replacement's fresh deadline is
+    /// the door table's row and the driver's own test, C157).
     ///
     /// C157: the door is the machine ([`Machine`], `door.rs`), driven
     /// here. The policy is read once, at the start: `ACQ_NO_SPAWN=1`
