@@ -469,6 +469,28 @@ fn every_search_page_is_a_wording_golden() {
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
+    // a count asked of no realm over a store of two: each realm offered
+    // keeps the count, and each link answers it (the review of #97's
+    // build, its second finding)
+    let counted = web.get("search?text=class%3Arings&view.count=rarity");
+    assert_eq!(counted.status, 400, "{}", counted.body);
+    let links = offered_links(&counted.body);
+    assert_eq!(links.len(), 3, "{}", counted.body);
+    for (link, realm) in links.iter().zip(["pc", "xbox", "all"]) {
+        assert!(
+            link.ends_with(&format!(
+                "search?realm={realm}&text=class%3Arings&view.count=rarity"
+            )),
+            "{link}"
+        );
+        let answered = web.raw("GET", link, None, &[], "");
+        assert_eq!(answered.status, 200, "{link}: {}", answered.body);
+        assert!(
+            answered.body.contains("count   rarity"),
+            "{}",
+            answered.body
+        );
+    }
     // a tab's id: the refusal's way on is the page's own, a link to the
     // search the form asks, never a command line (#97); followed, it
     // answers
@@ -644,6 +666,19 @@ fn the_moved_world_renders_with_a_badge() {
         &["undecided", "Wombgift Chalice"],
     );
     page_golden(file!(), "moved_world", &pages);
+}
+
+/// The links a refusal page offers, in order, as a browser follows them.
+fn offered_links(body: &str) -> Vec<String> {
+    let Some((_, offers)) = body.split_once("<ul class=\"offers\">") else {
+        return Vec::new();
+    };
+    offers
+        .split("href=\"")
+        .skip(1)
+        .filter_map(|rest| rest.split_once('"'))
+        .map(|(href, _)| href.replace("&amp;", "&"))
+        .collect()
 }
 
 /// The refresh loop through the pages, over the mock: the plan page with
@@ -861,10 +896,24 @@ fn the_refresh_loop_runs_through_the_pages() {
     );
     let refused = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(refused.status, 400, "{}", refused.body);
+    // its way on is the plan page, a link, never the command a terminal
+    // types (the review of #97's build, its first finding); followed, the
+    // plan compiled again from the policy as it stands
+    assert!(!refused.body.contains("acq "), "{}", refused.body);
     pages.page(
         "POST apply <a plan whose policy moved>",
         &refused,
-        &["the sync policy moved"],
+        &[
+            "the sync policy moved",
+            "plan?realm=pc&amp;league=Standard\">the plan of pc Standard compiled again, from the policy as it stands</a>",
+        ],
+    );
+    let replanned = web.raw("GET", &offered_links(&refused.body)[0], None, &[], "");
+    assert_eq!(replanned.status, 200, "{}", replanned.body);
+    assert!(
+        replanned.body.contains("<h1>Plan</h1>"),
+        "{}",
+        replanned.body
     );
     page_golden(file!(), "refresh_loop", &pages);
     drop(web);

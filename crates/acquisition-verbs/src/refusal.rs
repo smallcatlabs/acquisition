@@ -19,7 +19,9 @@
 //!   account that cannot be picked, the target and the scope a `not_found`
 //!   was looked for in ([`Missing`]), a search's own ([`Offered`]), the
 //!   write a conflict refused re-aimed at the revision it names now
-//!   ([`Retry`]), the leagues a policy covers (`Fault::NotCovered`) —
+//!   ([`Retry`]), the leagues a policy covers (`Fault::NotCovered`), the
+//!   plan compiled again where the policy moved under one
+//!   (`Fault::Replan`) —
 //!   never by reading scope again; the surface spells it
 //!   ([`Surface::request`]).
 //! - `readings`: how what was typed could be read, payload on every
@@ -331,6 +333,7 @@ fn searched(
 
 /// A layer fault's kind and fields (C121, C45), the offers an account
 /// that cannot be picked has — the refused request as each name known —
+/// a league the policy does not cover and a plan whose policy moved have,
 /// and a policy write refused for its revision as `conflict` (C11).
 fn faulted(
     fault: &Fault,
@@ -384,6 +387,28 @@ fn faulted(
                 ),
             )
         }));
+    }
+    // a plan whose policy moved: the plan compiled again, as the account
+    // and in the scope it was applied in (the review of #97's build, its
+    // first finding)
+    if let Fault::Replan {
+        username,
+        realm,
+        league,
+        ..
+    } = fault
+    {
+        offers.push((
+            Way::RefreshPlan {
+                account: username.clone(),
+                realm: *realm,
+                league: league.clone(),
+            },
+            format!(
+                "the plan of {} {league} compiled again, from the policy as it stands",
+                realm.as_str()
+            ),
+        ));
     }
     let names = match fault {
         Fault::UnknownAccount { known, .. } => known.as_slice(),

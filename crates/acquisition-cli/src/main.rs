@@ -1149,10 +1149,16 @@ fn fault_words(fault: &Fault) -> String {
 /// The failure's words: its chain as anyhow prints it, a layer fault in
 /// the CLI's words where the chain holds one.
 pub(crate) fn failure_words(e: &anyhow::Error) -> String {
+    failure_words_by(e, fault_words)
+}
+
+/// [`failure_words`] with a layer fault in `words`: a surface of this
+/// crate that spells some faults' remedies otherwise (the web's pages).
+pub(crate) fn failure_words_by(e: &anyhow::Error, words: impl Fn(&Fault) -> String) -> String {
     let mut parts = Vec::new();
     for link in e.chain() {
         if let Some(fault) = link.downcast_ref::<Fault>() {
-            parts.push(fault_words(fault));
+            parts.push(words(fault));
             return parts.join(": ");
         }
         parts.push(link.to_string());

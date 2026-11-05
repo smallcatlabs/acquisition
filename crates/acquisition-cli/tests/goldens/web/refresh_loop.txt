@@ -31,7 +31,7 @@ GET plan?realm=pc&league=Hardcore
 <main>
 <h1>Plan</h1>
 <div class="refusal"><pre>
-the sync policy covers Standard on realm pc, not Hardcore: name one with `--league`
+the sync policy covers Standard on realm pc, not Hardcore
 </pre>
 <ul class="offers">
 <li><a href="/<token>/plan?realm=pc&amp;league=Standard">the plan of pc Standard, which the policy covers</a></li>
@@ -163,12 +163,16 @@ wire: 3–9 sends; plus first-contact probes and token refresh if needed
 
 POST apply <a plan whose policy moved>
 # holds "the sync policy moved"
+# holds "plan?realm=pc&amp;league=Standard\">the plan of pc Standard compiled again, from the policy as it stands</a>"
 --- status 400
 <main>
 <h1>Apply</h1>
 <div class="refusal"><pre>
-the sync policy moved: the plan cites revision 1, but revision 2 is stored — review and replan with `acq refresh --plan --account ExileTester --realm pc --league Standard`
+the sync policy moved: the plan cites revision 1, but revision 2 is stored — review and replan
 </pre>
+<ul class="offers">
+<li><a href="/<token>/plan?realm=pc&amp;league=Standard">the plan of pc Standard compiled again, from the policy as it stands</a></li>
+</ul>
 </div>
 
 </main>

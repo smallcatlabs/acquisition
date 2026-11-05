@@ -414,10 +414,13 @@ impl Web {
     }
 
     /// A search request as the search form's own fields — its realm, its
-    /// text and its rows' limit and order — kept only where the form folds
-    /// them back to that request, as the account this server serves: what
-    /// a page can ask. None for any other (a site search, a tree, another
-    /// membership, account or view): no page takes it.
+    /// text, and every view field the form asks: its rows' limit and order,
+    /// or its count's keys and limit — kept only where the form folds them
+    /// back to that request, as the account this server serves: what a
+    /// page can ask. None for any other (a site search, a tree, another
+    /// membership, account or view: a crossed table, a sum, an explained
+    /// node): no page takes it (the review of #97's build, its second
+    /// finding: a count was dropped).
     fn asked_by_the_form(&self, request: &Request) -> Option<Vec<(&'static str, String)>> {
         if !request
             .scope
@@ -432,16 +435,29 @@ impl Web {
             fields.push(("realm", realm.as_str().to_string()));
         }
         fields.push(("text", request.query.text.clone()?));
-        if let acquisition_search::answer::Shape::Rows(rows) = &request.view.shape {
-            if let Some(limit) = rows.limit {
-                fields.push(("view.limit", limit.to_string()));
+        match &request.view.shape {
+            acquisition_search::answer::Shape::Rows(rows) => {
+                if let Some(limit) = rows.limit {
+                    fields.push(("view.limit", limit.to_string()));
+                }
+                if let Some(sort) = &rows.sort {
+                    fields.push(("view.sort", sort.clone()));
+                }
+                if rows.desc {
+                    fields.push(("view.desc", "true".to_string()));
+                }
             }
-            if let Some(sort) = &rows.sort {
-                fields.push(("view.sort", sort.clone()));
+            // each list as `--count` takes it, which the form's field reads
+            // alike; a count of several lists folds back to none of them
+            acquisition_search::answer::Shape::Counts(counts) => {
+                for list in counts.lists() {
+                    fields.push(("view.count", list));
+                }
+                if let Some(limit) = counts.limit {
+                    fields.push(("view.limit", limit.to_string()));
+                }
             }
-            if rows.desc {
-                fields.push(("view.desc", "true".to_string()));
-            }
+            _ => {}
         }
         let pairs: Vec<(String, String)> = fields
             .iter()
@@ -521,8 +537,20 @@ struct Paged<'a> {
 }
 
 impl acquisition_verbs::refusal::Surface for Paged<'_> {
+    /// The CLI's words, but where the refusal's offers are its remedy and
+    /// a page takes each (a plan whose policy moved, a league the policy
+    /// does not cover among ten or fewer): the cause alone, its ways on the
+    /// links beside it (the review of #97's build, its first finding).
     fn words(&self, e: &anyhow::Error) -> String {
-        crate::failure_words(e)
+        crate::failure_words_by(e, |fault| match fault {
+            Fault::Replan { .. } => fault.to_string(),
+            Fault::NotCovered { covered, .. }
+                if (1..=acquisition_store::bound::LISTED).contains(&covered.len()) =>
+            {
+                fault.to_string()
+            }
+            _ => crate::fault_words(fault),
+        })
     }
 
     fn request(
