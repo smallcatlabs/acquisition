@@ -447,12 +447,13 @@ impl Web {
                     fields.push(("view.desc", "true".to_string()));
                 }
             }
-            // each list as `--count` takes it, which the form's field reads
-            // alike; a count of several lists folds back to none of them
+            // the one field the form reads a count from: each list as
+            // `--count` takes it, joined, since the field's list reads a
+            // narrowing's own `line:` after another's; an order it cannot
+            // read (a field after a narrowing) folds back to another count
+            // and is offered nowhere (the review at 3ce22d81)
             acquisition_search::answer::Shape::Counts(counts) => {
-                for list in counts.lists() {
-                    fields.push(("view.count", list));
-                }
+                fields.push(("view.count", counts.lists().join(",")));
                 if let Some(limit) = counts.limit {
                     fields.push(("view.limit", limit.to_string()));
                 }
@@ -466,7 +467,8 @@ impl Web {
         let folded = form::fold(&self.form, &pairs).ok()?;
         let asked = Asked::read(&folded.request().ok()?).ok()?.request;
         // the page's rows carry their art (C140), and its account is the
-        // one served
+        // one served; a count's keys are compared as the key's one reader
+        // reads them, never by their letters (`Rarity` is `rarity`)
         let mut offered = request.clone();
         offered.scope.account = None;
         if let (
@@ -476,7 +478,7 @@ impl Web {
         {
             rows.fields = own.fields.clone();
         }
-        (asked == offered).then_some(fields)
+        (read_keys(asked) == read_keys(offered)).then_some(fields)
     }
 
     /// The request answered over the held corpus (C98): checked first,
@@ -582,6 +584,30 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
         };
         Some((json!(link), None))
     }
+}
+
+/// `request` with each count key as the key's one reader spells it
+/// (`Counts::lists`, through `bind::bind_key`) and the form's list reads it
+/// back (`counts::count_keys`): two spellings of one key compare equal.
+fn read_keys(mut request: Request) -> Request {
+    if let acquisition_search::answer::Shape::Counts(counts) = &mut request.view.shape {
+        counts.keys = counts
+            .keys
+            .iter()
+            .map(|key| {
+                let alone = acquisition_search::answer::Counts {
+                    keys: vec![key.clone()],
+                    sum: None,
+                    limit: None,
+                };
+                acquisition_search::counts::count_keys(&alone.lists().join(","))
+                    .ok()
+                    .and_then(|read| read.into_iter().next())
+                    .unwrap_or_else(|| key.clone())
+            })
+            .collect();
+    }
+    request
 }
 
 /// Run a page's blocking work — store reads, a corpus load — off the

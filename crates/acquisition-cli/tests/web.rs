@@ -471,25 +471,33 @@ fn every_search_page_is_a_wording_golden() {
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
     // a count asked of no realm over a store of two: each realm offered
     // keeps the count, and each link answers it (the review of #97's
-    // build, its second finding)
-    let counted = web.get("search?text=class%3Arings&view.count=rarity");
-    assert_eq!(counted.status, 400, "{}", counted.body);
-    let links = offered_links(&counted.body);
-    assert_eq!(links.len(), 3, "{}", counted.body);
-    for (link, realm) in links.iter().zip(["pc", "xbox", "all"]) {
-        assert!(
-            link.ends_with(&format!(
-                "search?realm={realm}&text=class%3Arings&view.count=rarity"
-            )),
-            "{link}"
-        );
-        let answered = web.raw("GET", link, None, &[], "");
-        assert_eq!(answered.status, 200, "{link}: {}", answered.body);
-        assert!(
-            answered.body.contains("count   rarity"),
-            "{}",
-            answered.body
-        );
+    // build, its second finding) — a key in another case and a narrowing
+    // of two texts among them, which fold back through the form's one
+    // count field (the review at 3ce22d81)
+    for (asked, spelled, said) in [
+        ("rarity", "rarity", "count   rarity"),
+        ("Rarity", "rarity", "count   rarity"),
+        (
+            "line%3Aresist%2Clife",
+            "line%3Aresist%2Cline%3Alife",
+            "count   line:resist",
+        ),
+    ] {
+        let counted = web.get(&format!("search?text=class%3Arings&view.count={asked}"));
+        assert_eq!(counted.status, 400, "{asked}: {}", counted.body);
+        let links = offered_links(&counted.body);
+        assert_eq!(links.len(), 3, "{asked}: {}", counted.body);
+        for (link, realm) in links.iter().zip(["pc", "xbox", "all"]) {
+            assert!(
+                link.ends_with(&format!(
+                    "search?realm={realm}&text=class%3Arings&view.count={spelled}"
+                )),
+                "{asked}: {link}"
+            );
+            let answered = web.raw("GET", link, None, &[], "");
+            assert_eq!(answered.status, 200, "{link}: {}", answered.body);
+            assert!(answered.body.contains(said), "{}", answered.body);
+        }
     }
     // a tab's id: the refusal's way on is the page's own, a link to the
     // search the form asks, never a command line (#97); followed, it
