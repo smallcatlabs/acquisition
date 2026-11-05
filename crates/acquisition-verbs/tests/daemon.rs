@@ -351,7 +351,7 @@ async fn a_plan_applied_twice_is_spent_the_second_time() {
     let s = session("twice");
     let (_daemon, _frontend, mut opened, mut client) = world(&s).await;
     let plan = opened
-        .compile(Realm::Pc, "Standard", acquisition_store::now())
+        .compile(Realm::Pc, "Standard", harness::now())
         .unwrap();
     assert!(!plan.actions.is_empty(), "{plan:?}");
     let mut slot = None;
@@ -387,7 +387,7 @@ async fn a_plan_held_whole_by_a_queued_job_has_no_remaining_count() {
     let s = session("held");
     let (_daemon, _frontend, mut opened, _client) = world(&s).await;
     let plan = opened
-        .compile(Realm::Pc, "Standard", acquisition_store::now())
+        .compile(Realm::Pc, "Standard", harness::now())
         .unwrap();
     let mut slot = None;
     let first = opened.apply(&plan, None, &mut slot).await.unwrap();
@@ -419,7 +419,7 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     let s = session("children");
     let (_daemon, frontend, mut opened, mut client) = world(&s).await;
     let mut plan = opened
-        .compile(Realm::Pc, "Standard", acquisition_store::now())
+        .compile(Realm::Pc, "Standard", harness::now())
         .unwrap();
     let total = plan.actions.len() as u64;
     let bogus = plan
@@ -546,7 +546,7 @@ async fn a_running_daemon_quotes_the_plan() {
     let s = session("quoted");
     let (_daemon, frontend, opened, _client) = world(&s).await;
     let plan = opened
-        .compile(Realm::Pc, "Standard", acquisition_store::now())
+        .compile(Realm::Pc, "Standard", harness::now())
         .unwrap();
     let planned = quote(&frontend.root, plan).await;
     assert_eq!(planned.quote_note, None, "{:?}", planned.quote_note);

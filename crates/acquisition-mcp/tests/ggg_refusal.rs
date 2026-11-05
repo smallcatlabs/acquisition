@@ -32,7 +32,7 @@ const POLICY: &str =
 fn seed_ggg_account(base: &Path) {
     let dir = base.join("store").join("ggg");
     std::fs::create_dir_all(&dir).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&dir).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&dir, USER)).unwrap();

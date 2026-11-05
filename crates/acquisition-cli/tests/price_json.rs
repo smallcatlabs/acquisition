@@ -51,7 +51,7 @@ fn offered_words(doc: &Value, starts: &str) -> (String, Vec<String>) {
 /// with a row), a map tab with a substash holding one item, a character
 /// wearing one; a row on the folder and one naming nothing here.
 pub(crate) fn seed(base: &Path) -> PathBuf {
-    seed_at(base, acquisition_store::now())
+    seed_at(base, harness::now())
 }
 
 /// [`seed`], every response recorded at `at`: a test that refetches
@@ -907,7 +907,7 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
     let mock = seed(&base);
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     Annotations::open_for(&mock, UUID)
         .unwrap()
@@ -961,7 +961,7 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
     let mock = seed(&base);
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     store
@@ -973,7 +973,7 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
             &json!({ "league": "Allflame" }),
             200,
             &json!({ "stashes": [ { "id": "t", "name": "Box", "type": "PremiumStash", "index": 0 } ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     Annotations::open_for(&mock, UUID)
@@ -1157,7 +1157,7 @@ fn a_named_limit_lists_the_items_it_bounds() {
     let base = scratch.0.clone();
     let mock = seed(&base);
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let item = |n: usize| {
         json!({ "id": format!("i-big-{n:02}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
                 "x": n, "y": 0, "stackSize": 1, "note": "~price 1 chaos" })
@@ -1205,7 +1205,7 @@ fn a_named_limit_lists_the_items_it_bounds() {
 /// items of its own over a substash `s9` of fourteen, every item unpriced
 /// — two sets past the read economy's bound of ten (C53).
 fn big_league(mock: &Path) {
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut store = Store::open(&account_path(mock, USER)).unwrap();
     let record = |store: &mut Store, ep: Endpoint, body: Value| {
         store.record(&ep, &json!({}), 200, &body, at).unwrap();
@@ -1443,7 +1443,7 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
     let base = scratch.0.clone();
     let mock = seed(&base);
     big_league(&mock);
-    let at = acquisition_store::now();
+    let at = harness::now();
     Index::load(&mock)
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, at, &[])
@@ -1752,10 +1752,10 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     let mock = seed(&base);
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     store
         .record(
             &Endpoint::Stashes {
@@ -1952,10 +1952,10 @@ fn two_accounts_and_xbox(base: &Path) {
     let mock = seed(base);
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     store
         .record(
             &Endpoint::Stashes {
@@ -2117,7 +2117,7 @@ fn a_request_read_whole_is_offered_as_itself_with_its_account_set() {
 /// both stores hold items and a request answered over either holds rows.
 fn bob_holds_items(base: &Path) {
     let mock = base.join("mock");
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut store = Store::open(&account_path(&mock, "Bob#5678")).unwrap();
     store
         .record(
@@ -2326,7 +2326,7 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
 /// wearing one; `character/ch3`, a pc character the listing gave no
 /// league, wearing one. Recorded at the seed's time.
 fn held_elsewhere(mock: &Path) {
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut store = Store::open(&account_path(mock, USER)).unwrap();
     let mut record = |ep: Endpoint, params: Value, body: Value| {
         store.record(&ep, &params, 200, &body, at).unwrap();

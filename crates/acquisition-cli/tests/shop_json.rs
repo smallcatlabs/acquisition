@@ -36,7 +36,7 @@ fn stderr(out: &Output) -> String {
 fn seed(base: &Path) -> PathBuf {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -360,7 +360,7 @@ fn the_shop_lists_hold_ten_and_the_text_counts_the_whole_past_ten_of_each() {
     let scratch = harness::scratch("shop-wide");
     let base = scratch.0.clone();
     let mock = seed(&base);
-    let now = acquisition_store::now();
+    let now = harness::now();
     let old = now - 7_200;
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     // the params name the league, which the listing's basis is read by

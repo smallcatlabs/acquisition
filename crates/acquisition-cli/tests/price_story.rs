@@ -94,7 +94,7 @@ fn assert_consistent(r: &ShopRender) {
 fn seed(base: &Path) -> PathBuf {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();

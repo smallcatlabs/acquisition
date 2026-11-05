@@ -1355,7 +1355,7 @@ fn the_totals_fetch_span_reaches_the_tool_whole() {
 fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     let scratch = scratch("mcp-search");
     seed(&scratch.0);
-    let now = acquisition_store::now();
+    let now = harness::now();
     {
         let mut store = Store::open(&account_path(&stores(&scratch.0), USER)).unwrap();
         for (tab, id, at) in [

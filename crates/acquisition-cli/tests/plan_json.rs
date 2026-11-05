@@ -31,7 +31,7 @@ fn seed_store(base: &Path) -> PathBuf {
     // Seed at the current clock: the plan below compiles at real time, and
     // a fresh listing keeps the expected action set to exactly one
     // never-fetched tab (an ancient listing would add a re-list).
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -292,7 +292,7 @@ fn json_stdout_is_the_contract_surface() {
             &json!({ "league": "Standard", "id": "t1", "deep": false }),
             200,
             &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash", "items": [] } }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -326,7 +326,7 @@ fn refresh_characters_names_characters_by_id_in_a_selection() {
                 { "id": "c1", "name": "Alpha", "league": "Standard", "class": "Witch", "level": 90 },
                 { "id": "c2", "name": "Beta", "league": "Standard", "class": "Witch", "level": 90 },
             ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -416,7 +416,7 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     let mock = seed_store(&base);
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     // a league beyond ASCII, which the undo carries whole through the
     // platform's shell (the review of words, its first finding: a pipe

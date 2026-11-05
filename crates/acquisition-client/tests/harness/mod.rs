@@ -12,7 +12,8 @@
 //! every knob once: every `ACQ_*` the process holds removed by prefix, so
 //! a new knob reaches no test daemon without a list kept in step, then
 //! the world, the runtime and log directories under the scratch, no
-//! keyring, no journal, a short idle shutdown and the mock provider.
+//! keyring, no journal, a short idle shutdown, the mock provider and one
+//! instant every child reads as now ([`now`]).
 //! [`isolate`] applies it to a child; [`session`] applies it to the test's
 //! own process under the one lock, for the files that drive a `Client` or
 //! a `Frontend` in-process. A daemon is always started from the explicit
@@ -160,7 +161,9 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// list. `MSYSTEM` is removed, so the commands a child prints are quoted
 /// for the platform's declared shell, PowerShell on Windows, whatever
 /// shell runs the tests (C156: CI's Windows gate runs under Git Bash); a
-/// test of the Git Bash quoting sets it after this list.
+/// test of the Git Bash quoting sets it after this list. `ACQ_NOW` is
+/// [`now`], this test process's one instant, so every child reads the
+/// same now and two runs compared whole cannot straddle a second (#175).
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
@@ -182,10 +185,29 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
         ("ACQ_STARTUP_WITHIN", "60".into()),
         ("ACQ_ANNOTATION_WAIT", "60".into()),
         ("ACQ_STORE_WAIT", "60".into()),
+        ("ACQ_NOW", now().to_string().into()),
     ] {
         list.push((key.into(), Some(value)));
     }
     list
+}
+
+/// This test process's one instant, whole seconds since 1970: the wall
+/// clock at its first use, then fixed. Every process the test spawns
+/// reads it as now (`ACQ_NOW`, on [`isolation`]'s list), and test code
+/// takes its times from it rather than from `acquisition_store::now()`,
+/// which `tools/arch-check.sh` refuses in process-test code: a time the
+/// test stages and the age a child says of it are measured against one
+/// clock (#175). nextest runs a test per process (C122), so each test
+/// has its own.
+pub fn now() -> i64 {
+    static NOW: OnceLock<i64> = OnceLock::new();
+    *NOW.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
+    })
 }
 
 /// [`isolation`] on a child, the world at `base/store`.

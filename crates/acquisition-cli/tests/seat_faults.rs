@@ -20,7 +20,7 @@ use harness::{Transcript, acq, golden, login, sole_json, start_daemon, text};
 /// crate with no daemon: Standard holds tab `a1` with item `i-std`,
 /// Allflame holds tab `b1` with item `i-all`.
 fn seed_two_leagues(base: &Path) {
-    seed_two_leagues_at(base, acquisition_store::now());
+    seed_two_leagues_at(base, harness::now());
 }
 
 /// [`seed_two_leagues`], every response recorded at `at`.
@@ -252,7 +252,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
 
     // One case through the binary: exit 1 and the fault's fields under
@@ -311,7 +311,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
                 &format!("Extra{n:02}#1"),
                 &format!("u-x{n}"),
                 false,
-                acquisition_store::now(),
+                harness::now(),
                 &[],
             )
             .unwrap();
@@ -351,7 +351,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let mock = base.join("store").join("mock");
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     Store::open(&account_path(&mock, "Bob#5678"))
         .unwrap()
@@ -360,7 +360,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
             &json!({}),
             200,
             &json!({ "uuid": "u-bob", "name": "Bob#5678" }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     let request = base.join("request.json");
@@ -969,7 +969,7 @@ fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
             &json!({ "league": "Standard" }),
             200,
             &json!({ "stashes": stashes }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1001,7 +1001,7 @@ fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
             &json!({ "league": "Hard Mode" }),
             200,
             &json!({ "stashes": stashes }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1025,7 +1025,7 @@ fn tabs_says_its_counts_first_and_that_its_items_are_the_tabs_alone() {
             &json!({ "league": "Small" }),
             200,
             &json!({ "stashes": small }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1088,7 +1088,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
             &json!({ "league": "Standard" }),
             200,
             &json!({ "stashes": stashes }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1189,7 +1189,7 @@ fn an_applied_plan_says_its_listings_before_the_plan_and_its_own_age_now() {
     // 53 seconds older than it
     let mut plan = sole_json(&acq(&base, &["refresh", "--plan", "--json"]));
     assert_eq!(plan["actions"], json!([]), "{plan}");
-    let made = acquisition_store::now() - 150;
+    let made = harness::now() - 150;
     plan["generated_at"] = json!(made);
     plan["basis"]["snapshot_taken_at"] = json!(made);
     plan["basis"]["stash_listing"]["fetched_at"] = json!(made - 53);
@@ -1495,7 +1495,7 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
             200,
             &json!({ "stashes": [ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
                                   { "id": "a2", "name": "Never", "type": "PremiumStash", "index": 1 } ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1550,7 +1550,7 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
                                   { "id": "g1", "name": "Gems", "type": "GemStash", "index": 6 },
                                   { "id": "c1", "name": "Coin", "type": "CurrencyStash", "index": 7 },
                                   { "id": "e1", "name": "Essence", "type": "EssenceStash", "index": 8 } ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1568,7 +1568,7 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
     let mock = base.join("store").join("mock");
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bare", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bare", false, harness::now(), &[])
         .unwrap();
     Store::open(&account_path(&mock, "Bob#5678"))
         .unwrap()
@@ -1577,7 +1577,7 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_the_lists_its_age_is_t
             &json!({}),
             200,
             &json!({ "uuid": "u-bare", "name": "Bob#5678" }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     t.run(
@@ -1652,7 +1652,7 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
                 &json!({ "league": league }),
                 200,
                 &json!({ "stashes": tabs }),
-                acquisition_store::now(),
+                harness::now(),
             )
             .unwrap();
     }
@@ -1772,7 +1772,7 @@ fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
                 { "id": "ring", "name": "Doom Loop", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
                   "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 84, "x": 0, "y": 0,
                   "implicitMods": ["+8 to maximum Life"], "explicitMods": ["+70 to maximum Life"] } ] } }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -1844,7 +1844,7 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
     // a tab fetched three days ago
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let then = acquisition_store::now() - 3 * 86_400 - 60;
+    let then = harness::now() - 3 * 86_400 - 60;
     store
         .record(
             &Endpoint::Stash {
@@ -1908,7 +1908,7 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
     // Standard's tab, fetched three days ago under the mark alone
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let then = acquisition_store::now() - 3 * 86_400 - 60;
+    let then = harness::now() - 3 * 86_400 - 60;
     store
         .record(
             &Endpoint::Stash {
@@ -1971,7 +1971,7 @@ fn cli4_a_spans_location_names_its_realm() {
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     // a poe2 character fetched a day before pc's two tabs
-    let then = acquisition_store::now() - 86_400 - 60;
+    let then = harness::now() - 86_400 - 60;
     store
         .record(
             &Endpoint::Characters {
@@ -2066,7 +2066,7 @@ fn cli13_a_counts_heading_counts_every_line_it_prints() {
             &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
                 { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 },
                 ring("i-rare", json!("Rare")), ring("i-magic", json!("Magic")), ring("i-odd", json!(7)) ] } }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -2147,7 +2147,7 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
     let base = scratch.0.clone();
     // the refetch shares the seed's time: two seconds would print the
     // facts line's two-time form (round A's report: a bare gate failed)
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mock = crate::price_json::seed_at(&base, at);
     // the public tab refetched with three `~skip` notes beside its two
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
@@ -2222,7 +2222,7 @@ fn cli10_the_skip_count_names_the_list_that_holds_them() {
 fn an_invalid_tab_name_is_counted_with_the_list_that_holds_its_items() {
     let scratch = harness::scratch("seat-invalid-tab-name");
     let base = scratch.0.clone();
-    let at = acquisition_store::now();
+    let at = harness::now();
     seed_two_leagues_at(&base, at);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
@@ -2306,7 +2306,7 @@ fn the_total_says_how_old_the_matches_are_and_the_scope_its_counts() {
     let base = scratch.0.clone();
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let now = acquisition_store::now();
+    let now = harness::now();
     Index::load(&mock)
         .unwrap()
         .record_login(USER, "u-seat", false, now, &[])
@@ -2402,11 +2402,11 @@ fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
 fn a_count_of_none_says_which_none_and_what_to_do() {
     let scratch = harness::scratch("seat-none");
     let base = scratch.0.clone();
-    seed_two_leagues_at(&base, acquisition_store::now() - 53 * 86_400);
+    seed_two_leagues_at(&base, harness::now() - 53 * 86_400);
     // a newer event outside the window, 40 days ago, so the line is the
     // newest's and never the oldest's (the review of the seat's third
     // round, finding 4)
-    let newer = acquisition_store::now() - 40 * 86_400;
+    let newer = harness::now() - 40 * 86_400;
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     store
@@ -2479,7 +2479,7 @@ fn a_count_of_none_says_which_none_and_what_to_do() {
     // a second account, its store holding no event at all
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-empty", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-empty", false, harness::now(), &[])
         .unwrap();
     drop(Store::open(&account_path(&mock, "Bob#5678")).unwrap());
     t.run(
@@ -2540,7 +2540,7 @@ fn retired_parent(mock: &Path, at: i64) {
 fn cli172_store_status_and_tabs_say_how_old_their_facts_are() {
     let scratch = harness::scratch("seat-facts-block");
     let base = scratch.0.clone();
-    let at = acquisition_store::now() - 7200;
+    let at = harness::now() - 7200;
     seed_two_leagues_at(&base, at);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
@@ -2708,7 +2708,7 @@ fn store_status_says_what_its_league_and_tab_counts_count() {
                 &json!({}),
                 200,
                 &json!({ "leagues": ids.iter().map(|id| json!({ "id": id, "realm": "pc" })).collect::<Vec<_>>() }),
-                acquisition_store::now(),
+                harness::now(),
             )
             .unwrap();
     }
@@ -2750,7 +2750,7 @@ fn seed_held(base: &Path) {
     seed_two_leagues(base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let tab = |id: &str| json!({ "id": id, "name": id, "type": "PremiumStash", "index": 0 });
     for (realm, league, tabs) in [
         ("pc", "Rehearsal", json!([tab("r1"), tab("r2"), tab("r3")])),
@@ -2885,7 +2885,7 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
                 { "id": "Rehearsal", "realm": "pc" },
                 { "id": "Mirage", "realm": "pc" },
             ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     t.run(
@@ -2924,7 +2924,7 @@ fn an_answer_about_one_league_says_what_else_the_store_holds() {
                 &json!({ "league": league }),
                 200,
                 &json!({ "stashes": [ { "id": format!("e{n}"), "name": "Gear", "type": "PremiumStash", "index": 0 } ] }),
-                acquisition_store::now(),
+                harness::now(),
             )
             .unwrap();
     }
@@ -2987,7 +2987,7 @@ fn a_tabs_page_with_no_name_is_said_to_be_its_page() {
     seed_two_leagues(&base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let sub = |sub: Option<&str>| Endpoint::Stash {
         realm: "pc".into(),
         league: "Standard".into(),
@@ -3141,7 +3141,7 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     let base = scratch.0.clone();
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     Index::load(&mock)
         .unwrap()
         .record_login("Alice#1234", "u-seat", false, at, &[])
@@ -3254,7 +3254,7 @@ fn the_tabs_list_says_once_what_the_remove_only_mark_is() {
                 { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
                 { "id": "a2", "name": "Dump (Remove-only)", "type": "PremiumStash", "index": 1 },
                 { "id": "a3", "name": "Gems (Remove-only)", "type": "GemStash", "index": 2 } ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -3324,11 +3324,11 @@ fn show_prints_the_price_show_command_for_its_item() {
     // a second account, so no account is the default
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#5678", "u-bob", false, harness::now(), &[])
         .unwrap();
     // and an Xbox item of Alice's, whose realm is not the default
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     store
         .record(
             &Endpoint::Stashes {
@@ -3406,7 +3406,7 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
             &json!({ "stashes": [
                 { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
                 { "id": "m1", "name": "Maps", "type": "MapStash", "index": 1 } ] }),
-            acquisition_store::now(),
+            harness::now(),
         )
         .unwrap();
     drop(store);
@@ -3543,7 +3543,7 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
         .unwrap();
     let account = ["--account", "Alice#1234"];
     let price = |base: &Path| -> Value {
@@ -3681,7 +3681,7 @@ fn seed_one_account(base: &Path, user: &str, uuid: &str) -> PathBuf {
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
     index
-        .record_login(user, uuid, false, acquisition_store::now(), &[])
+        .record_login(user, uuid, false, harness::now(), &[])
         .unwrap();
     Store::open(&account_path(&mock, user)).unwrap();
     mock
@@ -3709,7 +3709,7 @@ fn an_undo_names_the_account_the_write_ran_as_even_when_implied() {
     // A second account arrives after the write, before the undo is pasted.
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#1", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#1", "u-bob", false, harness::now(), &[])
         .unwrap();
     let run = run_as_printed(base, &undo);
     assert!(
@@ -3992,7 +3992,7 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
         .unwrap();
     let manual = |base: &Path| -> Value {
         sole_json(&acq(
@@ -4215,7 +4215,7 @@ fn the_first_policy_a_show_offers_is_the_create_as_its_account() {
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
+        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
         .unwrap();
     let out = acq(&base, &["policy", "show", "--account", "Alice#1234"]);
     let said = text(&out);

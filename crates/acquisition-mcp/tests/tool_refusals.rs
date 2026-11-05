@@ -24,7 +24,7 @@ const UUID: &str = "u-refusal";
 fn seed(base: &std::path::Path) {
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     Index::load(&mock)
         .unwrap()
         .record_login(USER, UUID, false, at, &[])
@@ -69,7 +69,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     let base = scratch.0.clone();
     seed(&base);
     // one body the store refused as malformed: an item with no id
-    let at = acquisition_store::now();
+    let at = harness::now();
     // a string the spelling would rewrite, were the body prose
     let nameless = json!({ "hint": "--limit", "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
         "items": [{ "typeLine": "Iron Ring", "baseType": "Iron Ring", "x": 0, "y": 0 }] } });
@@ -506,7 +506,7 @@ fn a_reply_queued_before_initialisation_reaches_stdout_when_stdin_closes() {
 fn seed_two(base: &std::path::Path) {
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     for (name, uuid) in [(USER, UUID), ("Bob#5678", "u-bob")] {
         Index::load(&mock)
             .unwrap()
@@ -704,7 +704,7 @@ fn a_search_offered_again_as_another_account_keeps_its_route() {
 /// that holds items.
 fn two_items(base: &std::path::Path, account: &str, prefix: &str) {
     let mock = base.join("store").join("mock");
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut store = Store::open(&account_path(&mock, account)).unwrap();
     store
         .record(

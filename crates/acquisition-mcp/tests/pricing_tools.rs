@@ -35,7 +35,7 @@ const UUID: &str = "u-price";
 fn seed(base: &Path) {
     let mock = base.join("store").join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -484,7 +484,7 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     {
         let mock = base.join("store").join("mock");
         let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-        let at = acquisition_store::now();
+        let at = harness::now();
         let stash = |id: &str| Endpoint::Stash {
             realm: "pc".into(),
             league: "Standard".into(),
@@ -580,7 +580,7 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
     seed(base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     store
         .record(
             &Endpoint::Stashes {
@@ -1078,7 +1078,7 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
     seed(base);
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     store
         .record(
             &Endpoint::Stashes {
@@ -1432,7 +1432,7 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     std::fs::create_dir_all(&mock).unwrap();
     Index::load(&mock)
         .unwrap()
-        .record_login(USER, UUID, false, acquisition_store::now(), &[])
+        .record_login(USER, UUID, false, harness::now(), &[])
         .unwrap();
     let mut mcp = Mcp::start(&dir.0, &[]);
     let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":

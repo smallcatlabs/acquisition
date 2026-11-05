@@ -25,7 +25,7 @@ const UUID: &str = "u-answers";
 fn world(base: &Path, seed: impl FnOnce(&mut Store, i64)) -> PathBuf {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
-    let at = acquisition_store::now();
+    let at = harness::now();
     let mut index = Index::load(&mock).unwrap();
     index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
@@ -365,7 +365,7 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     // C146: the time is written by a sign-in and by a token refresh's
     // persist alike, so an account whose last write was a refresh says
     // both writers
-    let refreshed = acquisition_store::now() - 19 * 86_400;
+    let refreshed = harness::now() - 19 * 86_400;
     Index::load(&mock)
         .unwrap()
         .upsert("Exile00", false, refreshed, &[])
