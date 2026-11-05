@@ -649,19 +649,7 @@ resubmit if still wanted",
                     format!("job {id} already {state}"),
                 ));
             }
-            let mut targets = vec![id];
-            let mut i = 0;
-            while i < targets.len() {
-                let p = targets[i];
-                targets.extend(
-                    s.jobs
-                        .values()
-                        .filter(|e| e.info.parent == Some(p))
-                        .map(|e| e.info.id),
-                );
-                i += 1;
-            }
-            for t in targets {
+            for t in s.tree(id) {
                 let entry = s.jobs.get_mut(&t).unwrap();
                 match entry.info.state {
                     JobState::Waiting => {

@@ -493,9 +493,10 @@ impl Daemon {
     /// when its root and every job under it are terminal, so a child stays
     /// until its parent concludes (the parent's tally scans its children),
     /// and a child's call finds its root still live and returns after a
-    /// walk up its parents. A tree the restore brought back leaves as any
-    /// other does: the job list reads its rows by the ids the restore
-    /// took (`Shared::restored`). Every row was
+    /// walk up its parents; a concluded root's tree is collected in one
+    /// pass over memory (`Shared::tree`). A tree the restore brought back
+    /// leaves as any other does: the job list reads its rows by the ids
+    /// the restore took (`Shared::restored`). Every row was
     /// written at its job's last change, under this lock, before this
     /// call; a failed queue write is sticky, and once one has happened a
     /// row may say less than memory, so nothing leaves.
@@ -503,16 +504,13 @@ impl Daemon {
         if self.queue_failed().is_some() {
             return;
         }
-        let root_of = |s: &Shared, mut id: JobId| {
-            while let Some(parent) = s.jobs.get(&id).and_then(|e| e.info.parent) {
-                if !s.jobs.contains_key(&parent) {
-                    break;
-                }
-                id = parent;
+        let mut root = id;
+        while let Some(parent) = s.jobs.get(&root).and_then(|e| e.info.parent) {
+            if !s.jobs.contains_key(&parent) {
+                break;
             }
-            id
-        };
-        let root = root_of(s, id);
+            root = parent;
+        }
         if !s
             .jobs
             .get(&root)
@@ -520,12 +518,7 @@ impl Daemon {
         {
             return;
         }
-        let tree: Vec<JobId> = s
-            .jobs
-            .keys()
-            .copied()
-            .filter(|&job| root_of(s, job) == root)
-            .collect();
+        let tree = s.tree(root);
         if tree.iter().any(|job| !s.jobs[job].info.state.is_terminal()) {
             return;
         }

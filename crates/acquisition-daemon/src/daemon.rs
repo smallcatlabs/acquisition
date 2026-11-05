@@ -876,6 +876,29 @@ struct Shared {
 }
 
 impl Shared {
+    /// `root` and every job under it in memory, `root` first, each parent
+    /// before its children: one parent-to-children map built per call and
+    /// walked from the root, so a tree costs one pass over the jobs in
+    /// memory however deep or wide it is. A job whose parent has left
+    /// memory is under no root here (`evict_tree`, `cancel`).
+    fn tree(&self, root: JobId) -> Vec<JobId> {
+        let mut children: HashMap<JobId, Vec<JobId>> = HashMap::new();
+        for e in self.jobs.values() {
+            if let Some(parent) = e.info.parent {
+                children.entry(parent).or_default().push(e.info.id);
+            }
+        }
+        let mut tree = vec![root];
+        let mut i = 0;
+        while i < tree.len() {
+            if let Some(under) = children.remove(&tree[i]) {
+                tree.extend(under);
+            }
+            i += 1;
+        }
+        tree
+    }
+
     /// Waiting jobs in dispatch order: highest priority first, then FIFO.
     fn queue_order(&self) -> Vec<JobId> {
         let mut waiting: Vec<&Entry> = self
