@@ -56,7 +56,7 @@ The sweep, run on `fc657318` (the class's measure; run it again at the
 start and at the end):
 
 ```sh
-for c in plan search verbs store; do grep -rn --include='*.rs' -E '"[^"]*(`acq |acq [a-z]|--[a-z][a-z-]+)[^"]*"' crates/acquisition-$c/src; done
+for c in plan search verbs store; do grep -rn --include='*.rs' -E '"[^"]*(`acq |acq [a-z]|--[a-z][a-z-]+)[^"]*"' crates/acquisition-$c/src; done | grep -v -E '^[^:]+:[0-9]+:[[:space:]]*//'
 ```
 
 It printed 60 lines, by file:
