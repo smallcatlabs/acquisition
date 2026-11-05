@@ -2198,6 +2198,55 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         "the probe row is gone from the table too"
     );
 }
+/// C6 as amended 2026-11-05 (a failed queue write is sticky, the
+/// restore's delete too): a probe row whose delete the table refuses (a
+/// `BEFORE DELETE` trigger) trips the sticky queue failure, logged once
+/// with the probe's id; the restore goes on, the row left on disk, and a
+/// submit after it is refused as `queue_failed`.
+#[tokio::test]
+async fn c6_a_probe_row_the_restore_cannot_delete_fails_the_queue() {
+    let db = test_db_path();
+    {
+        let seed = JobDb::open(&db).unwrap();
+        seed.upsert(&disk_row(3, "probe", "waiting", None)).unwrap();
+        seed.upsert(&disk_row(4, "sleep", "waiting", None)).unwrap();
+    }
+    rusqlite::Connection::open(&db)
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER staged_refusal BEFORE DELETE ON jobs
+             BEGIN SELECT RAISE(ABORT, 'staged refusal'); END;",
+        )
+        .unwrap();
+    let (daemon, log) = persisting_daemon(&db);
+    let failure = daemon.queue_failed().expect("the failed delete is sticky");
+    assert!(failure.contains("staged refusal"), "{failure}");
+    assert!(
+        daemon.shared.lock().unwrap().jobs.contains_key(&4),
+        "the restore went on past the probe"
+    );
+    assert!(
+        JobDb::open(&db).unwrap().get(3).unwrap().is_some(),
+        "the probe row is left on disk"
+    );
+    let text = std::fs::read_to_string(&*log).unwrap();
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|line| line.contains("JOBS QUEUE FAILED"))
+        .collect();
+    assert_eq!(lines.len(), 1, "{text}");
+    assert!(
+        lines[0].contains("deleting probe job 3: a probe row could not be deleted at the restore"),
+        "{}",
+        lines[0]
+    );
+    let refused = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap_err();
+    assert_eq!(refused.kind, ErrorKind::QueueFailed, "{}", refused.message);
+    finish_harness(None, &log);
+}
+
 /// C6: a submit whose queue write fails rolls its id back, and a failed
 /// queue dispatches nothing, its waiting job left unpicked. Its refusal,
 /// `QueueFailed` saying the daemon refuses new jobs, is a row of

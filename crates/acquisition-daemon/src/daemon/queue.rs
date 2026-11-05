@@ -14,8 +14,10 @@
 //!   left memory (`Daemon::evict_tree`). What each open row comes back as
 //!   at start is `restore_jobs`'s doc. Ids continue from the table's
 //!   sequence (`AUTOINCREMENT`, never reused, so a stale `acq result <id>`
-//!   can never name a different job). A queue **write** failure at runtime
-//!   is sticky: a submit whose insert fails is refused with its id rolled
+//!   can never name a different job). A queue **write** failure is
+//!   sticky, at runtime and at the restore alike (a probe row's delete is
+//!   a queue write like any other; the row it leaves is answered by
+//!   `ended_elsewhere`): a submit whose insert fails is refused with its id rolled
 //!   back (a job exists only once its row does), later submits are refused
 //!   outright, and the dispatcher stops picking while running jobs finish.
 //!   Completions are the accepted residual: a job already running when the
@@ -202,9 +204,9 @@ pub(super) fn json_len(value: &impl serde::Serialize) -> usize {
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
-    /// the sticky queue failure (logged here — safe, `log` takes no lock
-    /// but its own — and refused loudly at the next submit): disk has
-    /// diverged from memory, so no new work may be taken.
+    /// the sticky queue failure ([`Self::trip_queue_failure`], refused
+    /// loudly at the next submit): disk has diverged from memory, so no
+    /// new work may be taken.
     pub(super) fn persist(&self, entry: &mut Entry) -> bool {
         entry.stamp(self.unix_now());
         match self
@@ -215,16 +217,25 @@ impl Daemon {
         {
             Ok(()) => true,
             Err(e) => {
-                let mut failure = self.queue_failure.lock().unwrap();
-                if failure.is_none() {
-                    *failure = Some(format!("{e:#}"));
-                    self.log(&format!(
-                        "JOBS QUEUE FAILED persisting job {}: {e:#}; refusing new jobs until restart",
-                        entry.info.id
-                    ));
-                }
+                self.trip_queue_failure(&format!("persisting job {}", entry.info.id), &e);
                 false
             }
+        }
+    }
+
+    /// C6: a queue write failed — `what` names it, `e` says why — so disk
+    /// has diverged from memory: the sticky queue failure is set, and the
+    /// first failure of a lifetime logged (safe under `shared`: `log`
+    /// takes no lock but its own). From here new submits are refused as
+    /// `queue_failed` and the dispatcher picks nothing. Every queue write
+    /// that fails comes here: `persist`'s and the restore's delete.
+    pub(super) fn trip_queue_failure(&self, what: &str, e: &anyhow::Error) {
+        let mut failure = self.queue_failure.lock().unwrap();
+        if failure.is_none() {
+            *failure = Some(format!("{e:#}"));
+            self.log(&format!(
+                "JOBS QUEUE FAILED {what}: {e:#}; refusing new jobs until restart"
+            ));
         }
     }
 
@@ -292,7 +303,10 @@ impl Daemon {
     /// `result`, pruned by age first.
     /// A read failure is fatal to startup, like an unopenable file: a
     /// daemon that cannot see the previous lifetime's rows would reissue
-    /// ids from 1 against them.
+    /// ids from 1 against them. A write at the restore, a probe row's
+    /// delete as much as a persist, is a queue write like any other: one
+    /// that fails trips the sticky queue failure and the restore goes on
+    /// (C6).
     pub(super) fn restore_jobs(&self, retention: Retention) -> Result<()> {
         let db = &self.jobs_db;
         let (rows, next_id, pruned) = {
@@ -343,7 +357,18 @@ impl Daemon {
             for mut entry in entries {
                 if entry.info.kind == "probe" {
                     dropped += 1;
-                    let _ = db.lock().unwrap().delete(entry.info.id);
+                    // C6: the delete is a queue write like any other; a
+                    // failed one is sticky, and the restore goes on, the
+                    // row left on disk (`ended_elsewhere` answers it).
+                    if let Err(e) = db.lock().unwrap().delete(entry.info.id) {
+                        self.trip_queue_failure(
+                            &format!(
+                                "deleting probe job {}: a probe row could not be deleted at the restore",
+                                entry.info.id
+                            ),
+                            &e,
+                        );
+                    }
                     continue;
                 }
                 // C134: the marker's job, or a job on its probe's closed
