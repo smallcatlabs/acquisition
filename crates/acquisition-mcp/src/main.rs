@@ -81,10 +81,13 @@
 //! **Every text the server serves speaks its own words** (C143, the
 //! shared words first and an adapter's spelling after them; the readiness
 //! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
-//! the shared crates' words are the CLI's, and wherever a refusal,
-//! `describe` or an answer's `why` or `hint` speaks a CLI command or flag,
-//! `spoken` appends `— here,` and what each is here (`acq search` is
-//! `search`, `--realm` is `realm`), from one table, `SPOKEN`. A person's
+//! a refusal speaks the request's words and its ways on are offers this
+//! server sends as its tools' arguments (C143 as amended; #97, the
+//! harness's `c143_a_refusal_speaks_no_frontend`). Wherever other shared
+//! text still speaks a CLI command or flag — `describe`, an answer's
+//! `why` or `hint`, a daemon's words — `spoken` appends `— here,` and
+//! what each is here (`acq search` is `search`, `--realm` is `realm`),
+//! from one table, `SPOKEN`. A person's
 //! command (`acq auth check`) is left as the person's; an entry's name,
 //! how it is asked for, keeps the CLI's spelling and its `what` carries
 //! the spelling; every other string of an answer is data, sent verbatim.
@@ -460,6 +463,10 @@ impl refusal::Surface for Spoken<'_> {
                 Some((arguments, other("submit_job")))
             }
             Way::Result { id } => Some((json!({ "id": id }), other("job_result"))),
+            Way::Currencies => Some((json!({}), other("reference_currency"))),
+            Way::RefusedBodies { account } => {
+                Some((json!({ "account": account }), other("store_refused")))
+            }
         }
     }
 }
@@ -1832,10 +1839,16 @@ impl AcqMcp {
         use acquisition_verbs::RefusedBodies;
         answer(|| -> Result<Value> {
             let p = p.parse()?;
-            let store = self.facts(p.account.as_deref())?;
+            let account = self.account(p.account.as_deref())?;
+            let store = account.facts()?;
             let now = acquisition_store::now();
             Ok(match p.id {
-                Some(id) => serde_json::to_value(RefusedBodies::one(&store, id, now)?)?,
+                Some(id) => serde_json::to_value(RefusedBodies::one(
+                    &store,
+                    id,
+                    now,
+                    &account.entry.username,
+                )?)?,
                 None => {
                     serde_json::to_value(RefusedBodies::read(&store, p.limit.unwrap_or(10), now)?)?
                 }
@@ -2005,7 +2018,6 @@ impl AcqMcp {
                 expand: p.expand.unwrap_or(false),
             },
             &account,
-            acquisition_search::answer::shell_quoted,
         ))
     }
 
@@ -2036,7 +2048,6 @@ impl AcqMcp {
                 expand: p.expand.unwrap_or(false),
             },
             &account,
-            acquisition_search::answer::shell_quoted,
         ))
     }
 
@@ -2124,7 +2135,6 @@ impl AcqMcp {
             ),
             &Provenance::via(self.frontend.via),
             &username,
-            acquisition_search::answer::shell_quoted,
         );
         match written {
             Ok(r) => told(&receipt::price_set(
@@ -2165,7 +2175,6 @@ impl AcqMcp {
             ),
             &Provenance::via(self.frontend.via),
             &username,
-            acquisition_search::answer::shell_quoted,
         );
         match written {
             Ok(w) => told(&receipt::price_clear(

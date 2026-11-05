@@ -1,9 +1,11 @@
 # golden price_json/a_write_walk_refused: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq price set item/i-map skip --if-revision 1
-# holds "item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands"
+# holds "item/i-map has a price at revision 2, not the revision named: `if_revision` 2 writes over it as it stands"
 --- stderr
-Error: item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands (`acq price show --account 'Alice#1234' item/i-map` reads it)
+Error: item/i-map has a price at revision 2, not the revision named: `if_revision` 2 writes over it as it stands (its show reads it)
+    the same price over revision 2, the row as it stands: acq price set --account 'Alice#1234' item/i-map skip --if-revision 2
+    the show of item/i-map, its row and what covers it: acq price show item/i-map --account 'Alice#1234'
 --- exit 1
 
 $ acq price set item/i-map exact 1 chisel
@@ -22,7 +24,8 @@ next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine --i
 $ acq price clear item/i-map
 # holds "item/i-map's price was cleared (revision 3): nothing to clear"
 --- stderr
-Error: item/i-map's price was cleared (revision 3): nothing to clear (`acq price show --account 'Alice#1234' item/i-map` reads what covers it)
+Error: item/i-map's price was cleared (revision 3): nothing to clear (its show reads what covers it)
+    the show of item/i-map, its row and what covers it: acq price show item/i-map --account 'Alice#1234'
 --- exit 1
 
 $ acq price set tab/pc/c1 exact 7 chaos

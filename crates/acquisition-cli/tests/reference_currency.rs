@@ -84,9 +84,11 @@ fn c68_one_word_resolves_exactly_or_fails_naming_the_version() {
     let v = sole_json(&miss);
     let err = v["error"].as_str().unwrap();
     assert!(
-        err.contains("\"Chaos\"") && err.contains("v1") && err.contains("acq reference currency"),
+        err.contains("\"Chaos\"") && err.contains("v1") && err.contains("the currency table lists"),
         "{err}"
     );
+    // the table that lists them is its way on, the command it is here
+    assert_eq!(v["offers"][0]["request"], "acq reference currency", "{v}");
 
     let miss = t.run(
         &["reference", "currency", "Chaos"],

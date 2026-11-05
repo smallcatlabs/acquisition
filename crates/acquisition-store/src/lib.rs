@@ -340,7 +340,8 @@ impl std::fmt::Display for SchemaNotCurrent {
                 f,
                 "the {file} file carries no schema version: it is empty or was not \
                  written by Acquisition, and a read-only open reads nothing from it; \
-                 check that `--dir` and `--account` name an existing Acquisition store"
+                 check that the store's directory and its `account` name an existing \
+                 Acquisition store"
             )
         } else if found < supported {
             write!(
@@ -418,7 +419,7 @@ impl std::fmt::Display for MalformedBody {
             write!(f, " at `{at}`")?;
         }
         if let Some(id) = self.kept {
-            write!(f, " — body kept verbatim (`acq store refused {id}`)")?;
+            write!(f, " — body kept verbatim, as refused body {id}")?;
         }
         if self.not_kept {
             write!(f, " — the body could not be kept as evidence")?;

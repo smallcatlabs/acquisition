@@ -112,9 +112,17 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         json!({ "id": 9999 }),
         "refused_body_not_found",
     );
-    assert!(
-        doc["error"].as_str().unwrap().contains("`store_refused`"),
-        "the tool's words, not the CLI's: {doc}"
+    // the request's words, its way on the list as the account (C143)
+    assert_eq!(
+        (&doc["error"], &doc["offers"]),
+        (
+            &json!("no refused body with id 9999; their list names each by its id"),
+            &json!([{
+                "request": { "account": USER },
+                "says": "the refused bodies, each with its id",
+            }])
+        ),
+        "{doc}"
     );
 
     // An account no login made, on every tool that selects one: the

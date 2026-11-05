@@ -2,16 +2,18 @@
 
 $ acq price set item/i-map skip
 # holds "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)"
-# holds "`--if-revision 1` replaces it deliberately"
+# holds "`if_revision` 1 replaces it deliberately"
 --- stderr
-Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `--if-revision 1` replaces it deliberately, `acq price show --account 'Alice#1234' item/i-map` names it
+Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `if_revision` 1 replaces it deliberately, its show names it
+    the show of item/i-map, its row and what covers it: acq price show item/i-map --account 'Alice#1234'
 --- exit 1
 
 $ acq price clear item/i-map
 # holds "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)"
-# holds "`--if-revision 1` replaces it deliberately"
+# holds "`if_revision` 1 replaces it deliberately"
 --- stderr
-Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `--if-revision 1` replaces it deliberately, `acq price show --account 'Alice#1234' item/i-map` names it
+Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `if_revision` 1 replaces it deliberately, its show names it
+    the show of item/i-map, its row and what covers it: acq price show item/i-map --account 'Alice#1234'
 --- exit 1
 
 $ acq price set item/i-map skip --if-revision 1

@@ -1311,20 +1311,31 @@ fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
     assert_eq!(doc["rows"][0]["fetched_at_age"], "3h ago", "{doc}");
 
     // one body in full by its row id, aged alike; an id the store holds
-    // none under is refused as `refused_body_not_found`, in the CLI's words
+    // none under is refused as `refused_body_not_found`, in the request's
+    // words, offering their list as the account's (C143)
     let id = refused.rows[0].id;
-    let one = acquisition_verbs::RefusedBodies::one(&store, id, AT + 60 + 3 * 3_600).unwrap();
+    let one = acquisition_verbs::RefusedBodies::one(&store, id, AT + 60 + 3 * 3_600, USER).unwrap();
     let doc = serde_json::to_value(&one).unwrap();
     assert_eq!(doc["fetched_at_age"], "3h ago", "{doc}");
     assert_eq!(doc["body"]["stash"]["id"], "t1", "{doc}");
-    let missing = acquisition_verbs::RefusedBodies::one(&store, id + 100, AT).unwrap_err();
+    let missing = acquisition_verbs::RefusedBodies::one(&store, id + 100, AT, USER).unwrap_err();
     let doc = acquisition_verbs::refusal::document(&missing, &Plain);
     assert_eq!(doc["kind"], "refused_body_not_found", "{doc}");
-    assert!(
-        doc["error"]
-            .as_str()
-            .unwrap()
-            .starts_with(&format!("no refused body with id {}", id + 100)),
+    assert_eq!(
+        doc["error"],
+        format!(
+            "no refused body with id {}; their list names each by its id",
+            id + 100
+        ),
+        "{doc}"
+    );
+    assert_eq!(
+        doc["offers"],
+        json!([{
+            "request": format!("{:?}", Way::RefusedBodies { account: USER.into() }),
+            "says": "the refused bodies, each with its id",
+            "tool": "store_refused",
+        }]),
         "{doc}"
     );
 
@@ -2137,6 +2148,8 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::PolicySet { .. } => Some("set_sync_policy"),
             Way::Submit { .. } => Some("submit_job"),
             Way::Result { .. } => Some("job_result"),
+            Way::Currencies => Some("reference_currency"),
+            Way::RefusedBodies { .. } => Some("store_refused"),
         };
         Some((json!(format!("{way:?}")), tool))
     }
@@ -2207,10 +2220,25 @@ fn every_refusal_is_one_shape_from_one_function() {
                     revision: None,
                     current: None,
                     retry: None,
+                    shown: None,
                 },
                 message: "item/x has no price of its own".into(),
             }),
             "conflict",
+        ),
+        (
+            anyhow::Error::new(Refused {
+                kind: RefusedKind::Blind(Box::new(shown("item/x"))),
+                message: "item/x holds a value this build cannot read".into(),
+            }),
+            "refused",
+        ),
+        (
+            anyhow::Error::new(Refused {
+                kind: RefusedKind::Currency,
+                message: "\"chaoz\" is not a currency word".into(),
+            }),
+            "refused",
         ),
         (missing(vec![], Some(3)), "not_found"),
         (
@@ -2267,14 +2295,88 @@ fn every_refusal_is_one_shape_from_one_function() {
                 revision: None,
                 current: None,
                 retry: None,
+                shown: None,
             },
-            message: "nothing to clear".into(),
+            message: "item/x has no price of its own".into(),
         }),
         &Plain,
     );
     assert_eq!(
         conflict,
-        json!({ "error": "nothing to clear", "kind": "conflict", "revision": null })
+        json!({ "error": "item/x has no price of its own", "kind": "conflict", "revision": null })
+    );
+}
+
+/// The read-back of a write's refusal, `show` of its target as the
+/// account it ran as.
+fn shown(target: &str) -> acquisition_plan::pricing::Shown {
+    acquisition_plan::pricing::Shown {
+        target: acquisition_plan::pricing::read_target(target).unwrap(),
+        account: USER.into(),
+    }
+}
+
+/// C143, a shared text speaks the request's own words: a pricing
+/// refusal's ways on are offers each surface spells, never a command in
+/// its words — a conflict's read-back after its retry, a blind write's
+/// read-back, a currency word's table — the read-back naming no realm or
+/// league, which a write resolves none of (#97, the owner's comment of
+/// 2026-11-01).
+#[test]
+fn a_pricing_refusals_ways_on_are_offers_never_commands_in_its_words() {
+    use acquisition_plan::pricing::{Refused, RefusedKind, Retry, read_target};
+    use acquisition_verbs::refusal::document;
+    let show = Way::PriceShow {
+        target: "item/x".into(),
+        account: USER.into(),
+        realm: None,
+        league: None,
+    };
+    let offers = |kind: RefusedKind| {
+        document(
+            &anyhow::Error::new(Refused {
+                kind,
+                message: String::new(),
+            }),
+            &Plain,
+        )["offers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| (o["request"].clone(), o["says"].clone()))
+            .collect::<Vec<_>>()
+    };
+    let read_back = (
+        json!(format!("{show:?}")),
+        json!("the show of item/x, its row and what covers it"),
+    );
+    let retried = offers(RefusedKind::Conflict {
+        revision: Some(2),
+        current: None,
+        retry: Some(Box::new(Retry {
+            target: read_target("item/x").unwrap(),
+            account: USER.into(),
+            value: None,
+            if_revision: 2,
+        })),
+        shown: Some(Box::new(shown("item/x"))),
+    });
+    assert_eq!(retried.len(), 2, "{retried:?}");
+    assert_eq!(
+        retried[0].1,
+        json!("the same clear at revision 2, the row as it stands")
+    );
+    assert_eq!(retried[1], read_back);
+    assert_eq!(
+        offers(RefusedKind::Blind(Box::new(shown("item/x")))),
+        vec![read_back]
+    );
+    assert_eq!(
+        offers(RefusedKind::Currency),
+        vec![(
+            json!(format!("{:?}", Way::Currencies)),
+            json!("the currency table, every word listed")
+        )]
     );
 }
 
@@ -2765,7 +2867,6 @@ async fn populated() -> Vec<(&'static str, Value)> {
     let account = profiled(&s.mock);
     let now = acquisition_store::now();
     let t = now - 7_200;
-    let quote = |s: &str| s.to_string();
     let mut docs: Vec<(&'static str, Value)> = Vec::new();
 
     // the facts: a listing of two tabs, a folder over a third and a map
@@ -2925,7 +3026,6 @@ async fn populated() -> Vec<(&'static str, Value)> {
             expect,
             &via,
             USER,
-            quote,
         )
     };
     set(&mut intent, "item/i1", "5", Expect::Create).unwrap();
@@ -2941,7 +3041,6 @@ async fn populated() -> Vec<(&'static str, Value)> {
         Expect::Current,
         &via,
         USER,
-        quote,
     )
     .unwrap();
     docs.push((
@@ -3072,7 +3171,6 @@ async fn populated() -> Vec<(&'static str, Value)> {
                 Some("Standard"),
                 &ListArgs::default(),
                 USER,
-                quote,
             )
             .unwrap(),
         )
@@ -3095,7 +3193,6 @@ async fn populated() -> Vec<(&'static str, Value)> {
                     Some("Standard"),
                     Bound::default(),
                     USER,
-                    quote,
                 )
                 .unwrap(),
             )

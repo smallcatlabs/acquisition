@@ -294,6 +294,7 @@ impl Mcp {
                 .to_string()
         };
         if result["isError"] == json!(true) {
+            c143_a_refusal_speaks_no_frontend(tool, &text());
             return Err(text());
         }
         Ok(serde_json::from_str(&text())
@@ -305,9 +306,15 @@ impl Mcp {
     /// reads its document). A JSON-RPC error fails here: the call was not served.
     pub fn result(&mut self, tool: &str, args: Value) -> Value {
         let resp = self.rpc("tools/call", json!({ "name": tool, "arguments": args }));
-        resp.get("result")
+        let result = resp
+            .get("result")
             .cloned()
-            .unwrap_or_else(|| panic!("{tool} was refused at the protocol level: {resp}"))
+            .unwrap_or_else(|| panic!("{tool} was refused at the protocol level: {resp}"));
+        if result["isError"] == json!(true) {
+            let text = result["content"][0]["text"].as_str().unwrap_or_default();
+            c143_a_refusal_speaks_no_frontend(tool, text);
+        }
+        result
     }
 
     pub fn expect_ok(&mut self, tool: &str, args: Value) -> Value {
@@ -330,6 +337,76 @@ impl Mcp {
             Ok(v) => panic!("{tool} unexpectedly succeeded: {v}"),
         }
     }
+}
+
+/// The commands that are a person's act, which a refusal names as
+/// commands (C143's exception): the person's commands in the server's
+/// `SPOKEN`, longest first where one begins another.
+const PERSONS: [&str; 6] = [
+    "acq daemon reset-tripwire",
+    "acq daemon stop",
+    "acq auth check",
+    "acq auth status",
+    "acq auth",
+    "acq profile",
+];
+
+/// C143, a shared text speaks the request's own words, never a
+/// frontend's flag: every refusal a test meets, through [`Mcp::call`] or
+/// [`Mcp::result`], is held free of a CLI command (`acq …`) and a flag
+/// (`--league`) but a person's act ([`PERSONS`]), so each test that
+/// produces a refusal holds the rule over it. Its prose alone: a value
+/// under a payload key is data an agent sends back or reads as stored
+/// (a query's text, a row's `actor`).
+#[track_caller]
+pub fn c143_a_refusal_speaks_no_frontend(tool: &str, text: &str) {
+    // `describe` refuses a name it does not know listing every name it
+    // does, some still a flag (`--count`): #97's second part names them
+    // in the request's words, and widens this rule to every answer
+    if tool == "describe" {
+        return;
+    }
+    let doc: Value = serde_json::from_str(text).unwrap_or_else(|_| json!(text));
+    let mut prose = Vec::new();
+    prose_of(&doc, &mut prose);
+    for words in prose {
+        if let Some(at) = frontend_word(words) {
+            let said: String = words[at..].chars().take(60).collect();
+            panic!("{tool}'s refusal speaks the CLI at {said:?}: {text}");
+        }
+    }
+}
+
+/// Every string of `doc` that is the tool's words: none under a payload
+/// key ([`PAYLOAD`], a receipt's `undo`, a stored `body`).
+fn prose_of<'a>(doc: &'a Value, out: &mut Vec<&'a str>) {
+    match doc {
+        Value::String(s) => out.push(s),
+        Value::Array(items) => items.iter().for_each(|v| prose_of(v, out)),
+        Value::Object(map) => map
+            .iter()
+            .filter(|(k, _)| {
+                !PAYLOAD.contains(&k.as_str()) && !["undo", "body"].contains(&k.as_str())
+            })
+            .for_each(|(_, v)| prose_of(v, out)),
+        _ => {}
+    }
+}
+
+/// Where `words` first speak a CLI command or flag outside a person's
+/// act, if anywhere.
+fn frontend_word(words: &str) -> Option<usize> {
+    let bytes = words.as_bytes();
+    let starts_word = |at: usize| {
+        at == 0 || !(bytes[at - 1].is_ascii_alphanumeric() || matches!(bytes[at - 1], b'_' | b'-'))
+    };
+    words.char_indices().map(|(at, _)| at).find(|&at| {
+        let rest = &words[at..];
+        let flag =
+            rest.starts_with("--") && rest.as_bytes().get(2).is_some_and(u8::is_ascii_lowercase);
+        let command = rest.starts_with("acq ") && !PERSONS.iter().any(|p| rest.starts_with(p));
+        (flag || command) && starts_word(at)
+    })
 }
 
 /// The document a tool's result carries: its one text block, parsed (the

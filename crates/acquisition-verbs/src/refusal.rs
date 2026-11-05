@@ -130,6 +130,10 @@ pub enum Way {
     /// One job's result read whole: a failed job's way on where what it
     /// needs is in a result (C165).
     Result { id: u64 },
+    /// The currency table this build ships, every word listed.
+    Currencies,
+    /// The bodies the store refused as malformed, listed with their ids.
+    RefusedBodies { account: String },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its
@@ -209,7 +213,10 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
     let mut doc = Map::new();
     let mut offers = Vec::new();
     doc.insert("error".into(), json!(surface.words(e)));
-    if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
+    if let Some(pointed) = e.chain().find_map(|c| c.downcast_ref::<Pointed>()) {
+        doc.insert("kind".into(), json!(pointed.kind));
+        offers.extend(pointed.ways.iter().cloned());
+    } else if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
         faulted(
             fault,
             surface.repeats_from_its_start(),
@@ -221,10 +228,15 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
         match &refused.kind {
             RefusedKind::NotFound(missing) => offers.extend(finding(missing)),
             RefusedKind::Several(several) => offers.extend(placing(several)),
-            RefusedKind::Conflict {
-                retry: Some(retry), ..
-            } => offers.push(retrying(retry)),
-            RefusedKind::Conflict { .. } => {}
+            RefusedKind::Conflict { retry, shown, .. } => {
+                offers.extend(retry.as_deref().map(retrying));
+                offers.extend(shown.as_deref().map(showing));
+            }
+            RefusedKind::Blind(shown) => offers.push(showing(shown)),
+            RefusedKind::Currency => offers.push((
+                Way::Currencies,
+                "the currency table, every word listed".to_string(),
+            )),
         }
     } else if let Some(refused) = DaemonError::find(e) {
         doc.insert("kind".into(), json!(refused.kind));
@@ -279,6 +291,24 @@ pub fn offer(way: &Way, says: &str, surface: &dyn Surface) -> Option<Value> {
     }
     Some(Value::Object(offer))
 }
+
+/// A refusal the verbs make with the ways on its words name (C143: the
+/// words say what each is, and each surface spells it): its kind, a word
+/// from the closed lists, and its words.
+#[derive(Debug)]
+pub struct Pointed {
+    pub kind: &'static str,
+    pub message: String,
+    pub ways: Vec<(Way, String)>,
+}
+
+impl std::fmt::Display for Pointed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for Pointed {}
 
 /// Arguments a tool cannot read: refused as `arguments`, the MCP's word
 /// for a parameter it does not take (the CLI's parser refuses a command
@@ -454,6 +484,21 @@ fn retrying(retry: &Retry) -> (Way, String) {
             format!("the same clear at revision {at}, the row as it stands"),
         ),
     }
+}
+
+/// A write's read-back, the target's `show` as the account it ran as
+/// (`Shown`): no realm or league, which a write resolves none of.
+fn showing(shown: &acquisition_plan::pricing::Shown) -> (Way, String) {
+    let target = shown.target.to_string();
+    (
+        Way::PriceShow {
+            target: target.clone(),
+            account: shown.account.clone(),
+            realm: None,
+            league: None,
+        },
+        format!("the show of {target}, its row and what covers it"),
+    )
 }
 
 /// A `show` of each place the facts hold a target in, where it named

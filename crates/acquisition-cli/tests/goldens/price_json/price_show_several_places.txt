@@ -3,5 +3,7 @@
 $ acq price show tab/pc/tw
 # holds "tab/pc/tw is held in several places (pc Big, pc Standard)"
 --- stderr
-Error: tab/pc/tw is held in several places (pc Big, pc Standard): `acq price show --account 'Alice#1234' --realm pc --league Big tab/pc/tw` or `acq price show --account 'Alice#1234' --realm pc --league Standard tab/pc/tw` reads it in one
+Error: tab/pc/tw is held in several places (pc Big, pc Standard): `realm` and `league` name one
+    tab/pc/tw in pc Big: acq price show tab/pc/tw --account 'Alice#1234' --realm pc --league Big
+    tab/pc/tw in pc Standard: acq price show tab/pc/tw --account 'Alice#1234' --realm pc --league Standard
 --- exit 1

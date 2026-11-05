@@ -125,14 +125,18 @@ pub enum Resolve {
     Ambiguous(Vec<String>),
 }
 
+/// A selector's failure in the request's words (C143): the field that
+/// picks, never a frontend's flag. No frontend prints these words: the
+/// verbs crate meets each as its account fault and the daemon as its own
+/// refusal, each with its surface's way on.
 impl std::fmt::Display for Resolve {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Resolve::Empty => write!(f, "no accounts known (run `acq auth`)"),
-            Resolve::NotFound(s) => write!(f, "no account matches {s:?} (see `acq accounts`)"),
+            Resolve::NotFound(s) => write!(f, "no account matches {s:?}"),
             Resolve::Ambiguous(names) => write!(
                 f,
-                "several accounts are known; pick one with --account or ACQ_ACCOUNT: {}",
+                "several accounts are known; `account` or ACQ_ACCOUNT picks one: {}",
                 names.join(", ")
             ),
         }

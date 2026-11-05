@@ -99,7 +99,6 @@ pub fn show(
         league,
         bound,
         &username,
-        acquisition_search::answer::shell_quoted,
     )?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
@@ -122,15 +121,7 @@ pub fn list(
     json: bool,
 ) -> Result<()> {
     let (store, annotations, username) = opened(cx)?;
-    let view = pricing::list(
-        &store,
-        &annotations,
-        realm,
-        league,
-        args,
-        &username,
-        acquisition_search::answer::shell_quoted,
-    )?;
+    let view = pricing::list(&store, &annotations, realm, league, args, &username)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
@@ -1115,7 +1106,6 @@ pub fn set(
         Expect::or(if_revision, Expect::Current),
         &Provenance::via(cx.frontend.via),
         &username,
-        acquisition_search::answer::shell_quoted,
     )?;
     if json {
         let receipt = receipt::price_set(&receipt, &username, &Terminal::writing());
@@ -1152,7 +1142,6 @@ pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Re
         Expect::or(if_revision, Expect::Current),
         &Provenance::via(cx.frontend.via),
         username,
-        acquisition_search::answer::shell_quoted,
     )?;
     if json {
         let receipt = receipt::price_clear(&receipt, username, &Terminal::writing());

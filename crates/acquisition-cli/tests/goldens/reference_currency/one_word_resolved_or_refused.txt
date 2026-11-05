@@ -13,5 +13,6 @@ exa is an alias of exalted: currency table v1
 $ acq reference currency Chaos
 # holds "not a currency word"
 --- stderr
-Error: "Chaos" is not a currency word in currency table v1 (words are exact and case-sensitive; `acq reference currency` lists them)
+Error: "Chaos" is not a currency word in currency table v1 (words are exact and case-sensitive; the currency table lists them)
+    the currency table, every word listed: acq reference currency
 --- exit 1

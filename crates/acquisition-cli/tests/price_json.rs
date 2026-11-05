@@ -27,6 +27,26 @@ fn stderr(out: &Output) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
 }
 
+/// The words of the offer in a refusal document whose printed line
+/// begins `starts`, without its `acq` (C143: a refusal's ways on are its
+/// offers, never a command in its words): what a test runs as printed.
+fn offered_words(doc: &Value, starts: &str) -> (String, Vec<String>) {
+    let offer = doc["offers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|o| o["request"].as_str().is_some_and(|l| l.starts_with(starts)))
+        .unwrap_or_else(|| panic!("no `{starts} …` offer in {doc}"));
+    let argv = offer["argv"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no argv: {offer}"))
+        .iter()
+        .skip(1)
+        .map(|w| w.as_str().unwrap().to_string())
+        .collect();
+    (offer["request"].as_str().unwrap().to_string(), argv)
+}
+
 /// A folder holding a public priced tab with two items (one noted, one
 /// with a row), a map tab with a substash holding one item, a character
 /// wearing one; a row on the folder and one naming nothing here.
@@ -404,7 +424,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     let mut t = Transcript::offline(&base);
     let out = t.run(
         &["price", "set", "item/i-map", "skip", "--if-revision", "1"],
-        &["item/i-map has a price at revision 2, not the revision named: `--if-revision 2` writes over it as it stands"],
+        &["item/i-map has a price at revision 2, not the revision named: `if_revision` 2 writes over it as it stands"],
     );
     assert!(!out.status.success());
     let (value, revision) =
@@ -612,8 +632,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         doc,
         json!({
             "error": "item/i-map has a price at revision 2, not the revision named: \
-                      `--if-revision 2` writes over it as it stands \
-                      (`acq price show --account 'Alice#1234' item/i-map` reads it)",
+                      `if_revision` 2 writes over it as it stands (its show reads it)",
             "kind": "conflict",
             "revision": 2,
             "offers": [{
@@ -621,6 +640,10 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
                 "argv": ["acq", "price", "set", "--account", "Alice#1234", "item/i-map", "exact",
                          "7", "divine", "--if-revision", "2"],
                 "says": "the same price over revision 2, the row as it stands",
+            }, {
+                "request": "acq price show item/i-map --account 'Alice#1234'",
+                "argv": ["acq", "price", "show", "item/i-map", "--account", "Alice#1234"],
+                "says": "the show of item/i-map, its row and what covers it",
             }],
         })
     );
@@ -722,7 +745,7 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
             blind,
             &[
                 "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)",
-                "`--if-revision 1` replaces it deliberately",
+                "`if_revision` 1 replaces it deliberately",
             ],
         );
         assert!(!out.status.success(), "{blind:?} must refuse");
@@ -808,7 +831,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         "{report}"
     );
 
-    // The refusal's command, run as typed, prints the row's line.
+    // The refusal's offer, run as printed, prints the row's line.
     for (target, said_where, line) in [
         (
             "item/i-elsewhere",
@@ -823,25 +846,15 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     ] {
         let out = acq(&base, &["price", "show", target, "--json"]);
         assert!(!out.status.success());
-        let said = sole_json(&out)["error"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string();
+        let doc = sole_json(&out);
+        let said = doc["error"].as_str().unwrap_or_default().to_string();
         assert!(
             said.contains(said_where)
                 && said.contains("it has a price row of its own at revision 1"),
             "{said}"
         );
-        let command = said
-            .split('`')
-            .find(|w| w.starts_with("acq price status"))
-            .unwrap_or_else(|| panic!("no `acq price status …` command in {said}"));
-        let words: Vec<&str> = command
-            .split_whitespace()
-            .skip(1)
-            .map(|w| w.trim_matches('\''))
-            .collect();
-        let out = acq(&base, &words);
+        let (command, words) = offered_words(&doc, "acq price status");
+        let out = acq(&base, &words.iter().map(String::as_str).collect::<Vec<_>>());
         let text = String::from_utf8_lossy(&out.stdout);
         assert!(
             out.status.success()
@@ -851,22 +864,26 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         );
     }
     // `list` refuses a container with a row of its own as `show` does,
-    // naming the command that prints the row (C146; issue #11).
+    // naming the read that prints the row and offering it (C146; issue
+    // #11; C143)
     let out = acq(
         &base,
         &["price", "list", "--in", "tab/xbox/orphan", "--json"],
     );
     assert!(!out.status.success());
-    let said = sole_json(&out)["error"]
-        .as_str()
-        .unwrap_or_default()
-        .to_string();
+    let doc = sole_json(&out);
+    let said = doc["error"].as_str().unwrap_or_default().to_string();
     assert!(
         said.contains("tab/xbox/orphan is not in the facts for xbox/Standard")
             && said.contains(
-                "it has a price row of its own at revision 1: `acq price status --expand --account 'Alice#1234' --realm xbox --league Standard` lists it"
+                "it has a price row of its own at revision 1: the pricing state of xbox \
+                 Standard, every row listed, lists it"
             ),
         "{said}"
+    );
+    assert_eq!(
+        offered_words(&doc, "acq price status").0,
+        "acq price status --expand --account 'Alice#1234' --realm xbox --league Standard"
     );
     // A target with no row of its own is refused as before.
     let out = acq(&base, &["price", "show", "item/i-nowhere", "--json"]);
@@ -914,25 +931,13 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
         args.extend(["--account", USER, "--json"]);
         let out = acq(&base, &args);
         assert!(!out.status.success());
-        let said = sole_json(&out)["error"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string();
-        let command = said
-            .split('`')
-            .find(|w| w.starts_with("acq price status"))
-            .unwrap_or_else(|| panic!("{args:?}: no `acq price status …` command in {said}"));
+        let (command, words) = offered_words(&sole_json(&out), "acq price status");
         assert_eq!(
             command,
             "acq price status --expand --account 'Alice#1234' --realm xbox --league Standard",
             "{args:?}"
         );
-        let words: Vec<&str> = command
-            .split_whitespace()
-            .skip(1)
-            .map(|w| w.trim_matches('\''))
-            .collect();
-        let out = acq(&base, &words);
+        let out = acq(&base, &words.iter().map(String::as_str).collect::<Vec<_>>());
         let text = String::from_utf8_lossy(&out.stdout);
         assert!(
             out.status.success() && text.contains("  tab/xbox/orphan: skip, revision 1\n"),
@@ -990,34 +995,28 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
         args.extend(["--account", "Alice", "--league", "Standard", "--json"]);
         let out = acq(&base, &args);
         assert!(!out.status.success());
-        let said = sole_json(&out)["error"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string();
+        let doc = sole_json(&out);
+        let said = doc["error"].as_str().unwrap_or_default().to_string();
         assert!(
             said.contains("tab/xbox/t is not in the facts for xbox/Standard")
                 && said.contains(
-                    "the facts hold it in Allflame: `--league` reads it there; \
+                    "the facts hold it in Allflame: `league` reads it there; \
                      it has a price row of its own at revision 1 in Allflame: "
                 )
-                && !said.contains("acq price status"),
+                && !said.contains("pricing state"),
             "{args:?}: {said}"
         );
-        let command = said
-            .split('`')
-            .find(|w| w.starts_with("acq price show"))
-            .unwrap_or_else(|| panic!("{args:?}: no `acq price show …` command in {said}"));
+        let (command, words) = offered_words(&doc, "acq price show");
         assert_eq!(
             command,
             "acq price show tab/xbox/t --account 'Alice#1234' --realm xbox --league Allflame",
             "{args:?}"
         );
-        let words: Vec<&str> = command
-            .split_whitespace()
-            .skip(1)
-            .map(|w| w.trim_matches('\''))
-            .collect();
-        let out = acq(&base, &words);
+        assert!(
+            !doc["offers"].to_string().contains("acq price status"),
+            "{args:?}: {doc}"
+        );
+        let out = acq(&base, &words.iter().map(String::as_str).collect::<Vec<_>>());
         let text = String::from_utf8_lossy(&out.stdout);
         assert!(
             out.status.success()
@@ -1056,7 +1055,7 @@ fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
         .unwrap_or_else(|| panic!("a realm and league in {said}"));
     assert_eq!((realm, league), ("pc", "Standard"), "{said}");
     assert!(
-        said.contains("`--realm` and `--league` read it there"),
+        said.contains("`realm` and `league` read it there"),
         "{said}"
     );
 
@@ -1827,7 +1826,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     }
 
     // a target held nowhere: the search of the realm, a request, and the
-    // league's tabs, a command line; the words' commands run as well
+    // league's tabs, a command line
     let doc = refused(
         &[
             "--json",
@@ -1861,13 +1860,14 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         harness::but_for_the_clock(&harness::run_argv(&base, &offers[1], &["--json"])),
         harness::but_for_the_clock(&run_offered(&base, &format!("{line} --json")))
     );
+    // the words say each way on in the request's words, and print none
+    // (C143): the offers are the commands
     let words = doc["error"].as_str().unwrap();
-    let printed: Vec<&str> = words.split('`').filter(|w| w.starts_with("acq ")).collect();
-    assert_eq!(printed.len(), 2, "{words}");
-    assert_eq!(printed[1], offers[1]["request"], "one command, two places");
-    for command in printed {
-        run_offered(&base, &format!("{command} --json"));
-    }
+    assert!(
+        words.ends_with("a search of xbox finds an item's id, the tabs of xbox Allflame a tab's"),
+        "{words}"
+    );
+    assert!(!words.contains("acq "), "{words}");
 
     // an item where the facts do not hold it, the scope named whole and
     // in part (the realm taken, pc); named not at all, `show` reads where

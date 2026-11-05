@@ -1216,6 +1216,34 @@ pub(crate) fn ready_accounts(e: &anyhow::Error, surface: &Terminal) -> String {
     out
 }
 
+/// Under a text refusal whose words say its ways on in the request's
+/// words (C143) — a pricing refusal's, a refused body's — each way as
+/// this terminal runs it: the offers of the refusal document `surface`
+/// prints (`refusal::document`, never a second construction), a line
+/// each, what it is and then its command, as a search refusal's ways
+/// print. Nothing for any other refusal.
+pub(crate) fn ready_ways(e: &anyhow::Error, surface: &Terminal) -> String {
+    let said = acquisition_plan::pricing::Refused::find(e).is_some()
+        || e.chain()
+            .any(|c| c.is::<acquisition_verbs::refusal::Pointed>());
+    if !said {
+        return String::new();
+    }
+    let doc = acquisition_verbs::refusal::document(e, surface);
+    doc["offers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|o| {
+            Some(format!(
+                "    {}: {}\n",
+                o["says"].as_str()?,
+                offered_command(&o["request"])?
+            ))
+        })
+        .collect()
+}
+
 /// An offer's request as the command a terminal prints: a line as it
 /// stands; a request object as `Request::command` spells it — what a
 /// zero answer prints for its own offers — a query given as a tree alone
@@ -1514,6 +1542,12 @@ impl acquisition_verbs::refusal::Surface for Terminal {
             ]
             .concat(),
             Way::Result { id } => words(&["acq", "result", &id.to_string(), "--json"]),
+            Way::Currencies => words(&["acq", "reference", "currency"]),
+            Way::RefusedBodies { account } => [
+                words(&["acq", "store", "refused"]),
+                option_words("--account", account),
+            ]
+            .concat(),
         })
     }
 
@@ -1650,6 +1684,7 @@ async fn main() {
             } else {
                 eprintln!("Error: {}", failure_words(&e));
                 eprint!("{}", ready_accounts(&e, &Terminal::this_command()));
+                eprint!("{}", ready_ways(&e, &Terminal::this_command()));
             }
         }
         if !json && let Some(hint) = pasted_shell_hint() {

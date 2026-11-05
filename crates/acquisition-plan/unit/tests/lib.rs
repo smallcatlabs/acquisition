@@ -1390,7 +1390,11 @@ fn a_policy_this_build_cannot_read_is_replaced_whole_never_merged() {
         .unwrap();
     let err = put_sync_policy(&mut a, &pc, Some(1), PolicyWrite::Merge, &via_test()).unwrap_err();
     assert!(matches!(err, PutPolicyError::StoredUnreadable(_)), "{err}");
-    assert!(err.to_string().contains("--replace"), "{err}");
+    assert!(
+        err.to_string()
+            .contains("write the whole policy instead (`replace`)"),
+        "{err}"
+    );
     let row = put_sync_policy(&mut a, &pc, Some(1), PolicyWrite::Replace, &via_test()).unwrap();
     assert_eq!(row.revision, 2);
 }

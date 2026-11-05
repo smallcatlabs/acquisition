@@ -351,7 +351,7 @@ fn an_item_without_an_id_is_malformed_and_poisons_nothing() {
     assert_eq!(malformed.kept, Some(1));
     assert_eq!(
         err.to_string(),
-        "malformed stash response: missing an `id` on an item at `items[0]` — body kept verbatim (`acq store refused 1`)"
+        "malformed stash response: missing an `id` on an item at `items[0]` — body kept verbatim, as refused body 1"
     );
     assert!(s.item("i1").unwrap().unwrap().removed_at.is_none());
     let st = s.status().unwrap();
@@ -2450,8 +2450,10 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
     let text = format!("{err:#}");
     assert!(
         text.contains("carries no schema version")
-            && text
-                .contains("check that `--dir` and `--account` name an existing Acquisition store"),
+            && text.contains(
+                "check that the store's directory and its `account` name an existing \
+                 Acquisition store"
+            ),
         "{text}"
     );
     assert!(

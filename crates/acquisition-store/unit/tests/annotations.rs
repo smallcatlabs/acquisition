@@ -1213,7 +1213,8 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
             assert!(
                 text.contains("carries no schema version")
                     && text.contains(
-                        "check that `--dir` and `--account` name an existing Acquisition store"
+                        "check that the store's directory and its `account` name an existing \
+                         Acquisition store"
                     ),
                 "{text}"
             );

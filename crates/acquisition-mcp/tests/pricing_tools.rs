@@ -1022,12 +1022,13 @@ fn the_pricing_model_says_the_most_specific_statement_decides() {
 
 /// The release seat's finding 9: a pricing refusal spoke the CLI's flags,
 /// and the tool texts carried the translation ("--league is `league`, --in
-/// is `in`"). The refusal says it: the shared words whole, then this
-/// server's argument for each flag they speak (C143) — the conflict over
-/// a row the target already has names `if_revision` after the flag, and
-/// a container argument given an item names `in`.
+/// is `in`"). The refusal speaks the request's words (C143, as amended on
+/// 2026-11-05; #97), never a flag, so nothing is spelled after them: the
+/// conflict over a row the target already has names `if_revision`, its
+/// read-back the `price_show` call it offers; a container argument given
+/// an item names `in`.
 #[test]
-fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
+fn a_pricing_refusal_names_each_argument_in_the_requests_words() {
     let dir = scratch("mcp-price-spelled");
     let base = &dir.0;
     seed(base);
@@ -1040,18 +1041,27 @@ fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
     assert!(!ok, "{refusal}");
     assert_eq!(refusal["kind"], "conflict", "{refusal}");
     let said = refusal["error"].as_str().unwrap_or_default();
-    assert!(
-        said.contains("names the revision it replaces (1) with `--if-revision 1`")
-            && said.ends_with(
-                "— here, `acq price show` is `price_show`, `--if-revision` is `if_revision`, \
-                 `--account` is `account` (`scope.account` in a search request)"
-            ),
-        "{said}"
+    assert_eq!(
+        said,
+        "item/i-plain has a price row of its own at revision 1: a write over it names the \
+         revision it replaces (1) with `if_revision` 1, never a row it has not read — its show \
+         reads it"
+    );
+    assert_eq!(
+        refusal["offers"][1],
+        json!({
+            "request": { "target": "item/i-plain", "account": USER },
+            "says": "the show of item/i-plain, its row and what covers it",
+            "tool": "price_show",
+        }),
+        "{refusal}"
     );
     let (ok, refusal) = tool(&mut mcp, "price_list", json!({ "in": "item/i-plain" }));
     assert!(!ok, "{refusal}");
-    let said = refusal["error"].as_str().unwrap_or_default();
-    assert!(said.ends_with("— here, `--in` is `in`"), "{said}");
+    assert_eq!(
+        refusal["error"], "`in` takes a container (tab, substash or character), not an item",
+        "{refusal}"
+    );
 }
 
 /// C53, the read economy (step 2g, round 2): past ten, `price_list` and
@@ -1368,6 +1378,10 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
         json!([{
             "request": { "target": "item/i-map", "if_revision": 2, "account": USER },
             "says": "the same clear at revision 2, the row as it stands",
+        }, {
+            "request": { "target": "item/i-map", "account": USER },
+            "says": "the show of item/i-map, its row and what covers it",
+            "tool": "price_show",
         }]),
         "{refused}"
     );

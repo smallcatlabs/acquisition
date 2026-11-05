@@ -234,13 +234,14 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         assert_eq!(result.get("structuredContent"), None, "{tool} {args}");
         // the sweep reads something: every one speaks the CLI but the
         // account's (call 46, which names `account` alone), the realms'
-        // (their readings the request's words, C143) and the gone tab's
-        // (its reading a command, payload beside its offer)
+        // (their readings the request's words, C143), the gone tab's
+        // (its reading a command, payload beside its offer) and the two
+        // pricing refusals' (the request's words, #97)
         seen += usize::from(text.contains("— here, "));
         sweep(&doc, &format!("{tool} {args}"), &mut faults);
     }
     assert_eq!(
-        seen, 6,
+        seen, 4,
         "a shape no longer speaks the CLI: the sweep reads less"
     );
     assert!(faults.is_empty(), "{}", faults.join("\n"));

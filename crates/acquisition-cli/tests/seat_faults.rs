@@ -134,7 +134,7 @@ fn a_price_target_outside_standard_reads_back_as_its_set_printed() {
     assert!(!out.status.success());
     let said = text(&out);
     assert!(
-        said.contains("the facts hold it in Allflame: `--league` reads it there"),
+        said.contains("the facts hold it in Allflame: `league` reads it there"),
         "{said}"
     );
 }
@@ -4031,17 +4031,22 @@ fn a_price_conflict_offers_the_write_at_the_revision_it_names() {
     assert!(
         text(&out).contains(
             "item/i-std has a price at revision 2, not the revision named: \
-             `--if-revision 2` clears it as it stands"
+             `if_revision` 2 clears it as it stands"
         ),
         "{}",
         text(&out)
     );
-    // its document offers the clear at that revision, which lands
+    // its document offers the clear at that revision, which lands, and
+    // the read-back its words name
     let refused = sole_json(&run_as_printed(&base, &format!("{stale} --json")));
     assert_eq!(refused["kind"], "conflict", "{refused}");
-    let [offer] = &refused["offers"].as_array().cloned().unwrap_or_default()[..] else {
-        panic!("one offer: {refused}");
+    let [offer, shown] = &refused["offers"].as_array().cloned().unwrap_or_default()[..] else {
+        panic!("two offers: {refused}");
     };
+    assert_eq!(
+        shown["request"], "acq price show item/i-std --account 'Alice#1234'",
+        "{refused}"
+    );
     assert_eq!(
         offer["says"], "the same clear at revision 2, the row as it stands",
         "{refused}"

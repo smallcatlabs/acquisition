@@ -736,7 +736,7 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
     let store = account.facts()?;
     if let Some(id) = id {
         let now = acquisition_store::now();
-        let row = acquisition_verbs::RefusedBodies::one(&store, id, now)?;
+        let row = acquisition_verbs::RefusedBodies::one(&store, id, now, &account.entry.username)?;
         if json {
             println!("{}", serde_json::to_string_pretty(&row)?);
         } else {

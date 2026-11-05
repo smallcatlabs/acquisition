@@ -933,8 +933,7 @@ impl std::fmt::Display for PutPolicyError {
             PutPolicyError::StoredUnreadable(e) => write!(
                 f,
                 "the stored sync policy cannot be read by this build ({e}), so the realms \
-                 written cannot be merged into it: write the whole policy instead (`--replace`; on the \
-                 MCP, `replace: true`)"
+                 written cannot be merged into it: write the whole policy instead (`replace`)"
             ),
             PutPolicyError::Standing(row) => write!(
                 f,

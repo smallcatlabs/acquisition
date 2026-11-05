@@ -105,11 +105,32 @@ pub enum RefusedKind {
         /// cannot read, which is never offered blind (C151). The one
         /// refusal shape offers it (the league seat, fault 3).
         retry: Option<Box<Retry>>,
+        /// The read-back the words name, where they name one.
+        shown: Option<Box<Shown>>,
     },
     /// A target the facts do not hold.
     NotFound(Box<Missing>),
     /// A target the facts hold in several places, `show` naming none.
     Several(Box<Several>),
+    /// A blind write over a row this build cannot read, never replaced
+    /// blind (C151): kind `refused`, as it was before it carried the
+    /// read-back that names the row.
+    Blind(Box<Shown>),
+    /// A currency word the table does not hold, or a priced type with
+    /// none: kind `refused`, the table's listing its way on.
+    Currency,
+}
+
+/// The read-back a write's refusal names: `show` of the target as the
+/// account the frontend resolved, and nothing else, since a write
+/// resolves no realm or league (round 5 of the 2g build). The one
+/// refusal shape offers it, which each surface spells (C143: on the MCP
+/// the `price_show` call, never a command line; the owner's comment of
+/// 2026-11-01 on #97).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Shown {
+    pub target: PriceTarget,
+    pub account: String,
 }
 
 /// A refused write as it would land now: its target, the account it ran
@@ -150,8 +171,18 @@ impl Refused {
         current: Conflicting,
         target: &PriceTarget,
         asked: &Asked,
-        message: String,
+        message: Shows,
     ) -> anyhow::Error {
+        let (message, shown) = match message {
+            Shows::ReadBack(message) => (
+                message,
+                Some(Box::new(Shown {
+                    target: target.clone(),
+                    account: asked.account.to_string(),
+                })),
+            ),
+            Shows::Nothing(message) => (message, None),
+        };
         let retry_at = match (&current, asked.verb) {
             (Conflicting::Live(row), _) if check_value::<Buyout>(&row.value).is_ok() => {
                 Some(row.revision)
@@ -197,6 +228,7 @@ impl Refused {
                 revision,
                 current,
                 retry,
+                shown,
             },
             message,
         })
@@ -230,9 +262,18 @@ impl Refused {
             RefusedKind::Several(_) => {
                 out.insert("kind".into(), json!("several_places"));
             }
+            RefusedKind::Blind(_) | RefusedKind::Currency => {
+                out.insert("kind".into(), json!("refused"));
+            }
         }
         out
     }
+}
+
+/// A conflict's words, and whether they name the read-back ([`Shown`]).
+enum Shows {
+    ReadBack(String),
+    Nothing(String),
 }
 
 /// The row a write was refused over: the live row the store reported,
@@ -292,7 +333,7 @@ pub fn league_of(store: &Store, named: &[&PriceTarget], league: Option<&str>) ->
         [] => Ok(DEFAULT_LEAGUE.into()),
         [one] => Ok(one.clone()),
         many => bail!(
-            "{target} is in several leagues ({}); name one with --league",
+            "{target} is in several leagues ({}); `league` names one",
             many.join(", ")
         ),
     }
@@ -321,41 +362,29 @@ pub fn held_places(store: &Store, target: &PriceTarget) -> Result<Vec<(Realm, St
     Ok(places)
 }
 
-/// `show`'s refusal for a target held in several places with none named:
-/// one `price show` per place, each its realm and league, as the account
-/// the frontend resolved, `quote` its shell quoting (C143, the verb's own
-/// words; kind `several_places`, whose offers are the same commands).
+/// `show`'s refusal for a target held in several places with none named,
+/// in the request's words (C143; kind `several_places`): its offers are
+/// one `show` per place, each its realm and league, as the account the
+/// frontend resolved, and each surface spells them.
 fn several_places(
     target: &PriceTarget,
     places: &[(Realm, String)],
     account: &str,
-    quote: fn(&str) -> String,
 ) -> anyhow::Error {
     let held = places
         .iter()
         .map(|(realm, league)| format!("{} {league}", realm.as_str()))
         .collect::<Vec<_>>()
         .join(", ");
-    let reads = places
-        .iter()
-        .map(|(realm, league)| {
-            format!(
-                "`acq price show {} {} {} {}`",
-                option("--account", account, quote),
-                option("--realm", realm.as_str(), quote),
-                option("--league", league, quote),
-                quote(&target.to_string())
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" or ");
     anyhow::Error::new(Refused {
         kind: RefusedKind::Several(Box::new(Several {
             target: target.clone(),
             account: account.to_string(),
             places: places.to_vec(),
         })),
-        message: format!("{target} is held in several places ({held}): {reads} reads it in one"),
+        message: format!(
+            "{target} is held in several places ({held}): `realm` and `league` name one"
+        ),
     })
 }
 
@@ -394,7 +423,7 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
         if let PriceTarget::Tab { realm: r, .. } | PriceTarget::Substash { realm: r, .. } = t {
             match realm {
                 Some(have) if have != *r => {
-                    bail!("{t} is a {r} address; {have} was given (--realm or another address)")
+                    bail!("{t} is a {r} address; {have} was given (`realm` or another address)")
                 }
                 _ => realm = Some(*r),
             }
@@ -407,30 +436,23 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// hold it, when they do, so it names the league that reads it, never
 /// only the one that does not. `own_row` is the revision of a row the
 /// target has of its own, which no listing carries: the refusal says so
-/// and names the command that displays the row, as typed and as the
-/// account the frontend resolved (with a second account known a command
-/// naming none is refused as ambiguous: C121, an account that cannot be
-/// picked is refused). For a row the facts hold nowhere, an orphan, that
-/// is `status` expanded in the target's realm, since the bare verb counts
-/// rows and reads pc. For a row the facts hold in another league it is
-/// `show` in that league: that league's `status` counts the row under
-/// "other league" and never displays it (the h2 fix round's review).
-/// Every command it prints carries the scope the verb resolved, the
-/// account, the realm and the league, the defaults included (round 2 of
+/// and names the read that displays the row. For a row the facts hold
+/// nowhere, an orphan, that is the league's pricing state, every row
+/// listed. For a row the facts hold in another league it is `show` in
+/// that league: that league's state counts the row under "other league"
+/// and never displays it (the h2 fix round's review). Its words are the
+/// request's (C143): each way on they name is an offer, made from the
+/// scope the verb resolved, the account, the realm and the league, the
+/// defaults included, which the refusal carries beside the target
+/// ([`Missing`]); a surface spells each (round 2 of
 /// `roadmap/briefs/2g-build.md`: a printed read runs as printed with a
-/// second account known and a target live in two leagues); and the
-/// refusal carries that scope beside the target ([`Missing`]), so the
-/// offers made from it are the commands it prints. `quote` makes one
-/// shell word of the account, a league and the target; the frontend
-/// supplies it (`acquisition_search::answer::shell_quoted`), since this
-/// crate does not link the search (C1).
+/// second account known and a target live in two leagues).
 fn not_on_record(
     store: &Store,
     r: &ListingReport,
     target: &PriceTarget,
     own_row: Option<i64>,
     account: &str,
-    quote: fn(&str) -> String,
 ) -> anyhow::Error {
     let here_realm = r.header.realm;
     let elsewhere: Vec<(Realm, String)> = held_places(store, target)
@@ -442,15 +464,6 @@ fn not_on_record(
         Some(seg) => format!("{seg}/"),
         None => String::new(),
     };
-    let scope = |realm: Realm, league: &str| {
-        format!(
-            "{} {} {}",
-            option("--account", account, quote),
-            option("--realm", realm.as_str(), quote),
-            option("--league", league, quote)
-        )
-    };
-    let here = scope(here_realm, &r.header.league);
     // a place in this realm is its league; in another, realm/league
     let places = elsewhere
         .iter()
@@ -460,40 +473,27 @@ fn not_on_record(
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let here = format!("{} {}", here_realm.as_str(), r.header.league);
     let hint = match elsewhere.as_slice() {
         [] => format!(
-            "`acq search {} {}` finds an item's id, `acq tabs {here}` a tab's",
-            option("--account", account, quote),
-            option("--realm", here_realm.as_str(), quote)
+            "a search of {} finds an item's id, the tabs of {here} a tab's",
+            here_realm.as_str()
         ),
         held if held.iter().all(|(realm, _)| *realm == here_realm) => {
-            format!("the facts hold it in {places}: `--league` reads it there")
+            format!("the facts hold it in {places}: `league` reads it there")
         }
-        _ => format!("the facts hold it in {places}: `--realm` and `--league` read it there"),
+        _ => format!("the facts hold it in {places}: `realm` and `league` read it there"),
     };
     let row = match (own_row, elsewhere.as_slice()) {
         (None, _) => String::new(),
         (Some(revision), []) => format!(
             "; it has a price row of its own at revision {revision}: \
-             `acq price status --expand {here}` lists it"
+             the pricing state of {here}, every row listed, lists it"
         ),
-        (Some(revision), held) => {
-            let shown = held
-                .iter()
-                .map(|(realm, league)| {
-                    format!(
-                        "`acq price show {} {}`",
-                        quote(&target.to_string()),
-                        scope(*realm, league)
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(" or ");
-            format!(
-                "; it has a price row of its own at revision {revision} in {places}: \
-                 {shown} shows it"
-            )
-        }
+        (Some(revision), _) => format!(
+            "; it has a price row of its own at revision {revision} in {places}: \
+             its show there shows it"
+        ),
     };
     let message = format!(
         "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
@@ -523,8 +523,8 @@ pub struct Bound {
 /// `price show <target>`: one target's view, in the league the facts hold
 /// it in unless one is named, each item set under `bound`, the ages its
 /// text says in words at the answer's time ([`ShowView::aged`]). `account` is
-/// the resolved account's name and `quote` the frontend's shell quoting,
-/// for the command a refusal names (`not_on_record`).
+/// the resolved account's name, the scope a refusal's offers carry
+/// (`not_on_record`).
 #[allow(clippy::too_many_arguments)]
 pub fn show(
     store: &Store,
@@ -534,7 +534,6 @@ pub fn show(
     league: Option<&str>,
     bound: Bound,
     account: &str,
-    quote: fn(&str) -> String,
 ) -> Result<ShowView> {
     let target = read_target(target)?;
     // neither named: where the facts hold it, one place read there and
@@ -546,7 +545,7 @@ pub fn show(
                 realm_of(&[&target], None)?,
                 league_of(store, &[&target], None)?,
             ),
-            many => return Err(several_places(&target, many, account, quote)),
+            many => return Err(several_places(&target, many, account)),
         },
         (realm, league) => (
             realm_of(&[&target], realm)?,
@@ -567,7 +566,6 @@ pub fn show(
                 &target,
                 own.map(|row| row.revision),
                 account,
-                quote,
             ))
         }
     }
@@ -588,7 +586,7 @@ pub struct ListArgs {
 }
 
 /// `price list`, its ages in words at the answer's time
-/// ([`ListView::aged`]). `account` and `quote` as [`show`]'s.
+/// ([`ListView::aged`]). `account` as [`show`]'s.
 pub fn list(
     store: &Store,
     annotations: &Annotations,
@@ -596,7 +594,6 @@ pub fn list(
     league: Option<&str>,
     args: &ListArgs,
     account: &str,
-    quote: fn(&str) -> String,
 ) -> Result<ListView> {
     const SIDES: [&str; 4] = ["game", "manual", "none", "unresolved"];
     let effective = match args.effective.as_deref() {
@@ -625,18 +622,19 @@ pub fn list(
             )
         })?),
     };
-    let container = |flag: &str, word: Option<&str>| -> Result<Option<PriceTarget>> {
+    // named by the request's field (C143)
+    let container = |field: &str, word: Option<&str>| -> Result<Option<PriceTarget>> {
         let Some(word) = word else {
             return Ok(None);
         };
         let t = read_target(word)?;
         if matches!(t, PriceTarget::Item { .. }) {
-            bail!("{flag} takes a container (tab, substash or character), not an item");
+            bail!("`{field}` takes a container (tab, substash or character), not an item");
         }
         Ok(Some(t))
     };
-    let location = container("--in", args.location.as_deref())?;
-    let covered_by = container("--covered-by", args.covered_by.as_deref())?;
+    let location = container("in", args.location.as_deref())?;
+    let covered_by = container("covered_by", args.covered_by.as_deref())?;
     let named: Vec<&PriceTarget> = [&location, &covered_by].into_iter().flatten().collect();
     let realm = realm_of(&named, realm)?;
     let league = league_of(store, &named, league)?;
@@ -660,7 +658,7 @@ pub fn list(
                 .cloned()
                 .unwrap_or(PriceTarget::Item { id: "?".into() });
             // a container with a row of its own is refused as `show`
-            // refuses it, naming the command that prints the row
+            // refuses it, naming the read that prints the row
             // (`7571a570`; issue #11, C146)
             let (scope, key) = missing.address()?;
             let own = annotations.get(scope, &key, BUYOUT_KIND)?;
@@ -670,7 +668,6 @@ pub fn list(
                 &missing,
                 own.map(|row| row.revision),
                 account,
-                quote,
             ))
         }
     }
@@ -693,10 +690,13 @@ pub fn read_buyout(kind: &str, amount: Option<&str>, currency: Option<&str>) -> 
         ),
     };
     if matches!(kind, "exact" | "negotiable") && (amount.is_none() || currency.is_none()) {
-        bail!(
-            "{kind} takes an amount and a currency tag: `{kind} 12.5 chaos`, `{kind} 1/5 divine`; \
-             `acq reference currency` lists the tags"
-        );
+        return Err(anyhow::Error::new(Refused {
+            kind: RefusedKind::Currency,
+            message: format!(
+                "{kind} takes an amount and a currency tag: `{kind} 12.5 chaos`, \
+                 `{kind} 1/5 divine`; the currency table lists the tags"
+            ),
+        }));
     }
     let mut value = json!({ "version": BUYOUT_VERSION, "type": kind });
     if let Some(amount) = amount {
@@ -745,46 +745,46 @@ impl Expect {
 /// reports as unreadable) is refused here rather than replaced — a blind
 /// write over it would destroy intent this build cannot restore, and the
 /// receipt's undo would be a value it cannot write. A named revision is
-/// the reviewed path past it; `shown` the command that reads the row.
+/// the reviewed path past it; the refusal offers the read-back as
+/// `account`'s ([`Shown`]).
 fn current_revision(
     annotations: &Annotations,
     target: &PriceTarget,
-    shown: &str,
+    account: &str,
 ) -> Result<Option<i64>> {
     let (scope, key) = target.address()?;
     let Some(row) = annotations.get(scope, &key, BUYOUT_KIND)? else {
         return Ok(None);
     };
     if let Err(e) = check_value::<Buyout>(&row.value) {
-        bail!(
-            "{target} holds a value this build cannot read (revision {}: {e}); \
-             not replaced blind — `--if-revision {}` replaces it deliberately, \
-             `{shown}` names it",
-            row.revision,
-            row.revision
-        );
+        return Err(anyhow::Error::new(Refused {
+            kind: RefusedKind::Blind(Box::new(Shown {
+                target: target.clone(),
+                account: account.to_string(),
+            })),
+            message: format!(
+                "{target} holds a value this build cannot read (revision {}: {e}); \
+                 not replaced blind — `if_revision` {} replaces it deliberately, its show \
+                 names it",
+                row.revision, row.revision
+            ),
+        }));
     }
     Ok(Some(row.revision))
 }
 
 /// The create-only refusal: a row stands and no revision was named.
-fn standing(
-    target: &PriceTarget,
-    row: &AnnotationRow,
-    asked: &Asked,
-    verb: &str,
-    shown: &str,
-) -> anyhow::Error {
+fn standing(target: &PriceTarget, row: &AnnotationRow, asked: &Asked, verb: &str) -> anyhow::Error {
     let revision = row.revision;
     Refused::conflict(
         Conflicting::Live(row),
         target,
         asked,
-        format!(
+        Shows::ReadBack(format!(
             "{target} has a price row of its own at revision {revision}: {verb} names the \
-             revision it replaces ({revision}) with `--if-revision {revision}`, never a row it \
-             has not read — `{shown}` reads it"
-        ),
+             revision it replaces ({revision}) with `if_revision` {revision}, never a row it \
+             has not read — its show reads it"
+        )),
     )
 }
 
@@ -807,13 +807,13 @@ struct Asked<'a> {
 /// at another revision; a row a clear left, at the revision its tombstone
 /// holds; or no row ever written. `current` is the live row the store
 /// reported, if any, carried whole into the refusal; the tombstone is
-/// read here. `shown` is the command that reads what covers the target.
+/// read here. Where the words name the target's show, the refusal offers
+/// it ([`Shown`]).
 fn refused_write(
     annotations: &Annotations,
     target: &PriceTarget,
     current: Option<&AnnotationRow>,
     asked: &Asked,
-    shown: &str,
 ) -> anyhow::Error {
     if let Some(row) = current {
         let revision = row.revision;
@@ -825,10 +825,10 @@ fn refused_write(
             Conflicting::Live(row),
             target,
             asked,
-            format!(
+            Shows::ReadBack(format!(
                 "{target} has a price at revision {revision}, not the revision named: \
-                 `--if-revision {revision}` {does} as it stands (`{shown}` reads it)"
-            ),
+                 `if_revision` {revision} {does} as it stands (its show reads it)"
+            )),
         );
     }
     let cleared = target
@@ -837,22 +837,20 @@ fn refused_write(
         .and_then(|(scope, key)| annotations.cleared(scope, &key, BUYOUT_KIND).ok())
         .flatten();
     let message = match (cleared, asked.verb) {
-        (Some(r), Verb::Set(_)) => {
-            format!(
-                "{target}'s price was cleared (revision {r}); a new price names revision 0, or none"
-            )
-        }
-        (Some(r), Verb::Clear) => format!(
+        (Some(r), Verb::Set(_)) => Shows::Nothing(format!(
+            "{target}'s price was cleared (revision {r}); a new price names revision 0, or none"
+        )),
+        (Some(r), Verb::Clear) => Shows::ReadBack(format!(
             "{target}'s price was cleared (revision {r}): nothing to clear \
-             (`{shown}` reads what covers it)"
-        ),
-        (None, Verb::Set(_)) => {
-            format!("{target} has no price of its own; a new price names revision 0, or none")
-        }
-        (None, Verb::Clear) => format!(
+             (its show reads what covers it)"
+        )),
+        (None, Verb::Set(_)) => Shows::Nothing(format!(
+            "{target} has no price of its own; a new price names revision 0, or none"
+        )),
+        (None, Verb::Clear) => Shows::ReadBack(format!(
             "nothing to clear: {target} has no price row of its own \
-             (`{shown}` reads what covers it)"
-        ),
+             (its show reads what covers it)"
+        )),
     };
     Refused::conflict(Conflicting::Cleared(cleared), target, asked, message)
 }
@@ -864,11 +862,10 @@ fn on_conflict(
     target: &PriceTarget,
     asked: &Asked,
     e: PriceWriteError,
-    shown: &str,
 ) -> anyhow::Error {
     match e {
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
-            refused_write(annotations, target, current.as_deref(), asked, shown)
+            refused_write(annotations, target, current.as_deref(), asked)
         }
         // C151: a stale write over a row this build cannot read is the
         // same conflict shape — kind conflict, the row's revision — in the
@@ -883,11 +880,11 @@ fn on_conflict(
                 Conflicting::Unreadable(row.revision),
                 target,
                 asked,
-                format!(
+                Shows::ReadBack(format!(
                     "{target} holds a value this build cannot read (revision {}: {}); \
-                     `--if-revision {}` {does} it deliberately, `{shown}` names it",
+                     `if_revision` {} {does} it deliberately, its show names it",
                     row.revision, row.fault, row.revision
-                ),
+                )),
             )
         }
         // the price's words, never the store's (C116)
@@ -1069,34 +1066,9 @@ fn in_substash(store: &Store, annotations: &Annotations, target: &PriceTarget) -
     }
 }
 
-/// The read-back a write's refusal prints: `price show` of the target as
-/// the account the frontend resolved, and nothing else, since a write
-/// resolves no realm or league (round 5 of the 2g build: a printed
-/// command carries the scope its verb resolved, here the account alone).
-/// `quote` is the frontend's shell quoting, as for [`show`].
-fn read_back(target: &PriceTarget, account: &str, quote: fn(&str) -> String) -> String {
-    format!(
-        "acq price show {} {}",
-        option("--account", account, quote),
-        quote(&target.to_string())
-    )
-}
-
-/// A scope option and its value as a printed command spells them, quoted
-/// by the frontend's `quote`: attached, `--league=-L`, where the value
-/// starts with `-`, which the parser would otherwise read as an option
-/// (the review of the league seat's fix round, finding 3; the CLI's
-/// `option_words` is the same rule for the lines it spells itself).
-fn option(name: &str, value: &str, quote: fn(&str) -> String) -> String {
-    match value.starts_with('-') {
-        true => quote(&format!("{name}={value}")),
-        false => format!("{name} {}", quote(value)),
-    }
-}
-
 /// `price set <target> <type> [<amount> <currency>]`: one row through
 /// the shared write ([`set_buyout`]) under compare-and-swap. `account`
-/// and `quote` are as for [`show`]: the command a refusal prints.
+/// is as for [`show`]: the account a refusal's offers carry.
 #[allow(clippy::too_many_arguments)]
 pub fn set(
     store: &Store,
@@ -1108,10 +1080,8 @@ pub fn set(
     expect: Expect,
     provenance: &Provenance,
     account: &str,
-    quote: fn(&str) -> String,
 ) -> Result<SetReceipt> {
     let target = read_target(target)?;
-    let shown = read_back(&target, account, quote);
     let value = read_buyout(kind, amount, currency)?;
     // What the receipt needs to refuse on is read before the write, so a
     // read that fails refuses before anything changes: the note, whether
@@ -1126,7 +1096,7 @@ pub fn set(
         .then(substash_note);
     let expected = match expect {
         Expect::Exactly(revision) => Some(revision),
-        Expect::Current => current_revision(annotations, &target, &shown)?,
+        Expect::Current => current_revision(annotations, &target, account)?,
         Expect::Create => None,
     };
     let asked = Asked {
@@ -1137,9 +1107,9 @@ pub fn set(
         Err(PriceWriteError::Store(AnnotationError::Conflict { current: Some(row) }))
             if expect == Expect::Create =>
         {
-            return Err(standing(&target, &row, &asked, "a write over it", &shown));
+            return Err(standing(&target, &row, &asked, "a write over it"));
         }
-        Err(e) => return Err(on_conflict(annotations, &target, &asked, e, &shown)),
+        Err(e) => return Err(on_conflict(annotations, &target, &asked, e)),
         Ok(write) => write.aged(acquisition_store::now()),
     };
     let (covered, uncounted) = covering(Ok(store), annotations, &write.target).split();
@@ -1154,7 +1124,7 @@ pub fn set(
 
 /// `price clear <target>`: remove the row, under the same compare-and-
 /// swap. A target with no row is a refusal that says so — every nothing
-/// says which nothing. `account` and `quote` are as for [`set`]. `store`
+/// says which nothing. `account` is as for [`set`]. `store`
 /// is the facts where a frontend could open them without making them, or
 /// why it could not: what a container's row covered is counted from them
 /// after the clear, and a clear needs no facts (C46).
@@ -1165,33 +1135,31 @@ pub fn clear(
     expect: Expect,
     provenance: &Provenance,
     account: &str,
-    quote: fn(&str) -> String,
 ) -> Result<ClearReceipt> {
     let target = read_target(target)?;
-    let shown = read_back(&target, account, quote);
     let asked = Asked {
         verb: Verb::Clear,
         account,
     };
     let expected = match expect {
         Expect::Exactly(revision) => revision,
-        Expect::Current => match current_revision(annotations, &target, &shown)? {
+        Expect::Current => match current_revision(annotations, &target, account)? {
             Some(revision) => revision,
             None => {
-                return Err(refused_write(annotations, &target, None, &asked, &shown));
+                return Err(refused_write(annotations, &target, None, &asked));
             }
         },
         Expect::Create => {
             let (scope, key) = target.address()?;
             return Err(match annotations.get(scope, &key, BUYOUT_KIND)? {
-                Some(row) => standing(&target, &row, &asked, "a clear", &shown),
-                None => refused_write(annotations, &target, None, &asked, &shown),
+                Some(row) => standing(&target, &row, &asked, "a clear"),
+                None => refused_write(annotations, &target, None, &asked),
             });
         }
     };
     let write = clear_buyout(annotations, &target, expected, provenance)
         .map(|write| write.aged(acquisition_store::now()))
-        .map_err(|e| on_conflict(annotations, &target, &asked, e, &shown))?;
+        .map_err(|e| on_conflict(annotations, &target, &asked, e))?;
     let (covered, uncounted) = covering(store, annotations, &write.target).split();
     Ok(ClearReceipt {
         write,
@@ -1264,7 +1232,7 @@ pub fn shop_render(
 }
 
 /// One page of a render, for the clipboard; a page it does not have is
-/// refused naming how many it has.
+/// refused naming how many it has, numbered from 1.
 pub fn shop_page(rendered: &ShopRender, n: usize) -> Result<&Page> {
     rendered
         .pages
@@ -1273,7 +1241,7 @@ pub fn shop_page(rendered: &ShopRender, n: usize) -> Result<&Page> {
         .ok_or_else(|| {
             let pages = rendered.pages.len();
             anyhow::anyhow!(
-                "no page {n}: the render has {pages} {} (`acq shop render` lists them)",
+                "no page {n}: the render has {pages} {}, numbered from 1",
                 if pages == 1 { "page" } else { "pages" }
             )
         })
@@ -1369,10 +1337,13 @@ pub fn currency_table() -> Result<&'static CurrencyTable> {
 pub fn currency_row(word: &str) -> Result<(&'static CurrencyTable, &'static Currency)> {
     let t = currency_table()?;
     let Some(row) = t.resolve(word) else {
-        bail!(
-            "{word:?} is not a currency word in currency table v{} (words are exact and case-sensitive; `acq reference currency` lists them)",
-            t.version()
-        );
+        return Err(anyhow::Error::new(Refused {
+            kind: RefusedKind::Currency,
+            message: format!(
+                "{word:?} is not a currency word in currency table v{} (words are exact and case-sensitive; the currency table lists them)",
+                t.version()
+            ),
+        }));
     };
     Ok((t, row))
 }

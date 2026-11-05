@@ -1,10 +1,5 @@
 use super::*;
 
-/// The refusal's quoting, as a frontend without a shell would give it.
-fn plain(word: &str) -> String {
-    word.to_string()
-}
-
 /// One account's facts in memory: pc Standard's tab `t1` fetched with
 /// two unpriced items, `i1` and `i2`; and its intent file, empty.
 fn priced() -> (Store, Annotations) {
@@ -66,9 +61,9 @@ fn a_list_is_bounded_by_its_limit_and_counts_the_selection() {
         limit,
         ..ListArgs::default()
     };
-    let whole = list(&store, &a, None, None, &args(None), "a", plain).unwrap();
+    let whole = list(&store, &a, None, None, &args(None), "a").unwrap();
     assert_eq!((whole.total, whole.listed, whole.items.len()), (2, 2, 2));
-    let limited = list(&store, &a, None, None, &args(Some(1)), "a", plain).unwrap();
+    let limited = list(&store, &a, None, None, &args(Some(1)), "a").unwrap();
     assert_eq!((limited.total, limited.listed), (2, 1));
     assert_eq!(limited.items, whole.items[..1].to_vec());
     assert_eq!(limited.filter.limit, Some(1));
@@ -86,7 +81,7 @@ fn a_list_is_bounded_by_its_limit_and_counts_the_selection() {
 /// `not_found`.
 /// C151 — a stale write over a row this build cannot read is a
 /// `conflict` with the row's revision, in the verb's words naming the
-/// `--if-revision` that goes through, never the store's generic
+/// `if_revision` that goes through, never the store's generic
 /// refusal (the second review of #63, its fourth finding); the write
 /// naming the revision then lands. The damage is staged through a
 /// second connection on a file-backed intent store.
@@ -112,7 +107,6 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
         Expect::Current,
         &via,
         "a",
-        plain,
     )
     .unwrap();
     rusqlite::Connection::open(acquisition_store::annotations_path(&dir, "u-1"))
@@ -131,7 +125,6 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
             Expect::Exactly(6),
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
@@ -142,6 +135,7 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
                 revision: Some(1),
                 current: None,
                 retry: None,
+                shown: Some(_),
             }
         ),
         "{:?}",
@@ -151,7 +145,7 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
         r.message
             .starts_with("item/i1 holds a value this build cannot read (revision 1: ")
             && r.message
-                .contains("`--if-revision 1` clears it deliberately"),
+                .contains("`if_revision` 1 clears it deliberately, its show names it"),
         "{}",
         r.message
     );
@@ -168,13 +162,12 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
             Expect::Exactly(6),
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
     assert!(
         r.message
-            .contains("`--if-revision 1` replaces it deliberately"),
+            .contains("`if_revision` 1 replaces it deliberately"),
         "{}",
         r.message
     );
@@ -186,7 +179,6 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
         Expect::Exactly(1),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     assert_eq!(a.get("item", "i1", BUYOUT_KIND).unwrap(), None);
@@ -216,7 +208,6 @@ fn a_revision_of_0_creates_only_where_no_price_stands_under_either_default() {
             Expect::or(Some(0), Expect::Current),
             &via,
             "a",
-            plain,
         )
     };
     assert_eq!(zero(&mut a).unwrap().write.revision, 1);
@@ -252,7 +243,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         Expect::Current,
         &via,
         "a",
-        plain,
     )
     .unwrap();
     set(
@@ -265,7 +255,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         Expect::Exactly(1),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     let r = refused(
@@ -279,21 +268,26 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
             Expect::Exactly(1),
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
-    assert!(matches!(
-        r.kind,
-        RefusedKind::Conflict {
-            revision: Some(2),
-            ..
-        }
-    ));
+    // the read-back the words name, as the account the write ran as
+    let RefusedKind::Conflict {
+        revision: Some(2),
+        shown: Some(shown),
+        ..
+    } = &r.kind
+    else {
+        panic!("{r:?}")
+    };
+    assert_eq!(
+        (shown.target.to_string(), shown.account.as_str()),
+        ("item/i1".to_string(), "a")
+    );
     assert_eq!(
         r.message,
-        "item/i1 has a price at revision 2, not the revision named: `--if-revision 2` writes \
-         over it as it stands (`acq price show --account a item/i1` reads it)"
+        "item/i1 has a price at revision 2, not the revision named: `if_revision` 2 writes \
+         over it as it stands (its show reads it)"
     );
     let r = refused(
         clear(
@@ -303,7 +297,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
             Expect::Exactly(1),
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
@@ -322,7 +315,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         Expect::Exactly(2),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     let r = refused(
@@ -336,7 +328,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
             Expect::Exactly(99),
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
@@ -359,7 +350,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
             Expect::Current,
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     );
@@ -388,7 +378,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         None,
         Bound::default(),
         "a",
-        plain,
     )
     .unwrap_err();
     assert!(matches!(refused(e).kind, RefusedKind::NotFound(_)));
@@ -417,7 +406,7 @@ fn a_row_this_build_cannot_read_is_never_written_blind() {
         .unwrap();
     let said = [
         "item/i1 holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)",
-        "`--if-revision 1` replaces it deliberately",
+        "`if_revision` 1 replaces it deliberately, its show names it",
     ];
     let blind = [
         set(
@@ -430,7 +419,6 @@ fn a_row_this_build_cannot_read_is_never_written_blind() {
             Expect::Current,
             &via,
             "a",
-            plain,
         )
         .map(|_| ())
         .unwrap_err(),
@@ -441,12 +429,13 @@ fn a_row_this_build_cannot_read_is_never_written_blind() {
             Expect::Current,
             &via,
             "a",
-            plain,
         )
         .map(|_| ())
         .unwrap_err(),
     ];
     for e in blind {
+        let kind = &Refused::find(&e).unwrap().kind;
+        assert!(matches!(kind, RefusedKind::Blind(_)), "{kind:?}");
         let e = format!("{e:#}");
         for words in said {
             assert!(e.contains(words), "{words}: {e}");
@@ -464,7 +453,6 @@ fn a_row_this_build_cannot_read_is_never_written_blind() {
         Expect::Exactly(1),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     assert_eq!(written.write.prior.map(|r| r.revision), Some(1));
@@ -524,7 +512,6 @@ fn a_set_whose_facts_cannot_be_read_refuses_before_the_write() {
         Expect::Create,
         &via,
         "a",
-        plain,
     );
     let err = first.unwrap_err();
     assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
@@ -544,7 +531,7 @@ fn a_set_whose_facts_cannot_be_read_refuses_before_the_write() {
     .unwrap();
     for expect in [Expect::Exactly(1), Expect::Current] {
         let err = set(
-            &store, &mut a, "item/i1", "skip", None, None, expect, &via, "a", plain,
+            &store, &mut a, "item/i1", "skip", None, None, expect, &via, "a",
         )
         .unwrap_err();
         assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
@@ -637,24 +624,14 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
             expect,
             &via,
             "a",
-            plain,
         )
     };
     write(&mut a, Expect::Current).unwrap();
-    let shown = show(
-        &store,
-        &a,
-        "item/i1",
-        None,
-        None,
-        Bound::default(),
-        "a",
-        plain,
-    )
-    .unwrap()
-    .listing
-    .manual
-    .unwrap();
+    let shown = show(&store, &a, "item/i1", None, None, Bound::default(), "a")
+        .unwrap()
+        .listing
+        .manual
+        .unwrap();
     // each side less its words beside its `updated_at` (C163), made at
     // each answer's own time: the refusal carries them as `show` does
     let shown = ManualSide {
@@ -671,7 +648,6 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
             Expect::Create,
             &via,
             "a",
-            plain,
         )
         .unwrap_err(),
     ] {
@@ -690,7 +666,6 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
         Expect::Exactly(1),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     let e = write(&mut a, Expect::Exactly(9)).unwrap_err();
@@ -704,7 +679,6 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
         Expect::Current,
         &via,
         "a",
-        plain,
     )
     .unwrap_err();
     let fields = Refused::find(&e).unwrap().fields();
@@ -721,17 +695,7 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
 fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
     let (store, a) = priced();
     let missing = |target: &str, league: Option<&str>| {
-        let e = show(
-            &store,
-            &a,
-            target,
-            None,
-            league,
-            Bound::default(),
-            "a",
-            plain,
-        )
-        .unwrap_err();
+        let e = show(&store, &a, target, None, league, Bound::default(), "a").unwrap_err();
         let r = Refused::find(&e).unwrap().clone();
         match r.kind {
             RefusedKind::NotFound(m) => (*m, r.message),
@@ -751,10 +715,7 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
         }
     );
     assert!(
-        said.ends_with(
-            "`acq search --account a --realm xbox` finds an item's id, \
-                 `acq tabs --account a --realm xbox --league Standard` a tab's"
-        ),
+        said.ends_with("a search of xbox finds an item's id, the tabs of xbox Standard a tab's"),
         "{said}"
     );
     let (m, said) = missing("item/i1", Some("Other"));
@@ -767,7 +728,7 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
         )
     );
     assert!(
-        said.contains("the facts hold it in Standard: `--league` reads it there"),
+        said.contains("the facts hold it in Standard: `league` reads it there"),
         "{said}"
     );
     // an item's address names no realm: one held in another is found
@@ -780,7 +741,6 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
         None,
         Bound::default(),
         "a",
-        plain,
     )
     .unwrap_err();
     let r = Refused::find(&e).unwrap();
@@ -790,7 +750,7 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
     assert_eq!(m.elsewhere, vec![(Realm::Pc, "Standard".to_string())]);
     assert!(
         r.message
-            .contains("the facts hold it in pc/Standard: `--realm` and `--league` read it there"),
+            .contains("the facts hold it in pc/Standard: `realm` and `league` read it there"),
         "{}",
         r.message
     );
@@ -818,24 +778,12 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
             .cloned()
             .unwrap_or_else(|| panic!("{e:#}"))
     };
-    fn quoted(w: &str) -> String {
-        format!("'{w}'")
-    }
     for _ in 0..3 {
-        let rev = show(
-            &store,
-            &a,
-            "tab/pc/t1",
-            None,
-            None,
-            Bound::default(),
-            "a",
-            plain,
-        )
-        .unwrap()
-        .listing
-        .manual
-        .map(|m| m.revision);
+        let rev = show(&store, &a, "tab/pc/t1", None, None, Bound::default(), "a")
+            .unwrap()
+            .listing
+            .manual
+            .map(|m| m.revision);
         set(
             &store,
             &mut a,
@@ -846,24 +794,14 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
             Expect::or(rev, Expect::Create),
             &via,
             "a",
-            plain,
         )
         .unwrap();
     }
-    let manual = show(
-        &store,
-        &a,
-        "item/i1",
-        None,
-        None,
-        Bound::default(),
-        "a",
-        plain,
-    )
-    .unwrap()
-    .listing
-    .manual
-    .unwrap();
+    let manual = show(&store, &a, "item/i1", None, None, Bound::default(), "a")
+        .unwrap()
+        .listing
+        .manual
+        .unwrap();
     assert!(manual.inherited);
     assert_eq!(manual.revision, 3, "the tab's");
     let over = |a: &mut Annotations| {
@@ -878,7 +816,6 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
                 Expect::Exactly(manual.revision),
                 &via,
                 "A#1",
-                quoted,
             )
             .unwrap_err(),
         )
@@ -891,6 +828,7 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
                 revision: None,
                 current: None,
                 retry: Some(_),
+                shown: None,
             }
         ),
         "{r:?}"
@@ -909,7 +847,6 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
         Expect::Create,
         &via,
         "a",
-        plain,
     )
     .unwrap();
     let r = over(&mut a);
@@ -937,7 +874,6 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
             Expect::Exactly(revision),
             &via,
             "a",
-            plain,
         )
         .unwrap();
     }
@@ -951,7 +887,6 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
         Expect::Exactly(manual.revision),
         &via,
         "a",
-        plain,
     )
     .unwrap();
     assert_eq!(
@@ -968,16 +903,21 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
             Expect::Current,
             &via,
             "A#1",
-            quoted,
         )
         .unwrap_err(),
     );
     assert!(
-        r.message
-            .contains("`acq price show --account 'A#1' 'item/i2'` reads what covers it"),
+        r.message.contains("its show reads what covers it"),
         "{}",
         r.message
     );
+    let RefusedKind::Conflict {
+        shown: Some(shown), ..
+    } = &r.kind
+    else {
+        panic!("{r:?}")
+    };
+    assert_eq!(shown.account, "A#1");
 }
 
 /// Round 5's fix round, its review's finding 1: a price row at the
@@ -999,7 +939,6 @@ fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
         Expect::Create,
         &via,
         "a",
-        plain,
     )
     .unwrap();
     rusqlite::Connection::open(acquisition_store::annotations_path(dir.path(), "u-1"))
@@ -1020,7 +959,6 @@ fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
         Expect::Current,
         &via,
         "a",
-        plain,
     )
     .unwrap_err();
     assert_eq!(format!("{e:#}"), said);
@@ -1031,7 +969,6 @@ fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
         Expect::Current,
         &via,
         "a",
-        plain,
     )
     .unwrap_err();
     assert_eq!(format!("{e:#}"), said);
