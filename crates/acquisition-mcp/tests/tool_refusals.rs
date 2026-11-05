@@ -804,7 +804,7 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
 /// person's act is a command wherever it stands.
 #[test]
 fn the_refusal_rule_reads_an_offers_says_and_the_next_step() {
-    let found = |doc: Value| harness::frontend_speech(&doc, true);
+    let found = |doc: Value| harness::frontend_speech(&doc);
     let offer = |says: &str| {
         json!({ "error": "refused", "kind": "not_found", "offers": [{
             "request": { "query": { "text": "name:\"acq search --count\"" } },
@@ -835,5 +835,44 @@ fn the_refusal_rule_reads_an_offers_says_and_the_next_step() {
                       "next": "ACQ_STORE_DIR=/s acq auth check" })),
         None,
         "a person's act"
+    );
+}
+
+/// The review of #97's fix round and Part B, its finding P2: an
+/// answer's generated prose is read wherever it stands — a receipt's
+/// `note`, `no_undo` and `clear.says`, an unavailable count's
+/// `reads[].says` — since the rule reads every string but named payload
+/// and stored data, so a field added later is read by default.
+#[test]
+fn the_text_rule_reads_every_string_an_answer_generates() {
+    let found = |doc: Value| harness::frontend_speech(&doc);
+    let unread = [
+        (
+            "note",
+            json!({ "write": {}, "note": "acq price show item/i-map" }),
+        ),
+        (
+            "no_undo",
+            json!({ "write": {}, "no_undo": "--if-revision 2 restores it" }),
+        ),
+        (
+            "clear.says",
+            json!({ "clear": { "request": {}, "says": "acq price clear item/i-map" } }),
+        ),
+        (
+            "counts_unavailable.reads[].says",
+            json!({ "counts_unavailable": { "reads": [{ "says": "acq price status --expand" }] } }),
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, doc)| found(doc.clone()).is_none())
+    .map(|(key, _)| key)
+    .collect::<Vec<_>>();
+    assert!(unread.is_empty(), "unread: {unread:?}");
+    // data stays data: a stored row's actor and a request sent back
+    assert_eq!(
+        found(json!({ "current": { "actor": "acq search --count tab" },
+                      "undo": { "request": "acq price clear item/x", "says": "the clear" } })),
+        None
     );
 }

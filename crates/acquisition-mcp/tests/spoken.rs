@@ -143,7 +143,7 @@ fn every_text_the_server_sends_speaks_its_own_words() {
         // nothing is spelled after the shared words, and no string not
         // payload speaks the CLI
         assert!(!text.contains("— here, "), "{tool} {args}: {text}");
-        if let Some(said) = harness::frontend_speech(&doc, true) {
+        if let Some(said) = harness::frontend_speech(&doc) {
             faults.push(format!("{tool} {args}: {said}"));
         }
     }

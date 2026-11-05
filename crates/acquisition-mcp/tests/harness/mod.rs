@@ -353,63 +353,51 @@ const PERSONS: [&str; 6] = [
 /// frontend's flag: every text a test meets, through [`Mcp::call`] or
 /// [`Mcp::result`], is held free of a CLI command (`acq …`) and a flag
 /// (`--league`) but a person's act ([`PERSONS`]), so each test that
-/// produces an answer or a refusal holds the rule over it (#97). Its
-/// prose alone, as the server's own spelling reads it: every string of
-/// a refusal and of `describe`, an answer's `why` and `hint`, each
-/// offer's `says` and a refusal's `next`; never a value under a payload
-/// key, which is data an agent sends back or reads as stored (a query's
-/// text, a row's `actor`).
+/// produces an answer or a refusal holds the rule over it (#97). Every
+/// string is read but those under a key that holds data ([`DATA`]), so
+/// prose a field adds later is read by default (the review of #97's fix
+/// round and Part B, P2).
 #[track_caller]
 pub fn c143_a_text_speaks_no_frontend(tool: &str, text: &str) {
     let doc: Value = serde_json::from_str(text).unwrap_or_else(|_| json!(text));
-    let all = tool == "describe" || doc.get("kind").is_some() && doc.get("error").is_some();
-    if let Some(said) = frontend_speech(&doc, all) {
+    if let Some(said) = frontend_speech(&doc) {
         panic!("{tool}'s text speaks the CLI at {said:?}: {text}");
     }
 }
 
 /// Where a document's prose first speaks a CLI command or flag outside a
-/// person's act, the words from there: every string not payload where
-/// `all` (a refusal, `describe`), else an answer's words alone.
-pub fn frontend_speech(doc: &Value, all: bool) -> Option<String> {
+/// person's act, the words from there.
+pub fn frontend_speech(doc: &Value) -> Option<String> {
     let mut prose = Vec::new();
-    prose_of(doc, all, &mut prose);
+    prose_of(doc, &mut prose);
     prose
         .into_iter()
         .find_map(|words| frontend_word(words).map(|at| words[at..].chars().take(60).collect()))
 }
 
-/// The keys of an answer whose string is the tool's words (`WORDS` in
-/// the server).
-const WORDS: [&str; 2] = ["why", "hint"];
+/// The keys whose value is data, never the tool's words: what an agent
+/// sends back as printed (an offer's `request` and `argv`, a query and
+/// its params, a route, a continuation's token), what it typed, echoed
+/// (a query's `term` and an explain offer's `node`), what it types as written (an example, a reading,
+/// a pattern), and what is stored or
+/// upstream (a row as it stands, a row's `actor`, the names known, a
+/// body GGG sent).
+const DATA: [&str; 15] = [
+    "request", "argv", "query", "params", "route", "token", "term", "node", "examples", "readings",
+    "patterns", "current", "actor", "accounts", "body",
+];
 
-/// Every string of `doc` that is the tool's words: where `all`, every
-/// one not under a payload key ([`PAYLOAD`], a receipt's `undo`, a
-/// stored `body`); else those under [`WORDS`]; and in either, each
-/// offer's `says` and the refusal's `next`, which are words beside the
-/// payload (the review of #97's Part A, P2): an offer's `request` stays
-/// payload, sent back as printed.
-fn prose_of<'a>(doc: &'a Value, all: bool, out: &mut Vec<&'a str>) {
+/// Every string of `doc` that is the tool's words: each one not under a
+/// [`DATA`] key, an offer's `says` and a refusal's `next` among them
+/// (the review of #97's Part A, P2).
+fn prose_of<'a>(doc: &'a Value, out: &mut Vec<&'a str>) {
     match doc {
-        Value::String(s) if all => out.push(s),
-        Value::Array(items) => items.iter().for_each(|v| prose_of(v, all, out)),
-        Value::Object(map) => map.iter().for_each(|(k, v)| match k.as_str() {
-            "offers" | "undo" => {
-                let offers = match v {
-                    Value::Array(offers) => offers.iter().collect(),
-                    one => vec![one],
-                };
-                out.extend(
-                    offers
-                        .into_iter()
-                        .filter_map(|offer| offer["says"].as_str()),
-                )
-            }
-            "next" => out.extend(v.as_str()),
-            k if WORDS.contains(&k) => prose_of(v, true, out),
-            k if PAYLOAD.contains(&k) || k == "body" => {}
-            _ => prose_of(v, all, out),
-        }),
+        Value::String(s) => out.push(s),
+        Value::Array(items) => items.iter().for_each(|v| prose_of(v, out)),
+        Value::Object(map) => map
+            .iter()
+            .filter(|(k, _)| !DATA.contains(&k.as_str()))
+            .for_each(|(_, v)| prose_of(v, out)),
         _ => {}
     }
 }
