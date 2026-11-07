@@ -842,8 +842,13 @@ at the owner's word "Shrink and close" and unreviewed. Step 2, the
 MCP's three saved-search tools (`briefs/4-full-1-mcp.md`, cut once
 under its cold review, the second clean; Do 1 ruled "Raise the
 bound"), closed on 2026-11-07 (`LEDGER.md`): its build reviewed clean,
-no fix round. Current step: part 1's step 3, the pages (`saved`,
-`saved/open?id=`) and morning 1's handoff (`briefs/4-full-1-pages.md`,
-cut by a session that read only the design on `main`; three cuts under
-cold reviews of eleven, seven and four findings, the bound; Do 1 ruled
-"Redirect to the list" on 2026-11-07), building.
+no fix round. Step 3, the pages (`saved`, `saved/open?id=`) and morning 1's handoff
+(`briefs/4-full-1-pages.md`, cut by a session that read only the design
+on `main`; three cuts under cold reviews of eleven, seven and four
+findings, the bound; Do 1 ruled "Redirect to the list" on 2026-11-07),
+closed on 2026-11-07 (`LEDGER.md`): its build reviewed, one fix round,
+reviewed clean. Current step: part 1's step 4, the answer and item
+pages from their documents (#176; the design's §4 and §7 step 4),
+awaits its brief, cut by a session that reads only the design on
+`main`; morning 1's sitting at `acq web` is the owner's, live, when he
+wants it.
