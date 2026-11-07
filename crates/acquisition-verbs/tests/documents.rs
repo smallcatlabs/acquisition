@@ -2170,21 +2170,9 @@ impl acquisition_verbs::refusal::Surface for Plain {
 /// shape adds — `offers`, `readings`, `next`, the kind's own fields (an
 /// ambiguous saved search's `searches`, `total` and `left_out` among
 /// them) — where they have something to say.
-const REFUSAL_KEYS: [&str; 14] = [
-    "error",
-    "kind",
-    "offers",
-    "readings",
-    "next",
-    "accounts",
-    "revision",
-    "current",
-    "span",
-    "searches",
-    "total",
-    "left_out",
-    "file",
-    "rename_to",
+const REFUSAL_KEYS: [&str; 13] = [
+    "error", "kind", "offers", "readings", "next", "accounts", "revision", "current", "span",
+    "searches", "total", "left_out", "file",
 ];
 
 /// A not_found's refusal as the planner makes it, over a scope named.
@@ -4687,10 +4675,10 @@ fn legacy_user_facts(dir: &std::path::Path) {
 
 /// The review of fix round 1 (c0fb7673): a `user.db` holding an earlier
 /// build's account facts is the refusal `user_file_holds_account`, its
-/// fields the file and the rename that frees it, both in its words, for
-/// every saved-search verb; nothing is written to the file.
+/// field the file, its words the file and the deletion that frees it,
+/// for every saved-search verb; nothing is written to the file.
 #[test]
-fn c167_a_user_file_holding_account_facts_is_refused_with_its_rename() {
+fn c167_a_user_file_holding_account_facts_is_refused_naming_its_deletion() {
     let s = scratch();
     legacy_user_facts(&s.mock);
     let file = s.mock.join("user.db");
@@ -4721,11 +4709,9 @@ fn c167_a_user_file_holding_account_facts_is_refused_with_its_rename() {
         let doc = document(&e, &Plain);
         assert_eq!(doc["kind"], "user_file_holds_account", "{doc}");
         assert_eq!(doc["file"], file.display().to_string(), "{doc}");
-        let renamed = s.mock.join("~user.db").display().to_string();
-        assert_eq!(doc["rename_to"], renamed, "{doc}");
         let words = doc["error"].as_str().unwrap();
         assert!(
-            words.contains(&renamed) && words.contains("user.db"),
+            words.contains(&file.display().to_string()) && words.contains("delete it"),
             "{words}"
         );
         assert!(doc.get("offers").is_none(), "{doc}");

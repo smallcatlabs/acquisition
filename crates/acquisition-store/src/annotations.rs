@@ -583,7 +583,7 @@ pub enum AnnotationError {
     Unreadable(UnreadableRow),
     /// The user file's opener met an account's facts at `user.db`, kept
     /// there by a build before the account path's escape: refused with
-    /// the rename that frees it, nothing written (C167).
+    /// the deletion that frees it, nothing written (C167).
     HoldsAccountFacts(crate::index::HoldsAccountFacts),
     Db(rusqlite::Error),
     Io(std::io::Error),

@@ -170,20 +170,17 @@ const RESERVED_STEMS: [&str; 2] = ["user", "daemon"];
 
 /// A world file (`user.db`, `daemon.db`) that holds an account's facts: a
 /// build before [`account_path`]'s escape kept an account named `user`
-/// or `daemon` there. Nothing is moved (the owner's word, 2026-11-07,
-/// "Recovery refusal"); the opener refuses in words that say whose file
-/// it is and what frees it: the rename to the path the escape now gives,
-/// after which the account finds its facts and the world its file.
+/// or `daemon` there. Nothing is moved; facts are refetchable (C35), so
+/// the opener refuses in one sentence naming the deletion that frees the
+/// file (the owner's words, 2026-11-07, "Recovery refusal" and "Shrink
+/// and close"). The case is a mock world's: a real username carries its
+/// discriminator, so a real account's file is never a world file's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldsAccountFacts {
     /// The world file as found.
     pub file: PathBuf,
-    /// Where the account's facts belong now: [`account_path`] of the stem.
-    pub rename_to: PathBuf,
     /// The account name the file's stem is.
     pub account: &'static str,
-    /// What the world keeps in the file, in words.
-    pub holds: &'static str,
 }
 
 impl HoldsAccountFacts {
@@ -195,7 +192,6 @@ impl HoldsAccountFacts {
         conn: &rusqlite::Connection,
         file: &Path,
         account: &'static str,
-        holds: &'static str,
     ) -> rusqlite::Result<Option<HoldsAccountFacts>> {
         let n: i64 = conn.query_row(
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN ('account', \
@@ -205,9 +201,7 @@ impl HoldsAccountFacts {
         )?;
         Ok((n == 2).then(|| HoldsAccountFacts {
             file: file.to_path_buf(),
-            rename_to: account_path(file.parent().unwrap_or(Path::new("")), account),
             account,
-            holds,
         }))
     }
 }
@@ -216,15 +210,11 @@ impl std::fmt::Display for HoldsAccountFacts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} holds the facts of an account named {}, kept there by an earlier build; that \
-             account's facts now live at {}. Rename {} to {} and the account opens with its \
-             facts, and the file is free again for {}",
+            "{} holds the facts of an account named {} from an earlier build; facts are \
+             refetchable, so with no Acquisition process running, delete it and its -wal and \
+             -shm files, and the next refresh restores the account",
             self.file.display(),
-            self.account,
-            self.rename_to.display(),
-            self.file.display(),
-            self.rename_to.display(),
-            self.holds
+            self.account
         )
     }
 }

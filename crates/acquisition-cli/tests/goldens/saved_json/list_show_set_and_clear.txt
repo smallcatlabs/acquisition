@@ -99,13 +99,8 @@ next: `acq saved set --id <id> --if-revision 0 --name 'unique rings' --realm pc 
 
 $ acq saved
 # holds "holds the facts of an account named user"
-# holds "Rename"
-# holds "~user.db"
+# holds "delete it and its -wal and -shm files"
+# holds "the next refresh restores the account"
 --- stderr
-Error: <scratch>/mock/user.db holds the facts of an account named user, kept there by an earlier build; that account's facts now live at <scratch>/mock/~user.db. Rename <scratch>/mock/user.db to <scratch>/mock/~user.db and the account opens with its facts, and the file is free again for the saved searches
+Error: <scratch>/mock/user.db holds the facts of an account named user from an earlier build; facts are refetchable, so with no Acquisition process running, delete it and its -wal and -shm files, and the next refresh restores the account
 --- exit 1
-
-$ acq saved
-# holds "no saved searches"
---- stdout
-no saved searches: `acq saved set --name NAME 'QUERY'` saves one

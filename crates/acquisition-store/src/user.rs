@@ -54,9 +54,8 @@ pub const SAVED_MEMBERSHIPS: [&str; 3] = ["live", "all", "removed"];
 pub const NAME_MAX: usize = 64;
 
 /// The account name whose facts a build before the account path's escape
-/// kept at `user.db`, and what the world keeps there now, in words.
+/// kept at `user.db`.
 const USER_STEM: &str = "user";
-const USER_HOLDS: &str = "the saved searches";
 
 /// A `user.db` at `path` holding an account's facts is refused; one that
 /// does not exist, or that read-only SQLite cannot open, is left to the
@@ -71,7 +70,7 @@ fn refuse_account_facts(path: &Path) -> Result<(), AnnotationError> {
     ) else {
         return Ok(());
     };
-    match HoldsAccountFacts::probe(&conn, path, USER_STEM, USER_HOLDS)? {
+    match HoldsAccountFacts::probe(&conn, path, USER_STEM)? {
         Some(found) => Err(AnnotationError::HoldsAccountFacts(found)),
         None => Ok(()),
     }
@@ -93,7 +92,7 @@ impl User {
     /// or stamped: the file is the world's.
     ///
     /// A `user.db` that holds an account's facts, from a build before the
-    /// account path's escape, is refused with the rename that frees it
+    /// account path's escape, is refused with the deletion that frees it
     /// ([`AnnotationError::HoldsAccountFacts`]), read before anything is
     /// written.
     pub fn open_for(dir: &Path) -> Result<User, AnnotationError> {

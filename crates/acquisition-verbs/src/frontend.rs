@@ -206,7 +206,7 @@ impl Frontend {
     /// `not_logged_in` naming it, as a store read answers (C121). A
     /// `user.db` holding an account's facts from a build before the
     /// account path's escape is the refusal `user_file_holds_account`,
-    /// its fields the file and the path the rename frees it to.
+    /// its field the file, its words the deletion that frees it.
     pub fn user(&self) -> anyhow::Result<User> {
         let dir = self.dir();
         if !dir.is_dir() {
@@ -220,10 +220,6 @@ impl Frontend {
             AnnotationError::HoldsAccountFacts(found) => {
                 let mut fields = serde_json::Map::new();
                 fields.insert("file".into(), json!(found.file.display().to_string()));
-                fields.insert(
-                    "rename_to".into(),
-                    json!(found.rename_to.display().to_string()),
-                );
                 Pointed {
                     kind: "user_file_holds_account",
                     message: found.to_string(),

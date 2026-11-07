@@ -154,11 +154,11 @@ fn open_read_only(path: &Path) -> Result<Connection> {
 }
 
 /// A `daemon.db` holding the facts of an account named `daemon`, kept there
-/// by a build before the account path's escape, is refused with the rename
+/// by a build before the account path's escape, is refused with the deletion
 /// that frees it ([`HoldsAccountFacts`]), read from `sqlite_master` before
 /// anything is written.
 fn refuse_account_facts(conn: &Connection, path: &Path) -> Result<()> {
-    match HoldsAccountFacts::probe(conn, path, "daemon", "the daemon's queue")? {
+    match HoldsAccountFacts::probe(conn, path, "daemon")? {
         Some(found) => Err(found.into()),
         None => Ok(()),
     }

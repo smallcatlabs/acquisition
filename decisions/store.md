@@ -34,3 +34,4 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the ruling
 What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
 - An injected clock in the store: refused. The annotation wait's seam is its knob and SQLite is its clock (`busy_timeout` runs inside SQLite); the project pins the knob's parse, the expiry verdict at zero and that two writers never clobber, in process and across processes (C35, C137). Not until the store times a wait of its own (the owner, 2026-10-31, 4-0's design).
+- A migration of a world file that holds an earlier build's account facts under a reserved name (`user.db`, `daemon.db`): not until `user`, a report of a real world holding one. The opener refuses it and names the deletion; the case is a mock world's, since a real username carries its discriminator (the owner, 2026-11-07, "Recovery refusal" and "Shrink and close").
