@@ -4665,3 +4665,123 @@ fn c167_a_world_with_no_provider_directory_is_not_logged_in_naming_it() {
     );
     assert!(!dir.exists(), "the directory was made");
 }
+
+/// The review of the build (39f3b7dc), findings 2 and 3, one rule: a
+/// recovery write is offered only where it would pass the writer's own
+/// checks as this build writes. A conflict over a row this build cannot
+/// read offers the row's show, never the partial write again, and a
+/// whole write again at the revision that stands, which lands; a prior
+/// whose stored text the language refuses answers `no_undo` with that
+/// reason, on a replace and on a clear.
+#[test]
+fn c167_a_recovery_write_is_offered_only_where_it_would_pass() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "rings", "rarity=rare");
+    saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Current, "amulets"),
+        &mut no_mint,
+    )
+    .unwrap();
+    rusqlite::Connection::open(user_path(&s.mock))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = ?1 WHERE key = ?2",
+            rusqlite::params![
+                json!({ "version": 2, "name": "rings", "text": "x", "scope": {} }).to_string(),
+                id
+            ],
+        )
+        .unwrap();
+    let e = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Exactly(1), "x"),
+        &mut no_mint,
+    )
+    .unwrap_err();
+    let doc = document(&e, &Plain);
+    assert_eq!(
+        (&doc["kind"], &doc["revision"]),
+        (&json!("conflict"), &json!(2)),
+        "{doc}"
+    );
+    let [show] = ways(&e).try_into().unwrap();
+    assert_eq!(show, Way::SavedSearchShow { id: id.clone() });
+    assert_eq!(dispatch(&world, &show).unwrap()["revision"], 2);
+    let whole = Set {
+        id: Some(id.clone()),
+        expect: Expect::Exactly(1),
+        name: Some("rings".into()),
+        text: Some("rarity=rare".into()),
+        realm: Some("pc".into()),
+        membership: Some("live".into()),
+    };
+    let e = saved::set(&world, None, &whole, &mut no_mint).unwrap_err();
+    let [again] = ways(&e).try_into().unwrap();
+    assert!(matches!(&again, Way::SavedSearchSet(set) if set.expect == Expect::Exactly(2)));
+    let landed = dispatch(&world, &again).unwrap();
+    assert_eq!(landed["revision"], 3, "{landed}");
+
+    // a prior whose stored text the language refuses: no undo, on a
+    // replace and on a clear
+    for key in ["0000000000d1", "0000000000d2"] {
+        User::open_for(&s.mock)
+            .unwrap()
+            .put::<SavedSearch>(
+                SAVED_SEARCH_SCOPE,
+                key,
+                &saved_value("broken", "rarity=="),
+                None,
+                &acquisition_store::Provenance::via("other"),
+            )
+            .unwrap();
+    }
+    let mut replace = rename("0000000000d1", Expect::Exactly(1), "mended");
+    replace.text = Some("rarity=rare".into());
+    let replaced = saved::set(&world, None, &replace, &mut no_mint).unwrap();
+    let cleared = saved::clear(&world, "0000000000d2", Expect::Exactly(1)).unwrap();
+    for (written, said) in [
+        (
+            &replaced,
+            "the prior cannot be put back: this build would refuse it as a write",
+        ),
+        (
+            &cleared,
+            "the cleared search cannot be put back: this build would refuse it as a write",
+        ),
+    ] {
+        let doc = serde_json::to_value(acquisition_verbs::receipt::saved(written, &Plain)).unwrap();
+        assert!(doc.get("undo").is_none(), "{doc}");
+        assert!(
+            doc["no_undo"].as_str().unwrap().starts_with(said)
+                && doc["no_undo"].as_str().unwrap().contains('='),
+            "{doc}"
+        );
+    }
+}
+
+/// The review of the build (39f3b7dc), finding 5: a name is compared
+/// trimmed on both sides, so a row another writer stored with a padded
+/// name, which the store accepts, opens by its trimmed spelling, and the
+/// stored value is not rewritten.
+#[test]
+fn c167_a_padded_name_opens_by_its_trimmed_spelling() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    saved_put(&s.mock, "0000000000e1", " spaced ");
+    for asked in ["spaced", " spaced "] {
+        let request = saved::request_of(&world, asked, None).unwrap();
+        assert_eq!(
+            request.query.text.as_deref(),
+            Some("rarity=rare"),
+            "{asked:?}"
+        );
+    }
+    assert_eq!(
+        saved::show(&world, "spaced").unwrap().name(),
+        Some(" spaced ")
+    );
+}

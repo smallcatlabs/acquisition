@@ -262,3 +262,107 @@ fn c144_two_accounts_saving_at_once_never_tear_the_index() {
     });
     assert!(Index::load(&dir).is_ok());
 }
+
+/// An account's facts file never meets a file the world keeps beside
+/// the accounts: a stem `user` (C167's user file), `daemon` (the queue)
+/// or ending `.annotations` (an intent file), in any case, is escaped
+/// with a character no username's file holds, so the escape meets no
+/// other account's name; any other stem keeps its name.
+#[test]
+fn an_account_named_as_a_world_file_is_escaped_and_meets_no_other_name() {
+    let dir = Path::new("/w");
+    let name = |username: &str| {
+        account_path(dir, username)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    };
+    for (username, file) in [
+        ("user", "~user.db"),
+        ("User", "~User.db"),
+        ("daemon", "~daemon.db"),
+        ("DAEMON", "~DAEMON.db"),
+        ("u-1.annotations", "~u-1.annotations.db"),
+        ("~user", "_user.db"),
+        ("users", "users.db"),
+        ("Alice#1234", "Alice_1234.db"),
+    ] {
+        assert_eq!(name(username), file, "{username}");
+    }
+    assert_ne!(account_path(dir, "user"), crate::user::user_path(dir));
+    assert_ne!(
+        account_path(dir, "daemon"),
+        crate::jobs::daemon_db_path(dir)
+    );
+}
+
+/// The collision of a facts file with the user file and with the queue,
+/// in both orders: an account named `user` opened before and after the
+/// user file exists, and one named `daemon` before and after the queue,
+/// each order leaving both files what they are — the user file's saved
+/// search reads back, the queue opens, the facts file holds its profile.
+#[test]
+fn an_account_named_user_or_daemon_leaves_the_world_file_what_it_is_in_either_order() {
+    use crate::user::{SAVED_SEARCH_SCOPE, SavedSearch, User};
+    let via = crate::Provenance::via("test");
+    let saved = serde_json::json!({ "version": 1, "name": "rings", "text": "",
+        "scope": { "realm": "pc", "membership": "live" } });
+    let facts = |dir: &Path, username: &str| {
+        let mut store = crate::Store::open(&account_path(dir, username)).unwrap();
+        store
+            .record(
+                &crate::Endpoint::Profile,
+                &serde_json::json!({}),
+                200,
+                &serde_json::json!({ "uuid": "u", "name": username }),
+                1_000,
+            )
+            .unwrap();
+    };
+    let user_file = |dir: &Path| {
+        let mut user = User::open_for(dir).unwrap();
+        if user.list(None, None).unwrap().list.rows.is_empty() {
+            user.put::<SavedSearch>(SAVED_SEARCH_SCOPE, "0123456789ab", &saved, None, &via)
+                .unwrap();
+        }
+    };
+    let held = |dir: &Path, username: &str| {
+        let user = User::open_for(dir).unwrap();
+        assert_eq!(
+            user.list(None, None).unwrap().list.rows.len(),
+            1,
+            "{username}"
+        );
+        let store = crate::Store::open(&account_path(dir, username)).unwrap();
+        assert_eq!(
+            store.status().unwrap().responses,
+            1,
+            "{username}: the facts"
+        );
+    };
+    for user_first in [true, false] {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        if user_first {
+            user_file(dir);
+            facts(dir, "user");
+        } else {
+            facts(dir, "user");
+            user_file(dir);
+        }
+        held(dir, "user");
+
+        let queue = crate::jobs::daemon_db_path(dir);
+        if user_first {
+            crate::jobs::JobDb::open(&queue).unwrap();
+            facts(dir, "daemon");
+        } else {
+            facts(dir, "daemon");
+            crate::jobs::JobDb::open(&queue).unwrap();
+        }
+        crate::jobs::JobDb::open(&queue).unwrap();
+        let store = crate::Store::open(&account_path(dir, "daemon")).unwrap();
+        assert_eq!(store.status().unwrap().responses, 1, "daemon: the facts");
+    }
+}

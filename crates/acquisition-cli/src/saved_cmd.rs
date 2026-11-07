@@ -23,7 +23,7 @@ pub fn list(cx: &Ctx, limit: Option<usize>, expand: bool, json: bool) -> Result<
         println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
-    print!("{}", list_text(&listed));
+    print!("{}", list_text(&listed, cx.account.as_deref()));
     Ok(())
 }
 
@@ -34,7 +34,7 @@ pub fn show(cx: &Ctx, id_or_name: &str, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&row)?);
         return Ok(());
     }
-    print!("{}", show_text(&row));
+    print!("{}", show_text(&row, cx.account.as_deref()));
     Ok(())
 }
 
@@ -74,24 +74,24 @@ pub fn set(
         membership,
     };
     let written = saved::set(&cx.frontend, cx.account.as_deref(), &set, &mut saved::mint)?;
-    print_written(&written, json)
+    print_written(&written, cx.account.as_deref(), json)
 }
 
 /// `acq saved clear <ID>`.
 pub fn clear(cx: &Ctx, id: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
     let written = saved::clear(&cx.frontend, id, Expect::or(if_revision, Expect::Current))?;
-    print_written(&written, json)
+    print_written(&written, cx.account.as_deref(), json)
 }
 
 /// A write's receipt: `--json` the verbs' receipt whole, its undo spelled
-/// as this terminal runs it; the text its lines.
-fn print_written(written: &SavedWritten, json: bool) -> Result<()> {
+/// as this terminal runs it; the text its lines, its run as `account`.
+fn print_written(written: &SavedWritten, account: Option<&str>, json: bool) -> Result<()> {
     if json {
         let receipt = acquisition_verbs::receipt::saved(written, &Terminal::writing());
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
-    print!("{}", written_text(written));
+    print!("{}", written_text(written, account));
     Ok(())
 }
 
@@ -138,9 +138,20 @@ fn scope_words(row: &saved::ReadRow) -> String {
     format!("{} {}", row.scope.realm, row.scope.membership)
 }
 
+/// The run of the saved search `id` as this terminal prints it, as the
+/// account the command ran under where one was named (`--account`,
+/// `ACQ_ACCOUNT`), so it runs as printed with a second account known.
+fn run_line(id: &str, account: Option<&str>) -> String {
+    printed_line(&way_words(&Way::SavedSearchRun {
+        id: id.to_string(),
+        account: account.map(str::to_string),
+    }))
+}
+
 /// The listing: one line a row, the name first and the id last (C53), the
-/// rest counted with what lists them, the next action last.
-fn list_text(listed: &SavedSearches) -> String {
+/// rest counted with what lists them, the next action last, its run as
+/// `account`.
+fn list_text(listed: &SavedSearches, account: Option<&str>) -> String {
     if listed.total == 0 {
         return "no saved searches: `acq saved set --name NAME 'QUERY'` saves one\n".to_string();
     }
@@ -180,12 +191,16 @@ fn list_text(listed: &SavedSearches) -> String {
             printed_line(&way_words(&Way::SavedSearches { expand: true }))
         ));
     }
-    out.push_str("next: `acq search --saved ID` runs one; `acq saved show ID` shows one\n");
+    out.push_str(&format!(
+        "next: `{}` runs one; `acq saved show ID` shows one\n",
+        run_line("ID", account)
+    ));
     out
 }
 
-/// One row, every field a line, the next actions last.
-fn show_text(row: &SavedRow) -> String {
+/// One row, every field a line, the next actions last, its run as
+/// `account`.
+fn show_text(row: &SavedRow, account: Option<&str>) -> String {
     match row {
         SavedRow::Read(row) => format!(
             "{name}  ({id})\n  scope: {scope}\n  query: {text}\n  revision {revision}, written \
@@ -204,10 +219,7 @@ fn show_text(row: &SavedRow) -> String {
                 .map(|a| format!(" as {a}"))
                 .unwrap_or_default(),
             created = row.created_at_age,
-            run = printed_line(&way_words(&Way::SavedSearchRun {
-                id: row.id.clone(),
-                account: None,
-            })),
+            run = run_line(&row.id, account),
             clear = printed_line(&way_words(&Way::SavedSearchClear {
                 id: row.id.clone(),
                 if_revision: row.revision,
@@ -247,8 +259,8 @@ fn row_words(row: &SavedRow) -> String {
 
 /// The receipt as text (C53, C78): what the row is now and what it was,
 /// then the next action and the undo, the receipt's own (`undo` or
-/// `no_undo`).
-fn written_text(written: &SavedWritten) -> String {
+/// `no_undo`), its run as `account`.
+fn written_text(written: &SavedWritten, account: Option<&str>) -> String {
     let id = &written.target.id;
     let was = match &written.prior {
         Some(prior) => format!("was {}", row_words(prior)),
@@ -262,10 +274,7 @@ fn written_text(written: &SavedWritten) -> String {
         Some(row) => format!(
             "saved search {id}: {}, {was}\nnext: `{}` runs it; {undo}\n",
             row_words(row),
-            printed_line(&way_words(&Way::SavedSearchRun {
-                id: id.clone(),
-                account: None,
-            }))
+            run_line(id, account)
         ),
         None => format!(
             "saved search {id}: cleared at revision {}, {was}\nnext: {undo}\n",

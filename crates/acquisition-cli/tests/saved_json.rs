@@ -375,3 +375,132 @@ fn search_saved_runs_the_rows_request_and_refuses_each_word_of_scope_or_query_be
         );
     }
 }
+
+/// The commands a text prints between backticks, in order.
+fn printed_commands(text: &str) -> Vec<String> {
+    text.split('`')
+        .skip(1)
+        .step_by(2)
+        .filter(|c| c.starts_with("acq "))
+        .map(str::to_string)
+        .collect()
+}
+
+/// The review of the build (39f3b7dc), finding 4: with two accounts
+/// known and `ACQ_ACCOUNT` unset, the text of `acq --account <name> saved
+/// show` and of a write prints its run as that account, and the run and
+/// the clear it prints run as printed. Finding 2 at the terminal: a
+/// conflict over a row a later build wrote, at revision 3 under
+/// `--if-revision 1`, offers the row's show, which runs as printed.
+#[test]
+fn the_printed_run_carries_the_account_and_every_offer_runs_with_two_accounts() {
+    let scratch = harness::scratch("savedacc");
+    let base = scratch.0.clone();
+    let mock = world(&base);
+    acquisition_store::Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
+        .unwrap();
+    let alice = "Alice#1234";
+    let written = acq(
+        &base,
+        &[
+            "--account",
+            alice,
+            "saved",
+            "set",
+            "--name",
+            "rings",
+            "--realm",
+            "pc",
+            "rarity=rare",
+        ],
+    );
+    assert!(written.status.success(), "{}", stderr(&written));
+    let id = id_named(&base, "rings");
+    let shown = acq(&base, &["--account", alice, "saved", "show", &id]);
+    let text = String::from_utf8_lossy(&shown.stdout).into_owned()
+        + &String::from_utf8_lossy(&written.stdout);
+    let commands = printed_commands(&text);
+    let runs: Vec<&String> = commands.iter().filter(|c| c.contains("--saved")).collect();
+    assert_eq!(runs.len(), 2, "{text}");
+    for run in runs {
+        assert!(run.starts_with("acq --account"), "{run}");
+        let answer = run_printed(&base, run);
+        assert!(answer.get("error").is_none(), "{run}: {answer}");
+    }
+    let clear = commands
+        .iter()
+        .find(|c| c.starts_with("acq saved clear"))
+        .unwrap_or_else(|| panic!("{text}"));
+    assert!(run_printed(&base, clear)["written"].is_null());
+
+    // a row a later build wrote, at revision 3: the conflict offers its show
+    let back = acq(
+        &base,
+        &[
+            "saved",
+            "set",
+            "--name",
+            "amulets",
+            "--realm",
+            "pc",
+            "rarity=rare",
+        ],
+    );
+    assert!(back.status.success());
+    let id = id_named(&base, "amulets");
+    assert!(
+        acq(&base, &["saved", "set", "--id", &id, "--name", "x"])
+            .status
+            .success()
+    );
+    User::open_for(&mock)
+        .unwrap()
+        .put::<NewerSaved>(
+            SAVED_SEARCH_SCOPE,
+            &id,
+            &json!({ "version": 2, "name": "x", "text": "x", "scope": {} }),
+            Some(2),
+            &Provenance::via("future"),
+        )
+        .unwrap();
+    let conflict = json_of(
+        &base,
+        &[
+            "saved",
+            "set",
+            "--id",
+            &id,
+            "--name",
+            "renamed",
+            "--if-revision",
+            "1",
+        ],
+    );
+    assert_eq!(
+        (&conflict["kind"], &conflict["revision"]),
+        (&json!("conflict"), &json!(3)),
+        "{conflict}"
+    );
+    let [offer] = conflict["offers"].as_array().unwrap().as_slice() else {
+        panic!("{conflict}")
+    };
+    let line = harness::offered_line(offer);
+    assert_eq!(line, format!("acq saved show {id}"));
+    assert_eq!(run_printed(&base, &line)["revision"], 3);
+}
+
+/// A saved search as a later build would write it, through the store's
+/// door: a kind of the same name whose parse takes any shape.
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+struct NewerSaved(Value);
+
+impl acquisition_store::IntentValue for NewerSaved {
+    const KIND: &'static str = "saved-search";
+    const VERSION: i64 = 2;
+    fn parse(value: &Value) -> Result<Self, String> {
+        Ok(NewerSaved(value.clone()))
+    }
+}

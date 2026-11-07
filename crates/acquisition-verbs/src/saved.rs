@@ -203,8 +203,10 @@ impl SavedWritten {
     /// this write and not a later one; a clear's a create of the prior
     /// whole at the id, which recreates over the tombstone as a price's
     /// undo does. A prior this build cannot read has no value to put
-    /// back (C151). No write reads another row's name, so a readable
-    /// prior's undo is unconditional.
+    /// back (C151), nor has a prior this build would refuse as a write —
+    /// a stored text the language does not read (a recovery write is
+    /// offered only where it would pass the writer's own checks). No
+    /// write reads another row's name, so no other prior is refused.
     pub fn undo(&self) -> Result<(Way, String), String> {
         let id = &self.target.id;
         match (&self.written, &self.prior, &self.prior_value) {
@@ -215,20 +217,35 @@ impl SavedWritten {
                 },
                 "undoes it".to_string(),
             )),
-            (Some(written), Some(_), Some(prior)) => Ok((
-                Way::SavedSearchSet(Box::new(Set::whole(
-                    id,
-                    prior,
-                    Expect::Exactly(written.revision()),
-                ))),
-                "puts the prior back, whole".to_string(),
-            )),
-            (None, Some(_), Some(prior)) => Ok((
-                Way::SavedSearchSet(Box::new(Set::whole(id, prior, Expect::Create))),
-                "puts it back (a create, which lands only where no saved search stands at its \
-                 id; the row's count continues past the clear)"
-                    .to_string(),
-            )),
+            (Some(written), Some(_), Some(prior)) => {
+                match refused_as_written(&Set::whole(id, prior, Expect::Current)) {
+                    None => Ok((
+                        Way::SavedSearchSet(Box::new(Set::whole(
+                            id,
+                            prior,
+                            Expect::Exactly(written.revision()),
+                        ))),
+                        "puts the prior back, whole".to_string(),
+                    )),
+                    Some(why) => Err(format!(
+                        "the prior cannot be put back: this build would refuse it as a write ({why})"
+                    )),
+                }
+            }
+            (None, Some(_), Some(prior)) => {
+                match refused_as_written(&Set::whole(id, prior, Expect::Current)) {
+                    None => Ok((
+                        Way::SavedSearchSet(Box::new(Set::whole(id, prior, Expect::Create))),
+                        "puts it back (a create, which lands only where no saved search stands at \
+                     its id; the row's count continues past the clear)"
+                            .to_string(),
+                    )),
+                    Some(why) => Err(format!(
+                        "the cleared search cannot be put back: this build would refuse it as a \
+                     write ({why})"
+                    )),
+                }
+            }
             (Some(_), Some(_), None) => {
                 Err("the prior cannot be put back: this build cannot read it".to_string())
             }
@@ -719,7 +736,9 @@ fn created(
 // ---- the refusals -------------------------------------------------------------
 
 /// The one row `id_or_name` opens: the row of that id, else the one row
-/// of that name; `saved_search_not_found` where none holds it, and
+/// of that name, the two names compared trimmed (a name is one to
+/// sixty-four characters once trimmed, and another writer may store one
+/// padded); `saved_search_not_found` where none holds it, and
 /// `ambiguous_saved_search` where several rows carry the name, each
 /// offered by its id as `by_id` spells the way.
 fn resolve(
@@ -733,7 +752,8 @@ fn resolve(
         if row.id() == asked {
             return Ok(row);
         }
-        if row.name() == Some(asked) {
+        // trimmed on both sides, as a name is read; the stored value stands
+        if row.name().map(str::trim) == Some(asked) {
             named.push(row);
         }
     }
@@ -823,22 +843,69 @@ fn blind(id: &str, revision: i64, fault: &str) -> anyhow::Error {
 /// stands (C11), offered again over that revision; a create meeting a
 /// row standing at its id is the same conflict, offering that row's show.
 fn refused_write(e: AnnotationError, id: &str, set: &Set, now: i64) -> anyhow::Error {
-    let again = |revision: i64| {
-        let mut set = set.clone();
-        set.expect = Expect::Exactly(revision);
-        (
-            Way::SavedSearchSet(Box::new(set)),
-            format!("the same write over revision {revision}, the row as it stands"),
-        )
+    // the write again over the row that stands, merged as `set` merges:
+    // offered only where it would pass the writer's own checks (a
+    // recovery write is offered only where it would land), so never a
+    // partial write over a row this build cannot read
+    let standing = match &e {
+        AnnotationError::Conflict { current: Some(row) } => {
+            check_value::<SavedSearch>(&row.value).ok()
+        }
+        _ => None,
     };
-    let ways = |revision: i64| match set.expect {
-        Expect::Create => vec![(
+    let mut again = set.clone();
+    if let Some(standing) = &standing {
+        again.name = again.name.or_else(|| Some(standing.name.clone()));
+        again.text = again.text.or_else(|| Some(standing.text.clone()));
+        again.realm = again.realm.or_else(|| Some(standing.scope.realm.clone()));
+        again.membership = again
+            .membership
+            .or_else(|| Some(standing.scope.membership.clone()));
+    }
+    let passes = set.expect != Expect::Create && refused_as_written(&again).is_none();
+    let ways = |revision: i64| {
+        let show = (
             Way::SavedSearchShow { id: id.to_string() },
             format!("the saved search {id} as it stands"),
-        )],
-        _ => vec![again(revision)],
+        );
+        match passes {
+            true => {
+                let mut set = set.clone();
+                set.expect = Expect::Exactly(revision);
+                vec![(
+                    Way::SavedSearchSet(Box::new(set)),
+                    format!("the same write over revision {revision}, the row as it stands"),
+                )]
+            }
+            false => vec![show],
+        }
     };
     conflicted(e, id, now, ways)
+}
+
+/// Why the write `set` names, its fields whole, would be refused by this
+/// build's own checks — a name, a realm, a membership or a text the
+/// language does not read — or nothing: what a recovery write is held to
+/// before it is offered. A field it does not name is refused as missing.
+fn refused_as_written(set: &Set) -> Option<String> {
+    let (Some(name), Some(text), Some(realm), Some(membership)) =
+        (&set.name, &set.text, &set.realm, &set.membership)
+    else {
+        return Some("it does not name the whole search".to_string());
+    };
+    if let Some(fault) = SavedSearch::name_fault(name) {
+        return Some(fault);
+    }
+    if let Err(e) = membership_word(membership) {
+        return Some(format!("{e:#}"));
+    }
+    let realm = match realm_word(realm) {
+        Ok(realm) => realm,
+        Err(e) => return Some(format!("{e:#}")),
+    };
+    canonical(text, Some(&realm))
+        .err()
+        .map(|e| format!("{e:#}"))
 }
 
 /// [`refused_write`] for a clear: the same clear offered at the revision

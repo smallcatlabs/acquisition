@@ -146,10 +146,32 @@ impl std::fmt::Display for Resolve {
 impl std::error::Error for Resolve {}
 
 /// `<dir>/<username>.db`, with the username made filename-safe
-/// (`GERWARIC#7694` → `GERWARIC_7694.db`).
+/// (`GERWARIC#7694` → `GERWARIC_7694.db`), and a stem that would name a
+/// file the world keeps beside the accounts escaped ([`ESCAPE`]): `user`
+/// (`user.db`, C167's user file), `daemon` (`daemon.db`, the queue) and a
+/// stem ending `.annotations` (an account's intent file), compared
+/// without case, since a filesystem may fold it. The escape puts `~`
+/// before the stem, a character [`filename_safe`] never emits, so an
+/// escaped name can meet no username's file and two stems never meet in
+/// one escaped name.
 pub fn account_path(dir: &Path, username: &str) -> PathBuf {
-    dir.join(format!("{}.db", filename_safe(username)))
+    let stem = filename_safe(username);
+    let lower = stem.to_ascii_lowercase();
+    let reserved = RESERVED_STEMS.contains(&lower.as_str()) || lower.ends_with(".annotations");
+    match reserved {
+        true => dir.join(format!("{ESCAPE}{stem}.db")),
+        false => dir.join(format!("{stem}.db")),
+    }
 }
+
+/// The stems of the world's own `.db` files beside the account files:
+/// the user file (`user.rs`) and the daemon's queue (`jobs.rs`).
+const RESERVED_STEMS: [&str; 2] = ["user", "daemon"];
+
+/// What an account's reserved stem is prefixed with: outside
+/// [`filename_safe`]'s alphabet, and a name every platform's filesystem
+/// takes.
+const ESCAPE: char = '~';
 
 pub(crate) fn filename_safe(s: &str) -> String {
     s.chars()
