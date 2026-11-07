@@ -169,7 +169,10 @@ with `saved` and no `scope.account` over a world of two accounts.
    existing texts to fit, each cut named in the commit. The worker
    builds under whichever he rules and changes the constant only as
    ruled. `INSTRUCTIONS` is not part of the ruling: Do 6's line fits
-   by cutting words inside the instructions.
+   by cutting words inside the instructions. **Ruled 2026-11-07,
+   "Raise the bound":** `FIRST_TURN` becomes the next 1,000 above the
+   turn this step measures, its comment naming the measure, the three
+   tools and this step; no existing tool's text is cut for room.
 2. **`saved_searches`** (no daemon, no account): arguments `saved`
    (an id or a name, as every `--saved` takes one), `limit`, `expand`.
    With `saved`, the tool answers `saved::show`'s document, the row;

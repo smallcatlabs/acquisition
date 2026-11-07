@@ -309,6 +309,14 @@ Each in his words, with the commit that landed it.
   discriminator; the store's Not-doing line entered under his
   delegation and listed here for his re-read; the step closed without
   a review of those words).
+- 2026-11-07, step 2's brief (`briefs/4-full-1-mcp.md`, cut once under
+  its cold review, the second clean), Do 1: "Raise the bound". The
+  MCP's first turn was measured 55 bytes under its bound, and the three
+  saved-search tools add some four to five kilobytes; the bound becomes
+  the next 1,000 above the turn the step measures, as #104 set it, the
+  constant's comment naming the measure, the tools and the step; no
+  existing tool's text is cut for room. The brief's foot lists the
+  session's six adapter decisions, taken as its own.
 
 ## Roles
 
