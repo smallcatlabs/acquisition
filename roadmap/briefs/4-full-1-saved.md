@@ -3,9 +3,9 @@
 Step 1 of 4-full part 1 (`roadmap/briefs/4-full-1-design.md` §3 and
 §7, ruled 2026-11-06, "yes, go ahead"), for an Opus worker that has
 not seen the design session. Written by the design session against
-the tree at `bb81729e`; cut 2026-11-07 under the cold review at
-`57d9361c` (`roadmap/reviews/4-full-1-saved-brief-57d9361c.md`), the
-foot saying what each finding changed. Closes #42 by its "Fire" line,
+the tree at `bb81729e`; cut 2026-11-07 under the cold reviews at
+`57d9361c` and `3e8c4330` (`roadmap/reviews/4-full-1-saved-brief-*.md`),
+the foot saying what each finding changed. Closes #42 by its "Fire" line,
 the first user-scoped kind actually written; the close is the owner's.
 
 ## Goal
@@ -33,7 +33,8 @@ shared semantics in Rust).
   words), C149 (one JSON object), C163 (every time has its words),
   C168 (a page writes as the verbs write: this step builds the verbs
   it names); `decisions/search.md` C96 (the realm is scope), C104 (the
-  canonical text); `AGENTS.md` C122, C137, C153, C154.
+  canonical text); `decisions/daemon.md` C137 (a deadline is pinned
+  by forcing its expiry); `AGENTS.md` C122, C153, C154.
 - `roadmap/briefs/4-full-1-design.md` §3 whole (the design this step
   builds: the kind, the store, the verbs, the CLI; the MCP and the
   pages are later steps), §6 and §7 step 1; the foot's re-cut line.
@@ -63,7 +64,7 @@ shared semantics in Rust).
   `refused.rs` added `refused_body_not_found` beside it (#18: C121
   rules the account words alone); `receipt.rs`: `Receipt`, `shaped`,
   `price_set`, `price_clear`, `price_undo`; `fault.rs`: `Fault` and
-  `kind`. `crates/acquisition-plan/src/pricing.rs`: `Expect`
+  `kind`. `crates/acquisition-store/src/annotations.rs` `at_revision` (the row at exactly a revision, or the conflict the put would raise) and `crates/acquisition-verbs/src/frontend.rs` `set_policy`'s doc (the row read once before the put, exact under `Exactly`: the shape `set` copies). `crates/acquisition-plan/src/pricing.rs`: `Expect`
   (`Exactly`, `Current`, `Create`) and `Expect::or` (a frontend's `0`
   is `Create`, none the default, else `Exactly`), the one write
   expectation every surface already speaks.
@@ -89,7 +90,8 @@ shared semantics in Rust).
   the verbs' words), `no_ids.rs` (reads the help texts and the web's
   goldens, not every golden), `cli_reference.rs` (regenerates the
   reference under `ACQ_UPDATE_FIXTURES=1`) and `readme_tour.rs`
-  (checks that every tour line resolves under clap; it runs nothing);
+  (`every_tour_line_resolves_under_clap` checks that every tour line
+  resolves under clap; its recipe tests run a daemon, untouched here);
   `README.md`, the `acq price` and `acq policy` tour lines (the form
   `acq saved`'s copies), and its three account sentences this step
   must keep true: "a second login makes every verb need `--account`"
@@ -170,46 +172,56 @@ one name; a world whose provider directory does not exist.
      and the fields `name`, `text`, `realm`, `membership`, each
      optional. The combinations, every other refused as `arguments`
      naming the pair: no id and `Create`, a create needing `name` and
-     `text`; an id and `Exactly(n)`, the row read, the fields not
-     named keeping its values, the write landing at `n`; an id and
-     `Current`, the same at the revision read, so a write racing in
-     between conflicts rather than clobbers (C52 holds: the row read
-     is the row written over); an id and `Create`, the whole value
-     required, landing only where no live row stands (the store's
-     `None`: over a tombstone of that id the revision carries on; a
-     live row refuses naming its revision), which is a clear's undo.
-     A rename is a `Set` of the id and a name. *Why one rule:* a
-     rename and a re-scope are the common edits, and a shape that
-     takes the value whole would have an agent resend a text it did
-     not mean to touch, C52's clobber in a smaller form; two shapes
-     for one kind across two surfaces is the fault C46 and C143 exist
-     to prevent. The text is read with the language's reader in the
-     row's realm and stored canonical (C104); an authoring error
-     refuses before the file is touched; the realm of a create is
-     resolved as `acq search` resolves one (C96: over a store of one
-     realm it is that realm, over several it is required). Answers the
-     receipt (`receipt.rs`, shaped as `price_set` is): `written`,
-     `prior`, `revision`, and `undo`: a replace's is a `Set` of the
-     prior value whole at the written revision; a create's is its
-     clear; spelled by each surface as a `Way`, or `no_undo` with its
-     reason where the prior cannot be written back (a prior this build
-     could not read).
+     `text`; an id and `Exactly(n)`, the row read at exactly `n`
+     through `Annotations::at_revision` or the conflict the put would
+     raise, as `set_policy` reads its row (`frontend.rs`), the fields
+     not named keeping that row's values, the write landing at `n`,
+     so a row read at 4, another writer's 5 and a write naming 5 merge
+     over 5 and report 5 as the prior, never 4; an id and `Current`,
+     the same at the revision read, which guards against a write
+     racing in between and nothing more: it is the human's default at
+     a terminal, and an agent's write names the revision it replaces
+     or creates (C52: step 2's tools default to `Create`, as the
+     pricing tools do); an id and `Create`, the whole value required,
+     landing only where no live row stands (the store's `None`: over a
+     tombstone of that id the revision carries on; a live row refuses
+     naming its revision), which is a clear's undo. A rename is a
+     `Set` of the id and a name. *Why one rule:* a rename and a
+     re-scope are the common edits, and a shape that takes the value
+     whole would have an agent resend a text it did not mean to touch,
+     C52's clobber in a smaller form; two shapes for one kind across
+     two surfaces is the fault C46 and C143 exist to prevent. The text
+     is read with the language's reader in the row's realm and stored
+     canonical (C104); an authoring error refuses before the file is
+     touched; the realm of a create is resolved as `acq search`
+     resolves one (C96: over a store of one realm it is that realm,
+     over several it is required). Answers the receipt (`receipt.rs`,
+     shaped as `price_set` is): `written`, `prior`, `revision`, and
+     `undo`: a replace's is a `Set` of the prior value whole at the
+     written revision; a create's is its clear; spelled by each
+     surface as a `Way`, or `no_undo` with its reason where the prior
+     cannot be written back (a prior this build could not read).
    - `clear(id, expect)`: the receipt with `prior`, its `undo` a `Set`
      of the id, the prior value whole and `Create`, which recreates
      over the tombstone as the price undo recreates after a clear
-     (`receipt.rs`, `price_undo`'s `Set` with no revision); the
-     printed undo is replayed in a pin and lands.
+     (`receipt.rs`, `price_undo`'s `Set` with no revision); where the
+     prior cannot be read by this build the clear still lands at the
+     revision named (C151) and the receipt carries `no_undo` with its
+     reason, one of `undo` and `no_undo`, never both (`receipt.rs`,
+     `shaped`); the undo is replayed in a pin and lands.
    - `request_of(id or name)`: the search request a row is, what
      every `--saved` resolves through; an id is accepted wherever a
      name is.
    - **The id.** Minted by a function the create path takes
-     (`&mut dyn FnMut() -> String`), the production one twelve hex
-     characters from `getrandom` (the verbs crate gains the
-     dependency, pinned as the CLI's `Cargo.toml` pins it); a create
-     that meets a standing id mints once more, and a second collision
-     is refused as `refused` in words saying two minted ids were taken
-     and to try again: the mint is called at most twice, so it cannot
-     loop.
+     (`&mut dyn FnMut() -> Result<String, String>`, fallible as the
+     web's `mint` is, since `getrandom::fill` can fail), the
+     production one twelve hex characters from `getrandom` (the verbs
+     crate gains the dependency, pinned as the CLI's `Cargo.toml` pins
+     it); a mint that fails is the structured failure `refused` in its
+     words; a create that meets a standing id mints once more, and a
+     second collision is refused as `refused` in words saying two
+     minted ids were taken and to try again: the mint is called at
+     most twice, so it cannot loop.
    - **The name's courtesy check.** A set whose name another live row
      holds is declined before the write as `name_taken`: with one such
      row, offering the set re-aimed at it (the `Set` with its id and
@@ -224,67 +236,86 @@ one name; a world whose provider directory does not exist.
      way to the rest): `saved_search_not_found` (a name or id none
      holds, offering the list), `ambiguous_saved_search` (a name
      several rows share, `searches` naming each id and name, the way
-     on a run or a show by id: one word per mistake as C121 gives
+     on a show or a run by id: one word per mistake as C121 gives
      accounts), `name_taken` (above). A stale revision is the store's
-     `conflict` with `current` (C11). `Way` gains `SavedSearches` (the
-     list), `SavedSearchSet` (the `Set` whole, with `account` where a
-     run needs one) and `SavedSearchClear`; the two surfaces that
-     match `Way` exhaustively gain an arm each, the MCP's `Spoken`
-     answering `None` for the three until step 2 and the tests'
-     `Plain` naming them; the three words join
-     `a_faults_kind_and_fields_are_the_protocols_words` with their
-     fields; `refusal.rs`'s "no new word" sentence gains the precedent
-     in a clause. The door grep in `tools/arch-check.sh` gains
-     `User::open_for`.
+     `conflict` with `current` (C11). `Way` gains five variants, each
+     a value the surfaces spell: `SavedSearches { expand }` (the
+     list), `SavedSearchShow { id }`, `SavedSearchRun { id, account }`
+     (the row run, `acq search --saved` at a terminal), `SavedSearchSet`
+     (the `Set` whole) and `SavedSearchClear { id, if_revision }`;
+     the two surfaces that match `Way` exhaustively gain an arm each,
+     the MCP's `Spoken` answering `None` for the five until step 2 and
+     the tests' `Plain` naming them; the three words and their fields
+     (`searches`, `total`, `left_out`) join
+     `every_refusal_is_one_shape_from_one_function` and its
+     `REFUSAL_KEYS`, and the words `a_faults_kind_and_fields_are_the_protocols_words`
+     where the fault is a `Fault`; `refusal.rs`'s "no new word"
+     sentence gains the precedent in a clause. The door grep in
+     `tools/arch-check.sh` gains `User::open_for`.
 4. **The CLI.** `acq saved` beside `acq price` in `main.rs`: `list`
    (the default; `--limit`, `--expand`), `show <ID|NAME>`, `set [<ID>
    --if-revision N] --name NAME ['<query>'] [--realm] [--membership]`
    (`--if-revision N` through `Expect::or`: `N` is `Exactly(N)`, `0`
-   is `Create`, none is `Current`; without an id the expectation is
-   `Create` and `--if-revision` is refused as `arguments`), `clear <ID>
-   [--if-revision N]`;
-   `--json` the document on each (C11), the text as `price set`'s
-   `render_write` prints a receipt and `price list` a listing (C53).
-   `acq search --saved <ID|NAME>` runs the row's request: it joins the
-   `typed` list, so a query, `--query-file`, `--trade`, `--realm` or
-   `--membership` beside it is the refusal `--next` gives, while
-   `--account` and every view flag stand beside it; `--next` and
-   `--request` conflict with it as with a query. `Terminal::argv`
-   spells the three new `Way`s as `acq saved list`, `acq saved set …`
-   and `acq saved clear …` words (C156). `CLI-REFERENCE.md` regenerated; the README
-   tour gains one `acq saved` line and one `acq search --saved` line,
-   in the `acq price` lines' form, which `readme_tour.rs` resolves
-   under clap; the README's three account sentences (Read) gain their
-   clause: the saved searches are the world's, so `acq saved` takes no
-   `--account` and needs no login, while `acq search --saved` takes
-   one as `acq search` does; and the MCP paragraph says the saved
-   verbs have no tool until step 2 (shape 3, a sibling sentence).
+   is `Create`, none is `Current`, the human's default at a terminal;
+   without an id the expectation is `Create` and `--if-revision` is
+   refused as `arguments`), `clear <ID> [--if-revision N]`; `--json`
+   the document on each (C11), the text as `price set`'s `render_write`
+   prints a receipt and `price list` a listing (C53). The global
+   `--account` is accepted on every `acq saved` verb, as every verb
+   takes it: `set` uses it to resolve a realm `--realm` does not name
+   (C96, over that account's store); `list`, `show` and `clear` act on
+   the world's file and leave it unused. `acq search --saved <ID|NAME>`
+   runs the row's request: it joins the `typed` list, so a query,
+   `--query-file`, `--trade`, `--realm` or `--membership` beside it is
+   the refusal `--next` gives, while `--account` and every view flag
+   stand beside it; `--next` and `--request` conflict with it as with
+   a query. `Terminal::argv` spells the five new `Way`s as `acq saved
+   list`, `acq saved show <ID>`, `acq search --saved <ID>`, `acq saved
+   set …` and `acq saved clear …` words (C156). `CLI-REFERENCE.md`
+   regenerated; the README tour gains one `acq saved` line and one
+   `acq search --saved` line, in the `acq price` lines' form, which
+   `every_tour_line_resolves_under_clap` resolves. The sibling texts
+   (shape 3), each gaining the one clause that the saved searches are
+   the world's, `acq saved` using an account only to resolve a realm
+   and needing no login: the README's three account sentences (Read),
+   the root help of `--account` in `main.rs`, and the reference's
+   preface in `cli_reference.rs`; the README's MCP paragraph says the
+   saved verbs have no tool until step 2.
 5. **Pins, at the lowest crate that holds each** (C122). The store:
    Do 2. The verbs, in `documents.rs`: the documents join the C149 and
-   C163 walks; `set` as a create, a replace at `Exactly`, a replace at
-   `Current`, a rename keeping the text, a conflict at a moved
-   revision in the store's words; the canonical text stored and a
-   refused text touching no file; a clear's printed undo replayed and
-   landing over the tombstone; the id's collision forced through the
-   mint argument in two cases, one collision then a landing with the
-   mint called twice, and two collisions then the refusal with the
-   mint called exactly twice and never a third time; **the harmlessness
-   of two rows of one name as a test**: two rows written through
-   `User::put` with one name, as the race would leave them, both
-   listed, `request_of(name)` refusing `ambiguous_saved_search` naming
-   both ids, `request_of(id)` opening each, a third set of that name
-   `name_taken` naming both with the run-by-id offers, and each offer
-   the refusal prints replayed and answering; eleven rows of one name
-   answering ten with `total` and `left_out`;
-   `not_found` on a name and on a tombstoned id; a later version's
-   row listed and named (C151); a directory that does not exist. The
-   CLI, a module `saved_json.rs` in `tests/main.rs` in `price_json.rs`'s
-   shape: a transcript golden over list, show, set, a rename, clear
-   and each refusal, naming the facts a reader must find; `--json`
-   equal to the verbs' document; `--saved` running a row equal to
-   `acq search` with its text and scope; the beside-rule's refusal.
-   Every test under C137: no wall-clock bound; the collision forced,
-   never drawn.
+   C163 walks and the three words with their fields join
+   `every_refusal_is_one_shape_from_one_function` and `REFUSAL_KEYS`;
+   `set` as a create, a replace at `Exactly`, a replace at `Current`,
+   a rename keeping the text, a conflict at a moved revision in the
+   store's words, and the forced interleaving: a row read at 4,
+   another writer landing 5, a write naming 5 merging over 5 and
+   reporting 5 as `prior`, a write naming 4 the conflict; the
+   canonical text stored and a refused text touching no file; a
+   clear's undo as a `Set` replayed through the verbs and landing over
+   the tombstone; a row of a later version cleared at its named
+   revision, succeeding and answering `no_undo` with its reason; the
+   id's collision forced through the mint argument in two cases, one
+   collision then a landing with the mint called twice, and two
+   collisions then the refusal with the mint called exactly twice and
+   never a third time; a mint that fails answering the structured
+   failure; **the harmlessness of two rows of one name as a test**:
+   two rows written through `User::put` with one name, as the race
+   would leave them, both listed, `request_of(name)` refusing
+   `ambiguous_saved_search` naming both ids, `request_of(id)` opening
+   each, a third set of that name `name_taken` naming both with the
+   show and run offers, and each offer dispatched through the verbs
+   and answering; eleven rows of one name answering ten with `total`
+   and `left_out`; `saved_search_not_found` on a name and on a
+   tombstoned id; a later version's row listed and named (C151); a
+   directory that does not exist. The CLI, a module `saved_json.rs` in
+   `tests/main.rs` in `price_json.rs`'s shape: a transcript golden
+   over list, show, set, a rename, clear and each refusal, naming the
+   facts a reader must find; `--json` equal to the verbs' document;
+   every printed command a receipt or a refusal offers replayed as
+   printed and answering, the clear's undo among them (shape 6);
+   `--saved` running a row equal to `acq search` with its text and
+   scope; the beside-rule's refusal. Every test under C137: no
+   wall-clock bound; the collision forced, never drawn.
 6. **The gate and the commit.** `tools/gate.sh` green on the step's
    tree; one commit per concern or one for the step, the last
    naming this brief; the gate run and the push are the orchestrating
@@ -300,7 +331,8 @@ one name; a world whose provider directory does not exist.
 - `crates/acquisition-verbs/src/saved.rs` exists with `list`, `show`,
   `set` (the one `Set` shape, Do 3), `clear` and `request_of`;
   `Frontend::user` opens the file; the three refusal words and the
-  three `Way`s exist, every exhaustive match over `Way` compiling;
+  five `Way`s exist, every exhaustive match over `Way` compiling, and
+  `REFUSAL_KEYS` holds the new fields;
   doors and is green.
 - `acq saved list|show|set|clear` and `acq search --saved` exist,
   their help in `CLI-REFERENCE.md` and their lines in the README tour,
@@ -308,8 +340,9 @@ one name; a world whose provider directory does not exist.
 - The pins of Do 5 exist, each naming the behaviour it holds; the two
   collision pins count the mint's calls; the two-rows pin exists as a
   test, not a sentence, and replays the offers it checks.
-- The README's three account sentences carry the saved verbs' clause,
-  and its MCP paragraph says the saved verbs have no tool yet.
+- The README's three account sentences, the root help of `--account`
+  and the reference's preface carry the saved verbs' clause, and the
+  README's MCP paragraph says the saved verbs have no tool yet.
 - The verbs crate links `getrandom` and nothing else new;
   `tools/arch-check.sh` reports no new edge.
 - Every retirement in a commit message is in C154's form.
@@ -365,3 +398,21 @@ list of rows bounded with its counts, an eleven-row case (Do 3, Do 5);
 when); 8 the README's account sentences and its MCP paragraph named
 (Read, Do 4, Done when); 9 `readme_tour.rs` and `no_ids.rs` described
 as they are (Read, Do 4).
+
+## Taken from the second review (`3e8c4330`, cut 2026-11-07)
+
+1 `Exactly(n)` reads the row at exactly `n` through `at_revision`, as
+`set_policy` does, the interleaving pinned (Read, Do 3, Do 5); 2 `Way`
+gains show and run by id, five variants in all, the offers dispatched
+through the verbs in the verbs' pins and the printed commands replayed
+in the CLI's (Do 3, Do 4, Do 5); 3 a clear over an unreadable prior
+lands and answers `no_undo`, pinned (Do 3, Do 5); 4 the words and
+their fields join `every_refusal_is_one_shape_from_one_function` and
+`REFUSAL_KEYS`, `saved_search_not_found` throughout (Do 3, Do 5, Done
+when); 5 `Current` said as the human's default and nothing more, an
+agent naming its revision (Do 3, Do 4); 6 the global `--account`
+accepted and its use stated, the root help and the reference preface
+named among the siblings (Do 4, Done when); 7 the mint fallible, its
+failure structured, the two-call bound kept (Do 3, Do 5); 8
+`every_tour_line_resolves_under_clap` named, C137 cited at its home
+(Read).
