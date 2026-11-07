@@ -184,10 +184,9 @@ text, never a record's); `set` takes the whole value with the id and
 the revision it replaces, or neither to create, reads the text with
 the language's reader in the row's realm, stores the canonical text
 and answers the receipt, its `undo` a put of the prior value; `clear`
-the receipt with `prior`. A set naming a name another row holds is
-declined before the write as a courtesy, `name_taken` with that row
-and the set re-aimed at it; the check is a read before the write, so a
-race may leave two rows of one name, which is harmless. `request_of`
+the receipt with `prior`. A name is a label and the id the identity,
+so nothing refuses a name: two rows may carry one, noticed only where
+a name is opened (ruled 2026-11-07, "Drop and cut"). `request_of`
 resolves an id, or a name, as every `--saved` does: an id is accepted
 wherever a name is; a name none holds is `not_found` offering the
 list; a name several rows share is `ambiguous_saved_search` with
@@ -234,7 +233,7 @@ the channel. The owner saves; the agent lists and gets the request to
 run. Neither learns the other's door: the agent never sees the web URL
 or its token, the owner never drives the MCP; the basis on every
 answer is what each quotes to the other. What stops the agent saying
-something wrong: a taken name is declined with its row; an edited text
+something wrong: a name two rows share is refused when opened; an edited text
 conflicts with the current row; the realm is stored and printed back; a
 later build's text is listed, named and refused only when run (C151).
 
@@ -304,7 +303,7 @@ C137, no new seed function (#142's rule).
 1. **The file and its first consumer**: `user.rs`, `SavedSearch`, the
    unbound read-only opener, the one table over both files and the
    `c167_` pins; `saved.rs` with `Frontend::user`, the id minting and
-   the name's courtesy check, the door grep widened; `acq saved` and
+   the door grep widened; `acq saved` and
    `--saved`; the references and the tour line regenerated. Consumer: the owner at a terminal. Closes #42 by
    its "Fire" line. Retires nothing.
 2. **The MCP**: the three tools and `search.saved`; each answer equal to
@@ -370,7 +369,7 @@ account files, no amendment; the check's home left to the spike.)
 Agent-facing design, the session's, for his review: the verb and tool
 names; the kind's shape and the name rule; the canonical text saved,
 never a URL; the minted id as the key and the name a field; the view
-left to the URL; `name_taken` and `ambiguous_saved_search`; `saved=` as
+left to the URL; `ambiguous_saved_search`; `saved=` as
 a page field; the fold's new fields; cards as the default; a way on
 that writes as a form.
 
@@ -408,3 +407,6 @@ rename cluster (findings 1 and 4, §6's mutable name) was a patch of a
 design choice; keyed on a minted id with the name a field, a rename is
 one compare-and-swap, `rename` no operation, the receipt whole,
 `saved/rename` gone, the MCP's tools three, no name an identity.
+
+Cut 2026-11-07, "Drop and cut": §3's courtesy decline dropped; a
+duplicate is met only on open.

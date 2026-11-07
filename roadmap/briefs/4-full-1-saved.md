@@ -4,10 +4,11 @@ Step 1 of 4-full part 1 (`roadmap/briefs/4-full-1-design.md` §3 and
 §7, ruled 2026-11-06, "yes, go ahead"), for an Opus worker that has
 not seen the design session. Written by the design session against
 the tree at `bb81729e`; cut 2026-11-07 under the cold reviews at
-`57d9361c`, `3e8c4330`, `400cbd13` and `3db7b112`
-(`roadmap/reviews/4-full-1-saved-brief-*.md`),
-the foot saying what each finding changed. Closes #42 by its "Fire" line,
-the first user-scoped kind actually written; the close is the owner's.
+`57d9361c`, `3e8c4330`, `400cbd13`, `3db7b112` and `d6fbc561`
+(`roadmap/reviews/4-full-1-saved-brief-*.md`) and under the owner's
+word "Drop and cut", the foot saying what each changed. Closes #42 by
+its "Fire" line, the first user-scoped kind actually written; the
+close is the owner's.
 
 ## Goal
 
@@ -107,8 +108,8 @@ shared semantics in Rust).
 ## Input
 
 Fixed: the design's §3 as re-cut (the kind, the id as key, the name a
-field, no uniqueness over names, `name_taken` and
-`ambiguous_saved_search`), C167 and C168 as entered. The last push's
+field, no uniqueness over names, nothing refusing a name,
+`ambiguous_saved_search` on open), C167 and C168 as entered. The last push's
 CI: `Gate (Linux)` run 42339589586 and `Gate (Windows)` run
 42339589510, both on `bb81729e`, in progress when this brief was
 written; the worker reads their conclusions first, and a red run is
@@ -204,11 +205,9 @@ one name; a world whose provider directory does not exist.
      `undo`: a replace's is a `Set` of the prior value whole at the
      written revision; a create's is its clear; spelled by each
      surface as a `Way`, or `no_undo` with its reason where the prior
-     cannot be written back: a prior this build could not read, or a
-     prior whose name another live row holds, since **every write a
-     receipt or a refusal offers is judged by the courtesy check at
-     the moment it is offered**, the one rule for a clear's undo, a
-     replace's and a re-aim alike.
+     cannot be written back, which is only a prior this build could
+     not read (C151): no write reads another row's name, so a live
+     prior's undo is unconditional.
    - `clear(id, expect)`: the receipt with `prior`, its `undo` a `Set`
      of the id, the prior value whole and `Create`, which recreates
      over the tombstone as the price undo recreates after a clear
@@ -216,9 +215,8 @@ one name; a world whose provider directory does not exist.
      lands at the revision named all the same, and the receipt carries
      `no_undo` with its reason in place of the undo, one of the two and
      never both (`receipt.rs`, `shaped`), where the prior cannot be
-     read by this build (C151) or where another live row holds the
-     prior's name, so the courtesy check would refuse the recreation;
-     the undo is replayed in a pin and lands.
+     read by this build (C151); the undo is replayed in a pin and
+     lands.
    - `request_of(id or name)`: the search request a row is, what
      every `--saved` resolves through; an id is accepted wherever a
      name is.
@@ -232,17 +230,12 @@ one name; a world whose provider directory does not exist.
      second collision is refused as `refused` in words saying two
      minted ids were taken and to try again: the mint is called at
      most twice, so it cannot loop.
-   - **The name's courtesy check.** A set whose name another live row
-     holds is declined before the write as `name_taken`, naming the
-     holders and offering: the set re-aimed at the one holder (the
-     `Set` with its id and revision) only where that write would itself
-     pass the check, which is one holder and a set that is not of a
-     holder's own row; else each holder's show and run by id, and the
-     words that a distinct name makes a new row. The check is a read
-     before the write and holds no uniqueness: a race may leave two
-     rows of one name, and every offered write is judged by it when
-     offered (above).
-   - **The refusals**, three words joining the closed list as
+   - **The name.** A label, the id the identity (the design's §3,
+     ruled 2026-11-07, "Drop and cut"): no write reads another row's
+     name, nothing refuses a name, two live rows may carry one, and
+     the one place a duplicate is noticed is opening by name,
+     `request_of`'s `ambiguous_saved_search`.
+   - **The refusals**, two words joining the closed list as
      `refused_body_not_found` did (`refused.rs`), each with its fields
      and each bounded as every list is (C53, C149: ten rows beside
      `total` and `left_out`, the offers for those ten, `expand` the
@@ -250,7 +243,7 @@ one name; a world whose provider directory does not exist.
      holds, offering the list), `ambiguous_saved_search` (a name
      several rows share, `searches` naming each id and name, the way
      on a show or a run by id: one word per mistake as C121 gives
-     accounts), `name_taken` (above). A stale revision is the store's
+     accounts). A stale revision is the store's
      `conflict` with `current` (C11). `Way` gains five variants, each
      a value the surfaces spell: `SavedSearches { expand }` (the
      list), `SavedSearchShow { id }`, `SavedSearchRun { id, account }`
@@ -258,7 +251,7 @@ one name; a world whose provider directory does not exist.
      (the `Set` whole) and `SavedSearchClear { id, if_revision }`;
      the two surfaces that match `Way` exhaustively gain an arm each,
      the MCP's `Spoken` answering `None` for the five until step 2 and
-     the tests' `Plain` naming them; the three words and their fields
+     the tests' `Plain` naming them; the two words and their fields
      (`searches`, `total`, `left_out`) join
      `every_refusal_is_one_shape_from_one_function` and its
      `REFUSAL_KEYS`, and the words `a_faults_kind_and_fields_are_the_protocols_words`
@@ -266,12 +259,17 @@ one name; a world whose provider directory does not exist.
      sentence gains the precedent in a clause. The door grep in
      `tools/arch-check.sh` gains `User::open_for`.
 4. **The CLI.** `acq saved` beside `acq price` in `main.rs`: `list`
-   (the default; `--limit`, `--expand`), `show <ID|NAME>`, `set [<ID>
-   --if-revision N] --name NAME ['<query>'] [--realm] [--membership]`
-   (`--if-revision N` through `Expect::or`: `N` is `Exactly(N)`, `0`
-   is `Create`, none is `Current`, the human's default at a terminal;
-   without an id the expectation is `Create` and `--if-revision` is
-   refused as `arguments`), `clear <ID> [--if-revision N]`; `--json`
+   (the default; `--limit`, `--expand`), `show <ID|NAME>`, `set
+   [--id ID [--if-revision N]] [--name NAME] ['<query>'] [--realm]
+   [--membership]`, the query its one positional and the id a named
+   option, so each spelling has one parse: a create is `--name` and
+   the query with no `--id`, an edit `--id` and the query, a rename
+   `--id` and `--name` with no query (`--if-revision N` through
+   `Expect::or`: `N` is `Exactly(N)`, `0` is `Create`, none is
+   `Current`, the human's default at a terminal, so a rename needs
+   none; without `--id` the expectation is `Create`, `--name` and the
+   query are required, and `--if-revision` is refused as `arguments`),
+   `clear <ID> [--if-revision N]`; `--json`
    the document on each (C11), the text as `price set`'s `render_write`
    prints a receipt and `price list` a listing (C53). The global
    `--account` is accepted on every `acq saved` verb, as every verb
@@ -297,7 +295,7 @@ one name; a world whose provider directory does not exist.
    saved verbs have no tool until step 2.
 5. **Pins, at the lowest crate that holds each** (C122). The store:
    Do 2. The verbs, in `documents.rs`: the documents join the C149 and
-   C163 walks and the three words with their fields join
+   C163 walks and the two words with their fields join
    `every_refusal_is_one_shape_from_one_function` and `REFUSAL_KEYS`;
    `set` as a create, a replace at `Exactly`, a replace at `Current`,
    a rename keeping the text, a conflict at a moved revision in the
@@ -314,23 +312,21 @@ one name; a world whose provider directory does not exist.
    collision then a landing with the mint called twice, and two
    collisions then the refusal with the mint called exactly twice and
    never a third time; a mint that fails answering the structured
-   failure; **the harmlessness of two rows of one name as a test**:
-   two rows written through `User::put` with one name, as the race
-   would leave them, both listed, `request_of(name)` refusing
-   `ambiguous_saved_search` naming both ids, `request_of(id)` opening
-   each, a third set of that name `name_taken` naming both with the
-   show and run offers, one of the two cleared and its receipt carrying
-   `no_undo` naming the row that holds the name, one renamed and its
-   receipt carrying `no_undo` for the same reason, one's text edited
-   under its own name `name_taken` offering the holder's show and run
-   and no re-aim, and each offer dispatched through the verbs and
-   answering; eleven rows of one name answering ten with `total`
+   failure; **two rows of one name as a test**: two rows written
+   through `User::put` with one name, both listed, `request_of(name)`
+   refusing `ambiguous_saved_search` naming both ids and each offer
+   dispatched through the verbs and answering, `request_of(id)`
+   opening each, a third set of that name landing as a third row with
+   an undo, and one of the two cleared with an undo that lands;
+   eleven rows of one name answering ten with `total`
    and `left_out`; `saved_search_not_found` on a name and on a
    tombstoned id; a later version's row listed and named (C151); a
    directory that does not exist. The CLI, a module `saved_json.rs` in
    `tests/main.rs` in `price_json.rs`'s shape: a transcript golden
-   over list, show, set, a rename, clear and each refusal, naming the
-   facts a reader must find; `--json` equal to the verbs' document;
+   over list, show, set as a create carrying its query, an edit by
+   `--id` with a query, a rename by `--id` and `--name` with no query
+   and no `--if-revision`, each the one parse Do 4 gives, clear and
+   each refusal, naming the facts a reader must find; `--json` equal to the verbs' document;
    every printed command a receipt or a refusal offers replayed as
    printed and answering, the clear's undo among them (shape 6);
    `--saved` running a row equal to `acq search` with its text and
@@ -350,7 +346,7 @@ one name; a world whose provider directory does not exist.
   adds.
 - `crates/acquisition-verbs/src/saved.rs` exists with `list`, `show`,
   `set` (the one `Set` shape, Do 3), `clear` and `request_of`;
-  `Frontend::user` opens the file; the three refusal words and the
+  `Frontend::user` opens the file; the two refusal words and the
   five `Way`s exist, every exhaustive match over `Way` compiling, and
   `REFUSAL_KEYS` holds the new fields; `tools/arch-check.sh`'s `doors`
   regex includes `User::open_for`.
@@ -359,7 +355,8 @@ one name; a world whose provider directory does not exist.
   `cli_reference.rs` and `readme_tour.rs` green.
 - The pins of Do 5 exist, each naming the behaviour it holds; the two
   collision pins count the mint's calls; the two-rows pin exists as a
-  test, not a sentence, and replays the offers it checks.
+  test, not a sentence, and dispatches the offers it checks; the
+  create, edit and rename spellings of `set` are each pinned.
 - The README's three account sentences, the root help of `--account`
   and the reference's preface carry the saved verbs' clause, and the
   README's MCP paragraph says the saved verbs have no tool yet.
@@ -454,3 +451,20 @@ by the courtesy check when offered, so a replace's undo over a
 duplicate is `no_undo` and a re-aim is offered only where it would
 pass, the two-rows pin gaining the rename and the edit (Do 3, Do 5);
 3 "each input it excludes" in place of a count (Do 5).
+
+## Taken from the fifth review (`d6fbc561`, cut 2026-11-07)
+
+1 the id a named option, `--id`, so a create's query cannot land in
+the id's slot; the create, edit and rename spellings each one parse,
+a query-bearing create and a query-omitting rename pinned (Do 4, Do 5,
+Done when).
+
+## Cut under the owner's word (2026-11-07, "Drop and cut")
+
+A name is a label and the id the identity, so nothing refuses a name:
+the courtesy check, `name_taken` and its ways, the re-aimed set and
+the `no_undo` cases that existed only for duplicates are gone, a live
+prior's undo unconditional, the refusal words two; the pins that
+exercised them retired to the ambiguity-on-open pin, which stays with
+its eleven-row case (Input, Do 3, Do 4, Do 5, Done when). The foot's
+earlier lines on `name_taken` are history, superseded here.
