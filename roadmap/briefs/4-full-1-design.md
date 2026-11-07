@@ -192,7 +192,7 @@ wherever a name is; a name none holds is `not_found` offering the
 list; a name several rows share is `ambiguous_saved_search` with
 `searches`, the ids and names to pick from, one word per mistake as
 C121 gives accounts. A stale `if_revision` is `conflict` with
-`current` and the write re-aimed. `Way` gains the set and the clear.
+`current`, the write offered at it. `Way` gains the set and the clear.
 
 **The CLI**: `acq saved` with `list` (the default), `show ID|NAME`,
 `set [ID --if-revision N] --name NAME [QUERY] [--realm] [--membership]`
@@ -224,8 +224,8 @@ edit: with `saved=<id>` the page says the row's name and revision and
 the form replaces at it, and where the row's text no longer equals the
 page's query, or the row is gone, it says so. `POST saved` and
 `saved/clear`: the write, then a redirect to the list; a conflict
-renders the refusal page with the re-aimed write as a form (a write
-is a form, a read a link). POST alone (C138).
+renders the refusal page with the write at `current` as a form (a
+write is a form, a read a link). POST alone (C138).
 
 **The handoff, both ways, with no new channel.** The agent saves; the
 owner opens or reloads the list and it is there, `written_via` saying
