@@ -4,7 +4,7 @@ Step 1 of 4-full part 1 (`roadmap/briefs/4-full-1-design.md` §3 and
 §7, ruled 2026-11-06, "yes, go ahead"), for an Opus worker that has
 not seen the design session. Written by the design session against
 the tree at `bb81729e`; cut 2026-11-07 under the cold reviews at
-`57d9361c` and `3e8c4330` (`roadmap/reviews/4-full-1-saved-brief-*.md`),
+`57d9361c`, `3e8c4330` and `400cbd13` (`roadmap/reviews/4-full-1-saved-brief-*.md`),
 the foot saying what each finding changed. Closes #42 by its "Fire" line,
 the first user-scoped kind actually written; the close is the owner's.
 
@@ -129,13 +129,15 @@ one name; a world whose provider directory does not exist.
    the requested, refused where it differs, accepted where the file
    holds none, nothing stamped, nothing written: its contract as it
    stands, its tests kept, an absent-uuid case added), `open_memory()`;
-   `put`, `get`, `list`, `delete`, `revision`, `export` delegated,
+   `put`, `get`, `at_revision`, `list`, `delete`, `revision`, `export`
+   delegated,
    and `list` answering the rows and the file's revision from one
    transaction. `SavedSearch`, the kind: `KIND` `saved-search`,
    `VERSION` 1, value `{version, name, text, scope: {realm,
    membership}}`, its `parse` strict (every field present, `name` one
    to sixty-four characters after trimming with no line break, `realm`
-   one of the four, `membership` one of the three) and nothing of the
+   one of the four or `all`, as a search's scope may be (`Realm::parse`,
+   `corpus.rs`), `membership` one of the three) and nothing of the
    language: the store links none. The scope word `search` as a
    constant the verbs use; the key is the id. A newtype, so a
    signature taking `&Annotations` cannot be handed the user file.
@@ -195,7 +197,8 @@ one name; a world whose provider directory does not exist.
      canonical (C104); an authoring error refuses before the file is
      touched; the realm of a create is resolved as `acq search`
      resolves one (C96: over a store of one realm it is that realm,
-     over several it is required). Answers the receipt (`receipt.rs`,
+     over none `all`, over several it is required, and `all` may be
+     named; the stored scope is what the search would run over). Answers the receipt (`receipt.rs`,
      shaped as `price_set` is): `written`, `prior`, `revision`, and
      `undo`: a replace's is a `Set` of the prior value whole at the
      written revision; a create's is its clear; spelled by each
@@ -204,11 +207,13 @@ one name; a world whose provider directory does not exist.
    - `clear(id, expect)`: the receipt with `prior`, its `undo` a `Set`
      of the id, the prior value whole and `Create`, which recreates
      over the tombstone as the price undo recreates after a clear
-     (`receipt.rs`, `price_undo`'s `Set` with no revision); where the
-     prior cannot be read by this build the clear still lands at the
-     revision named (C151) and the receipt carries `no_undo` with its
-     reason, one of `undo` and `no_undo`, never both (`receipt.rs`,
-     `shaped`); the undo is replayed in a pin and lands.
+     (`receipt.rs`, `price_undo`'s `Set` with no revision); the clear
+     lands at the revision named all the same, and the receipt carries
+     `no_undo` with its reason in place of the undo, one of the two and
+     never both (`receipt.rs`, `shaped`), where the prior cannot be
+     read by this build (C151) or where another live row holds the
+     prior's name, so the courtesy check would refuse the recreation;
+     the undo is replayed in a pin and lands.
    - `request_of(id or name)`: the search request a row is, what
      every `--saved` resolves through; an id is accepted wherever a
      name is.
@@ -266,7 +271,8 @@ one name; a world whose provider directory does not exist.
    (C96, over that account's store); `list`, `show` and `clear` act on
    the world's file and leave it unused. `acq search --saved <ID|NAME>`
    runs the row's request: it joins the `typed` list, so a query,
-   `--query-file`, `--trade`, `--realm` or `--membership` beside it is
+   `--query-file`, `--trade`, `--trade-file`, `--realm` or
+   `--membership` beside it is
    the refusal `--next` gives, while `--account` and every view flag
    stand beside it; `--next` and `--request` conflict with it as with
    a query. `Terminal::argv` spells the five new `Way`s as `acq saved
@@ -291,6 +297,8 @@ one name; a world whose provider directory does not exist.
    another writer landing 5, a write naming 5 merging over 5 and
    reporting 5 as `prior`, a write naming 4 the conflict; the
    canonical text stored and a refused text touching no file; a
+   create naming `all` and one over a store of no realm, each stored
+   with the scope the search resolves; a
    clear's undo as a `Set` replayed through the verbs and landing over
    the tombstone; a row of a later version cleared at its named
    revision, succeeding and answering `no_undo` with its reason; the
@@ -303,7 +311,9 @@ one name; a world whose provider directory does not exist.
    would leave them, both listed, `request_of(name)` refusing
    `ambiguous_saved_search` naming both ids, `request_of(id)` opening
    each, a third set of that name `name_taken` naming both with the
-   show and run offers, and each offer dispatched through the verbs
+   show and run offers, one of the two cleared and its receipt carrying
+   `no_undo` naming the row that holds the name, and each offer
+   dispatched through the verbs
    and answering; eleven rows of one name answering ten with `total`
    and `left_out`; `saved_search_not_found` on a name and on a
    tombstoned id; a later version's row listed and named (C151); a
@@ -314,7 +324,8 @@ one name; a world whose provider directory does not exist.
    every printed command a receipt or a refusal offers replayed as
    printed and answering, the clear's undo among them (shape 6);
    `--saved` running a row equal to `acq search` with its text and
-   scope; the beside-rule's refusal. Every test under C137: no
+   scope; the beside-rule's refusal for each of the five words it
+   excludes. Every test under C137: no
    wall-clock bound; the collision forced, never drawn.
 6. **The gate and the commit.** `tools/gate.sh` green on the step's
    tree; one commit per concern or one for the step, the last
@@ -332,8 +343,8 @@ one name; a world whose provider directory does not exist.
   `set` (the one `Set` shape, Do 3), `clear` and `request_of`;
   `Frontend::user` opens the file; the three refusal words and the
   five `Way`s exist, every exhaustive match over `Way` compiling, and
-  `REFUSAL_KEYS` holds the new fields;
-  doors and is green.
+  `REFUSAL_KEYS` holds the new fields; `tools/arch-check.sh`'s `doors`
+  regex includes `User::open_for`.
 - `acq saved list|show|set|clear` and `acq search --saved` exist,
   their help in `CLI-REFERENCE.md` and their lines in the README tour,
   `cli_reference.rs` and `readme_tour.rs` green.
@@ -416,3 +427,13 @@ named among the siblings (Do 4, Done when); 7 the mint fallible, its
 failure structured, the two-call bound kept (Do 3, Do 5); 8
 `every_tour_line_resolves_under_clap` named, C137 cited at its home
 (Read).
+
+## Taken from the third review (`400cbd13`, cut 2026-11-07)
+
+1 a clear's `no_undo` also where another live row holds the prior's
+name, the two-rows pin clearing one (Do 3, Do 5); 2 the kind's realm
+admits `all`, as the search's scope does, a create over no realm
+stored as `all`, both pinned (Do 1, Do 3, Do 5); 3 `User::at_revision`
+delegated (Do 1); 4 `--trade-file` among the words excluded beside
+`--saved`, each pinned (Do 4, Do 5); 5 the done-when names the `doors`
+regex, a clause a first-round seam had dropped (Done when).
