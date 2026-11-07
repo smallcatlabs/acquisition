@@ -144,12 +144,12 @@ the browser-driven check with it. Nothing more here.
 ## 3. The saved search
 
 **The kind** (C167, as ruled): scope `search`, key an id the verbs
-mint (twelve hex characters of randomness, as the web mints its token;
-minted again where create-only meets one standing), kind
+mint (twelve hex characters, as the web mints its token; minted again
+where create-only meets one standing), kind
 `saved-search`, value `{version: 1, name, text, scope: {realm,
 membership}}`. The id is the identity, stable across a rename, and the
-name is a field of the value, so a rename is one compare-and-swap of
-one row and no name can collide with a route or another row. The text
+name a field of the value, so a rename is one compare-and-swap and no
+name can collide with a route. The text
 is the canonical text (C104), never a site URL: a trade search saved
 is its translation's text. The scope never names an account. The realm
 is always present: a save naming none over a store of several is C96's
@@ -167,10 +167,9 @@ the file's revision from one transaction. `SavedSearch` is the kind
 A newtype, so a signature taking `&Annotations` cannot be handed the
 user file.
 The tests: the file's mechanics stay pinned once by the `c35_` tests,
-since `User` opens through the one `open`; the API's properties
-(compare-and-swap, the tombstone's ABA guard, the revision sum,
-provenance, an unreadable row named, the export) become one table in
-`unit/tests/annotations.rs` run over an opener for each file; `c167_`
+since `User` opens through the one `open`; the API's properties become
+one table in `unit/tests/annotations.rs` run over an opener for each
+file; `c167_`
 pins what the newtype adds: the path, the kind, the scope word, the
 one-transaction list. Settled here, not raised (C153).
 
@@ -180,32 +179,36 @@ answers one object, `searches` counted, each row with `name`, `text`,
 `scope`, `revision`, `written_via`, `actor`, its times with their words
 (C163), `request`, the search request it is, and `id` beside the name
 as an item's and a tab's ids stand (C116 forbids a ruling's id in user
-text, never a record's); `set` takes the whole value with the id and
-the revision it replaces, or neither to create, reads the text with
-the language's reader in the row's realm, stores the canonical text
-and answers the receipt, its `undo` a put of the prior value; `clear`
+text, never a record's); `set` is one partial-field write under a
+revision: with an id, a field not named keeps the row's value as read
+at that revision, without one a create; the text read with the
+language's reader in the row's realm and stored canonical, the
+receipt's `undo` a put of the prior value; `clear`
 the receipt with `prior`. A name is a label and the id the identity,
 so nothing refuses a name: two rows may carry one, noticed only where
 a name is opened (ruled 2026-11-07, "Drop and cut"). `request_of`
 resolves an id, or a name, as every `--saved` does: an id is accepted
-wherever a name is; a name none holds is `not_found` offering the
-list; a name several rows share is `ambiguous_saved_search` with
+wherever a name is; a name none holds is `saved_search_not_found`
+offering the list; a name several rows share is `ambiguous_saved_search` with
 `searches`, the ids and names to pick from, one word per mistake as
 C121 gives accounts. A stale `if_revision` is `conflict` with
 `current`, the write offered at it. `Way` gains the set and the clear.
 
 **The CLI**: `acq saved` with `list` (the default), `show ID|NAME`,
-`set [ID --if-revision N] --name NAME [QUERY] [--realm] [--membership]`
-(with an id, a flag not given keeps the row's value as read at that
-revision, so a rename is `set ID --name NEW --if-revision N`; without
-one, a create), `clear ID [--if-revision]`, `--if-revision` as `policy
-set`'s; `acq search --saved ID|NAME` runs it, `--account` and view
-flags beside it, no word of query, realm or membership, as `--next`.
+`set [--id ID --if-revision N] [--name NAME] [QUERY] [--realm]
+[--membership]` (so a rename is `set --id ID --name NEW --if-revision
+N`; without `--id`, a create), `clear ID [--if-revision]`,
+`--if-revision` as `policy set`'s; `acq search --saved ID|NAME` runs
+it, `--account` and view flags beside it, no word of query, realm or
+membership, as `--next`. This contract is the build brief's Do 3 and
+Do 4 as settled over its reviews (2026-11-07, "Yes, reconcile"); where
+they differ, the brief wins.
 
 **The MCP**: three tools in the `price_set` family, `saved_searches`
-(`id` or `name` for one), `saved_search_set` (the value whole, `name`,
-`text`, `realm`, `membership`, and `id` with `if_revision` to replace,
-neither to create: C52's create-only form) and `saved_search_clear`
+(`id` or `name` for one), `saved_search_set` (`set`'s partial-field
+form: `name`, `text`, `realm`, `membership`, and `id` with
+`if_revision` to replace, neither to create: C52's create-only form)
+and `saved_search_clear`
 (`id`, `if_revision`), each taking `account` as the pricing tools do;
 and `search` takes `saved`, an id or a name, with `scope.account` and
 `view` beside it, refusing `query`, `scope.realm` and `scope.membership`
@@ -408,5 +411,5 @@ design choice; keyed on a minted id with the name a field, a rename is
 one compare-and-swap, `rename` no operation, the receipt whole,
 `saved/rename` gone, the MCP's tools three, no name an identity.
 
-Cut 2026-11-07, "Drop and cut": §3's courtesy decline dropped; a
-duplicate is met only on open.
+Cut 2026-11-07, "Drop and cut": §3's courtesy decline dropped; "Yes,
+reconcile": §3's set contract made the brief's.

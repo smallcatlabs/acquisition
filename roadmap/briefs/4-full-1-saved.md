@@ -464,7 +464,17 @@ Done when).
 A name is a label and the id the identity, so nothing refuses a name:
 the courtesy check, `name_taken` and its ways, the re-aimed set and
 the `no_undo` cases that existed only for duplicates are gone, a live
-prior's undo unconditional, the refusal words two; the pins that
-exercised them retired to the ambiguity-on-open pin, which stays with
-its eleven-row case (Input, Do 3, Do 4, Do 5, Done when). The foot's
-earlier lines on `name_taken` are history, superseded here.
+prior's undo unconditional, the refusal words two (Input, Do 3, Do 4,
+Do 5, Done when). The four pins that exercised them (the two-row
+create's `name_taken`, the clear and the rename meeting a duplicate,
+the edit under its own name) were planned cases dropped under the
+ruling, not tests retired under C154: nothing executable was removed,
+and the ambiguity-on-open pin, which stays with its eleven-row case,
+holds opening by name, not undo or write acceptance; the cut commit's
+`retired` lines are history. The foot's earlier lines on `name_taken`
+are history, superseded here.
+
+Reconciled 2026-11-07 under the sixth review (`775f0388`), "Yes,
+reconcile": the design's §3 made to agree with Do 3 and Do 4 (the
+partial-field set, `--id`, `saved_search_not_found`, the MCP's form)
+and this section corrected; no seventh review.
