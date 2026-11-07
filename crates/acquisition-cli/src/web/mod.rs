@@ -67,11 +67,14 @@
 //! - **A refusal's ways on are the pages' own** (#97,
 //!   `roadmap/briefs/97-own-terms.md`): a refusal is the one refusal
 //!   shape spelled by [`Paged`], the page's `Surface`, and the page renders
-//!   that document — its words, its readings, then each offer as a link
-//!   to the route that takes it, saying what it is. A search is a link
-//!   where the form's own fields fold back to the request offered; a
-//!   league's plan, or its tabs, a link to that page; any other way on is
-//!   no page's, and no link stands for it. The plan page prints no
+//!   that document — its words, its readings, then each offer saying what
+//!   it is: a read as a link to the route that takes it, a write as a
+//!   form posting the fields its route takes with one button in the
+//!   offer's words. A search is a link where the form's own fields fold
+//!   back to the request offered; a league's plan, or its tabs, a link to
+//!   that page; the saved ways — the list, an opening, a write, a clear —
+//!   as the C168 section below spells them; any other way on is no
+//!   page's, and nothing on a page stands for it. The plan page prints no
 //!   command to type next: its Apply button is that way on. The words are
 //!   still the CLI's (`failure_words`), as are the command lines the
 //!   refresh and jobs pages print, which no route takes.
@@ -88,12 +91,14 @@
 //!   head, a JSON object keyed by the document, its values the documents'
 //!   own fields ([`page::Head`]); a page whose documents carry none (the
 //!   form's league list, the refresh page's tabs and characters, the
-//!   jobs, a refusal without `current`) carries no line. The scan in
-//!   `tests/web.rs` (`c16_no_served_script_names_a_storage_cookie_or_history_api`)
-//!   holds a list of words: no script a page names may contain
-//!   `localStorage`, `sessionStorage`, `indexedDB`, `caches`, `cookie`,
-//!   `history`, `serviceWorker` or `.storage`, and no response sets a
-//!   cookie. The property is that list, lexical: an API reached by
+//!   jobs, a refusal without `current`) carries no line. The scan holds
+//!   a list of words at the tests' recording seam: every page a golden
+//!   records sets no cookie and names only scripts on the harness's one
+//!   list (`SCRIPTS`, `tests/harness/mod.rs`), and
+//!   `c16_no_served_script_names_a_storage_cookie_or_history_api`
+//!   (`tests/web.rs`) fetches each script on it and refuses one that
+//!   contains `localStorage`, `sessionStorage`, `indexedDB`, `caches`,
+//!   `cookie`, `history`, `serviceWorker` or `.storage`. The property is that list, lexical: an API reached by
 //!   another spelling, a cache held in a closure or the DOM, state the
 //!   URL omits, a generation a script keeps for itself is the review's
 //!   (`REVIEW-CHECKLIST.md`, the frontends' rows), until a browser-driven
@@ -1420,26 +1425,23 @@ async fn saved_open(
         }
         let row = match web.saved_at(&id)? {
             Some(SavedRow::Read(row)) => row,
-            // the verbs' refusal of a row this build cannot run, offering
-            // the list
-            Some(SavedRow::Unreadable(_)) => {
-                saved::request_of(&web.cx.frontend, &id, None)?;
-                return Err(Failure::Other(anyhow::anyhow!(
-                    "saved search {id} holds a value this build cannot read"
-                )));
+            // a page refuses from the row it read, never from a second
+            // read: the words are the page's, beside the verbs' own in
+            // `saved::request_of`, whose maker is private
+            Some(SavedRow::Unreadable(row)) => {
+                return Err(listed(
+                    "refused",
+                    format!(
+                        "saved search {} at revision {} holds a value this build cannot read \
+                         ({}); a page cannot open it",
+                        row.id, row.revision, row.unreadable
+                    ),
+                ));
             }
             None => {
-                return Err(Failure::Other(
-                    Pointed {
-                        kind: "saved_search_not_found",
-                        message: format!("no saved search has the id {id}"),
-                        ways: vec![(
-                            Way::SavedSearches { expand: false },
-                            "the saved searches, each with its id".to_string(),
-                        )],
-                        fields: serde_json::Map::new(),
-                    }
-                    .into(),
+                return Err(listed(
+                    "saved_search_not_found",
+                    format!("no saved search has the id {id}"),
                 ));
             }
         };
@@ -1458,6 +1460,23 @@ async fn saved_open(
         Ok(location) => see_other(&location),
         Err(failure) => web.failed("Saved search", &failure, &headers),
     }
+}
+
+/// A saved route's refusal of the row it read, in the page's words, the
+/// list its one way on.
+fn listed(kind: &'static str, message: String) -> Failure {
+    Failure::Other(
+        Pointed {
+            kind,
+            message,
+            ways: vec![(
+                Way::SavedSearches { expand: false },
+                "the saved searches, each with its id".to_string(),
+            )],
+            fields: serde_json::Map::new(),
+        }
+        .into(),
+    )
 }
 
 /// A saved search written (Do 6): the verbs' one `Set`, its revision

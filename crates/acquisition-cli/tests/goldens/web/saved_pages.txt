@@ -442,7 +442,7 @@ GET saved/open?id=0000000000a4 <replaced by a row this build cannot read>
 <main>
 <h1>Saved search</h1>
 <div class="refusal"><pre>
-saved search 0000000000a4 at revision 2 holds a value this build cannot read (saved-search declares version 2, newer than this build&#39;s v1); it is listed and cannot be run
+saved search 0000000000a4 at revision 2 holds a value this build cannot read (saved-search declares version 2, newer than this build&#39;s v1); a page cannot open it
 </pre>
 <ul class="offers">
 <li><a href="/<token>/saved">the saved searches, each with its id</a></li>

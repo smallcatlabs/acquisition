@@ -1428,6 +1428,40 @@ pub fn form_encoded(text: &str) -> String {
     out
 }
 
+/// The scripts a page of `acq web` may name, by their path under the
+/// token: the one list the recording seam ([`no_state`]) holds every
+/// recorded page to and the no-state scan (C16, `web.rs`) fetches and
+/// reads. A page naming another fails at the seam until the list grows
+/// and the scan reads it.
+pub const SCRIPTS: &[&str] = &["assets/picker.js"];
+
+/// C16 at the recording seam: a reply sets no cookie, and every
+/// `<script src>` its body names is one of [`SCRIPTS`] under `token`.
+/// Every page and redirect a golden records passes through it.
+pub fn no_state(reply: &Reply, token: &str) -> Result<(), String> {
+    if let Some(cookie) = reply.header("set-cookie") {
+        return Err(format!("a response sets a cookie: {cookie}"));
+    }
+    for tag in reply.body.split("<script ").skip(1) {
+        let tag = &tag[..tag.find('>').unwrap_or(tag.len())];
+        let Some(at) = tag.find("src=\"") else {
+            continue;
+        };
+        let src = &tag[at + "src=\"".len()..];
+        let src = &src[..src.find('"').unwrap_or(src.len())];
+        let listed = src
+            .strip_prefix(&format!("/{token}/"))
+            .is_some_and(|path| SCRIPTS.contains(&path));
+        if !listed {
+            return Err(format!(
+                "a page names the script {src}, which the no-state scan does not read: add it \
+                 to SCRIPTS"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// The search form's panes and controls, from the panes' opening line to
 /// the form's close: the part of the page goldens every page carrying
 /// the form repeated whole (51 KB of the form page's 54 KB), whatever its realm
@@ -1514,6 +1548,7 @@ impl Pages {
     /// opened): its status and its `Location` on one line, the token
     /// masked; the page it lands on is recorded after it, followed.
     pub fn redirect(&mut self, label: &str, reply: &Reply) {
+        no_state(reply, &self.web_token).unwrap_or_else(|e| panic!("{label}: {e}"));
         if !self.text.is_empty() {
             self.text.push('\n');
         }
@@ -1530,6 +1565,7 @@ impl Pages {
     /// Record a page under `label` (`GET search?…`), checking each fact
     /// stands in its body.
     pub fn page(&mut self, label: &str, reply: &Reply, facts: &[&str]) {
+        no_state(reply, &self.web_token).unwrap_or_else(|e| panic!("{label}: {e}"));
         for fact in facts {
             assert!(
                 reply.body.contains(fact),

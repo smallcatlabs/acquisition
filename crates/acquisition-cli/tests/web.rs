@@ -1367,10 +1367,13 @@ fn state_words(script: &str) -> Vec<&'static str> {
         .collect()
 }
 
-/// C16's state sentence, as far as a lexical scan holds it: no script a
-/// page names may name a storage, a cookie or the history, and no
-/// response sets a cookie. The breaker: each word in a script's text is
-/// refused. What another spelling reaches is the review's
+/// C16's state sentence, as far as a lexical scan holds it: every page a
+/// golden records passes the harness's seam (`harness::no_state`: no
+/// cookie set, no script named off `harness::SCRIPTS`), and each script
+/// on that list, fetched as a page fetches it, names no storage, cookie
+/// or history API. The breakers: each word in a script's text is refused,
+/// and the seam refuses a reply that sets a cookie and one naming a
+/// script off the list. What another spelling reaches is the review's
 /// (`REVIEW-CHECKLIST.md`).
 #[test]
 fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
@@ -1378,48 +1381,46 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
         let broken = format!("(function () {{ const x = window.{word}; }})();");
         assert_eq!(state_words(&broken), vec![word], "the scan misses {word}");
     }
-    let (scratch, web) = offline_web("webscan");
-    let mock = scratch.0.join("mock");
-    crate::saved_json::put(&mock, "0000000000a1", "rings");
-    let mut replies = vec![
-        web.get(""),
-        web.get(&format!("search?{}", query_string(&ring_search()))),
-        web.get("search?realm=pc&text=class%3Arings&view.limit=1"),
-        web.get("item/r1"),
-        web.get("item/t1"),
-        web.get("saved"),
-        web.get("saved?expand=true"),
-        web.get("saved/open?id=0000000000a1"),
-        web.get("saved/open?id=0000000000ff"),
-        web.get("refresh?realm=pc&league=Standard"),
-    ];
-    let (_, opened) = redirected(&web, &format!("/{}/saved/open?id=0000000000a1", web.token));
-    let save = form_on(&opened.body, "Save as a new search", None).typed("name", "kept");
-    replies.push(send(&web, &save, false));
-    replies.push(send(&web, &save, true));
-    replies.push(opened);
-    let mut scripts = std::collections::BTreeSet::new();
-    for reply in &replies {
-        assert!(
-            reply.header("set-cookie").is_none(),
-            "a response sets a cookie: {:?}",
-            reply.headers
-        );
-        for tag in reply.body.split("<script ").skip(1) {
-            if let Some(src) = attribute(&format!(" {}", &tag[..tag.find('>').unwrap()]), "src") {
-                scripts.insert(src);
-            }
-        }
-    }
-    assert!(!scripts.is_empty(), "no page named a script");
-    for src in &scripts {
-        let script = web.raw("GET", src, None, &[], "");
-        assert_eq!(script.status, 200, "{src}");
-        assert!(script.header("set-cookie").is_none(), "{src}");
+    let (_scratch, web) = offline_web("webscan");
+    let token = web.token.clone();
+    let reply = |headers: Vec<(&str, &str)>, body: String| harness::Reply {
+        status: 200,
+        headers: headers
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+        body,
+    };
+    let listed = format!("<script src=\"/{token}/assets/picker.js\"></script>");
+    assert_eq!(
+        harness::no_state(&reply(vec![], listed.clone()), &token),
+        Ok(())
+    );
+    let cookie = harness::no_state(&reply(vec![("set-cookie", "seen=1")], listed), &token);
+    assert!(cookie.is_err(), "the seam passed a cookie");
+    let unlisted = harness::no_state(
+        &reply(
+            vec![],
+            format!("<script src=\"/{token}/assets/keep.js\"></script>"),
+        ),
+        &token,
+    );
+    assert!(
+        unlisted.is_err(),
+        "the seam passed a script the scan never reads"
+    );
+    // the form page names the listed script, so the list is the pages' own
+    let form = web.get("");
+    assert_eq!(harness::no_state(&form, &token), Ok(()));
+    assert!(form.body.contains("/assets/picker.js\""), "{}", form.body);
+    for path in harness::SCRIPTS {
+        let script = web.get(path);
+        assert_eq!(script.status, 200, "{path}");
+        assert!(script.header("set-cookie").is_none(), "{path}");
         assert_eq!(
             state_words(&script.body),
             Vec::<&str>::new(),
-            "{src} names a storage, cookie or history API"
+            "{path} names a storage, cookie or history API"
         );
     }
 }
@@ -2382,6 +2383,19 @@ fn the_saved_pages_are_a_wording_golden() {
         ],
     );
     assert!(!main_of(&refused.body).contains("acq "), "{}", refused.body);
+    // refused from the row the opening read: its id, its revision, and
+    // the list its one way on
+    let doc = json_at(&web, &belts);
+    assert_eq!(doc["kind"], "refused", "{doc}");
+    let words = doc["error"].as_str().unwrap();
+    assert!(
+        words.contains("0000000000a4") && words.contains("at revision 2"),
+        "{doc}"
+    );
+    let [offer] = doc["offers"].as_array().unwrap().as_slice() else {
+        panic!("{doc}")
+    };
+    assert_eq!(offer["request"], format!("/{}/saved", web.token), "{doc}");
     pages.page(
         "GET saved <its offer followed>",
         &follow(
