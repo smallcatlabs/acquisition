@@ -13,7 +13,8 @@ the brief won and §3 says so; this brief builds over what steps 1 and
 brief decides, and the foot lists each decision for the owner. Cut
 2026-11-07 under the cold review at `86ea550e`
 (`roadmap/reviews/4-full-1-pages-brief-86ea550e.md`), and again under
-the review at `b7f0567e`, the foot saying what each finding changed.
+the reviews at `b7f0567e` and `eccb7ce0`, the foot saying what each
+finding changed.
 
 ## Goal
 
@@ -211,7 +212,9 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
    is offered nowhere on a page", `:532`), `asked_by_the_form`'s doc
    ("another membership", `:417`), and `page.rs`'s module doc ("each
    renders one document": an answer opened from a saved search renders
-   two).
+   two), and `form.rs`'s module doc (the names that go to the scope,
+   now `membership` beside `realm`, `:21`; "the fold drops what is
+   empty", now every empty control but `text`, `:36`).
 3. **The basis line.** `Head` gains the versions the page renders;
    `page` writes them as one line in the head,
    `<meta name="basis" content="…">`, after the viewport line, the
@@ -257,7 +260,12 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
 5. **`GET saved/open?id=<id>`, the redirect.** `id` must have an id's
    shape (`saved::is_id`); a name, or anything else, is a usage
    refusal saying a page opens a saved search by its id. Otherwise it
-   calls `saved::show(frontend, id)`: a refusal renders as every
+   calls `saved::show(frontend, id)`, and uses the row only where its
+   `id()` is the URL's id: `show` resolves an id or a name, and a name
+   may have an id's shape, so a row found by its name under another
+   row's id is read as no row at that id, the missing path (one rule
+   for every page that resolves a URL's id, Do 7's as well). A refusal
+   renders as every
    refusal does (`saved_search_not_found` offering the list, followed
    by a pin); an
    unreadable row is refused saying this build cannot read it, offering
@@ -331,7 +339,8 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
    that is no id's shape, or a revision that is no positive integer is
    a usage refusal, and the page never puts the row's revision in the
    URL's place. With `saved=<id>`
-   the page calls `saved::show` and, above the answer, says one of:
+   the page calls `saved::show` under Do 5's rule (the row used only
+   where its `id()` is the URL's) and, above the answer, says one of:
    - where the row's revision is the URL's `saved_revision` `n`,
      `Saved search "<name>", opened at revision <n>`, with a link to
      the list; where it is not, `Saved search <id>, opened at revision
@@ -427,13 +436,17 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
     `NewerSaved`, the save posted, the conflict's offer posted) and its
     receipt, a row over every item (the text `""`) opened, and
     a conflict's page after the row's text was changed by `acq saved
-    set`, showing the row as it stands) holds
+    set`, showing the row as it stands; and, after a readable row is
+    replaced by `NewerSaved`, its open link as the list rendered it
+    before, followed, its refusal and that refusal's list offer
+    followed, and the answer page it had opened reloaded, its
+    unreadable notice and its create form) holds
     the words of Do 4 to Do 8 as facts a reader must find. The six
     goldens regenerate under `ACQ_UPDATE_FIXTURES=1`; each diff is
     read and holds the basis line on answer, item and plan pages, the
-    membership control on form pages and the save form on answer pages
-    (the **Saved** link is in the nav, outside `<main>`), and nothing
-    else.
+    membership control on form pages, the query box's hidden
+    `membership` and the save form on answer pages (the **Saved** link
+    is in the nav, outside `<main>`), and nothing else.
 11. **Pins, what the adapter adds** (C122), in `web.rs` beside the
     tests it joins (C153), the verbs' semantics pinned once in
     `acquisition-verbs/tests/documents.rs` and not again here:
@@ -480,7 +493,10 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
       second's membership carried through the query box and the
       continuation link; `saved/open` of an id no row holds offers the
       list, followed as rendered; `saved/open` with a name is a usage
-      refusal.
+      refusal; a row at one id (say A) whose name is another id's
+      twelve hex characters (B), written by `put`, with no row at B:
+      `saved/open?id=B` and `search?…&saved=B&saved_revision=1` each
+      take the missing path, never the named row.
     - **The handoff**: a row written by `acq saved set` is on the list
       page; a row the page writes is in `acq saved list --json` with
       `written_via` `web`.
@@ -528,7 +544,7 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
 - Do 1's ruling is in `roadmap/README.md`'s rulings before the commit
   that builds Do 6's answer, and the answer is built as it rules.
 - `crates/acquisition-cli/tests/goldens/web/saved_pages.txt` exists;
-  the six goldens' diffs in the step's commits hold only Do 10's three
+  the six goldens' diffs in the step's commits hold only Do 10's
   additions.
 - `web.rs` holds the pins of Do 11, the C16 ones named `c16_…` and the
   write ones `c168_…`; it defines no new seed function, and
@@ -673,3 +689,15 @@ whole loop through the rendered forms (Do 11). 7 not taken as worded:
 C16 was amended on 2026-11-06 (`c1dd0ede`, the README's bullet "the
 prompt's three drafts") and its word "state" then read, not amended
 further (the bullet after it); the Read line now says both.
+
+## Taken from the third review (`eccb7ce0`, cut 2026-11-07)
+
+1 a page uses the row `show` returns only where its id is the URL's,
+one rule for `saved/open` and the answer page, pinned with a row whose
+name has another id's shape (Do 5, Do 7, Do 11); 2 the unreadable
+row's open refusal, its list offer and the answer's unreadable notice
+goldened through the links as rendered (Do 10); 3 the query box's
+hidden `membership` among the existing goldens' additions (Do 10,
+done-when); 4 `form.rs`'s module doc among the sentences Do 2 corrects
+(Do 2). The third cut is the last (the rhythm's bound): no review
+follows it, and the brief waits on Do 1's ruling.
