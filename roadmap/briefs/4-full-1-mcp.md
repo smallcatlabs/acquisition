@@ -7,7 +7,9 @@ Written against the tree at `26ae36c1`, after step 1
 LEDGER.md`, its last row). The owner asked for this brief on
 2026-11-07. Where the design's §3 and step 1's brief differ, the brief
 won and §3 says so; this brief builds over what step 1 built, not over
-the design's earlier words.
+the design's earlier words. Cut 2026-11-07 under the cold review at
+`6da0c34b` (`roadmap/reviews/4-full-1-mcp-brief-6da0c34b.md`), the foot
+saying what each finding changed.
 
 ## Goal
 
@@ -142,9 +144,11 @@ brief was written; the worker reads their conclusions first, and a red
 run is named in the report.
 
 The failing inputs the tests stage: a set with an id and no
-`if_revision` over a live row; a set naming `if_revision` and no id; a
+`if_revision` over a live row; a
 clear with no `if_revision`; a clear at `if_revision: 0`; a write at a
-revision that moved; `saved` beside each search field it excludes, and
+revision that moved; a set naming a nonzero `if_revision` and no id
+(`0` is the create sentinel, Do 3); `saved` beside each search field
+it excludes, and a key the reader does not know beside it; `saved`
 beside `limit` or `expand` on `saved_searches`; a name two rows share,
 opened by `saved_searches` and run by `search`; a name and an id none
 holds; a create naming no realm over a store of two realms; `search`
@@ -172,8 +176,10 @@ with `saved` and no `scope.account` over a world of two accounts.
    without it, `saved::list(frontend, limit, expand)`'s. `saved` beside
    `limit` or `expand` is refused as `arguments`, naming the pair (a
    row is never a list: C53). Its description says the saved searches
-   are the world's, not an account's, that each row carries `request`,
-   the search it is, and that `search` runs one by `saved`.
+   are the world's, not an account's, that each readable row carries
+   `request`, the search it is (a row this build cannot read is named
+   by its id, revision and why), and that `search` runs one by
+   `saved`.
 3. **`saved_search_set`**: arguments `id`, `if_revision`, `name`,
    `text`, `realm`, `membership`, `account`, read into the verbs' one
    `Set` with `expect: Expect::or(if_revision, Expect::Create)`, as
@@ -185,11 +191,23 @@ with `saved` and no `scope.account` over a world of two accounts.
    the fields not named keeping the row's values (a rename is `id`,
    `if_revision` and `name`); `id` and no `if_revision` (or `0`), a
    create at that id, the whole value required, landing only where no
-   live row stands there, which is a clear's undo. Every other pair is
+   live row stands there, which is a clear's undo. `if_revision: 0`
+   is the create sentinel with or without an id, as `price_set` reads
+   it; a nonzero `if_revision` with no id, and every other pair, is
    the verbs' `arguments` refusal; the MCP never writes at
-   `Expect::Current` (C52: no blind replace). `account` is used only to
-   resolve a create's realm, and its description is `ACCOUNT`'s one
-   sentence, as on every tool that takes it. The answer is
+   `Expect::Current` (C52: no blind replace). `account` is read only
+   where a create names no realm, to resolve it, and the tool's
+   description says so. Its parameter description is `ACCOUNT`, the one
+   sentence every tool that takes `account` shares
+   (`account_is_one_sentence_on_every_tool_that_takes_it`), and a
+   shared sentence is true of every tool that carries it: today it
+   promises `unknown_account` for any name none holds and
+   `not_logged_in` with none known, which this tool meets only on the
+   create that reads it (with none known it saves over `all`). The
+   worker words `ACCOUNT` so it is true of this tool too (a tool that
+   reads no account where it needs none, say), its added bytes counted
+   in Do 1's measure, and never adds an account lookup to make the old
+   words true. The answer is
    `receipt::saved(&written, &Spoken { named: "account" })`.
 4. **`saved_search_clear`** (no account): arguments `id` and
    `if_revision`, both required in the schema, read as
@@ -208,13 +226,19 @@ with `saved` and no `scope.account` over a world of two accounts.
    `search_cmd.rs` builds it: a `SearchError::Scope`, so it reaches the
    agent through `refused`). The adapter takes `saved` out of the
    arguments, calls `saved::request_of(frontend, saved,
-   scope.account)`, and hands the row's request, with the call's
-   `scope.account`, `view` and `context` set on it, to `Asked::read`,
-   the one reader every request passes (the module doc's H1); the
-   search crate never sees the word (the design's §6). A refusal of
-   `request_of` is spelled with `named` `scope.account`. The schema's
-   `saved` property says what it is and what stands beside it; the
-   tool's description gains one clause.
+   scope.account)`, and sets the row's `query.text`, `scope.realm` and
+   `scope.membership` into the arguments as sent, so every other key
+   the call sent, known or not, well formed or not (`scope.acount`, a
+   numeric account), reaches `Asked::read`, the one reader every
+   request passes, and is refused there as today; the search crate
+   never sees the word `saved` (the design's §6). `scope.account` is
+   read for `request_of` only where it is a string; anything else is
+   left for the reader to refuse. A refusal of `request_of` is spelled
+   with `named` `scope.account`. The schema's `saved` property says
+   what it is and what stands beside it; the tool's description gains
+   one clause; H1 in the module doc and `RequestParams`' doc, which say
+   the arguments reach the reader whole and nothing here reads them,
+   name the one exception, `saved`, resolved before the reader.
 6. **`Spoken` speaks the five ways**, each a tool's arguments, the
    tool named where it is another than the one refused:
    `SavedSearches { expand }` → `saved_searches`, `{}` or `{"expand":
@@ -259,7 +283,13 @@ with `saved` and no `scope.account` over a world of two accounts.
      and as a create naming `all`, and `saved_search_clear`, each
      receipt equal to the CLI's under `steady` with `RECEIPT` (the
      channel and the undo compared apart, the undo saying the same:
-     `undo_alike`, its `acq saved ` prefix); `search` with `saved` (by
+     `undo_alike`, its `acq saved ` prefix). A create with no id mints
+     its id at random in each world, so the two receipts differ there
+     by design: each receipt's minted id is first checked to be the
+     same at every place it stands in that receipt (`target.id`,
+     `written.id`, the undo's), then replaced by one placeholder in
+     both before they are compared, and every later write and replay
+     in a world uses that world's own id; `search` with `saved` (by
      id and by name, with a `view`) equal to `acq search --saved …
      --json` and to `search` with the row's text and scope.
    - **The refusal shape**, each equal to the CLI's for the same
@@ -272,12 +302,16 @@ with `saved` and no `scope.account` over a world of two accounts.
      as `conflict` with nothing written (C52), and with a name alone
      refused as the verbs' `arguments`, Do 4's clear with no `if_revision`
      (`arguments`) and at `0` (`conflict`), Do 2's `saved` beside
-     `limit`, and Do 5's beside-rule for each word it excludes.
+     `limit`, Do 5's beside-rule for each word it excludes, and a key
+     the reader does not know beside `saved` (`scope.acount`) refused
+     by the reader as it is without `saved`.
    - **Every offer sent back as printed answers**: each undo (a
      create's clear, a replace's set at the revision written, a clear's
      create at the id) sent to the tool it names lands and puts the
      prior back; each `ambiguous_saved_search` offer, from either tool,
-     answers; the conflict's offer lands; each `realm_needed` offer
+     answers, the eleven-row name's offer of every row (`expand`)
+     among them; `saved_search_not_found`'s offer of the list answers;
+     the conflict's offer lands; each `realm_needed` offer
      lands; `search` with `saved` and no account over two accounts
      refused `ambiguous_account`, each offer answering (Do 6's
      `Way::Again` arm).
@@ -393,5 +427,23 @@ three tools and `saved`, and leaves these open or loose):
   and `view`, as the CLI takes `--context` beside `--saved`; `request`,
   `basis`, `count` and `counted_at` are refused, as `--request` and
   `--next` conflict with `--saved`.
+- `if_revision: 0` with no id is a create, as `price_set` reads `0`,
+  where the CLI refuses `--if-revision` without `--id`: the MCP's two
+  set tools read `0` alike.
 
 The ruling Do 1 drafts, the owner's: the first turn's bound.
+
+## Taken from the review (`6da0c34b`, cut 2026-11-07)
+
+1 the creates compared with each world's minted id checked consistent
+and then masked, later writes using each world's own (Do 8); 2 `saved`
+resolved by setting the row's text and scope into the arguments as
+sent, so the reader still refuses every key it does not know, pinned
+(Input, Do 5, Do 8); 3 a shared sentence true of every tool that
+carries it: `ACCOUNT` worded to hold on `saved_search_set`, the tool's
+limited use said in its description, no account lookup added (Do 3);
+4 `0` the create sentinel with or without an id, the failing input a
+nonzero revision, listed for the owner (Input, Do 3, the foot); 5 the
+list offers of `saved_search_not_found` and of an eleven-row name
+replayed (Do 8); 6 H1 and `RequestParams`' doc name the `saved`
+exception, "each readable row" (Do 2, Do 5).
