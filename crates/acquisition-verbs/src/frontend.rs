@@ -31,7 +31,7 @@ use acquisition_protocol::realm::Realm;
 use acquisition_store::world::intended_root;
 use acquisition_store::{
     AccountEntry, AnnotationRow, Annotations, Index, Provenance, Resolve, SYNC_POLICY_KEY,
-    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, account_path,
+    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, User, account_path,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -196,6 +196,22 @@ impl Frontend {
     /// live.
     pub fn dir(&self) -> PathBuf {
         self.root.join(self.provider)
+    }
+
+    /// C167 (user-scoped intent in a file of its own): the world's user
+    /// file, `user.db` beside the account files, opened as
+    /// [`Account::intent`] opens an account's. It needs no account and no
+    /// login, but a world: a provider directory that does not exist is
+    /// `not_logged_in` naming it, as a store read answers (C121).
+    pub fn user(&self) -> Result<User, Fault> {
+        let dir = self.dir();
+        if !dir.is_dir() {
+            return Err(Fault::NoAccounts {
+                dir,
+                provider: self.provider.to_string(),
+            });
+        }
+        User::open_for(&dir).map_err(|e| Fault::Unopened(e.into()))
     }
 
     fn index(&self) -> Result<Index, Fault> {

@@ -9,7 +9,10 @@
 //! closed lists as they stand: the protocol's (C85), the layer's
 //! [`Fault::kind`], the planner's [`Refused`], the search's
 //! ([`SearchError::kind`]), and `arguments` and `refused` for what none
-//! of them names; no new word (C121, kept). Beside them at most four
+//! of them names; no new word (C121, kept), but where a verb names a
+//! mistake of its own in the request's words as a [`Pointed`]
+//! refusal, as `refused_body_not_found` did and the saved search's
+//! `saved_search_not_found` and `ambiguous_saved_search` do. Beside them at most four
 //! optional keys, each meaning one thing wherever it stands, and absent,
 //! never null, when it has nothing to say:
 //!
@@ -33,7 +36,8 @@
 //! - the kind's own fields: `accounts` (C121); `revision`, with
 //!   `current` beside it where a live row stands (a `revision: null`
 //!   that stands today keeps its contract: C11); a language error's
-//!   `span`.
+//!   `span`; an ambiguous saved search's `searches`, ten beside `total`
+//!   and `left_out` (C53).
 
 use acquisition_client::client::DaemonError;
 use acquisition_plan::PutPolicyError;
@@ -134,6 +138,18 @@ pub enum Way {
     Currencies,
     /// The bodies the store refused as malformed, listed with their ids.
     RefusedBodies { account: String },
+    /// The saved searches listed, each with its id; every one under
+    /// `expand`.
+    SavedSearches { expand: bool },
+    /// One saved search shown, by its id.
+    SavedSearchShow { id: String },
+    /// One saved search run, by its id, as `account` where one is named.
+    SavedSearchRun { id: String, account: Option<String> },
+    /// A saved search written: the one write shape, whole. A receipt's
+    /// undo, and a conflict's write again.
+    SavedSearchSet(Box<crate::saved::Set>),
+    /// One saved search cleared at `if_revision`. A receipt's undo.
+    SavedSearchClear { id: String, if_revision: i64 },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its
@@ -215,6 +231,7 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
     doc.insert("error".into(), json!(surface.words(e)));
     if let Some(pointed) = e.chain().find_map(|c| c.downcast_ref::<Pointed>()) {
         doc.insert("kind".into(), json!(pointed.kind));
+        doc.extend(pointed.fields.clone());
         offers.extend(pointed.ways.iter().cloned());
     } else if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
         faulted(
@@ -300,6 +317,10 @@ pub struct Pointed {
     pub kind: &'static str,
     pub message: String,
     pub ways: Vec<(Way, String)>,
+    /// The kind's own fields, beside `error` and `kind`: a conflict's
+    /// `revision` and `current`, an ambiguous saved search's `searches`,
+    /// `total` and `left_out`.
+    pub fields: Map<String, Value>,
 }
 
 impl std::fmt::Display for Pointed {

@@ -68,7 +68,9 @@
 //!   - **Durable state in the world.** `daemon.db` (`jobs::daemon_db_path`)
 //!     and the rails state ([`World::rails_state_path`]:
 //!     `<root>/<provider>/rails.json`) live beside the account files, where
-//!     a reboot cannot clear them.
+//!     a reboot cannot clear them, and so does `user.db`
+//!     ([`crate::user::user_path`]), the world's user-scoped intent
+//!     (C167).
 //!   - **Diagnostics elsewhere, bounded.** The daemon log and the default
 //!     send journal live under [`log_base_dir`] — `ACQ_LOG_DIR`, else the
 //!     platform's log directory (`~/Library/Logs/acq` on

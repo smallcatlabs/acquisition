@@ -724,18 +724,38 @@ impl Annotations {
     /// C124 (a read never migrates): the annotations file's read-only
     /// door, beside [`crate::Store::open_read_only`], for a tool that
     /// presents itself as a read. The account's file under `dir` is opened
-    /// with SQLite's read-only flag and never created; nothing is written
-    /// — no journal-mode switch, no stamp, no uuid bound — and only the
-    /// busy timeout is set. A file at any version but this build's is
-    /// refused with [`AnnotationError::NotCurrent`], whose remedy for an
-    /// older file is the writing door's: below the schema floor the words
-    /// [`AnnotationError::SchemaTooOld`] gives, from it up the migration
-    /// `init` would run. One carrying another account's uuid is refused
-    /// with [`AnnotationError::WrongAccount`]. A file with
-    /// no stored uuid, which [`Annotations::open_for`] would stamp, opens
-    /// with none, and a read that pairs intent with facts refuses it.
+    /// through the unbound read-only opener ([`Annotations::open_read_only_at`]),
+    /// never created, nothing written; then the uuid it stores is held to
+    /// the one requested: one carrying another account's uuid is refused
+    /// with [`AnnotationError::WrongAccount`]. A file with no stored uuid,
+    /// which [`Annotations::open_for`] would stamp, opens with none, and a
+    /// read that pairs intent with facts refuses it.
     pub fn open_read_only_for(dir: &Path, uuid: &str) -> Result<Annotations, AnnotationError> {
-        let path = annotations_path(dir, uuid);
+        let a = Self::open_read_only_at(&annotations_path(dir, uuid))?;
+        if let Some(stored) = &a.uuid
+            && stored != uuid
+        {
+            return Err(AnnotationError::WrongAccount {
+                stored: stored.clone(),
+                requested: uuid.to_string(),
+            });
+        }
+        Ok(a)
+    }
+
+    /// C124: the unbound read-only opener, which the account's door and
+    /// the user file's ([`crate::user::User::open_read_only_for`]) are
+    /// built over (C167, user-scoped intent in a file of its own). The file
+    /// at `path` is opened with SQLite's read-only flag and never created;
+    /// nothing is written — no journal-mode switch, no stamp, no uuid
+    /// bound — and only the busy timeout is set. A file at any version but
+    /// this build's is refused with [`AnnotationError::NotCurrent`], whose
+    /// remedy for an older file is the writing door's: below the schema
+    /// floor the words [`AnnotationError::SchemaTooOld`] gives, from it up
+    /// the migration `init` would run. The uuid the file stores, if any,
+    /// is the handle's, unverified: the caller that addresses a file by an
+    /// account holds it to that account.
+    pub fn open_read_only_at(path: &Path) -> Result<Annotations, AnnotationError> {
         if !path.is_file() {
             return Err(AnnotationError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -746,7 +766,7 @@ impl Annotations {
             )));
         }
         let conn = Connection::open_with_flags(
-            &path,
+            path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
         conn.busy_timeout(annotation_wait())?;
@@ -768,17 +788,9 @@ impl Annotations {
                 r.get(0)
             })
             .optional()?;
-        if let Some(stored) = &stored
-            && stored != uuid
-        {
-            return Err(AnnotationError::WrongAccount {
-                stored: stored.clone(),
-                requested: uuid.to_string(),
-            });
-        }
         Ok(Annotations {
             conn,
-            path,
+            path: path.to_path_buf(),
             uuid: stored,
         })
     }
@@ -1295,6 +1307,22 @@ impl Annotations {
             [],
             |r| r.get(0),
         )?)
+    }
+
+    /// [`Annotations::list`] and [`Annotations::revision`] read inside one
+    /// deferred transaction, so the rows and the file's revision are one
+    /// moment's: no write lands between the two (C167, the user file's
+    /// list answers both).
+    pub(crate) fn list_at_revision(
+        &self,
+        scope: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<(AnnotationList, i64), AnnotationError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let list = self.list(scope, kind)?;
+        let revision = self.revision()?;
+        tx.rollback()?;
+        Ok((list, revision))
     }
 
     /// Store-managed backup (C35): a consistent snapshot of this file at

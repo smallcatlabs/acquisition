@@ -1,11 +1,12 @@
 //! One receipt shape for every write (round 5 of `roadmap/briefs/2g-build.md`,
 //! the shape its design's Q6 delegated; C78, a single write returns the
-//! prior so a hand can undo it): `price_set`'s, `price_clear`'s and the
-//! sync policy's write's answer is one document on every surface, made
+//! prior so a hand can undo it): `price_set`'s, `price_clear`'s, the
+//! sync policy's write's and a saved search's set and clear's answer is
+//! one document on every surface, made
 //! here so no frontend shapes a receipt alone:
 //!
 //! - `target`: what was written — a price's target; a policy's account
-//!   and the realms the write replaced;
+//!   and the realms the write replaced; a saved search's id;
 //! - `written`, the row now standing, null after a clear; `prior`, the
 //!   row before, null on a create;
 //! - `revision`, the revision now current, which the next write over the
@@ -42,6 +43,7 @@ use serde_json::Value;
 
 use crate::frontend::PolicyWritten;
 use crate::refusal::{Surface, Way, offer};
+use crate::saved::SavedWritten;
 
 /// `price set`'s receipt, as the account it ran as: the planner's
 /// document, then its `undo` or `no_undo`.
@@ -208,6 +210,12 @@ pub fn policy_undo(written: &PolicyWritten) -> Result<(Way, String), String> {
         },
         "puts the prior policy back, whole".to_string(),
     ))
+}
+
+/// A saved search's write's receipt (C167; [`crate::saved`]): the
+/// write's document, then its `undo` or `no_undo` ([`SavedWritten::undo`]).
+pub fn saved<'a>(written: &'a SavedWritten, surface: &dyn Surface) -> Receipt<'a, SavedWritten> {
+    shaped(written, written.undo(), surface)
 }
 
 /// A write's document with its `undo`, spelled by a surface, or its

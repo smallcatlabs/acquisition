@@ -28,6 +28,7 @@ mod provider_default;
 mod readme_tour;
 mod realm_wire;
 mod reference_currency;
+mod saved_json;
 mod search_json;
 mod seat_faults;
 mod shop_json;

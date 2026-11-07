@@ -1,0 +1,98 @@
+# golden saved_json/list_show_set_and_clear: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq saved
+# holds "no saved searches"
+# holds "acq saved set --name NAME"
+--- stdout
+no saved searches: `acq saved set --name NAME 'QUERY'` saves one
+
+$ acq saved set --name rings 'rarity=rare   class:rings'
+# holds "rings over pc live: rarity=rare class:rings (revision 1), was unset"
+# holds "undoes it"
+--- stdout
+saved search <id>: rings over pc live: rarity=rare class:rings (revision 1), was unset
+next: `acq search --saved <id>` runs it; `acq saved clear <id> --if-revision 1` undoes it
+
+$ acq saved list
+# holds "2 saved searches"
+# holds "0000000000a2"
+--- stdout
+2 saved searches (the file at revision 2):
+  amulets  pc live      rarity=rare  (revision 1)  0000000000a2
+  rings    pc live      rarity=rare class:rings  (revision 1)  <id>
+next: `acq search --saved ID` runs one; `acq saved show ID` shows one
+
+$ acq saved show <id>
+# holds "scope: pc live"
+# holds "query: rarity=rare class:rings"
+# holds "revision 1"
+--- stdout
+rings  (<id>)
+  scope: pc live
+  query: rarity=rare class:rings
+  revision 1, written <age> ago via cli, created <age> ago
+next: `acq search --saved <id>` runs it; `acq saved clear <id> --if-revision 1` clears it
+
+$ acq saved set --id <id> rarity=unique --if-revision 1
+# holds "rarity=unique (revision 2), was rings over pc live: rarity=rare class:rings (revision 1)"
+--- stdout
+saved search <id>: rings over pc live: rarity=unique (revision 2), was rings over pc live: rarity=rare class:rings (revision 1)
+next: `acq search --saved <id>` runs it; `acq saved set --id <id> --if-revision 2 --name rings --realm pc --membership live 'rarity=rare class:rings'` puts the prior back, whole
+
+$ acq saved set --id <id> --name 'unique rings'
+# holds "unique rings over pc live: rarity=unique (revision 3), was rings over pc live: rarity=unique (revision 2)"
+# holds "puts the prior back, whole"
+--- stdout
+saved search <id>: unique rings over pc live: rarity=unique (revision 3), was rings over pc live: rarity=unique (revision 2)
+next: `acq search --saved <id>` runs it; `acq saved set --id <id> --if-revision 3 --name rings --realm pc --membership live rarity=unique` puts the prior back, whole
+
+$ acq saved show amulets
+# holds "2 saved searches are named amulets"
+# holds "acq saved show 0000000000a2"
+--- stderr
+Error: 2 saved searches are named amulets; open one by its id
+    the saved search 0000000000a2 named amulets, at revision 1: acq saved show 0000000000a2
+    the saved search 0000000000a3 named amulets, at revision 1: acq saved show 0000000000a3
+--- exit 1
+
+$ acq saved show nothing
+# holds "no saved search has the id or the name nothing"
+# holds "acq saved list"
+--- stderr
+Error: no saved search has the id or the name nothing
+    the saved searches, each with its id: acq saved list
+--- exit 1
+
+$ acq saved set --id <id> --name x --if-revision 1
+# holds "stands at revision 3"
+# holds "--if-revision 3"
+--- stderr
+Error: saved search <id> stands at revision 3, not the revision the write named: nothing was written
+    the same write over revision 3, the row as it stands: acq saved set --id <id> --if-revision 3 --name x
+--- exit 1
+
+$ acq saved set --name x rarity=rare --if-revision 1
+# holds "`--if-revision` names the revision of the saved search `--id` names"
+--- stderr
+Error: `--if-revision` names the revision of the saved search `--id` names; a new one names neither
+--- exit 1
+
+$ acq saved set --name x rarity==
+# holds "found `=`"
+--- stderr
+Error: expected a value: a word, a number, a range or a quoted string, found `=`
+--- exit 1
+
+$ acq saved clear not-an-id
+# holds "is no saved search's id"
+--- stderr
+Error: "not-an-id" is no saved search's id: an id is twelve hex characters, as the list prints it
+--- exit 1
+
+$ acq saved clear <id>
+# holds "cleared at revision 4"
+# holds "--if-revision 0"
+# holds "puts it back"
+--- stdout
+saved search <id>: cleared at revision 4, was unique rings over pc live: rarity=unique (revision 3)
+next: `acq saved set --id <id> --if-revision 0 --name 'unique rings' --realm pc --membership live rarity=unique` puts it back (a create, which lands only where no saved search stands at its id; the row's count continues past the clear)

@@ -37,6 +37,9 @@
 //!   (C149).
 //! - [`receipt`]: the one receipt shape every write answers, its `undo`
 //!   an offer each surface spells (C78).
+//! - [`saved`]: the saved search in the world's user file (C167): its
+//!   list, its show, its one write shape and its clear, and the request
+//!   a `--saved` runs.
 //!
 //! Every field of a value a verb takes is public, so a test builds one
 //! over a fixture store with no environment.
@@ -58,6 +61,7 @@ pub mod receipt;
 pub mod refresh;
 pub mod refusal;
 pub mod refused;
+pub mod saved;
 
 pub use characters::Characters;
 pub use daemon::{DaemonReport, PersistedSummary};

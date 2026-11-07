@@ -24,6 +24,9 @@ tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+# a saved search's id, minted as the web mints its token: pinned as the
+# CLI's Cargo.toml pins it (C167; the design of 4-full part 1, §3)
+getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 
 [dev-dependencies]
 # The policy test plants a newer build's value under the store's door,

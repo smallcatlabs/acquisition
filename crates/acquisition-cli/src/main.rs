@@ -12,6 +12,7 @@ mod printed;
 #[cfg(test)]
 mod real_scale_fixture;
 mod reference_cmd;
+mod saved_cmd;
 mod search_cmd;
 mod shop_cmd;
 mod store_cmd;
@@ -212,7 +213,9 @@ struct Cli {
     /// `unknown_account`; with none known, as `not_logged_in`. A job verb
     /// also needs the account logged in now (`not_logged_in` where it is
     /// not); a verb that reads the store needs only its store. A job's
-    /// progress line and its JSON name the account it ran as.
+    /// progress line and its JSON name the account it ran as. The saved
+    /// searches are the world's, not an account's: `acq saved` needs no
+    /// login and uses an account only to resolve a new search's realm.
     #[arg(long, global = true, env = "ACQ_ACCOUNT")]
     account: Option<String>,
     #[command(subcommand)]
@@ -623,6 +626,17 @@ summary.")]
         #[command(subcommand)]
         cmd: Option<PriceCmd>,
     },
+    /// The saved searches (no daemon, no login): a name, a query's text
+    /// and its scope, kept in the world's own file, not an account's, so
+    /// any account runs one (`acq search --saved`). Each has an id, the
+    /// identity, printed last; the name is a label two may share. An
+    /// account is used only to resolve the realm a new search names none
+    /// of. `--json` is the document whole; a write's is its receipt, the
+    /// row before it and the command that puts it back.
+    Saved {
+        #[command(subcommand)]
+        cmd: Option<SavedCmd>,
+    },
     /// Reference data the binary ships (no store, no daemon): the currency
     /// table, by version.
     Reference {
@@ -766,6 +780,74 @@ enum PriceCmd {
     Clear {
         /// The address, as for `set`.
         target: String,
+        /// Only clear exactly this revision; see `set`.
+        #[arg(long)]
+        if_revision: Option<i64>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SavedCmd {
+    /// List the saved searches (the default): ten by name, each with its
+    /// scope, its query, its revision and its id, the count of all beside;
+    /// --limit lists N, --expand every one. A row this build cannot read
+    /// is listed by its id and why.
+    List {
+        /// List this many, the first by name.
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
+        /// List every saved search.
+        #[arg(long)]
+        expand: bool,
+    },
+    /// One saved search, by its id or its name: its scope, its query, its
+    /// revision and who wrote it. A name several share is refused, each
+    /// offered by its id.
+    Show {
+        #[arg(value_name = "ID|NAME")]
+        search: String,
+    },
+    /// Save a search, or change one. A new one is `--name` and the query,
+    /// with no `--id`: its realm is `--realm`, else the one the account's
+    /// store holds (`all` where it holds none; over several it is
+    /// required), its membership `--membership`, else live. A change is
+    /// `--id` and what it changes — a query, `--name` (a rename),
+    /// `--realm`, `--membership` — the rest kept as the row stands. The
+    /// query is stored as the language prints it, and refused before
+    /// anything is written where it does not read. Prints what it
+    /// replaced and the command that puts it back.
+    Set {
+        /// The saved search to change, by its id (`acq saved list`).
+        #[arg(long, value_name = "ID")]
+        id: Option<String>,
+        /// With --id, only write over exactly this revision (what `acq
+        /// saved show` printed when you reviewed it); refused naming the
+        /// current one otherwise. 0 writes the whole search at the id only
+        /// where none stands there, as an undo of a clear does. Without it
+        /// the write replaces the revision that stands — though a write
+        /// racing in between still conflicts rather than being clobbered.
+        #[arg(long)]
+        if_revision: Option<i64>,
+        /// The name: one to sixty-four characters, no line break. A label,
+        /// not an identity: two searches may share one.
+        #[arg(long)]
+        name: Option<String>,
+        /// The query, as `acq search` takes it. One that starts with `-`,
+        /// the language's not, takes a space inside its quotes.
+        query: Option<String>,
+        /// pc, xbox, sony, poe2, or all.
+        #[arg(long)]
+        realm: Option<String>,
+        /// live, all or removed, as `acq search --membership` reads them.
+        #[arg(long, value_name = "live|all|removed")]
+        membership: Option<String>,
+    },
+    /// Remove one saved search. Prints what it removed and the command
+    /// that puts it back.
+    Clear {
+        /// The saved search's id (`acq saved list`).
+        #[arg(value_name = "ID")]
+        id: String,
         /// Only clear exactly this revision; see `set`.
         #[arg(long)]
         if_revision: Option<i64>,
@@ -1550,6 +1632,29 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 option_words("--account", account),
             ]
             .concat(),
+            Way::SavedSearches { expand } => match expand {
+                true => words(&["acq", "saved", "list", "--expand"]),
+                false => words(&["acq", "saved", "list"]),
+            },
+            Way::SavedSearchShow { id } => words(&["acq", "saved", "show", id]),
+            Way::SavedSearchRun { id, account } => [
+                words(&["acq"]),
+                account
+                    .as_deref()
+                    .map(|a| option_words("--account", a))
+                    .unwrap_or_default(),
+                words(&["search", "--saved", id]),
+            ]
+            .concat(),
+            Way::SavedSearchSet(set) => saved_cmd::set_words(set),
+            Way::SavedSearchClear { id, if_revision } => words(&[
+                "acq",
+                "saved",
+                "clear",
+                id,
+                "--if-revision",
+                &if_revision.to_string(),
+            ]),
         })
     }
 
@@ -2117,6 +2222,31 @@ async fn run(cli: Cli) -> Result<()> {
                     json: cli.json,
                 },
             ),
+        },
+        Cmd::Saved { cmd } => match cmd.unwrap_or(SavedCmd::List {
+            limit: None,
+            expand: false,
+        }) {
+            SavedCmd::List { limit, expand } => saved_cmd::list(cx, limit, expand, cli.json),
+            SavedCmd::Show { search } => saved_cmd::show(cx, &search, cli.json),
+            SavedCmd::Set {
+                id,
+                if_revision,
+                name,
+                query,
+                realm,
+                membership,
+            } => saved_cmd::set(
+                cx,
+                id,
+                if_revision,
+                name,
+                query,
+                realm,
+                membership,
+                cli.json,
+            ),
+            SavedCmd::Clear { id, if_revision } => saved_cmd::clear(cx, &id, if_revision, cli.json),
         },
         Cmd::Policy { cmd } => match cmd {
             None => plan_cmd::policy_show(cx, false, cli.json),

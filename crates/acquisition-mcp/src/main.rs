@@ -465,6 +465,13 @@ impl refusal::Surface for Spoken<'_> {
             Way::RefusedBodies { account } => {
                 Some((json!({ "account": account }), other("store_refused")))
             }
+            // the saved search has no tool on this surface yet (4-full part
+            // 1, step 2 gives it three): no request to send back
+            Way::SavedSearches { .. }
+            | Way::SavedSearchShow { .. }
+            | Way::SavedSearchRun { .. }
+            | Way::SavedSearchSet(_)
+            | Way::SavedSearchClear { .. } => None,
         }
     }
 }

@@ -236,6 +236,14 @@ pub struct SearchArgs {
     /// request deliberately.
     #[arg(long)]
     pub rebind: bool,
+    /// Run a saved search, by its id or its name (`acq saved list`): its
+    /// query over its realm and membership, as the account `--account`
+    /// names. Its scope and its query are the row's, so no query,
+    /// `--query-file`, `--trade`, `--trade-file`, `--realm` or
+    /// `--membership` stands beside it; every view flag does. A name
+    /// several searches share is refused, each offered by its id.
+    #[arg(long, value_name = "ID|NAME")]
+    pub saved: Option<String>,
 }
 
 /// What `acq show` was typed with.
@@ -327,7 +335,7 @@ fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) ->
     Ok(())
 }
 
-pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
+pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
     let unbuilt = [("fields", args.fields.is_some()), ("rebind", args.rebind)];
     if let Some((construct, _)) = unbuilt.iter().find(|(_, typed)| *typed) {
         return Err(fail(not_built(construct).into(), json));
@@ -349,6 +357,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         ("--context", args.context.is_some()),
         ("--print-request", args.print_request),
         ("--describe", args.describe.is_some()),
+        ("--saved", args.saved.is_some()),
         ("--next", args.next.is_some() && args.request.is_some()),
         ("--limit", args.limit.is_some() && args.request.is_some()),
     ];
@@ -434,6 +443,36 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         let described = describe(&names).map_err(|e| fail(e, json))?;
         let totals = names.iter().any(|n| n.eq_ignore_ascii_case("totals"));
         return emit(&described, json, |d| describe_text(d, totals));
+    }
+    // a saved search is its scope and its query whole, as a continuation
+    // is: a word of either beside it has nowhere to stand; the view and the
+    // account are this command's
+    if let Some(saved) = args.saved.take() {
+        let beside = [
+            ("a query", args.query.is_some()),
+            ("--query-file", args.query_file.is_some()),
+            ("--trade", args.trade.is_some()),
+            ("--trade-file", args.trade_file.is_some()),
+            ("--realm", args.realm.is_some()),
+            ("--membership", args.membership.is_some()),
+        ];
+        if let Some((word, _)) = beside.iter().find(|(_, typed)| *typed) {
+            return Err(fail(
+                SearchError::Scope {
+                    kind: "view",
+                    message: format!(
+                        "`--saved` runs a saved search whole, its scope and its query: {word} has nowhere to stand beside it"
+                    ),
+                    offers: Vec::new(),
+                },
+                json,
+            ));
+        }
+        let request =
+            acquisition_verbs::saved::request_of(&cx.frontend, &saved, cx.account.as_deref())?;
+        args.query = request.query.text;
+        args.realm = request.scope.realm.map(|realm| realm.as_str().to_string());
+        args.membership = Some(request.scope.membership.as_str().to_string());
     }
     let read = |path: &str, what: &str| -> Result<String> {
         if path == "-" {

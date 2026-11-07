@@ -1638,6 +1638,13 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
             })
             .unwrap(),
         ),
+        (
+            "saved searches",
+            serde_json::to_value(
+                acquisition_verbs::saved::list(&frontend(&s.mock), None, false).unwrap(),
+            )
+            .unwrap(),
+        ),
     ];
     for (name, doc) in &documents {
         assert!(doc.is_object(), "{name}: {doc}");
@@ -2150,16 +2157,22 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::Result { .. } => Some("job_result"),
             Way::Currencies => Some("reference_currency"),
             Way::RefusedBodies { .. } => Some("store_refused"),
+            Way::SavedSearches { .. } | Way::SavedSearchShow { .. } => Some("saved_searches"),
+            Way::SavedSearchRun { .. } => Some("search"),
+            Way::SavedSearchSet(_) => Some("saved_search_set"),
+            Way::SavedSearchClear { .. } => Some("saved_search_clear"),
         };
         Some((json!(format!("{way:?}")), tool))
     }
 }
 
 /// The keys a refusal may hold: `error` and `kind` always; the four the
-/// shape adds — `offers`, `readings`, `next`, the kind's own fields —
-/// where they have something to say.
-const REFUSAL_KEYS: [&str; 9] = [
+/// shape adds — `offers`, `readings`, `next`, the kind's own fields (an
+/// ambiguous saved search's `searches`, `total` and `left_out` among
+/// them) — where they have something to say.
+const REFUSAL_KEYS: [&str; 12] = [
     "error", "kind", "offers", "readings", "next", "accounts", "revision", "current", "span",
+    "searches", "total", "left_out",
 ];
 
 /// A not_found's refusal as the planner makes it, over a scope named.
@@ -2260,6 +2273,37 @@ fn every_refusal_is_one_shape_from_one_function() {
             "bare_word",
         ),
     ];
+    // the saved search's two words, a conflict over a row and over none,
+    // as the verbs make them (C167)
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "twice", "rarity=rare");
+    saved_put(&s.mock, "0000000000a1", "twice");
+    let mut cases = cases;
+    for e in [
+        acquisition_verbs::saved::show(&world, "nothing by this name").unwrap_err(),
+        acquisition_verbs::saved::show(&world, "twice").unwrap_err(),
+        acquisition_verbs::saved::set(
+            &world,
+            None,
+            &rename(&id, Expect::Exactly(9), "x"),
+            &mut no_mint,
+        )
+        .unwrap_err(),
+        acquisition_verbs::saved::clear(&world, "0000000000b2", Expect::Exactly(1)).unwrap_err(),
+    ] {
+        let kind = document(&e, &Plain)["kind"].as_str().unwrap().to_string();
+        assert!(
+            [
+                "saved_search_not_found",
+                "ambiguous_saved_search",
+                "conflict"
+            ]
+            .contains(&kind.as_str()),
+            "{e:#}"
+        );
+        cases.push((e, Box::leak(kind.into_boxed_str())));
+    }
     for (e, kind) in cases {
         let doc = document(&e, &Plain);
         let fields = doc.as_object().unwrap();
@@ -3317,6 +3361,46 @@ async fn populated() -> Vec<(&'static str, Value)> {
         })
         .unwrap(),
     ));
+
+    // the saved search's documents (C167): the list, a row shown, a
+    // replace's receipt, a clear's, and a conflict over a row standing
+    {
+        use acquisition_verbs::saved;
+        let world = frontend(&s.mock);
+        let id = saved_create(&world, "rings", "rarity=rare");
+        docs.push((
+            "saved searches",
+            serde_json::to_value(saved::list(&world, None, false).unwrap()).unwrap(),
+        ));
+        docs.push((
+            "saved search",
+            serde_json::to_value(saved::show(&world, &id).unwrap()).unwrap(),
+        ));
+        let replaced = saved::set(
+            &world,
+            None,
+            &rename(&id, Expect::Current, "amulets"),
+            &mut no_mint,
+        )
+        .unwrap();
+        docs.push((
+            "saved receipt",
+            serde_json::to_value(receipt::saved(&replaced, &Plain)).unwrap(),
+        ));
+        let refused = saved::set(
+            &world,
+            None,
+            &rename(&id, Expect::Exactly(1), "x"),
+            &mut no_mint,
+        )
+        .unwrap_err();
+        docs.push(("saved conflict", refusal::document(&refused, &Plain)));
+        let cleared = saved::clear(&world, &id, Expect::Current).unwrap();
+        docs.push((
+            "saved clear receipt",
+            serde_json::to_value(receipt::saved(&cleared, &Plain)).unwrap(),
+        ));
+    }
     docs
 }
 
@@ -3716,6 +3800,50 @@ const INVENTORY: &[(&str, &str, &str)] = &[
         "character_listing_fetched_at_age",
     ),
     ("plan", "plan.quote.observed_at", "quote_observed_at_age"),
+    (
+        "saved searches",
+        "searches[].created_at",
+        "searches[].created_at_age",
+    ),
+    (
+        "saved searches",
+        "searches[].updated_at",
+        "searches[].updated_at_age",
+    ),
+    ("saved search", "created_at", "created_at_age"),
+    ("saved search", "updated_at", "updated_at_age"),
+    (
+        "saved receipt",
+        "written.created_at",
+        "written.created_at_age",
+    ),
+    (
+        "saved receipt",
+        "written.updated_at",
+        "written.updated_at_age",
+    ),
+    ("saved receipt", "prior.created_at", "prior.created_at_age"),
+    ("saved receipt", "prior.updated_at", "prior.updated_at_age"),
+    (
+        "saved conflict",
+        "current.created_at",
+        "current.created_at_age",
+    ),
+    (
+        "saved conflict",
+        "current.updated_at",
+        "current.updated_at_age",
+    ),
+    (
+        "saved clear receipt",
+        "prior.created_at",
+        "prior.created_at_age",
+    ),
+    (
+        "saved clear receipt",
+        "prior.updated_at",
+        "prior.updated_at_age",
+    ),
 ];
 
 /// The rows no verb's document populates: a tab `tabs` lists is live, so
@@ -3805,4 +3933,735 @@ async fn c163_no_document_carries_a_time_without_its_words() {
         ["nested.0.seen_at", "stamped_at"],
         "the walk fails on a bare time and never on a null one"
     );
+}
+
+// ---- the saved search (C167; 4-full part 1, step 1) ------------------------
+
+use acquisition_store::{SAVED_SEARCH_SCOPE, SavedSearch, User, user_path};
+use acquisition_verbs::refusal::{Pointed, document};
+use acquisition_verbs::saved::{self, SavedRow, Set};
+
+/// The mint of a write that names its id: never called.
+fn no_mint() -> Result<String, String> {
+    panic!("a write that names its id minted one")
+}
+
+/// A mint handing out `ids` in order, counting its calls in `calls`.
+fn minting<'a>(
+    ids: &'a [&'a str],
+    calls: &'a std::cell::Cell<usize>,
+) -> impl FnMut() -> Result<String, String> + 'a {
+    move || {
+        let at = calls.get();
+        calls.set(at + 1);
+        Ok(ids[at].to_string())
+    }
+}
+
+/// A saved search created through the verbs over pc, its id.
+fn saved_create(world: &Frontend, name: &str, text: &str) -> String {
+    saved::set(
+        world,
+        None,
+        &Set {
+            id: None,
+            expect: Expect::Create,
+            name: Some(name.into()),
+            text: Some(text.into()),
+            realm: Some("pc".into()),
+            membership: None,
+        },
+        &mut saved::mint,
+    )
+    .unwrap()
+    .target
+    .id
+}
+
+/// A saved search's value as the store door takes it.
+fn saved_value(name: &str, text: &str) -> Value {
+    json!({ "version": 1, "name": name, "text": text,
+            "scope": { "realm": "pc", "membership": "live" } })
+}
+
+/// A saved search of `name` written through the store's door at `id`,
+/// as another writer would: no verb, no check of names.
+fn saved_put(dir: &Path, id: &str, name: &str) {
+    User::open_for(dir)
+        .unwrap()
+        .put::<SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            id,
+            &saved_value(name, "rarity=rare"),
+            None,
+            &acquisition_store::Provenance::via("test"),
+        )
+        .unwrap();
+}
+
+/// A write of `id`'s name alone under `expect`: a rename.
+fn rename(id: &str, expect: Expect, name: &str) -> Set {
+    Set {
+        id: Some(id.into()),
+        expect,
+        name: Some(name.into()),
+        text: None,
+        realm: None,
+        membership: None,
+    }
+}
+
+/// The ways a verbs' refusal offers, as the verbs made them.
+fn ways(e: &anyhow::Error) -> Vec<Way> {
+    e.downcast_ref::<Pointed>()
+        .unwrap_or_else(|| panic!("not a pointed refusal: {e:#}"))
+        .ways
+        .iter()
+        .map(|(way, _)| way.clone())
+        .collect()
+}
+
+/// A saved search's way sent back through the verbs, as a surface sends
+/// it: its answer as JSON.
+fn dispatch(world: &Frontend, way: &Way) -> anyhow::Result<Value> {
+    Ok(match way {
+        Way::SavedSearches { expand } => serde_json::to_value(saved::list(world, None, *expand)?)?,
+        Way::SavedSearchShow { id } => serde_json::to_value(saved::show(world, id)?)?,
+        Way::SavedSearchRun { id, account } => {
+            serde_json::to_value(saved::request_of(world, id, account.as_deref())?)?
+        }
+        Way::SavedSearchSet(set) => {
+            serde_json::to_value(saved::set(world, None, set, &mut saved::mint)?)?
+        }
+        Way::SavedSearchClear { id, if_revision } => {
+            serde_json::to_value(saved::clear(world, id, Expect::Exactly(*if_revision))?)?
+        }
+        other => panic!("not a saved search's way: {other:?}"),
+    })
+}
+
+/// A readable row's facts, as a test reads them.
+fn read_row(row: &SavedRow) -> &saved::ReadRow {
+    match row {
+        SavedRow::Read(row) => row,
+        SavedRow::Unreadable(row) => panic!("unreadable: {row:?}"),
+    }
+}
+
+/// C167, the one write shape: a create (a name and a text, the name
+/// trimmed, live by default), a replace at exactly the revision named, a
+/// replace at the revision read, and a rename that keeps the text and
+/// the scope, each receipt with its prior and its undo; the rename's
+/// undo, sent back through the verbs, lands. Every other pairing of an
+/// id and an expectation, and a name or id that cannot be one, is
+/// refused as `arguments` before anything is written.
+#[test]
+fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let created = saved::set(
+        &world,
+        None,
+        &Set {
+            id: None,
+            expect: Expect::Create,
+            name: Some(" rings ".into()),
+            text: Some("rarity=rare".into()),
+            realm: Some("pc".into()),
+            membership: None,
+        },
+        &mut saved::mint,
+    )
+    .unwrap();
+    let id = created.target.id.clone();
+    assert!(saved::is_id(&id), "{id}");
+    let row = read_row(created.written.as_ref().unwrap());
+    assert_eq!(
+        (
+            row.name.as_str(),
+            row.scope.realm.as_str(),
+            row.scope.membership.as_str(),
+            row.revision
+        ),
+        ("rings", "pc", "live", 1)
+    );
+    assert!(created.prior.is_none());
+    assert_eq!(
+        created.undo().unwrap().0,
+        Way::SavedSearchClear {
+            id: id.clone(),
+            if_revision: 1
+        }
+    );
+
+    let mut text = rename(&id, Expect::Exactly(1), "rings");
+    text.name = None;
+    text.text = Some("rarity=unique".into());
+    let edited = saved::set(&world, None, &text, &mut no_mint).unwrap();
+    assert_eq!(edited.revision, 2);
+    assert_eq!(read_row(edited.prior.as_ref().unwrap()).text, "rarity=rare");
+    assert_eq!(
+        read_row(edited.written.as_ref().unwrap()).text,
+        "rarity=unique"
+    );
+    assert_eq!(
+        edited.undo().unwrap().0,
+        Way::SavedSearchSet(Box::new(Set {
+            id: Some(id.clone()),
+            expect: Expect::Exactly(2),
+            name: Some("rings".into()),
+            text: Some("rarity=rare".into()),
+            realm: Some("pc".into()),
+            membership: Some("live".into()),
+        }))
+    );
+
+    let mut scope = rename(&id, Expect::Current, "rings");
+    scope.name = None;
+    scope.membership = Some("all".into());
+    let current = saved::set(&world, None, &scope, &mut no_mint).unwrap();
+    assert_eq!(
+        (current.revision, current.prior.as_ref().unwrap().revision()),
+        (3, 2)
+    );
+
+    let renamed = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Current, "unique rings"),
+        &mut no_mint,
+    )
+    .unwrap();
+    let row = read_row(renamed.written.as_ref().unwrap());
+    assert_eq!(
+        (
+            row.name.as_str(),
+            row.text.as_str(),
+            row.scope.realm.as_str(),
+            row.scope.membership.as_str()
+        ),
+        ("unique rings", "rarity=unique", "pc", "all"),
+        "a rename keeps the text and the scope"
+    );
+    assert_eq!(row.id, id, "the id is the identity across a rename");
+    let undone = dispatch(&world, &renamed.undo().unwrap().0).unwrap();
+    assert_eq!(
+        (&undone["written"]["name"], &undone["revision"]),
+        (&json!("rings"), &json!(5))
+    );
+
+    let refused = |set: Set| {
+        let e = saved::set(&world, None, &set, &mut no_mint).unwrap_err();
+        assert_eq!(document(&e, &Plain)["kind"], "arguments", "{set:?}: {e:#}");
+    };
+    let none = Set {
+        id: None,
+        expect: Expect::Create,
+        name: None,
+        text: None,
+        realm: None,
+        membership: None,
+    };
+    refused(Set {
+        expect: Expect::Exactly(1),
+        name: Some("x".into()),
+        ..none.clone()
+    });
+    refused(Set {
+        expect: Expect::Current,
+        name: Some("x".into()),
+        ..none.clone()
+    });
+    refused(Set {
+        name: Some("x".into()),
+        ..none.clone()
+    });
+    refused(rename(&id, Expect::Create, "partial"));
+    refused(Set {
+        id: Some(id.clone()),
+        expect: Expect::Current,
+        ..none.clone()
+    });
+    refused(rename("not-an-id", Expect::Current, "x"));
+    refused(rename(&id, Expect::Current, "two\nlines"));
+    refused(rename(&id, Expect::Current, &"n".repeat(65)));
+    assert_eq!(
+        saved::list(&world, None, false).unwrap().revision,
+        5,
+        "nothing landed"
+    );
+}
+
+/// C167, C35: a row read at 4, another writer landing 5 through the
+/// store's door, a write naming 4 refused as `conflict` with the
+/// revision and the row that stand (C11), and the write it offers again
+/// — naming 5 — merging over 5: the fields it does not name are 5's, and
+/// its receipt's prior is 5, never 4 (as `set_policy` reads its row).
+#[test]
+fn c167_a_write_naming_a_moved_revision_conflicts_and_one_naming_the_new_merges_over_it() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "rings", "rarity=rare");
+    for name in ["a", "b", "c"] {
+        saved::set(
+            &world,
+            None,
+            &rename(&id, Expect::Current, name),
+            &mut no_mint,
+        )
+        .unwrap();
+    }
+    let read = saved::show(&world, &id).unwrap();
+    assert_eq!(read.revision(), 4);
+    User::open_for(&s.mock)
+        .unwrap()
+        .put::<SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            &id,
+            &saved_value("theirs", "rarity=magic"),
+            Some(4),
+            &acquisition_store::Provenance::via("other"),
+        )
+        .unwrap();
+    let e = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Exactly(4), "mine"),
+        &mut no_mint,
+    )
+    .unwrap_err();
+    let doc = document(&e, &Plain);
+    assert_eq!(
+        (
+            &doc["kind"],
+            &doc["revision"],
+            &doc["current"]["revision"],
+            &doc["current"]["name"]
+        ),
+        (&json!("conflict"), &json!(5), &json!(5), &json!("theirs")),
+        "{doc}"
+    );
+    let [again] = ways(&e).try_into().unwrap();
+    assert_eq!(
+        again,
+        Way::SavedSearchSet(Box::new(rename(&id, Expect::Exactly(5), "mine")))
+    );
+    let merged = dispatch(&world, &again).unwrap();
+    assert_eq!(
+        (
+            &merged["written"]["name"],
+            &merged["written"]["text"],
+            &merged["written"]["written_via"],
+            &merged["prior"]["revision"],
+            &merged["prior"]["name"],
+            &merged["revision"],
+        ),
+        (
+            &json!("mine"),
+            &json!("rarity=magic"),
+            &json!("test"),
+            &json!(5),
+            &json!("theirs"),
+            &json!(6)
+        ),
+        "{merged}"
+    );
+}
+
+/// C104, C167: the text is stored as the language prints it, and a text
+/// the language refuses is the language's refusal before any file is
+/// opened: a world with no user file still has none, and one with a file
+/// keeps its revision.
+#[test]
+fn c167_the_text_is_stored_canonical_and_a_refused_text_touches_no_file() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let typed = "rarity=rare   class:rings";
+    let canonical = acquisition_search::answer::QueryInput {
+        text: Some(typed.into()),
+        tree: None,
+        trade: None,
+    }
+    .read(None)
+    .unwrap()
+    .query
+    .text();
+    assert_ne!(
+        canonical, typed,
+        "the case must differ from its canonical form"
+    );
+    let create = |text: &str| Set {
+        id: None,
+        expect: Expect::Create,
+        name: Some("rings".into()),
+        text: Some(text.into()),
+        realm: Some("pc".into()),
+        membership: None,
+    };
+    let e = saved::set(&world, None, &create("rarity=="), &mut no_mint).unwrap_err();
+    let kind = document(&e, &Plain)["kind"].clone();
+    assert!(
+        kind != "arguments" && kind != "refused",
+        "the language's own word: {kind}"
+    );
+    assert!(
+        !user_path(&s.mock).exists(),
+        "a refused text opened the file"
+    );
+    let written = saved::set(&world, None, &create(typed), &mut saved::mint).unwrap();
+    assert_eq!(read_row(written.written.as_ref().unwrap()).text, canonical);
+    assert!(saved::set(&world, None, &create("rarity=="), &mut no_mint).is_err());
+    assert_eq!(saved::list(&world, None, false).unwrap().revision, 1);
+}
+
+/// C96: a create names its realm, `all` among them, or takes the one the
+/// account's store holds, as a search resolves one: over a store of no
+/// realm, and with no account at all, `all`; over a store of several it
+/// is refused as the search refuses it, each realm offered as the same
+/// create there, and an offer sent back lands.
+#[test]
+fn c167_a_creates_realm_is_named_or_resolved_as_a_search_resolves_one() {
+    let create = |realm: Option<&str>| Set {
+        id: None,
+        expect: Expect::Create,
+        name: Some("rings".into()),
+        text: Some("rarity=rare".into()),
+        realm: realm.map(str::to_string),
+        membership: None,
+    };
+    let realm_of = |written: &saved::SavedWritten| {
+        read_row(written.written.as_ref().unwrap())
+            .scope
+            .realm
+            .clone()
+    };
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let named = saved::set(&world, None, &create(Some("all")), &mut saved::mint).unwrap();
+    assert_eq!(realm_of(&named), "all");
+    let nobody = saved::set(&world, None, &create(None), &mut saved::mint).unwrap();
+    assert_eq!(realm_of(&nobody), "all", "no account is known");
+    profiled(&s.mock);
+    let empty = saved::set(&world, Some(USER), &create(None), &mut saved::mint).unwrap();
+    assert_eq!(realm_of(&empty), "all", "a store of no realm");
+    let mut store = Store::open(&account_path(&s.mock, USER)).unwrap();
+    three_leagues(&mut store, 1_000);
+    let e = saved::set(&world, Some(USER), &create(None), &mut no_mint).unwrap_err();
+    assert_eq!(document(&e, &Plain)["kind"], "realm_needed");
+    let offered = ways(&e);
+    let realms: Vec<String> = offered
+        .iter()
+        .map(|way| match way {
+            Way::SavedSearchSet(set) => set.realm.clone().unwrap(),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(realms, ["pc", "xbox", "all"]);
+    let landed = dispatch(&world, &offered[1]).unwrap();
+    assert_eq!(landed["written"]["scope"]["realm"], "xbox");
+}
+
+/// C78, C167: a clear's receipt names the prior and the revision its
+/// tombstone took, and its undo — the prior whole, created again at the
+/// id — sent back through the verbs, lands over the tombstone, the
+/// revision continuing past it.
+#[test]
+fn c167_a_clears_undo_lands_over_the_tombstone() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "rings", "rarity=rare");
+    let cleared = saved::clear(&world, &id, Expect::Current).unwrap();
+    assert_eq!((cleared.revision, cleared.written.is_none()), (2, true));
+    let doc = serde_json::to_value(acquisition_verbs::receipt::saved(&cleared, &Plain)).unwrap();
+    assert!(
+        doc.get("undo").is_some() && doc.get("no_undo").is_none(),
+        "{doc}"
+    );
+    let undo = cleared.undo().unwrap().0;
+    assert_eq!(
+        undo,
+        Way::SavedSearchSet(Box::new(Set {
+            id: Some(id.clone()),
+            expect: Expect::Create,
+            name: Some("rings".into()),
+            text: Some("rarity=rare".into()),
+            realm: Some("pc".into()),
+            membership: Some("live".into()),
+        }))
+    );
+    let landed = dispatch(&world, &undo).unwrap();
+    assert_eq!(
+        (&landed["revision"], &landed["written"]["id"]),
+        (&json!(3), &json!(id))
+    );
+}
+
+/// C151: a row a later build wrote is listed and shown, named by its id
+/// and revision with why this build cannot read it; it is refused when
+/// run, and never replaced blind; a clear naming its revision lands and
+/// answers `no_undo` with its reason in place of an undo.
+#[test]
+fn c167_a_later_versions_row_is_named_refused_when_run_and_cleared_at_its_revision() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "rings", "rarity=rare");
+    rusqlite::Connection::open(user_path(&s.mock))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = ?1 WHERE key = ?2",
+            rusqlite::params![
+                json!({ "version": 2, "name": "rings", "text": "x", "scope": {} }).to_string(),
+                id
+            ],
+        )
+        .unwrap();
+    let listed = saved::list(&world, None, false).unwrap();
+    let [SavedRow::Unreadable(row)] = listed.searches.as_slice() else {
+        panic!("{listed:?}")
+    };
+    assert_eq!((row.id.as_str(), row.revision), (id.as_str(), 1));
+    assert!(row.unreadable.contains("version 2"), "{}", row.unreadable);
+    assert!(matches!(
+        saved::show(&world, &id).unwrap(),
+        SavedRow::Unreadable(_)
+    ));
+    let run = saved::request_of(&world, &id, None).unwrap_err();
+    assert_eq!(document(&run, &Plain)["kind"], "refused");
+    let blind = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Current, "x"),
+        &mut no_mint,
+    )
+    .unwrap_err();
+    assert_eq!(document(&blind, &Plain)["kind"], "refused");
+    let partial = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Exactly(1), "x"),
+        &mut no_mint,
+    )
+    .unwrap_err();
+    assert_eq!(document(&partial, &Plain)["kind"], "arguments");
+    let cleared = saved::clear(&world, &id, Expect::Exactly(1)).unwrap();
+    let doc = serde_json::to_value(acquisition_verbs::receipt::saved(&cleared, &Plain)).unwrap();
+    assert!(doc.get("undo").is_none(), "{doc}");
+    assert_eq!(
+        doc["no_undo"],
+        "the cleared search cannot be put back: this build cannot read it"
+    );
+    assert_eq!(doc["prior"]["unreadable"], json!(row.unreadable));
+    assert_eq!(saved::list(&world, None, false).unwrap().total, 0);
+}
+
+/// The id's mint, forced: a create meeting a standing id mints once more
+/// and lands, the mint called twice; meeting two standing ids it is
+/// refused, the mint called exactly twice and never a third time; a mint
+/// that fails is the structured failure, nothing written. No id is
+/// drawn: each is the mint's argument (C137).
+#[test]
+fn c167_a_minted_id_meeting_one_standing_mints_once_more_and_never_a_third_time() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let create = Set {
+        id: None,
+        expect: Expect::Create,
+        name: Some("rings".into()),
+        text: Some("rarity=rare".into()),
+        realm: Some("pc".into()),
+        membership: None,
+    };
+    let calls = std::cell::Cell::new(0);
+    saved::set(
+        &world,
+        None,
+        &create,
+        &mut minting(&["0000000000c1"], &calls),
+    )
+    .unwrap();
+    calls.set(0);
+    let landed = saved::set(
+        &world,
+        None,
+        &create,
+        &mut minting(&["0000000000c1", "0000000000c2"], &calls),
+    )
+    .unwrap();
+    assert_eq!(
+        (landed.target.id.as_str(), calls.get()),
+        ("0000000000c2", 2)
+    );
+    calls.set(0);
+    let e = saved::set(
+        &world,
+        None,
+        &create,
+        &mut minting(&["0000000000c1", "0000000000c2", "0000000000c3"], &calls),
+    )
+    .unwrap_err();
+    assert_eq!(calls.get(), 2, "the mint is called at most twice");
+    let doc = document(&e, &Plain);
+    assert_eq!(doc["kind"], "refused");
+    assert!(
+        doc["error"].as_str().unwrap().contains("two minted ids"),
+        "{doc}"
+    );
+    let e = saved::set(&world, None, &create, &mut || Err("no entropy".to_string())).unwrap_err();
+    let doc = document(&e, &Plain);
+    assert_eq!(
+        (&doc["kind"], &doc["error"]),
+        (
+            &json!("refused"),
+            &json!("no id could be minted: no entropy")
+        )
+    );
+    assert_eq!(saved::list(&world, None, false).unwrap().total, 2);
+}
+
+/// The owner's "Drop and cut" (2026-11-07): a name is a label and the id
+/// the identity. Two rows of one name, written through the store's door,
+/// are both listed; opening the name is refused as
+/// `ambiguous_saved_search` naming both ids, and each offer, sent back
+/// through the verbs, opens its row; each id opens its own; a third
+/// search of that name lands as a third row with its undo; one of the
+/// two cleared has an undo that lands.
+#[test]
+fn c167_two_rows_of_one_name_are_both_listed_and_refused_only_when_opened_by_the_name() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    saved_put(&s.mock, "0000000000a1", "rings");
+    saved_put(&s.mock, "0000000000a2", "rings");
+    let listed = saved::list(&world, None, false).unwrap();
+    let ids: Vec<&str> = listed.searches.iter().map(SavedRow::id).collect();
+    assert_eq!(ids, ["0000000000a1", "0000000000a2"]);
+
+    let e = saved::request_of(&world, "rings", Some(USER)).unwrap_err();
+    let doc = document(&e, &Plain);
+    assert_eq!(
+        (
+            &doc["kind"],
+            &doc["searches"],
+            &doc["total"],
+            &doc["left_out"]
+        ),
+        (
+            &json!("ambiguous_saved_search"),
+            &json!([{ "id": "0000000000a1", "name": "rings" },
+                    { "id": "0000000000a2", "name": "rings" }]),
+            &json!(2),
+            &json!(0)
+        ),
+        "{doc}"
+    );
+    for way in ways(&e) {
+        assert!(matches!(&way, Way::SavedSearchRun { account: Some(a), .. } if a == USER));
+        let request = dispatch(&world, &way).unwrap();
+        assert_eq!(request["query"]["text"], "rarity=rare", "{way:?}");
+    }
+    let shown = saved::show(&world, "rings").unwrap_err();
+    for way in ways(&shown) {
+        assert!(matches!(way, Way::SavedSearchShow { .. }));
+        assert_eq!(dispatch(&world, &way).unwrap()["name"], "rings");
+    }
+    for id in ["0000000000a1", "0000000000a2"] {
+        assert_eq!(
+            saved::request_of(&world, id, None)
+                .unwrap()
+                .query
+                .text
+                .as_deref(),
+            Some("rarity=rare")
+        );
+    }
+
+    let third = saved_create(&world, "rings", "rarity=unique");
+    let written = saved::show(&world, &third).unwrap();
+    assert_eq!(written.name(), Some("rings"));
+    assert_eq!(saved::list(&world, None, false).unwrap().total, 3);
+
+    let cleared = saved::clear(&world, "0000000000a1", Expect::Current).unwrap();
+    let undo = cleared.undo().unwrap().0;
+    dispatch(&world, &undo).unwrap();
+    assert_eq!(saved::list(&world, None, false).unwrap().total, 3);
+}
+
+/// C53, C149: eleven rows of one name are refused naming ten beside
+/// `total` and `left_out`, ten offers and the whole list's; the list
+/// itself names ten, counts eleven and says what lists them all.
+#[test]
+fn c167_eleven_rows_of_one_name_answer_ten_with_their_counts() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    for n in 0..11 {
+        saved_put(&s.mock, &format!("0000000000{n:02}"), "rings");
+    }
+    let e = saved::request_of(&world, "rings", None).unwrap_err();
+    let doc = document(&e, &Plain);
+    assert_eq!(
+        (
+            doc["searches"].as_array().unwrap().len(),
+            &doc["total"],
+            &doc["left_out"]
+        ),
+        (10, &json!(11), &json!(1)),
+        "{doc}"
+    );
+    let offered = ways(&e);
+    assert_eq!(offered.len(), 11);
+    assert_eq!(offered[10], Way::SavedSearches { expand: true });
+    let listed = saved::list(&world, None, false).unwrap();
+    assert_eq!(
+        (
+            listed.searches.len(),
+            listed.total,
+            listed.left_out,
+            listed.left_out_needs
+        ),
+        (10, 11, 1, Some("expand"))
+    );
+    assert_eq!(saved::list(&world, None, true).unwrap().searches.len(), 11);
+}
+
+/// `saved_search_not_found`: a name no row holds, and an id whose row
+/// was cleared, each offering the list, which answers when sent back.
+#[test]
+fn c167_a_name_none_holds_and_a_cleared_id_are_not_found() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let id = saved_create(&world, "rings", "rarity=rare");
+    saved::clear(&world, &id, Expect::Current).unwrap();
+    for asked in ["amulets", id.as_str()] {
+        let e = saved::request_of(&world, asked, None).unwrap_err();
+        assert_eq!(
+            document(&e, &Plain)["kind"],
+            "saved_search_not_found",
+            "{asked}"
+        );
+        let [list] = ways(&e).try_into().unwrap();
+        assert_eq!(dispatch(&world, &list).unwrap()["total"], 0);
+    }
+    let e = saved::set(
+        &world,
+        None,
+        &rename(&id, Expect::Current, "x"),
+        &mut no_mint,
+    )
+    .unwrap_err();
+    assert_eq!(document(&e, &Plain)["kind"], "saved_search_not_found");
+}
+
+/// C121: a world whose provider directory does not exist has no user
+/// file: `not_logged_in` naming the directory, and nothing is created.
+#[test]
+fn c167_a_world_with_no_provider_directory_is_not_logged_in_naming_it() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("mock");
+    let world = frontend(&dir);
+    let fault = saved::list(&world, None, false).unwrap_err();
+    assert_eq!(fault.kind(), "not_logged_in");
+    assert!(
+        fault.to_string().contains(&dir.display().to_string()),
+        "{fault}"
+    );
+    assert!(!dir.exists(), "the directory was made");
 }

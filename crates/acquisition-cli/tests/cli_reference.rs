@@ -110,7 +110,9 @@ fn render() -> String {
          `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main cli_reference`. \
          The README's tour shows the shape; this is every verb's semantics. \
          `--json` and `--account` are global — every verb takes them — and are \
-         listed once, under `acq`. The MCP server's tools are `MCP-REFERENCE.md`.\n\n",
+         listed once, under `acq`; the saved searches are the world's, so \
+         `acq saved` needs no login and uses an account only to resolve a new \
+         search's realm. The MCP server's tools are `MCP-REFERENCE.md`.\n\n",
     );
     walk(Vec::new(), &mut out);
     out

@@ -1,16 +1,254 @@
 use super::test_kinds::{Buyout, GuardedNote, Note, Policy, via_test};
 use super::*;
 use crate::MAX_WAIT_SECS;
+use crate::user::User;
 use serde_json::json;
+
+// ---- the API table over both files (C153; C167, the user file) ----------
+
+/// The one API the account file and the user file answer
+/// ([`Annotations`]; [`User`], its delegate), so a property of the API
+/// is pinned once and holds for both: each property below is generic
+/// over it and the table runs it over an opener for each file. The
+/// file's mechanics (the opening race, a foreign writer, synchronous
+/// mode, the busy wait) stay pinned once over the account file, since
+/// `User` opens through the one [`Annotations::open`].
+trait Door: Sized {
+    /// An in-memory file.
+    fn memory() -> Self;
+    /// The file on disk under `dir`.
+    fn at(dir: &Path) -> Self;
+    fn conn(&self) -> &Connection;
+    fn put<K: IntentValue>(
+        &mut self,
+        scope: &str,
+        key: &str,
+        value: &Value,
+        expected_revision: Option<i64>,
+        provenance: &Provenance,
+    ) -> Result<AnnotationRow, AnnotationError>;
+    fn get(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+    ) -> Result<Option<AnnotationRow>, AnnotationError>;
+    fn get_as<K: IntentValue>(
+        &self,
+        scope: &str,
+        key: &str,
+    ) -> Result<Option<(AnnotationRow, K)>, AnnotationError>;
+    fn at_revision(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        revision: i64,
+    ) -> Result<AnnotationRow, AnnotationError>;
+    fn cleared(&self, scope: &str, key: &str, kind: &str) -> Result<Option<i64>, AnnotationError>;
+    fn list(
+        &self,
+        scope: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<AnnotationList, AnnotationError>;
+    fn delete(
+        &mut self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        expected_revision: i64,
+        provenance: &Provenance,
+    ) -> Result<i64, AnnotationError>;
+    fn revision(&self) -> Result<i64, AnnotationError>;
+    fn export(&self, dest: &Path) -> Result<(), AnnotationError>;
+}
+
+impl Door for Annotations {
+    fn memory() -> Self {
+        Annotations::open_memory().unwrap()
+    }
+    fn at(dir: &Path) -> Self {
+        Annotations::open(&annotations_path(
+            dir,
+            "00000000-0000-4000-8000-000000000001",
+        ))
+        .unwrap()
+    }
+    fn conn(&self) -> &Connection {
+        &self.conn
+    }
+    fn put<K: IntentValue>(
+        &mut self,
+        scope: &str,
+        key: &str,
+        value: &Value,
+        expected_revision: Option<i64>,
+        provenance: &Provenance,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        Annotations::put::<K>(self, scope, key, value, expected_revision, provenance)
+    }
+    fn get(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+    ) -> Result<Option<AnnotationRow>, AnnotationError> {
+        Annotations::get(self, scope, key, kind)
+    }
+    fn get_as<K: IntentValue>(
+        &self,
+        scope: &str,
+        key: &str,
+    ) -> Result<Option<(AnnotationRow, K)>, AnnotationError> {
+        Annotations::get_as::<K>(self, scope, key)
+    }
+    fn at_revision(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        revision: i64,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        Annotations::at_revision(self, scope, key, kind, revision)
+    }
+    fn cleared(&self, scope: &str, key: &str, kind: &str) -> Result<Option<i64>, AnnotationError> {
+        Annotations::cleared(self, scope, key, kind)
+    }
+    fn list(
+        &self,
+        scope: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<AnnotationList, AnnotationError> {
+        Annotations::list(self, scope, kind)
+    }
+    fn delete(
+        &mut self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        expected_revision: i64,
+        provenance: &Provenance,
+    ) -> Result<i64, AnnotationError> {
+        Annotations::delete(self, scope, key, kind, expected_revision, provenance)
+    }
+    fn revision(&self) -> Result<i64, AnnotationError> {
+        Annotations::revision(self)
+    }
+    fn export(&self, dest: &Path) -> Result<(), AnnotationError> {
+        Annotations::export(self, dest)
+    }
+}
+
+/// The user file through its own doors; what `User` does not delegate
+/// (a typed read, a tombstone's revision) is read underneath it.
+impl Door for User {
+    fn memory() -> Self {
+        User::open_memory().unwrap()
+    }
+    fn at(dir: &Path) -> Self {
+        User::open_for(dir).unwrap()
+    }
+    fn conn(&self) -> &Connection {
+        &self.inner().conn
+    }
+    fn put<K: IntentValue>(
+        &mut self,
+        scope: &str,
+        key: &str,
+        value: &Value,
+        expected_revision: Option<i64>,
+        provenance: &Provenance,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        User::put::<K>(self, scope, key, value, expected_revision, provenance)
+    }
+    fn get(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+    ) -> Result<Option<AnnotationRow>, AnnotationError> {
+        User::get(self, scope, key, kind)
+    }
+    fn get_as<K: IntentValue>(
+        &self,
+        scope: &str,
+        key: &str,
+    ) -> Result<Option<(AnnotationRow, K)>, AnnotationError> {
+        self.inner().get_as::<K>(scope, key)
+    }
+    fn at_revision(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        revision: i64,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        User::at_revision(self, scope, key, kind, revision)
+    }
+    fn cleared(&self, scope: &str, key: &str, kind: &str) -> Result<Option<i64>, AnnotationError> {
+        self.inner().cleared(scope, key, kind)
+    }
+    fn list(
+        &self,
+        scope: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<AnnotationList, AnnotationError> {
+        User::list(self, scope, kind).map(|listed| listed.list)
+    }
+    fn delete(
+        &mut self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        expected_revision: i64,
+        provenance: &Provenance,
+    ) -> Result<i64, AnnotationError> {
+        User::delete(self, scope, key, kind, expected_revision, provenance)
+    }
+    fn revision(&self) -> Result<i64, AnnotationError> {
+        User::revision(self)
+    }
+    fn export(&self, dest: &Path) -> Result<(), AnnotationError> {
+        User::export(self, dest)
+    }
+}
+
+/// The table: each property named runs as a test over the account file
+/// and as one over the user file, under the property's own name.
+macro_rules! api_table {
+    ($($property:ident),* $(,)?) => {
+        mod over_the_account_file {
+            $(#[test] fn $property() { super::$property::<super::Annotations>() })*
+        }
+        mod over_the_user_file {
+            $(#[test] fn $property() { super::$property::<super::User>() })*
+        }
+    };
+}
+
+api_table! {
+    c66_a_writer_s_rule_refuses_a_new_write_and_never_a_read,
+    the_files_revision_rises_by_one_per_write_tombstones_included,
+    compare_and_swap_creates_updates_and_conflicts,
+    c151_list_names_an_unreadable_row_beside_the_readable_ones_and_get_refuses_it,
+    c151_a_write_naming_the_revision_replaces_or_clears_an_unreadable_row,
+    delete_and_recreate_never_reset_the_revision,
+    a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_names,
+    a_row_at_the_last_revision_refuses_every_write_and_changes_nothing,
+    list_filters_by_scope_and_by_kind,
+    c65_every_write_carries_its_provenance,
+    c66_the_write_door_is_typed_and_a_value_that_fails_never_lands,
+    export_is_a_whole_standalone_file_and_never_overwrites,
+
+}
 
 /// C66 — a kind's writer's rule runs at the door on every write and
 /// never on a read: a value it refuses as new never lands, the same
 /// value already stored (written before the rule, or by a kind
 /// without it) still reads through `get_as`, and is replaced or
 /// deleted like any other row.
-#[test]
-fn c66_a_writer_s_rule_refuses_a_new_write_and_never_a_read() {
-    let mut a = Annotations::open_memory().unwrap();
+fn c66_a_writer_s_rule_refuses_a_new_write_and_never_a_read<D: Door>() {
+    let mut a = D::memory();
     let retired = json!({ "version": 1, "retired": true });
     let err = a
         .put::<GuardedNote>("item", "i1", &retired, None, &via_test())
@@ -41,9 +279,8 @@ fn c66_a_writer_s_rule_refuses_a_new_write_and_never_a_read() {
 
 /// The file's revision moves by one on every write — create, update,
 /// delete, create over the tombstone — and by nothing else.
-#[test]
-fn the_files_revision_rises_by_one_per_write_tombstones_included() {
-    let mut a = Annotations::open_memory().unwrap();
+fn the_files_revision_rises_by_one_per_write_tombstones_included<D: Door>() {
+    let mut a = D::memory();
     assert_eq!(a.revision().unwrap(), 0);
     a.put::<Buyout>("item", "i1", &price("1"), None, &via_test())
         .unwrap();
@@ -78,9 +315,8 @@ fn price(p: &str) -> Value {
 }
 
 /// C35 — integer-revision compare-and-swap: create requires absence, update the exact revision, delete the same.
-#[test]
-fn compare_and_swap_creates_updates_and_conflicts() {
-    let mut a = Annotations::open_memory().unwrap();
+fn compare_and_swap_creates_updates_and_conflicts<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     // Create requires "does not exist yet".
     let row = a
@@ -129,8 +365,8 @@ fn compare_and_swap_creates_updates_and_conflicts() {
 /// C35 — delete tombstones; the revision sequence survives delete/recreate, so a writer holding any revision of the live row conflicts once it moves (a create over the tombstone lands, whatever its generation — see `put`).
 /// A live row's value overwritten with text that is not JSON, as a
 /// damaged file holds it: the fixture every `c151_` test stages.
-fn damaged(a: &Annotations, key: &str) {
-    a.conn
+fn damaged<D: Door>(a: &D, key: &str) {
+    a.conn()
         .execute(
             "UPDATE annotations SET value = '{nope' WHERE key = ?1",
             [key],
@@ -145,9 +381,8 @@ fn damaged(a: &Annotations, key: &str) {
 /// to fail whole; `get` answers the same facts as a structured
 /// refusal, in words that say what replaces the row; the file's
 /// revision still sums every row; a tombstone is never the row.
-#[test]
-fn c151_list_names_an_unreadable_row_beside_the_readable_ones_and_get_refuses_it() {
-    let mut a = Annotations::open_memory().unwrap();
+fn c151_list_names_an_unreadable_row_beside_the_readable_ones_and_get_refuses_it<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     a.put::<Buyout>("item", "i-good", &price("1c"), None, &via)
         .unwrap();
@@ -211,9 +446,8 @@ fn c151_list_names_an_unreadable_row_beside_the_readable_ones_and_get_refuses_it
 /// `Conflict` that would need the row it cannot read; a create over
 /// the tombstone of a damaged row continues the sequence without
 /// reading it. Nothing repairs a value in place.
-#[test]
-fn c151_a_write_naming_the_revision_replaces_or_clears_an_unreadable_row() {
-    let mut a = Annotations::open_memory().unwrap();
+fn c151_a_write_naming_the_revision_replaces_or_clears_an_unreadable_row<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     let first = a
         .put::<Buyout>("item", "i-bad", &price("2c"), None, &via)
@@ -276,9 +510,8 @@ fn c151_a_write_naming_the_revision_replaces_or_clears_an_unreadable_row() {
     );
 }
 
-#[test]
-fn delete_and_recreate_never_reset_the_revision() {
-    let mut a = Annotations::open_memory().unwrap();
+fn delete_and_recreate_never_reset_the_revision<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     // A stale reader remembers revision 1...
     let stale = a
@@ -316,9 +549,8 @@ fn delete_and_recreate_never_reset_the_revision() {
 /// row (none over a tombstone), so a receipt's prior is the row
 /// replaced and never one a racing writer moved (round 5 of the 2g
 /// build).
-#[test]
-fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_names() {
-    let mut a = Annotations::open_memory().unwrap();
+fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_names<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     a.put::<Buyout>("item", "i1", &price("1c"), None, &via)
         .unwrap();
@@ -355,14 +587,13 @@ fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_na
 /// `RevisionExhausted`, and nothing is written; one below it moves to
 /// the bound, the number written the number returned (round 5 of the
 /// 2g build, its review's finding 3).
-#[test]
-fn a_row_at_the_last_revision_refuses_every_write_and_changes_nothing() {
-    let mut a = Annotations::open_memory().unwrap();
+fn a_row_at_the_last_revision_refuses_every_write_and_changes_nothing<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     a.put::<Buyout>("item", "i1", &price("1c"), None, &via)
         .unwrap();
-    let at = |a: &Annotations, revision: i64| {
-        a.conn
+    let at = |a: &D, revision: i64| {
+        a.conn()
             .execute(
                 "UPDATE annotations SET revision = ?1 WHERE key = 'i1'",
                 [revision],
@@ -586,9 +817,8 @@ fn account_singletons_use_the_empty_key() {
 
 /// `list` filters by scope, by kind, or both: a pricing read wants one
 /// kind across every scope.
-#[test]
-fn list_filters_by_scope_and_by_kind() {
-    let mut a = Annotations::open_memory().unwrap();
+fn list_filters_by_scope_and_by_kind<D: Door>() {
+    let mut a = D::memory();
     let via = via_test();
     a.put::<Buyout>("item", "i1", &price("1c"), None, &via)
         .unwrap();
@@ -630,9 +860,8 @@ fn list_filters_by_scope_and_by_kind() {
 /// C65 — every write carries who wrote it; a delete stamps the
 /// tombstone; an empty or whitespace channel is refused before
 /// anything lands.
-#[test]
-fn c65_every_write_carries_its_provenance() {
-    let mut a = Annotations::open_memory().unwrap();
+fn c65_every_write_carries_its_provenance<D: Door>() {
+    let mut a = D::memory();
     let cli = Provenance::via("cli").as_actor("tom");
     let row = a
         .put::<Buyout>("item", "i1", &price("1c"), None, &cli)
@@ -651,7 +880,7 @@ fn c65_every_write_carries_its_provenance() {
     assert_eq!((row.written_via.as_str(), row.actor), ("mcp", None));
     // The tombstone records who cleared the row.
     a.delete("item", "i1", "buyout", 2, &cli).unwrap();
-    let tomb = stored(&a.conn, "item", "i1", "buyout").unwrap().unwrap();
+    let tomb = stored(a.conn(), "item", "i1", "buyout").unwrap().unwrap();
     assert!(tomb.deleted);
     assert_eq!(tomb.written_via, "cli");
     assert_eq!(tomb.actor.as_deref(), Some("tom"));
@@ -682,8 +911,7 @@ fn c65_every_write_carries_its_provenance() {
 /// C66 — the generic at the write door: no version, a newer version,
 /// the kind's own refusal, and a current-schema value that does not
 /// re-serialize to what was read all fail before anything lands.
-#[test]
-fn c66_the_write_door_is_typed_and_a_value_that_fails_never_lands() {
+fn c66_the_write_door_is_typed_and_a_value_that_fails_never_lands<D: Door>() {
     /// A kind with one field, `n`, that must be an integer; its
     /// canonical form has nothing else.
     #[derive(Debug, Serialize)]
@@ -714,9 +942,9 @@ fn c66_the_write_door_is_typed_and_a_value_that_fails_never_lands() {
             }
         }
     }
-    let mut a = Annotations::open_memory().unwrap();
+    let mut a = D::memory();
     let via = via_test();
-    let refused = |a: &mut Annotations, v: Value| {
+    let refused = |a: &mut D, v: Value| {
         let err = a.put::<Strict>("item", "i1", &v, None, &via).unwrap_err();
         assert!(
             a.get("item", "i1", "strict").unwrap().is_none(),
@@ -774,7 +1002,7 @@ fn c66_the_write_door_is_typed_and_a_value_that_fails_never_lands() {
     let (_, typed) = a.get_as::<Strict>("item", "i1").unwrap().unwrap();
     assert_eq!(typed.n, 9);
     // A stored row a newer build wrote is an error on read, never "none".
-    a.conn
+    a.conn()
         .execute(
             "UPDATE annotations SET value = ?1 WHERE kind = 'strict'",
             [json!({ "version": 3, "n": 1 }).to_string()],
@@ -820,12 +1048,10 @@ fn the_first_difference_names_the_path_and_both_sides() {
 /// no partial and never overwrites. That the copy is consistent under
 /// a concurrent writer is `VACUUM INTO`'s and no test here drives a
 /// writer through an export: a torn copy fails too rarely to pin.
-#[test]
-fn export_is_a_whole_standalone_file_and_never_overwrites() {
+fn export_is_a_whole_standalone_file_and_never_overwrites<D: Door>() {
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
-    let uuid = "00000000-0000-4000-8000-000000000001";
-    let mut a = Annotations::open(&annotations_path(&dir, uuid)).unwrap();
+    let mut a = D::at(&dir);
     a.put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
         .unwrap();
     let backup = dir.join("backup.db");
@@ -1348,4 +1574,257 @@ fn c35_a_create_attempted_between_the_gates_two_reads_cannot_commit_or_cause_a_r
     if let Err(e) = Annotations::open(&path) {
         panic!("the file is not a well-formed store afterwards: {e}");
     }
+}
+
+/// C124: the account's read-only door over a file that stores no uuid
+/// (one [`Annotations::open`] made from a raw path) opens it with none,
+/// stamps none and writes nothing: the unbound opener underneath binds
+/// nothing, and the account door verifies only a uuid that is there.
+#[test]
+fn c124_a_read_only_open_of_a_file_holding_no_uuid_opens_it_with_none_and_stamps_none() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
+    let path = annotations_path(&dir, "u-9");
+    {
+        let mut a = Annotations::open(&path).unwrap();
+        assert_eq!(a.uuid(), None);
+        a.put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
+            .unwrap();
+    }
+    let before = file_hash(&path);
+    let ro = Annotations::open_read_only_for(&dir, "u-9").unwrap();
+    assert_eq!(ro.uuid(), None, "nothing bound");
+    assert_eq!(ro.list(None, None).unwrap().rows.len(), 1);
+    drop(ro);
+    assert_eq!(file_hash(&path), before, "nothing stamped");
+}
+
+// ---- the user file (C167): what the newtype adds ------------------------
+
+use crate::user::{
+    NAME_MAX, SAVED_MEMBERSHIPS, SAVED_REALMS, SAVED_SEARCH_SCOPE, SavedSearch, USER_FILE,
+    user_path,
+};
+
+fn saved(name: &str, realm: &str, membership: &str) -> Value {
+    json!({ "version": 1, "name": name, "text": "rarity=rare",
+            "scope": { "realm": realm, "membership": membership } })
+}
+
+/// C167 — the user file is `user.db` in the world's provider directory,
+/// beside the account files: the path the opener names, created there.
+#[test]
+fn c167_the_user_file_is_user_db_in_the_provider_directory() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().join("mock");
+    assert_eq!(user_path(&dir), dir.join("user.db"));
+    assert_eq!(USER_FILE, "user.db");
+    let user = User::open_for(&dir).unwrap();
+    assert_eq!(user.path(), user_path(&dir));
+    assert!(user_path(&dir).is_file());
+}
+
+/// C167 — the user file is the world's: its opener binds no uuid and its
+/// read-only opener verifies none, while the account opener still binds
+/// and verifies its own; the user file's read-only door never creates the
+/// file and writes nothing through it.
+#[test]
+fn c167_the_user_opener_binds_no_uuid_and_the_account_opener_still_binds_its_own() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
+    assert!(User::open_read_only_for(&dir).is_err());
+    assert!(!user_path(&dir).exists(), "a read-only open created it");
+    let mut user = User::open_for(&dir).unwrap();
+    assert_eq!(user.inner().uuid(), None);
+    user.put::<SavedSearch>(
+        SAVED_SEARCH_SCOPE,
+        "0123456789ab",
+        &saved("rings", "pc", "live"),
+        None,
+        &via_test(),
+    )
+    .unwrap();
+    let stamps: i64 = user
+        .inner()
+        .conn
+        .query_row("SELECT count(*) FROM meta", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(stamps, 0, "no uuid stamped into the user file");
+    drop(user);
+    let before = file_hash(&user_path(&dir));
+    let mut ro = User::open_read_only_for(&dir).unwrap();
+    assert_eq!(ro.inner().uuid(), None);
+    assert_eq!(ro.list(None, None).unwrap().list.rows.len(), 1);
+    assert!(
+        ro.put::<SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            "ba9876543210",
+            &saved("x", "pc", "live"),
+            None,
+            &via_test()
+        )
+        .is_err(),
+        "a write through the read-only door landed"
+    );
+    drop(ro);
+    assert_eq!(file_hash(&user_path(&dir)), before);
+    let account = Annotations::open_for(&dir, "u-1").unwrap();
+    assert_eq!(account.uuid(), Some("u-1"));
+    drop(account);
+    std::fs::copy(annotations_path(&dir, "u-1"), annotations_path(&dir, "u-2")).unwrap();
+    assert!(matches!(
+        Annotations::open_read_only_for(&dir, "u-2").err(),
+        Some(AnnotationError::WrongAccount { .. })
+    ));
+}
+
+/// C167, C66 — the saved search's parse is strict: every field present
+/// and none other, a name of one to sixty-four characters once trimmed
+/// with no line break, a realm word or `all`, a membership word, and a
+/// later version reported as later. A refused value never lands.
+#[test]
+fn c167_the_saved_search_kind_reads_its_shape_strictly() {
+    let mut user = User::open_memory().unwrap();
+    let mut put = |value: Value| {
+        user.put::<SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            "0123456789ab",
+            &value,
+            None,
+            &via_test(),
+        )
+        .map(|row| row.revision)
+    };
+    let long = "n".repeat(NAME_MAX);
+    for realm in SAVED_REALMS {
+        for membership in SAVED_MEMBERSHIPS {
+            let mut user = User::open_memory().unwrap();
+            user.put::<SavedSearch>(
+                SAVED_SEARCH_SCOPE,
+                "0123456789ab",
+                &saved(&long, realm, membership),
+                None,
+                &via_test(),
+            )
+            .unwrap_or_else(|e| panic!("{realm} {membership}: {e}"));
+        }
+    }
+    let refused: Vec<(Value, &str)> = vec![
+        (json!({ "version": 1, "name": "x", "text": "" }), "scope"),
+        (
+            json!({ "version": 1, "name": "x", "text": "", "scope": { "realm": "pc", "membership": "live" }, "view": {} }),
+            "view",
+        ),
+        (saved("   ", "pc", "live"), "one character at least"),
+        (saved(&"n".repeat(NAME_MAX + 1), "pc", "live"), "at most 64"),
+        (saved("two\nlines", "pc", "live"), "no line break"),
+        (saved("x", "PC", "live"), "no realm"),
+        (saved("x", "pc", "dead"), "no membership"),
+    ];
+    for (value, said) in refused {
+        match put(value.clone()) {
+            Err(AnnotationError::Invalid(ValueError::Malformed { kind, detail })) => {
+                assert_eq!(kind, "saved-search");
+                assert!(detail.contains(said), "{value}: {detail}");
+            }
+            other => panic!("{value}: expected a malformed value, got {other:?}"),
+        }
+    }
+    let mut later = saved("x", "pc", "live");
+    later["version"] = json!(2);
+    assert!(matches!(
+        put(later),
+        Err(AnnotationError::Invalid(ValueError::VersionUnsupported {
+            found: 2,
+            ..
+        }))
+    ));
+    assert_eq!(put(saved(" spaced ", "all", "removed")).unwrap(), 1);
+}
+
+/// C167 — every saved search is written under the scope word `search`
+/// and the kind `saved-search`, keyed on its id: a list filtered by the
+/// scope finds it, and its row says both.
+#[test]
+fn c167_a_saved_search_is_under_the_scope_search() {
+    assert_eq!(SAVED_SEARCH_SCOPE, "search");
+    assert_eq!(<SavedSearch as IntentValue>::KIND, "saved-search");
+    let mut user = User::open_memory().unwrap();
+    let row = user
+        .put::<SavedSearch>(
+            SAVED_SEARCH_SCOPE,
+            "0123456789ab",
+            &saved("rings", "pc", "live"),
+            None,
+            &via_test(),
+        )
+        .unwrap();
+    assert_eq!(
+        (row.scope.as_str(), row.key.as_str(), row.kind.as_str()),
+        ("search", "0123456789ab", "saved-search")
+    );
+    let listed = user.list(Some("search"), Some("saved-search")).unwrap();
+    assert_eq!(listed.list.rows, vec![row]);
+    assert_eq!(listed.revision, 1);
+}
+
+/// C167 — the list answers the rows and the file's revision from one
+/// transaction: a writer landing between the list's read of the rows and
+/// its read of the revision (staged by an authorizer that fires when the
+/// revision's sum is prepared) is in neither, so the revision is the sum
+/// of the rows the list returned, and a read after it sees the write.
+#[test]
+fn c167_the_list_answers_its_rows_and_the_files_revision_from_one_moment() {
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
+    let mut user = User::open_for(&dir).unwrap();
+    user.put::<SavedSearch>(
+        SAVED_SEARCH_SCOPE,
+        "0123456789ab",
+        &saved("rings", "pc", "live"),
+        None,
+        &via_test(),
+    )
+    .unwrap();
+    let fired = Arc::new(AtomicBool::new(false));
+    let (fired_in, writer_dir) = (fired.clone(), dir.clone());
+    user.inner_mut()
+        .conn
+        .authorizer(Some(move |ctx: AuthContext<'_>| {
+            if let AuthAction::Function { function_name } = ctx.action
+                && function_name.eq_ignore_ascii_case("sum")
+                && !fired_in.swap(true, Ordering::SeqCst)
+            {
+                let mut writer = User::open_for(&writer_dir).unwrap();
+                writer
+                    .put::<SavedSearch>(
+                        SAVED_SEARCH_SCOPE,
+                        "ba9876543210",
+                        &saved("amulets", "pc", "live"),
+                        None,
+                        &via_test(),
+                    )
+                    .unwrap();
+            }
+            Authorization::Allow
+        }))
+        .unwrap();
+    let listed = user.list(None, None).unwrap();
+    assert!(fired.load(Ordering::SeqCst), "the staging never fired");
+    let summed: i64 = listed.list.rows.iter().map(|r| r.revision).sum();
+    assert_eq!(
+        (listed.list.rows.len(), listed.revision),
+        (1, summed),
+        "the rows and the revision are one moment's"
+    );
+    user.inner_mut()
+        .conn
+        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)
+        .unwrap();
+    assert_eq!(user.revision().unwrap(), 2, "the write landed after it");
 }

@@ -100,7 +100,8 @@ daemon against GGG without one. GGG is the provider unless
 made-up stashes and a login page that takes any name, for trying the
 tool or an agent with no account. Without a keyring, a login lasts as
 long as the daemon that holds it. A second login makes every verb
-need `--account`.
+need `--account`, but `acq saved`: the saved searches are the world's,
+not an account's, and need no login.
 
 ## Your agent
 
@@ -133,7 +134,7 @@ price items and render the shop (`price_status`, `price_list`,
 (`submit_job`, `list_jobs`, `job_status`, `job_result`, `cancel_job`,
 `daemon_status`).
 
-The store and pricing tools need no daemon. The tools that fetch do,
+The saved searches (`acq saved`) have no tool yet. The store and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one (under `ACQ_PROVIDER=mock`
 it does, for the stand-in): it uses the daemon you started, which exits an hour after its last connection or job
 submitted, or as long as the idle knob under "Knobs" sets (`acq daemon
@@ -194,6 +195,9 @@ acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
 acq search --describe[=name,…|=~pattern|=all]   # the query language: an index, a slice by pattern, or entries whole
 acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
+acq saved list | show <ID|NAME> | clear <ID> [--if-revision N]   # saved searches (list the default): the world's, not an account's, each by its id
+acq saved set [--id ID [--if-revision N]] [--name NAME] ['<query>'] [--realm R] [--membership M]   # save a search, or change one by its id, with undo
+acq search --saved <ID|NAME> [--limit N]   # run a saved search, its query and scope the row's
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq web [--no-browser]   # the search as a page shaped like the trade site's, with item art, and the refresh loop to tick, plan and apply; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
@@ -212,7 +216,9 @@ that would get past it, a refused command line the same with
 `--account <username|name|uuid>` (or `ACQ_ACCOUNT`) too. Without it, a
 verb that reads the store takes the one account known on disk and a job
 verb the one logged in; where there are several, it refuses and names
-them.
+them. The saved searches are the world's: `acq saved` needs no login,
+and uses an account only to resolve the realm of a new search that
+names none.
 
 ## Before the first command
 

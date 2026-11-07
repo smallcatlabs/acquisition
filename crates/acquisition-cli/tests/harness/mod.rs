@@ -475,6 +475,9 @@ pub struct Transcript {
     knobs: Vec<(String, Option<String>)>,
     /// The world was fetched in real time ([`Transcript::fetched_live`]).
     fetched_live: bool,
+    /// Values a command drew that the test learns after it ran, each
+    /// written as its placeholder ([`Transcript::placeholder`]).
+    placeholders: Vec<(String, String)>,
 }
 
 impl Transcript {
@@ -487,6 +490,7 @@ impl Transcript {
             facts: 0,
             knobs: Vec::new(),
             fetched_live: false,
+            placeholders: Vec::new(),
         }
     }
 
@@ -508,6 +512,16 @@ impl Transcript {
         self.knobs
             .push((key.to_string(), value.map(str::to_string)));
         self
+    }
+
+    /// A transcript's own rule, outside [`normalise`]'s eleven: `value`,
+    /// a word a command drew at random (a saved search's minted id),
+    /// is written `<name>` wherever it stands, a `# holds` line's fact
+    /// among them, so the golden holds what the test learned and not the
+    /// draw; each fact was checked with the value as drawn.
+    pub fn placeholder(&mut self, value: &str, name: &str) {
+        self.placeholders
+            .push((value.to_string(), format!("<{name}>")));
     }
 
     /// Commands under [`offline_command`]'s, the world `world` itself.
@@ -607,7 +621,10 @@ impl Transcript {
 
     /// The transcript under the normaliser's named rules ([`normalise`]).
     fn normalised(&self) -> String {
-        let text = normalise(&self.text, &self.base);
+        let mut text = normalise(&self.text, &self.base);
+        for (value, name) in &self.placeholders {
+            text = text.replace(value, name);
+        }
         if self.fetched_live {
             fetch_place_rule(&text)
         } else {

@@ -796,3 +796,9 @@ in two parts, reviewed three times, the last finding not taken.
 The age flake's class (#175) closed the same day
 (`briefs/175-one-test-clock.md`): one instant per test, the fix round
 narrowed by the owner to its first finding.
+
+4-full part 1's step 1, the saved search (`briefs/4-full-1-saved.md`,
+cut over six cold reviews and the owner's "Drop and cut" and "Yes,
+reconcile" of 2026-11-07), was built on 2026-11-07: `user.db` and
+`User`, the verbs' `saved.rs`, `acq saved` and `acq search --saved`.
+Its review is pending.

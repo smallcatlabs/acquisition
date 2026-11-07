@@ -57,6 +57,7 @@ impl RefusedBodies {
                     },
                     "the refused bodies, each with its id".to_string(),
                 )],
+                fields: serde_json::Map::new(),
             }
             .into()),
         }
