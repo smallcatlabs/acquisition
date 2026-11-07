@@ -163,5 +163,6 @@ statuses; `--docs` runs the five that build no Rust. CI runs `cargo
 doc` (`--only doc` here).
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
-hook writes Claude's trailer as `Assisted-by:`) and `cargo install
-cargo-nextest --locked` (the gate's runner).
+hook writes Claude's trailer as `Assisted-by:`; a Claude session's
+start hook in `.claude/settings.json` sets it, a cloud clone included)
+and `cargo install cargo-nextest --locked` (the gate's runner).
