@@ -177,7 +177,7 @@ fn c138_the_listener_answers_its_own_pages_alone() {
     assert!(form.body.contains("Item Category"), "{}", form.body);
     assert_eq!(form.header("referrer-policy"), Some("same-origin"));
     no_cors(&form, "the form");
-    let cases: [Case; 8] = [
+    let cases: [Case; 12] = [
         ("GET", "/", None, vec![], 404),
         (
             "GET",
@@ -214,6 +214,22 @@ fn c138_the_listener_answers_its_own_pages_alone() {
         ("GET", &format!("/{token}/apply"), None, vec![], 405),
         // a page route takes no post
         ("POST", &format!("/{token}/plan"), None, vec![], 405),
+        // the saved pages: a clear is a POST alone, an opening a GET
+        // alone, and a write without the token or from another site's
+        // page is refused before it runs
+        ("GET", &format!("/{token}/saved/clear"), None, vec![], 405),
+        ("POST", &format!("/{token}/saved/open"), None, vec![], 405),
+        ("POST", "/saved", None, vec![], 404),
+        (
+            "POST",
+            &format!("/{token}/saved"),
+            None,
+            vec![
+                ("Origin", "http://evil.example"),
+                ("Content-Type", "application/x-www-form-urlencoded"),
+            ],
+            403,
+        ),
     ];
     for (method, path, host, headers, status) in &cases {
         let reply = web.raw(method, path, *host, headers, "");
@@ -749,6 +765,14 @@ fn the_refresh_loop_runs_through_the_pages() {
         .to_string();
     assert_eq!(web.raw("GET", &link, None, &[], "").status, 200, "{link}");
     let envelope = hidden_plan(&plan.body);
+    // C16: the plan page's basis line is the basis of the envelope it holds
+    let held: Value = serde_json::from_str(&envelope).unwrap();
+    assert_eq!(
+        basis_line(&plan.body).expect("the plan page's basis line")["plan"],
+        held["basis"],
+        "{}",
+        plan.body
+    );
     let applied = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(applied.status, 303, "{}", applied.body);
     assert_eq!(
@@ -1083,4 +1107,1296 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     assert_eq!(applies[0]["account"], "Alice", "{}", applies[0]);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
+
+// ---- the saved pages (C16, C168; `roadmap/briefs/4-full-1-pages.md`) -----
+
+/// A form a page prints, as a browser sends it: its action, its button's
+/// words, and every field it carries, hidden or shown, unescaped.
+#[derive(Clone, Debug)]
+struct PageForm {
+    action: String,
+    button: String,
+    fields: Vec<(String, String)>,
+}
+
+impl PageForm {
+    /// The value of the field `name`, where the form carries it.
+    fn field(&self, name: &str) -> Option<&str> {
+        self.fields
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
+    }
+
+    /// The form with the field `name` set to `value`, as a reader types
+    /// it into the shown input.
+    fn typed(mut self, name: &str, value: &str) -> PageForm {
+        match self.fields.iter_mut().find(|(k, _)| k == name) {
+            Some(field) => field.1 = value.to_string(),
+            None => panic!("no field {name} in {self:?}"),
+        }
+        self
+    }
+}
+
+fn unescaped(text: &str) -> String {
+    text.replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+}
+
+/// An attribute's value in one tag, unescaped.
+fn attribute(tag: &str, name: &str) -> Option<String> {
+    let key = format!(" {name}=\"");
+    let at = tag.find(&key)? + key.len();
+    Some(unescaped(&tag[at..at + tag[at..].find('"')?]))
+}
+
+/// Every form a page prints that posts, in order.
+fn posted_forms(body: &str) -> Vec<PageForm> {
+    body.split("<form ")
+        .skip(1)
+        .filter_map(|rest| {
+            let form = &rest[..rest.find("</form>")?];
+            let head = &form[..form.find('>')?];
+            if attribute(&format!(" {head}"), "method").as_deref() != Some("post") {
+                return None;
+            }
+            let fields = form
+                .split("<input ")
+                .skip(1)
+                .filter_map(|input| {
+                    let tag = format!(" {}", &input[..input.find('>')?]);
+                    Some((
+                        attribute(&tag, "name")?,
+                        attribute(&tag, "value").unwrap_or_default(),
+                    ))
+                })
+                .collect();
+            let button = form.rsplit_once("<button type=\"submit\">")?.1;
+            Some(PageForm {
+                action: attribute(&format!(" {head}"), "action")?,
+                button: unescaped(&button[..button.find("</button>")?]),
+                fields,
+            })
+        })
+        .collect()
+}
+
+/// The one form on a page whose button says `button` and, where `id` is
+/// given, that names that saved search.
+fn form_on(body: &str, button: &str, id: Option<&str>) -> PageForm {
+    let found: Vec<PageForm> = posted_forms(body)
+        .into_iter()
+        .filter(|f| f.button == button && id.is_none_or(|id| f.field("id") == Some(id)))
+        .collect();
+    let [form] = found.as_slice() else {
+        panic!("{} forms say {button:?} for {id:?}:\n{body}", found.len())
+    };
+    form.clone()
+}
+
+/// A form posted as a browser posts it, from the server's own page; with
+/// `json`, asking for the document.
+fn send(web: &WebUi, form: &PageForm, json: bool) -> harness::Reply {
+    let body = form
+        .fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", harness::form_encoded(k), harness::form_encoded(v)))
+        .collect::<Vec<_>>()
+        .join("&");
+    let origin = format!("http://{}", web.addr);
+    let mut headers = vec![
+        ("Origin", origin.as_str()),
+        ("Content-Type", "application/x-www-form-urlencoded"),
+    ];
+    if json {
+        headers.push(("Accept", "application/json"));
+    }
+    assert!(
+        form.action.starts_with(&format!("/{}/", web.token)),
+        "{form:?}"
+    );
+    web.raw("POST", &form.action, None, &headers, &body)
+}
+
+/// A JSON document's offer or undo that is a page's write, as a form.
+fn offered_form(offer: &Value) -> PageForm {
+    PageForm {
+        action: offer["request"]["post"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no write: {offer}"))
+            .to_string(),
+        button: offer["says"].as_str().unwrap_or_default().to_string(),
+        fields: offer["request"]["fields"]
+            .as_object()
+            .unwrap_or_else(|| panic!("no fields: {offer}"))
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_string()))
+            .collect(),
+    }
+}
+
+/// A document posted as JSON: its status and its body read.
+fn sent_json(web: &WebUi, form: &PageForm) -> (u16, Value) {
+    let reply = send(web, form, true);
+    let doc = serde_json::from_str(&reply.body)
+        .unwrap_or_else(|e| panic!("{form:?}: {e}: {}", reply.body));
+    (reply.status, doc)
+}
+
+/// A page under its absolute path, as a browser follows a link or a
+/// redirect.
+fn follow(web: &WebUi, path: &str) -> harness::Reply {
+    web.raw("GET", &unescaped(path), None, &[], "")
+}
+
+/// A write answered as a browser asks it: `303` to the list.
+fn landed_on_the_list(web: &WebUi, reply: &harness::Reply) {
+    assert_eq!(reply.status, 303, "{}", reply.body);
+    assert_eq!(
+        reply.header("location"),
+        Some(format!("/{}/saved", web.token).as_str())
+    );
+    assert!(reply.body.is_empty(), "{}", reply.body);
+}
+
+/// `acq saved <args> --json` in the page's world: its one document.
+fn saved_json(world: &Path, args: &[&str]) -> Value {
+    let mut args: Vec<&str> = ["saved"].iter().chain(args).copied().collect();
+    args.push("--json");
+    sole_json(&offline_acq(world, &args))
+}
+
+/// The user file's revision, as `acq saved list` reads it.
+fn file_revision(world: &Path) -> i64 {
+    saved_json(world, &["list"])["revision"].as_i64().unwrap()
+}
+
+/// `acq saved <args>` in the page's world, which must succeed.
+fn saved_cli(world: &Path, args: &[&str]) {
+    let args: Vec<&str> = ["saved"].iter().chain(args).copied().collect();
+    let out = offline_acq(world, &args);
+    assert!(out.status.success(), "{args:?}: {out:?}");
+}
+
+/// The head's basis line as its JSON object, where the page carries one.
+fn basis_line(body: &str) -> Option<Value> {
+    let line = body
+        .lines()
+        .find(|l| l.starts_with("<meta name=\"basis\""))?;
+    let content = attribute(&format!(" {line}"), "content")?;
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("{e}: {content}")))
+}
+
+/// A page's document as the same URL answers it as JSON.
+fn json_at(web: &WebUi, path: &str) -> Value {
+    let reply = web.raw(
+        "GET",
+        &unescaped(path),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    serde_json::from_str(&reply.body).unwrap_or_else(|e| panic!("{path}: {e}: {}", reply.body))
+}
+
+/// The redirect a link answers, followed: the page it lands on, and the
+/// location.
+fn redirected(web: &WebUi, path: &str) -> (String, harness::Reply) {
+    let reply = follow(web, path);
+    assert_eq!(reply.status, 303, "{path}: {}", reply.body);
+    let location = reply.header("location").unwrap().to_string();
+    (location.clone(), follow(web, &location))
+}
+
+/// The link on a page whose words are `says`.
+fn link_saying(body: &str, says: &str) -> String {
+    let end = body
+        .find(&format!("\">{says}</a>"))
+        .unwrap_or_else(|| panic!("no link says {says:?}:\n{body}"));
+    let start = body[..end].rfind("href=\"").unwrap() + "href=\"".len();
+    unescaped(&body[start..end])
+}
+
+/// An answer's saved parts: the notices above it and the save forms
+/// under its query box (its own tail keeps the CLI's lines until step 4).
+fn saved_parts(body: &str) -> String {
+    let notices = body
+        .lines()
+        .filter(|l| l.starts_with("<p class=\"saved\">"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let forms = body
+        .split_once("<div class=\"save\">")
+        .map(|(_, rest)| &rest[..rest.find("</div>").unwrap_or(rest.len())])
+        .unwrap_or_default();
+    assert!(!forms.is_empty(), "no save form:\n{body}");
+    format!("{notices}\n{forms}")
+}
+
+/// The page's `<main>` alone: what its words are, the nav apart.
+fn main_of(body: &str) -> &str {
+    let open = body.find("<main>").unwrap_or(0);
+    let close = body.find("</main>").unwrap_or(body.len());
+    &body[open..close]
+}
+
+/// The words of the scan (C16, Do 9): a script that names any of them
+/// reaches a storage, a cookie or the history.
+const NO_STATE: [&str; 8] = [
+    "localStorage",
+    "sessionStorage",
+    "indexedDB",
+    "caches",
+    "cookie",
+    "history",
+    "serviceWorker",
+    ".storage",
+];
+
+/// The words of the scan a script's text holds.
+fn state_words(script: &str) -> Vec<&'static str> {
+    NO_STATE
+        .iter()
+        .copied()
+        .filter(|w| script.contains(w))
+        .collect()
+}
+
+/// C16's state sentence, as far as a lexical scan holds it: no script a
+/// page names may name a storage, a cookie or the history, and no
+/// response sets a cookie. The breaker: each word in a script's text is
+/// refused. What another spelling reaches is the review's
+/// (`REVIEW-CHECKLIST.md`).
+#[test]
+fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
+    for word in NO_STATE {
+        let broken = format!("(function () {{ const x = window.{word}; }})();");
+        assert_eq!(state_words(&broken), vec![word], "the scan misses {word}");
+    }
+    let (scratch, web) = offline_web("webscan");
+    let mock = scratch.0.join("mock");
+    crate::saved_json::put(&mock, "0000000000a1", "rings");
+    let mut replies = vec![
+        web.get(""),
+        web.get(&format!("search?{}", query_string(&ring_search()))),
+        web.get("search?realm=pc&text=class%3Arings&view.limit=1"),
+        web.get("item/r1"),
+        web.get("item/t1"),
+        web.get("saved"),
+        web.get("saved?expand=true"),
+        web.get("saved/open?id=0000000000a1"),
+        web.get("saved/open?id=0000000000ff"),
+        web.get("refresh?realm=pc&league=Standard"),
+    ];
+    let (_, opened) = redirected(&web, &format!("/{}/saved/open?id=0000000000a1", web.token));
+    let save = form_on(&opened.body, "Save as a new search", None).typed("name", "kept");
+    replies.push(send(&web, &save, false));
+    replies.push(send(&web, &save, true));
+    replies.push(opened);
+    let mut scripts = std::collections::BTreeSet::new();
+    for reply in &replies {
+        assert!(
+            reply.header("set-cookie").is_none(),
+            "a response sets a cookie: {:?}",
+            reply.headers
+        );
+        for tag in reply.body.split("<script ").skip(1) {
+            if let Some(src) = attribute(&format!(" {}", &tag[..tag.find('>').unwrap()]), "src") {
+                scripts.insert(src);
+            }
+        }
+    }
+    assert!(!scripts.is_empty(), "no page named a script");
+    for src in &scripts {
+        let script = web.raw("GET", src, None, &[], "");
+        assert_eq!(script.status, 200, "{src}");
+        assert!(script.header("set-cookie").is_none(), "{src}");
+        assert_eq!(
+            state_words(&script.body),
+            Vec::<&str>::new(),
+            "{src} names a storage, cookie or history API"
+        );
+    }
+}
+
+/// C16, every document carries its basis: each page's basis line holds,
+/// for each document it renders that carries a version, that document's
+/// own field as the same URL answers it as JSON — the answer's and the
+/// item's `basis`, the list's `revision`, the row's `revision` as `acq
+/// saved show` reads it, a conflict's `current.revision` — and a page
+/// whose documents carry none carries no line. The plan's is pinned in
+/// the refresh loop.
+#[test]
+fn c16_every_page_s_basis_line_is_its_documents_own() {
+    let (scratch, web) = offline_web("webbasis");
+    let world = scratch.0.clone();
+    let mock = world.join("mock");
+    let token = web.token.clone();
+    let at = |path: &str| format!("/{token}/{path}");
+    let entry = |body: &str, key: &str| -> Value {
+        basis_line(body).unwrap_or_else(|| panic!("no basis line:\n{body}"))[key].clone()
+    };
+    // an answer from the form, an edited text, a counted answer, an item
+    for path in [
+        format!("search?{}", query_string(&ring_search())),
+        "search?realm=pc&text=class%3Arings+%22%23+to+maximum+Life%22%3E%3D90".to_string(),
+        "search?realm=pc&league=Standard&view.count=rarity&view.limit=20".to_string(),
+    ] {
+        let page = follow(&web, &at(&path));
+        assert_eq!(page.status, 200, "{path}: {}", page.body);
+        let line = basis_line(&page.body).unwrap();
+        assert_eq!(line.as_object().unwrap().len(), 1, "{line}");
+        assert_eq!(line["answer"], json_at(&web, &at(&path))["basis"], "{path}");
+    }
+    // a continuation, followed as the page links it
+    let first = web.get("search?realm=pc&text=class%3Arings&view.limit=1");
+    let more = link_saying(&first.body, "more");
+    let next = follow(&web, &at(&more));
+    assert_eq!(next.status, 200, "{}", next.body);
+    assert_eq!(
+        entry(&next.body, "answer"),
+        json_at(&web, &at(&more))["basis"]
+    );
+    let item = web.get("item/r1");
+    assert_eq!(
+        entry(&item.body, "item"),
+        json_at(&web, &at("item/r1"))["basis"]
+    );
+    // the list, empty and full: two rows, one written twice, so the file's
+    // revision is no count the page could make of its rows
+    for full in [false, true] {
+        if full {
+            crate::saved_json::put(&mock, "0000000000a1", "rings");
+            crate::saved_json::put(&mock, "0000000000a2", "amulets");
+            saved_cli(
+                &world,
+                &["set", "--id", "0000000000a2", "--name", "necklaces"],
+            );
+        }
+        let list = web.get("saved");
+        assert_eq!(
+            entry(&list.body, "saved_searches"),
+            json_at(&web, &at("saved"))["revision"]
+        );
+    }
+    // an answer opened from a row: the answer's and the row's
+    let (location, opened) = redirected(&web, &at("saved/open?id=0000000000a1"));
+    assert_eq!(
+        entry(&opened.body, "answer"),
+        json_at(&web, &location)["basis"]
+    );
+    assert_eq!(
+        entry(&opened.body, "saved_search"),
+        saved_json(&world, &["show", "0000000000a1"])["revision"]
+    );
+    // a conflict's page: the row as it stands
+    saved_cli(&world, &["set", "--id", "0000000000a1", "--name", "moved"]);
+    let save = form_on(&opened.body, "Save over \"rings\"", None);
+    let conflict = send(&web, &save, false);
+    assert_eq!(conflict.status, 400, "{}", conflict.body);
+    let (_, refused) = sent_json(&web, &save);
+    assert_eq!(refused["kind"], "conflict", "{refused}");
+    assert_eq!(
+        entry(&conflict.body, "saved_search"),
+        refused["current"]["revision"]
+    );
+    // the form page and a refusal with no `current` carry no line
+    assert_eq!(basis_line(&web.get("").body), None);
+    assert_eq!(basis_line(&web.get("item/t1").body), None);
+    assert_eq!(
+        basis_line(&web.get("saved/open?id=0000000000ff").body),
+        None
+    );
+}
+
+/// C168, a page writes as the verbs write: a create from an answer, a
+/// rename and a clear from the list, each as its form sends it — as JSON
+/// the receipt, its `written` the row `acq saved show` reads, through the
+/// channel `web`, and its undo posted as spelled putting the prior back;
+/// as a browser sends it, `303` to the list with the same write landed.
+#[test]
+fn c168_a_page_writes_a_saved_search_as_the_verbs_write_it() {
+    let (scratch, web) = offline_web("webwrite");
+    let world = scratch.0.clone();
+    let answer = web.get(&format!("search?{}", query_string(&ring_search())));
+    let save = form_on(&answer.body, "Save this search", None);
+    assert!(
+        !saved_parts(&answer.body).contains("acq "),
+        "{}",
+        answer.body
+    );
+    // the browser's create: 303 to the list, the row on it
+    landed_on_the_list(
+        &web,
+        &send(&web, &save.clone().typed("name", "rings"), false),
+    );
+    let listed = saved_json(&world, &["list"]);
+    assert_eq!(listed["total"], 1, "{listed}");
+    let row = &listed["searches"][0];
+    assert_eq!(
+        (&row["name"], &row["written_via"], &row["scope"]["realm"]),
+        (&json!("rings"), &json!("web"), &json!("pc")),
+        "{row}"
+    );
+    let browsed = row["id"].as_str().unwrap().to_string();
+    // the create asked as JSON: the receipt, its row the verbs' own
+    let (status, created) = sent_json(&web, &save.clone().typed("name", "rings again"));
+    assert_eq!(status, 200, "{created}");
+    let id = created["target"]["id"].as_str().unwrap().to_string();
+    assert_eq!(
+        created["written"],
+        saved_json(&world, &["show", &id]),
+        "{created}"
+    );
+    assert_eq!(created["written"]["written_via"], "web");
+    // its undo, the clear, posted as spelled
+    let (status, undone) = sent_json(&web, &offered_form(&created["undo"]));
+    assert_eq!(status, 200, "{undone}");
+    assert_eq!(
+        saved_json(&world, &["show", &id])["kind"],
+        "saved_search_not_found"
+    );
+    // a rename from the list, as the browser sends it
+    let list = web.get("saved");
+    assert!(!main_of(&list.body).contains("acq "), "{}", list.body);
+    let rename = form_on(&list.body, "Rename", Some(&browsed));
+    assert_eq!(
+        rename.field("text"),
+        None,
+        "a rename sends no text: {rename:?}"
+    );
+    landed_on_the_list(
+        &web,
+        &send(&web, &rename.clone().typed("name", "kept rings"), false),
+    );
+    let shown = saved_json(&world, &["show", &browsed]);
+    assert_eq!(
+        (&shown["name"], &shown["revision"]),
+        (&json!("kept rings"), &json!(2))
+    );
+    // and as JSON, from the list as it stands; its undo puts the prior back
+    let rename = form_on(&web.get("saved").body, "Rename", Some(&browsed));
+    let (status, renamed) = sent_json(&web, &rename.typed("name", "renamed"));
+    assert_eq!(status, 200, "{renamed}");
+    assert_eq!(renamed["written"], saved_json(&world, &["show", &browsed]));
+    assert_eq!(renamed["prior"]["name"], "kept rings");
+    let (status, _) = sent_json(&web, &offered_form(&renamed["undo"]));
+    assert_eq!(status, 200);
+    assert_eq!(
+        saved_json(&world, &["show", &browsed])["name"],
+        "kept rings"
+    );
+    // a clear from the list as JSON, its undo the create at the id
+    let clear = form_on(&web.get("saved").body, "Clear", Some(&browsed));
+    let (status, cleared) = sent_json(&web, &clear);
+    assert_eq!(status, 200, "{cleared}");
+    assert_eq!(cleared["written"], Value::Null);
+    assert_eq!(
+        saved_json(&world, &["show", &browsed])["kind"],
+        "saved_search_not_found"
+    );
+    let undo = offered_form(&cleared["undo"]);
+    assert_eq!(undo.field("if_revision"), Some("0"), "{undo:?}");
+    let (status, back) = sent_json(&web, &undo);
+    assert_eq!(status, 200, "{back}");
+    assert_eq!(back["written"], saved_json(&world, &["show", &browsed]));
+    assert_eq!(back["written"]["name"], "kept rings");
+    // and as the browser sends it: 303, the row gone
+    let clear = form_on(&web.get("saved").body, "Clear", Some(&browsed));
+    landed_on_the_list(&web, &send(&web, &clear, false));
+    assert_eq!(saved_json(&world, &["list"])["total"], 0);
+}
+
+/// C168, a stale page: a write or a clear at a revision that moved is
+/// refused `conflict`, nothing written, and the write offered again over
+/// the row as it stands lands, posted as the conflict's page renders it;
+/// a clear's undo posted twice meets the row it put back, and its offer,
+/// the list whole, shows that row past the first ten; a create naming no
+/// realm over a store of two is refused `realm_needed`, each realm's
+/// create offered landing.
+#[test]
+fn c168_a_stale_page_is_refused_and_offered_the_write_over_the_row_as_it_stands() {
+    let (scratch, web) = offline_web("webstale");
+    let world = scratch.0.clone();
+    let mock = world.join("mock");
+    for n in 0..11 {
+        crate::saved_json::put(&mock, &format!("00000000000{n:x}"), &format!("a{n:02}"));
+    }
+    crate::saved_json::put(&mock, "0000000000ff", "zz");
+    let list = web.get("saved?expand=true");
+    // the row renamed at the terminal; the page's rename at the old one
+    saved_cli(
+        &world,
+        &["set", "--id", "0000000000ff", "--name", "elsewhere"],
+    );
+    let before = file_revision(&world);
+    let rename = form_on(&list.body, "Rename", Some("0000000000ff")).typed("name", "mine");
+    let refused = send(&web, &rename, false);
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    let (_, conflict) = sent_json(&web, &rename);
+    assert_eq!(
+        (
+            &conflict["kind"],
+            &conflict["revision"],
+            &conflict["current"]["name"]
+        ),
+        (&json!("conflict"), &json!(2), &json!("elsewhere")),
+        "{conflict}"
+    );
+    assert_eq!(file_revision(&world), before, "a refused write wrote");
+    assert!(
+        refused.body.contains("It stands now as:"),
+        "{}",
+        refused.body
+    );
+    assert!(!main_of(&refused.body).contains("acq "), "{}", refused.body);
+    let again = form_on(
+        &refused.body,
+        "the same write over revision 2, the row as it stands",
+        None,
+    );
+    landed_on_the_list(&web, &send(&web, &again, false));
+    let shown = saved_json(&world, &["show", "0000000000ff"]);
+    assert_eq!(
+        (&shown["name"], &shown["revision"]),
+        (&json!("mine"), &json!(3))
+    );
+    // a clear at a revision that moved, its offer posted as rendered
+    let clear = form_on(&list.body, "Clear", Some("0000000000ff"));
+    let before = file_revision(&world);
+    let refused = send(&web, &clear, false);
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert_eq!(file_revision(&world), before);
+    let again = form_on(
+        &refused.body,
+        "the same clear at revision 3, the row as it stands",
+        None,
+    );
+    landed_on_the_list(&web, &send(&web, &again, false));
+    // a clear's undo posted twice: the second a create meeting the row it
+    // put back, offered the list whole, where that row stands past ten
+    let clear = form_on(
+        &web.get("saved?expand=true").body,
+        "Clear",
+        Some("00000000000a"),
+    );
+    let (_, cleared) = sent_json(&web, &clear);
+    let undo = offered_form(&cleared["undo"]);
+    assert_eq!(sent_json(&web, &undo).0, 200);
+    let before = file_revision(&world);
+    let twice = send(&web, &undo, false);
+    assert_eq!(twice.status, 400, "{}", twice.body);
+    assert_eq!(file_revision(&world), before);
+    let every = link_saying(&twice.body, "the saved search 00000000000a as it stands");
+    assert!(every.ends_with("/saved?expand=true"), "{every}");
+    let followed = follow(&web, &every);
+    assert_eq!(followed.status, 200);
+    assert!(
+        followed.body.contains("<td>00000000000a</td>"),
+        "{}",
+        followed.body
+    );
+    assert!(
+        !web.get("saved").body.contains("<td>00000000000a</td>"),
+        "the row stands in the first ten"
+    );
+    // a create naming no realm, posted by hand over pc and xbox
+    let by_hand = PageForm {
+        action: format!("/{}/saved", web.token),
+        button: String::new(),
+        fields: vec![
+            ("name".to_string(), "life".to_string()),
+            ("text".to_string(), "rarity=rare".to_string()),
+        ],
+    };
+    let before = file_revision(&world);
+    let refused = send(&web, &by_hand, false);
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert_eq!(sent_json(&web, &by_hand).1["kind"], "realm_needed");
+    assert_eq!(file_revision(&world), before);
+    let offers: Vec<PageForm> = posted_forms(&refused.body);
+    assert!(offers.len() >= 2, "{}", refused.body);
+    for offer in &offers {
+        landed_on_the_list(&web, &send(&web, offer, false));
+    }
+    let realms: Vec<Value> = saved_json(&world, &["list", "--expand"])["searches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|row| row["name"] == "life")
+        .map(|row| row["scope"]["realm"].clone())
+        .collect();
+    for realm in ["pc", "xbox"] {
+        assert!(realms.contains(&json!(realm)), "{realms:?}");
+    }
+}
+
+/// C168 over the text `""`, a query of every item in its scope: saved
+/// from its answer, opened from the list, saved over and cleared through
+/// the forms as rendered, the clear undone from its receipt's undo.
+#[test]
+fn c168_a_search_over_every_item_saves_opens_and_clears_through_the_forms() {
+    let (scratch, web) = offline_web("webevery");
+    let world = scratch.0.clone();
+    let answer = web.get("search?realm=pc&text=");
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let save = form_on(&answer.body, "Save this search", None);
+    assert_eq!(save.field("text"), Some(""), "{save:?}");
+    landed_on_the_list(&web, &send(&web, &save.typed("name", "everything"), false));
+    let list = web.get("saved");
+    let row = &saved_json(&world, &["list"])["searches"][0];
+    let id = row["id"].as_str().unwrap().to_string();
+    assert_eq!(row["text"], "", "{row}");
+    let (location, opened) = redirected(&web, &link_saying(&list.body, "everything"));
+    assert!(location.contains("text=&"), "{location}");
+    assert_eq!(opened.status, 200, "{}", opened.body);
+    assert!(
+        opened
+            .body
+            .contains("Saved search &quot;everything&quot;, opened at revision 1"),
+        "{}",
+        opened.body
+    );
+    let over = form_on(&opened.body, "Save over \"everything\"", None).typed("name", "all of it");
+    landed_on_the_list(&web, &send(&web, &over, false));
+    let shown = saved_json(&world, &["show", &id]);
+    assert_eq!(
+        (&shown["name"], &shown["text"]),
+        (&json!("all of it"), &json!(""))
+    );
+    let clear = form_on(&web.get("saved").body, "Clear", Some(&id));
+    let (status, cleared) = sent_json(&web, &clear);
+    assert_eq!(status, 200, "{cleared}");
+    let (status, back) = sent_json(&web, &offered_form(&cleared["undo"]));
+    assert_eq!(status, 200, "{back}");
+    assert_eq!(back["written"]["text"], "");
+    assert_eq!(back["written"]["name"], "all of it");
+}
+
+/// Do 6's and Do 7's failing inputs: each refused, nothing written.
+#[test]
+fn c168_each_malformed_write_or_opening_is_refused_and_writes_nothing() {
+    let (scratch, web) = offline_web("webmalformed");
+    let world = scratch.0.clone();
+    crate::saved_json::put(&world.join("mock"), "0000000000a1", "rings");
+    let before = file_revision(&world);
+    let token = web.token.clone();
+    let write = |route: &str, fields: &[(&str, &str)]| PageForm {
+        action: format!("/{token}/{route}"),
+        button: String::new(),
+        fields: fields
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+    };
+    for (form, kind, said) in [
+        (
+            write(
+                "saved",
+                &[
+                    ("name", "x"),
+                    ("text", "rarity=rare"),
+                    ("league", "Standard"),
+                ],
+            ),
+            "usage",
+            "`league` is no field of a saved search's write",
+        ),
+        (
+            write(
+                "saved",
+                &[
+                    ("id", "0000000000a1"),
+                    ("if_revision", "one"),
+                    ("name", "x"),
+                ],
+            ),
+            "usage",
+            "is no revision",
+        ),
+        (
+            write(
+                "saved",
+                &[("id", "0000000000a1"), ("if_revision", ""), ("name", "x")],
+            ),
+            "usage",
+            "is no revision",
+        ),
+        (
+            write(
+                "saved",
+                &[("if_revision", "1"), ("name", "x"), ("text", "rarity=rare")],
+            ),
+            "arguments",
+            "a revision names the saved search it replaces by its id",
+        ),
+        (
+            write(
+                "saved",
+                &[("name", ""), ("text", "rarity=rare"), ("realm", "pc")],
+            ),
+            "arguments",
+            "",
+        ),
+        (
+            write(
+                "saved",
+                &[
+                    ("id", "0000000000a1"),
+                    ("if_revision", "0"),
+                    ("name", "x"),
+                    ("text", "rarity=rare"),
+                    ("realm", "pc"),
+                    ("membership", "live"),
+                ],
+            ),
+            "conflict",
+            "stands at revision 1",
+        ),
+        (
+            write(
+                "saved",
+                &[("id", "0000000000a1"), ("if_revision", "7"), ("name", "x")],
+            ),
+            "conflict",
+            "stands at revision 1",
+        ),
+        (
+            write("saved/clear", &[("id", "0000000000a1")]),
+            "usage",
+            "a clear names the revision it clears",
+        ),
+        (
+            write(
+                "saved/clear",
+                &[("id", "0000000000a1"), ("if_revision", "2")],
+            ),
+            "conflict",
+            "stands at revision 1",
+        ),
+    ] {
+        let page = send(&web, &form, false);
+        assert_eq!(page.status, 400, "{form:?}: {}", page.body);
+        assert!(!main_of(&page.body).contains("acq "), "{}", page.body);
+        let (status, refused) = sent_json(&web, &form);
+        assert_eq!(status, 400, "{form:?}");
+        assert_eq!(refused["kind"], kind, "{form:?}: {refused}");
+        assert!(
+            refused["error"].as_str().unwrap().contains(said),
+            "{form:?}: {refused}"
+        );
+        assert_eq!(file_revision(&world), before, "{form:?} wrote");
+    }
+    // the answer's two fields: together, an id and a positive revision
+    let answer = "search?realm=pc&text=rarity%3Drare";
+    for (query, said) in [
+        ("&saved=rings&saved_revision=1", "is no saved search's id"),
+        ("&saved=0000000000a1", "the two together"),
+        ("&saved_revision=1", "the two together"),
+        ("&saved=0000000000a1&saved_revision=0", "is no revision"),
+        ("&saved=0000000000a1&saved_revision=-1", "is no revision"),
+        ("&saved=0000000000a1&saved_revision=one", "is no revision"),
+    ] {
+        let page = web.get(&format!("{answer}{query}"));
+        assert_eq!(page.status, 400, "{query}: {}", page.body);
+        let refused = json_at(&web, &format!("/{token}/{answer}{query}"));
+        assert_eq!(refused["kind"], "usage", "{query}: {refused}");
+        assert!(
+            refused["error"].as_str().unwrap().contains(said),
+            "{refused}"
+        );
+    }
+    assert_eq!(file_revision(&world), before);
+}
+
+/// The routes (Do 5): `saved/open` writes nothing and answers `303` to
+/// the search the row's request folds to, which answers as `acq search
+/// --saved` does — for a row over the live items and one over all of
+/// them, whose membership the query box and the continuation carry; an
+/// id no row holds offers the list; a name is a usage refusal; and a row
+/// whose name has another id's shape is never opened by that id.
+#[test]
+fn saved_open_runs_the_rows_search_and_writes_nothing() {
+    let (scratch, web) = offline_web("webopen");
+    let world = scratch.0.clone();
+    let mock = world.join("mock");
+    let token = web.token.clone();
+    crate::saved_json::put(&mock, "0000000000a1", "rings");
+    saved_cli(
+        &world,
+        &[
+            "set",
+            "--name",
+            "every ring",
+            "--realm",
+            "pc",
+            "--membership",
+            "all",
+            "class:rings",
+        ],
+    );
+    let all = saved_json(&world, &["list"])["searches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "every ring")
+        .unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    for (id, membership) in [("0000000000a1", "live"), (all.as_str(), "all")] {
+        let before = file_revision(&world);
+        let open = follow(&web, &format!("/{token}/saved/open?id={id}"));
+        assert_eq!(open.status, 303, "{}", open.body);
+        let location = open.header("location").unwrap().to_string();
+        let revision = saved_json(&world, &["show", id])["revision"].clone();
+        assert!(
+            location.starts_with(&format!("/{token}/search?")),
+            "{location}"
+        );
+        assert!(
+            location.ends_with(&format!("&saved={id}&saved_revision={revision}")),
+            "{location}"
+        );
+        assert_eq!(
+            location.contains("membership=all"),
+            membership == "all",
+            "{location}"
+        );
+        assert_eq!(file_revision(&world), before, "an opening wrote");
+        let mut page = json_at(&web, &location);
+        let cli = sole_json(&offline_acq(&world, &["search", "--saved", id, "--json"]));
+        for row in page["rows"].as_array_mut().unwrap() {
+            row.as_object_mut().unwrap().remove("icon");
+        }
+        assert_eq!(page, cli, "{id}");
+        let answer = follow(&web, &location);
+        assert!(
+            answer.body.contains(&format!(
+                "<input type=\"hidden\" name=\"membership\" value=\"{membership}\">"
+            )),
+            "{}",
+            answer.body
+        );
+    }
+    // the membership `all` carried through an edit and a page turn
+    let location = follow(&web, &format!("/{token}/saved/open?id={all}"))
+        .header("location")
+        .unwrap()
+        .to_string();
+    let edited = web.get(&format!(
+        "search?realm=pc&membership=all&text=class%3Arings&view.limit=1&saved={all}&saved_revision=1"
+    ));
+    assert_eq!(edited.status, 200, "{}", edited.body);
+    assert_eq!(json_at(&web, &location)["scope"]["membership"], "all");
+    let more = link_saying(&edited.body, "more");
+    assert!(
+        more.contains(&format!("&saved={all}&saved_revision=1")),
+        "{more}"
+    );
+    let next = follow(&web, &format!("/{token}/{more}"));
+    assert_eq!(next.status, 200, "{}", next.body);
+    assert_eq!(
+        json_at(&web, &format!("/{token}/{more}"))["scope"]["membership"],
+        "all"
+    );
+    assert!(next.body.contains("opened at revision 1"), "{}", next.body);
+    // an id no row holds: the list offered, followed as rendered
+    let missing = web.get("saved/open?id=0000000000ff");
+    assert_eq!(missing.status, 400, "{}", missing.body);
+    assert!(!main_of(&missing.body).contains("acq "), "{}", missing.body);
+    let list = link_saying(&missing.body, "the saved searches, each with its id");
+    assert_eq!(follow(&web, &list).status, 200);
+    // a name is no id
+    let named = json_at(&web, &format!("/{token}/saved/open?id=rings"));
+    assert_eq!(named["kind"], "usage", "{named}");
+    // a row at A named as B's id, with no row at B: never opened by B
+    crate::saved_json::put(&mock, "0000000000a2", "0000000000b2");
+    let by_name = json_at(&web, &format!("/{token}/saved/open?id=0000000000b2"));
+    assert_eq!(by_name["kind"], "saved_search_not_found", "{by_name}");
+    let answer = web.get("search?realm=pc&text=rarity%3Drare&saved=0000000000b2&saved_revision=1");
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    assert!(
+        answer.body.contains("Saved search 0000000000b2 is gone"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains(">Save this search</button>"),
+        "{}",
+        answer.body
+    );
+}
+
+/// Morning 1's handoff on the owner's side: a row the terminal saves is on
+/// the list page, and a row the page saves is in `acq saved list`, its
+/// channel `web`.
+#[test]
+fn the_handoff_a_row_saved_elsewhere_is_on_the_page_and_the_pages_is_listed() {
+    let (scratch, web) = offline_web("webhandoff");
+    let world = scratch.0.clone();
+    saved_cli(
+        &world,
+        &[
+            "set",
+            "--name",
+            "from the terminal",
+            "--realm",
+            "pc",
+            "rarity=rare",
+        ],
+    );
+    let list = web.get("saved");
+    assert!(list.body.contains("from the terminal"), "{}", list.body);
+    assert!(list.body.contains("via cli"), "{}", list.body);
+    let answer = web.get(&format!("search?{}", query_string(&ring_search())));
+    let save = form_on(&answer.body, "Save this search", None).typed("name", "from the page");
+    landed_on_the_list(&web, &send(&web, &save, false));
+    let listed = saved_json(&world, &["list"]);
+    let row = listed["searches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "from the page")
+        .unwrap_or_else(|| panic!("{listed}"));
+    assert_eq!(row["written_via"], "web", "{row}");
+}
+
+/// C53's bound on the list page: eleven rows are ten, with the link that
+/// lists every one, which lists eleven; the page's JSON is `acq saved
+/// list`'s, and under `expand=true` `acq saved list --expand`'s.
+#[test]
+fn c53_the_saved_list_shows_ten_and_links_every_one() {
+    let (scratch, web) = offline_web("webbound");
+    let world = scratch.0.clone();
+    for n in 0..11 {
+        crate::saved_json::put(
+            &world.join("mock"),
+            &format!("00000000000{n:x}"),
+            &format!("a{n:02}"),
+        );
+    }
+    let list = web.get("saved");
+    assert_eq!(
+        list.body.matches(">Rename</button>").count(),
+        10,
+        "{}",
+        list.body
+    );
+    assert!(list.body.contains("10 of 11 listed"), "{}", list.body);
+    let every = follow(&web, &link_saying(&list.body, "list every one"));
+    assert_eq!(
+        every.body.matches(">Rename</button>").count(),
+        11,
+        "{}",
+        every.body
+    );
+    let token = web.token.clone();
+    assert_eq!(
+        json_at(&web, &format!("/{token}/saved")),
+        saved_json(&world, &["list"])
+    );
+    assert_eq!(
+        json_at(&web, &format!("/{token}/saved?expand=true")),
+        saved_json(&world, &["list", "--expand"])
+    );
+    let other = json_at(&web, &format!("/{token}/saved?expand=yes"));
+    assert_eq!(other["kind"], "usage", "{other}");
+}
+
+/// The saved pages, a golden naming what a reader must find (Do 10): the
+/// list empty and with rows, one this build cannot read among them; a
+/// create from an answer, a rename and a clear, each a redirect to the
+/// list it lands on; an answer opened from a row, then after the row
+/// moved, its text changed, it was renamed and it was cleared; a stale
+/// save's conflict showing the row as it stands; the unreadable row
+/// cleared; a save over a row replaced by one this build cannot read and
+/// its offer posted; a row over every item opened; and a row replaced so:
+/// its link followed, the list offered, its answer reloaded.
+#[test]
+fn the_saved_pages_are_a_wording_golden() {
+    use acquisition_store::{Provenance, SAVED_SEARCH_SCOPE, User};
+    let (scratch, web) = offline_web("websaved");
+    let world = scratch.0.clone();
+    let mock = world.join("mock");
+    let newer = |id: &str, over: Option<i64>| {
+        User::open_for(&mock)
+            .unwrap()
+            .put::<crate::saved_json::NewerSaved>(
+                SAVED_SEARCH_SCOPE,
+                id,
+                &json!({ "version": 2, "name": "x", "text": "x", "scope": {} }),
+                over,
+                &Provenance::via("future"),
+            )
+            .unwrap();
+    };
+    let mut pages = Pages::new(&world, &web);
+    let empty = web.get("saved");
+    pages.page(
+        "GET saved <none yet>",
+        &empty,
+        &["No saved searches yet: save one from any search&#39;s answer, under its query."],
+    );
+    for (id, name) in [
+        ("0000000000a1", "amulets"),
+        ("0000000000a2", "rings"),
+        ("0000000000a3", "boots"),
+        ("0000000000a4", "belts"),
+    ] {
+        crate::saved_json::put(&mock, id, name);
+    }
+    newer("0000000000f1", None);
+    let listed = web.get("saved");
+    pages.page(
+        "GET saved <four rows and one this build cannot read>",
+        &listed,
+        &[
+            "5 saved searches · the file at revision 5",
+            "<th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th>",
+            "saved/open?id=0000000000a2\">rings</a>",
+            "<td>pc · live</td><td>rarity=rare</td><td>1</td>",
+            "via test",
+            "this build cannot read it:",
+            ">Rename</button>",
+            ">Clear</button>",
+        ],
+    );
+    assert!(!main_of(&listed.body).contains("acq "), "{}", listed.body);
+    // a create from an answer, and the list it lands on
+    let answer = web.get(&format!("search?{}", query_string(&ring_search())));
+    pages.page(
+        "GET search?<the ring search>",
+        &answer,
+        &[
+            "/saved\"><input type=\"hidden\" name=\"text\" value=\"league=Standard",
+            "name=\"membership\" value=\"live\"",
+            ">Save this search</button>",
+        ],
+    );
+    let created = send(
+        &web,
+        &form_on(&answer.body, "Save this search", None).typed("name", "my rings"),
+        false,
+    );
+    pages.redirect("POST saved <the answer saved as my rings>", &created);
+    let list = follow(&web, created.header("location").unwrap());
+    let mine = saved_json(&world, &["list"])["searches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "my rings")
+        .unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    pages.placeholder(&mine, "created");
+    pages.page(
+        "GET saved <after the create>",
+        &list,
+        &["my rings", "via web", "6 saved searches"],
+    );
+    let renamed = send(
+        &web,
+        &form_on(&list.body, "Rename", Some(&mine)).typed("name", "kept rings"),
+        false,
+    );
+    pages.redirect("POST saved <my rings renamed kept rings>", &renamed);
+    let list = follow(&web, renamed.header("location").unwrap());
+    pages.page("GET saved <after the rename>", &list, &["kept rings"]);
+    let cleared = send(
+        &web,
+        &form_on(&list.body, "Clear", Some("0000000000a3")),
+        false,
+    );
+    pages.redirect("POST saved/clear <boots>", &cleared);
+    let list = follow(&web, cleared.header("location").unwrap());
+    assert!(!list.body.contains("boots"), "{}", list.body);
+    pages.page("GET saved <after the clear>", &list, &["5 saved searches"]);
+    // an answer opened from a row, then as the row moves under it
+    let open = follow(&web, &link_saying(&list.body, "rings"));
+    pages.redirect("GET saved/open?id=0000000000a2", &open);
+    let location = open.header("location").unwrap().to_string();
+    let opened = follow(&web, &location);
+    pages.page(
+        "GET search?<rings, opened>",
+        &opened,
+        &[
+            "Saved search &quot;rings&quot;, opened at revision 1",
+            ">the saved searches</a>",
+            "name=\"saved\" value=\"0000000000a2\"",
+            "name=\"saved_revision\" value=\"1\"",
+            "name=\"if_revision\" value=\"1\"",
+            ">Save over &quot;rings&quot;</button>",
+            ">Save as a new search</button>",
+        ],
+    );
+    assert!(
+        !saved_parts(&opened.body).contains("acq "),
+        "{}",
+        opened.body
+    );
+    saved_cli(&world, &["set", "--id", "0000000000a2", "--realm", "pc"]);
+    pages.page(
+        "GET search?<rings, opened, after the row moved>",
+        &follow(&web, &location),
+        &[
+            "Saved search 0000000000a2, opened at revision 1, has been written since: it is now \
+             &quot;rings&quot; at revision 2, last written",
+            "via cli. Saving over it here is refused as stale and offers the write over revision 2.",
+        ],
+    );
+    saved_cli(&world, &["set", "--id", "0000000000a2", "rarity=unique"]);
+    pages.page(
+        "GET search?<rings, opened, after its text changed>",
+        &follow(&web, &location),
+        &["This answer&#39;s query is not the saved one&#39;s: the saved query is rarity=unique over pc · live."],
+    );
+    saved_cli(
+        &world,
+        &["set", "--id", "0000000000a2", "--name", "unique rings"],
+    );
+    let reloaded = follow(&web, &location);
+    pages.page(
+        "GET search?<rings, opened, after it was renamed>",
+        &reloaded,
+        &["it is now &quot;unique rings&quot; at revision 4"],
+    );
+    // the page's save over the row, stale: the row as it stands, then the
+    // write over it as a button
+    let stale = send(
+        &web,
+        &form_on(&opened.body, "Save over \"rings\"", None),
+        false,
+    );
+    assert_eq!(stale.status, 400, "{}", stale.body);
+    pages.page(
+        "POST saved <a save over rings at revision 1, the row at 4>",
+        &stale,
+        &[
+            "stands at revision 4, not the revision the write named: nothing was written",
+            "It stands now as:",
+            "<td>unique rings</td><td>pc · live</td><td>rarity=unique</td><td>4</td>",
+            ">the same write over revision 4, the row as it stands</button>",
+        ],
+    );
+    saved_cli(&world, &["clear", "0000000000a2"]);
+    pages.page(
+        "GET search?<rings, opened, after it was cleared>",
+        &follow(&web, &location),
+        &[
+            "Saved search 0000000000a2 is gone: no saved search has that id now. Saving here makes a new one.",
+            ">Save this search</button>",
+        ],
+    );
+    // the row this build cannot read, cleared from the list
+    let list = web.get("saved");
+    let cleared = send(
+        &web,
+        &form_on(&list.body, "Clear", Some("0000000000f1")),
+        false,
+    );
+    pages.redirect(
+        "POST saved/clear <the row this build cannot read>",
+        &cleared,
+    );
+    let list = follow(&web, cleared.header("location").unwrap());
+    assert!(!list.body.contains("cannot read"), "{}", list.body);
+    pages.page("GET saved <after it>", &list, &["3 saved searches"]);
+    // a save over a row since replaced by one this build cannot read
+    let (_, amulets) = redirected(&web, &link_saying(&list.body, "amulets"));
+    newer("0000000000a1", Some(1));
+    let over = send(
+        &web,
+        &form_on(&amulets.body, "Save over \"amulets\"", None),
+        false,
+    );
+    pages.page(
+        "POST saved <a save over amulets, replaced by a row this build cannot read>",
+        &over,
+        &[
+            "saved search 0000000000a1 stands at revision 2",
+            ">the same write over revision 2, the row as it stands</button>",
+        ],
+    );
+    let offered = send(
+        &web,
+        &form_on(
+            &over.body,
+            "the same write over revision 2, the row as it stands",
+            None,
+        ),
+        false,
+    );
+    pages.redirect("POST saved <its offer>", &offered);
+    pages.page(
+        "GET saved <after it>",
+        &follow(&web, offered.header("location").unwrap()),
+        &["\">amulets</a></td><td>pc · live</td><td>rarity=rare</td><td>3</td>"],
+    );
+    // a row over every item, saved from its answer and opened
+    let every = web.get("search?realm=pc&text=");
+    let saved = send(
+        &web,
+        &form_on(&every.body, "Save this search", None).typed("name", "everything"),
+        false,
+    );
+    let list = follow(&web, saved.header("location").unwrap());
+    let everything = saved_json(&world, &["list"])["searches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "everything")
+        .unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    pages.placeholder(&everything, "everything");
+    let open = follow(&web, &link_saying(&list.body, "everything"));
+    pages.redirect("GET saved/open?id=<everything>", &open);
+    pages.page(
+        "GET search?<everything, opened>",
+        &follow(&web, open.header("location").unwrap()),
+        &[
+            "Saved search &quot;everything&quot;, opened at revision 1",
+            "<textarea id=\"query-text\" name=\"text\" rows=\"3\"></textarea>",
+        ],
+    );
+    // a row replaced by one this build cannot read: its link as the list
+    // rendered it, followed; the list it offers; its answer reloaded
+    let belts = link_saying(&list.body, "belts");
+    let (belted, _) = redirected(&web, &belts);
+    newer("0000000000a4", Some(1));
+    let refused = follow(&web, &belts);
+    pages.page(
+        "GET saved/open?id=0000000000a4 <replaced by a row this build cannot read>",
+        &refused,
+        &[
+            "saved search 0000000000a4 at revision 2 holds a value this build cannot read",
+            ">the saved searches, each with its id</a>",
+        ],
+    );
+    assert!(!main_of(&refused.body).contains("acq "), "{}", refused.body);
+    pages.page(
+        "GET saved <its offer followed>",
+        &follow(
+            &web,
+            &link_saying(&refused.body, "the saved searches, each with its id"),
+        ),
+        &["this build cannot read it:"],
+    );
+    pages.page(
+        "GET search?<belts, opened, reloaded>",
+        &follow(&web, &belted),
+        &[
+            "Saved search 0000000000a4 holds a value this build cannot read; clear it from",
+            ">Save this search</button>",
+        ],
+    );
+    page_golden(file!(), "saved_pages", &pages);
 }

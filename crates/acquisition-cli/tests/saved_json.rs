@@ -48,7 +48,7 @@ fn run_printed(base: &Path, line: &str) -> Value {
 
 /// A saved search of `name` written through the store's door at `id`,
 /// as another writer would.
-fn put(mock: &Path, id: &str, name: &str) {
+pub(crate) fn put(mock: &Path, id: &str, name: &str) {
     User::open_for(mock)
         .unwrap()
         .put::<SavedSearch>(
@@ -523,7 +523,7 @@ fn the_printed_run_carries_the_account_and_every_offer_runs_with_two_accounts() 
 /// door: a kind of the same name whose parse takes any shape.
 #[derive(serde::Serialize)]
 #[serde(transparent)]
-struct NewerSaved(Value);
+pub(crate) struct NewerSaved(pub(crate) Value);
 
 impl acquisition_store::IntentValue for NewerSaved {
     const KIND: &'static str = "saved-search";

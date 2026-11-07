@@ -242,9 +242,11 @@ enum Cmd {
     /// print — the search as a form shaped like the trade site's, its
     /// answer as a table with each item's art, one item, and the refresh
     /// loop (a league's tabs and characters to tick, the plan with its
-    /// quote, apply, the jobs). The pages read the store as `search`,
-    /// `show` and `tabs` do; a refresh or an apply reaches the daemon as
-    /// `refresh` does. Binds 127.0.0.1 on a random port; the URL it
+    /// quote, apply, the jobs) — and the saved searches, the world's,
+    /// whoever saved them: kept from any answer under its query, listed,
+    /// opened, renamed and cleared, as `acq saved` writes them. The pages
+    /// read the store as `search`, `show` and `tabs` do; a refresh or an
+    /// apply reaches the daemon as `refresh` does. Binds 127.0.0.1 on a random port; the URL it
     /// prints carries a key no other page knows, and the server answers
     /// nothing without it. Runs until Ctrl-C. The item art is fetched by
     /// your browser from GGG's image host; a page reads whole without it.

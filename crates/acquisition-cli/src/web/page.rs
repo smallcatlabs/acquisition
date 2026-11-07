@@ -1,15 +1,20 @@
 //! The pages (C16, a renderer, not an app; C53, text is a function of the
-//! JSON): each renders one document a verb produced, as HTML, with the
-//! CLI's own words where the CLI has them — the answer's opening and its
-//! terms, `show`, the plan, the jobs table — so the page states nothing
-//! the terminal does not. A page sorts, filters, groups and composes
-//! nothing; where it wants what no document carries, the search crate or
-//! the verb grows first.
+//! JSON): each renders the documents a verb produced, as HTML — one, but
+//! for an answer opened from a saved search, which renders the answer and
+//! the saved row it was opened from, and a conflict's refusal, which
+//! renders the row as it stands — with the CLI's own words where the CLI
+//! has them — the answer's opening and its terms, `show`, the plan, the
+//! jobs table — so the page states nothing the terminal does not. A page
+//! sorts, filters, groups and composes nothing; where it wants what no
+//! document carries, the search crate or the verb grows first. Every
+//! version a page renders is copied into its head's basis line, never
+//! composed ([`Head::basis`]).
 
 use acquisition_search::Classed;
 use acquisition_search::answer::{Answer, ViewOut};
 use acquisition_search::show::Shown;
 use acquisition_search::trade::translate::{Fidelity, Status};
+use acquisition_verbs::saved::{ReadRow, SavedSearches};
 
 use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
 use crate::search_cmd;
@@ -58,6 +63,24 @@ pub(crate) struct Head {
     pub refresh: Option<u32>,
     /// The stat picker's script.
     pub picker: bool,
+    /// The versions of the documents the page renders (C16, every
+    /// document carries its basis): each keyed by its document — `answer`,
+    /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
+    /// document's own field as `serde_json::to_value` makes it, never a
+    /// number the page composes. Written as one `<meta name="basis">` line
+    /// where there is at least one, so part 3's feed has something to
+    /// compare.
+    pub basis: Vec<(&'static str, Value)>,
+}
+
+impl Head {
+    /// A head carrying `document`'s version as `key`.
+    pub(crate) fn with(mut self, key: &'static str, version: impl serde::Serialize) -> Head {
+        if let Ok(value) = serde_json::to_value(version) {
+            self.basis.push((key, value));
+        }
+        self
+    }
 }
 
 /// A page: the template filled, the body last so nothing in it is read
@@ -72,11 +95,28 @@ pub(crate) fn page(token: &str, title: &str, head: Head, body: &str) -> String {
     } else {
         String::new()
     };
+    let basis = match head.basis.is_empty() {
+        true => String::new(),
+        false => {
+            let versions: serde_json::Map<String, Value> = head
+                .basis
+                .into_iter()
+                .map(|(key, value)| (key.to_string(), value))
+                .collect();
+            format!(
+                "<meta name=\"basis\" content=\"{}\">\n",
+                esc(&Value::Object(versions).to_string())
+            )
+        }
+    };
+    // the documents' words after the template's own placeholders, the
+    // body last, so nothing in them is read as a placeholder
     TEMPLATE
         .replace("{refresh}", &refresh)
         .replace("{script}", &script)
         .replace("{title}", &esc(title))
         .replace("{token}", token)
+        .replace("{basis}", &basis)
         .replace("{body}", body)
 }
 
@@ -92,9 +132,12 @@ pub(crate) fn refusal(words: &str) -> String {
 }
 
 /// A refusal's document as a page renders it (#97): its words and each
-/// reading on a line of its own, as a terminal prints them, then each way
-/// on as a link to the page that takes it, saying what it is — never a
-/// command line.
+/// reading on a line of its own, as a terminal prints them; where it
+/// carries a saved search as it stands (a conflict's `current`), that row
+/// as the list renders it, so the page shows what the offered write would
+/// replace; then each way on, saying what it is — a read as a link to the
+/// page that takes it, a write (`{post, fields}`) as a form of hidden
+/// fields with one button — never a command line.
 pub(crate) fn refused(doc: &Value) -> String {
     let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let words = std::iter::once(said(&doc["error"]))
@@ -111,19 +154,310 @@ pub(crate) fn refused(doc: &Value) -> String {
         .as_array()
         .into_iter()
         .flatten()
-        .map(|o| {
-            format!(
+        .map(|o| match o["request"].get("post") {
+            Some(post) => format!(
+                "<li>{}</li>\n",
+                post_form(
+                    &said(post),
+                    o["request"]["fields"]
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .map(|(k, v)| (k.as_str(), said(v))),
+                    "",
+                    &said(&o["says"])
+                )
+            ),
+            None => format!(
                 "<li><a href=\"{}\">{}</a></li>\n",
                 esc(&said(&o["request"])),
                 esc(&said(&o["says"]))
-            )
+            ),
         })
         .collect();
     let offers = match offers.is_empty() {
         true => offers,
         false => format!("<ul class=\"offers\">\n{offers}</ul>\n"),
     };
-    format!("<div class=\"refusal\">{}{offers}</div>\n", pre(&words))
+    let standing = match saved_current(doc) {
+        Some(row) => format!(
+            "<p>It stands now as:</p>\n<table class=\"saved\">\n{SAVED_HEAD}<tr>{}</tr>\n</table>\n",
+            saved_cells(row, None)
+        ),
+        None => String::new(),
+    };
+    format!(
+        "<div class=\"refusal\">{}{standing}{offers}</div>\n",
+        pre(&words)
+    )
+}
+
+/// A refusal's `current` where it is a saved search as it stands (a
+/// conflict's): its id with its value, or the reason this build cannot
+/// read it.
+pub(crate) fn saved_current(doc: &Value) -> Option<&Value> {
+    doc.get("current").filter(|row| {
+        row.get("id").is_some()
+            && row.get("revision").is_some()
+            && (row.get("unreadable").is_some() || row.pointer("/scope/membership").is_some())
+    })
+}
+
+/// A form posting `fields` hidden to `action`, with `shown` (an input a
+/// reader fills) before its one button.
+fn post_form<'a>(
+    action: &str,
+    fields: impl IntoIterator<Item = (&'a str, String)>,
+    shown: &str,
+    button: &str,
+) -> String {
+    let hidden: String = fields
+        .into_iter()
+        .map(|(name, value)| {
+            format!(
+                "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
+                esc(name),
+                esc(&value)
+            )
+        })
+        .collect();
+    format!(
+        "<form class=\"write\" method=\"post\" action=\"{}\">{hidden}{shown}<button type=\"submit\">{}</button></form>",
+        esc(action),
+        esc(button)
+    )
+}
+
+/// The saved list's header row, the forms' column last.
+const SAVED_HEAD: &str = "<tr><th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th></tr>\n";
+
+/// One saved search's cells as the list renders them, from the row as its
+/// document carries it: its name (a link that opens it, where `open` is
+/// given), its scope, its query, its revision, when and through which
+/// channel it was last written, and its id; a row this build cannot read
+/// says why across its scope and query.
+fn saved_cells(row: &Value, open: Option<&str>) -> String {
+    let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let revision = row["revision"].to_string();
+    let id = esc(&said(&row["id"]));
+    if let Some(why) = row.get("unreadable") {
+        return format!(
+            "<td>?</td><td colspan=\"2\">this build cannot read it: {}</td><td>{revision}</td><td></td><td>{id}</td>",
+            esc(&said(why))
+        );
+    }
+    let name = esc(&said(&row["name"]));
+    let name = match open {
+        Some(link) => format!("<a href=\"{}\">{name}</a>", esc(link)),
+        None => name,
+    };
+    let actor = match row.get("actor").and_then(Value::as_str) {
+        Some(actor) => format!(" as {actor}"),
+        None => String::new(),
+    };
+    format!(
+        "<td>{name}</td><td>{}</td><td>{}</td><td>{revision}</td><td>{}</td><td>{id}</td>",
+        esc(&format!(
+            "{} · {}",
+            said(&row["scope"]["realm"]),
+            said(&row["scope"]["membership"])
+        )),
+        esc(&said(&row["text"])),
+        esc(&format!(
+            "{} via {}{actor}",
+            said(&row["updated_at_age"]),
+            said(&row["written_via"])
+        ))
+    )
+}
+
+/// Where the saved pages' links and forms go, each absolute under the
+/// token (C138): the list, the list whole, the write and the clear.
+pub(crate) struct SavedLinks {
+    pub list: String,
+    pub every: String,
+    pub write: String,
+    pub clear: String,
+}
+
+/// The saved searches (4-full part 1, step 3, Do 4): the list's head
+/// line, then a row per search in the document's order, each with a link
+/// that opens it and its rename and clear forms naming the revision
+/// listed; a row this build cannot read, its clear alone; the rows left
+/// out counted, with the link that lists every one.
+pub(crate) fn saved_list(
+    listed: &SavedSearches,
+    links: &SavedLinks,
+    open: &dyn Fn(&str) -> String,
+) -> String {
+    if listed.total == 0 {
+        return format!(
+            "<p>{}</p>\n",
+            esc("No saved searches yet: save one from any search's answer, under its query.")
+        );
+    }
+    let mut out = format!(
+        "<p>{} · the file at revision {}</p>\n<table class=\"saved\">\n{}",
+        plural(listed.total, "saved search", "saved searches"),
+        listed.revision,
+        SAVED_HEAD.replace("</tr>", "<th></th></tr>")
+    );
+    for row in &listed.searches {
+        let doc = serde_json::to_value(row).unwrap_or_default();
+        let id = row.id().to_string();
+        let revision = row.revision().to_string();
+        let keyed = || [("id", id.clone()), ("if_revision", revision.clone())];
+        let rename = match row.name() {
+            Some(name) => post_form(
+                &links.write,
+                keyed(),
+                &format!(
+                    "<input name=\"name\" value=\"{}\" aria-label=\"the new name\"> ",
+                    esc(name)
+                ),
+                "Rename",
+            ),
+            None => String::new(),
+        };
+        let clear = post_form(&links.clear, keyed(), "", "Clear");
+        let opened = row.name().map(|_| open(&id));
+        out.push_str(&format!(
+            "<tr>{}<td>{rename}{clear}</td></tr>\n",
+            saved_cells(&doc, opened.as_deref())
+        ));
+    }
+    out.push_str("</table>\n");
+    if listed.left_out > 0 {
+        out.push_str(&format!(
+            "<p>{} of {} listed · <a href=\"{}\">list every one</a></p>\n",
+            listed.searches.len(),
+            listed.total,
+            esc(&links.every)
+        ));
+    }
+    out
+}
+
+/// The saved search an answer was opened from (4-full part 1, step 3,
+/// Do 7): the id and revision its URL names, and the row as it stands
+/// now at that id — readable, gone, or one this build cannot read.
+pub(crate) struct Opened {
+    pub id: String,
+    pub at: i64,
+    pub row: OpenedRow,
+}
+
+pub(crate) enum OpenedRow {
+    Read(Box<ReadRow>),
+    Gone,
+    Unreadable,
+}
+
+/// What an answer opened from a saved search says above it.
+fn opened_notice(a: &Answer, opened: &Opened, links: &SavedLinks) -> String {
+    let (id, at) = (&opened.id, opened.at);
+    let list = |words: &str| format!("<a href=\"{}\">{}</a>", esc(&links.list), esc(words));
+    let mut out = match &opened.row {
+        OpenedRow::Read(row) if row.revision == at => format!(
+            "<p class=\"saved\">{} · {}</p>\n",
+            esc(&format!(
+                "Saved search \"{}\", opened at revision {at}",
+                row.name
+            )),
+            list("the saved searches")
+        ),
+        OpenedRow::Read(row) => format!(
+            "<p class=\"saved\">{} · {}</p>\n",
+            esc(&format!(
+                "Saved search {id}, opened at revision {at}, has been written since: it is now \
+                 \"{}\" at revision {}, last written {} via {}. Saving over it here is refused \
+                 as stale and offers the write over revision {}.",
+                row.name, row.revision, row.updated_at_age, row.written_via, row.revision
+            )),
+            list("the saved searches")
+        ),
+        OpenedRow::Gone => format!(
+            "<p class=\"saved\">{}</p>\n",
+            esc(&format!(
+                "Saved search {id} is gone: no saved search has that id now. Saving here makes \
+                 a new one."
+            ))
+        ),
+        OpenedRow::Unreadable => format!(
+            "<p class=\"saved\">{}{}.</p>\n",
+            esc(&format!(
+                "Saved search {id} holds a value this build cannot read; clear it from "
+            )),
+            list("the saved searches")
+        ),
+    };
+    if let OpenedRow::Read(row) = &opened.row
+        && (row.text != a.query.text
+            || row.scope.realm != a.scope.realm.as_str()
+            || row.scope.membership != a.scope.membership.as_str())
+    {
+        out.push_str(&format!(
+            "<p class=\"saved\">{}</p>\n",
+            esc(&format!(
+                "This answer's query is not the saved one's: the saved query is {} over {} · {}.",
+                row.text, row.scope.realm, row.scope.membership
+            ))
+        ));
+    }
+    out
+}
+
+/// The save form under an answer's query box: the text the answer ran,
+/// its realm and membership hidden, and a name typed; over the saved
+/// search it was opened from where that row stands readable, at the
+/// revision the URL names, beside a second form that saves it as new.
+fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String {
+    let query = || {
+        vec![
+            ("text", a.query.text.clone()),
+            ("realm", a.scope.realm.as_str().to_string()),
+            ("membership", a.scope.membership.as_str().to_string()),
+        ]
+    };
+    let named = |name: &str| {
+        format!(
+            "<label class=\"filter-title\">Name <input name=\"name\" value=\"{}\"></label> ",
+            esc(name)
+        )
+    };
+    let mut out = String::from("<div class=\"save\">\n");
+    match opened {
+        Some(Opened {
+            id,
+            at,
+            row: OpenedRow::Read(row),
+        }) => {
+            let mut fields = query();
+            fields.push(("id", id.clone()));
+            fields.push(("if_revision", at.to_string()));
+            out.push_str(&post_form(
+                &links.write,
+                fields,
+                &named(&row.name),
+                &format!("Save over \"{}\"", row.name),
+            ));
+            out.push('\n');
+            out.push_str(&post_form(
+                &links.write,
+                query(),
+                &named(""),
+                "Save as a new search",
+            ));
+        }
+        _ => out.push_str(&post_form(
+            &links.write,
+            query(),
+            &named(""),
+            "Save this search",
+        )),
+    }
+    out.push_str("\n</div>\n");
+    out
 }
 
 fn fate_span(fate: Option<&Fate>) -> String {
@@ -180,6 +514,9 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
             out.push_str(&control(form, filter, "query.status", "query.status"));
         }
     }
+    // the scope's membership: the items standing, or those removed too,
+    // or those removed alone
+    out.push_str("<label class=\"control\">Membership <select name=\"membership\"><option value=\"live\" selected>live</option><option value=\"all\">all</option><option value=\"removed\">removed</option></select></label>\n");
     out.push_str("</div>\n</div>\n<div class=\"panes\">\n<div class=\"pane\">\n");
     for group in form.groups.iter().filter(|g| g.id != "status_filters") {
         let title = group.title.as_deref().unwrap_or(&group.id);
@@ -228,7 +565,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
     out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
-    out.push_str(&query_box(realm, ""));
+    out.push_str(&query_box(realm, None, "", None));
     out.push_str(&fetch_leagues());
     out
 }
@@ -238,11 +575,31 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
 /// reachable from a page, so what the site's form cannot say is typed
 /// here. On an answer it holds the text the answer ran, the translation's
 /// where the search was the site's form, to edit; an edited text drops the
-/// trade input, as the request's own rule has it.
-pub(crate) fn query_box(realm: &str, text: &str) -> String {
+/// trade input, as the request's own rule has it. On an answer it carries
+/// the answer's membership, and the saved search the page was opened from
+/// with the revision its URL names, so the loop survives an edit.
+pub(crate) fn query_box(
+    realm: &str,
+    membership: Option<&str>,
+    text: &str,
+    saved: Option<(&str, i64)>,
+) -> String {
+    let hidden = |name: &str, value: &str| {
+        format!(
+            "<input type=\"hidden\" name=\"{name}\" value=\"{}\">",
+            esc(value)
+        )
+    };
+    let mut carried = hidden("realm", realm);
+    if let Some(membership) = membership {
+        carried.push_str(&hidden("membership", membership));
+    }
+    if let Some((id, at)) = saved {
+        carried.push_str(&hidden("saved", id));
+        carried.push_str(&hidden("saved_revision", &at.to_string()));
+    }
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><button type=\"submit\">Run this query</button></form>\n",
-        esc(realm),
+        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><button type=\"submit\">Run this query</button></form>\n",
         esc(text)
     )
 }
@@ -313,13 +670,22 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
 
 /// The answer page (Do 6): the opening as the CLI prints it, the rows as
 /// a table with their art, the continuation as a link, then the terms,
-/// the routes and the basis as the CLI prints them.
-pub(crate) fn answer(a: &Answer) -> String {
+/// the routes and the basis as the CLI prints them; the query box, then
+/// the save form. Opened from a saved search, it says so above the answer
+/// and carries the search through its query box and its continuation.
+pub(crate) fn answer(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String {
     let now = acquisition_store::now();
-    let mut out = format!(
+    let mut out = opened
+        .map(|o| opened_notice(a, o, links))
+        .unwrap_or_default();
+    out.push_str(&format!(
         "<p class=\"count\">{}</p>\n",
         plural(a.total.matched, "match", "matches")
-    );
+    ));
+    let carried = opened.map(|o| (o.id.as_str(), o.at));
+    let carried_query = carried
+        .map(|(id, at)| format!("&saved={}&saved_revision={at}", enc(id)))
+        .unwrap_or_default();
     out.push_str(&answer_badges(a));
     out.push_str(&pre(&search_cmd::answer_head(a)));
     if !a.rows.is_empty() {
@@ -369,9 +735,10 @@ pub(crate) fn answer(a: &Answer) -> String {
         };
         out.push_str(&match &rows.next {
             Some(next) => format!(
-                "<p>{shown} of {} shown · <a href=\"search?next={}\">more</a></p>\n",
+                "<p>{shown} of {} shown · <a href=\"search?next={}{}\">more</a></p>\n",
                 a.total.matched,
-                enc(&next.request.token())
+                enc(&next.request.token()),
+                esc(&carried_query)
             ),
             None => format!(
                 "<p>{shown} of {} shown · a larger number of rows returns the rest</p>\n",
@@ -380,7 +747,13 @@ pub(crate) fn answer(a: &Answer) -> String {
         });
     }
     out.push_str(&pre(&search_cmd::answer_tail(a, None)));
-    out.push_str(&query_box(a.scope.realm.as_str(), &a.query.text));
+    out.push_str(&query_box(
+        a.scope.realm.as_str(),
+        Some(a.scope.membership.as_str()),
+        &a.query.text,
+        carried,
+    ));
+    out.push_str(&save_forms(a, opened, links));
     out
 }
 

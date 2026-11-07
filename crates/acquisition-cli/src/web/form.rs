@@ -18,8 +18,10 @@
 //!   a disabled control, so the fold never meets one.
 //! - **A name is a path**: dot-separated keys, `[n]` an array's element —
 //!   `query.filters.type_filters.filters.category.option`,
-//!   `query.stats[0].filters[1].value.min`. Three names are no path and
-//!   go elsewhere: `realm` to the request's scope, `league` and
+//!   `query.stats[0].filters[1].value.min`. These names are no path and
+//!   go elsewhere: `realm` and `membership` to the request's scope (the
+//!   membership as the word typed, which the request's reader reads or
+//!   refuses in the search's words), `league` and
 //!   `defences` beside the query (C141, the league beside the trade JSON;
 //!   C142, the defences' reading beside it), and `view.limit`,
 //!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
@@ -33,9 +35,12 @@
 //!   and no path it never wrote can shape the JSON (the review of 4b,
 //!   its fifth finding). The names are the form's own: a test holds the
 //!   rendered form to them.
-//! - **The fold drops what is empty**: a field submitted empty, then an
-//!   object or array left with nothing in it, then a stat group left
-//!   with no filter (its type alone says nothing). A `min`, `max`,
+//! - **The fold drops what is empty**: every field submitted empty but
+//!   `text`, then an object or array left with nothing in it, then a stat
+//!   group left with no filter (its type alone says nothing). `text`
+//!   sent is the text, empty or not: the text `""` is a query, every item
+//!   in its scope (4-full part 1, step 3, Do 6), so a saved search over
+//!   every item folds back. A `min`, `max`,
 //!   `weight` or socket colour that reads as a number is one; anything
 //!   else is the text typed, which the translation reports as it reads
 //!   it. The fold decides nothing the translation decides.
@@ -197,6 +202,7 @@ pub(crate) fn filter_path(group: &str, filter: &str) -> String {
 fn emitted(groups: &[Group]) -> BTreeSet<String> {
     let mut names: BTreeSet<String> = [
         "realm",
+        "membership",
         "league",
         "query.term",
         "view.limit",
@@ -245,6 +251,9 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct Folded {
     pub realm: Option<String>,
+    /// The scope's membership, as the word typed: the request's reader
+    /// reads it or refuses it.
+    pub membership: Option<String>,
     pub envelope: Value,
     pub limit: Option<usize>,
     pub sort: Option<String>,
@@ -270,6 +279,9 @@ impl Folded {
         let mut scope = Map::new();
         if let Some(realm) = &self.realm {
             scope.insert("realm".into(), Value::String(realm.clone()));
+        }
+        if let Some(membership) = &self.membership {
+            scope.insert("membership".into(), Value::String(membership.clone()));
         }
         let shape = Shape::of(
             self.count.clone(),
@@ -309,6 +321,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     let mut query = Value::Object(Map::new());
     let mut folded = Folded {
         realm: None,
+        membership: None,
         envelope: Value::Null,
         limit: None,
         sort: None,
@@ -320,11 +333,17 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     let mut defences = None;
     for (name, value) in fields {
         let value = value.trim();
+        // the text sent is the query, empty or not (the module doc)
+        if name == "text" {
+            folded.text = Some(value.to_string());
+            continue;
+        }
         if value.is_empty() {
             continue;
         }
         match name.as_str() {
             "realm" => folded.realm = Some(value.to_string()),
+            "membership" => folded.membership = Some(value.to_string()),
             "league" => league = Some(value.to_string()),
             "view.limit" => {
                 folded.limit = Some(
@@ -334,7 +353,6 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 )
             }
             "view.sort" => folded.sort = Some(value.to_string()),
-            "text" => folded.text = Some(value.to_string()),
             "defences" => defences = Some(value.to_string()),
             "view.desc" => folded.desc = true,
             "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),

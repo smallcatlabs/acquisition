@@ -1,9 +1,12 @@
 //! `acq web` (C139, the web UI is a verb of the CLI crate): a loopback
-//! web UI that is a renderer, not an app (C16). Every page renders one
-//! document a verb already produces, and the server opens no store,
+//! web UI that is a renderer, not an app (C16). Every page renders the
+//! documents a verb already produces, and the server opens no store,
 //! picks no account and compiles no plan itself: it calls the verbs
-//! (C46; `tools/arch-check.sh`'s door grep reads this module). The brief
-//! is `roadmap/briefs/4b-build.md`.
+//! (C46; `tools/arch-check.sh`'s door grep reads this module). It writes
+//! one kind, the saved search (C167), and that only through the verbs
+//! that write it for every frontend (C168). The briefs are
+//! `roadmap/briefs/4b-build.md` and, for the saved pages,
+//! `roadmap/briefs/4-full-1-pages.md`.
 //!
 //! # As built
 //!
@@ -16,8 +19,9 @@
 //!   Here: the token is every route's first path segment, so a request
 //!   without it meets no route; the guard compares the Host header with
 //!   the bound address and an Origin, where one is sent, with the
-//!   server's own, before any route runs; the one mutating route, apply,
-//!   is a POST route alone, so a GET on it is refused by its method; no
+//!   server's own, before any route runs; each mutating route — apply,
+//!   the league list's fetch, a saved search's write and its clear — is a
+//!   POST route alone, so a GET on it is refused by its method; no
 //!   response carries an `Access-Control-*` header. Every response says
 //!   `Referrer-Policy: same-origin`: the browser's fetch of an item's art
 //!   (C140) carries no referrer, so the token never reaches the image
@@ -71,6 +75,52 @@
 //!   command to type next: its Apply button is that way on. The words are
 //!   still the CLI's (`failure_words`), as are the command lines the
 //!   refresh and jobs pages print, which no route takes.
+//! - **C16, what a page holds** (the owner's reading of the ruling's word
+//!   "state", 2026-11-06): document state is what a page shows, rebuilt
+//!   from its URL; transient state — input not yet sent, the picker's
+//!   asks in flight — is discarded by a reload and labels nothing. A page
+//!   holds no browser storage, no cookie, no history entry of its own and
+//!   no value computed from a document. Every document a page renders
+//!   that carries a version — the answer's and the item's `basis`, the
+//!   plan's `basis`, the saved list's `revision`, the file's, and the
+//!   saved row's `revision`, an answer's opened row or a conflict's
+//!   `current` — is copied into one `<meta name="basis">` line in the
+//!   head, a JSON object keyed by the document, its values the documents'
+//!   own fields ([`page::Head`]); a page whose documents carry none (the
+//!   form's league list, the refresh page's tabs and characters, the
+//!   jobs, a refusal without `current`) carries no line. The scan in
+//!   `tests/web.rs` (`c16_no_served_script_names_a_storage_cookie_or_history_api`)
+//!   holds a list of words: no script a page names may contain
+//!   `localStorage`, `sessionStorage`, `indexedDB`, `caches`, `cookie`,
+//!   `history`, `serviceWorker` or `.storage`, and no response sets a
+//!   cookie. The property is that list, lexical: an API reached by
+//!   another spelling, a cache held in a closure or the DOM, state the
+//!   URL omits, a generation a script keeps for itself is the review's
+//!   (`REVIEW-CHECKLIST.md`, the frontends' rows), until a browser-driven
+//!   check exists.
+//! - **C168, the saved pages** (`roadmap/briefs/4-full-1-pages.md`, Do 4
+//!   to Do 8): `GET saved` is [`saved::list`]'s document, ten rows and the
+//!   whole under `expand=true`, each row with a link that opens it and
+//!   its rename and clear forms naming the revision listed. `GET
+//!   saved/open?id=` takes an id alone and writes nothing: the row
+//!   [`saved::show`] finds is used only where its id is the URL's (a name
+//!   may have an id's shape; one rule with the answer page's), and the
+//!   answer is `303` to the search its request folds to, carrying `saved`
+//!   and `saved_revision`, the row's revision as opened. `POST saved`
+//!   takes `id`, `if_revision`, `name`, `text`, `realm` and `membership`
+//!   into the verbs' one `Set` under `Expect::or(if_revision,
+//!   Expect::Create)`, and `POST saved/clear` `id` and `if_revision`,
+//!   both required, under `Expect::Exactly`: a field is present where the
+//!   body names it, empty or not, and no page writes at `Expect::Current`
+//!   (a browser is where a stale view could clobber). A write answers the
+//!   browser `303` to the list, so a reload asks the list again and never
+//!   posts again (the owner, 2026-11-07, "Redirect to the list"); its
+//!   receipt is the JSON answer, the undo spelled as the page's form, and
+//!   no page renders a receipt. A write way is spelled `{"post", "fields"}`
+//!   and rendered as a button; a read way as a link. An answer opened
+//!   from a saved search says so above it, and saves over that row at the
+//!   revision its URL names, so a write between is refused as stale and
+//!   offered again over the row as it stands.
 
 mod form;
 mod page;
@@ -78,10 +128,13 @@ mod page;
 use std::sync::{Arc, OnceLock};
 
 use acquisition_plan::RefreshPlan;
+use acquisition_plan::pricing::Expect;
 use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, Request};
 use acquisition_search::{Holder, SearchError};
+use acquisition_verbs::refusal::{Pointed, Way};
+use acquisition_verbs::saved::{self, SavedRow};
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 use anyhow::Result;
 use axum::Router;
@@ -93,7 +146,7 @@ use axum::routing::{get, post};
 use serde_json::{Value, json};
 
 use crate::{Ctx, plan_cmd, store_cmd};
-use page::{Head, enc, esc, pre, refusal};
+use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
@@ -219,6 +272,9 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/apply"), post(apply))
         .route(&at("/leagues"), post(fetch_leagues))
         .route(&at("/jobs"), get(jobs))
+        .route(&at("/saved"), get(saved_list).post(saved_set))
+        .route(&at("/saved/open"), get(saved_open))
+        .route(&at("/saved/clear"), post(saved_clear))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&web),
             with_account,
@@ -390,9 +446,15 @@ impl Web {
             )
                 .into_response();
         }
+        // a conflict's page renders the row as it stands: its revision is
+        // the page's basis
+        let head = match page::saved_current(&doc) {
+            Some(row) => Head::default().with("saved_search", &row["revision"]),
+            None => Head::default(),
+        };
         html(
             StatusCode::BAD_REQUEST,
-            page::page(&self.token, title, Head::default(), &page::refused(&doc)),
+            page::page(&self.token, title, head, &page::refused(&doc)),
         )
     }
 
@@ -411,17 +473,53 @@ impl Web {
             .iter()
             .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
             .collect();
-        format!("/{}/{path}?{}", self.token, query.join("&"))
+        match query.is_empty() {
+            true => format!("/{}/{path}", self.token),
+            false => format!("/{}/{path}?{}", self.token, query.join("&")),
+        }
+    }
+
+    /// The saved pages' links and forms, absolute under the token.
+    fn saved_links(&self) -> SavedLinks {
+        SavedLinks {
+            list: self.link("saved", &[]),
+            every: self.link("saved", &[("expand", "true".to_string())]),
+            write: self.link("saved", &[]),
+            clear: self.link("saved/clear", &[]),
+        }
+    }
+
+    /// The saved search at exactly `id`, as [`saved::show`] finds it, or
+    /// none where no row stands at that id: `show` reads an id or a name,
+    /// and a name may have an id's shape, so a row found by its name under
+    /// another id — or several rows of that name — is no row at `id`
+    /// (Do 5, one rule for every page that resolves a URL's id). Any other
+    /// failure is the page's refusal.
+    fn saved_at(&self, id: &str) -> Result<Option<SavedRow>, Failure> {
+        match saved::show(&self.cx.frontend, id) {
+            Ok(row) if row.id() == id => Ok(Some(row)),
+            Ok(_) => Ok(None),
+            Err(e) => match e.chain().find_map(|c| c.downcast_ref::<Pointed>()) {
+                Some(p)
+                    if matches!(p.kind, "saved_search_not_found" | "ambiguous_saved_search") =>
+                {
+                    Ok(None)
+                }
+                _ => Err(Failure::Other(e)),
+            },
+        }
     }
 
     /// A search request as the search form's own fields — its realm, its
     /// text, and every view field the form asks: its rows' limit and order,
     /// or its count's keys and limit — kept only where the form folds them
     /// back to that request, as the account this server serves: what a
-    /// page can ask. None for any other (a site search, a tree, another
-    /// membership, account or view: a crossed table, a sum, an explained
-    /// node): no page takes it (the review of #97's build, its second
-    /// finding: a count was dropped).
+    /// page can ask. Its membership is a field only where it is not `live`,
+    /// the form's default, so every link made before the form carried one
+    /// stands as it was. None for any other (a site search, a tree, another
+    /// account or view: a crossed table, a sum, an explained node): no page
+    /// takes it (the review of #97's build, its second finding: a count
+    /// was dropped).
     fn asked_by_the_form(&self, request: &Request) -> Option<Vec<(&'static str, String)>> {
         if !request
             .scope
@@ -434,6 +532,9 @@ impl Web {
         let mut fields = Vec::new();
         if let Some(realm) = &request.scope.realm {
             fields.push(("realm", realm.as_str().to_string()));
+        }
+        if request.scope.membership != acquisition_search::answer::Membership::Live {
+            fields.push(("membership", request.scope.membership.as_str().to_string()));
         }
         fields.push(("text", request.query.text.clone()?));
         match &request.view.shape {
@@ -532,9 +633,14 @@ impl Web {
 /// A page's side of the one refusal shape (#97, each surface spells its
 /// own ways on): its words the CLI's, and a way on a link to the page
 /// that takes it — a search the form can ask, its own fields; a league's
-/// plan or its tabs and characters — for the account this server serves.
-/// A way no page takes is offered nowhere on a page: another account, a
-/// write, a job, `describe`, a search the form cannot ask.
+/// plan or its tabs and characters; the saved list, whole where asked
+/// and for one row's show (no page shows one row alone); a saved search
+/// opened — for the account this server serves; or, for a saved search's
+/// write or clear, a form: `{"post": <the route>, "fields": {…}}`, the
+/// fields that route takes as strings, `if_revision` `0` for a create at
+/// an id. A way no page takes is offered nowhere on a page: another
+/// account, a price or policy write, a job, `describe`, a search the form
+/// cannot ask, a saved search written at the revision read.
 struct Paged<'a> {
     web: &'a Web,
 }
@@ -581,6 +687,55 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 realm,
                 league: named,
             } if self.web.serves(account) => self.web.link("refresh", &league(realm, named)),
+            Way::SavedSearches { expand: false } => self.web.link("saved", &[]),
+            Way::SavedSearches { expand: true } | Way::SavedSearchShow { .. } => {
+                self.web.link("saved", &[("expand", "true".to_string())])
+            }
+            Way::SavedSearchRun { id, account }
+                if account.as_deref().is_none_or(|a| self.web.serves(a)) =>
+            {
+                self.web.link("saved/open", &[("id", id.clone())])
+            }
+            Way::SavedSearchSet(set) => {
+                let mut fields = serde_json::Map::new();
+                if let Some(id) = &set.id {
+                    fields.insert("id".into(), json!(id));
+                }
+                match set.expect {
+                    Expect::Exactly(revision) => {
+                        fields.insert("if_revision".into(), json!(revision.to_string()));
+                    }
+                    Expect::Create if set.id.is_some() => {
+                        fields.insert("if_revision".into(), json!("0"));
+                    }
+                    Expect::Create => {}
+                    // a page never writes at the revision read (C168)
+                    Expect::Current => return None,
+                }
+                for (key, value) in [
+                    ("name", &set.name),
+                    ("text", &set.text),
+                    ("realm", &set.realm),
+                    ("membership", &set.membership),
+                ] {
+                    if let Some(value) = value {
+                        fields.insert(key.into(), json!(value));
+                    }
+                }
+                return Some((
+                    json!({ "post": self.web.link("saved", &[]), "fields": fields }),
+                    None,
+                ));
+            }
+            Way::SavedSearchClear { id, if_revision } => {
+                return Some((
+                    json!({
+                        "post": self.web.link("saved/clear", &[]),
+                        "fields": { "id": id, "if_revision": if_revision.to_string() },
+                    }),
+                    None,
+                ));
+            }
             _ => return None,
         };
         Some((json!(link), None))
@@ -670,13 +825,18 @@ async fn home(
 }
 
 /// The answer (Do 6): a form submission folded into the trade JSON, or a
-/// continuation's `next`, answered over the held corpus.
+/// continuation's `next`, answered over the held corpus. With `saved` and
+/// `saved_revision` (4-full part 1, step 3, Do 7), read apart from the
+/// fold, the page says which saved search it was opened from and saves
+/// over it at that revision; the JSON is the answer alone.
 async fn search(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    let json = wants_json(&headers);
     let asked = blocking(&web, move |web| -> Result<_, Failure> {
+        let (fields, from) = opened_from(fields)?;
         let request = match pick(&fields, "next") {
             Some(token) => Request::from_token(token)?,
             None => {
@@ -684,14 +844,86 @@ async fn search(
                 Asked::read(&folded.request()?)?.request
             }
         };
-        web.answer(&request)
+        let answer = web.answer(&request)?;
+        let opened = match from {
+            Some((id, at)) if !json => {
+                let row = match web.saved_at(&id)? {
+                    Some(SavedRow::Read(row)) => OpenedRow::Read(row),
+                    Some(SavedRow::Unreadable(_)) => OpenedRow::Unreadable,
+                    None => OpenedRow::Gone,
+                };
+                Some(Opened { id, at, row })
+            }
+            _ => None,
+        };
+        Ok((answer, opened))
     })
     .await;
     match asked {
-        Ok(answer) if wants_json(&headers) => document(&answer),
-        Ok(answer) => web.page("Answer", Head::default(), &page::answer(&answer)),
+        Ok((answer, _)) if json => document(&answer),
+        Ok((answer, opened)) => {
+            let mut head = Head::default().with("answer", &answer.basis);
+            if let Some(Opened {
+                row: OpenedRow::Read(row),
+                ..
+            }) = &opened
+            {
+                head = head.with("saved_search", row.revision);
+            }
+            web.page(
+                "Answer",
+                head,
+                &page::answer(&answer, opened.as_ref(), &web.saved_links()),
+            )
+        }
         Err(failure) => web.failed("Answer", &failure, &headers),
     }
+}
+
+/// A request's fields as a page sends them, in order.
+type Fields = Vec<(String, String)>;
+
+/// `saved` and `saved_revision` taken out of a search's fields, which the
+/// fold would refuse: together or not at all, `saved` an id's shape and
+/// the revision a positive integer, else a usage refusal.
+fn opened_from(fields: Vec<(String, String)>) -> Result<(Fields, Option<(String, i64)>), Failure> {
+    let (opened, fields): (Vec<_>, Vec<_>) = fields
+        .into_iter()
+        .partition(|(k, _)| k == "saved" || k == "saved_revision");
+    let named = |name: &str| {
+        opened
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.clone())
+    };
+    let from = match (named("saved"), named("saved_revision")) {
+        (None, None) => None,
+        (Some(id), Some(at)) => {
+            if !saved::is_id(&id) {
+                return Err(Failure::Usage(format!(
+                    "{id:?} is no saved search's id: a page opens a saved search by its id, \
+                     twelve hex characters"
+                )));
+            }
+            match at.parse::<i64>() {
+                Ok(at) if at > 0 => Some((id, at)),
+                _ => {
+                    return Err(Failure::Usage(format!(
+                        "{at:?} is no revision: the revision a saved search was opened at is \
+                         a positive whole number"
+                    )));
+                }
+            }
+        }
+        _ => {
+            return Err(Failure::Usage(
+                "a saved search is opened by its id and the revision it was opened at, the \
+                 two together"
+                    .to_string(),
+            ));
+        }
+    };
+    Ok((fields, from))
 }
 
 /// One item (Do 6): `show`'s document, with its art and its badges.
@@ -710,7 +942,7 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
         Ok(shown) if wants_json(&headers) => document(&shown),
         Ok(shown) => web.page(
             "Item",
-            Head::default(),
+            Head::default().with("item", &shown.basis),
             &page::item(&shown, &page::item_badges(&shown)),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
@@ -925,11 +1157,7 @@ async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Respo
 }
 
 fn to_jobs(web: &Web) -> Response {
-    let mut response = StatusCode::SEE_OTHER.into_response();
-    if let Ok(location) = HeaderValue::from_str(&format!("/{}/jobs", web.token)) {
-        response.headers_mut().insert(header::LOCATION, location);
-    }
-    response
+    see_other(&web.link("jobs", &[]))
 }
 
 /// The plan page (Do 7): a selection's plan or the stored policy's,
@@ -1011,7 +1239,11 @@ async fn plan(
             Err(e) => body.push_str(&refusal(&e.to_string())),
         }
     }
-    web.page("Plan", Head::default(), &body)
+    web.page(
+        "Plan",
+        Head::default().with("plan", &planned.plan.basis),
+        &body,
+    )
 }
 
 /// "Apply" (Do 7): the envelope posted back whole to `Opened::apply`, as
@@ -1092,6 +1324,226 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
             }
         }
     }
+}
+
+// ---- the saved pages (C168) --------------------------------------------------------------------
+
+/// A field a saved route was sent, present where the body or the query
+/// names it, empty or not (Do 6: the text `""` is a query).
+fn sent<'a>(fields: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|(k, _)| k == name)
+        .map(|(_, v)| v.as_str())
+}
+
+/// The fields a saved route takes, or a usage refusal naming the first
+/// it does not.
+fn taken(fields: &[(String, String)], names: &[&str], route: &str) -> Result<(), Failure> {
+    match fields.iter().find(|(k, _)| !names.contains(&k.as_str())) {
+        Some((name, _)) => Err(Failure::Usage(format!(
+            "`{name}` is no field of {route}: it takes {}",
+            names
+                .iter()
+                .map(|n| format!("`{n}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// A sent `if_revision`, read as a whole number, or a usage refusal.
+fn revision_sent(fields: &[(String, String)]) -> Result<Option<i64>, Failure> {
+    sent(fields, "if_revision")
+        .map(|word| {
+            word.trim().parse::<i64>().map_err(|_| {
+                Failure::Usage(format!(
+                    "`if_revision` {word:?} is no revision: it names the revision written over \
+                     as a whole number"
+                ))
+            })
+        })
+        .transpose()
+}
+
+/// The saved searches (Do 4): ten, or every one under `expand=true`.
+async fn saved_list(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    let listed = blocking(&web, move |web| -> Result<_, Failure> {
+        taken(&fields, &["expand"], "the saved searches' list")?;
+        let expand = match sent(&fields, "expand") {
+            None => false,
+            Some("true") => true,
+            Some(other) => {
+                return Err(Failure::Usage(format!(
+                    "`expand` {other:?} is no value it takes: `expand=true` lists every saved \
+                     search"
+                )));
+            }
+        };
+        Ok(saved::list(&web.cx.frontend, None, expand)?)
+    })
+    .await;
+    match listed {
+        Ok(listed) if wants_json(&headers) => document(&listed),
+        Ok(listed) => web.page(
+            "Saved searches",
+            Head::default().with("saved_searches", listed.revision),
+            &page::saved_list(&listed, &web.saved_links(), &|id| {
+                web.link("saved/open", &[("id", id.to_string())])
+            }),
+        ),
+        Err(failure) => web.failed("Saved searches", &failure, &headers),
+    }
+}
+
+/// A saved search opened (Do 5): `303` to the search its request folds
+/// to, carrying its id and the revision it was opened at. It writes
+/// nothing.
+async fn saved_open(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    let opened = blocking(&web, move |web| -> Result<_, Failure> {
+        taken(&fields, &["id"], "a saved search's opening")?;
+        let id = sent(&fields, "id").unwrap_or_default().to_string();
+        if !saved::is_id(&id) {
+            return Err(Failure::Usage(format!(
+                "{id:?} is no saved search's id: a page opens a saved search by its id, twelve \
+                 hex characters, as the saved searches list it"
+            )));
+        }
+        let row = match web.saved_at(&id)? {
+            Some(SavedRow::Read(row)) => row,
+            // the verbs' refusal of a row this build cannot run, offering
+            // the list
+            Some(SavedRow::Unreadable(_)) => {
+                saved::request_of(&web.cx.frontend, &id, None)?;
+                return Err(Failure::Other(anyhow::anyhow!(
+                    "saved search {id} holds a value this build cannot read"
+                )));
+            }
+            None => {
+                return Err(Failure::Other(
+                    Pointed {
+                        kind: "saved_search_not_found",
+                        message: format!("no saved search has the id {id}"),
+                        ways: vec![(
+                            Way::SavedSearches { expand: false },
+                            "the saved searches, each with its id".to_string(),
+                        )],
+                        fields: serde_json::Map::new(),
+                    }
+                    .into(),
+                ));
+            }
+        };
+        let Some(mut asked) = web.asked_by_the_form(&row.request) else {
+            return Err(Failure::Other(anyhow::anyhow!(
+                "saved search {id} is no search a page can ask: open it with an agent's search \
+                 or the terminal's"
+            )));
+        };
+        asked.push(("saved", id));
+        asked.push(("saved_revision", row.revision.to_string()));
+        Ok(web.link("search", &asked))
+    })
+    .await;
+    match opened {
+        Ok(location) => see_other(&location),
+        Err(failure) => web.failed("Saved search", &failure, &headers),
+    }
+}
+
+/// A saved search written (Do 6): the verbs' one `Set`, its revision
+/// under `Expect::or(if_revision, Expect::Create)`.
+async fn saved_set(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Form(fields): Form<Vec<(String, String)>>,
+) -> Response {
+    let written = blocking(&web, move |web| -> Result<_, Failure> {
+        taken(
+            &fields,
+            &["id", "if_revision", "name", "text", "realm", "membership"],
+            "a saved search's write",
+        )?;
+        let field = |name: &str| sent(&fields, name).map(str::to_string);
+        let set = saved::Set {
+            id: field("id"),
+            expect: Expect::or(revision_sent(&fields)?, Expect::Create),
+            name: field("name"),
+            text: field("text"),
+            realm: field("realm"),
+            membership: field("membership"),
+        };
+        let account = web.served()?.entry.username.clone();
+        Ok(saved::set(
+            &web.cx.frontend,
+            Some(&account),
+            &set,
+            &mut saved::mint,
+        )?)
+    })
+    .await;
+    web.written(written, &headers)
+}
+
+/// A saved search cleared (Do 6) at exactly the revision named.
+async fn saved_clear(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Form(fields): Form<Vec<(String, String)>>,
+) -> Response {
+    let written = blocking(&web, move |web| -> Result<_, Failure> {
+        taken(&fields, &["id", "if_revision"], "a saved search's clear")?;
+        let id = sent(&fields, "id")
+            .ok_or_else(|| Failure::Usage("a clear names the saved search's `id`".to_string()))?;
+        let revision = revision_sent(&fields)?.ok_or_else(|| {
+            Failure::Usage("a clear names the revision it clears, `if_revision`".to_string())
+        })?;
+        Ok(saved::clear(
+            &web.cx.frontend,
+            id,
+            Expect::Exactly(revision),
+        )?)
+    })
+    .await;
+    web.written(written, &headers)
+}
+
+impl Web {
+    /// A write's answer (Do 1, the owner's "Redirect to the list"): the
+    /// receipt where JSON is asked, its undo spelled as a page's form;
+    /// else `303` to the list. A refusal as every refusal is.
+    fn written(
+        &self,
+        written: Result<saved::SavedWritten, Failure>,
+        headers: &HeaderMap,
+    ) -> Response {
+        match written {
+            Ok(written) if wants_json(headers) => document(&acquisition_verbs::receipt::saved(
+                &written,
+                &Paged { web: self },
+            )),
+            Ok(_) => see_other(&self.link("saved", &[])),
+            Err(failure) => self.failed("Saved searches", &failure, headers),
+        }
+    }
+}
+
+/// `303 See Other` to `location`, an absolute path under the token.
+fn see_other(location: &str) -> Response {
+    let mut response = StatusCode::SEE_OTHER.into_response();
+    if let Ok(location) = HeaderValue::from_str(location) {
+        response.headers_mut().insert(header::LOCATION, location);
+    }
+    response
 }
 
 async fn css() -> Response {

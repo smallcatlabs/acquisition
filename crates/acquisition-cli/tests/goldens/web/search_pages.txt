@@ -25,6 +25,7 @@ GET <the form>
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
 <input type="hidden" name="realm" value="pc"><label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label>  <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span><div class="filter" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span class="filter-title">Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></div>
+<label class="control">Membership <select name="membership"><option value="live" selected>live</option><option value="all">all</option><option value="removed">removed</option></select></label>
 </div>
 </div>
 <the search form's panes and controls: golden web/search_form>
@@ -43,6 +44,7 @@ GET search?<the ring search>
 # holds "<p class=\"count\">2 matches</p>"
 # holds "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;"
 # holds "+95 to maximum Life"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">2 matches</p>
@@ -69,7 +71,10 @@ routes  each returns exactly the members counted (5 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+</div>
 
 </main>
 
@@ -78,6 +83,7 @@ GET search?<an edited text>
 # holds "total   1 match"
 # holds "Doom Loop"
 # holds "The query, in the language"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">1 match</p>
@@ -103,7 +109,10 @@ routes  each returns exactly the members counted (5 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;line(&quot;# to maximum Life&quot;) -line(&quot;# to maximum Life&quot; arg1&gt;=90) sum(line(&quot;# to maximum Life&quot;).arg1)&gt;=90&#39;
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+</div>
 
 </main>
 
@@ -111,6 +120,7 @@ GET search?<the league counted by rarity>
 # holds "count   rarity · 2 values"
 # holds "4  rare"
 # holds "1  unique"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">5 matches</p>
@@ -131,7 +141,10 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (3 more: --routes)
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+</div>
 
 </main>
 
@@ -152,6 +165,7 @@ GET item/r1
 # holds "class   Rings"
 # holds "+95 to maximum Life"
 # holds "https://web.poecdn.com/gen/image/ring.png"
+<meta name="basis" content="{&quot;item&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Item</h1>
 <p><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></p>

@@ -1140,6 +1140,43 @@ fn basis_rule(text: &str) -> String {
         .collect()
 }
 
+/// A page's rules, outside [`normalise`]'s eleven, for the head's basis
+/// line (C16): its documents' `store` and `build` digests are `<store>`
+/// and `<build>`, as [`basis_rule`] writes them in a text's basis line —
+/// the store's a hash of its scratch path, the build's moved by every
+/// source edit; and an epoch under a key ending `_at` (a plan's
+/// `snapshot_taken_at`, a listing's `fetched_at`) is `<epoch>`: the
+/// harness's instant, or the mock daemon's fetch, both the wall clock's,
+/// which moves between runs.
+fn basis_meta_rule(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(at) = rest.find("_at&quot;:") {
+        let from = at + "_at&quot;:".len();
+        out.push_str(&rest[..from]);
+        let digits = rest[from..]
+            .bytes()
+            .take_while(|b| b.is_ascii_digit() || *b == b'-')
+            .count();
+        out.push_str(if digits > 0 { "<epoch>" } else { "" });
+        rest = &rest[from + digits..];
+    }
+    out.push_str(rest);
+    for (word, with) in [("store", "<store>"), ("build", "<build>")] {
+        let key = format!("&quot;{word}&quot;:&quot;");
+        let mut from = 0;
+        while let Some(at) = out[from..].find(&key) {
+            let start = from + at + key.len();
+            let Some(len) = out[start..].find("&quot;") else {
+                break;
+            };
+            out.replace_range(start..start + len, with);
+            from = start + with.len();
+        }
+    }
+    out
+}
+
 /// The rule `token`: a continuation token, `acq1.` and its encoding, is
 /// `acq1.<token>`.
 fn token_rule(text: &str) -> String {
@@ -1421,6 +1458,9 @@ pub struct Pages {
     /// The world was fetched in real time, as [`Transcript::fetched_live`]
     /// says of a transcript's: [`fetch_place_rule`] applies.
     fetched_live: bool,
+    /// Words a page drew at random, each written `<name>`
+    /// ([`Pages::placeholder`]).
+    placeholders: Vec<(String, String)>,
 }
 
 impl Pages {
@@ -1434,7 +1474,17 @@ impl Pages {
             form_panes: None,
             panes_pinned: false,
             fetched_live: false,
+            placeholders: Vec::new(),
         }
+    }
+
+    /// [`Transcript::placeholder`]'s rule: `value`, a word a page drew at
+    /// random (the id a page's create minted), is written `<name>`
+    /// wherever it stands, so the golden holds what the test learned and
+    /// not the draw; each fact was checked with the value as drawn.
+    pub fn placeholder(&mut self, value: &str, name: &str) {
+        self.placeholders
+            .push((value.to_string(), format!("<{name}>")));
     }
 
     /// The pages read a world fetched in real time through the daemon:
@@ -1449,12 +1499,32 @@ impl Pages {
     /// The transcript's rules over a recording's text, as its golden
     /// holds it.
     fn rules(&self, text: &str) -> String {
-        let text = normalise(&job_tables(&pid_words(text)), &self.base);
+        let mut text = normalise(&job_tables(&pid_words(text)), &self.base);
+        for (value, name) in &self.placeholders {
+            text = text.replace(value, name);
+        }
         if self.fetched_live {
             fetch_place_rule(&text)
         } else {
             text
         }
+    }
+
+    /// Record a redirect under `label` (a page's write, a saved search
+    /// opened): its status and its `Location` on one line, the token
+    /// masked; the page it lands on is recorded after it, followed.
+    pub fn redirect(&mut self, label: &str, reply: &Reply) {
+        if !self.text.is_empty() {
+            self.text.push('\n');
+        }
+        self.text.push_str(&format!(
+            "{label}\n--- status {} location {}\n",
+            reply.status,
+            reply
+                .header("location")
+                .unwrap_or("(none)")
+                .replace(&self.web_token, "<token>")
+        ));
     }
 
     /// Record a page under `label` (`GET search?…`), checking each fact
@@ -1482,6 +1552,16 @@ impl Pages {
         if reply.status != 200 {
             self.text
                 .push_str(&format!("--- status {}\n", reply.status));
+        }
+        // the head's basis line, where the page carries one, as the line
+        // before its `<main>` (C16: every document carries its basis)
+        if let Some(line) = reply
+            .body
+            .lines()
+            .find(|l| l.starts_with("<meta name=\"basis\""))
+        {
+            self.text.push_str(&basis_meta_rule(line));
+            self.text.push('\n');
         }
         let mut masked = main
             .replace(&self.web_token, "<token>")
