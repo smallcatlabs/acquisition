@@ -267,6 +267,18 @@ Each in his words, with the commit that landed it.
   on its own clock, the 4-full milestone's date advisory, the two
   mornings rehearsed in the mock and validated live at the next league
   or the next large refresh (the commit carrying this line).
+- 2026-11-06, the prompt's three drafts: "Everything else I approve as
+  drafted." C16 amended, a page holds no state its URL and one feed
+  line cannot rebuild and the basis is the only version (`c1dd0ede`);
+  C167, user-scoped intent in a per-world `user.db` with a revision of
+  its own, the saved search its first kind (`5b0e58e3`); a front-end
+  build step in the gate parked until a spike inside a build step
+  needs one (`84df4418`). On login: "I am ok if we keep login out of
+  the GUI for now, but people are used to GUI logins with the c++
+  application, so as long as it won't be hard to add later, your
+  recommendation is fine." Parked beside the build step with why it is
+  not hard: a route over `auth_start` and part 2's auth event, the
+  daemon's flow unchanged. Part 1's design session may now run.
 
 ## Roles
 

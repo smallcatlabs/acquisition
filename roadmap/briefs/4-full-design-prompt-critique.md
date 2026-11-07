@@ -1,7 +1,7 @@
 # 4-full's design prompt, read whole: a critique
 
 Provenance: Fable (`claude-fable-5-1`), 2026-11-06, read-only at
-`deec4e51` on `claude/4-full-design-prompt`. Nothing run, nothing
+`aeb4303d` on `claude/4-full-design-prompt`. Nothing run, nothing
 changed, no issue touched. Read directly: the prompt, `AGENTS.md`,
 `GLOSSARY.md`, `decisions/daemon.md` and `frontends.md` whole,
 `roadmap/GUI-NOTES.md` whole, `roadmap/reviews/time-seam-retrospective.md`
