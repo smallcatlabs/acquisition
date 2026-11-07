@@ -192,7 +192,8 @@ wherever a name is; a name none holds is `saved_search_not_found`
 offering the list; a name several rows share is `ambiguous_saved_search` with
 `searches`, the ids and names to pick from, one word per mistake as
 C121 gives accounts. A stale `if_revision` is `conflict` with
-`current`, the write offered at it. `Way` gains the set and the clear.
+`current`, the write offered at it. `Way` gains five, the list, the
+show, the run, the set and the clear (as built; the brief's).
 
 **The CLI**: `acq saved` with `list` (the default), `show ID|NAME`,
 `set [--id ID --if-revision N] [--name NAME] [QUERY] [--realm]

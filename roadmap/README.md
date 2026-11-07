@@ -296,6 +296,19 @@ Each in his words, with the commit that landed it.
   clear, list), a name resolved to an id and an ambiguous one refused
   with the list. The owner is that re-cut's reviewer of record; no
   third cold review unless he asks (the commit carrying this line).
+- 2026-11-07, step 1's build (`briefs/4-full-1-saved.md`, its reviews
+  under `reviews/`), four words: "Drop and cut" (a name is a label and
+  the id the identity, so nothing refuses a name; a duplicate is
+  noticed only where a name is opened); "Yes, reconcile" (the design's
+  §3 made the brief's settled contract, no seventh review); "Recovery
+  refusal" (no migration of a world file holding an earlier build's
+  account facts under a reserved name; the opener refuses it and names
+  the way out); "Shrink and close" (the remedy is deletion, facts being
+  refetchable, never a rename with its sidecars and its destination;
+  the case is a mock world's, a real username carrying its
+  discriminator; the store's Not-doing line entered under his
+  delegation and listed here for his re-read; the step closed without
+  a review of those words).
 
 ## Roles
 
@@ -799,6 +812,8 @@ narrowed by the owner to its first finding.
 
 4-full part 1's step 1, the saved search (`briefs/4-full-1-saved.md`,
 cut over six cold reviews and the owner's "Drop and cut" and "Yes,
-reconcile" of 2026-11-07), was built on 2026-11-07: `user.db` and
-`User`, the verbs' `saved.rs`, `acq saved` and `acq search --saved`.
-Its review is pending.
+reconcile" of 2026-11-07), closed on 2026-11-07 (`LEDGER.md`): its
+build reviewed, three fix rounds, the first two reviewed, the third
+at the owner's word "Shrink and close" and unreviewed. Current step:
+part 1's step 2, the MCP's three tools, awaits its brief, cut by a
+session that reads only the design on `main` (§3 and §7 step 2).
