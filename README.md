@@ -123,10 +123,11 @@ made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
 directory whose `mock/` or `ggg/` holds the databases (`store` under
 the platform data dir when neither side sets it).
 
-It shares the store and the daemon with `acq`, and its 27 tools do
+It shares the store and the daemon with `acq`, and its 30 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
 `tabs`, `characters`, `item_events`, `store_status`, `store_refused`, `accounts`,
-`leagues`),
+`leagues`), keep searches (`saved_searches`, `saved_search_set`,
+`saved_search_clear`),
 price items and render the shop (`price_status`, `price_list`,
 `price_show`, `price_set`, `price_clear`, `shop_render`,
 `reference_currency`), keep a league fresh (`sync_policy`,
@@ -134,7 +135,7 @@ price items and render the shop (`price_status`, `price_list`,
 (`submit_job`, `list_jobs`, `job_status`, `job_result`, `cancel_job`,
 `daemon_status`).
 
-The saved searches (`acq saved`) have no tool yet. The store and pricing tools need no daemon. The tools that fetch do,
+The store, saved-search and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one (under `ACQ_PROVIDER=mock`
 it does, for the stand-in): it uses the daemon you started, which exits an hour after its last connection or job
 submitted, or as long as the idle knob under "Knobs" sets (`acq daemon

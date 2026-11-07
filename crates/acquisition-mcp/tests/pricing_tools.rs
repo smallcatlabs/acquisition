@@ -142,7 +142,7 @@ fn seed(base: &Path) {
 /// Its times and their ages are not among them: every process of a test
 /// reads one instant as now (the harness's `ACQ_NOW`, #175), so two
 /// receipts made a second apart still say the same.
-fn steady(mut doc: Value, keys: &[&str]) -> Value {
+pub(crate) fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
         match v {
             Value::Object(map) => {
@@ -163,14 +163,14 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
 
 /// A write's channel, and `undo`, compared
 /// apart: one offer each surface spells (round 5 of the 2g build).
-const RECEIPT: &[&str] = &["written_via", "undo", "clear", "counts_unavailable"];
+pub(crate) const RECEIPT: &[&str] = &["written_via", "undo", "clear", "counts_unavailable"];
 
 /// Two refusals of one write offer the same ways, each spelled by its
 /// surface and saying the same (the league seat, fault 3: a conflict's
 /// offer), and say the same words, the server's spelling of the CLI they
 /// speak after them (C143): both handed back with `offers` taken out and
 /// the tool's words the CLI's, for the rest to compare whole.
-fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
+pub(crate) fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
     let says = |doc: &Value| -> Vec<Value> {
         doc["offers"]
             .as_array()
@@ -199,8 +199,9 @@ fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Value) {
 /// each spelled by its surface — the tool's a request naming the tool it
 /// goes to where another's, the CLI's a command line — saying the same,
 /// or both none, `no_undo` then compared with the rest; and so the
-/// clear a replace offers beside it (#167).
-fn undo_alike(by_tool: &Value, by_cli: &Value) {
+/// clear a replace offers beside it (#167). The CLI's undo is a command
+/// line starting `prefix` (`acq price `, `acq saved `).
+pub(crate) fn undo_alike(by_tool: &Value, by_cli: &Value, prefix: &str) {
     for key in ["undo", "clear"] {
         match (by_tool.get(key), by_cli.get(key)) {
             (None, None) => {}
@@ -210,7 +211,7 @@ fn undo_alike(by_tool: &Value, by_cli: &Value) {
                 assert!(
                     cli["request"]
                         .as_str()
-                        .is_some_and(|l| l.starts_with("acq price ")),
+                        .is_some_and(|l| l.starts_with(prefix)),
                     "{by_cli}"
                 );
             }
@@ -220,7 +221,7 @@ fn undo_alike(by_tool: &Value, by_cli: &Value) {
 }
 
 /// What the CLI prints under `--json`, with whether it succeeded.
-fn cli(base: &Path, args: &[&str]) -> (bool, Value) {
+pub(crate) fn cli(base: &Path, args: &[&str]) -> (bool, Value) {
     let mut args = args.to_vec();
     args.push("--json");
     let out = acq(base, &args);
@@ -236,7 +237,7 @@ fn cli(base: &Path, args: &[&str]) -> (bool, Value) {
 
 /// What the tool returns: its document, with whether it succeeded (a
 /// result not marked `isError`).
-fn tool(mcp: &mut Mcp, name: &str, args: Value) -> (bool, Value) {
+pub(crate) fn tool(mcp: &mut Mcp, name: &str, args: Value) -> (bool, Value) {
     let result = mcp.result(name, args);
     let ok = result["isError"] != json!(true);
     (ok, harness::document(&result))
@@ -751,7 +752,7 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             (*succeeds, *succeeds),
             "{name} {args} / acq {verb:?}: {by_tool}\n{by_cli}"
         );
-        undo_alike(&by_tool, &by_cli);
+        undo_alike(&by_tool, &by_cli, "acq price ");
         let (by_tool, by_cli) = offers_alike(by_tool, by_cli);
         assert_eq!(
             steady(by_tool, RECEIPT),
@@ -914,7 +915,7 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
         );
         let (cli_ok, by_cli) = cli(&by_acq.0, &["price", "clear", target, "--if-revision", "1"]);
         assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
-        undo_alike(&by_tool, &by_cli);
+        undo_alike(&by_tool, &by_cli, "acq price ");
         assert_eq!(
             steady(by_tool.clone(), RECEIPT),
             steady(by_cli.clone(), RECEIPT)

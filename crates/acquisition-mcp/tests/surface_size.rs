@@ -23,8 +23,14 @@ const INSTRUCTIONS: usize = 1_000;
 /// harness receives them. Measured at 37,824 (1,127 and 36,697) and held
 /// at the next 1,000 above. A schema trim (no `$schema`, no `title`, no
 /// `null` on an optional argument) was measured at 35,628 and declined:
-/// 5.8% of the turn, under the 10% the step set.
-const FIRST_TURN: usize = 38_000;
+/// 5.8% of the turn, under the 10% the step set. Raised by the owner's
+/// ruling of 2026-11-07 ("Raise the bound", 4-full part 1, step 2): the
+/// three saved-search tools (`saved_searches`, `saved_search_set`,
+/// `saved_search_clear`), `search`'s `saved` and the shared `account`
+/// sentence's rewording took the turn from 37,945 (1,127 and 36,818) to
+/// 42,089 (1,121 and 40,968), held at the next 1,000 above; no other
+/// tool's text was cut for room.
+const FIRST_TURN: usize = 43_000;
 
 fn surface() -> (String, Vec<Value>) {
     let scratch = harness::scratch("mcp-surface-size");

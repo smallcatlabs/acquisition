@@ -13,6 +13,7 @@ mod mcp_reference;
 mod persisted_queue;
 mod pricing_tools;
 mod provider_default;
+mod saved_tools;
 mod search_tools;
 mod spoken;
 mod surface_size;

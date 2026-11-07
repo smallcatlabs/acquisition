@@ -43,7 +43,10 @@
 //!   (`Asked::read`, what `--request` reads): a request, or what an
 //!   answer holds one in — a count with its route, a `next`, an offer —
 //!   sent back as printed. No token: a token is a terminal's encoding
-//!   of the request a `next` already holds.
+//!   of the request a `next` already holds. The one exception is
+//!   `saved`, which this adapter takes out and resolves before the reader
+//!   (the saved search, below): nothing else of the arguments is read
+//!   here.
 //! - **H2 — `scope.account` selects the store**, where a terminal's
 //!   `--account` does; every request an answer holds names it.
 //! - **H3 — an omitted realm is the terminal's rule** (C96): resolved
@@ -127,6 +130,50 @@
 //! CLI's default replaces whatever is stored. The shop template is the
 //! page's text here, a file there. Pinned by `tests/pricing_tools.rs`.
 //!
+//! # As built: the saved search (4-full part 1, step 2)
+//!
+//! `saved_searches`, `saved_search_set` and `saved_search_clear` are
+//! adapters of `acquisition_verbs::saved`, the functions `acq saved`
+//! calls (C46), and `search` takes `saved`, which `acq search --saved`
+//! runs: a tool returns the document the CLI's `--json` prints for the
+//! same request, a refusal in a result marked `isError`. The saved
+//! searches are the world's, in its user file (C167): no daemon, no
+//! network, and no account but where a create resolves its realm.
+//!
+//! - **`saved_searches`** answers `saved::list` (`limit`, `expand`), or
+//!   with `saved`, an id or a name, `saved::show`'s row; `saved` beside
+//!   `limit` or `expand` is refused as `arguments` naming the pair (a row
+//!   is never a list, C53).
+//! - **`saved_search_set`** reads its arguments into the verbs' one
+//!   `Set`, its revision through `Expect::or(if_revision, Create)` as
+//!   `price_set` reads one: no `id`, a create under a minted id; `id` and
+//!   `if_revision`, a write over the row at exactly that revision, the
+//!   fields not named kept; `id` and no `if_revision` (or 0), a create at
+//!   the id, the whole value, landing only where no live row stands (a
+//!   clear's undo). Every other pair is the verbs' `arguments`. `account`
+//!   is read only where a create names no realm, to resolve it.
+//! - **`saved_search_clear`** takes `id` and `if_revision`, both required,
+//!   read as `Expect::Exactly`: a clear is no create, and 0 names a
+//!   revision no row stands at, answered as `conflict`.
+//! - **`search` with `saved`**: `saved` is taken out, `saved::request_of`
+//!   resolves it (as `scope.account`, where that is a string), and the
+//!   row's `query.text`, `scope.realm` and `scope.membership` are set into
+//!   the arguments as sent, so every other key reaches `Asked::read` and
+//!   is refused there as it is without `saved`. Beside it stand
+//!   `scope.account`, `view` and `context`; `query`, `scope.realm`,
+//!   `scope.membership`, `request`, `basis`, `count` and `counted_at` are
+//!   refused naming the word, in the kind and the sentence of the CLI's
+//!   refusal of a flag beside `--saved`. A refusal of the resolution
+//!   names `scope.account`.
+//! - **Every way spoken**: `Spoken` sends each saved way as one of these
+//!   tools' arguments, so a receipt's undo and a refusal's offers are sent
+//!   back as printed; a run as another account is the arguments as sent
+//!   with `scope.account` set, nothing restarted.
+//!
+//! The stricter rule is the pricing section's: a write that names no
+//! revision is a create (C52), and no form here writes at the revision
+//! read, the CLI's default. Pinned by `tests/saved_tools.rs`.
+//!
 //! # Rulings held here
 //!
 //! - **C13** (the MCP is a thin client): in real mode it talks to the
@@ -149,6 +196,7 @@ use acquisition_verbs::fault::door_word;
 use acquisition_verbs::leagues::PolicyRead;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{self, Arguments, Way};
+use acquisition_verbs::saved::{self, Set};
 use acquisition_verbs::{Account, Fault, Frontend, Held};
 use anyhow::Result;
 use rmcp::handler::server::wrapper::Parameters;
@@ -344,6 +392,16 @@ impl refusal::Surface for Spoken<'_> {
             // (`refusal::again`), a continuation from its start
             Way::Again { account } => {
                 let mut arguments = called?.arguments;
+                // a saved search run is no request the reader reads: its
+                // arguments as sent, `scope.account` set, nothing restarted
+                if tool.as_deref() == Some("search") && arguments.contains_key("saved") {
+                    let scope = arguments
+                        .entry("scope")
+                        .or_insert_with(|| json!({}))
+                        .as_object_mut()?;
+                    scope.insert("account".into(), json!(account));
+                    return Some((Value::Object(arguments), None));
+                }
                 if tool.as_deref() == Some("search") {
                     let (envelope, _) = refusal::again(&Value::Object(arguments), account)?;
                     return Some((envelope, None));
@@ -465,13 +523,55 @@ impl refusal::Surface for Spoken<'_> {
             Way::RefusedBodies { account } => {
                 Some((json!({ "account": account }), other("store_refused")))
             }
-            // the saved search has no tool on this surface yet (4-full part
-            // 1, step 2 gives it three): no request to send back
-            Way::SavedSearches { .. }
-            | Way::SavedSearchShow { .. }
-            | Way::SavedSearchRun { .. }
-            | Way::SavedSearchSet(_)
-            | Way::SavedSearchClear { .. } => None,
+            // the saved search's ways as its three tools' arguments, and
+            // a run as `search`'s `saved`
+            Way::SavedSearches { expand } => Some((
+                match expand {
+                    true => json!({ "expand": true }),
+                    false => json!({}),
+                },
+                other("saved_searches"),
+            )),
+            Way::SavedSearchShow { id } => Some((json!({ "saved": id }), other("saved_searches"))),
+            Way::SavedSearchRun { id, account } => {
+                let mut request = json!({ "saved": id });
+                if let Some(account) = account {
+                    request["scope"] = json!({ "account": account });
+                }
+                Some((request, other("search")))
+            }
+            // the write's own arguments: the revision under `Exactly`,
+            // none under `Create` (this server's create, at the id where
+            // one is named); a write at the revision read is no form this
+            // server sends (C52)
+            Way::SavedSearchSet(set) => {
+                let mut arguments = serde_json::Map::new();
+                if let Some(id) = &set.id {
+                    arguments.insert("id".into(), json!(id));
+                }
+                match set.expect {
+                    Expect::Exactly(revision) => {
+                        arguments.insert("if_revision".into(), json!(revision));
+                    }
+                    Expect::Create => {}
+                    Expect::Current => return None,
+                }
+                for (key, value) in [
+                    ("name", &set.name),
+                    ("text", &set.text),
+                    ("realm", &set.realm),
+                    ("membership", &set.membership),
+                ] {
+                    if let Some(value) = value {
+                        arguments.insert(key.into(), json!(value));
+                    }
+                }
+                Some((Value::Object(arguments), other("saved_search_set")))
+            }
+            Way::SavedSearchClear { id, if_revision } => Some((
+                json!({ "id": id, "if_revision": if_revision }),
+                other("saved_search_clear"),
+            )),
         }
     }
 }
@@ -619,7 +719,12 @@ fn realm_param(realm: Option<&str>) -> Result<Realm> {
 }
 
 /// Every tool's `account`, one sentence (#83: undescribed on seven).
-const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name that is none of the accounts known is unknown_account (with none known, not_logged_in). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.";
+/// True of every tool that carries it (4-full part 1, step 2):
+/// `saved_search_set` reads it only for a create naming no realm, and in
+/// a world with no account known saves that create over every realm, so
+/// the refusals are said of a name read and of a tool that needs one,
+/// within the bound every parameter's text is held to.
+const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name read that no account known holds is unknown_account (none known: not_logged_in if needed). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.";
 
 #[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -658,8 +763,11 @@ struct CharactersParams {
 }
 
 /// The arguments of `search`: the request, read by the search crate's
-/// own reader and by nothing here (H1). The schema says what a request
-/// holds; the reader refuses what is none.
+/// own reader and by nothing here (H1), but `saved`, which this adapter
+/// takes out and resolves before the reader, setting the saved search's
+/// text and scope into the arguments as sent ([`AcqMcp::saved_into`]).
+/// The schema says what a request holds; the reader refuses what is
+/// none.
 #[derive(Deserialize)]
 #[serde(transparent)]
 struct RequestParams(serde_json::Map<String, Value>);
@@ -673,6 +781,10 @@ impl schemars::JsonSchema for RequestParams {
         schemars::json_schema!({
             "type": "object",
             "properties": {
+                "saved": {
+                    "type": "string",
+                    "description": "A saved search's id or name (saved_searches lists them), run whole: its query and its scope's realm and membership. Beside it only `scope.account`, `view` and `context`."
+                },
                 "scope": {
                     "type": "object",
                     "description": "What is searched: {\"account\": needed only where several could be meant, \"realm\": pc, xbox, sony, poe2 or all, needed only where the store holds several, \"membership\": \"live\" (the default), \"all\", the removed items too, each marked with when it left, or \"removed\"}."
@@ -1186,6 +1298,53 @@ struct PriceClearParams {
     account: Option<String>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SavedSearchesParams {
+    /// One saved search, by its id or its name: its row. Never beside
+    /// `limit` or `expand`, which list them.
+    saved: Option<String>,
+    /// List this many in place of ten.
+    limit: Option<usize>,
+    /// List every saved search.
+    expand: Option<bool>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SavedSearchSetParams {
+    /// The saved search written, by its id as listed; omitted, a new one
+    /// under an id minted for it.
+    id: Option<String>,
+    /// The revision of the row at `id` this write replaces, from
+    /// saved_searches or a refusal: the fields not named keep the row's
+    /// values. Omitted, or 0, a create: at `id`, the whole search, landing
+    /// only where none stands.
+    if_revision: Option<i64>,
+    /// A label, one to sixty-four characters; two searches may share one.
+    name: Option<String>,
+    /// The query, in the language `describe` prints; stored canonical.
+    text: Option<String>,
+    /// pc, xbox, sony, poe2 or all. A create naming none takes the
+    /// account's one realm, and is refused offering each where it holds
+    /// several.
+    realm: Option<String>,
+    /// live (a create's default), all or removed.
+    membership: Option<String>,
+    #[schemars(description = ACCOUNT)]
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SavedSearchClearParams {
+    /// The saved search's id, as listed.
+    id: String,
+    /// The revision it clears: its row's `revision`, or the one a refusal
+    /// names.
+    if_revision: i64,
+}
+
 /// The CLI's words a daemon's text still speaks, each with what it is
 /// here, longest first where one begins another (C143: a shared text
 /// speaks the request's own words; since #97 every text the shared
@@ -1510,6 +1669,73 @@ impl AcqMcp {
             .and_then(|account| Ok((account.intent()?, account.entry.username)))
             .map_err(|e| refusing(refusal(&e.into(), named)))
     }
+
+    /// `search`'s `saved`: taken out of the arguments, resolved by the
+    /// verbs (`saved::request_of`, what `acq search --saved` runs), and the
+    /// saved search's text, realm and membership set into the arguments as
+    /// sent, so every other key reaches the reader as it came and is
+    /// refused there as it is without `saved`; the search crate never sees
+    /// the word. A word of a request beside it is refused, naming the
+    /// word, in the kind and the sentence of the CLI's refusal of a flag
+    /// beside `--saved`; `scope.account` is read where it is a string, and
+    /// left for the reader otherwise.
+    fn saved_into(
+        &self,
+        args: &mut serde_json::Map<String, Value>,
+    ) -> std::result::Result<(), CallToolResult> {
+        let Some(saved) = args.remove("saved") else {
+            return Ok(());
+        };
+        let Some(saved) = saved.as_str() else {
+            return Err(refused(acquisition_search::LanguageError {
+                kind: acquisition_search::ErrorKind::Tree,
+                message: "`saved` is a saved search's id or its name, as a string".to_string(),
+                span: None,
+                readings: Vec::new(),
+            }));
+        };
+        let scope = args.get("scope").and_then(Value::as_object);
+        let in_scope = |key: &str| scope.is_some_and(|scope| scope.contains_key(key));
+        let beside = [
+            ("query", args.contains_key("query")),
+            ("scope.realm", in_scope("realm")),
+            ("scope.membership", in_scope("membership")),
+            ("request", args.contains_key("request")),
+            ("basis", args.contains_key("basis")),
+            ("count", args.contains_key("count")),
+            ("counted_at", args.contains_key("counted_at")),
+        ];
+        if let Some((word, _)) = beside.iter().find(|(_, sent)| *sent) {
+            return Err(refused(SearchError::Scope {
+                kind: "view",
+                message: format!(
+                    "`saved` runs a saved search whole, its scope and its query: `{word}` has nowhere to stand beside it"
+                ),
+                offers: Vec::new(),
+            }));
+        }
+        let account = scope
+            .and_then(|scope| scope.get("account"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let request = saved::request_of(&self.frontend, saved, account.as_deref())
+            .map_err(|e| refusing(refusal(&e, "scope.account")))?;
+        args.insert("query".into(), json!({ "text": request.query.text }));
+        if let Some(scope) = args
+            .entry("scope")
+            .or_insert_with(|| json!({}))
+            .as_object_mut()
+        {
+            if let Some(realm) = request.scope.realm {
+                scope.insert("realm".into(), json!(realm.as_str()));
+            }
+            scope.insert(
+                "membership".into(),
+                json!(request.scope.membership.as_str()),
+            );
+        }
+        Ok(())
+    }
 }
 
 #[tool_router]
@@ -1581,9 +1807,12 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item search over the store (no daemon): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document — `query`, `scope`, `total`, `rows`, `view`, `terms`, `basis`; `describe` with names [\"answer\"] says what each key holds and what each count counts. Any request an answer holds is sent back as printed."
+        description = "Item search over the store (no daemon): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one; {\"saved\": an id or a name} runs a saved search. The answer is one JSON document — `query`, `scope`, `total`, `rows`, `view`, `terms`, `basis`; `describe` with names [\"answer\"] says what each key holds and what each count counts. Any request an answer holds is sent back as printed."
     )]
-    fn search(&self, Parameters(RequestParams(args)): Parameters<RequestParams>) -> Told {
+    fn search(&self, Parameters(RequestParams(mut args)): Parameters<RequestParams>) -> Told {
+        if let Err(refusal) = self.saved_into(&mut args) {
+            return Ok(refusal);
+        }
         let asked = match Asked::read(&Value::Object(args)) {
             Ok(asked) => asked,
             Err(e) => return Ok(refused(e)),
@@ -2122,6 +2351,78 @@ impl AcqMcp {
         }
     }
 
+    // ---- the saved search: adapters of acquisition-verbs' saved ----
+
+    #[tool(
+        description = "The saved searches, the world's and no one account's (no daemon): ten, `limit` more or fewer, `expand` every one, beside `total`, `left_out` and the file's `revision`; `saved`, an id or a name, is one row. A readable row carries `request`, the search it is; one this build cannot read is named by its id, revision and why. `search` with `saved` runs one. A name two rows share is refused, offering each by id. Each age is in words beside its time (`describe` with names [\"ages\"])."
+    )]
+    fn saved_searches(&self, Parameters(p): Parameters<Args<SavedSearchesParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let Some(id_or_name) = p.saved else {
+            return settled(saved::list(
+                &self.frontend,
+                p.limit,
+                p.expand.unwrap_or(false),
+            ));
+        };
+        // a row is never a list (C53): the bound of one has nowhere to
+        // stand beside it
+        if let Some(word) = [("limit", p.limit.is_some()), ("expand", p.expand.is_some())]
+            .iter()
+            .find_map(|(word, sent)| sent.then_some(word))
+        {
+            return failed(
+                Arguments(format!(
+                    "`saved` opens one saved search and `{word}` bounds the list of them: the two \
+                     never stand together"
+                ))
+                .into(),
+            );
+        }
+        settled(saved::show(&self.frontend, &id_or_name))
+    }
+
+    #[tool(
+        description = "Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; `account` is read only to resolve the realm a create names none of. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none)."
+    )]
+    fn saved_search_set(&self, Parameters(p): Parameters<Args<SavedSearchSetParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        // C52: naming no revision creates, never replaces
+        let set = Set {
+            id: p.id,
+            expect: Expect::or(p.if_revision, Expect::Create),
+            name: p.name,
+            text: p.text,
+            realm: p.realm,
+            membership: p.membership,
+        };
+        match saved::set(&self.frontend, p.account.as_deref(), &set, &mut saved::mint) {
+            Ok(written) => told(&receipt::saved(&written, &Spoken { named: "account" })),
+            Err(e) => failed(e),
+        }
+    }
+
+    #[tool(
+        description = "Clear one saved search at the revision named; local, it sends nothing (no daemon). Returns the receipt — `target`, `written` null, `prior`, the row cleared, `revision`, the one the clear left, and `undo`, the saved_search_set that puts it back, a create at its id, sent as printed (or `no_undo`, why none). A revision that moved is refused as conflict, naming the one that stands."
+    )]
+    fn saved_search_clear(&self, Parameters(p): Parameters<Args<SavedSearchClearParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        // a clear is no create: the revision named, exactly
+        match saved::clear(&self.frontend, &p.id, Expect::Exactly(p.if_revision)) {
+            Ok(written) => told(&receipt::saved(&written, &Spoken { named: "account" })),
+            Err(e) => failed(e),
+        }
+    }
+
     // ---- daemon jobs ----
 
     #[tool(
@@ -2234,7 +2535,8 @@ impl ServerHandler for AcqMcp {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
             "Acquisition (provider: {}).\n\
-             - price_set, price_clear and set_sync_policy write locally and send nothing.\n\
+             - price_set, price_clear, set_sync_policy, saved_search_set and saved_search_clear \
+             write locally and send nothing.\n\
              - submit_job, apply_plan and cancel_job talk to the daemon; in real mode a human \
              starts it and this server never spawns one.\n\
              - list_jobs, job_status, job_result and daemon_status observe, and answer without \
@@ -2243,8 +2545,8 @@ impl ServerHandler for AcqMcp {
              quote, never starting one.\n\
              - Begin with search and no arguments; where the store holds several realms, name \
              scope.realm (the refusal offers each).\n\
-             - describe with no names is the index; names read entries whole, fields first, then \
-             answer, trade, pricing, daemon, store; all is over 150 KB.\n\
+             - describe with no names is the index; names read entries whole, fields first; all \
+             is over 150 KB.\n\
              - A refusal is marked isError: error, kind, and readings, next and offers where \
              it has them; any request an offer or an answer holds is sent back as printed, to \
              the tool it names or the same one.\n\

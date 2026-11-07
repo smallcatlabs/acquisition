@@ -32,7 +32,7 @@ const USER: &str = "Alice#1234";
 /// of one item in poe2's, so a search naming no realm is refused; and a
 /// tab, `t-gone`, fetched and then left out of pc's listing, so it is no
 /// longer in the account and `show` of its id is refused as no item.
-fn seed(base: &Path) {
+pub(crate) fn seed(base: &Path) {
     let dir = base.join("store").join("mock");
     std::fs::create_dir_all(&dir).unwrap();
     Index::load(&dir)

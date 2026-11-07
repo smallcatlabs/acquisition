@@ -75,7 +75,7 @@ fn stash(realm: &str, id: &str) -> Endpoint {
 /// | `kaom` | Dump | unique | Glorious Plate | life 500 |
 /// | `plain` | Dump | rare | Iron Ring | mana 20 |
 /// | `str` | Dump | rare | Iron Ring | strength 25 |
-fn seed(base: &Path) {
+pub(crate) fn seed(base: &Path) {
     let dir = stores(base);
     std::fs::create_dir_all(&dir).unwrap();
     let mut index = Index::load(&dir).unwrap();
@@ -126,7 +126,7 @@ fn seed(base: &Path) {
 }
 
 /// A second account, with one item of its own.
-fn seed_bob(base: &Path) {
+pub(crate) fn seed_bob(base: &Path) {
     let dir = stores(base);
     let mut index = Index::load(&dir).unwrap();
     index.record_login("Bob#9", "u-bob", false, 2, &[]).unwrap();
