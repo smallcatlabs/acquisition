@@ -30,14 +30,15 @@ use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::intended_root;
 use acquisition_store::{
-    AccountEntry, AnnotationRow, Annotations, Index, Provenance, Resolve, SYNC_POLICY_KEY,
-    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, User, account_path,
+    AccountEntry, AnnotationError, AnnotationRow, Annotations, Index, Provenance, Resolve,
+    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, User, account_path,
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::fault::Fault;
 use crate::leagues::{LeagueListShown, LeaguesHeld, PolicyRead};
+use crate::refusal::Pointed;
 
 /// The connect policy a frontend's verbs use (C10, the doors; C13, the
 /// MCP never spawns in real mode).
@@ -202,16 +203,37 @@ impl Frontend {
     /// file, `user.db` beside the account files, opened as
     /// [`Account::intent`] opens an account's. It needs no account and no
     /// login, but a world: a provider directory that does not exist is
-    /// `not_logged_in` naming it, as a store read answers (C121).
-    pub fn user(&self) -> Result<User, Fault> {
+    /// `not_logged_in` naming it, as a store read answers (C121). A
+    /// `user.db` holding an account's facts from a build before the
+    /// account path's escape is the refusal `user_file_holds_account`,
+    /// its fields the file and the path the rename frees it to.
+    pub fn user(&self) -> anyhow::Result<User> {
         let dir = self.dir();
         if !dir.is_dir() {
             return Err(Fault::NoAccounts {
                 dir,
                 provider: self.provider.to_string(),
-            });
+            }
+            .into());
         }
-        User::open_for(&dir).map_err(|e| Fault::Unopened(e.into()))
+        User::open_for(&dir).map_err(|e| match e {
+            AnnotationError::HoldsAccountFacts(found) => {
+                let mut fields = serde_json::Map::new();
+                fields.insert("file".into(), json!(found.file.display().to_string()));
+                fields.insert(
+                    "rename_to".into(),
+                    json!(found.rename_to.display().to_string()),
+                );
+                Pointed {
+                    kind: "user_file_holds_account",
+                    message: found.to_string(),
+                    ways: Vec::new(),
+                    fields,
+                }
+                .into()
+            }
+            other => Fault::Unopened(other.into()).into(),
+        })
     }
 
     fn index(&self) -> Result<Index, Fault> {

@@ -366,3 +366,78 @@ fn an_account_named_user_or_daemon_leaves_the_world_file_what_it_is_in_either_or
         assert_eq!(store.status().unwrap().responses, 1, "daemon: the facts");
     }
 }
+
+/// The review of fix round 1 (c0fb7673): a world a build before the
+/// escape wrote, an account named `user` with its facts at the literal
+/// `<dir>/user.db` and one named `daemon` at `<dir>/daemon.db`, staged at
+/// those paths and never through [`account_path`]. Each world file's
+/// opener refuses with the file and the rename that frees it, leaving the
+/// file byte for byte; after the rename the account opens with its facts
+/// and the world file opens empty.
+#[test]
+fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_with_its_rename() {
+    use crate::annotations::AnnotationError;
+    use crate::index::HoldsAccountFacts;
+    use crate::jobs::{JobDb, Persisted};
+    use crate::user::User;
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path();
+    let legacy = |file: &str, username: &str| {
+        let path = dir.join(file);
+        let mut store = crate::Store::open(&path).unwrap();
+        store
+            .record(
+                &crate::Endpoint::Profile,
+                &serde_json::json!({}),
+                200,
+                &serde_json::json!({ "uuid": "u", "name": username }),
+                1_000,
+            )
+            .unwrap();
+        drop(store);
+        std::fs::read(&path).unwrap()
+    };
+    let user_bytes = legacy("user.db", "user");
+    let daemon_bytes = legacy("daemon.db", "daemon");
+    let named = |found: &HoldsAccountFacts, file: &str, rename_to: &str| {
+        assert_eq!(found.file, dir.join(file));
+        assert_eq!(found.rename_to, dir.join(rename_to));
+        let words = found.to_string();
+        for path in [&found.file, &found.rename_to] {
+            assert!(words.contains(&path.display().to_string()), "{words}");
+        }
+    };
+
+    for opened in [User::open_for(dir), User::open_read_only_for(dir)] {
+        match opened {
+            Err(AnnotationError::HoldsAccountFacts(found)) => {
+                named(&found, "user.db", "~user.db");
+                assert!(found.to_string().contains("saved searches"), "{found}");
+            }
+            Err(other) => panic!("{other}"),
+            Ok(_) => panic!("the user file opened over an account's facts"),
+        }
+    }
+    let queue = dir.join("daemon.db");
+    for refused in [
+        JobDb::open(&queue).err().unwrap(),
+        Persisted::read(dir).err().unwrap(),
+    ] {
+        let found = refused.downcast_ref::<HoldsAccountFacts>().unwrap();
+        named(found, "daemon.db", "~daemon.db");
+    }
+    assert_eq!(std::fs::read(dir.join("user.db")).unwrap(), user_bytes);
+    assert_eq!(std::fs::read(&queue).unwrap(), daemon_bytes);
+
+    for (file, renamed, username) in [
+        ("user.db", "~user.db", "user"),
+        ("daemon.db", "~daemon.db", "daemon"),
+    ] {
+        std::fs::rename(dir.join(file), dir.join(renamed)).unwrap();
+        let store = crate::Store::open(&account_path(dir, username)).unwrap();
+        assert_eq!(store.status().unwrap().responses, 1, "{username}");
+    }
+    let user = User::open_for(dir).unwrap();
+    assert!(user.list(None, None).unwrap().list.rows.is_empty());
+    JobDb::open(&queue).unwrap();
+}

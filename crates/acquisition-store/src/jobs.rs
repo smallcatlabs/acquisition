@@ -35,6 +35,8 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::index::HoldsAccountFacts;
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS jobs (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,7 +149,19 @@ fn open_read_only(path: &Path) -> Result<Connection> {
     )
     .with_context(|| format!("opening {} read-only", path.display()))?;
     conn.busy_timeout(crate::store_wait())?;
+    refuse_account_facts(&conn, path)?;
     Ok(conn)
+}
+
+/// A `daemon.db` holding the facts of an account named `daemon`, kept there
+/// by a build before the account path's escape, is refused with the rename
+/// that frees it ([`HoldsAccountFacts`]), read from `sqlite_master` before
+/// anything is written.
+fn refuse_account_facts(conn: &Connection, path: &Path) -> Result<()> {
+    match HoldsAccountFacts::probe(conn, path, "daemon", "the daemon's queue")? {
+        Some(found) => Err(found.into()),
+        None => Ok(()),
+    }
 }
 
 /// The queue's schema version, stamped in `user_version` (issue #63; C48,
@@ -228,6 +242,7 @@ impl JobDb {
     /// serialises it here.
     fn init(conn: Connection, path: PathBuf) -> Result<JobDb> {
         conn.busy_timeout(crate::store_wait())?;
+        refuse_account_facts(&conn, &path)?;
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found > JOBS_SCHEMA_VERSION {
             return Err(QueueSchemaTooNew {

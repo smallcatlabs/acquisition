@@ -193,8 +193,6 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         &["saved", "clear", &id],
         &["cleared at revision 4", "--if-revision 0", "puts it back"],
     );
-    golden(file!(), "list_show_set_and_clear", &t);
-
     // --json is the verbs' document whole
     let frontend = acquisition_verbs::Frontend {
         via: "cli",
@@ -213,6 +211,38 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         serde_json::to_value(acquisition_verbs::saved::show(&frontend, "0000000000a2").unwrap())
             .unwrap()
     );
+
+    // the review of fix round 1 (c0fb7673): a `user.db` holding the facts
+    // of an account named `user`, at the literal path a build before the
+    // account path's escape kept them, refused with the rename; the
+    // rename the words say frees the file
+    std::fs::remove_file(mock.join("user.db")).unwrap();
+    for left in ["user.db-wal", "user.db-shm"] {
+        assert!(!mock.join(left).exists(), "{left}");
+    }
+    let mut legacy = acquisition_store::Store::open(&mock.join("user.db")).unwrap();
+    legacy
+        .record(
+            &acquisition_store::Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u", "name": "user" }),
+            1_000,
+        )
+        .unwrap();
+    drop(legacy);
+    let out = t.run(
+        &["saved"],
+        &[
+            "holds the facts of an account named user",
+            "Rename",
+            "~user.db",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(1));
+    std::fs::rename(mock.join("user.db"), mock.join("~user.db")).unwrap();
+    t.run(&["saved"], &["no saved searches"]);
+    golden(file!(), "list_show_set_and_clear", &t);
 }
 
 /// Every command a receipt or a refusal of `acq saved` prints runs as

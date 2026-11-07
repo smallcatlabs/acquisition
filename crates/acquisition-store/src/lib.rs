@@ -1111,7 +1111,9 @@ pub use corpus::{
     CorpusHeader, CorpusItem, CorpusItems, Gone, ListingSeen, LocationRow, Membership, RealmScope,
     Revision, StashListing,
 };
-pub use index::{AccountEntry, Index, Resolve, account_matches, account_path, index_path};
+pub use index::{
+    AccountEntry, HoldsAccountFacts, Index, Resolve, account_matches, account_path, index_path,
+};
 pub use snapshot::{
     BUYOUT_KIND, CharacterSnapshot, Fetched, ItemSnapshot, ListingBasis, PricingSnapshot,
     RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, TabSnapshot,

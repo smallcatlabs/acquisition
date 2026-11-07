@@ -581,6 +581,10 @@ pub enum AnnotationError {
     /// write that did not name its revision. The row stands; a clear or a
     /// write naming the revision carried here replaces it.
     Unreadable(UnreadableRow),
+    /// The user file's opener met an account's facts at `user.db`, kept
+    /// there by a build before the account path's escape: refused with
+    /// the rename that frees it, nothing written (C167).
+    HoldsAccountFacts(crate::index::HoldsAccountFacts),
     Db(rusqlite::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
@@ -647,6 +651,7 @@ impl std::fmt::Display for AnnotationError {
                  that revision replaces it",
                 row.scope, row.key, row.kind, row.revision, row.fault
             ),
+            AnnotationError::HoldsAccountFacts(e) => write!(f, "{e}"),
             AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Json(e) => write!(f, "annotation store: {e}"),

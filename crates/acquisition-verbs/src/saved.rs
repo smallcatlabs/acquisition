@@ -278,7 +278,7 @@ pub fn list(
     frontend: &Frontend,
     limit: Option<usize>,
     expand: bool,
-) -> Result<SavedSearches, Fault> {
+) -> anyhow::Result<SavedSearches> {
     let user = frontend.user()?;
     let (rows, revision) = rows(&user)?;
     let total = rows.len();

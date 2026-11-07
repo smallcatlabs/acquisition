@@ -96,3 +96,16 @@ $ acq saved clear <id>
 --- stdout
 saved search <id>: cleared at revision 4, was unique rings over pc live: rarity=unique (revision 3)
 next: `acq saved set --id <id> --if-revision 0 --name 'unique rings' --realm pc --membership live rarity=unique` puts it back (a create, which lands only where no saved search stands at its id; the row's count continues past the clear)
+
+$ acq saved
+# holds "holds the facts of an account named user"
+# holds "Rename"
+# holds "~user.db"
+--- stderr
+Error: <scratch>/mock/user.db holds the facts of an account named user, kept there by an earlier build; that account's facts now live at <scratch>/mock/~user.db. Rename <scratch>/mock/user.db to <scratch>/mock/~user.db and the account opens with its facts, and the file is free again for the saved searches
+--- exit 1
+
+$ acq saved
+# holds "no saved searches"
+--- stdout
+no saved searches: `acq saved set --name NAME 'QUERY'` saves one

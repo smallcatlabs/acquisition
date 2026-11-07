@@ -2170,9 +2170,21 @@ impl acquisition_verbs::refusal::Surface for Plain {
 /// shape adds — `offers`, `readings`, `next`, the kind's own fields (an
 /// ambiguous saved search's `searches`, `total` and `left_out` among
 /// them) — where they have something to say.
-const REFUSAL_KEYS: [&str; 12] = [
-    "error", "kind", "offers", "readings", "next", "accounts", "revision", "current", "span",
-    "searches", "total", "left_out",
+const REFUSAL_KEYS: [&str; 14] = [
+    "error",
+    "kind",
+    "offers",
+    "readings",
+    "next",
+    "accounts",
+    "revision",
+    "current",
+    "span",
+    "searches",
+    "total",
+    "left_out",
+    "file",
+    "rename_to",
 ];
 
 /// A not_found's refusal as the planner makes it, over a scope named.
@@ -2304,6 +2316,13 @@ fn every_refusal_is_one_shape_from_one_function() {
         );
         cases.push((e, Box::leak(kind.into_boxed_str())));
     }
+    // a user file holding an earlier build's account facts (C167)
+    let legacy = scratch();
+    legacy_user_facts(&legacy.mock);
+    cases.push((
+        acquisition_verbs::saved::list(&frontend(&legacy.mock), None, false).unwrap_err(),
+        "user_file_holds_account",
+    ));
     for (e, kind) in cases {
         let doc = document(&e, &Plain);
         let fields = doc.as_object().unwrap();
@@ -4650,6 +4669,70 @@ fn c167_a_name_none_holds_and_a_cleared_id_are_not_found() {
     assert_eq!(document(&e, &Plain)["kind"], "saved_search_not_found");
 }
 
+/// The facts of an account named `user` at the literal `<dir>/user.db`, as
+/// a build before the account path's escape kept them, written through
+/// the store's facts door.
+fn legacy_user_facts(dir: &std::path::Path) {
+    let mut store = acquisition_store::Store::open(&dir.join("user.db")).unwrap();
+    store
+        .record(
+            &acquisition_store::Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u", "name": "user" }),
+            1_000,
+        )
+        .unwrap();
+}
+
+/// The review of fix round 1 (c0fb7673): a `user.db` holding an earlier
+/// build's account facts is the refusal `user_file_holds_account`, its
+/// fields the file and the rename that frees it, both in its words, for
+/// every saved-search verb; nothing is written to the file.
+#[test]
+fn c167_a_user_file_holding_account_facts_is_refused_with_its_rename() {
+    let s = scratch();
+    legacy_user_facts(&s.mock);
+    let file = s.mock.join("user.db");
+    let bytes = std::fs::read(&file).unwrap();
+    let world = frontend(&s.mock);
+    for e in [
+        saved::list(&world, None, false).map(|_| ()).unwrap_err(),
+        saved::show(&world, "rings").map(|_| ()).unwrap_err(),
+        saved::set(
+            &world,
+            None,
+            &Set {
+                id: None,
+                expect: Expect::Create,
+                name: Some("rings".into()),
+                text: Some("rarity=rare".into()),
+                realm: Some("pc".into()),
+                membership: None,
+            },
+            &mut no_mint,
+        )
+        .map(|_| ())
+        .unwrap_err(),
+        saved::clear(&world, "0123456789ab", Expect::Current)
+            .map(|_| ())
+            .unwrap_err(),
+    ] {
+        let doc = document(&e, &Plain);
+        assert_eq!(doc["kind"], "user_file_holds_account", "{doc}");
+        assert_eq!(doc["file"], file.display().to_string(), "{doc}");
+        let renamed = s.mock.join("~user.db").display().to_string();
+        assert_eq!(doc["rename_to"], renamed, "{doc}");
+        let words = doc["error"].as_str().unwrap();
+        assert!(
+            words.contains(&renamed) && words.contains("user.db"),
+            "{words}"
+        );
+        assert!(doc.get("offers").is_none(), "{doc}");
+    }
+    assert_eq!(std::fs::read(&file).unwrap(), bytes);
+}
+
 /// C121: a world whose provider directory does not exist has no user
 /// file: `not_logged_in` naming the directory, and nothing is created.
 #[test]
@@ -4658,7 +4741,7 @@ fn c167_a_world_with_no_provider_directory_is_not_logged_in_naming_it() {
     let dir = root.path().join("mock");
     let world = frontend(&dir);
     let fault = saved::list(&world, None, false).unwrap_err();
-    assert_eq!(fault.kind(), "not_logged_in");
+    assert_eq!(document(&fault, &Plain)["kind"], "not_logged_in");
     assert!(
         fault.to_string().contains(&dir.display().to_string()),
         "{fault}"

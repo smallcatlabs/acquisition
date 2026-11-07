@@ -30,6 +30,7 @@ use serde_json::Value;
 use crate::annotations::{
     AnnotationError, AnnotationList, AnnotationRow, Annotations, IntentValue, Provenance,
 };
+use crate::index::HoldsAccountFacts;
 
 /// The file's name inside the world's provider directory.
 pub const USER_FILE: &str = "user.db";
@@ -52,6 +53,30 @@ pub const SAVED_MEMBERSHIPS: [&str; 3] = ["live", "all", "removed"];
 /// The most characters a saved search's name holds, after trimming.
 pub const NAME_MAX: usize = 64;
 
+/// The account name whose facts a build before the account path's escape
+/// kept at `user.db`, and what the world keeps there now, in words.
+const USER_STEM: &str = "user";
+const USER_HOLDS: &str = "the saved searches";
+
+/// A `user.db` at `path` holding an account's facts is refused; one that
+/// does not exist, or that read-only SQLite cannot open, is left to the
+/// opener, which creates the one and reports the other in its own words.
+fn refuse_account_facts(path: &Path) -> Result<(), AnnotationError> {
+    if !path.is_file() {
+        return Ok(());
+    }
+    let Ok(conn) = rusqlite::Connection::open_with_flags(
+        path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ) else {
+        return Ok(());
+    };
+    match HoldsAccountFacts::probe(&conn, path, USER_STEM, USER_HOLDS)? {
+        Some(found) => Err(AnnotationError::HoldsAccountFacts(found)),
+        None => Ok(()),
+    }
+}
+
 /// The user file: [`Annotations`] at `<dir>/user.db`, no uuid bound.
 pub struct User(Annotations);
 
@@ -66,15 +91,26 @@ pub struct UserList {
 impl User {
     /// Open (or create) the world's user file under `dir`. No uuid is bound
     /// or stamped: the file is the world's.
+    ///
+    /// A `user.db` that holds an account's facts, from a build before the
+    /// account path's escape, is refused with the rename that frees it
+    /// ([`AnnotationError::HoldsAccountFacts`]), read before anything is
+    /// written.
     pub fn open_for(dir: &Path) -> Result<User, AnnotationError> {
-        Annotations::open(&user_path(dir)).map(User)
+        let path = user_path(dir);
+        refuse_account_facts(&path)?;
+        Annotations::open(&path).map(User)
     }
 
     /// C124 (a read never migrates): the user file's read-only door, over
     /// the unbound opener ([`Annotations::open_read_only_at`]): never
     /// created, nothing written, a file at another version refused.
+    /// An account's facts at `user.db` are refused as [`User::open_for`]
+    /// refuses them.
     pub fn open_read_only_for(dir: &Path) -> Result<User, AnnotationError> {
-        Annotations::open_read_only_at(&user_path(dir)).map(User)
+        let path = user_path(dir);
+        refuse_account_facts(&path)?;
+        Annotations::open_read_only_at(&path).map(User)
     }
 
     /// An in-memory user file, for tests and ephemeral use.
