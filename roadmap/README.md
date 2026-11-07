@@ -317,6 +317,22 @@ Each in his words, with the commit that landed it.
   constant's comment naming the measure, the tools and the step; no
   existing tool's text is cut for room. The brief's foot lists the
   session's six adapter decisions, taken as its own.
+- 2026-11-07, step 3's brief (`briefs/4-full-1-pages.md`, cut three
+  times under cold reviews, the bound), Do 1: "Redirect to the list".
+  A page's write answers the browser `303` to the saved list, the
+  web's redirect after a post: a reload asks the list again and never
+  posts again, so a create landed twice is unreachable and C16's state
+  sentence holds with no carve-out; the receipt (C168, C78) is the
+  write's document, answered where JSON is asked and replayed by an
+  agent through the CLI or the MCP, and no page renders one; a
+  create's undo on a page is the list's clear button, a replace's none
+  in morning 1. The brief's session recommended a receipt page with
+  the undo as a form, naming its cost (a reload re-posts; a create
+  lands twice under two ids), with a receipt page whose create form
+  carries a server-minted id as the third way; the orchestrating
+  session recommended the redirect, and the owner chose it. C168's
+  words ("answers the one receipt") stand, read as the document;
+  whether the entry should say so is his at the step's close.
 
 ## Roles
 
@@ -827,6 +843,7 @@ MCP's three saved-search tools (`briefs/4-full-1-mcp.md`, cut once
 under its cold review, the second clean; Do 1 ruled "Raise the
 bound"), closed on 2026-11-07 (`LEDGER.md`): its build reviewed clean,
 no fix round. Current step: part 1's step 3, the pages (`saved`,
-`saved/open?id=`) and morning 1's handoff, awaits its brief, cut by a
-session that reads only the design on `main` (§2, §3 "The pages", §4
-and §7 step 3).
+`saved/open?id=`) and morning 1's handoff (`briefs/4-full-1-pages.md`,
+cut by a session that read only the design on `main`; three cuts under
+cold reviews of eleven, seven and four findings, the bound; Do 1 ruled
+"Redirect to the list" on 2026-11-07), building.

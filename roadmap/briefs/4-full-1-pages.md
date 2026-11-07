@@ -23,8 +23,8 @@ searches: on any answer he types a name and saves the search he is
 looking at; on a new **Saved** page he sees every saved search, his
 and his agent's, each with its scope, its query, its revision and the
 channel that last wrote it, and opens one (a link that runs it),
-renames one or clears one, each write answering with what it wrote and
-a button that undoes it; an answer opened from a saved search says so
+renames one or clears one, each write sending him back to the list,
+where the row stands as written; an answer opened from a saved search says so
 and saves over it at the revision he opened, so an agent's write in
 between is refused as stale and offered again over the current one,
 never clobbered. Every page that renders a versioned document carries
@@ -175,25 +175,23 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
 
 ## Do
 
-1. **A ruling before the code: what a write answers in the browser.**
-   The design's §3 says a write is followed by "a redirect to the
-   list"; C168 says a page's write "answers the one receipt", and C16
-   says a page holds nothing its URL cannot rebuild, which a receipt
-   (made from the POST's body and the prior row) is not. The draft for
-   the owner, brought by the orchestrating session before the worker
-   starts: *a page's write answers its receipt as a page, the undo a
-   form, and that page is the POST's answer, not a page a URL names, so
-   C16's state sentence binds the pages a GET serves; a reload asks the
-   browser before posting again, and a create posted twice lands twice,
-   each with its own undo.* (Recommended: it keeps C78's undo where the
-   owner is.) Its alternatives, his to choose: the design's `303` to
-   the list, the receipt answered as JSON alone and no undo on the
-   page; or the receipt page with the create form carrying an id the
-   server mints as it renders, posted with `if_revision` `0`, so a
-   second post conflicts (the verbs' create at an id lands once), the
-   form then holding a value its URL does not rebuild. The worker
-   builds Do 6's answer as ruled. One design sentence is settled here,
-   not ruled again: the design's rename form carrying "the row's id,
+1. **Ruled 2026-11-07, "Redirect to the list": what a write answers
+   in the browser.** A page's write answers the browser `303` to the
+   list (`saved`), the web's redirect after a post: a reload asks the
+   list again and never posts again, so a create landed twice by a
+   pressed key is unreachable, and C16's state sentence holds with no
+   carve-out (the list is a page a URL names). The receipt (C168, C78)
+   is the write's document, answered where JSON is asked, its undo
+   replayed by an agent through the CLI or the MCP; no page renders a
+   receipt. On a page, a create's undo is the row's **Clear** button on
+   the list it lands on; a replace and a clear have no undo on a page
+   in morning 1. The design's §3 drew this redirect; the alternatives
+   the orchestrating session put to the owner were a receipt page with
+   the undo as a form (a reload re-posts, a create lands twice under
+   two ids) and that page with its create form carrying an id the
+   server mints as it renders (a form value no URL rebuilds); he chose
+   the redirect. One design sentence is settled here, not ruled
+   again: the design's rename form carrying "the row's id,
    revision, text and scope hidden" yields to step 1's partial-field
    `set`, so a rename posts the id, the revision and the name alone
    (Do 4).
@@ -221,13 +219,12 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
    content one JSON object, HTML-escaped, keyed by the document:
    `answer` the answer's `basis`, `item` the item's `basis`, `plan`
    the plan's `basis`, `saved_searches` the list's `revision`,
-   `saved_search` the row's `revision`, `receipt` the receipt's
-   `revision`; each value is `serde_json::to_value` of the document's
+   `saved_search` the row's `revision`; each value is `serde_json::to_value` of the document's
    own field, never a number the page composes. One rule: a page
    records every document it renders that carries a version, and
    writes the line where there is at least one: the answer (with
    `saved_search` beside `answer` where Do 7 read a row), the item, the
-   plan, the saved list, the receipt (if Do 1 keeps a receipt page).
+   plan, the saved list.
    A refusal that carries a saved row as `current` (a conflict) renders
    it (Do 8) and records it as `saved_search`, the row's `revision`.
    The form page (its league list), the refresh page (its tabs and
@@ -299,38 +296,17 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
    - `saved/clear` takes `id` and `if_revision`, both required, and
      calls `saved::clear(frontend, id, Expect::Exactly(if_revision))`,
      the MCP's mapping; a missing one is a usage refusal naming it.
-   - The answer is the receipt, `receipt::saved(&written, &Paged {…})`:
-     its document where JSON is asked, else a page titled "Saved"
-     rendering it: one sentence of what was written — a create,
-     `Saved "<name>" (<realm> · <membership>) as <id>, at revision
-     <n>.`; a write over a row, `Wrote "<name>" (…) at revision <n>;
-     before, it was "<prior name>" (…): <prior text>, at revision
-     <m>.`; a clear, `Cleared "<name>" (…), which stood at revision
-     <m>.` One rule for a row this build cannot read, a prior or a
-     written one: the sentence names it by its id and revision, `saved
-     search <id>, which this build could not read, at revision <m>`, in
-     the place its name, scope and text would stand (a clear of one,
-     `Cleared saved search <id>, …`; a write over one, the recovery the
-     verbs offer, `Wrote "<name>" (…) at revision <n>; before, it was
-     saved search <id>, …`) — then the undo as a form whose button says the receipt's
-     `says` (`Undo: <says>`), or `Nothing puts it back: <no_undo>`;
-     then a link **Open it** (`saved/open?id=`) where a row stands, and
-     **The saved searches**. A refusal renders as every refusal does
-     (Do 8), status 400.
-   - Do 1's ruling decides this answer, and with it every receipt page
-     this brief names (Do 3's `receipt` entry, Do 10's receipt pages,
-     Do 11's undo forms posted from a page). Under the receipt page,
-     as drawn. Under the redirect, the HTML answer is `303` to `saved`,
-     the receipt is the JSON answer alone, its undo replayed as a
-     request a test posts from that JSON, and no receipt page or entry
-     exists. Under the form-carried id, as drawn, plus the save form's
-     minted `id` and `if_revision` `0` and a pin that a second post of
-     one form conflicts. The orchestrating session makes the brief say
-     which before launching the worker.
+   - The answer, as Do 1 rules. Where JSON is asked, the receipt,
+     `receipt::saved(&written, &Paged {…})`, its `undo` a request the
+     page's surface spells (Do 8), which a test replays by posting it
+     as spelled. To the browser, `303` to `saved`, the `Location`
+     absolute (`Web::link`), the body empty: no route renders a receipt
+     page and no page prints an undo form. A refusal renders as every
+     refusal does (Do 8), status 400, JSON or page as asked.
    Every link and form action the new pages print is absolute,
-   `/<token>/…` (`Web::link`), never relative: the clear's receipt is
-   served at `saved/clear`, where a relative `saved` resolves under
-   `saved/`.
+   `/<token>/…` (`Web::link`), never relative, and so is each
+   `Location`: a clear's answer is served at `saved/clear`, where a
+   relative `saved` resolves under `saved/`.
 7. **The answer page keeps its saved search.** `search` reads `saved`
    and `saved_revision` apart from the fold and removes them before
    folding (the fold refuses any name it did not emit). The two come
@@ -396,7 +372,7 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
      spelled in the refusal's and the receipt's JSON as `{"post":
      "/<token>/saved", "fields": {…}}` (`saved/clear` for a clear), the
      fields the route takes, `if_revision` `0` for `Create` at an id;
-     `page::refused`, and the receipt page, render a string `request`
+     `page::refused` renders a string `request`
      as a link and a `post` object as a form of hidden fields with one
      button saying the offer's `says`. `page::refused` renders a
      refusal's `current`, where it is a saved row, as the list renders a
@@ -427,14 +403,16 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
     report. `Pages` gains `placeholder`, `Transcript::placeholder`'s
     rule, for an id a page create drew. A new golden `saved_pages`
     (the list empty, the list with rows written by `put` at fixed ids
-    and one this build cannot read, a create from an answer with its
-    receipt, a rename and its receipt, a clear and its receipt, the
+    and one this build cannot read, a create from an answer and the
+    list it lands on, a rename and the list, a clear and the list, the
     answer opened from a row, the same after the row moved, after its
     text changed, after it was renamed, after it was cleared, a clear
-    of the unreadable row and its receipt, a write over an unreadable
-    row (an answer opened from a readable row, the row replaced by
-    `NewerSaved`, the save posted, the conflict's offer posted) and its
-    receipt, a row over every item (the text `""`) opened, and
+    of the unreadable row and the list after it, a write over an
+    unreadable row (an answer opened from a readable row, the row
+    replaced by `NewerSaved`, the save posted, the conflict's page, its
+    offer posted) and the list after it; a write is recorded as its
+    status and `Location` on one line, then the list the redirect
+    lands on, followed; a row over every item (the text `""`) opened, and
     a conflict's page after the row's text was changed by `acq saved
     set`, showing the row as it stands; and, after a readable row is
     replaced by `NewerSaved`, its open link as the list rendered it
@@ -457,18 +435,18 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
       answers as JSON (`basis`, `revision`), and `saved_search` equals
       `acq saved show <id> --json`'s `revision`; the plan page's `plan`
       equals the `basis` of the envelope the same page holds (in
-      `the_refresh_loop_runs_through_the_pages`); a receipt's `receipt`,
-      where a row stands after the write, equals `acq saved show`'s
-      `revision`; a conflict's page's `saved_search` equals the
+      `the_refresh_loop_runs_through_the_pages`); a conflict's page's `saved_search` equals the
       refusal's JSON `current.revision`; the form page and a refusal
       with no `current` carry no line.
     - **C16, the scan**: Do 9.
     - **C168, a page writes as the verbs write**: a create from an
-      answer, a rename and a clear from the list, each receipt's JSON
-      `written` equal to `acq saved show <id> --json` (or after a
-      clear, `show` refusing `saved_search_not_found`), its
-      `written_via` `web`; each undo form posted as rendered lands
-      and puts the prior back; a conflict: the list rendered, the row
+      answer, a rename and a clear from the list, each posted as the
+      page's form sends it: with JSON asked, the receipt's `written`
+      equal to `acq saved show <id> --json` (or after a clear, `show`
+      refusing `saved_search_not_found`), its `written_via` `web`; as
+      the browser sends it, answered `303` to `saved` with the same
+      write landed; each receipt's `undo` posted as its JSON spells it
+      lands and puts the prior back; a conflict: the list rendered, the row
       renamed by `acq saved set`, the page's rename posted at the old
       revision refused `conflict` with `current`, nothing written, the
       offered form posted as rendered landing over the current
@@ -480,8 +458,8 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
       posted by hand over the seed's two realms, refused
       `realm_needed`, each offered create posted as rendered landing;
       a saved search over every item (the text `""`) saved from an
-      answer, opened, saved over, cleared and its clear undone, each
-      through the forms as rendered; Do 6's and Do 7's failing inputs each
+      answer, opened, saved over and cleared through the forms as
+      rendered, and its clear undone from the receipt's `undo`; Do 6's and Do 7's failing inputs each
       refused, nothing written (the file's revision unchanged).
     - **The routes**: the c138 test's `Case` table gains `GET
       saved/clear` and `POST saved/open` (405), `POST /saved` without
@@ -504,7 +482,7 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
       list page with the link to every one, which lists eleven; the
       page's JSON equals `acq saved list --json`, and with
       `expand=true` `acq saved list --expand --json`.
-    - **The text**: the list, the receipt, the refusals the saved
+    - **The text**: the list, the refusals the saved
       routes make and the saved notices and forms on an answer carry
       no `acq ` (no command line; the answer's own tail keeps the
       CLI's lines until step 4); the
@@ -541,8 +519,9 @@ The last push's CI: `Gate (Linux)` run 42389345514 and `Gate
   account.
 - `web/mod.rs`'s module doc has the C16 and C168 sections of Do 2, and
   none of the five sentences Do 2 names stands as it stood.
-- Do 1's ruling is in `roadmap/README.md`'s rulings before the commit
-  that builds Do 6's answer, and the answer is built as it rules.
+- Do 1's ruling ("Redirect to the list") is in `roadmap/README.md`'s
+  rulings; every POST's HTML answer is `303` to `saved`, and no
+  template or render function makes a receipt page.
 - `crates/acquisition-cli/tests/goldens/web/saved_pages.txt` exists;
   the six goldens' diffs in the step's commits hold only Do 10's
   additions.
@@ -604,14 +583,15 @@ entry composed (a number the page makes) in place of copied.
 
 ## For the owner's review
 
-The ruling Do 1 drafts, the owner's: what a page's write answers in
-the browser.
+Do 1's ruling, the owner's "Redirect to the list" (2026-11-07): a
+page's write answers `303` to the list, the receipt the JSON answer,
+no receipt page; a create's undo on a page is the list's **Clear**.
 
 Page design decided here, the session's (the design names the routes
 and the forms and leaves these open):
 - The basis line is `<meta name="basis">`, a JSON object keyed by the
   document (`answer`, `item`, `plan`, `saved_searches`,
-  `saved_search`, `receipt`); a page records every document it renders
+  `saved_search`); a page records every document it renders
   that carries a version, and carries no line where none does.
 - The list page shows ten rows and links the whole (`expand=true`), as
   the verbs bound the document.
@@ -701,3 +681,15 @@ hidden `membership` among the existing goldens' additions (Do 10,
 done-when); 4 `form.rs`'s module doc among the sentences Do 2 corrects
 (Do 2). The third cut is the last (the rhythm's bound): no review
 follows it, and the brief waits on Do 1's ruling.
+
+## Cut under the ruling (2026-11-07, "Redirect to the list")
+
+Do 1 ruled; the brief made to say it wherever it hung on the answer:
+the Goal's sentence on a write; Do 3's and the foot's basis entries
+(no `receipt`); Do 6's answer and its `Location` note; Do 8 (no receipt
+page renders an offer); Do 10's golden (the list a write lands on, in
+place of its receipt page); Do 11's C16 and C168 pins (the undo
+replayed from the receipt's JSON, the `303` pinned beside the JSON
+receipt); the done-when and the owner's review. The "Taken from"
+sections above stand as the history of the cuts. No review follows
+(the rhythm's bound).
