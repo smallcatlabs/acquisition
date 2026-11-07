@@ -279,6 +279,23 @@ Each in his words, with the commit that landed it.
   recommendation is fine." Parked beside the build step with why it is
   not hard: a route over `auth_start` and part 2's auth event, the
   daemon's flow unchanged. Part 1's design session may now run.
+- 2026-11-06, 4-full part 1's design (`roadmap/briefs/4-full-1-design.md` at
+  `78026273`, cut once under its cold review), §8: "Yes, both",
+  accepting the drafts as recommended and the re-cut. C168 entered
+  (`e42484f2`): a page writes user-scoped intent as the verbs write it,
+  by POST under the token, naming the revision it replaces. C16's word
+  "state" is read, not amended: the sentence binds what survives a
+  navigation, and the doc comment carries the reading. The web's five
+  saved routes as listed, a name only ever a query value; `user.db`
+  beside the account files, no amendment to C167. His question first,
+  whether the cut answered findings by invariants or by patches: most
+  by invariants, the rename cluster by a patch; so §3 is re-cut under
+  one reframe, the saved search keyed on an id the verbs mint with the
+  name a value of the row, rename one compare-and-swap and no
+  operation of its own, the kind taking the price's own shape (set,
+  clear, list), a name resolved to an id and an ambiguous one refused
+  with the list. The owner is that re-cut's reviewer of record; no
+  third cold review unless he asks (the commit carrying this line).
 
 ## Roles
 
