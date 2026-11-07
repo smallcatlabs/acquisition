@@ -249,6 +249,24 @@ Each in his words, with the commit that landed it.
   crate's public API could re-export reqwest unseen by the graph; held
   by review beside `Production`'s construction, a `REVIEW-CHECKLIST.md`
   row, the orchestrating session's call, listed at step 1's close.
+- 2026-11-06, the road after the league group: 4-full's first slice
+  moves ahead of `alpha.2`; its target is two mornings of the owner's
+  own use, searching with an agent beside him, then refreshing and
+  pricing with one; #142 (t6) is not a prerequisite, the slice adding
+  only rows to the mock's one world, and t6 follows it designed from
+  the GUI's door. The design prompt is `briefs/4-full-design-prompt.md`,
+  recut on his feature groups the same day and split into three parts
+  in series, each its own design session with a consumer that exists
+  before its build: morning 1's pages and the saved search; the
+  subscriber and the wire, validated by the CLI's own waits; the
+  resident and morning 2 (the commit carrying this line).
+- 2026-11-06, the timeline: "I'd rather do good work on our own
+  timeline than make compromises or sacrifices in the engineering we
+  are doing now to meet a deadline." The C++ Acquisition still works
+  and he supports it separately for the league; the Rust GUI is built
+  on its own clock, the 4-full milestone's date advisory, the two
+  mornings rehearsed in the mock and validated live at the next league
+  or the next large refresh (the commit carrying this line).
 
 ## Roles
 
