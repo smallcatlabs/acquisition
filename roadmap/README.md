@@ -822,6 +822,11 @@ narrowed by the owner to its first finding.
 cut over six cold reviews and the owner's "Drop and cut" and "Yes,
 reconcile" of 2026-11-07), closed on 2026-11-07 (`LEDGER.md`): its
 build reviewed, three fix rounds, the first two reviewed, the third
-at the owner's word "Shrink and close" and unreviewed. Current step:
-part 1's step 2, the MCP's three tools, awaits its brief, cut by a
-session that reads only the design on `main` (§3 and §7 step 2).
+at the owner's word "Shrink and close" and unreviewed. Step 2, the
+MCP's three saved-search tools (`briefs/4-full-1-mcp.md`, cut once
+under its cold review, the second clean; Do 1 ruled "Raise the
+bound"), closed on 2026-11-07 (`LEDGER.md`): its build reviewed clean,
+no fix round. Current step: part 1's step 3, the pages (`saved`,
+`saved/open?id=`) and morning 1's handoff, awaits its brief, cut by a
+session that reads only the design on `main` (§2, §3 "The pages", §4
+and §7 step 3).
