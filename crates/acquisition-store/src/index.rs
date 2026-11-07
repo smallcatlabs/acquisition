@@ -147,11 +147,11 @@ impl std::error::Error for Resolve {}
 
 /// `<dir>/<username>.db`, with the username made filename-safe
 /// (`GERWARIC#7694` → `GERWARIC_7694.db`), and a stem that would name a
-/// file the world keeps beside the accounts escaped ([`ESCAPE`]): `user`
+/// file the world keeps beside the accounts escaped (`ESCAPE`): `user`
 /// (`user.db`, C167's user file), `daemon` (`daemon.db`, the queue) and a
 /// stem ending `.annotations` (an account's intent file), compared
 /// without case, since a filesystem may fold it. The escape puts `~`
-/// before the stem, a character [`filename_safe`] never emits, so an
+/// before the stem, a character `filename_safe` never emits, so an
 /// escaped name can meet no username's file and two stems never meet in
 /// one escaped name.
 pub fn account_path(dir: &Path, username: &str) -> PathBuf {
