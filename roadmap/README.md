@@ -884,7 +884,9 @@ by a fresh Opus session in six commits (`b90102be..f562ca83`), reviewed
 cold (`roadmap/reviews/4-full-1-cards-build-f562ca83.md`, six findings,
 nothing broken), one fix round of five commits (`8b59e873..4d34f9bd`);
 #98 closed. Steps 1 to 5 are what the design's §5 says must exist for
-morning 1. Current step: the owner's morning at `acq web` in his own
-store under the live-run skill, with a blind page seat over the cards
-and the ways before it (the seat skill's page door); step 6, the dense
-table, follows the morning, its spike first (§7 step 6).
+morning 1. The blind page
+seat over the cards ran the same day (`audits/web-2026-11/seat/README.md`,
+the second blind run: sixteen faults, five fixed in `f4ea403c`, #193
+and #194 opened, notes on #182, #183, #190). Current step: the owner's
+morning at `acq web` in his own store under the live-run skill; step
+6, the dense table, follows the morning, its spike first (§7 step 6).

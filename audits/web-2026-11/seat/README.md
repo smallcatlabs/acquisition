@@ -2,9 +2,11 @@
 
 The first seats at `acq web`: an agent at the pages through the desktop
 app's browser pane, in a mock world over a copy of the owner's store.
-Two runs: a probe, not blind, that proved the mechanics and walked the
+Three runs: a probe, not blind, that proved the mechanics and walked the
 saved pages (2026-11-07); and a blind run as the seat skill defines one
-(2026-11-08). The procedure they settled is the seat skill's "The page
+(2026-11-08); and a second blind run over the cards after step 5 closed
+(2026-11-08, `BRIEF-cards.md` at `88fe3975`, retired with this record).
+The procedure they settled is the seat skill's "The page
 door" section.
 
 ## The runs
@@ -59,7 +61,60 @@ list" button's result shows only on the Refresh page's league picker
 pane); the picker showing nothing on its first keystrokes (the runner
 did not count it, nor does this record).
 
-## What the two runs taught the skill
+## The second blind run (the cards), 2026-11-08
+
+After step 5 (cards) closed and before the owner's morning, at his
+"Run the seat": `BRIEF-cards.md` (`88fe3975`), world
+`~/seat-worlds/web-2026-11/cards-opus` over the same pristine
+(`setup --store … --daemon`, `seat` logged in by the maker, the
+binaries in the world's own `bin/` this time), release `acq`
+`d403fcdeb2c5…` and `acqd` `a83d37ea826f…` at `247ab353`, two page
+servers, an Opus session started in the world. Report `REPORT-cards.md`
+(917 lines), `calls-cards.csv` (12 door calls: T2 1, T6 6, T7 5),
+`setup-login-cards.csv`. All nine tasks finished. The orchestrating
+session read the twelve calls' rows and the servers' stderr (empty),
+and reproduced fault 10 against the running collection server before
+sorting it (a hand-typed `view.limit=500` on cards returns 200 rows
+and says "500 asked"; the runner's 500 rows were the table, which the
+cap does not bound).
+
+Outside the world: the runner decoded the brief's trade URL with one
+`python3 -I -c` over the string (base64, gzip, JSON), read its
+harness's saved copy of one long door output, and loaded its harness's
+pane skill; nothing of the tool or the repository.
+
+### The second blind run's faults, by fate
+
+| Fault | Fate |
+| --- | --- |
+| 1. A saved trade search forgets it was partial | #193 (`area:frontends`, `area:store`, `trigger:seat`): the row keeps its source, a ruling first; until then the save form says the translation alone is saved (`f4ea403c`) |
+| 2. The stat finder has no totals | #183, noted again |
+| 3. The pages cannot list a league's tabs or plan without a policy | #189 |
+| 4. No page says what a fetch brought | #182, noted |
+| 5. A refused typed query lands on a page with no form | #190, noted |
+| 6. The "more" page loses the presentation link and has no way back | fixed, `f4ea403c`: the continuation keeps the presentation link and gains a first-rows link |
+| 7. The item page is a dead end | #194 (`area:frontends`, `trigger:seat`) |
+| 8. "each tab of Standard" opens the whole list, not the never-fetched tabs | #194 |
+| 9. "Fetch the league list" lands on Jobs with no leagues | #182, noted (a job submit lands on Jobs by the pages' shape) |
+| 10. The Show menu stops at 200 while the address takes more | no fault as stated: the menu's choices are the page's, the 200-row cap is the item rows' and is said where it applies; the table has no cap (reproduced) |
+| 11. The rehearsal pages never name their account | fixed, `f4ea403c`: the served account in every page's head |
+| 12. The pages fetch item art from the game's image host | by ruling (C140, the art is the browser's); the trade box's "sent nowhere" is the search's |
+| 13. The answer's default order is unexplained | fixed, `f4ea403c`: the rows line names the order where no sort is asked |
+| 14. CLI rows under `item` are hard to read at column 0 | raised at step 5's close (the roadmap's ledger row), the owner's call |
+| 15. The refresh table indents top-level tabs as if in the folder above | fixed, `f4ea403c` |
+| 16. Two tab counts on the Refresh page; 61d against 58d | #182 holds the two counts; the ages are the scope's (the lists in scope differ when a league is a term), a wording for a later round |
+
+Not faults, from the task sections: the terminal's `--saved` needing
+`--account` in a two-account store (the refusal offers both commands,
+as the first run found); the mock's tabs empty (the mock's design,
+confirmed by `acq result`); "2 clauses not run" counting a group and
+its one filter (the catalogue's count, each row a clause).
+
+From the round, two more things the run asked for and the pages
+already render: the "N counts carry no link" sentence said plainly, and
+the query box's "Results as" control (`f4ea403c`).
+
+## What the three runs taught the skill
 
 In the skill's page-door section: a started session, from a desktop
 turn, in the world as its `cwd`; one page server per account; the pane
