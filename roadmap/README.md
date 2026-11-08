@@ -865,8 +865,11 @@ owner's ruling "Clear should ask first" and its page (`78dd6699`),
 owner's "Let's do both": the trade site box, #188's first half
 (`34751f0e`, the reused pages worker; a URL, an id or the query JSON
 run from the search page as `search --trade` runs it, the URL's realm
-the search's), and the blind page seat (#187, `BRIEF-blind.md`, its
-world under `~/seat-worlds/web-2026-11/`) started at his word. Current
+the search's), and the blind page seat (#187): it ran
+(`audits/web-2026-11/seat/README.md`, `REPORT-blind.md`), fourteen
+faults sorted (three fixed in `2fcd2cfc`, seven to #189 to #191 and
+notes on #182 to #186, one by ruling, one no fault, one the brief's),
+and the procedure joined the seat skill as "The page door". Current
 step: part 1's step 4, the answer and item pages from their documents
 (#176; the design's §4 and §7 step 4), awaits its brief, cut by a
 session that reads only the design on `main`.

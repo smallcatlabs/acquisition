@@ -119,6 +119,58 @@ skill (P6).
    fate table holds them that day (a draft's fates as proposed). A
    fate decided later is a new row, never an edit.
 
+## The page door (`acq web` through the browser pane)
+
+A seat at the pages, settled by two runs (`audits/web-2026-11/seat/`:
+the probe of 2026-11-07, the blind run of 2026-11-08). The runner is a
+started session, not a headless one: the browser pane is the desktop
+app's, and its tools (`mcp__Claude_Browser__*`) come with a session the
+app starts. What differs from the CLI and MCP doors:
+
+1. **The world** is made as a CLI world is (`setup --store PRISTINE/store
+   --daemon`, then `login <user>` by the world's maker, its row set aside
+   as `setup-login.csv`), with the release `acq` and `acqd` copied into
+   `W/bin` — the path the brief names; the blind run's first door call
+   failed because the maker had put them one level up. Copy `README.md`
+   and the brief in beside `seat.py`.
+2. **One page server per account**: `acq web` serves one account, and
+   a store with two (the facts copy with no session, the logged-in mock
+   account that can refresh) needs two. Start each from the world with
+   the door's environment (`ACQ_PROVIDER=mock`, `ACQ_NO_KEYRING=1`,
+   `ACQ_IDLE_SHUTDOWN`, the world's store and log directories, no
+   `ACQ_NO_SPAWN`): `nohup W/bin/acq web --no-browser --json --account
+   <name> > W/web-<role>.out 2> W/web-<role>.err &`, and record the two
+   in `W/web.json`. The brief names each `.out` file as the address's
+   home. The servers are the maker's to stop (`pkill -f "W/bin/acq
+   web"`), before `teardown`.
+3. **The runner** is start_session (fresh, Opus, `cwd` the world,
+   `use_worktree: false`) from a turn typed in the desktop app: the app
+   refuses it over Remote Control, so keep the prompt in the world as PROMPT.md
+   for a start by hand. In the world the session loads no project
+   instructions, memory or git state. There are no rails: the brief
+   binds it (read the brief and the tour alone; the pages through the
+   pane at the brief's addresses alone; the terminal through the door
+   alone; write `REPORT.md`, `drafts/` and `work/` alone), and the
+   report's "What I read or ran outside the world" is the record.
+4. **The log.** The pane logs nothing. The door's `calls.csv` is the
+   run's only call log; the brief has the runner cite the pane tool
+   that showed each thing it quotes, and the record says the pane's
+   actions were not counted. The runner writes its report with its own
+   file tool, a task at a time, as the world's REPORT.md; the debrief questions
+   are headings of the report, so no second turn is owed.
+5. **The pane's traps**, for the brief: keyboard reload does nothing
+   (open the address again or follow a link); the network listing shows
+   same-origin GETs only, so a write's result is the page landed on and
+   the tab's note; read_page with the interactive filter cuts off
+   silently on a long page (get_page_text, `find`); hidden fields and
+   tooltips read with the JavaScript tool; a click by `ref` can land
+   beside its link where a click by coordinate hits; `wait` after a form
+   submit before reading.
+6. **Alongside a build.** The seat drives the copy in `W/bin`, so a
+   worker's debug builds and the gate in the repository do not touch it;
+   the two can run at once (2026-11-08, the trade box round beside the
+   blind run).
+
 ## Traps
 
 - **The runner's harness may refuse it the report file.** The first
