@@ -699,6 +699,17 @@ fn with_nulls(value: &Json) -> Json {
 /// process. The trade seat met each in the report and could not read it
 /// (2026-10-17: every run).
 fn cites(text: &str) -> Vec<String> {
+    // a quoted span is the game's own words (a stat's text, a form of it),
+    // never a record: the Linux gate on 686263cf met a numberless stat
+    // whose text says "captured" and read it as the research word
+    let mut unquoted = String::new();
+    for (i, part) in text.split('"').enumerate() {
+        if i % 2 == 0 {
+            unquoted.push_str(part);
+            unquoted.push(' ');
+        }
+    }
+    let text = unquoted.as_str();
     let mut found: Vec<String> = text
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|w| {
@@ -734,6 +745,18 @@ fn cites(text: &str) -> Vec<String> {
         }
     }
     found
+}
+
+/// A stat's own words, quoted in a note, are no record: the note the Linux
+/// gate met on 686263cf (run 42516071391) names a form of a stat whose
+/// text says "captured".
+#[test]
+fn a_stats_quoted_words_cite_no_record() {
+    let note = "the bound sums the text and its plurals; not its forms \"Red Beasts captured in your \
+                Maps gain a Modifier that provides a chance to not be consumed when sacrificed at \
+                the Blood Altar\" (numberless)";
+    assert_eq!(cites(note), Vec::<String>::new());
+    assert!(cites("named in a capture of the site").contains(&"capture".to_string()));
 }
 
 /// The report's words are a reader's: every row's `says`, and every note a
