@@ -675,7 +675,11 @@ impl RowField {
 
     /// A list of fields as a frontend types it, comma-separated: each
     /// word read by [`RowField::parse`], a word named twice once, in the
-    /// order first named; an empty piece names nothing.
+    /// order first named; an empty piece beside a word names nothing. A
+    /// list that names no field is refused, as an unknown word is: a
+    /// typed list left empty is a mistake to say, never the compact row
+    /// it would read as (the cold review of step 5's build, its second
+    /// finding).
     pub fn list(text: &str) -> Result<Vec<RowField>, LanguageError> {
         let mut fields = Vec::new();
         for word in text.split(',').map(str::trim).filter(|w| !w.is_empty()) {
@@ -683,6 +687,12 @@ impl RowField {
             if !fields.contains(&field) {
                 fields.push(field);
             }
+        }
+        if fields.is_empty() {
+            return Err(LanguageError::new(
+                crate::error::ErrorKind::UnknownName,
+                "`fields` names no field: `icon`, the URL of the item's art, or `item`, the item as `show` gives it",
+            ));
         }
         Ok(fields)
     }

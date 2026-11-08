@@ -1479,7 +1479,16 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
         "`price` is no field a row carries: `icon`, the URL of the item's art, or `item`, the item as `show` gives it"
     );
     assert_eq!(
-        RowField::list("item, ICON,item").unwrap(),
+        RowField::list("item, ICON,item,").unwrap(),
         [RowField::Item, RowField::Icon]
     );
+    // a list that names no field is refused, never read as none
+    for empty in ["", " ", ",", " , "] {
+        let e = RowField::list(empty).unwrap_err();
+        assert_eq!(e.kind, ErrorKind::UnknownName, "{empty:?}");
+        assert_eq!(
+            e.message,
+            "`fields` names no field: `icon`, the URL of the item's art, or `item`, the item as `show` gives it"
+        );
+    }
 }

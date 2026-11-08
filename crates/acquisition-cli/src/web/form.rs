@@ -28,8 +28,8 @@
 //!   to the counts view in its place (the review of 4b, its sixth
 //!   finding), whose tables the answer page prints as the CLI does; and
 //!   `view.fields`, the row's fields as the CLI's `--fields` names them
-//!   (`icon`, or `icon,item`), read by the search's one reader: sent
-//!   empty or not at all, the page's default, the item with its art, so
+//!   (`icon`, or `icon,item`), read by the search's one reader, which
+//!   refuses a list naming no field: sent empty or not at all, the page's default, the item with its art, so
 //!   the answer page renders cards; `icon`, the compact table (4-full
 //!   part 1, step 5). A count asks no row's fields, and one sent beside
 //!   it is the view selection's refusal. And
@@ -712,8 +712,8 @@ mod tests {
 
     /// 4-full part 1, step 5: `view.fields` is the row's fields as the
     /// CLI's `--fields` names them. Absent or empty, the page's default:
-    /// the item with its art (cards); `icon`, the table; an unknown word
-    /// a usage error; any of them beside a count, the view selection's
+    /// the item with its art (cards); `icon`, the table; an unknown word,
+    /// or a list naming no field, a usage error; any of them beside a count, the view selection's
     /// refusal; a count alone asks none.
     #[test]
     fn the_fold_reads_the_rows_fields_and_a_count_asks_none() {
@@ -737,6 +737,9 @@ mod tests {
             unknown.contains("`price` is no field a row carries"),
             "{unknown}"
         );
+        // sent empty is the default; a list naming no field is refused
+        let none = asked(&[("view.fields", ",")]).unwrap_err();
+        assert!(none.contains("`fields` names no field"), "{none}");
         let beside = asked(&[("view.fields", "icon"), ("view.count", "rarity")])
             .unwrap()
             .unwrap_err();
