@@ -887,6 +887,7 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
         (vec!["search", "rare"], "bare_word"),
         (vec!["search", "class:staff"], "unknown_value"),
         (vec!["search", "--fields", "name"], "unknown_name"),
+        (vec!["search", "--rebind"], "not_built"),
         (vec!["search", "--count", "tab", "--fields", "item"], "view"),
         (vec!["search", "--count", "rarty"], "unknown_name"),
         (vec!["search", "--sum", "stack"], "view"),
