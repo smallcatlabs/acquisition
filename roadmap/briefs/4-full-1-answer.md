@@ -11,7 +11,8 @@ orchestrating session asked for this brief on 2026-11-08, cut by a
 session that read the design on `main` and the tree, nothing else of
 the group. Cut again on 2026-11-08 under the cold review at `cacfe12e`
 (`roadmap/reviews/4-full-1-answer-brief-cacfe12e.md`), the foot saying
-what each finding changed. Where the design and the tree disagree the brief takes the
+what each finding changed, and a third time under the review at
+`a47f6212` (`roadmap/reviews/4-full-1-answer-brief-a47f6212.md`). Where the design and the tree disagree the brief takes the
 tree's fact and says so (Input). Where the design is silent on a
 page's words or shape, this brief decides, and the foot lists each
 decision for the owner.
@@ -120,6 +121,11 @@ pages.
   CLI's text goldens under `tests/goldens/search_json/` and
   `tests/goldens/seat_faults/` (the text renderer's, which this step
   must leave as they are).
+- `REVIEW-CHECKLIST.md`, "Frontends and the surface an agent meets":
+  the rows "A behaviour pinned at three layers" (why Do 8 adds no test
+  comparing the two layouts) and "Page state the scan cannot see" (the
+  `data-way` markup and anything put in a URL are read against C16's
+  state sentence).
 - `CLI-REFERENCE.md` `## acq web` (its first sentence, "a page over
   loopback that renders what these verbs print").
 - Issues #176 (this step), #190 (Not in scope says why it is left),
@@ -165,8 +171,8 @@ page asks.
 | 7 | a count's buckets | `/view/counts/tables/<t>/buckets/<b>`, its `/sources/<k>` and `/flags/<k>` (`Bucket`, `OfKind`) | rows | a link on the count where it carries a request (by default a key's `none` and `undecided` buckets) |
 | 8 | a crossed cell and its margins | `/view/cross/cells/<c>`, `/view/cross/margins/<m>/none`, `/undecided` (`Cell`, `Margin`) | rows | the same |
 | 9 | an explained node, forced | `/view/explain/forced_true/matched`, `/undecided`, and `forced_false`'s (`Forced`) | rows | the same |
-| 10 | an ambiguous clause's other reading | `/query/trade/clauses/<c>/other/adds`, `/drops` (`Stake`; under `set_aside` the same) | rows | the same |
-| 11 | the zero answer's undecided | `/zero/undecided` (`Zero`) | rows | the same |
+| 10 | an ambiguous clause's other reading | `/query/trade/clauses/<c>/other/adds`, `/drops` (`Stake`; never under `set_aside`, where nothing is staked, the module doc) | rows | the same |
+| 11 | the zero answer's undecided | `/zero/undecided` (`Zero`; the root's count and route again, which the text prints nowhere) | rows | a link on the count, in the zero block (Do 4) |
 | 12 | the zero answer's explain offers | `/zero/offers/explain/<i>` (`ExplainOffer`) | an explained node | the words alone: the part's path and its node (no page asks explain) |
 | 13 | the zero answer's corpus offer | `/zero/offers/context` (`Offer`) | the corpus context | the words alone (no page asks the corpus) |
 
@@ -280,7 +286,11 @@ reads the web pages: `no_ids.rs`'s
 `c116_no_user_facing_text_cites_a_record_id` sweeps every file under
 `tests/goldens/web` and `src/web/assets`, so every label and every
 class this step adds passes that sweep (no letter followed by digits
-standing as a ruling's id). The JSON every page answers is unchanged,
+standing as a ruling's id); and `normaliser.rs`'s
+`normalising_a_committed_golden_changes_nothing` normalises every
+golden, `web/` included, so a masking rule added to `normalise` must
+leave every CLI golden as it is and takes a case there (its module
+doc: one case per rule). The JSON every page answers is unchanged,
 so `the_fold_answers_as_acq_search_trade_does`,
 `trade_answers_as_the_cli` and `the_query_box_sorts_and_pages_a_typed_query`
 stand as they are.
@@ -301,20 +311,34 @@ every page recorded after it. That world is a fresh `offline_web` in a
 new test (Do 7), staged with `Store::record` inline as
 `the_form_renders_the_realm_it_is_asked_for` stages a listing, in this
 order, each page recorded after the staging it needs and read in the
-light of the ones before it: a never-fetched tab (a pc stash listing
-naming a tab no fetch has read); a removed id (a later fetch of a tab
+light of the ones before it: never-fetched tabs in two pc leagues (a
+`Standard` listing adding a tab no fetch has read, and a `Hardcore` pc
+listing of one tab never fetched), so the pointer names the league
+holding the most and counts the other (`other_leagues`, the words "1
+other league holds never-fetched tabs"), recorded on a page with no
+league term, and a second page whose query excludes the pointed league
+(`-league=…`), where the pointer names the other; a removed id (a later fetch of a tab
 that no longer holds an item, then a term `id:` of it under `live`);
 a value list cut with its rest (a value list carries `rest` only
 past `bound::LISTED`, ten values, `answer.rs`'s `rest_of`, and only for
 a term `rest_of` keys, a field test or a line group with one
-template; `seed`'s seven items cannot make one, so the staging writes
+template; `seed`'s six items cannot make one, so the staging writes
 eleven or more items carrying eleven or more distinct values of one,
-the build naming the term). An ambiguous clause with a stake (row 10)
-is recorded where the build finds a form filter whose fate is
-`ambiguous` (`search_form.txt` marks them) and an item over which its
-other reading adds or drops; where none can be staged without a new
-seed function, the report says why and the way test covers the row
-by no page (the foot raises it).
+the build naming the term); fourth, an ambiguous clause with a stake
+(row 10), from the recipe `seat_faults.rs` already runs in
+`an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops`
+(golden `seat_faults/an_ambiguous_clause_adds_and_drops.txt`): two
+Iron Rings, one with "25% increased Rarity of Items found", one with
+"30% increased …" and "10% reduced …", and the site's query JSON
+`{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}`
+run through the page's trade box, which reads `stats.0.0` the other
+way, dropping one. Only two catalogue rows carry an other reading,
+both stat clauses (`trade-catalogue-v1.toml`'s `other =` lines); no
+form filter stakes. In `seed`'s world, one more page reaches row 11:
+a pc query whose only candidate is `new`, whose class is undecided
+(say `class:rings name="Brood Lure"`), which the build confirms
+answers 0 matched and 1 undecided; where it does not, the build finds
+one that does or takes row 11 out of Do 8's list and says why.
 
 **The last push's CI**: `Gate (Linux)` run 42490674447 and `Gate
 (Windows)` run 42490674446, both on `35cf33a7`, both `success`.
@@ -331,7 +355,8 @@ by no page (the foot raises it).
    column, the padding and the line breaks are the text's, the elements
    the HTML's. The counts an answer carries are enumerated once: the
    walk inside `answer_tail` that sorts every `Count` (with its label,
-   such as "term 1 undecided" or "clause 0 read the other way, adds")
+   such as "term 1 undecided" or "clause stats.0.0 read the other way,
+   drops", the text's `clause {at} read the other way, {what}`)
    into `first` and `rest` and counts the non-zero ones that carry no
    route is factored into one function both renderers call; the text
    prints its routes block and "(N more: --routes)" from it, the page
@@ -344,17 +369,27 @@ by no page (the foot raises it).
    `printed::opening`, a request's `command()`, the words `--routes`,
    `--limit`, `--explain`, `--context`) stays the text's alone; where
    today one function makes a fact's words and its command together
-   (`row_shows`'s `more`, `answer_more`, the never-fetched line, the
-   zero offers, a table's "a larger --limit returns the rest", the
-   price line's why), it is split so the text adds the command and the
+   (`row_shows`'s `more`, and its "N more sorted", which it pushes into
+   the sort's part and so into `shows`, not `more`; `answer_more`; the
+   never-fetched line; the zero offers; a table's "a larger --limit
+   returns the rest"; the set-aside line's "set aside under --context
+   corpus"; the undecided reasons' "N more: the undecided route below
+   lists every item with its reasons", whose "below" is false on a page
+   that puts the undecided way in the total line above; the price
+   line's why), it is split so the text adds the command and the
    page adds its link or its words. Every CLI text golden (every golden
    under `tests/goldens/` outside `web/`) is unchanged by the step, byte
    for byte.
 3. **The ways on, through `Paged`.** The answer page spells every
    request of the inventory (Input, rows 1 to 13) as
    `Way::Search(request)` through `Paged::request`, and the
-   never-fetched tabs as `Way::Tabs` through it. One function in
-   `page.rs` renders a way: where `Paged` answers a link, an `<a>`
+   never-fetched tabs as `Way::Tabs` through it. `page::answer` holds
+   no `Web`, and `Paged` is `mod.rs`'s private struct whose
+   `Surface::request` answers a JSON value (a link string, or a `{post,
+   fields}` object a page never meets here), so `page::answer` takes the
+   speller as a parameter, a `&dyn Fn(&Way) -> Option<String>` that
+   `search` builds over `Paged` (the link string, or none). One
+   function in `page.rs` renders a way: where `Paged` answers a link, an `<a>`
    whose words are the count or the label it stands for; where it
    answers none, those words in a `<span>`. Both carry `class="way"`
    and `data-way="<the JSON pointer of the request's holder>"` (Input's
@@ -367,7 +402,10 @@ by no page (the foot raises it).
    request with a place, rows `after` and a `basis` both present (the
    test `Request::from_token` makes; `place()` is private to the search
    crate, so the arm reads `request.basis` and the rows view's `after`,
-   both public), is `Web::link("search", [("next", token)])`, absolute
+   both public), and for the account this server serves (the same
+   `serves` check `asked_by_the_form` makes first: an answer's own
+   `next` names the served account, a refusal's offer may not), is
+   `Web::link("search", [("next", token)])`, absolute
    under the token like every other `Paged` link (a relative link on a
    refusal served at `saved/open` would resolve under `saved/`); any
    other request goes to `asked_by_the_form` as today. Its words are
@@ -407,8 +445,10 @@ by no page (the foot raises it).
      carries one), a value's `needs`; the "N shown" words without a
      flag (the page's control is **Show**); or a crossed table (row 8)
      or an explained node (row 9) under the same rule;
-   - the zero answer: each selector nothing carries with its
-     suggestions (a suggestion's term is words, not a way), the explain
+   - the zero answer: its undecided count as a way (row 11; outside
+     Do 2's walk, which takes the root's from `total`), each selector
+     nothing carries with its suggestions (a suggestion's term is
+     words, not a way), the explain
      offers (row 12) each its path and node in words and the number of
      the rest, the corpus offer (row 13) in words;
    - the undecided reasons, each its unread part, its example's name as
@@ -473,21 +513,30 @@ by no page (the foot raises it).
    say "the ways no seeded page reaches are a wording golden") records
    the staged world of Input into a new golden under
    `tests/goldens/web/` (say `answer_ways`) through `page_golden`: the
-   never-fetched tab with the tabs link and its other leagues, the
-   removed id with its way, the cut list with its rest, and the
-   ambiguous clause where staged. Any value seen to differ between two
-   runs is masked by a named rule in `harness/mod.rs` beside
-   `basis_rule` (which reads a line that starts `basis   store `, so a
-   basis in HTML needs the rule or a line that starts so), each named in
-   the report. The run that regenerates is followed by a plain run
+   never-fetched tabs with the tabs link and its other league, and the
+   page whose query excludes the pointed league; the removed id with its
+   way; the cut list with its rest; and the ambiguous clause's drop.
+   `every_search_page_is_a_wording_golden` gains the zero answer with an
+   undecided (row 11) beside Input's three. The foot's basis is masked
+   either by rendering it so that a line of the page source begins
+   `basis   store `, which `normalise`'s `basis_rule` already reads, or
+   by a page-only rule in `Pages` beside `basis_meta_rule`, which
+   touches page goldens alone; any other value seen to differ between
+   two runs is masked by a named rule in `Pages`, each named in the
+   report (a rule added to `normalise` instead needs its case in
+   `normaliser.rs` and must leave every CLI golden as it is). The run that regenerates is followed by a plain run
    before any commit (the sweep of Do 8 reads the files the goldens'
    tests write).
 8. **Pins, what the adapter adds** (C122), in `web.rs` beside the tests
    they join (C153):
-   - **Every way, where it stands** (a new test, named for the
-     property, say "every request an answer carries is a way on its
-     page"): over every answer page the two golden tests of Do 7 record
-     with a status of 200, served again, the test walks the page's JSON
+   - **Every way, where it stands** (one check function in `web.rs`,
+     named for the property, say "every request an answer carries is a
+     way on its page", given the server, the page's URL and its reply,
+     and called by `every_search_page_is_a_wording_golden` and Do 7's
+     new golden test beside each `pages.page` of an answer that answered
+     200, so the staged world is checked where it is staged and no
+     staging is repeated or factored into a seed function; the pin is
+     those tests with the function, named in the commit): the check walks the page's JSON
      document (same URL, JSON asked) for every object holding a
      `request`, skipping `query.trade.clauses[].site`, and finds on the
      HTML page exactly one `class="way"` element whose `data-way` is
@@ -496,8 +545,10 @@ by no page (the foot raises it).
      `tabs_pointer()` would be some, which the test reads as the JSON's
      scope under one realm holding a never-fetched tab in a league the
      query does not exclude, and checked on the staged page and absent
-     on a seeded one). For each `<a class="way">`, followed with JSON
-     asked: it answers `200`; where its holder has a `count`, the
+     on a seeded one; the tabs `<a>` is followed for its status alone,
+     200, the refresh page, whose document has no query and no total).
+     For each other `<a class="way">`, followed with JSON asked: it
+     answers `200`; where its holder has a `count`, the
      answer's `total.matched` equals it (a route returns exactly the
      members counted); where it is `/view/rows/next`, the answer's
      `view.rows.after` equals the first page's `returned`; and its
@@ -506,8 +557,7 @@ by no page (the foot raises it).
      `/zero/offers/explain/<i>`, `/zero/offers/context`, or a `rest`
      whose key the build names as one the form's count field cannot
      read. A recorded page per inventory row a page reaches: rows 1 to
-     7, 11 to 13, and 10 where staged (Input); rows 8 and 9 reach no
-     page.
+     7 and 10 to 13 (Input); rows 8 and 9 reach no page.
    - **No command on an answer or item page** (a new test, say "an
      answer or item page prints no command line and no flag"): every
      page headed `GET search` or `GET item/` in every golden under
@@ -559,7 +609,9 @@ by no page (the foot raises it).
   headed `GET search` or `GET item/`; `search_form.txt`,
   `console_realm.txt`, `jobs_halted.txt` and `refresh_loop.txt` are
   unchanged.
-- `web.rs` holds the two pins of Do 8 and the golden test of Do 7,
+- `web.rs` holds the way check and the no-command test of Do 8, the
+  check called beside every 200 answer page of the two golden tests,
+  and the golden test of Do 7,
   under the names the commit gives them; no new seed function; the
   tests Input names are changed as it says.
 - The module docs and comments Do 6 names say what the tree does;
@@ -664,10 +716,12 @@ Raised, for the owner:
   fold asks rows or one count; a token is a rows request), so no golden
   holds their HTML. A test that reaches them would need a route or a
   fold field, the owner's (C138).
-- **An ambiguous clause's stake may reach no golden.** Row 10 needs a
-  form filter the site reads ambiguously and an item its other reading
-  moves; where the build cannot stage one without a new seed function,
-  the row is held by the way test's rule alone.
+- **The zero answer's undecided is the root's again.** `zero.undecided`
+  repeats `total.undecided`'s count and route, and the text prints it
+  nowhere; the page renders it in the zero block, so a zero answer with
+  an undecided shows the one route twice. The search crate's document
+  is not this step's to change; whether the zero block keeps its copy is
+  a question for the search area.
 - **The design's four lines are eleven.** The trade site box added
   answers whose offers and routes printed commands after the design was
   read; the retirement names the tree's.
@@ -699,3 +753,21 @@ from `tabs_pointer()` (Input); 14 every listed value and clause on the
 page, a decision for the owner (Do 4, the foot); 15 the no-command
 sweep once, over the files, the regenerating run followed by a plain
 one (Do 7, Do 8); 16 the close names the issue's remainders (done-when).
+
+Cut 3, 2026-11-08, under the cold review at `a47f6212`
+(`roadmap/reviews/4-full-1-answer-brief-a47f6212.md`, eleven findings,
+each taken): 1 the way check a function the two golden tests call
+beside each answer page, the tabs link followed for its status alone
+(Do 8, done-when); 2 row 10 staged from `seat_faults.rs`'s recipe
+through the trade box, no form filter stakes (Input, Do 7, the foot);
+3 row 11 placed in the zero block, outside the walk, on a seeded page
+(Input, Do 4, Do 7, the foot raises the duplicate); 4 never-fetched
+tabs in two leagues and a page excluding one (Input, Do 7); 5 the
+sorted row's "more", the aside's flag and the reasons' "below" among
+the splits (Do 2); 6 the basis masked in `Pages` or by a line
+`basis_rule` reads, `normaliser.rs` named (Input, Do 7); 7 the speller
+a parameter of `page::answer`, the continuation arm checking the
+served account (Do 3); 8 no stake under `set_aside` (Input); 9 the
+clause label's form (Do 2); 10 six seeded items (Input); 11 the
+checklist's frontends rows read (Read). The third cut is the last (the
+rhythm's bound).
