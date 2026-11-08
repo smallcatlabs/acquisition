@@ -1565,6 +1565,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
                 ("realm", "pc"),
                 ("text", "line(template:spirit)"),
                 ("view.sort", "sum(line(template:spirit).arg1)"),
+                ("view.fields", "icon"),
             ])
         ),
         &[
@@ -1573,6 +1574,23 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             "<a href=\"item/many\">",
         ],
     );
+    // as a card the item stands whole beside what the row shows, so the
+    // row says no "more" (the cold review of step 5's build, finding 6)
+    let carded = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("text", "line(template:spirit)"),
+            ("view.sort", "sum(line(template:spirit).arg1)"),
+        ])
+    ));
+    assert!(
+        carded.body.contains("<div class=\"card\">"),
+        "{}",
+        carded.body
+    );
+    assert!(carded.body.contains("+8 to Spirit"), "{}", carded.body);
+    assert!(!carded.body.contains(" more "), "{}", carded.body);
     page_golden(file!(), "answer_ways", &pages);
 }
 

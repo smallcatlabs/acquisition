@@ -1337,7 +1337,8 @@ fn c100_a_rows_item_is_the_one_show_makes() {
 }
 
 /// C53's line of 2026-11-08: under `item` a rows answer holds at most the
-/// item rows' bound whatever its `limit` names, says the limit it applied,
+/// item rows' bound whatever its `limit` names, says the limit it applied
+/// and the one asked,
 /// and continues the rest at it, asking the same fields; every row it
 /// holds carries its item whole. Without `item` the limit asked stands.
 #[test]
@@ -1371,6 +1372,7 @@ fn an_item_row_view_holds_at_most_the_cap_and_continues() {
     );
     let said = &carried["view"]["rows"];
     assert_eq!(said["limit"], ITEM_ROWS, "{said}");
+    assert_eq!(said["limit_asked"], past, "{said}");
     assert_eq!(said["left_out"], 1, "{said}");
     let next = &said["next"]["request"];
     assert_eq!(next["view"]["rows"]["limit"], ITEM_ROWS, "{next}");
@@ -1394,6 +1396,14 @@ fn an_item_row_view_holds_at_most_the_cap_and_continues() {
     );
     assert_eq!(compact["rows"].as_array().unwrap().len(), ITEM_ROWS + 1);
     assert_eq!(compact["view"]["rows"]["limit"], past);
+    // what was asked is said only where it was lowered: not where a limit
+    // stands, nor on the continuation, which asks the applied limit
+    for stood in [&small, &compact, &after] {
+        assert!(
+            stood["view"]["rows"].get("limit_asked").is_none(),
+            "{stood}"
+        );
+    }
 }
 
 /// C140 and C100's named fields: a rows view asked for `fields: ["icon"]`

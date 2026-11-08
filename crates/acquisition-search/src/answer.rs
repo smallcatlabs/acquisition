@@ -1063,6 +1063,9 @@ enum BoundView {
         sort: Option<(String, bind::SortKey)>,
         desc: bool,
         limit: usize,
+        /// The limit the request named, where the item rows' bound
+        /// lowered it.
+        asked: Option<usize>,
         fields: Vec<RowField>,
     },
     Counts(counts::BoundCounts),
@@ -1210,6 +1213,9 @@ impl Shape {
                     true => rows.limit.unwrap_or(LISTED).min(ITEM_ROWS),
                     false => rows.limit.unwrap_or(LISTED),
                 },
+                asked: rows
+                    .limit
+                    .filter(|asked| rows.fields.contains(&RowField::Item) && *asked > ITEM_ROWS),
                 fields: rows.fields.clone(),
             },
             Shape::Counts(c) => {
@@ -1581,6 +1587,12 @@ pub struct RowsOut {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<RowField>,
     pub limit: usize,
+    /// The limit the request named, where it was more than the item rows'
+    /// bound and the answer holds that many in its place (C53: the answer
+    /// says the limit it applied, `limit`, and here what was asked);
+    /// absent where the limit asked stands.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit_asked: Option<usize>,
     pub returned: usize,
     /// Where this answer's rows begin in the order: a continuation's
     /// place, absent on a first answer.
@@ -2108,16 +2120,17 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
         at: &at,
         router: &router,
     };
-    let (sort, desc, limit, fields) = match &view {
+    let (sort, desc, limit, asked, fields) = match &view {
         BoundView::Rows {
             sort,
             desc,
             limit,
+            asked,
             fields,
-        } => (sort.as_ref(), *desc, *limit, fields.as_slice()),
+        } => (sort.as_ref(), *desc, *limit, *asked, fields.as_slice()),
         // a count shows no rows (AQ1), and explain none
         BoundView::Counts(_) | BoundView::Cross(_) | BoundView::Explain(_) => {
-            (None, false, 0, &[][..])
+            (None, false, 0, None, &[][..])
         }
     };
     let icon = fields.contains(&RowField::Icon);
@@ -2227,6 +2240,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     let view = match &view {
         BoundView::Rows { .. } => ViewOut::Rows(Box::new(RowsOut {
             limit,
+            limit_asked: asked,
             returned: rows.len(),
             after,
             left_out,

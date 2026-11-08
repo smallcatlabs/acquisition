@@ -875,6 +875,22 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
             " more of term 0: acq show --account 'Alice#1234' many",
         ],
     );
+    // carrying the item, the row prints it whole and says no "more" (the
+    // cold review of step 5's build, finding 6)
+    let whole = text(&t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "line(template:spirit)",
+            "--sort",
+            "sum(line(template:spirit).arg1)",
+            "--fields",
+            "item",
+        ],
+        &["+8 to Spirit"],
+    ));
+    assert!(!whole.contains(" more "), "{whole}");
     golden(file!(), "first_seat_sort_lines_and_ids", &t);
 }
 

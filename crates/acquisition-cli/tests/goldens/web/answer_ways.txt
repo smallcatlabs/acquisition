@@ -360,29 +360,11 @@ GET search?<a row that leaves lines out>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 17 items · 5 locations fetched<br>3 locations never fetched: PremiumStash 3 of 8 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Spirit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
-<p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29&amp;view.fields=icon">as a table</a></p>
-<div class="cards">
-<div class="card">
-<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
-<p><a class="name rarity-rare" href="item/many">Many Loop Iron Ring · rare</a></p>
-<p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
-<div class="mods">
-<p class="mod">+1 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+2 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+3 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+4 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+5 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+6 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+7 to Spirit <span class="mod-kind">explicit</span></p>
-<p class="mod">+8 to Spirit <span class="mod-kind">explicit</span></p>
-</div>
-<p class="flags">is identified</p>
-<p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Spirit · x 0, y 0 · fetched <age> ago</p>
-</div>
-<p class="shows">sorts by sum(line(template:spirit).arg1) 36<br>+1 to Spirit (explicit)<br>+2 to Spirit (explicit)<br>+3 to Spirit (explicit)<br>+4 to Spirit (explicit)<br>+5 to Spirit (explicit)<br>+6 to Spirit (explicit)<br><a href="item/many">2 more sorted</a><br><a href="item/many">2 more of term 0</a></p>
-</div>
+<p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">as cards</a></p>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/many">Many Loop Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td>sorts by sum(line(template:spirit).arg1) 36<br>+1 to Spirit (explicit)<br>+2 to Spirit (explicit)<br>+3 to Spirit (explicit)<br>+4 to Spirit (explicit)<br>+5 to Spirit (explicit)<br>+6 to Spirit (explicit)<br><a href="item/many">2 more sorted</a><br><a href="item/many">2 more of term 0</a></td><td>Standard / Spirit · x 0, y 0 · fetched <age> ago</td></tr>
+</table>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -393,7 +375,7 @@ GET search?<a row that leaves lines out>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 16 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">line(template:spirit)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="sum(line(template:spirit).arg1)" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="view.fields" value="icon"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">line(template:spirit)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="sum(line(template:spirit).arg1)" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="line(template:spirit)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>

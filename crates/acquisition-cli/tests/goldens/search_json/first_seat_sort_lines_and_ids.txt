@@ -122,3 +122,49 @@ routes  each returns exactly the members counted (2 more: --routes)
   term 0 undecided (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc 'line(template:spirit)' --sort 'sum(line(template:spirit).arg1)' --fields item
+# holds "+8 to Spirit"
+--- stdout
+query   line(template:spirit)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   1 match (fetched <age> ago, pc · Standard / Never) · 1 undecided
+rows    Iron Ring · rare · frame rare · Standard / Never · x 0, y 0 · fetched <age> ago
+            sorts by sum(line(template:spirit).arg1) 36 · +1 to Spirit (explicit) · +2 to Spirit (explicit) · +3 to Spirit (explicit) · +4 to Spirit (explicit) · +5 to Spirit (explicit) · +6 to Spirit (explicit)
+            id many
+base    Iron Ring
+class   Rings
+category accessory.ring
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/many
+is      identified
+shown   Item Level: 84
+lines   explicit              +1 to Spirit
+                              "# to Spirit"   arg1 1
+        explicit              +2 to Spirit
+                              "# to Spirit"   arg1 2
+        explicit              +3 to Spirit
+                              "# to Spirit"   arg1 3
+        explicit              +4 to Spirit
+                              "# to Spirit"   arg1 4
+        explicit              +5 to Spirit
+                              "# to Spirit"   arg1 5
+        explicit              +6 to Spirit
+                              "# to Spirit"   arg1 6
+        explicit              +7 to Spirit
+                              "# to Spirit"   arg1 7
+        explicit              +8 to Spirit
+                              "# to Spirit"   arg1 8
+unread  nothing
+
+undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3
+            `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    line(template:spirit)  1 matched · 4 lacked · 1 undecided
+       → # to Spirit (1)
+routes  each returns exactly the members counted (2 more: --routes)
+  undecided at the root (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
+  term 0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line(template:spirit))'
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

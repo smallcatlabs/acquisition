@@ -1359,7 +1359,8 @@ pub(crate) enum RowPiece {
 /// for each occurrence the part showing it most shows, and, for each term
 /// that touched more than it shows, how many more and the term's path —
 /// the words a surface follows with its way to the item whole (the text's
-/// `acq show` line, the page's link to the item).
+/// `acq show` line, the page's link to the item). A row that carries the
+/// item whole says no "more": every line stands in its item.
 pub(crate) fn row_shows(
     a: &Answer,
     row: &acquisition_search::answer::Row,
@@ -1437,6 +1438,12 @@ pub(crate) fn row_shows(
             shows.push(s.clone());
         }
     }
+    // where the row carries the item whole, nothing it shows points to
+    // the item for more: the item stands beside it
+    if row.shown.is_some() {
+        shows.retain(|piece| matches!(piece, RowPiece::Seen(_)));
+        return (shows, Vec::new());
+    }
     let more = row
         .matched
         .iter()
@@ -1471,17 +1478,33 @@ fn answer_more(a: &Answer) -> Option<String> {
     }
 }
 
-/// Which rows an answer shows of its matches, where rows are left out.
+/// Which rows an answer shows of its matches, where rows are left out,
+/// and, where a limit asked was lowered to the item rows' bound, so.
 pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::RowsOut) -> String {
     format!(
-        "{} of {} shown",
+        "{} of {} shown{}",
         if rows.returned == 0 {
             "none".to_string()
         } else {
             format!("rows {}–{}", rows.after + 1, rows.after + rows.returned)
         },
-        a.total.matched
+        a.total.matched,
+        capped_words(rows)
+            .map(|words| format!(" ({words})"))
+            .unwrap_or_default()
     )
+}
+
+/// C53 (an answer says the limit it applied): where the limit asked was
+/// more than the item rows' bound, the bound and what was asked, in
+/// words; none where the limit asked stands.
+pub(crate) fn capped_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
+    rows.limit_asked.map(|asked| {
+        format!(
+            "{} is the most rows an answer holds where each carries the item; {asked} asked",
+            rows.limit
+        )
+    })
 }
 
 /// Everything after the rows: a count's tables, an explain, what a zero
@@ -2819,6 +2842,31 @@ fn flagged(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// C53 (an answer says the limit it applied): where a limit asked
+    /// past the item rows' bound was lowered, the words name the bound and
+    /// what was asked, beside the rows shown; none where the limit stood.
+    /// The bound is too many rows for a golden's world to reach, so the
+    /// words are held here.
+    #[test]
+    fn a_limit_lowered_to_the_item_rows_bound_is_said() {
+        let rows = |limit_asked| acquisition_search::answer::RowsOut {
+            sort: None,
+            desc: false,
+            fields: vec![RowField::Item],
+            limit: acquisition_store::bound::ITEM_ROWS,
+            limit_asked,
+            returned: 200,
+            after: 0,
+            left_out: 300,
+            next: None,
+        };
+        assert_eq!(
+            capped_words(&rows(Some(500))).as_deref(),
+            Some("200 is the most rows an answer holds where each carries the item; 500 asked")
+        );
+        assert_eq!(capped_words(&rows(None)), None);
+    }
 
     /// C146 — a sum with items lacking the value says it is over the
     /// items that have it and counts the rest beside it, where `sum 0 ·
