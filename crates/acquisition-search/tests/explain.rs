@@ -809,7 +809,7 @@ fn explain_beside_the_corpus_context_is_an_authoring_error_naming_both() {
 
 /// C143, a shared refusal speaks the request's words: every refusal the
 /// view selection gives names the view's fields — `sort`, `count`,
-/// `cross`, `sum`, `explain` — never a frontend's flag, so one wording
+/// `cross`, `sum`, `explain`, a row's `fields` — never a frontend's flag, so one wording
 /// holds on a page, in an MCP result and at a terminal.
 #[test]
 fn c143_the_view_selections_refusals_name_the_requests_fields() {
@@ -818,6 +818,10 @@ fn c143_the_view_selections_refusals_name_the_requests_fields() {
     let path = || Some("0".to_string());
     let sorted = Rows {
         sort: Some("ilvl".to_string()),
+        ..Rows::default()
+    };
+    let fielded = Rows {
+        fields: vec![acquisition_search::answer::RowField::Item],
         ..Rows::default()
     };
     for (refused, field) in [
@@ -836,6 +840,18 @@ fn c143_the_view_selections_refusals_name_the_requests_fields() {
         (
             Shape::of(keys(), None, None, path(), Rows::default()),
             "`explain`",
+        ),
+        (
+            Shape::of(keys(), None, None, None, fielded.clone()),
+            "`fields`",
+        ),
+        (
+            Shape::of(None, keys(), None, None, fielded.clone()),
+            "`fields`",
+        ),
+        (
+            Shape::of(None, None, None, path(), fielded.clone()),
+            "`fields`",
         ),
     ] {
         let e = refused.unwrap_err();

@@ -23,6 +23,14 @@
 //! (`category.rs`): the ids a count lists it under, and what left an id
 //! open.
 //!
+//! **One maker of what `show` carries of an item** ([`ShownItem::of`]):
+//! the item without its lines, the lines with their slots and limits,
+//! the class, the category as `show` says it and the price, made from a
+//! held item (`corpus::Held`) — the one this read holds, and each one a
+//! rows view asking `item` holds (`answer.rs`), so a row's item is
+//! `show`'s for the same id at the same basis and no second maker stands.
+//! [`item_aged`] ages both.
+//!
 //! **`--against '<query>'`** (C100: the why-not) puts beside the item the query's canonical
 //! text and tree, the root's outcome on this item — match, no match,
 //! undecided — and the outcome of each node of the query that has one on
@@ -93,6 +101,82 @@ pub struct Shown {
     /// carries no words ([`crate::answer::snapshot_age`]).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot_at_age: Option<String>,
+}
+
+/// What `show` carries of one item, made by the one maker
+/// ([`ShownItem::of`]) that `show` and a rows view asking `item` both
+/// call (C103, one deriver per fact): the item without its lines, which
+/// follow with their slots, its class, its category as `show` says it and
+/// its price, serialized flat in that order. A row carries it after its
+/// own keys; [`Shown`] carries the same five beside its basis and place.
+#[derive(Debug, Clone, Serialize)]
+pub struct ShownItem {
+    /// The item without its lines (as [`Shown::item`]).
+    #[serde(serialize_with = "without_lines")]
+    pub item: Item,
+    /// What the class table says of it (`class.rs`).
+    pub class: Classed,
+    /// Its category (`category.rs`): the id or ids a count lists it
+    /// under, and the reason wherever an id is left open.
+    pub category: crate::category::Shown,
+    /// What the listing state prices it at (`price.rs`, C81).
+    pub price: Priced,
+    pub lines: Vec<ShownLine>,
+}
+
+impl ShownItem {
+    /// The one maker: what `show` carries of a held item — its lines taken
+    /// out of it, each with its slots and its limit; its class; its
+    /// category as `show` says it, made from the ids the corpus holds; its
+    /// price. It takes the item whole, so a caller that borrows its
+    /// `Held` from a corpus clones it first; the place stays the caller's
+    /// (`show` gives a socketed item's parent by id, a corpus by name).
+    pub(crate) fn of(held: Held, categories: &crate::category::Tables) -> ShownItem {
+        let Held {
+            mut item,
+            class,
+            category,
+            price,
+            place: _,
+        } = held;
+        let lines = std::mem::take(&mut item.lines)
+            .into_iter()
+            .map(|line| ShownLine {
+                slots: line
+                    .slots()
+                    .into_iter()
+                    .map(|(w, n)| (w, n.map_or(serde_json::Value::Null, number_json)))
+                    .collect(),
+                limit: (line.source == "veiled").then_some(crate::describe::VEILED),
+                line,
+            })
+            .collect();
+        ShownItem {
+            category: categories.shown(&item, &class, &category),
+            class,
+            price,
+            item,
+            lines,
+        }
+    }
+
+    /// C53 and C163: the item's first and last sighting and its removal,
+    /// in words at `now` ([`item_aged`]).
+    pub fn aged(&mut self, now: i64) {
+        item_aged(&mut self.item, now);
+    }
+}
+
+/// C53 (an age the text prints stands in words beside its epoch, made at
+/// the answer's own time) and C163: an item's first and last sighting
+/// and its removal, said at `now` — the one function `show` and a row's
+/// item are aged by.
+pub fn item_aged(item: &mut Item, now: i64) {
+    use acquisition_store::age::ago;
+    let facts = &mut item.facts;
+    facts.first_seen_age = Some(ago(now, Some(facts.first_seen)));
+    facts.last_seen_age = Some(ago(now, Some(facts.last_seen)));
+    facts.removed_at_age = facts.removed_at.map(|at| ago(now, Some(at)));
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -236,12 +320,8 @@ impl Shown {
     /// basis's snapshot, at the path `show` declares for it, said at
     /// `now`.
     pub fn aged(mut self, now: i64) -> Shown {
-        use acquisition_store::age::ago;
         self.place.aged(now);
-        let facts = &mut self.item.facts;
-        facts.first_seen_age = Some(ago(now, Some(facts.first_seen)));
-        facts.last_seen_age = Some(ago(now, Some(facts.last_seen)));
-        facts.removed_at_age = facts.removed_at.map(|at| ago(now, Some(at)));
+        item_aged(&mut self.item, now);
         self.snapshot_at_age = Some(crate::answer::snapshot_age(&self.basis, now));
         self
     }
@@ -313,7 +393,7 @@ fn read_one(
             )))
         })
         .map_err(SearchError::store)?;
-    let (basis, place, mut item, stored, leagues) = match found {
+    let (basis, place, item, stored, leagues) = match found {
         Ok(found) => found,
         Err((location, live, account)) => {
             return Err(not_shown(store, location, live, &account, id));
@@ -329,46 +409,40 @@ fn read_one(
     };
     let place = Place { public, ..place };
     let class = table.classify(&item);
+    // the item held as a corpus holds each of its items
+    let held = Held {
+        category: categories.of(&item, &class),
+        class,
+        item,
+        place,
+        price: priced,
+    };
     // the query read in the item's realm, its scope: a site search whose
     // URL names another is refused as a search in that realm would never
-    // hold the item; then the item held as a corpus holds each of its
-    // items, asked by the one evaluator
+    // hold the item; then the held item asked by the one evaluator
     let against = against
         .map(|input| -> Result<Against, SearchError> {
-            let read = input.read(Some(&crate::corpus::Realm::One(place.realm.clone())))?;
-            let mut against = against_held(
-                &read.query,
-                &Held {
-                    category: categories.of(&item, &class),
-                    class: class.clone(),
-                    item: item.clone(),
-                    place: place.clone(),
-                    price: priced.clone(),
-                },
-            );
+            let read = input.read(Some(&crate::corpus::Realm::One(held.place.realm.clone())))?;
+            let mut against = against_held(&read.query, &held);
             against.query.trade = read.translation.map(crate::answer::TradeOut::from);
             Ok(against)
         })
         .transpose()?;
-    let lines = std::mem::take(&mut item.lines)
-        .into_iter()
-        .map(|line| ShownLine {
-            slots: line
-                .slots()
-                .into_iter()
-                .map(|(w, n)| (w, n.map_or(serde_json::Value::Null, number_json)))
-                .collect(),
-            limit: (line.source == "veiled").then_some(crate::describe::VEILED),
-            line,
-        })
-        .collect();
+    let place = held.place.clone();
+    let ShownItem {
+        item,
+        class,
+        category,
+        price,
+        lines,
+    } = ShownItem::of(held, categories);
     Ok(Some(Shown {
         basis,
         place,
-        category: categories.shown(&item, &class, &categories.of(&item, &class)),
-        class,
-        price: priced,
         item,
+        class,
+        category,
+        price,
         lines,
         against,
         body: body.then_some(stored),

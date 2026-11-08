@@ -312,7 +312,11 @@ impl Folded {
                 sort: self.sort.clone(),
                 desc: self.desc,
                 after: None,
-                fields: vec![RowField::Icon],
+                // a count shows no rows, so it asks no row's fields
+                fields: match self.count {
+                    Some(_) => Vec::new(),
+                    None => vec![RowField::Icon],
+                },
             },
         )?;
         // a view serialises whole; a null would be refused by the read

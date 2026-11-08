@@ -1234,6 +1234,108 @@ fn show_gives_a_mod_its_rows() {
     assert_eq!(shown["lines"][1].get("rows"), None);
 }
 
+/// C100 (the caller may name fields) and C103 (one deriver per fact): a
+/// row asked for `item` carries what `show` carries of the same id at the
+/// same basis — the item, its class, its category, its price and its
+/// lines with their slots — made by `show`'s one maker. Over `stash()`'s
+/// mods of several rows, beside an item priced by a price written to the
+/// intent file, an item whose base no class table holds, and, under
+/// membership `all`, an item that left; one intent file and one `now`
+/// for both. A row's `place` is its own (the corpus names a socketed
+/// item's parent), and is not compared.
+#[test]
+fn c100_a_rows_item_is_the_one_show_makes() {
+    use acquisition_plan::price::{Buyout, PriceTarget, set_buyout};
+    use acquisition_search::answer::Membership;
+    let mut s = stash();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("w1", "Rows"), tab("w2", "More")]),
+        30,
+    );
+    let more = |gone: bool| {
+        let mut items = vec![
+            item(
+                "priced",
+                "Priced Loop",
+                "Iron Ring",
+                "Rare",
+                json!({ "explicitMods": ["+40 to maximum Life"] }),
+            ),
+            item("odd", "Odd Thing", "Nonesuch Base", "Rare", json!({})),
+        ];
+        if gone {
+            items.push(item("gone", "Gone Loop", "Iron Ring", "Rare", json!({})));
+        }
+        items
+    };
+    fetch_tab(&mut s, "pc", "Standard", "w2", "More", more(true), 40);
+    fetch_tab(&mut s, "pc", "Standard", "w2", "More", more(false), 50);
+    let mut intent = intent(&s);
+    let target: PriceTarget = "item/priced".parse().unwrap();
+    set_buyout(
+        &mut intent,
+        &target,
+        &Buyout::Exact(acquisition_plan::price::Price {
+            amount: "5".parse().unwrap(),
+            currency: "chaos".into(),
+        }),
+        None,
+        &acquisition_store::Provenance::via("test"),
+    )
+    .unwrap();
+    let corpus = acquisition_search::Corpus::load_of(
+        &s,
+        &intent,
+        Some(&acquisition_search::Realm::parse("pc").unwrap()),
+        Membership::All,
+    )
+    .unwrap();
+    let request: Request = serde_json::from_value(json!({
+        "scope": { "membership": "all" },
+        "view": { "rows": { "fields": ["icon", "item"], "limit": 100 } },
+    }))
+    .unwrap();
+    let now = acquisition_store::now();
+    let a = serde_json::to_value(answer(&corpus, &request).unwrap().aged(now)).unwrap();
+    let rows = a["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 10, "{a}");
+    let mut seen = BTreeSet::new();
+    for row in rows {
+        let id = row["id"].as_str().unwrap();
+        let shown = acquisition_search::show(&s, &intent, id, false)
+            .unwrap()
+            .aged(now);
+        let shown = serde_json::to_value(shown).unwrap();
+        assert_eq!(a["basis"], shown["basis"], "{id}");
+        for key in ["item", "class", "category", "price", "lines"] {
+            assert_eq!(row[key], shown[key], "{id}: {key}");
+        }
+        seen.insert(id.to_string());
+    }
+    // the fixture's cases are among the rows compared
+    let row = |id: &str| rows.iter().find(|r| r["id"] == id).unwrap();
+    assert_eq!(
+        row("priced")["price"]["text"],
+        "5 chaos",
+        "{}",
+        row("priced")
+    );
+    assert!(row("odd")["class"].get("open").is_some(), "{}", row("odd"));
+    assert!(
+        row("gone")["item"]["facts"]["removed_at"].is_i64(),
+        "{}",
+        row("gone")
+    );
+    assert_eq!(
+        row("pair")["lines"][0]["rows"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert!(seen.contains("thread"), "{seen:?}");
+}
+
 /// C140 and C100's named fields: a rows view asked for `fields: ["icon"]`
 /// puts on each row the URL of the item's art its body gives — the one
 /// `show` prints, from the one maker — and null where the body gives
@@ -1304,4 +1406,17 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
     let unknown =
         serde_json::from_value::<Request>(json!({ "view": { "rows": { "fields": ["price"] } } }));
     assert!(unknown.is_err());
+    // and by the frontends' reader of a typed list, naming both fields;
+    // a word named twice is one
+    use acquisition_search::answer::RowField;
+    let e = RowField::list("icon,price").unwrap_err();
+    assert_eq!(e.kind, ErrorKind::UnknownName, "{}", e.message);
+    assert_eq!(
+        e.message,
+        "`price` is no field a row carries: `icon`, the URL of the item's art, or `item`, the item as `show` gives it"
+    );
+    assert_eq!(
+        RowField::list("item, ICON,item").unwrap(),
+        [RowField::Item, RowField::Icon]
+    );
 }

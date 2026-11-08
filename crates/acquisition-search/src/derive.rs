@@ -250,8 +250,9 @@ pub struct Item {
     #[serde(skip)]
     pub descr: Option<String>,
     /// GGG's `icon`, the URL of the item's art on GGG's CDN, as given: the
-    /// one maker of it, which `show` prints and a rows view asked for
-    /// `fields: ["icon"]` copies (C140, item art is the browser's).
+    /// one maker of it, which `show` prints, a rows view asked for
+    /// `fields: ["icon"]` copies, and one asked for `item` carries inside
+    /// the item (C140, item art is the browser's).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     /// Every yes the body says: a top-level boolean that is true, and the

@@ -221,6 +221,16 @@
 //!   counts view shows none: the matches are handed to `counts.rs`
 //!   instead, with the one maker of a route (`Router`, private), so a
 //!   bucket's route is made as a term's is.
+//! - **A row is compact unless its view names fields** (C100: the
+//!   caller may name fields; 4-full part 1, step 5): `icon`, the URL of
+//!   the item's art, and `item`, the item as `show` gives it — five keys
+//!   flat after the row's own, `item`, `class`, `category`, `price` and
+//!   `lines`, made from the held item by `show`'s one maker
+//!   ([`crate::show::ShownItem::of`]), so no second maker of any of them
+//!   stands here. A row's `place` stays its own: the corpus names what a
+//!   socketed item sits in, `show` gives its id. A continuation asks the
+//!   fields its answer asked; beside a count they are refused, as a sort
+//!   is.
 //! - **A continuation is a request with its basis and its place** (C98,
 //!   C100; the build plan, step 10): the answer's own request, scope resolved and
 //!   query canonical, with the basis it was counted at and how many rows
@@ -610,7 +620,8 @@ pub struct Rows {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after: Option<usize>,
     /// What each row carries past its compact fields, by name (C100, a
-    /// caller may name fields): `icon` alone, the URL of the item's art.
+    /// caller may name fields): `icon`, the URL of the item's art, and
+    /// `item`, the item as `show` gives it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<RowField>,
 }
@@ -622,6 +633,54 @@ pub enum RowField {
     /// The URL of the item's art on GGG's CDN, as its body gives it: a
     /// page names it and the user's browser fetches it (C140).
     Icon,
+    /// The item as `show` gives it, made by the one maker `show` calls
+    /// ([`crate::show::ShownItem`]): the item without its lines, its
+    /// class, its category, its price and its lines with their slots,
+    /// five keys flat after the row's own.
+    Item,
+}
+
+impl RowField {
+    /// Every field, in the order a reader is told them.
+    pub const ALL: [RowField; 2] = [RowField::Icon, RowField::Item];
+
+    /// The field's word, as a request spells it.
+    pub fn word(self) -> &'static str {
+        match self {
+            RowField::Icon => "icon",
+            RowField::Item => "item",
+        }
+    }
+
+    /// A field by its word, in any case; any other word is refused naming
+    /// both fields (the frontends' one reader of a typed list).
+    pub fn parse(word: &str) -> Result<RowField, LanguageError> {
+        RowField::ALL
+            .into_iter()
+            .find(|field| field.word().eq_ignore_ascii_case(word))
+            .ok_or_else(|| {
+                LanguageError::new(
+                    crate::error::ErrorKind::UnknownName,
+                    format!(
+                        "`{word}` is no field a row carries: `icon`, the URL of the item's art, or `item`, the item as `show` gives it"
+                    ),
+                )
+            })
+    }
+
+    /// A list of fields as a frontend types it, comma-separated: each
+    /// word read by [`RowField::parse`], a word named twice once, in the
+    /// order first named; an empty piece names nothing.
+    pub fn list(text: &str) -> Result<Vec<RowField>, LanguageError> {
+        let mut fields = Vec::new();
+        for word in text.split(',').map(str::trim).filter(|w| !w.is_empty()) {
+            let field = RowField::parse(word)?;
+            if !fields.contains(&field) {
+                fields.push(field);
+            }
+        }
+        Ok(fields)
+    }
 }
 
 /// A query input read in a realm ([`QueryInput::read`]): the query, the
@@ -1050,9 +1109,10 @@ impl Shape {
     /// The view an adapter's flat arguments name: rows unless a count, a
     /// crossed table or an explained path is asked for, and never two of
     /// them. A sort orders rows and a sum stands beside a count, so either
-    /// with the other view is an authoring error and not a flag ignored;
-    /// explain shows counts and no rows, so beside a count, a crossed
-    /// table or a sort it is one too. A limit bounds what a view lists,
+    /// with the other view is an authoring error and not a flag ignored,
+    /// as a row's fields are beside a count; explain shows counts and no
+    /// rows, so beside a count, a crossed table, a sort or a row's fields
+    /// it is one too. A limit bounds what a view lists,
     /// and explain lists nothing: the one an adapter always sends is no
     /// conflict.
     pub fn of(
@@ -1070,6 +1130,7 @@ impl Shape {
                 ("cross", cross.is_some()),
                 ("sum", sum.is_some()),
                 ("sort", rows.sort.is_some()),
+                ("fields", !rows.fields.is_empty()),
             ];
             if let Some((flag, _)) = beside.iter().find(|(_, typed)| *typed) {
                 return view_error(&format!(
@@ -1097,6 +1158,11 @@ impl Shape {
         if rows.sort.is_some() {
             return view_error(
                 "`sort` orders rows, and a count shows none: a table is ranked by its counts",
+            );
+        }
+        if !rows.fields.is_empty() {
+            return view_error(
+                "`fields` names what each row carries, and a count shows none: a table counts items and lists none",
             );
         }
         let counts = Counts {
@@ -1524,6 +1590,12 @@ pub struct Row {
     pub matched: Vec<Touched>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<Sorted>,
+    /// The item as `show` gives it, where the view asked `item`: five
+    /// keys flat after the row's own — `item`, `class`, `category`,
+    /// `price`, `lines` — made by `show`'s one maker; absent where it was
+    /// not asked. The compact keys above stay (C53, additive).
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub shown: Option<crate::show::ShownItem>,
 }
 
 /// What a row shows of one term it matched: the term by its path in the
@@ -1636,8 +1708,10 @@ impl Answer {
     /// made at the answer's own time) and C163 (every time a document
     /// carries has its words beside it): the basis's snapshot and a
     /// `before`'s, each at the path the answer declares, the scope's and
-    /// the matches' fetch and list ages, each row's place and removal,
-    /// and each term's removed id, said at `now`. Said again at another
+    /// the matches' fetch and list ages, each row's place and removal and
+    /// its item's sightings where it carries the item (by `show`'s one
+    /// function, [`crate::show::item_aged`]), and each term's removed id,
+    /// said at `now`. Said again at another
     /// `now`, the words are that time's.
     pub fn aged(mut self, now: i64) -> Answer {
         self.snapshot_at_age = Some(snapshot_age(&self.basis, now));
@@ -1653,6 +1727,9 @@ impl Answer {
         for row in &mut self.rows {
             row.place.aged(now);
             row.removed_at_age = row.removed_at.map(|at| age::ago(now, Some(at)));
+            if let Some(shown) = &mut row.shown {
+                shown.aged(now);
+            }
         }
         for term in &mut self.terms {
             if let Some(removed) = &mut term.removed {
@@ -2017,6 +2094,11 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
         }
     };
     let icon = fields.contains(&RowField::Icon);
+    // a row's item is made by `show`'s one maker from the held item
+    let categories = match fields.contains(&RowField::Item) {
+        true => Some(crate::corpus::category_tables()?),
+        false => None,
+    };
     let scalars: Option<Vec<Scalar>> = sort.map(|(_, key)| {
         matches
             .iter()
@@ -2083,6 +2165,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
                         left_out,
                     }
                 }),
+                shown: categories.map(|tables| crate::show::ShownItem::of(held.clone(), tables)),
             }
         })
         .collect();
