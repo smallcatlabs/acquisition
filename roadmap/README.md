@@ -333,6 +333,15 @@ Each in his words, with the commit that landed it.
   session recommended the redirect, and the owner chose it. C168's
   words ("answers the one receipt") stand, read as the document;
   whether the entry should say so is his at the step's close.
+- 2026-11-07, after the pages' first sitting and the page seat's probe
+  (`audits/web-2026-11/seat/REPORT-probe.md`, stop 4), the owner: "Clear
+  should ask first." A clear from a page asks before it writes; "Redirect
+  to the list" stands for the write itself (the clear's POST still
+  answers `303` to the list, and no page renders a receipt). The
+  mechanism is the session's: the list's Clear is a link to a page that
+  shows the row and holds the clear's form, so a page reads whole with
+  no script and a reload of the asking page writes nothing. A rename on
+  the page asks nothing: it is replayed from the row that stands.
 
 ## Roles
 
