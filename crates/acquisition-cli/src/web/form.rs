@@ -28,7 +28,13 @@
 //!   to the counts view in its place (the review of 4b, its sixth
 //!   finding), whose tables the answer page prints as the CLI does. And
 //!   `text`, the query box: a query in the language, run as the user's
-//!   own in place of the trade input (the 4b sitting round, Do 6).
+//!   own in place of the trade input (the 4b sitting round, Do 6). And
+//!   `trade`, the trade site box: a site search as the CLI's `--trade`
+//!   takes it — its URL, its bare id or its query JSON — run in place of
+//!   the form's trade input by the same rule (#188, its first half). A
+//!   URL's realm is the search's scope, so where the box names one the
+//!   page's carried `realm` is not read; the two boxes together, or the
+//!   site box sent empty, are a usage error.
 //! - **A name is one the form emitted**: the fold refuses any other as
 //!   a usage error before it builds anything (C47, malformed external
 //!   input is a structured error), so no index past the form's stat rows
@@ -210,6 +216,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "view.desc",
         "view.count",
         "text",
+        "trade",
         "defences",
     ]
     .iter()
@@ -266,6 +273,9 @@ pub(crate) struct Folded {
     /// input is dropped — the rule the request already has for an edited
     /// text.
     pub text: Option<String>,
+    /// The trade site box: a site search, its URL, its id or its query
+    /// JSON, run in place of the form's trade input as an edited text is.
+    pub trade: Option<String>,
 }
 
 impl Folded {
@@ -274,10 +284,19 @@ impl Folded {
     /// view is built by the shared view selection, `Shape::of`, as the
     /// CLI builds its own, so the page inherits its refusals — a sort
     /// beside a count among them — and builds no view itself (C46; the
-    /// fix round's review, its one finding).
+    /// fix round's review, its one finding). A site search whose URL
+    /// names a realm runs there: the realm the page carried beside it is
+    /// not read (the owner's words in #188, "the URL's realm is the
+    /// search's scope"), and the answer page says so where they differ.
     pub(crate) fn request(&self) -> Result<Value, LanguageError> {
         let mut scope = Map::new();
-        if let Some(realm) = &self.realm {
+        let named = self
+            .trade
+            .as_deref()
+            .and_then(crate::search_cmd::trade_realm);
+        if let Some(realm) = &self.realm
+            && named.is_none()
+        {
             scope.insert("realm".into(), Value::String(realm.clone()));
         }
         if let Some(membership) = &self.membership {
@@ -300,9 +319,10 @@ impl Folded {
         let view = serde_json::to_value(View::from(shape)).unwrap_or_default();
         Ok(serde_json::json!({
             "scope": scope,
-            "query": match &self.text {
-                Some(text) => serde_json::json!({ "text": text }),
-                None => serde_json::json!({ "trade": self.envelope }),
+            "query": match (&self.text, &self.trade) {
+                (Some(text), _) => serde_json::json!({ "text": text }),
+                (None, Some(trade)) => serde_json::json!({ "trade": trade }),
+                (None, None) => serde_json::json!({ "trade": self.envelope }),
             },
             "view": view,
         }))
@@ -328,6 +348,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         desc: false,
         count: None,
         text: None,
+        trade: None,
     };
     let mut league = None;
     let mut defences = None;
@@ -336,6 +357,17 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         // the text sent is the query, empty or not (the module doc)
         if name == "text" {
             folded.text = Some(value.to_string());
+            continue;
+        }
+        if name == "trade" {
+            if value.is_empty() {
+                return Err(
+                    "the trade site search box is empty: paste a search's URL, its id \
+                     or its query JSON"
+                        .to_string(),
+                );
+            }
+            folded.trade = Some(value.to_string());
             continue;
         }
         if value.is_empty() {
@@ -368,6 +400,13 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 put(&mut query, &steps, typed(last, value));
             }
         }
+    }
+    if folded.text.is_some() && folded.trade.is_some() {
+        return Err(
+            "a search is a query in the language or a trade site search, not both: \
+             run one box at a time"
+                .to_string(),
+        );
     }
     prune(&mut query);
     drop_empty_stat_groups(&mut query);

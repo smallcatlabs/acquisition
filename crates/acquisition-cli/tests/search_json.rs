@@ -2442,9 +2442,9 @@ fn a_refusal_offers_requests_each_saying_its_realm() {
 /// crucible tree path, unsupported — so the translation is partial. (A
 /// `count` with no bound stood there until step 7f made it the site's
 /// no-op.)
-const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+pub(crate) const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
-fn trade_url() -> String {
+pub(crate) fn trade_url() -> String {
     format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}")
 }
 
@@ -2452,7 +2452,7 @@ fn trade_url() -> String {
 /// catalogue: the league a term, the status reported, the life lines of
 /// the explicit id summed against its bound (step 7e), the count in the
 /// remainder whole.
-const TRADE_TEXT: &str =
+pub(crate) const TRADE_TEXT: &str =
     r##"league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70"##;
 
 /// The line under every translation's first: the items are the store's,

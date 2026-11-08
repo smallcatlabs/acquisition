@@ -842,8 +842,11 @@ async fn home(
     )
 }
 
-/// The answer (Do 6): a form submission folded into the trade JSON, or a
-/// continuation's `next`, answered over the held corpus. With `saved` and
+/// The answer (Do 6): a form submission folded into the trade JSON, the
+/// query box's text or the trade box's site search (#188), or a
+/// continuation's `next`, answered over the held corpus. A site search
+/// whose URL names another realm than the one the page carried runs in
+/// the URL's, and the page says so above the answer. With `saved` and
 /// `saved_revision` (4-full part 1, step 3, Do 7), read apart from the
 /// fold, the page says which saved search it was opened from and saves
 /// over it at that revision; the JSON is the answer alone.
@@ -855,10 +858,19 @@ async fn search(
     let json = wants_json(&headers);
     let asked = blocking(&web, move |web| -> Result<_, Failure> {
         let (fields, from) = opened_from(fields)?;
+        // the realm the page carried beside a site search whose URL names
+        // another: not read, and said above the answer (#188)
+        let mut carried = None;
         let request = match pick(&fields, "next") {
             Some(token) => Request::from_token(token)?,
             None => {
                 let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
+                if let (Some(trade), Some(realm)) = (&folded.trade, &folded.realm)
+                    && let Some(url) = crate::search_cmd::trade_realm(trade)
+                    && Realm::parse(realm).is_none_or(|r| r.as_str() != url)
+                {
+                    carried = Some((realm.clone(), url));
+                }
                 Asked::read(&folded.request()?)?.request
             }
         };
@@ -874,12 +886,12 @@ async fn search(
             }
             _ => None,
         };
-        Ok((answer, opened))
+        Ok((answer, opened, carried))
     })
     .await;
     match asked {
-        Ok((answer, _)) if json => document(&answer),
-        Ok((answer, opened)) => {
+        Ok((answer, _, _)) if json => document(&answer),
+        Ok((answer, opened, carried)) => {
             let mut head = Head::default().with("answer", &answer.basis);
             if let Some(Opened {
                 row: OpenedRow::Read(row),
@@ -888,10 +900,24 @@ async fn search(
             {
                 head = head.with("saved_search", row.revision);
             }
+            let said = carried
+                .map(|(page, url)| {
+                    format!(
+                        "<p class=\"notice\">{}</p>\n",
+                        esc(&format!(
+                            "The site search's URL names its realm, {url}: it ran there, not in \
+                             {page}, the realm the page showed."
+                        ))
+                    )
+                })
+                .unwrap_or_default();
             web.page(
                 "Answer",
                 head,
-                &page::answer(&answer, opened.as_ref(), &web.saved_links()),
+                &format!(
+                    "{said}{}",
+                    page::answer(&answer, opened.as_ref(), &web.saved_links())
+                ),
             )
         }
         Err(failure) => web.failed("Answer", &failure, &headers),

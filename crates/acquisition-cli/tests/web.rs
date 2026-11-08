@@ -376,6 +376,160 @@ fn the_fold_answers_as_acq_search_trade_does() {
     assert_eq!(page, cli);
 }
 
+/// The page's answer to a site search, its art taken out, beside `acq
+/// search` with `args` in the same world: the two must be one answer.
+/// The view a zero's offer of context carries is each asker's own — the
+/// page asks for each row's art and leaves the limit its default — so it
+/// is taken out of both.
+fn trade_answers_as_the_cli(world: &Path, web: &WebUi, fields: &[(&str, &str)], args: &[&str]) {
+    let mut page = web.get_json(&format!("search?{}", query_string(fields)));
+    let mut args: Vec<&str> = ["search"].iter().chain(args).copied().collect();
+    args.push("--json");
+    let out = offline_acq(world, &args);
+    assert!(out.status.success(), "{out:?}");
+    let mut cli = sole_json(&out);
+    for row in page["rows"].as_array_mut().unwrap().iter_mut() {
+        assert_eq!(row["icon"], ART, "{row}");
+        row.as_object_mut().unwrap().remove("icon");
+    }
+    for answer in [&mut page, &mut cli] {
+        if let Some(request) = answer.pointer_mut("/zero/offers/context/request") {
+            request.as_object_mut().unwrap().remove("view");
+        }
+    }
+    assert_eq!(page, cli);
+}
+
+/// #188, its first half: a site search's URL in the trade box answers
+/// as `acq search --trade` on the same URL — the translation's fidelity
+/// and its clauses on the page — and the realm the page carried, the
+/// URL's own, is no conflict.
+#[test]
+fn a_trade_url_in_the_box_answers_as_acq_search_trade_does() {
+    use crate::search_json::{TRADE_TEXT, trade_url};
+    let (scratch, web) = offline_web("webtradeurl");
+    let url = trade_url();
+    let fields = [("realm", "pc"), ("trade", url.as_str())];
+    trade_answers_as_the_cli(&scratch.0, &web, &fields, &["--trade", &url]);
+    let answer = web.get(&format!("search?{}", query_string(&fields)));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let main = unescaped(main_of(&answer.body));
+    for fact in [
+        "not the site's search: 2 clauses not run",
+        "trade   from a URL: PARTIAL — 2 clauses not run",
+        "NOT RUN   stats.1    A crucible tree path is not read",
+        "reported  status",
+        TRADE_TEXT,
+    ] {
+        assert!(main.contains(fact), "{fact}: {main}");
+    }
+    assert!(!main.contains("it ran there, not in"), "{main}");
+}
+
+/// #188: a bare id names no realm, so the realm the page carried is the
+/// search's scope, as `--realm` is beside `--trade <ID>`.
+#[test]
+fn a_trade_id_in_the_box_runs_in_the_pages_realm() {
+    use crate::search_json::TRADE_ID;
+    let (scratch, web) = offline_web("webtradeid");
+    for realm in ["pc", "xbox"] {
+        trade_answers_as_the_cli(
+            &scratch.0,
+            &web,
+            &[("realm", realm), ("trade", TRADE_ID)],
+            &["--trade", TRADE_ID, "--realm", realm],
+        );
+    }
+}
+
+/// #188, the realm rule as ruled for the page: the URL's realm is the
+/// search's scope (the owner's words in the issue), so the realm the page
+/// carried beside a URL naming another is not read, and the answer says
+/// so; the terminal's `--realm` beside one stays its refusal.
+#[test]
+fn a_trade_url_runs_in_its_own_realm_whatever_the_page_carried() {
+    use crate::search_json::TRADE_ID;
+    let (scratch, web) = offline_web("webtraderealm");
+    let url = format!("https://www.pathofexile.com/trade/search/xbox/Hardcore/{TRADE_ID}");
+    let fields = [("realm", "pc"), ("trade", url.as_str())];
+    trade_answers_as_the_cli(&scratch.0, &web, &fields, &["--trade", &url]);
+    assert_eq!(
+        web.get_json(&format!("search?{}", query_string(&fields)))["scope"]["realm"],
+        "xbox"
+    );
+    let answer = web.get(&format!("search?{}", query_string(&fields)));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    assert!(
+        unescaped(main_of(&answer.body)).contains(
+            "The site search's URL names its realm, xbox: it ran there, not in pc, the realm the page showed."
+        ),
+        "{}",
+        answer.body
+    );
+    let out = offline_acq(&scratch.0, &["search", "--trade", &url, "--realm", "pc"]);
+    assert!(!out.status.success(), "{out:?}");
+}
+
+/// #188: the two boxes are two searches, so both sent is a usage
+/// refusal in the page's words, and the trade box sent empty is one.
+#[test]
+fn the_trade_box_beside_the_query_box_or_empty_is_refused() {
+    use crate::search_json::TRADE_ID;
+    let (_scratch, web) = offline_web("webtradeboth");
+    for (fields, says) in [
+        (
+            vec![
+                ("realm", "pc"),
+                ("text", "class:rings"),
+                ("trade", TRADE_ID),
+            ],
+            "a search is a query in the language or a trade site search, not both",
+        ),
+        (
+            vec![("realm", "pc"), ("text", ""), ("trade", TRADE_ID)],
+            "a search is a query in the language or a trade site search, not both",
+        ),
+        (
+            vec![("realm", "pc"), ("trade", " ")],
+            "the trade site search box is empty",
+        ),
+    ] {
+        let refused = web.get(&format!("search?{}", query_string(&fields)));
+        assert_eq!(refused.status, 400, "{fields:?}: {}", refused.body);
+        assert!(
+            unescaped(&refused.body).contains(says),
+            "{fields:?}: {}",
+            refused.body
+        );
+    }
+}
+
+/// #188: a save from a site search's answer stores what any save
+/// stores, the translation's text in the answer's realm and membership;
+/// the site search itself is in no row.
+#[test]
+fn a_save_from_a_trade_answer_stores_its_translated_text() {
+    use crate::search_json::{TRADE_ID, TRADE_TEXT, trade_url};
+    let (scratch, web) = offline_web("webtradesave");
+    let url = trade_url();
+    let answer = web.get(&format!(
+        "search?{}",
+        query_string(&[("realm", "xbox"), ("trade", url.as_str())])
+    ));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let save = form_on(&answer.body, "Save this search", None);
+    assert_eq!(save.field("text"), Some(TRADE_TEXT), "{save:?}");
+    assert_eq!(save.field("realm"), Some("pc"), "{save:?}");
+    landed_on_the_list(&web, &send(&web, &save.typed("name", "life rings"), false));
+    let row = &saved_json(&scratch.0, &["list"])["searches"][0];
+    assert_eq!(
+        (&row["name"], &row["text"], &row["scope"]["realm"]),
+        (&json!("life rings"), &json!(TRADE_TEXT), &json!("pc")),
+        "{row}"
+    );
+    assert!(!row.to_string().contains(TRADE_ID), "{row}");
+}
+
 /// The search pages, each a golden naming what a reader must find: the
 /// form with each control's fate and the listing-only filters' sentence,
 /// the answer with its clause statuses, its total and its rows with their
@@ -405,6 +559,9 @@ fn every_search_page_is_a_wording_golden() {
             "<summary>Stat Filters</summary>",
             "placeholder=\"Search items\"",
             "class=\"search-btn\"",
+            "A trade site search: its URL, its id or its query JSON",
+            "name=\"trade\"",
+            "Run the site's search",
         ],
     );
     let answer = web.get(&format!("search?{}", query_string(&ring_search())));
@@ -444,6 +601,72 @@ fn every_search_page_is_a_wording_golden() {
             "Doom Loop",
             "The query, in the language",
         ],
+    );
+    // the trade box (#188): a URL, its fidelity and its clauses; a URL
+    // naming another realm than the page's; the query JSON with the
+    // site's sort, reported and not applied; the two boxes together
+    let url = crate::search_json::trade_url();
+    let traded = web.get(&format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("trade", url.as_str())])
+    ));
+    assert_eq!(traded.status, 200, "{}", traded.body);
+    pages.page(
+        "GET search?<a trade site search's URL>",
+        &traded,
+        &[
+            "not the site&#39;s search: 2 clauses not run",
+            "from a URL: PARTIAL",
+            "NOT RUN   stats.1 ",
+            "reported  status",
+        ],
+    );
+    let elsewhere = format!(
+        "https://www.pathofexile.com/trade/search/xbox/Hardcore/{}",
+        crate::search_json::TRADE_ID
+    );
+    let moved = web.get(&format!(
+        "search?{}",
+        query_string(&[("realm", "pc"), ("trade", elsewhere.as_str())])
+    ));
+    assert_eq!(moved.status, 200, "{}", moved.body);
+    pages.page(
+        "GET search?<an xbox URL from the pc page>",
+        &moved,
+        &["names its realm, xbox: it ran there, not in pc"],
+    );
+    let sorted = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            (
+                "trade",
+                r#"{"query":{"filters":{"type_filters":{"filters":{"category":{"option":"accessory.ring"}}}}},"sort":{"price":"asc"}}"#
+            ),
+        ])
+    ));
+    assert_eq!(sorted.status, 200, "{}", sorted.body);
+    pages.page(
+        "GET search?<the site's query JSON with its sort>",
+        &sorted,
+        &[
+            "from the query JSON: exact",
+            "reported  sort  The site&#39;s sort is reported and not applied",
+        ],
+    );
+    let both = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("text", "class:rings"),
+            ("trade", url.as_str())
+        ])
+    ));
+    assert_eq!(both.status, 400, "{}", both.body);
+    pages.page(
+        "GET search?<both boxes>",
+        &both,
+        &["not both: run one box at a time"],
     );
     let counted = web.get(&format!(
         "search?{}",

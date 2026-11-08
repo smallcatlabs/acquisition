@@ -31,6 +31,7 @@ GET ?realm=xbox
 </div>
 <the search form's panes and controls: golden web/search_form>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="trade-text">A trade site search: its URL, its id or its query JSON</label><textarea id="trade-text" name="trade" rows="2"></textarea><button type="submit">Run the site's search</button> <span class="fate">translated here, sent nowhere; a URL's realm is the search's</span></form>
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 
 </main>

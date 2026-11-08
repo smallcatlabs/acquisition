@@ -608,6 +608,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     }
     out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
     out.push_str(&query_box(realm, None, "", None));
+    out.push_str(&trade_box(realm));
     out.push_str(&fetch_leagues());
     out
 }
@@ -643,6 +644,18 @@ pub(crate) fn query_box(
     format!(
         "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><button type=\"submit\">Run this query</button></form>\n",
         esc(text)
+    )
+}
+
+/// The trade site box (#188, its first half): a site search as the
+/// CLI's `--trade` takes it, run as the CLI's trade answer is — the
+/// translation's fidelity and every clause above the rows, the site's sort
+/// reported and not applied. It carries the realm the page shows, which an
+/// id or the query JSON is searched in; a URL names its own, which wins.
+fn trade_box(realm: &str) -> String {
+    format!(
+        "<form class=\"query-box\" method=\"get\" action=\"search\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\"></textarea><button type=\"submit\">Run the site's search</button> <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
+        esc(realm)
     )
 }
 

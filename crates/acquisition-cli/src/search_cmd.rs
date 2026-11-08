@@ -498,18 +498,8 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
     // refused in the search's words on every surface (C143, the request's
     // words). The realm the search names is read where every reader reads
     // it, and an input that does not read is left to the request to refuse.
-    let named = |trade: &str| {
-        acquisition_search::answer::QueryInput {
-            trade: Some(serde_json::Value::String(trade.to_string())),
-            ..Default::default()
-        }
-        .read(None)
-        .ok()
-        .and_then(|read| read.realm)
-        .map(|realm| realm.as_str().to_string())
-    };
     if let (Some(word), Some(trade)) = (&args.realm, &trade)
-        && let Some(url) = named(trade)
+        && let Some(url) = trade_realm(trade)
         // the realm as parsed, as the request will read it: `PC` is `pc`
         // (the review of #91, its second finding)
         && Realm::parse(word).is_ok_and(|asked| asked.as_str() == url)
@@ -855,6 +845,21 @@ pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) ->
         None => " · never fetched".to_string(),
     });
     out
+}
+
+/// The realm a site search names, as the request reads it: a URL's,
+/// and none for a bare id, the query JSON, or an input that does not read
+/// (the request refuses that in its own words). The terminal's `--realm`
+/// beside one and the page's carried realm are read against it.
+pub(crate) fn trade_realm(trade: &str) -> Option<String> {
+    acquisition_search::answer::QueryInput {
+        trade: Some(serde_json::Value::String(trade.to_string())),
+        ..Default::default()
+    }
+    .read(None)
+    .ok()
+    .and_then(|read| read.realm)
+    .map(|realm| realm.as_str().to_string())
 }
 
 /// One piece of a row's evidence, as a term's or a sort's.
