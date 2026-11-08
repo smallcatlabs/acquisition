@@ -5,7 +5,10 @@
 //! of each row's item by `show`'s one maker inside it. Given a sqlite
 //! `.backup` copy by its path, opened as `copy-as-store.rs` opens one,
 //! never a store directory, beside an empty intent file in memory. Never
-//! in the gate: the input is a track's `raw/`.
+//! in the gate: the input is a track's `raw/`. Since the cap
+//! (`acquisition_store::bound::ITEM_ROWS`) the 1,000-row ask answers 200
+//! rows: M9's 1,000-row figure was taken before it, at `b90102be`, and is
+//! re-taken only at that commit; at a later one this measures 20 and 200.
 
 use std::time::Instant;
 

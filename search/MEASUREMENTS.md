@@ -623,7 +623,10 @@ same before and after the backup — opened by its path with an empty
 intent file in memory, never a store directory. The corpus of pc held
 (load 455 ms, 22,623 live items), then for 20, 200 and 1,000 rows of the
 empty query, the request asking `fields: ["icon", "item"]` with no cap
-in the tree: the answer's compact JSON bytes (and pretty, as `acq search
+in the tree — the 1,000-row figure is that commit's alone, re-taken only
+by running the example at `b90102be`, since at the cap's commit
+(`60c3a1d2`) and after the same ask answers 200 rows: the answer's
+compact JSON bytes (and pretty, as `acq search
 --json` prints), and the median of eleven asks of the answer and its
 JSON, each row's item made by `show`'s one maker inside it. The answer
 is aged before it is returned.
