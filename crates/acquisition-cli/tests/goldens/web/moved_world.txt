@@ -16,7 +16,7 @@ base    Wombgift Chalice
 class   undecided: `Wombgift Chalice` is not in the class table (classes v1)
 category undecided
          open 79 ids: `Wombgift Chalice` is not in the class table (classes v1)
-price   none (nothing applies) · why: acq price show --account u-web --realm pc item/new
+price   none (nothing applies) · why: acq price show --account &#39;Alice#1234&#39; --realm pc item/new
 is      identified
 shown   Item Level: 84
 lines   explicit              +40 to maximum Life
@@ -42,7 +42,7 @@ place   pc · Standard / Launch · x 0, y 0 · fetched <age> ago
 base    Two-Stone Ring
 class   Rings
 category accessory.ring
-price   none (nothing applies) · why: acq price show --account u-web --realm pc item/mech
+price   none (nothing applies) · why: acq price show --account &#39;Alice#1234&#39; --realm pc item/mech
 is      identified
 shown   Item Level: 84
 lines   wombgift              Grants 3 Echoes of the Brood
@@ -82,7 +82,7 @@ total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <pre>
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -123,7 +123,7 @@ routes  each returns exactly the members counted (2 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>

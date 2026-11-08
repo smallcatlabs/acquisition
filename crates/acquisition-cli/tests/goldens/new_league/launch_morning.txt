@@ -187,9 +187,9 @@ leagues: Rehearsal (this); also held: Standard (15 tabs, 2 characters, named)
 next: `acq refresh --plan --account ExileTester --realm pc --league Rehearsal` shows what a refresh would fetch
 
 $ acq store characters --league Rehearsal
-# holds "no characters known in Rehearsal ("
+# holds "no characters in Rehearsal: the 2 known are in Standard (run `acq characters` again"
 --- stdout
-no characters known in Rehearsal (run `acq characters` or cover them in the sync policy)
+no characters in Rehearsal: the 2 known are in Standard (run `acq characters` again for one made since)
 
 $ acq refresh --plan
 # holds "nothing to do in Standard:"

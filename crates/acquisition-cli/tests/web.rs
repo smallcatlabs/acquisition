@@ -530,6 +530,67 @@ fn a_save_from_a_trade_answer_stores_its_translated_text() {
     assert!(!row.to_string().contains(TRADE_ID), "{row}");
 }
 
+/// The query box sorts and pages as the big form does (the page seat's
+/// fault 6): its three controls are on the form page, a typed query with
+/// a sort answers as `acq search --sort --desc` does, and the answer's
+/// box comes back set to the rows view it showed.
+#[test]
+fn the_query_box_sorts_and_pages_a_typed_query() {
+    let (scratch, web) = offline_web("webquerysort");
+    let form = web.get("");
+    let boxed = &form.body[form.body.find("class=\"query-box\"").unwrap()..];
+    for control in [
+        "<select name=\"view.limit\"><option value=\"\" selected>10</option>",
+        "name=\"view.sort\" value=\"\"",
+        "name=\"view.desc\" value=\"true\">",
+    ] {
+        assert!(boxed.contains(control), "{control}: {boxed}");
+    }
+    let fields = [
+        ("realm", "pc"),
+        ("membership", "live"),
+        ("text", "class:rings"),
+        ("view.limit", "20"),
+        ("view.sort", "ilvl"),
+        ("view.desc", "true"),
+    ];
+    let mut page = web.get_json(&format!("search?{}", query_string(&fields)));
+    let out = offline_acq(
+        &scratch.0,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "class:rings",
+            "--limit",
+            "20",
+            "--sort",
+            "ilvl",
+            "--desc",
+            "--json",
+        ],
+    );
+    assert!(out.status.success(), "{out:?}");
+    let cli = sole_json(&out);
+    let rows = page["rows"].as_array_mut().unwrap();
+    assert!(rows.len() > 1, "{rows:?}");
+    for row in rows.iter_mut() {
+        row.as_object_mut().unwrap().remove("icon");
+    }
+    assert_eq!(page["rows"], cli["rows"]);
+    assert_eq!(page["view"], cli["view"]);
+    let answer = web.get(&format!("search?{}", query_string(&fields)));
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let boxed = &answer.body[answer.body.find("class=\"query-box\"").unwrap()..];
+    for control in [
+        "<option value=\"20\" selected>20</option>",
+        "name=\"view.sort\" value=\"ilvl\"",
+        "name=\"view.desc\" value=\"true\" checked>",
+    ] {
+        assert!(boxed.contains(control), "{control}: {boxed}");
+    }
+}
+
 /// The search pages, each a golden naming what a reader must find: the
 /// form with each control's fate and the listing-only filters' sentence,
 /// the answer with its clause statuses, its total and its rows with their
@@ -694,6 +755,9 @@ fn every_search_page_is_a_wording_golden() {
         &["orders rows, and a count shows none"],
     );
     let item = web.get("item/r1");
+    // the why line names the served account by its name, never by the
+    // basis's uuid (the page seat's fault 13)
+    assert!(!item.body.contains("--account u-web"), "{}", item.body);
     pages.page(
         "GET item/r1",
         &item,
@@ -701,6 +765,7 @@ fn every_search_page_is_a_wording_golden() {
             "Doom Loop Two-Stone Ring",
             "class   Rings",
             "+95 to maximum Life",
+            "why: acq price show --account &#39;Alice#1234&#39; --realm pc item/r1",
             ART,
         ],
     );
@@ -1117,6 +1182,22 @@ fn the_refresh_loop_runs_through_the_pages() {
     }
     assert!(at("Refresh selected") < at("<summary>Stash tabs ("));
     assert!(at("Plan under the policy") < at("<summary>Characters ("));
+    // a league with no character beside a realm with two: the page says
+    // the terminal's own sentence, which names where they are (the page
+    // seat's fault 11)
+    let elsewhere = web.get("refresh?realm=pc&league=Hardcore");
+    assert_eq!(elsewhere.status, 200, "{}", elsewhere.body);
+    let said = harness::acq(&base, &["store", "characters", "--league", "Hardcore"]);
+    let said = String::from_utf8(said.stdout).unwrap();
+    assert!(
+        said.starts_with("no characters in Hardcore: the 2 known are in Standard"),
+        "{said}"
+    );
+    assert!(
+        unescaped(main_of(&elsewhere.body)).contains(said.trim_end()),
+        "{said}: {}",
+        elsewhere.body
+    );
     assert!(at("name=\"deep\"") < at("<th>Tab</th>"));
     assert!(
         !tabs.body.contains("a folder holds"),

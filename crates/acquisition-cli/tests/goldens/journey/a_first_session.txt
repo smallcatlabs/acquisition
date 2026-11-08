@@ -189,7 +189,7 @@ place   pc · Standard / Dump · x 0, y 0 · fetched <age> ago
 base    Coral Ring
 class   Rings
 category accessory.ring
-price   none (nothing applies) · why: acq price show --account 00000000-0000-4000-8000-85b8bb136b8e --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+price   none (nothing applies) · why: acq price show --account ExileTester --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
 is      identified
 shown   Item Level: 83
         Requires Level 64
@@ -224,7 +224,7 @@ place   pc · Standard / Dump · x 0, y 0 · fetched <age> ago
 base    Coral Ring
 class   Rings
 category accessory.ring
-price   5 chaos · manual · why: acq price show --account 00000000-0000-4000-8000-85b8bb136b8e --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+price   5 chaos · manual · why: acq price show --account ExileTester --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
 is      identified
 shown   Item Level: 83
         Requires Level 64

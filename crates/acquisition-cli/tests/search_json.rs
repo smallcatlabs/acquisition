@@ -1193,7 +1193,9 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     );
     t.run(
         &["show", "r1"],
-        &["price   12.5 chaos · manual · why: acq price show"],
+        // the why line names the account as the person does, never by
+        // the basis's uuid (the page seat's fault 13)
+        &["price   12.5 chaos · manual · why: acq price show --account 'Alice#1234' --realm pc item/r1"],
     );
     t.run(&["show", "r2"], &["price   none (nothing applies)"]);
     golden(file!(), "a_price_set_by_hand", &t);

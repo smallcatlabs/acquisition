@@ -973,21 +973,20 @@ fn opened_from(fields: Vec<(String, String)>) -> Result<(Fields, Option<(String,
 /// One item (Do 6): `show`'s document, with its art and its badges.
 async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<String>) -> Response {
     let shown = blocking(&web, move |web| -> Result<_, Failure> {
-        let opened = web.served()?.open()?;
-        Ok(acquisition_search::show(
-            &opened.facts,
-            &opened.intent,
-            &id,
-            false,
-        )?)
+        let account = web.served()?;
+        let opened = account.open()?;
+        Ok((
+            acquisition_search::show(&opened.facts, &opened.intent, &id, false)?,
+            account.entry.username.clone(),
+        ))
     })
     .await;
     match shown {
-        Ok(shown) if wants_json(&headers) => document(&shown),
-        Ok(shown) => web.page(
+        Ok((shown, _)) if wants_json(&headers) => document(&shown),
+        Ok((shown, account)) => web.page(
             "Item",
             Head::default().with("item", &shown.basis),
-            &page::item(&shown, &page::item_badges(&shown)),
+            &page::item(&shown, &account, &page::item_badges(&shown)),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
     }
@@ -1053,11 +1052,21 @@ async fn tabs(
         );
         let empty = (listed.tabs == 0)
             .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &account.entry.username));
+        // the terminal's sentence, which reads the realm's characters
+        // where the league holds none (the page seat's fault 11)
+        let none = match characters.characters {
+            0 => Some(store_cmd::no_characters_text(
+                Some(realm),
+                Some(&league),
+                &facts,
+            )?),
+            _ => None,
+        };
         let leagues = web.leagues(realm.as_str())?;
-        Ok((league, listed, characters, empty, leagues))
+        Ok((league, listed, characters, empty, none, leagues))
     })
     .await;
-    let (league, listed, characters, empty, leagues) = match read {
+    let (league, listed, characters, empty, none, leagues) = match read {
         Ok(read) => read,
         Err(failure) => return web.failed("Refresh", &failure, &headers),
     };
@@ -1118,11 +1127,8 @@ async fn tabs(
             body.push_str("</details>\n");
         }
     }
-    if characters.characters == 0 {
-        body.push_str(&pre(&format!(
-            "no characters known in {}{league} (run `acq characters` or cover them in the sync policy)",
-            store_cmd::realm_prefix(realm)
-        )));
+    if let Some(none) = &none {
+        body.push_str(&pre(none));
     } else {
         body.push_str(&format!(
             "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n{}",

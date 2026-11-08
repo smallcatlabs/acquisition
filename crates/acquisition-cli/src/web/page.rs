@@ -11,7 +11,7 @@
 //! composed ([`Head::basis`]).
 
 use acquisition_search::Classed;
-use acquisition_search::answer::{Answer, ViewOut};
+use acquisition_search::answer::{Answer, RowsOut, ViewOut};
 use acquisition_search::show::Shown;
 use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_verbs::saved::{ReadRow, SavedSearches};
@@ -607,7 +607,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
     out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
-    out.push_str(&query_box(realm, None, "", None));
+    out.push_str(&query_box(realm, None, "", None, None));
     out.push_str(&trade_box(realm));
     out.push_str(&fetch_leagues());
     out
@@ -620,12 +620,17 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
 /// where the search was the site's form, to edit; an edited text drops the
 /// trade input, as the request's own rule has it. On an answer it carries
 /// the answer's membership, and the saved search the page was opened from
-/// with the revision its URL names, so the loop survives an edit.
+/// with the revision its URL names, so the loop survives an edit. Its
+/// rows' order and number are the big form's three controls, "Show",
+/// "Sort by" and "highest first" (the page seat's fault 6), set on an
+/// answer to the rows view it showed; "Show" offers the search's own
+/// default first, sent empty, so a box left as it is asks no limit.
 pub(crate) fn query_box(
     realm: &str,
     membership: Option<&str>,
     text: &str,
     saved: Option<(&str, i64)>,
+    rows: Option<&RowsOut>,
 ) -> String {
     let hidden = |name: &str, value: &str| {
         format!(
@@ -641,9 +646,33 @@ pub(crate) fn query_box(
         carried.push_str(&hidden("saved", id));
         carried.push_str(&hidden("saved_revision", &at.to_string()));
     }
+    let listed = acquisition_store::bound::LISTED;
+    let limit = rows.map_or(listed, |r| r.limit);
+    let mut limits = vec![(String::new(), listed)];
+    limits.extend(LIMITS.iter().map(|n| (n.to_string(), *n)));
+    if !limits.iter().any(|(_, n)| *n == limit) {
+        limits.push((limit.to_string(), limit));
+        limits.sort_by_key(|(_, n)| *n);
+    }
+    let shown: String = limits
+        .iter()
+        .map(|(value, n)| {
+            format!(
+                "<option value=\"{value}\"{}>{n}</option>",
+                if *n == limit { " selected" } else { "" }
+            )
+        })
+        .collect();
+    let sort = rows.and_then(|r| r.sort.as_deref()).unwrap_or_default();
+    let desc = if rows.is_some_and(|r| r.desc) {
+        " checked"
+    } else {
+        ""
+    };
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><button type=\"submit\">Run this query</button></form>\n",
-        esc(text)
+        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> <button type=\"submit\">Run this query</button></form>\n",
+        esc(text),
+        esc(sort)
     )
 }
 
@@ -807,6 +836,10 @@ pub(crate) fn answer(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) ->
         Some(a.scope.membership.as_str()),
         &a.query.text,
         carried,
+        match &a.view {
+            ViewOut::Rows(rows) => Some(rows),
+            _ => None,
+        },
     ));
     out.push_str(&save_forms(a, opened, links));
     out
@@ -814,7 +847,7 @@ pub(crate) fn answer(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) ->
 
 /// One item (Do 6): its art, then `show` as the CLI prints it, the lines
 /// in the order it gives.
-pub(crate) fn item(shown: &Shown, badges: &str) -> String {
+pub(crate) fn item(shown: &Shown, account: &str, badges: &str) -> String {
     let name = search_cmd::title(shown.item.name.as_deref(), shown.item.typeline.as_deref());
     let icon = shown
         .item
@@ -822,7 +855,10 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
         .as_ref()
         .map(|url| format!("<p><img src=\"{}\" alt=\"{}\"></p>\n", esc(url), esc(&name)))
         .unwrap_or_default();
-    format!("{icon}{badges}{}", pre(&search_cmd::shown_text(shown)))
+    format!(
+        "{icon}{badges}{}",
+        pre(&search_cmd::shown_text(shown, account))
+    )
 }
 
 fn badge(words: &str) -> String {

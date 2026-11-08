@@ -50,7 +50,7 @@ base    Bleached Crustacean
 class   Stackable Currency
 category monster.beast
          open monster.yellowbeast, monster.redbeast: the beast colour table marks `Bleached Crustacean` unknown: the site listed it under neither colour (beast colours v1)
-price   none (nothing applies) · why: acq price show --account u-search --realm pc item/crab
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/crab
 is      identified
 unread  nothing
 basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
@@ -64,7 +64,7 @@ place   pc · Standard / Never · x 0, y 0 · fetched <age> ago
 base    Dune Hellion
 class   Stackable Currency
 category monster.yellowbeast
-price   none (nothing applies) · why: acq price show --account u-search --realm pc item/hellion
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/hellion
 is      identified
 unread  nothing
 basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
@@ -78,7 +78,7 @@ place   pc · Standard / Never · x 0, y 0 · fetched <age> ago
 base    Fireball
 class   Skill Gems
 category gem.activegem
-price   none (nothing applies) · why: acq price show --account u-search --realm pc item/fire
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/fire
 is      identified
 lines   explicit              Deals 9 to 14 Fire Damage
                               "Deals # to # Fire Damage"   low 9 · high 14 · avg 11.5 · arg1 9 · arg2 14

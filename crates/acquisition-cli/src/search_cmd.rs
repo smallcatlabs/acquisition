@@ -657,7 +657,9 @@ pub fn show_item(cx: &Ctx, args: ShowArgs, json: bool) -> Result<()> {
     if let Some(query) = &against {
         query.read(None).map_err(|e| fail(e.into(), json))?;
     }
-    let (store, intent) = open_store_and_intent(cx)?;
+    let account = cx.account()?;
+    let opened = account.open()?;
+    let (store, intent) = (opened.facts, opened.intent);
     let shown = match &against {
         Some(query) => {
             acquisition_search::show::against(&store, &intent, &args.id, args.body, query)
@@ -665,7 +667,9 @@ pub fn show_item(cx: &Ctx, args: ShowArgs, json: bool) -> Result<()> {
         None => show(&store, &intent, &args.id, args.body),
     }
     .map_err(|e| fail(e, json))?;
-    emit(&shown, json, shown_text)
+    emit(&shown, json, |shown| {
+        shown_text(shown, &account.entry.username)
+    })
 }
 
 /// The selected account's facts and its intent file, as `acq price` opens
@@ -2114,7 +2118,11 @@ fn describe_text(d: &Describe, totals: bool) -> String {
     out
 }
 
-pub(crate) fn shown_text(s: &Shown) -> String {
+/// `show`'s text. `account` is the name of the account the item was shown
+/// for, which the price's why line opens with: the basis names the
+/// account by its uuid, a fingerprint, where every printed command names
+/// it as the person does (the page seat's fault 13).
+pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     let item = &s.item;
     let mut out = String::new();
     let mut head = title(item.name.as_deref(), item.typeline.as_deref());
@@ -2181,13 +2189,14 @@ pub(crate) fn shown_text(s: &Shown) -> String {
     let target = format!("item/{}", item.facts.id);
     // a removed item has no listing state for `price show` to read; the
     // command opens as every printed command does, with the account the
-    // item was shown for and its realm, since the defaults are another
-    // account's or another realm's where the store holds several
+    // item was shown for, by its name, and its realm, since the defaults
+    // are another account's or another realm's where the store holds
+    // several
     let why = match &s.price {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
         _ => format!(
             " · why: {} {target}",
-            crate::printed::opening("price show", Some(&s.basis.account), Some(&s.place.realm))
+            crate::printed::opening("price show", Some(account), Some(&s.place.realm))
         ),
     };
     match &s.price {

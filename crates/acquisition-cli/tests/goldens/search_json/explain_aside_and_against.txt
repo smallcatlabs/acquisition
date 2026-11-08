@@ -60,7 +60,7 @@ place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
 base    Two-Stone Ring
 class   Rings
 category accessory.ring
-price   none (nothing applies) · why: acq price show --account u-search --realm pc item/r2
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/r2
 is      identified
 shown   Item Level: 84
 lines   explicit              +75 to maximum Life
@@ -83,7 +83,7 @@ place   pc · Standard / Dump · x 0, y 0 · fetched <age> ago
 base    Two-Stone Ring
 class   Rings
 category accessory.ring
-price   none (nothing applies) · why: acq price show --account u-search --realm pc item/r3
+price   none (nothing applies) · why: acq price show --account 'Alice#1234' --realm pc item/r3
 is      identified
 shown   Item Level: 84
 lines   explicit              +40 to maximum Life

@@ -3367,13 +3367,15 @@ fn show_prints_the_price_show_command_for_its_item() {
             .split(" · why: ")
             .nth(1)
             .unwrap_or_else(|| panic!("{line}"));
+        // the account by its name, as every printed command names it,
+        // never the basis's uuid (the page seat's fault 13), run as a
+        // person pastes it
         assert_eq!(
             command,
-            format!("acq price show --account u-seat --realm {realm} item/{id}"),
+            format!("acq price show --account 'Alice#1234' --realm {realm} item/{id}"),
             "{line}"
         );
-        let args: Vec<&str> = command.split(' ').skip(1).collect();
-        let out = acq(&base, &args);
+        let out = harness::printed(&base, command).output().unwrap();
         assert!(out.status.success(), "{}", stderr(&out));
         assert!(
             stdout(&out).starts_with(&format!("item/{id}")),

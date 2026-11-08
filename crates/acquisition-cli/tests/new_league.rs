@@ -161,7 +161,9 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         step(
             &["store", "characters", league[0], league[1]],
             2,
-            &[format!("no characters known in {LEAGUE} (")],
+            &[format!(
+                "no characters in {LEAGUE}: the 2 known are in Standard (run `acq characters` again"
+            )],
         ),
         step(&["refresh", "--plan"], 1, &["nothing to do in Standard:".into()]),
         step(

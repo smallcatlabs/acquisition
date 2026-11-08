@@ -528,22 +528,67 @@ pub fn characters(
         return Ok(());
     }
     if listed.characters == 0 {
-        // the league or realm asked about, as a line about a league names
-        // it; the file when the whole store holds none
-        let place = match (realm, league) {
-            (None, None) => store.path().display().to_string(),
-            (realm, Some(league)) => {
-                format!("{}{league}", realm.map(realm_prefix).unwrap_or_default())
-            }
-            (Some(realm), None) => format!("realm {realm}"),
-        };
-        println!(
-            "no characters known in {place} (run `acq characters` or cover them in the sync policy)"
-        );
+        println!("{}", no_characters_text(realm, league, &store)?);
         return Ok(());
     }
     print!("{}", characters_text(&listed, &account.entry.username, now));
     Ok(())
+}
+
+/// The line for a selection that holds no character: the league or
+/// realm asked about, as a line about a league names it, or the file when
+/// the whole store holds none. Where a league holds none and its realm
+/// holds some, it says how many are known and in which leagues, so a
+/// listing that ran is not read as one that never did (the page seat's
+/// fault 11). The refresh page says the same sentence.
+pub(crate) fn no_characters_text(
+    realm: Option<Realm>,
+    league: Option<&str>,
+    store: &Store,
+) -> Result<String> {
+    const RUN: &str = "run `acq characters` or cover them in the sync policy";
+    let place = match (realm, league) {
+        (None, None) => store.path().display().to_string(),
+        (realm, Some(league)) => {
+            format!("{}{league}", realm.map(realm_prefix).unwrap_or_default())
+        }
+        (Some(realm), None) => format!("realm {realm}"),
+    };
+    let elsewhere = match league {
+        Some(_) => store.characters(realm.map(Realm::as_str), None)?,
+        None => Vec::new(),
+    };
+    if elsewhere.is_empty() {
+        return Ok(format!("no characters known in {place} ({RUN})"));
+    }
+    // each league they are in, in the order first met, with its count
+    let mut leagues: Vec<(String, usize)> = Vec::new();
+    for c in &elsewhere {
+        let prefix = match realm {
+            Some(_) => String::new(),
+            None => Realm::parse(&c.realm).map(realm_prefix).unwrap_or_default(),
+        };
+        let name = format!("{prefix}{}", c.league.as_deref().unwrap_or("no league"));
+        match leagues.iter_mut().find(|(l, _)| *l == name) {
+            Some((_, n)) => *n += 1,
+            None => leagues.push((name, 1)),
+        }
+    }
+    let in_them = match leagues.as_slice() {
+        [(league, _)] => league.clone(),
+        many => many
+            .iter()
+            .map(|(league, n)| format!("{league} ({n})"))
+            .collect::<Vec<_>>()
+            .join(", "),
+    };
+    let known = match elsewhere.len() {
+        1 => "the 1 known is".to_string(),
+        n => format!("the {n} known are"),
+    };
+    Ok(format!(
+        "no characters in {place}: {known} in {in_them} (run `acq characters` again for one made since)"
+    ))
 }
 
 /// `store characters`' text, a function of its document (C53, C149): the
