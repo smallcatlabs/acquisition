@@ -876,7 +876,15 @@ times under three cold reviews, the last cut `33258785`), closed on
 2026-11-08 (`LEDGER.md`): built by a fresh Opus session (`7c1ce05a`),
 reviewed cold (`roadmap/reviews/4-full-1-answer-build-7c1ce05a.md`,
 nine findings, nothing broken), one fix round (`85938487`); #176
-closed, its remainders #182's and #190's. Current step: part 1's step
-5, cards (#98; the design's §4 and §7 step 5), the spike first over the
-measurement copy of the owner's store, awaits its brief, cut by a
-session that reads only the design on `main`.
+closed, its remainders #182's and #190's. Step 5, cards
+(`briefs/4-full-1-cards.md`, cut four times under three cold reviews,
+the spike run by the brief's writer and the cap set at 200 rows, the
+owner's C53 line `6bd852fe`), closed on 2026-11-08 (`LEDGER.md`): built
+by a fresh Opus session in six commits (`b90102be..f562ca83`), reviewed
+cold (`roadmap/reviews/4-full-1-cards-build-f562ca83.md`, six findings,
+nothing broken), one fix round of five commits (`8b59e873..4d34f9bd`);
+#98 closed. Steps 1 to 5 are what the design's §5 says must exist for
+morning 1. Current step: the owner's morning at `acq web` in his own
+store under the live-run skill, with a blind page seat over the cards
+and the ways before it (the seat skill's page door); step 6, the dense
+table, follows the morning, its spike first (§7 step 6).
