@@ -861,7 +861,12 @@ store and a page seat probed the pages through the browser pane
 (`audits/web-2026-11/seat/`, the first agent at the pages; #187 the
 blind run to follow): a wording and layout round (`eff2a9f5`), the
 owner's ruling "Clear should ask first" and its page (`78dd6699`),
-#180 to #188 for the rest (the `LEDGER.md` row). Current step: part
-1's step 4, the answer and item pages from their documents (#176; the
-design's §4 and §7 step 4), awaits its brief, cut by a session that
-reads only the design on `main`.
+#180 to #188 for the rest (the `LEDGER.md` row). On 2026-11-08 the
+owner's "Let's do both": the trade site box, #188's first half
+(`34751f0e`, the reused pages worker; a URL, an id or the query JSON
+run from the search page as `search --trade` runs it, the URL's realm
+the search's), and the blind page seat (#187, `BRIEF-blind.md`, its
+world under `~/seat-worlds/web-2026-11/`) started at his word. Current
+step: part 1's step 4, the answer and item pages from their documents
+(#176; the design's §4 and §7 step 4), awaits its brief, cut by a
+session that reads only the design on `main`.
