@@ -856,8 +856,12 @@ no fix round. Step 3, the pages (`saved`, `saved/open?id=`) and morning 1's hand
 on `main`; three cuts under cold reviews of eleven, seven and four
 findings, the bound; Do 1 ruled "Redirect to the list" on 2026-11-07),
 closed on 2026-11-07 (`LEDGER.md`): its build reviewed, one fix round,
-reviewed clean. Current step: part 1's step 4, the answer and item
-pages from their documents (#176; the design's §4 and §7 step 4),
-awaits its brief, cut by a session that reads only the design on
-`main`; morning 1's sitting at `acq web` is the owner's, live, when he
-wants it.
+reviewed clean. The same evening the owner sat at `acq web` in his own
+store and a page seat probed the pages through the browser pane
+(`audits/web-2026-11/seat/`, the first agent at the pages; #187 the
+blind run to follow): a wording and layout round (`eff2a9f5`), the
+owner's ruling "Clear should ask first" and its page (`78dd6699`),
+#180 to #188 for the rest (the `LEDGER.md` row). Current step: part
+1's step 4, the answer and item pages from their documents (#176; the
+design's §4 and §7 step 4), awaits its brief, cut by a session that
+reads only the design on `main`.
