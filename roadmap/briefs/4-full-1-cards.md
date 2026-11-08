@@ -10,8 +10,9 @@ last of `roadmap/LEDGER.md`. Cut by a session that read the design on
 puts first was run by this session, before the brief, and its numbers
 are the Input; the build measures the built rows once more (Do 4).
 Cut again on 2026-11-08 under the cold review at `dbe99100`
-(`roadmap/reviews/4-full-1-cards-brief-dbe99100.md`), the foot saying
-what each finding changed.
+(`roadmap/reviews/4-full-1-cards-brief-dbe99100.md`) and again under
+the review at `117a72c8` (`roadmap/reviews/4-full-1-cards-brief-117a72c8.md`),
+the foot saying what each finding changed.
 Where the design and the tree disagree the brief takes the tree's fact
 and says so (Input). Where the design is silent on a card's words or
 layout, this brief decides, and the foot lists each decision for the
@@ -168,11 +169,17 @@ the N items' five keys, each the median of eleven. Its bias: the bytes
 are `show`'s own document, exact but for a brace pair a row (each row's
 five keys were wrapped as an object of their own, where a row will
 carry them flat) and ages each said at its own `show`'s time, across
-the 86 s the reads took; the time leaves out the projection itself — a
-clone of each held item, its lines' slots and its category's words —
-since its function does not exist yet, and every renderer (the CLI's
-text, the page's HTML, a browser's layout). The build measures the
-rows as built (Do 4).
+the 86 s the reads took; the pretty column is each object pretty at
+depth zero, where an answer nests it two levels down (`acq search
+--json` prints pretty, so a terminal or an agent receives more than
+that column); the intent file is empty, so no hand-written price is
+joined (a price is the listing state's alone). The time leaves out the
+projection itself — a clone of each held item, its lines' slots, its
+category's words, and `without_lines`' making of a `serde_json::Value`
+of each item before it serializes — since its function does not exist
+yet, and every renderer (the CLI's text, the page's HTML, a browser's
+layout). None of these moves the cap, which is a count chosen (below).
+The build measures the rows as built (Do 4).
 
 The copy: a fresh `sqlite3 -readonly <source> ".backup <scratch>/copy.db"`
 of `search/item-facts/raw/spike-GERWARIC_7694-2026-09-13.db`, the M3
@@ -198,8 +205,9 @@ brief's session notes). Apple M4, rustc 1.99.0, 2026-11-08, run alone.
 A row's five keys over the 1,000: min 986 B, median 2,237 B, p90
 3,043 B, max 5,449 B. The corpus's load, once per basis: 458 ms for the
 22,623 live pc items (of the copy's 22,721; M3's count). Each `show`
-was 86 ms (85.7 s for the 1,000), a full read an item: what
-`GUI-NOTES.md` §7 said a card per `show` would cost.
+was 86 ms (85.7 s for the 1,000), a full read an item, slower than
+`GUI-NOTES.md` §7's estimate ("fifty cards would cost about two
+seconds", 40 ms an item) and the same conclusion: no card per `show`.
 
 **The cap: 200 rows under `item`, the page's largest Show choice, its
 cost measured.** Time does not choose a cap: over a held corpus the
@@ -270,14 +278,18 @@ would pass it, so this step adds none and the foot raises it.
   and 393 (the helper `trade_answers_as_the_cli`, called by
   `a_trade_url_in_the_box_answers_as_acq_search_trade_does`,
   `a_trade_id_in_the_box_runs_in_the_pages_realm` and
-  `a_trade_url_runs_in_its_own_realm_whatever_the_page_carried`; the
-  helper appends `--fields icon,item` to the CLI's arguments itself, so
-  all three compare whole), 578
+  `a_trade_url_runs_in_its_own_realm_whatever_the_page_carried`; today
+  it pushes `--json` alone, and it will append the fields to the CLI's
+  arguments itself, so all three compare whole), 578
   (`the_query_box_sorts_and_pages_a_typed_query`) and 2916
-  (`saved_open_runs_the_rows_search_and_writes_nothing`). The page will
-  ask `[icon, item]`, and the CLI can now ask the same: each CLI side
-  gains `--fields icon,item` and the removal goes, so the page's JSON
-  equals the CLI's whole, the art and the item included (Do 9). The
+  (`saved_open_runs_the_rows_search_and_writes_nothing`). Each compares
+  the page's JSON with the CLI's; lines 376, 400 and 2918 compare the
+  whole and line 581 the view. They move in two commits (Do 10): in Do
+  6's, which builds `--fields` and adds `view.rows.fields` to the
+  document, each CLI side gains `--fields icon`, what the page then
+  asks, and the removal goes; in Do 8's, which turns the page's default
+  to the item, `--fields icon,item`. Then the page's JSON equals the
+  CLI's whole, the art and the item included (Do 9). The
   view a zero's context offer carries stays taken out of both in
   `trade_answers_as_the_cli`, as its comment says.
 - `every_search_page_is_a_wording_golden`: the ring search's `# holds`
@@ -312,11 +324,15 @@ would pass it, so this step adds none and the foot raises it.
   8), and the form's controls row is inside the panes cut
   (`harness/mod.rs`, `FORM_PANES`), so `search_form.txt` moves by that
   control.
-- The goldens that regenerate: `search_pages.txt` (nine answer pages
-  of its twelve `GET search` entries, three being refusals, and its item
-  page `GET item/r1`; `GET item/t1` is a refusal), `saved_pages.txt`
-  (eight answer pages), `moved_world.txt` (two answer pages and the two
-  item pages), `answer_ways.txt` (six answer pages); and
+- The goldens that regenerate: `search_pages.txt` (the five answer
+  pages that render rows today — `grep -n 'class="results"'` finds
+  lines 64, 101, 148, 243 and 335 — and its item page `GET item/r1`;
+  its two counts and two zero answers are unchanged, as are its three
+  refusals and `GET item/t1`, a refusal), `saved_pages.txt` (eight
+  answer pages, each with rows), `moved_world.txt` (two answer pages
+  and the two item pages), `answer_ways.txt` (the four answer pages
+  with rows, lines 17, 133, 186 and 221; "every ring outside Standard"
+  and "the id that left" have none and are unchanged); and
   `search_json/describe_at_a_terminal.txt`,
   `search_json/an_items_detail.txt` (Do 9 adds a case to it).
   `search_form.txt` moves by the form's one new control (Do 8) and
@@ -363,9 +379,13 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    `item` through `without_lines`; `Shown` holds it flattened between
    `place` and `against`, so `show`'s JSON is byte for byte what it is
    today (every test and golden reading `show`'s JSON or text unchanged
-   is the proof). `read_one` builds the `Held` it already builds for
-   `against` and calls the maker; nothing else in `show.rs` makes any of
-   the five. A key order that matters goes through a struct, never a
+   is the proof). `read_one` builds a `Held` today only inside
+   `against`'s branch (`show.rs`, near line 333); it builds one always,
+   hands it to the maker and, where a query is given, to
+   `against_held`; nothing else in `show.rs` makes any of the five. The
+   maker takes the lines out of the item, as `read_one` does today, so
+   the rows path, which borrows each `Held` from the corpus, clones the
+   item first. A key order that matters goes through a struct, never a
    `serde_json::Value` (the checklist's row).
 3. **`RowField::Item`, with no cap yet**, in `answer.rs`:
    - `RowField` gains `Item` (`"item"`): each row carries what Do 2's
@@ -381,11 +401,6 @@ unchanged. The orchestrating session files it as `trigger:ci`,
      URL of the item's art, or `item`, the item as `show` gives it".
      The request's JSON reader stays serde's (an unknown field is
      refused there today, `c140_`'s last assertion).
-   - `RowsOut` gains `fields`, the fields the rows carry as asked,
-     absent where none (`skip_serializing_if` empty), beside `sort` and
-     `desc`: the view as it ran, so a reader sees why `limit` is the
-     cap where it asked more (Do 5), and a page reads its presentation
-     from the document it renders (Do 7).
    - `Shape::of` refuses `fields` beside a count, a crossed table or
      explain, as it refuses a sort there (kind `view`), drafted:
      "`fields` names what each row carries, and a count shows none: a
@@ -429,6 +444,15 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    `not_built("fields")` would fall to its "no step names it" branch
    (`bind.rs`, `not_built`), and the `c11_` assertions and the describe
    golden move with the entry.
+   - `RowsOut` (`answer.rs`) gains `fields`, the fields the rows carry
+     as asked, absent where none (`skip_serializing_if` empty), beside
+     `sort` and `desc`: the view as it ran, so a reader sees why `limit`
+     is the cap where it asked more (Do 5), and a page reads its
+     presentation from the document it renders (Do 7). It lands here,
+     not in Do 3: the page asks `[icon]` today, so the echo puts a key
+     in the page's JSON that the CLI can match only once `--fields` is
+     built; the four comparisons of Input gain `--fields icon` in this
+     commit.
    - `NOT_BUILT` loses its `fields` entry (`bind.rs`'s rule: an entry
      leaves in the commit that builds its construct); `--describe`'s
      not-built list follows (the golden), and `explain.rs`'s and
@@ -495,13 +519,18 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    - the place with its age: `shown_place_words` (realm, then
      `place_text`, whose words carry the fetch's age), and where the item
      left, `shown_removed_words`.
-   The answer page under `[icon, item]` renders a card per row in the
-   answer's order, each followed by what the row shows of the query
+   The rule is total over what a document's rows carry: a card wherever
+   the rows carry `item`, the compact table otherwise, the art wherever
+   `icon` was asked (a continuation's token, a CLI's or an agent's, may
+   carry none, `[item]` or `[icon]`; `asked_by_the_form` gives no
+   presentation link for a list other than `[icon]` and `[icon, item]`,
+   Do 8). Under `[icon, item]` the answer page renders a card per row in
+   the answer's order, each followed by what the row shows of the query
    (`row_shows`, its "more" pieces linking `item/<id>` as the table's
    do) — `<div class="cards">` around them, no `class="results"` table;
-   under `view.fields=icon` the compact table as today; the card is
-   chosen by the document's `view.rows.fields` (Do 3), never by the
-   URL. The item page renders the card, then a fact table
+   under `[icon]`, `view.fields=icon`, the compact table as today; the
+   card is chosen by the document's `view.rows.fields` (Do 6), never by
+   the URL. The item page renders the card, then a fact table
    (`class="shown"`) of what the card leaves out — Id, Class, Category
    with its open ids, Stack, Note, Unread — then the lines table with
    templates, slots, rows and limits, against, and the basis foot, as
@@ -510,7 +539,8 @@ unchanged. The orchestrating session files it as `trigger:ci`,
 8. **The fold's `view.fields` and the presentation.**
    - `form.rs`: `view.fields` joins the names `emitted` lists, read by
      Do 3's reader as a list (`icon`, or `icon,item`), an empty value
-     the default as the Show control's empty option is; `Folded::request`
+     the default (as the query box's Show control sends an empty value
+     for its default); `Folded::request`
      asks `[icon, item]` for a rows view where no `view.fields` was sent
      or it was sent empty, the list sent where one was, and no fields
      for a count (this part lands with Do 3, which refuses fields beside
@@ -530,18 +560,22 @@ unchanged. The orchestrating session files it as `trigger:ci`,
      other list is no form's (`None`, so no link). Its last lines, which
      replace an offered request's fields with the form's, keep doing so
      for the comparison.
-   - On an answer page whose view is rows and that has a row (a count,
-     a crossed table, explain and a zero answer get neither): the query
-     box carries `view.fields=icon` hidden where the answer's
-     `view.rows.fields` is `[icon]`, so an edited query keeps the table;
-     and, where the page was reached by the form's fields (not a
-     continuation, whose token holds its view whole), one link to the
-     same answer in the other presentation — the page's own URL, its
-     fields as sent, with `view.fields=icon` added, or removed — that
-     the handler passes to `page::answer` (the URL's fields are the
-     handler's; the page builds no request). Its words, drafted: "as a
-     table" and "as cards". The form page's query box has no answer and
-     carries neither, so `console_realm.txt` holds.
+   - Wherever the query box carries the rows view's limit, sort and
+     desc (every rows answer, a zero one included), it carries
+     `view.fields=icon` hidden where the answer's `view.rows.fields` is
+     `[icon]`, so an edited query keeps the table. On a rows answer that
+     has a row and was reached by the form's fields (not a continuation,
+     whose token holds its view whole; never a count, a crossed table,
+     explain or a zero answer), one link to the same answer in the other
+     presentation — the page's own URL, its fields as sent, with
+     `view.fields=icon` added, or removed — that the handler passes to
+     `page::answer` (the URL's fields are the handler's; the page builds
+     no request). It is a plain `<a>` with a class of its own, never
+     `class="way"` and never `data-way`: it carries no request of the
+     document, so the way check (`ways_on`, which panics on a way with
+     no `data-way`) does not read it and stands unchanged. Its words,
+     drafted: "as a table" and "as cards". The form page's query box has
+     no answer and carries neither, so `console_realm.txt` holds.
 9. **Pins, each at the lowest crate that holds it** (C122), beside the
    tests they join (C153):
    - **The one maker, by equality** (`rows.rs`, a test named for the
@@ -560,9 +594,11 @@ unchanged. The orchestrating session files it as `trigger:ci`,
      `an_item_row_view_holds_at_most_the_cap_and_continues`): a fixture
      of `ITEM_ROWS + 1` items built inline (no new seed function); a
      view asking `limit` past the cap under `item` returns the cap's
-     rows, `left_out` 1, `view.rows.limit` the cap, `view.rows.fields`
-     as asked, and its `next` followed returns the last row with its
+     rows, `left_out` 1, `view.rows.limit` the cap, and its `next`
+     followed returns the last row with its
      item; the same view without `item` returns every row asked.
+   - **The echo** (Do 6's commit): `c140_`'s test asserts
+     `view.rows.fields` is `["icon"]` where asked and absent where not.
    - **The refusals**: `fields` beside a count in `explain.rs`'s view
      table (Do 3); an unknown field word where `RowField`'s reader is
      tested in the search crate; the CLI's `c11_` table gains
@@ -598,7 +634,10 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    nothing in the roadmap (the close is the orchestrating session's).
    The order the steps above require: the fold's no-fields-for-a-count
    with or before Do 3; Do 4 after Do 3 and before Do 5; Do 6 whole in
-   one commit. The commit that builds `--fields` carries, in C154's form (a
+   one commit, `RowsOut.fields` in it and the four JSON comparisons of
+   Input gaining `--fields icon` there; Do 8's default in the commit
+   that turns them to `--fields icon,item`. No commit leaves the web
+   tests red. The commit that builds `--fields` carries, in C154's form (a
    retirement names what now holds it): "retired the `--fields` row of
    `c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name`
    (kind `not_built`) and its `not built: fields` wording; held by the
@@ -616,9 +655,11 @@ unchanged. The orchestrating session files it as `trigger:ci`,
   constant in the search crate, 200, its doc citing M9, and the CLI's
   help names it under a test.
 - `show.rs` makes the five keys in one function that `read_one` and the
-  rows view both call: `grep -rn "ShownLine {\|categories.shown(" crates/*/src`
+  rows view both call: the maker's name, as the commit gives it, is
+  called in `read_one` and in `answer.rs`'s making of a `Row` (a grep
+  for it finds both calls); `grep -rn "ShownLine {\|categories.shown(" crates/*/src`
   finds `ShownLine`'s definition and the maker's lines in `show.rs`,
-  and nothing else.
+  and nothing else; the equality pin is the behaviour's holder.
 - `rows.rs` holds the equality pin and the cap's pin under the names the
   commit gives them; `explain.rs`'s view table and the CLI's `c11_`
   table hold the new refusals.
@@ -763,3 +804,18 @@ as measured plus the untimed projection, the cap a choice whose cost
 is measured, not a threshold's result, M9's time deciding nothing
 (Input, Do 4, the foot); 12 the help's number pinned to the constant
 (Do 6, Do 9).
+
+Cut 3, 2026-11-08, under the cold review at `117a72c8`
+(`roadmap/reviews/4-full-1-cards-brief-117a72c8.md`, nine findings,
+each taken): 1 `RowsOut.fields` moved to Do 6's commit, the four JSON
+comparisons gaining `--fields icon` there and `icon,item` with Do 8
+(Input, Do 3, Do 6, Do 10); 2 the presentation link a plain `<a>`, no
+`way` class, no `data-way` (Do 8); 3 the answer pages that move are
+those with rows, five and four where cut 2 said nine and six (Input);
+4 the one maker's Done when line checks both calls (Done when); 5 the
+spike's bias names the pretty column's depth, `without_lines`' value,
+the empty intent file, and §7's 40 ms (Input); 6 the card's rule total
+over what rows carry (Do 7); 7 the trade helper's change said as one
+to make (Input); 8 the hidden field wherever the query box carries the
+rows view, the Show control's wording corrected (Do 8); 9 `read_one`'s
+`Held` built always, the rows path cloning the item (Do 2).
