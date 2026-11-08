@@ -871,5 +871,9 @@ faults sorted (three fixed in `2fcd2cfc`, seven to #189 to #191 and
 notes on #182 to #186, one by ruling, one no fault, one the brief's),
 and the procedure joined the seat skill as "The page door". Current
 step: part 1's step 4, the answer and item pages from their documents
-(#176; the design's §4 and §7 step 4), awaits its brief, cut by a
-session that reads only the design on `main`.
+(#176; the design's §4 and §7 step 4), building. Its brief
+(`briefs/4-full-1-answer.md`, cut by a session that read the design on
+`main` and the tree, four times under three cold reviews, the last
+cut `33258785`) names the page design decisions and three raised
+points for the owner at its foot; the build runs in a fresh Opus
+session from 2026-11-08, its review and close to follow.
