@@ -733,11 +733,12 @@ fn describe_says_what_explain_context_and_against_do() {
             "{construct}"
         );
     }
-    // the three that wait keep their names, and no step builds them;
+    // the two that wait keep their names, and no step builds them;
     // `--view locations` left when `tabs` became the list it waited for
-    // (C118; note 38 at `16bba23e`, step 4)
+    // (C118; note 38 at `16bba23e`, step 4), and `fields` when a row's
+    // fields were built (4-full part 1, step 5)
     let waiting: Vec<&str> = NOT_BUILT.iter().map(|n| n.construct).collect();
-    assert_eq!(waiting, ["fields", "rebind", "show basis"]);
+    assert_eq!(waiting, ["rebind", "show basis"]);
     assert!(NOT_BUILT.iter().all(|n| n.step.is_none()));
 }
 

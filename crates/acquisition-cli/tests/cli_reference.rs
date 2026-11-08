@@ -150,3 +150,16 @@ fn the_reference_matches_the_binary() {
         );
     }
 }
+
+/// The help's number is the store's: `--fields`' help says how many rows
+/// an answer carrying the item holds, a literal in a doc comment, so it
+/// is held to `ITEM_ROWS` here and the two cannot part.
+#[test]
+fn the_search_help_names_the_item_rows_bound() {
+    let text = help(&["search".to_string()]);
+    let said = format!(
+        "Under `item` an answer holds at most {} rows",
+        acquisition_store::bound::ITEM_ROWS
+    );
+    assert!(text.contains(&said), "{said}: {text}");
+}

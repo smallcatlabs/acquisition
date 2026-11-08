@@ -1564,6 +1564,12 @@ pub struct RowsOut {
     pub sort: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub desc: bool,
+    /// What each row carries past its compact fields, as the view asked
+    /// them: the view as it ran, so a reader sees why `limit` is the item
+    /// rows' bound where more was asked, and a page reads its
+    /// presentation from the document it renders. Absent where none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub fields: Vec<RowField>,
     pub limit: usize,
     pub returned: usize,
     /// Where this answer's rows begin in the order: a continuation's
@@ -2243,6 +2249,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
             }),
             sort: sort.map(|(text, _)| text.clone()),
             desc,
+            fields: fields.to_vec(),
         })),
         BoundView::Counts(bound) => ViewOut::Counts(counts::tables(bound, &counted)),
         BoundView::Cross(bound) => ViewOut::Cross(counts::crossed(bound, &counted)),

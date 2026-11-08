@@ -56,13 +56,13 @@ use crate::printed::Printed as _;
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, ClauseOut, Context, Count, Membership, Request, Rows, Scope, Shape, TradeOut,
-    View, ViewOut,
+    Answer, Asked, ClauseOut, Context, Count, Membership, Request, RowField, Rows, Scope, Shape,
+    TradeOut, View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
 use acquisition_search::describe::Describe;
-use acquisition_search::show::Shown;
+use acquisition_search::show::{Shown, ShownItem, ShownLine};
 use acquisition_search::trade::Source;
 use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_search::{Priced, SearchError, answer, describe, not_built, show};
@@ -191,8 +191,10 @@ pub struct SearchArgs {
     /// incomplete.
     #[arg(long, value_name = "VALUE")]
     pub sum: Option<String>,
-    /// Not built, waiting for a consumer that asks: the caller names a
-    /// row's fields.
+    /// What each row carries beside its compact fields, by name: `icon`,
+    /// the URL of the item's art; `item`, the item as `show` gives it —
+    /// its lines, class, category and price. Under `item` an answer holds
+    /// at most 200 rows; the rest are its continuation.
     #[arg(long, value_name = "NAME,…")]
     pub fields: Option<String>,
     /// Continue an answer past its limit: the token its `more` line
@@ -336,10 +338,14 @@ fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) ->
 }
 
 pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
-    let unbuilt = [("fields", args.fields.is_some()), ("rebind", args.rebind)];
-    if let Some((construct, _)) = unbuilt.iter().find(|(_, typed)| *typed) {
-        return Err(fail(not_built(construct).into(), json));
+    if args.rebind {
+        return Err(fail(not_built("rebind").into(), json));
     }
+    // the row's fields as typed, each word read by the search's one reader
+    let fields = match &args.fields {
+        Some(text) => RowField::list(text).map_err(|e| fail(e.into(), json))?,
+        None => Vec::new(),
+    };
     // a continuation and a request read are whole: what else was typed
     // has nowhere to stand
     let typed = [
@@ -350,6 +356,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         ("--realm", args.realm.is_some()),
         ("--membership", args.membership.is_some()),
         ("--sort", args.sort.is_some()),
+        ("--fields", args.fields.is_some()),
         ("--count", !args.count.is_empty()),
         ("--cross", args.cross.is_some()),
         ("--sum", args.sum.is_some()),
@@ -554,7 +561,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
             sort: args.sort.clone(),
             desc: args.desc,
             after: None,
-            fields: Vec::new(),
+            fields,
         },
     )
     .map_err(|e| fail(e.into(), json))?;
@@ -1274,10 +1281,18 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
         out.push_str(s.trim_end());
         out.push('\n');
     };
-    let mut head = title(row.name.as_deref(), row.typeline.as_deref());
-    if let Some(rarity) = &row.rarity {
-        head.push_str(&format!(" · {}", rarity.to_lowercase()));
-    }
+    // under `item` the row is titled as `show` titles the item, its
+    // frame with it
+    let mut head = match &row.shown {
+        Some(shown) => shown_title(&shown.item),
+        None => {
+            let mut head = title(row.name.as_deref(), row.typeline.as_deref());
+            if let Some(rarity) = &row.rarity {
+                head.push_str(&format!(" · {}", rarity.to_lowercase()));
+            }
+            head
+        }
+    };
     // a scope that spans realms says which one each item is in, as
     // `show` does; under one realm the scope line has said it
     if a.scope.realm == Realm::All {
@@ -1311,6 +1326,23 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
         ));
     }
     line(format!("            id {}", row.id));
+    if let Some(icon) = &row.icon {
+        line(format!(
+            "            icon {}",
+            icon.as_deref().unwrap_or("none")
+        ));
+    }
+    // the item as `show` prints it, from its base to what is unread; its
+    // title, id, removal and place are the row's head, and the basis the
+    // answer's foot
+    if let Some(shown) = &row.shown {
+        out.push_str(&item_text(
+            ItemParts::of_row(shown),
+            &row.place.realm,
+            &a.account_named(),
+        ));
+        out.push('\n');
+    }
     out
 }
 
@@ -2394,33 +2426,54 @@ fn describe_text(d: &Describe, totals: bool) -> String {
     out
 }
 
-/// `show`'s text. `account` is the name of the account the item was shown
-/// for, which the price's why line opens with: the basis names the
-/// account by its uuid, a fingerprint, where every printed command names
-/// it as the person does (the page seat's fault 13). The item page says
-/// the same facts in the same words, each made by the functions this
-/// calls, with no why line.
-pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
-    let item = &s.item;
-    let mut out = String::new();
-    out.push_str(&format!("{}\n", shown_title(s)));
-    out.push_str(&format!("id      {}\n", item.facts.id));
-    if let Some(removed_at) = item.facts.removed_at {
-        out.push_str(&format!(
-            "removed {}\n",
-            shown_removed_words(acquisition_store::now(), removed_at)
-        ));
+/// The five parts `show` carries of an item, borrowed from `show`'s
+/// document or from a row that carries the item ([`ShownItem`]): what
+/// the item's block of text and the page's card are made from, so a row's
+/// item and `show`'s are said by the same calls.
+#[derive(Clone, Copy)]
+pub(crate) struct ItemParts<'a> {
+    pub item: &'a acquisition_search::derive::Item,
+    pub class: &'a acquisition_search::Classed,
+    pub category: &'a acquisition_search::category::Shown,
+    pub price: &'a Priced,
+    pub lines: &'a [ShownLine],
+}
+
+impl<'a> ItemParts<'a> {
+    pub(crate) fn of_shown(s: &'a Shown) -> ItemParts<'a> {
+        ItemParts {
+            item: &s.item,
+            class: &s.class,
+            category: &s.category,
+            price: &s.price,
+            lines: &s.lines,
+        }
     }
-    out.push_str(&format!(
-        "place   {}\n",
-        shown_place_words(s, acquisition_store::now())
-    ));
+
+    pub(crate) fn of_row(s: &'a ShownItem) -> ItemParts<'a> {
+        ItemParts {
+            item: &s.item,
+            class: &s.class,
+            category: &s.category,
+            price: &s.price,
+            lines: &s.lines,
+        }
+    }
+}
+
+/// The item as `show`'s text says it, from its `base` line to its
+/// `unread` lines: `show` prints it under its title, id and place, and a
+/// row carrying the item under its head. `realm` and `account` open the
+/// price's why command, as every printed command opens.
+pub(crate) fn item_text(parts: ItemParts<'_>, realm: &str, account: &str) -> String {
+    let item = parts.item;
+    let mut out = String::new();
     if let Some(base) = &item.base {
         out.push_str(&format!("base    {base}\n"));
     }
-    out.push_str(&format!("class   {}\n", class_words(&s.class)));
-    out.push_str(&format!("category {}\n", category_words(&s.category)));
-    for open in &s.category.open {
+    out.push_str(&format!("class   {}\n", class_words(parts.class)));
+    out.push_str(&format!("category {}\n", category_words(parts.category)));
+    for open in &parts.category.open {
         out.push_str(&format!("         {}\n", open_words(open)));
     }
     // what the listing state prices it at (C81): the price, or why none —
@@ -2431,15 +2484,18 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     // printed command does, with the account the item was shown for, by
     // its name, and its realm, since the defaults are another account's
     // or another realm's where the store holds several
-    let why = match &s.price {
+    let why = match parts.price {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
         _ => format!(
             " · why: {} item/{}",
-            crate::printed::opening("price show", Some(account), Some(&s.place.realm)),
+            crate::printed::opening("price show", Some(account), Some(realm)),
             item.facts.id
         ),
     };
-    out.push_str(&format!("price   {}{why}\n", price_words(s)));
+    out.push_str(&format!(
+        "price   {}{why}\n",
+        price_words(&item.facts.id, parts.price)
+    ));
     if let Some(stack) = item.stack {
         out.push_str(&format!("stack   {stack}\n"));
     }
@@ -2459,7 +2515,7 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
             text
         ));
     }
-    for (i, l) in s.lines.iter().enumerate() {
+    for (i, l) in parts.lines.iter().enumerate() {
         out.push_str(&format!(
             "{}{:<22}{}\n",
             if i == 0 { "lines   " } else { "        " },
@@ -2494,6 +2550,31 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
             u.problem
         ));
     }
+    out
+}
+
+/// `show`'s text. `account` is the name of the account the item was shown
+/// for, which the price's why line opens with: the basis names the
+/// account by its uuid, a fingerprint, where every printed command names
+/// it as the person does (the page seat's fault 13). The item page says
+/// the same facts in the same words, each made by the functions this
+/// calls, with no why line.
+pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
+    let item = &s.item;
+    let mut out = String::new();
+    out.push_str(&format!("{}\n", shown_title(item)));
+    out.push_str(&format!("id      {}\n", item.facts.id));
+    if let Some(removed_at) = item.facts.removed_at {
+        out.push_str(&format!(
+            "removed {}\n",
+            shown_removed_words(acquisition_store::now(), removed_at)
+        ));
+    }
+    out.push_str(&format!(
+        "place   {}\n",
+        shown_place_words(&s.place, acquisition_store::now())
+    ));
+    out.push_str(&item_text(ItemParts::of_shown(s), &s.place.realm, account));
     // why the item does or does not match a query: the root's outcome,
     // then each node's, a term with what it touched or why it is open
     if let Some(against) = &s.against {
@@ -2534,8 +2615,7 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
 
 /// An item's title as `show` heads it: its name and type, its rarity and
 /// its frame.
-pub(crate) fn shown_title(s: &Shown) -> String {
-    let item = &s.item;
+pub(crate) fn shown_title(item: &acquisition_search::derive::Item) -> String {
     let mut head = title(item.name.as_deref(), item.typeline.as_deref());
     for (label, value) in [("", &item.rarity), ("frame ", &item.frame)] {
         if let Some(value) = value {
@@ -2594,8 +2674,8 @@ pub(crate) fn open_words(open: &acquisition_search::category::Open) -> String {
 }
 
 /// Where a shown item lies: its realm, then its place.
-pub(crate) fn shown_place_words(s: &Shown, now: i64) -> String {
-    format!("{} · {}", s.place.realm, place_text(&s.place, now))
+pub(crate) fn shown_place_words(place: &acquisition_search::corpus::Place, now: i64) -> String {
+    format!("{} · {}", place.realm, place_text(place, now))
 }
 
 /// What the listing state prices the item at (C81): the price, its side,
@@ -2603,9 +2683,9 @@ pub(crate) fn shown_place_words(s: &Shown, now: i64) -> String {
 /// none with the reason, in the words the JSON carries (`none (none)`
 /// read as two empty fields: the re-sit, cli-opus call 41, its fault 7);
 /// or undecided with the problem.
-pub(crate) fn price_words(s: &Shown) -> String {
-    let target = format!("item/{}", s.item.facts.id);
-    match &s.price {
+pub(crate) fn price_words(id: &str, price: &Priced) -> String {
+    let target = format!("item/{id}");
+    match price {
         Priced::Is(p) => format!(
             "{} · {}{}",
             p.text,

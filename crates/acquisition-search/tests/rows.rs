@@ -1442,12 +1442,15 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
     // the one maker: show prints the same URL
     let shown = serde_json::to_value(show(&s, "drawn", false).unwrap()).unwrap();
     assert_eq!(shown["item"]["icon"], ART);
-    // unasked, a row is compact
+    // the view as it ran says the fields it asked
+    assert_eq!(asked["view"]["rows"]["fields"], json!(["icon"]), "{asked}");
+    // unasked, a row is compact, and the view names none
     let compact = view(&s, "class:ring", json!({ "rows": {} }));
     assert!(
         rows(&compact).iter().all(|r| r.get("icon").is_none()),
         "{compact}"
     );
+    assert!(compact["view"]["rows"].get("fields").is_none(), "{compact}");
     // a continuation asks what its answer asked
     let first = view(
         &s,

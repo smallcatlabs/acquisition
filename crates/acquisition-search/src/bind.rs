@@ -137,11 +137,6 @@ pub struct NotBuilt {
 /// that builds its construct.
 pub const NOT_BUILT: &[NotBuilt] = &[
     NotBuilt {
-        construct: "fields",
-        step: None,
-        what: "the caller names a row's fields",
-    },
-    NotBuilt {
         construct: "rebind",
         step: None,
         what: "run another account's request deliberately",

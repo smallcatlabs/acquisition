@@ -886,7 +886,8 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
     for (args, kind) in [
         (vec!["search", "rare"], "bare_word"),
         (vec!["search", "class:staff"], "unknown_value"),
-        (vec!["search", "--fields", "name"], "not_built"),
+        (vec!["search", "--fields", "name"], "unknown_name"),
+        (vec!["search", "--count", "tab", "--fields", "item"], "view"),
         (vec!["search", "--count", "rarty"], "unknown_name"),
         (vec!["search", "--sum", "stack"], "view"),
         (vec!["search", "--count", "tab", "--sort", "ilvl"], "view"),
@@ -948,13 +949,6 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
             "\"rare\"",
             "line(template:rare)"
         ])
-    );
-    let refused = sole_json(&acq(&base, &["--json", "search", "--fields", "name"]));
-    assert!(
-        refused["error"]
-            .as_str()
-            .unwrap()
-            .starts_with("not built: fields (waits for a consumer that asks)")
     );
 }
 
@@ -1506,6 +1500,20 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
     t.run(
         &["search", "--realm", "pc", "linked(red>=2)"],
         &["R-R-G (link group)"],
+    );
+    // a row carrying the item prints it as `show` does, under its head
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            LIFE,
+            "--fields",
+            "icon,item",
+            "--limit",
+            "2",
+        ],
+        &["            icon ", "class   Rings", "lines   explicit"],
     );
     golden(file!(), "an_items_detail", &t);
 }
@@ -2112,6 +2120,7 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         vec!["search", LIFE, "--explain", "0.1"],
         vec!["search", LIFE, "--context", "corpus", "--count", "rarity"],
         vec!["search", "--", "-rarity=rare"],
+        vec!["search", "--realm", "pc", LIFE, "--fields", "icon,item"],
     ]
     .into_iter()
     .enumerate()
@@ -2125,6 +2134,13 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         assert_eq!(request["scope"]["realm"], "pc", "{args:?}");
         assert_eq!(request["scope"]["account"], USER, "{args:?}");
         assert!(request.get("basis").is_none());
+        if args.contains(&"--fields") {
+            assert_eq!(
+                request["view"]["rows"]["fields"],
+                json!(["icon", "item"]),
+                "{args:?}"
+            );
+        }
         let file = dir.join(format!("{n}.json"));
         std::fs::write(&file, &out.stdout).unwrap();
         let mut direct = vec!["--json"];

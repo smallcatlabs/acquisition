@@ -24,6 +24,11 @@ use harness::{
 const USER: &str = "Alice#1234";
 const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
 
+/// The row fields the answer page asks by default, as `acq search
+/// --fields` names them: what each JSON comparison of a page with the CLI
+/// asks of the CLI, so the two compare whole.
+const PAGE_FIELDS: &str = "icon";
+
 /// The league list (Standard, Hardcore, and Settlers with no tab on
 /// disk), and one league of two tabs: `Rings` with two life rings and Kaom's Heart,
 /// each with its art; `Launch` with what a new league brings first — a
@@ -336,12 +341,12 @@ fn query_string(fields: &[(&str, &str)]) -> String {
 
 /// The fold, pinned by equality: a form submission's answer is `acq
 /// search --trade-file` over the envelope the fields name, in the same
-/// realm with the same limit, over the same store — but for the art each
-/// row carries, which the page asks of the view (C140).
+/// realm with the same limit and the row fields the page asks, the art
+/// among them (C140), over the same store.
 #[test]
 fn the_fold_answers_as_acq_search_trade_does() {
     let (scratch, web) = offline_web("webfold");
-    let mut page = web.get_json(&format!("search?{}", query_string(&ring_search())));
+    let page = web.get_json(&format!("search?{}", query_string(&ring_search())));
     let envelope = json!({
         "league": "Standard",
         "query": {
@@ -362,35 +367,35 @@ fn the_fold_answers_as_acq_search_trade_does() {
             "pc",
             "--limit",
             "20",
+            "--fields",
+            PAGE_FIELDS,
             "--json",
         ],
     );
     assert!(out.status.success(), "{out:?}");
     let cli = sole_json(&out);
-    let rows = page["rows"].as_array_mut().unwrap();
+    let rows = page["rows"].as_array().unwrap();
     assert_eq!(rows.len(), 2, "{rows:?}");
-    for row in rows.iter_mut() {
+    for row in rows {
         assert_eq!(row["icon"], ART, "{row}");
-        row.as_object_mut().unwrap().remove("icon");
     }
     assert_eq!(page, cli);
 }
 
-/// The page's answer to a site search, its art taken out, beside `acq
-/// search` with `args` in the same world: the two must be one answer.
-/// The view a zero's offer of context carries is each asker's own — the
-/// page asks for each row's art and leaves the limit its default — so it
-/// is taken out of both.
+/// The page's answer to a site search beside `acq search` with `args`
+/// and the page's own row fields in the same world: the two must be one
+/// answer. The view a zero's offer of context carries is each asker's
+/// own — the page leaves the limit its default — so it is taken out of
+/// both.
 fn trade_answers_as_the_cli(world: &Path, web: &WebUi, fields: &[(&str, &str)], args: &[&str]) {
     let mut page = web.get_json(&format!("search?{}", query_string(fields)));
     let mut args: Vec<&str> = ["search"].iter().chain(args).copied().collect();
-    args.push("--json");
+    args.extend(["--fields", PAGE_FIELDS, "--json"]);
     let out = offline_acq(world, &args);
     assert!(out.status.success(), "{out:?}");
     let mut cli = sole_json(&out);
-    for row in page["rows"].as_array_mut().unwrap().iter_mut() {
+    for row in page["rows"].as_array().unwrap() {
         assert_eq!(row["icon"], ART, "{row}");
-        row.as_object_mut().unwrap().remove("icon");
     }
     for answer in [&mut page, &mut cli] {
         if let Some(request) = answer.pointer_mut("/zero/offers/context/request") {
@@ -554,7 +559,7 @@ fn the_query_box_sorts_and_pages_a_typed_query() {
         ("view.sort", "ilvl"),
         ("view.desc", "true"),
     ];
-    let mut page = web.get_json(&format!("search?{}", query_string(&fields)));
+    let page = web.get_json(&format!("search?{}", query_string(&fields)));
     let out = offline_acq(
         &scratch.0,
         &[
@@ -567,16 +572,14 @@ fn the_query_box_sorts_and_pages_a_typed_query() {
             "--sort",
             "ilvl",
             "--desc",
+            "--fields",
+            PAGE_FIELDS,
             "--json",
         ],
     );
     assert!(out.status.success(), "{out:?}");
     let cli = sole_json(&out);
-    let rows = page["rows"].as_array_mut().unwrap();
-    assert!(rows.len() > 1, "{rows:?}");
-    for row in rows.iter_mut() {
-        row.as_object_mut().unwrap().remove("icon");
-    }
+    assert!(page["rows"].as_array().unwrap().len() > 1, "{page}");
     assert_eq!(page["rows"], cli["rows"]);
     assert_eq!(page["view"], cli["view"]);
     let answer = web.get(&format!("search?{}", query_string(&fields)));
@@ -2919,11 +2922,11 @@ fn saved_open_runs_the_rows_search_and_writes_nothing() {
             "{location}"
         );
         assert_eq!(file_revision(&world), before, "an opening wrote");
-        let mut page = json_at(&web, &location);
-        let cli = sole_json(&offline_acq(&world, &["search", "--saved", id, "--json"]));
-        for row in page["rows"].as_array_mut().unwrap() {
-            row.as_object_mut().unwrap().remove("icon");
-        }
+        let page = json_at(&web, &location);
+        let cli = sole_json(&offline_acq(
+            &world,
+            &["search", "--saved", id, "--fields", PAGE_FIELDS, "--json"],
+        ));
         assert_eq!(page, cli, "{id}");
         let answer = follow(&web, &location);
         assert!(

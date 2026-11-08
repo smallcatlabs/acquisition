@@ -1496,7 +1496,7 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
     let mut out = format!(
         "{icon}{badges}<p class=\"name rarity-{}\">{}</p>\n<table class=\"shown\">\n",
         esc(&rarity),
-        esc(&search_cmd::shown_title(shown))
+        esc(&search_cmd::shown_title(it))
     );
     out.push_str(&fact_row("Id", &esc(&it.facts.id)));
     if let Some(removed_at) = it.facts.removed_at {
@@ -1507,7 +1507,7 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
     }
     out.push_str(&fact_row(
         "Place",
-        &esc(&search_cmd::shown_place_words(shown, now)),
+        &esc(&search_cmd::shown_place_words(&shown.place, now)),
     ));
     if let Some(base) = &it.base {
         out.push_str(&fact_row("Base", &esc(base)));
@@ -1521,7 +1521,10 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
         category.push_str(&format!("<br>{}", esc(&search_cmd::open_words(open))));
     }
     out.push_str(&fact_row("Category", &category));
-    out.push_str(&fact_row("Price", &esc(&search_cmd::price_words(shown))));
+    out.push_str(&fact_row(
+        "Price",
+        &esc(&search_cmd::price_words(&it.facts.id, &shown.price)),
+    ));
     if let Some(stack) = it.stack {
         out.push_str(&fact_row("Stack", &esc(&stack.to_string())));
     }

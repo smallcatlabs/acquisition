@@ -315,7 +315,6 @@ categories — the trade site's ids, as spelled
   currency.tattoo               Tattoo
 trade — what `--trade` makes of each clause a site search can carry, 149 rows: `--describe trade`
 not built, refused by name
-  fields (--fields)          waits for a consumer that asks  the caller names a row's fields
   rebind (--rebind)          waits for a consumer that asks  run another account's request deliberately
   show basis (show --basis)  waits for a consumer that asks  one item as a named basis held it
 limits, as the search states them
