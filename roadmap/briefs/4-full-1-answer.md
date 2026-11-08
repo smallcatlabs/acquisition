@@ -11,8 +11,13 @@ orchestrating session asked for this brief on 2026-11-08, cut by a
 session that read the design on `main` and the tree, nothing else of
 the group. Cut again on 2026-11-08 under the cold review at `cacfe12e`
 (`roadmap/reviews/4-full-1-answer-brief-cacfe12e.md`), the foot saying
-what each finding changed, and a third time under the review at
-`a47f6212` (`roadmap/reviews/4-full-1-answer-brief-a47f6212.md`). Where the design and the tree disagree the brief takes the
+what each finding changed, a third time under the review at
+`a47f6212` (`roadmap/reviews/4-full-1-answer-brief-a47f6212.md`), and
+a fourth under the third review at `a1987930`
+(`roadmap/reviews/4-full-1-answer-brief-a1987930.md`), at the
+orchestrating session's word, which set the three-cut bound and lifted
+it for a review that still corrected facts; no fourth review follows,
+the orchestrating session reading cut 4 against the third. Where the design and the tree disagree the brief takes the
 tree's fact and says so (Input). Where the design is silent on a
 page's words or shape, this brief decides, and the foot lists each
 decision for the owner.
@@ -42,7 +47,8 @@ pages.
 
 ## Read
 
-- `AGENTS.md`, `roadmap/README.md` "A step", and `TEMPLATE.md`.
+- `AGENTS.md`, `roadmap/README.md` "A step", and
+  `roadmap/briefs/TEMPLATE.md`.
 - `roadmap/briefs/4-full-1-design.md` §1 "The pages print the CLI's
   text", §2 "Every document with its version" and "What pins it", §4
   whole (its last paragraph is this step; its first two are step 5's),
@@ -127,7 +133,9 @@ pages.
   `data-way` markup and anything put in a URL are read against C16's
   state sentence).
 - `CLI-REFERENCE.md` `## acq web` (its first sentence, "a page over
-  loopback that renders what these verbs print").
+  loopback that renders what these verbs print", which stands twice
+  there, in the command list and under `## acq web`), made from the
+  clap doc comment at `crates/acquisition-cli/src/main.rs` line 241.
 - Issues #176 (this step), #190 (Not in scope says why it is left),
   #182 (the same fault on the jobs and refresh pages, the next step).
 
@@ -247,9 +255,11 @@ page in the text's layout, which the HTML renders in its own.
   `"stats.0.0"`, `"undecided"` — each a word the HTML keeps; confirm on
   the regenerated page.
 - `every_search_page_is_a_wording_golden`, line 742: `assert!(!counted.body.contains("<table>"), "a count shows no rows")`
-  fails once a count renders an HTML table. It becomes: no
-  `class="results"` on the counted page, and each count table carries
-  its own class (Do 4).
+  is vacuous: no table on any page is a bare `<table>` (the rows table
+  is `<table class="results">`, `page.rs` line 776), so it passes today
+  and would pass after. It is rewritten to its property: no
+  `class="results"` on the counted page, and the count table's own
+  class present (Do 4).
 - `every_search_page_is_a_wording_golden`, line 655: `!edited.body.contains("trade   from")`
   (an edited text drops the trade input) passes on any HTML page. It is
   rewritten against the HTML's own mark of a translation (the trade
@@ -271,7 +281,7 @@ page in the text's layout, which the HTML renders in its own.
   `">more</a>"`, and follows it with the token put in front by the
   test (`at(&more)`, `format!("/{token}/{more}")`). The continuation
   becomes absolute (Do 3), so both follow `more` as it stands: lines
-  1813, 1816, 2399 and 2402 drop their prefix. A way's `<a>` keeps
+  1813, 1817, 2400 and 2403 drop their prefix (`grep -n 'at(&more)\|"/{token}/{more}"' crates/acquisition-cli/tests/web.rs`). A way's `<a>` keeps
   `href` its last attribute and the words "more".
 - The comment on `saved_parts` ("its own tail keeps the CLI's lines
   until step 4") becomes false and is corrected.
@@ -302,8 +312,14 @@ gains, each reachable there: rows left out (`view.limit=1`, the
 continuation, row 1, as the basis test asks); a count with a bucket
 that carries a request (`view.count=class`: the item `new`, Wombgift
 Chalice, is in the `undecided` bucket, which carries its route by
-default, row 7); the zero answer (the xbox URL page: two explain
-offers, the corpus offer, rows 12 and 13). A world staged apart, so no
+default, row 7); and the zero answer with an undecided (row 11: a pc
+query whose only candidate is `new`, whose class is undecided, say
+`class:rings name="Brood Lure"`, which the build confirms answers 0
+matched and 1 undecided; where it does not, the build finds one that
+does or takes row 11 out of Do 8's list and says why). Rows 12 and 13
+are checked on the xbox URL page, already recorded (`search_pages.txt`,
+"GET search?<an xbox URL from the pc page>": two explain offers, the
+corpus offer). A world staged apart, so no
 page of the existing goldens moves: a store moved under the server
 reloads its corpus (`mod.rs`'s module doc, "One corpus, held"), and a
 staging in `seed`'s shared world would change the scope and totals of
@@ -312,33 +328,39 @@ new test (Do 7), staged with `Store::record` inline as
 `the_form_renders_the_realm_it_is_asked_for` stages a listing, in this
 order, each page recorded after the staging it needs and read in the
 light of the ones before it: never-fetched tabs in two pc leagues (a
-`Standard` listing adding a tab no fetch has read, and a `Hardcore` pc
-listing of one tab never fetched), so the pointer names the league
-holding the most and counts the other (`other_leagues`, the words "1
-other league holds never-fetched tabs"), recorded on a page with no
-league term, and a second page whose query excludes the pointed league
-(`-league=…`), where the pointer names the other; a removed id (a later fetch of a tab
+`Standard` listing adding two tabs no fetch has read, and a `Hardcore`
+pc listing of one tab never fetched), so `Standard` holds the most and
+the pointer names it, counting the other (`never_fetched_leagues` is
+ordered by count, then by name, `acquisition-store/src/coverage.rs`;
+`other_leagues`, the words "1 other league holds never-fetched tabs"),
+recorded on a page with no league term, and a second page whose query
+excludes it (`-league=Standard`), where the pointer names `Hardcore`; a removed id (a later fetch of a tab
 that no longer holds an item, then a term `id:` of it under `live`);
 a value list cut with its rest (a value list carries `rest` only
-past `bound::LISTED`, ten values, `answer.rs`'s `rest_of`, and only for
-a term `rest_of` keys, a field test or a line group with one
-template; `seed`'s six items cannot make one, so the staging writes
-eleven or more items carrying eleven or more distinct values of one,
-the build naming the term); fourth, an ambiguous clause with a stake
+past `bound::LISTED`, ten values; a term has a value list only where
+`answer.rs`'s `resolves` holds, a group naming a template or a field
+test with `:` or `~`, never a text or `id` atom; and `rest_of` keys
+only a line group whose selector is one template test, or such a
+field test on a field other than `tab` and `category`; so the term is,
+say, `name:` or `base:` over eleven or more distinct values, or a
+`line~` group of one template test; `seed`'s six items cannot make
+one, so the staging writes eleven or more items carrying eleven or
+more distinct values, the build naming the term); fourth, an ambiguous clause with a stake
 (row 10), from the recipe `seat_faults.rs` already runs in
 `an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops`
-(golden `seat_faults/an_ambiguous_clause_adds_and_drops.txt`): two
-Iron Rings, one with "25% increased Rarity of Items found", one with
-"30% increased …" and "10% reduced …", and the site's query JSON
+(golden `seat_faults/an_ambiguous_clause_adds_and_drops.txt`): that
+test's two items copied whole, two Iron Rings in a fetched pc tab, ids
+`plain` and `both`, `"name": ""`, `"frameTypeId": 2`, one with "25%
+increased Rarity of Items found", one with "30% increased Rarity of
+Items found" and "10% reduced Rarity of Items found", each also
+carrying "Recover 2% of Mana on Kill" (the query's second filter is
+that line: without it the answer is a zero and no stake carries a
+route), and the site's query JSON
 `{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}`
 run through the page's trade box, which reads `stats.0.0` the other
 way, dropping one. Only two catalogue rows carry an other reading,
 both stat clauses (`trade-catalogue-v1.toml`'s `other =` lines); no
-form filter stakes. In `seed`'s world, one more page reaches row 11:
-a pc query whose only candidate is `new`, whose class is undecided
-(say `class:rings name="Brood Lure"`), which the build confirms
-answers 0 matched and 1 undecided; where it does not, the build finds
-one that does or takes row 11 out of Do 8's list and says why.
+form filter stakes.
 
 **The last push's CI**: `Gate (Linux)` run 42490674447 and `Gate
 (Windows)` run 42490674446, both on `35cf33a7`, both `success`.
@@ -447,8 +469,10 @@ one that does or takes row 11 out of Do 8's list and says why.
      or an explained node (row 9) under the same rule;
    - the zero answer: its undecided count as a way (row 11; outside
      Do 2's walk, which takes the root's from `total`), each selector
-     nothing carries with its suggestions (a suggestion's term is
-     words, not a way), the explain
+     nothing carries, with its note where it has one, or for an id the
+     words "it left the scope, as its term says", or else the zero's
+     `said` (the text's sentence, `search_cmd.rs`'s zero block), then
+     its suggestions (a suggestion's term is words, not a way), the explain
      offers (row 12) each its path and node in words and the number of
      the rest, the corpus offer (row 13) in words;
    - the undecided reasons, each its unread part, its example's name as
@@ -477,25 +501,32 @@ one that does or takes row 11 out of Do 8's list and says why.
    shown properties, the lines with their source, flags, template,
    slots, rows and limit, unread, `against` where present, the basis),
    as HTML, the words made once (Do 2). The price line says the price
-   with its side and source, or none with the reason, or undecided with
+   (`text`), its side, and the row it is priced from (`from`) where
+   that is not the item's own target, as the text shows it, or none
+   with the reason, or undecided with
    the problem, and nothing after: no link, no command, no "why".
    `page::item` loses its `account` parameter and the `item` handler
    its username (Input). The body is not on the page (the route asks
    none).
-6. **The words that correct.** `page.rs`'s module doc (the pages render
-   their documents as HTML, the words made once with the text's, and
-   print no command line), `answer`'s doc (`page.rs`, above `answer`)
+6. **The words that correct.** `page.rs`'s module doc, which covers
+   every page: the answer and item pages render their documents as
+   HTML, the words made once with the text's, and print no command
+   line; the plan, refresh and jobs pages still print the CLI's text
+   until #182 (`mod.rs` renders them through `page::pre`); `answer`'s doc (`page.rs`, above `answer`)
    and `item`'s; `search_cmd.rs`'s docs of `answer_head` ("what the web
    UI's answer page states above its table, word for word") and
    `answer_tail` ("what the web UI's answer page states under its
    table"), each then the text's alone and private where nothing else
-   calls it; `mod.rs`'s bullet "A refusal's ways on are the pages' own"
+   calls it; `row_shows`'s doc ("the touched lines the web UI's table
+   carries in a cell"), corrected to what Do 2's split leaves of it;
+   `mod.rs`'s bullet "A refusal's ways on are the pages' own"
    gains the answer's ways (every request the answer carries spelled
    through `Paged`, a continuation as `search?next=`, the count or the
    words where no page takes one) and keeps its last sentence true (the
    refresh and jobs pages still print the CLI's command lines, #182);
-   `saved_parts`'s comment in `web.rs`; `acq web`'s help, "renders what
-   these verbs print", becomes "renders the documents these verbs
+   `saved_parts`'s comment in `web.rs`; `acq web`'s help (the clap doc
+   comment at `main.rs` line 241), "renders what these verbs print",
+   becomes "renders the documents these verbs
    answer" (or the step's words for that fact), `CLI-REFERENCE.md`
    regenerated under `ACQ_UPDATE_FIXTURES=1`. README line 203 says
    nothing this step makes false; it stays.
@@ -516,8 +547,7 @@ one that does or takes row 11 out of Do 8's list and says why.
    never-fetched tabs with the tabs link and its other league, and the
    page whose query excludes the pointed league; the removed id with its
    way; the cut list with its rest; and the ambiguous clause's drop.
-   `every_search_page_is_a_wording_golden` gains the zero answer with an
-   undecided (row 11) beside Input's three. The foot's basis is masked
+   The foot's basis is masked
    either by rendering it so that a line of the page source begins
    `basis   store `, which `normalise`'s `basis_rule` already reads, or
    by a page-only rule in `Pages` beside `basis_meta_rule`, which
@@ -542,9 +572,11 @@ one that does or takes row 11 out of Do 8's list and says why.
      HTML page exactly one `class="way"` element whose `data-way` is
      that object's pointer, and no `class="way"` element whose pointer
      names none (the tabs way apart: present exactly where
-     `tabs_pointer()` would be some, which the test reads as the JSON's
-     scope under one realm holding a never-fetched tab in a league the
-     query does not exclude, and checked on the staged page and absent
+     `tabs_pointer()` would be some, which the test reads as
+     `tabs_pointer` has it: `scope.realm` one realm, and
+     `scope.never_fetched_leagues` holding a league the query does not
+     exclude and, where the query names leagues (`league=` and-ed or
+     or-ed), one of those named; checked on the staged pages and absent
      on a seeded one; the tabs `<a>` is followed for its status alone,
      200, the refresh page, whose document has no query and no total).
      For each other `<a class="way">`, followed with JSON asked: it
@@ -667,9 +699,9 @@ one that does or takes row 11 out of Do 8's list and says why.
   design's §4). (Binds the thing you build.)
 - A choice that would add a route, a fold field, a document field or
   change a ruling stops the step and comes to the orchestrating
-  session.
+  session. (Binds your work.)
 - A sentence of this brief the tree disproves is corrected in the
-  report, not silently built around.
+  report, not silently built around. (Binds your work.)
 
 ## Report
 
@@ -769,5 +801,25 @@ the splits (Do 2); 6 the basis masked in `Pages` or by a line
 a parameter of `page::answer`, the continuation arm checking the
 served account (Do 3); 8 no stake under `set_aside` (Input); 9 the
 clause label's form (Do 2); 10 six seeded items (Input); 11 the
-checklist's frontends rows read (Read). The third cut is the last (the
-rhythm's bound).
+checklist's frontends rows read (Read).
+
+Cut 4, 2026-11-08, under the third cold review at `a1987930`
+(`roadmap/reviews/4-full-1-answer-brief-a1987930.md`, twelve
+findings, each taken, at the orchestrating session's word lifting its
+three-cut bound): 1 row 10's two rings copied whole from
+`seat_faults.rs`, the Mana on Kill line the query's second filter
+needs among them (Input); 2 the three pages gained are rows left out,
+the routed bucket and the zero with an undecided, the xbox page
+already recorded and where rows 12 and 13 are checked (Input, Do 7);
+3 `page.rs`'s module doc split, the plan, refresh and jobs pages
+printing the CLI's text until #182 (Do 6); 4 line 742's check named
+vacuous and rewritten to its property (Input); 5 two never-fetched
+tabs in `Standard`, one in `Hardcore`, the exclusion `-league=Standard`
+(Input); 6 the tabs predicate as `tabs_pointer` has it, named leagues
+included (Do 8); 7 lines 1813, 1817, 2400 and 2403 (Input); 8 row 5's
+term a `:` or `~` selector off `tab` and `category`, or a line group
+of one template test (Input); 9 the zero block's note, id words and
+`said` (Do 4); 10 `row_shows`'s doc (Do 6); 11 the price's `from`
+(Do 5); 12 the help's home at `main.rs` line 241, the template's path,
+what the Rules' last two bullets bind (Read, Do 6, Rules). No fourth
+review: the orchestrating session reads cut 4 against the third.
