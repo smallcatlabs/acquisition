@@ -15,6 +15,16 @@
 /// whole.
 pub const LISTED: usize = 10;
 
+/// C53 — how many rows a search answer holds when its rows carry the item
+/// whole (`fields: ["item"]`), whatever its `limit` names: the rest are its
+/// continuation, and the answer says the limit it applied (C53's line of
+/// 2026-11-08, the owner's "Yes, go ahead"). A count, never a byte
+/// measure: 200 is the largest number of rows the answer page's Show
+/// control offers, so no choice a page offers is cut, at 0.57 MB of
+/// compact JSON measured (`search/MEASUREMENTS.md`, M9); a smaller limit
+/// stands as asked, and an item is never cut.
+pub const ITEM_ROWS: usize = 200;
+
 /// C53 — a list cut to what the request asked: the whole where `expand`
 /// is asked (whatever `limit` says), else the first `limit` rows, else
 /// the first [`LISTED`]. Returns the rows kept, in the order given, and

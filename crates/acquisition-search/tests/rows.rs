@@ -1336,6 +1336,66 @@ fn c100_a_rows_item_is_the_one_show_makes() {
     assert!(seen.contains("thread"), "{seen:?}");
 }
 
+/// C53's line of 2026-11-08: under `item` a rows answer holds at most the
+/// item rows' bound whatever its `limit` names, says the limit it applied,
+/// and continues the rest at it, asking the same fields; every row it
+/// holds carries its item whole. Without `item` the limit asked stands.
+#[test]
+fn an_item_row_view_holds_at_most_the_cap_and_continues() {
+    use acquisition_store::bound::ITEM_ROWS;
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("w1", "Many")]), 10);
+    let items = (0..=ITEM_ROWS)
+        .map(|n| {
+            item(
+                &format!("i{n}"),
+                &format!("Item {n}"),
+                "Iron Ring",
+                "Rare",
+                json!({}),
+            )
+        })
+        .collect();
+    fetch_tab(&mut s, "pc", "Standard", "w1", "Many", items, 20);
+    let past = ITEM_ROWS + 50;
+    let carried = view(
+        &s,
+        "",
+        json!({ "rows": { "fields": ["item"], "limit": past } }),
+    );
+    let rows = carried["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), ITEM_ROWS);
+    assert!(
+        rows.iter()
+            .all(|r| r["lines"].is_array() && r["item"].is_object())
+    );
+    let said = &carried["view"]["rows"];
+    assert_eq!(said["limit"], ITEM_ROWS, "{said}");
+    assert_eq!(said["left_out"], 1, "{said}");
+    let next = &said["next"]["request"];
+    assert_eq!(next["view"]["rows"]["limit"], ITEM_ROWS, "{next}");
+    assert_eq!(next["view"]["rows"]["fields"], json!(["item"]), "{next}");
+    let request: Request = serde_json::from_value(next.clone()).unwrap();
+    let after = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
+    let last = after["rows"].as_array().unwrap();
+    assert_eq!(last.len(), 1, "{after}");
+    assert!(last[0]["item"].is_object(), "{after}");
+    // a smaller limit stands as asked; without `item`, every row asked
+    let small = view(
+        &s,
+        "",
+        json!({ "rows": { "fields": ["item"], "limit": 3 } }),
+    );
+    assert_eq!(small["rows"].as_array().unwrap().len(), 3);
+    let compact = view(
+        &s,
+        "",
+        json!({ "rows": { "fields": ["icon"], "limit": past } }),
+    );
+    assert_eq!(compact["rows"].as_array().unwrap().len(), ITEM_ROWS + 1);
+    assert_eq!(compact["view"]["rows"]["limit"], past);
+}
+
 /// C140 and C100's named fields: a rows view asked for `fields: ["icon"]`
 /// puts on each row the URL of the item's art its body gives — the one
 /// `show` prints, from the one maker — and null where the body gives

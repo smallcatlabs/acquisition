@@ -228,9 +228,12 @@
 //!   `lines`, made from the held item by `show`'s one maker
 //!   ([`crate::show::ShownItem::of`]), so no second maker of any of them
 //!   stands here. A row's `place` stays its own: the corpus names what a
-//!   socketed item sits in, `show` gives its id. A continuation asks the
-//!   fields its answer asked; beside a count they are refused, as a sort
-//!   is.
+//!   socketed item sits in, `show` gives its id. Under `item` an answer
+//!   holds at most `acquisition_store::bound::ITEM_ROWS` rows whatever
+//!   its `limit` names, the limit applied said as `view.rows.limit` and
+//!   the rest its continuation at that limit; a smaller limit stands, and
+//!   an item is never cut (C53). A continuation asks the fields its
+//!   answer asked; beside a count they are refused, as a sort is.
 //! - **A continuation is a request with its basis and its place** (C98,
 //!   C100; the build plan, step 10): the answer's own request, scope resolved and
 //!   query canonical, with the basis it was counted at and how many rows
@@ -353,8 +356,10 @@ pub const ID_WHOLE: &str =
 // How many rows an answer returns when the request names no limit, and
 // how many of a bounded block's entries are listed before the rest are
 // counted, is the store's one number (C53, the read economy's bound:
-// `acquisition_store::bound::LISTED`), never a second one here.
-use acquisition_store::bound::{LISTED, bounded};
+// `acquisition_store::bound::LISTED`); how many rows carrying the item an
+// answer holds, whatever its limit names, is the store's other
+// (`acquisition_store::bound::ITEM_ROWS`) — never a second one here.
+use acquisition_store::bound::{ITEM_ROWS, LISTED, bounded};
 /// How many near values a zero answer offers beside a term: offers, not a
 /// list of entities, so not the read economy's bound.
 const SUGGESTED: usize = 5;
@@ -1188,7 +1193,13 @@ impl Shape {
                     None => None,
                 },
                 desc: rows.desc,
-                limit: rows.limit.unwrap_or(LISTED),
+                // under `item` at most the item rows' bound, whatever the
+                // limit names: the limit applied is the view's, said in the
+                // answer, and the continuation goes on at it (C53)
+                limit: match rows.fields.contains(&RowField::Item) {
+                    true => rows.limit.unwrap_or(LISTED).min(ITEM_ROWS),
+                    false => rows.limit.unwrap_or(LISTED),
+                },
                 fields: rows.fields.clone(),
             },
             Shape::Counts(c) => {
