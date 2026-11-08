@@ -1,0 +1,16 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,T2,"[""search"", ""--describe""]",0,33780,0,338,whole,learn the query language index
+2,T2,"[""search"", ""category=\""accessory.ring\"" rarity=rare pseudo.total_life>=70"", ""--sort"", ""pseudo.total_life"", ""--desc"", ""--limit"", ""15""]",1,0,394,32,whole,"total life via the pseudo field, most first"
+3,T2,"[""--account"", ""GERWARIC#7694"", ""search"", ""--sort=pseudo.total_life"", ""--desc"", ""--limit=15"", ""category=\""accessory.ring\"" rarity=rare pseudo.total_life>=70""]",1,0,172,42,whole,"same, with the account the error offered"
+4,T2,"[""--account"", ""GERWARIC#7694"", ""search"", ""--realm"", ""pc"", ""--sort=pseudo.total_life"", ""--desc"", ""--limit=15"", ""category=\""accessory.ring\"" rarity=rare pseudo.total_life>=70""]",0,7213,0,475,whole,"same, realm pc"
+5,T4,"[""saved"", ""list""]",0,256,0,6,whole,
+6,T4,"[""search"", ""--saved"", ""0f3f4efab470"", ""--limit"", ""5""]",1,0,246,7,whole,
+7,T4,"[""--account"", ""GERWARIC#7694"", ""search"", ""--limit=5"", ""--saved=Life rings (total 70+)""]",0,3647,0,462,whole,
+8,T4,"[""saved"", ""show"", ""0f3f4efab470""]",0,302,0,5,whole,
+9,T4,"[""saved"", ""set"", ""--name"", ""Rings by total life (door)"", ""--realm"", ""pc"", ""category=\""accessory.ring\"" rarity=rare pseudo.total_life>=70""]",0,258,0,33,whole,save the trade-site total-life search from the door
+10,T6,"[""--account"", ""seat"", ""stashes"", ""--realm"", ""pc"", ""--league"", ""Rehearsal""]",0,2022,92,517,whole,the Refresh page asked for this to list the tabs
+11,T6,"[""--account"", ""seat"", ""characters"", ""--realm"", ""pc""]",0,667,92,515,whole,the Refresh page asked for this to list characters
+12,T6,"[""--account"", ""seat"", ""jobs"", ""result"", ""10""]",2,0,106,4,whole,pages say 0 items in each fetched tab; what did the fetch return
+13,T6,"[""--account"", ""seat"", ""result"", ""10""]",0,455,61,9,whole,the tour line reads as a verb of its own: acq result <id>
+14,T6,"[""--account"", ""seat"", ""result"", ""12""]",0,457,61,9,whole,second plan for Uniques repeats the first plan line; what did job 12 bring
