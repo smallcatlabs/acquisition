@@ -1110,15 +1110,16 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     // under every total, not a zero's alone: a count of N is as blind to
     // the never-fetched as a count of none (the trade seat: cli-sonnet
     // call 6, its fault 4; mcp-sonnet's debrief, answer 5)
-    if a.scope.coverage.never_fetched > 0 {
-        line(format!(
-            "            {} never fetched: nothing here says what they hold",
-            plural(
-                a.scope.coverage.never_fetched,
-                "location was",
-                "locations were"
-            )
-        ));
+    // the number agrees through the sentence: "it holds" for one (the
+    // page seat's probe, stop 10)
+    match a.scope.coverage.never_fetched {
+        0 => {}
+        1 => line(
+            "            1 location was never fetched: nothing here says what it holds".to_string(),
+        ),
+        n => line(format!(
+            "            {n} locations were never fetched: nothing here says what they hold"
+        )),
     }
 
     if let Some(before) = &a.before {

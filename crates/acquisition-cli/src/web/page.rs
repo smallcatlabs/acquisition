@@ -63,6 +63,9 @@ pub(crate) struct Head {
     pub refresh: Option<u32>,
     /// The stat picker's script.
     pub picker: bool,
+    /// The list filter's script: the refresh page's boxes under its
+    /// columns.
+    pub filter: bool,
     /// The versions of the documents the page renders (C16, every
     /// document carries its basis): each keyed by its document — `answer`,
     /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
@@ -90,11 +93,11 @@ pub(crate) fn page(token: &str, title: &str, head: Head, body: &str) -> String {
         .refresh
         .map(|s| format!("<meta http-equiv=\"refresh\" content=\"{s}\">\n"))
         .unwrap_or_default();
-    let script = if head.picker {
-        format!("<script src=\"/{token}/assets/picker.js\"></script>\n")
-    } else {
-        String::new()
-    };
+    let script: String = [(head.picker, "picker"), (head.filter, "filter")]
+        .into_iter()
+        .filter(|(wanted, _)| *wanted)
+        .map(|(_, name)| format!("<script src=\"/{token}/assets/{name}.js\"></script>\n"))
+        .collect();
     let basis = match head.basis.is_empty() {
         true => String::new(),
         false => {
@@ -293,7 +296,7 @@ pub(crate) fn saved_list(
     if listed.total == 0 {
         return format!(
             "<p>{}</p>\n",
-            esc("No saved searches yet: save one from any search's answer, under its query.")
+            esc("No saved searches: save one from any search's answer, under its query.")
         );
     }
     let mut out = format!(
@@ -421,7 +424,7 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String
     };
     let named = |name: &str| {
         format!(
-            "<label class=\"filter-title\">Name <input name=\"name\" value=\"{}\"></label> ",
+            "<label class=\"filter-title\">Name <input name=\"name\" value=\"{}\" aria-label=\"the search's name\"></label> ",
             esc(name)
         )
     };
@@ -497,7 +500,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         fate_span(form.fate("query.term"))
     ));
     out.push_str("<label class=\"control\">Realm <select name=\"realm\" form=\"realm-form\">");
-    for r in ["pc", "xbox", "sony"] {
+    for r in ["pc", "xbox", "sony", "poe2"] {
         out.push_str(&format!(
             "<option value=\"{r}\"{}>{r}</option>",
             if r == realm { " selected" } else { "" }
@@ -524,7 +527,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         // sent with its `disabled` field and its values stand; the panel's
         // own toggle is open and close alone
         out.push_str(&format!(
-            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.filters.{}.disabled\" value=\"true\"> this group off, its values kept</label></div>\n",
+            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.filters.{}.disabled\" value=\"true\"> disable this group</label></div>\n",
             if group.hidden { "" } else { " open" },
             esc(title),
             esc(&group.id)
@@ -541,7 +544,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         }
         out.push_str("</div>\n</details>\n");
     }
-    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.stats[0].disabled\" value=\"true\"> this group off, its values kept</label></div>\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
+    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.stats[0].disabled\" value=\"true\"> disable this group</label></div>\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
     for (kind, text, fate) in &form.stat_types {
         out.push_str(&format!(
             "<option value=\"{}\"{}>{} ({})</option>",
@@ -559,7 +562,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
             n + 1
         ));
     }
-    out.push_str("<div class=\"filter\"><span class=\"filter-title\">Find a stat</span> <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></div>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</div>\n</details>\n</div>\n</div>\n");
+    out.push_str("<div class=\"filter\"><label class=\"filter-title\" for=\"stat-find\">Find a stat</label> <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></div>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</div>\n</details>\n</div>\n</div>\n");
     out.push_str("<div class=\"controls\">\n<div class=\"controls-left\"><label class=\"control\">Show <select name=\"view.limit\">");
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));

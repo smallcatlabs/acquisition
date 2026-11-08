@@ -308,8 +308,9 @@ fn a_selection_narrows_the_rows_under_the_leagues_counts() {
 
 /// The document's groups (the 4b sitting round's review, its fourth
 /// finding): asked, each listed tab is a group in the rows' order, a map
-/// tab's pages nested under it, a folder's children tabs of their own;
-/// unasked, no `groups` key, the flat answer unchanged.
+/// tab's pages nested under it, a folder's children tabs of their own,
+/// each a group in the folder's `tabs` (the page seat's probe); unasked,
+/// no `groups` key, the flat answer unchanged.
 #[test]
 fn a_map_tabs_pages_are_grouped_under_it_when_asked() {
     use acquisition_store::Endpoint;
@@ -388,11 +389,25 @@ fn a_map_tabs_pages_are_grouped_under_it_when_asked() {
         groups.contains(&(id("m1"), vec![id("s1"), id("s2")])),
         "{groups:?}"
     );
-    for alone in ["f1", "c1", "t1"] {
+    for alone in ["f1", "t1"] {
         assert!(
             groups.contains(&(id(alone), Vec::new())),
             "{alone}: {groups:?}"
         );
     }
-    assert_eq!(groups.len(), 4, "{groups:?}");
+    assert_eq!(groups.len(), 3, "{groups:?}");
+    // the folder's own tab sits in the folder's group, not at the top
+    let folder = grouped["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["tab"]["id"] == "f1")
+        .unwrap();
+    let inside: Vec<&str> = folder["tabs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["tab"]["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(inside, ["c1"], "{folder}");
 }

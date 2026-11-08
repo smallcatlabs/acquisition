@@ -81,7 +81,8 @@
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
-//!   asks in flight — is discarded by a reload and labels nothing. A page
+//!   asks in flight, the words in a list's filter boxes — is discarded by
+//!   a reload and labels nothing. A page
 //!   holds no browser storage, no cookie, no history entry of its own and
 //!   no value computed from a document. Every document a page renders
 //!   that carries a version — the answer's and the item's `basis`, the
@@ -141,6 +142,8 @@ use acquisition_search::{Holder, SearchError};
 use acquisition_verbs::refusal::{Pointed, Way};
 use acquisition_verbs::saved::{self, SavedRow};
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
+
+use crate::plural;
 use anyhow::Result;
 use axum::Router;
 use axum::extract::{Form, Path, Query, State};
@@ -156,9 +159,11 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet and the picker's script, served as written.
+/// The stylesheet, the picker's script and the list filter's, served as
+/// written.
 const CSS: &str = include_str!("assets/page.css");
 const PICKER: &str = include_str!("assets/picker.js");
+const FILTER: &str = include_str!("assets/filter.js");
 
 /// How many stats the picker lists for one ask; the rest are counted.
 const PICKED: usize = 50;
@@ -286,6 +291,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         ))
         .route(&at("/assets/page.css"), get(css))
         .route(&at("/assets/picker.js"), get(picker))
+        .route(&at("/assets/filter.js"), get(filter))
         .fallback(no_such_page)
         .layer(middleware::from_fn_with_state(Arc::clone(&web), guard))
         .with_state(web);
@@ -1047,68 +1053,36 @@ async fn tabs(
         esc(realm.as_str()),
         esc(&league)
     ));
+    // the form's two buttons above its lists, so a long list never hides
+    // them (the page seat's probe)
+    let buttons = "<p><button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button></p>\n";
     match empty {
         // an empty league's facts line too (the review of round C,
         // finding 3)
-        Some(said) => body.push_str(&pre(&format!(
-            "{said}\n{}",
-            store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
-        ))),
+        Some(said) => {
+            body.push_str(&pre(&format!(
+                "{said}\n{}",
+                store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
+            )));
+            body.push_str(buttons);
+        }
         None => {
             body.push_str(&pre(&format!(
                 "{}\n{}",
                 store_cmd::tabs_head(&listed, realm, &league, None),
                 store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
             )));
-            // the stash list one group, open; each map or unique tab's
-            // pages a group of their own under it, closed (the 4b sitting
-            // round, Do 4); no script
+            body.push_str(buttons);
+            // the stash list one group, open, the substashes box at its
+            // top; each folder a group of its own tabs, open; each map or
+            // unique tab's pages a group under it, closed (the 4b sitting
+            // round, Do 4; the page seat's probe)
             body.push_str(&format!(
-                "<details class=\"list\" open><summary>Stash tabs ({})</summary>\n<table>\n<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n",
+                "<details class=\"list\" open><summary>Stash tabs ({})</summary>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n",
                 listed.rows.len()
             ));
-            // the document's groups, rendered as given (the sitting round's
-            // review, its fourth finding): a tab and, nested, its pages
-            let row = |tab: &acquisition_store::TabRow, tick: String| {
-                format!(
-                    "<tr><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                    esc(&tab.name),
-                    esc(&tab.r#type),
-                    esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
-                    esc(&store_cmd::ago(now, tab.fetched_at))
-                )
-            };
-            let said = |words: &str| format!("<span class=\"fate\">{}</span>", esc(words));
-            for group in &listed.groups {
-                let tab = &group.tab;
-                // a checkbox stands only where a selection can name the
-                // tab: never on a folder, which holds tabs and no items
-                let tick = if acquisition_store::is_folder_type(&tab.r#type) {
-                    said("a folder holds tabs, not items: tick the tabs in it")
-                } else {
-                    format!(
-                        "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
-                        esc(&tab.id)
-                    )
-                };
-                body.push_str(&row(tab, tick));
-                if !group.pages.is_empty() {
-                    body.push_str(&format!(
-                        "<tr><td></td><td colspan=\"4\"><details class=\"pages\"><summary>{} pages of {}</summary>\n<table>\n",
-                        group.pages.len(),
-                        esc(&tab.name)
-                    ));
-                    let page_said = said(&format!(
-                        "a page of {}: tick {} with the substashes box",
-                        tab.name, tab.name
-                    ));
-                    for page in &group.pages {
-                        body.push_str(&row(page, page_said.clone()));
-                    }
-                    body.push_str("</table>\n</details></td></tr>\n");
-                }
-            }
-            body.push_str("</table>\n</details>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n");
+            body.push_str(&tab_groups(&listed.groups, now, true));
+            body.push_str("</details>\n");
         }
     }
     if characters.characters == 0 {
@@ -1118,12 +1092,13 @@ async fn tabs(
         )));
     } else {
         body.push_str(&format!(
-            "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n",
-            characters.characters
+            "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n{}",
+            characters.characters,
+            filter_row(&["Character", "Level", "Items", "Fetched"])
         ));
         for c in &characters.rows {
             body.push_str(&format!(
-                "<tr><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                "<tr class=\"row\"><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                 esc(&c.id),
                 esc(&c.name),
                 c.level.map(|l| l.to_string()).unwrap_or_default(),
@@ -1133,8 +1108,110 @@ async fn tabs(
         }
         body.push_str("</table>\n</details>\n");
     }
-    body.push_str("<button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button>\n</form>\n");
-    web.page("Refresh", Head::default(), &body)
+    body.push_str("</form>\n");
+    web.page(
+        "Refresh",
+        Head {
+            filter: true,
+            ..Head::default()
+        },
+        &body,
+    )
+}
+
+/// The second header row of a list: a box under each named column, the
+/// tick column's cell empty. A box has no name, so nothing in it is sent;
+/// the list filter's script reads it (the page seat's probe).
+fn filter_row(columns: &[&str]) -> String {
+    let boxes: String = columns
+        .iter()
+        .enumerate()
+        .map(|(n, column)| {
+            format!(
+                "<td><input class=\"col-filter\" data-col=\"{}\" placeholder=\"filter\" aria-label=\"filter the {} column\"></td>",
+                n + 1,
+                esc(column)
+            )
+        })
+        .collect();
+    format!("<tr class=\"filters\"><td></td>{boxes}</tr>\n")
+}
+
+/// The stash list's groups as the document gives them (the sitting
+/// round's review, its fourth finding): a run of tabs one table, a
+/// folder a group of its own holding its tabs' table, each map or unique
+/// tab's pages nested under it. `top` heads the first table with the
+/// columns and their filter boxes; every table shares the columns' widths
+/// (`table.tabs`), so a folder's rows line up under them.
+fn tab_groups(groups: &[acquisition_search::tabs::TabGroup], now: i64, top: bool) -> String {
+    let row = |tab: &acquisition_store::TabRow, tick: String| {
+        format!(
+            "<tr class=\"row\"><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+            esc(&tab.name),
+            esc(&tab.r#type),
+            esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
+            esc(&store_cmd::ago(now, tab.fetched_at))
+        )
+    };
+    let said = |words: &str| format!("<span class=\"fate\">{}</span>", esc(words));
+    let open = "<table class=\"tabs\"><colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>\n";
+    let mut out = String::new();
+    let mut table = false;
+    if top {
+        out.push_str(open);
+        out.push_str("<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n");
+        out.push_str(&filter_row(&["Tab", "Type", "Items", "Fetched"]));
+        table = true;
+    }
+    for group in groups {
+        let tab = &group.tab;
+        // a folder holds tabs and no items: no checkbox, since a selection
+        // names its tabs, each ticked in the folder's own rows
+        if acquisition_store::is_folder_type(&tab.r#type) {
+            if table {
+                out.push_str("</table>\n");
+                table = false;
+            }
+            out.push_str(&format!(
+                "<details class=\"folder holds\" open><summary>{} · {} · {}</summary>\n{}</details>\n",
+                esc(&tab.name),
+                esc(&tab.r#type),
+                plural(group.tabs.len(), "tab", "tabs"),
+                tab_groups(&group.tabs, now, false)
+            ));
+            continue;
+        }
+        if !table {
+            out.push_str(open);
+            table = true;
+        }
+        out.push_str(&row(
+            tab,
+            format!(
+                "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
+                esc(&tab.id)
+            ),
+        ));
+        if !group.pages.is_empty() {
+            out.push_str(&format!(
+                "<tr class=\"holds\"><td></td><td colspan=\"4\"><details class=\"pages\"><summary>{} pages of {}</summary>\n<table>\n",
+                group.pages.len(),
+                esc(&tab.name)
+            ));
+            let page_said = said(&format!(
+                "a page of {}: tick {} with the substashes box",
+                tab.name, tab.name
+            ));
+            for page in &group.pages {
+                out.push_str(&row(page, page_said.clone()));
+            }
+            out.push_str("</table>\n</details></td></tr>\n");
+        }
+    }
+    if table {
+        out.push_str("</table>\n");
+    }
+    out
 }
 
 /// "Fetch the league list" (the 4b sitting round, Do 3): the `leagues`
@@ -1573,6 +1650,14 @@ async fn picker() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
         PICKER,
+    )
+        .into_response()
+}
+
+async fn filter() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+        FILTER,
     )
         .into_response()
 }

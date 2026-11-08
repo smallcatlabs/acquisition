@@ -84,7 +84,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>
@@ -125,7 +125,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><button type="submit">Run this query</button></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>

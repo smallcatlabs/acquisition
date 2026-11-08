@@ -863,8 +863,11 @@ fn the_refresh_loop_runs_through_the_pages() {
             "name=\"tab\" value=\"dump\"",
             "name=\"character\"",
             "name=\"tab\" value=\"old1\"",
-            "a folder holds tabs, not items: tick the tabs in it",
+            "<summary>Old leagues · Folder · 2 tabs</summary>",
             "<summary>Stash tabs (",
+            "aria-label=\"filter the Tab column\"",
+            "aria-label=\"filter the Character column\"",
+            "/assets/filter.js\"",
             "pages of Uniques</summary>",
             "<summary>Characters (2)</summary>",
             "a page of Uniques: tick Uniques with the substashes box",
@@ -873,6 +876,33 @@ fn the_refresh_loop_runs_through_the_pages() {
         ],
     );
     assert!(!tabs.body.contains(" checked"), "no default selection");
+    // the folder's tabs in the folder's group, the buttons and the
+    // substashes box above the lists, and no filter box sent (the page
+    // seat's probe)
+    let at = |words: &str| {
+        tabs.body
+            .find(words)
+            .unwrap_or_else(|| panic!("{words}: {}", tabs.body))
+    };
+    let folder = at("<details class=\"folder holds\" open><summary>Old leagues");
+    let folder_end = folder + tabs.body[folder..].find("</details>").unwrap();
+    for inside in ["value=\"old1\"", "value=\"old2\""] {
+        assert!(
+            (folder..folder_end).contains(&at(inside)),
+            "{inside} outside the folder"
+        );
+    }
+    assert!(at("Refresh selected") < at("<summary>Stash tabs ("));
+    assert!(at("Plan under the policy") < at("<summary>Characters ("));
+    assert!(at("name=\"deep\"") < at("<th>Tab</th>"));
+    assert!(
+        !tabs.body.contains("a folder holds"),
+        "the folder's note stands"
+    );
+    for filter in tabs.body.split("<input class=\"col-filter\"").skip(1) {
+        let tag = &filter[..filter.find('>').unwrap()];
+        assert!(!tag.contains("name="), "a filter box is sent: {tag}");
+    }
     for unticked in ["fold", "u001", "m001"] {
         assert!(
             !tabs.body.contains(&format!("value=\"{unticked}\"")),
@@ -2142,7 +2172,7 @@ fn the_saved_pages_are_a_wording_golden() {
     pages.page(
         "GET saved <none yet>",
         &empty,
-        &["No saved searches yet: save one from any search&#39;s answer, under its query."],
+        &["No saved searches: save one from any search&#39;s answer, under its query."],
     );
     for (id, name) in [
         ("0000000000a1", "amulets"),

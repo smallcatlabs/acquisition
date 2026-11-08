@@ -24,7 +24,7 @@ GET ?realm=xbox
 <form method="get" action="search">
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
-<div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc">pc</option><option value="xbox" selected>xbox</option><option value="sony">sony</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
+<div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc">pc</option><option value="xbox" selected>xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
 <input type="hidden" name="realm" value="xbox"><label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (no tabs on disk)</option><option value="Hardcore">Hardcore (tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label>  <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span><div class="filter" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span class="filter-title">Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></div>
 <label class="control">Membership <select name="membership"><option value="live" selected>live</option><option value="all">all</option><option value="removed">removed</option></select></label>
 </div>
@@ -48,10 +48,10 @@ GET refresh?realm=pc&league=Empty
 no tabs known for Empty in <scratch>/mock/Alice_1234.db (run `acq stashes --account &#39;Alice#1234&#39; --realm pc --league Empty` or `acq refresh --all --account &#39;Alice#1234&#39; --realm pc --league Empty`)
 facts: no tabs; stash listing <age> ago
 </pre>
+<p><button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button></p>
 <pre>
 no characters known in Empty (run `acq characters` or cover them in the sync policy)
 </pre>
-<button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
 </form>
 
 </main>
@@ -69,10 +69,10 @@ GET refresh?realm=pc&league=Nowhere
 no tabs known for Nowhere in <scratch>/mock/Alice_1234.db (run `acq stashes --account &#39;Alice#1234&#39; --realm pc --league Nowhere` or `acq refresh --all --account &#39;Alice#1234&#39; --realm pc --league Nowhere`)
 facts: no tabs; stash never listed
 </pre>
+<p><button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button></p>
 <pre>
 no characters known in Nowhere (run `acq characters` or cover them in the sync policy)
 </pre>
-<button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
 </form>
 
 </main>

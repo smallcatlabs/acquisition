@@ -8,7 +8,7 @@ query   rarity=rare
 scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   4 matches (the oldest fetch <age> ago, pc · Standard / Dump; the newest <age> ago, pc · Standard / Rings)
-            1 location was never fetched: nothing here says what they hold
+            1 location was never fetched: nothing here says what it holds
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             id r1
         Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago · removed <age> ago
@@ -34,7 +34,7 @@ query   id:r2
 scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
-            1 location was never fetched: nothing here says what they hold
+            1 location was never fetched: nothing here says what it holds
 nothing in scope carries the id of term 0: id:r2 — it left the scope, as its term says
 offers  each part of the query forced true and forced false, the part fewest items match first
     acq search --account 'Alice#1234' --realm pc id:r2 --explain 0

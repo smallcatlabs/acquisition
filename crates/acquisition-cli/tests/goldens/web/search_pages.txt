@@ -23,7 +23,7 @@ GET <the form>
 <form method="get" action="search">
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
-<div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
+<div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
 <input type="hidden" name="realm" value="pc"><label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label>  <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span><div class="filter" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span class="filter-title">Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></div>
 <label class="control">Membership <select name="membership"><option value="live" selected>live</option><option value="all">all</option><option value="removed">removed</option></select></label>
 </div>
@@ -73,7 +73,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><button type="submit">Run this query</button></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>
@@ -111,7 +111,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><button type="submit">Run this query</button></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>
@@ -143,7 +143,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><button type="submit">Run this query</button></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value=""></label> <button type="submit">Save this search</button></form>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>

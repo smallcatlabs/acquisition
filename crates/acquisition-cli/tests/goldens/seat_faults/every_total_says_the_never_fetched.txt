@@ -2,13 +2,13 @@
 
 $ acq search --realm pc league=Standard
 # holds "total   1 match"
-# holds "1 location was never fetched: nothing here says what they hold"
+# holds "1 location was never fetched: nothing here says what it holds"
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match (fetched <age> ago, pc · Standard / Gear)
-            1 location was never fetched: nothing here says what they hold
+            1 location was never fetched: nothing here says what it holds
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-std
 terms   each term counted alone over all live pc items in all leagues, never over the matches
@@ -18,13 +18,13 @@ basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and p
 
 $ acq search --realm pc league=Nowhere
 # holds "total   0 matches"
-# holds "1 location was never fetched: nothing here says what they hold"
+# holds "1 location was never fetched: nothing here says what it holds"
 --- stdout
 query   league=Nowhere
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago
 total   0 matches
-            1 location was never fetched: nothing here says what they hold
+            1 location was never fetched: nothing here says what it holds
 nothing in scope carries the league of term 0: league=Nowhere — a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
 offers  each part of the query forced true and forced false, the part fewest items match first
     acq search --account 'Alice#1234' --realm pc league=Nowhere --explain 0

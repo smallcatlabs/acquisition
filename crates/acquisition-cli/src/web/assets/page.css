@@ -72,3 +72,9 @@ td.icon img { max-width: 47px; max-height: 94px; }
 /* the refresh page's lists */
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
+details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }
+table.tabs { table-layout: fixed; }
+table.tabs col.tick { width: 2.5rem; }
+table.tabs col.type, table.tabs col.items { width: 18%; }
+table.tabs col.fetched { width: 14%; }
+input.col-filter { width: 100%; box-sizing: border-box; }

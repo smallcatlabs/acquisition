@@ -1508,7 +1508,7 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
             &["search", "--realm", "pc", query],
             &[
                 total,
-                "1 location was never fetched: nothing here says what they hold",
+                "1 location was never fetched: nothing here says what it holds",
             ],
         );
     }
