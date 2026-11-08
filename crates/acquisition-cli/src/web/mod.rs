@@ -539,7 +539,10 @@ impl Web {
     /// text, and every view field the form asks: its rows' limit and order,
     /// or its count's keys and limit — kept only where the form folds them
     /// back to that request, as the account this server serves: what a
-    /// page can ask. Its membership is a field only where it is not `live`,
+    /// page can ask. Its rows' fields are `view.fields=icon` where they are
+    /// the art alone, the table, and no field where they are the art and
+    /// the item or none, the page's default, cards; any other list is no
+    /// form's. Its membership is a field only where it is not `live`,
     /// the form's default, so every link made before the form carried one
     /// stands as it was. None for any other (a site search, a tree, another
     /// account or view: a crossed table, a sum, an explained node): no page
@@ -573,6 +576,15 @@ impl Web {
                 if rows.desc {
                     fields.push(("view.desc", "true".to_string()));
                 }
+                // the row's fields: the table is `view.fields=icon`; the
+                // cards, and none (a route carries none), the page's
+                // default; any other list is no form's
+                use acquisition_search::answer::RowField;
+                match rows.fields.as_slice() {
+                    [RowField::Icon] => fields.push(("view.fields", "icon".to_string())),
+                    [] | [RowField::Icon, RowField::Item] => {}
+                    _ => return None,
+                }
             }
             // the one field the form reads a count from: each list as
             // `--count` takes it, joined, since the field's list reads a
@@ -593,8 +605,8 @@ impl Web {
             .collect();
         let folded = form::fold(&self.form, &pairs).ok()?;
         let asked = Asked::read(&folded.request().ok()?).ok()?.request;
-        // the page's rows carry their art (C140), and its account is the
-        // one served; a count's keys are compared as the key's one reader
+        // the page's rows carry the fields the form asks, and its account
+        // is the one served; a count's keys are compared as the key's one reader
         // reads them, never by their letters (`Rarity` is `rarity`)
         let mut offered = request.clone();
         offered.scope.account = None;
@@ -887,6 +899,7 @@ async fn search(
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
     let json = wants_json(&headers);
+    let sent = fields.clone();
     let asked = blocking(&web, move |web| -> Result<_, Failure> {
         let (fields, from) = opened_from(fields)?;
         // the realm the page carried beside a site search whose URL names
@@ -942,17 +955,24 @@ async fn search(
                     )
                 })
                 .unwrap_or_default();
+            let other = presentation(&sent, &answer);
             web.page(
                 "Answer",
                 head,
                 &format!(
                     "{said}{}",
-                    page::answer(&answer, opened.as_ref(), &web.saved_links(), &|way| {
-                        use acquisition_verbs::refusal::Surface as _;
-                        Paged { web: &web }
-                            .request(way)
-                            .and_then(|(link, _)| link.as_str().map(str::to_string))
-                    })
+                    page::answer(
+                        &answer,
+                        opened.as_ref(),
+                        &web.saved_links(),
+                        &|way| {
+                            use acquisition_verbs::refusal::Surface as _;
+                            Paged { web: &web }
+                                .request(way)
+                                .and_then(|(link, _)| link.as_str().map(str::to_string))
+                        },
+                        other.as_ref(),
+                    )
                 ),
             )
         }
@@ -962,6 +982,43 @@ async fn search(
 
 /// A request's fields as a page sends them, in order.
 type Fields = Vec<(String, String)>;
+
+/// The link to the same answer the other way (4-full part 1, step 5): on
+/// a rows answer that has a row and was reached by the form's fields —
+/// not a continuation, whose token holds its view whole — the page's own
+/// URL, its fields as sent, with `view.fields=icon` added where it shows
+/// cards and taken out where it shows the table. None where its rows
+/// carry another list than the page's two, which no form asks.
+fn presentation(sent: &Fields, answer: &acquisition_search::Answer) -> Option<page::Presentation> {
+    use acquisition_search::answer::{RowField, ViewOut};
+    let ViewOut::Rows(rows) = &answer.view else {
+        return None;
+    };
+    if answer.rows.is_empty() || pick(sent, "next").is_some() {
+        return None;
+    }
+    let mut fields: Vec<(&str, &str)> = sent
+        .iter()
+        .filter(|(k, _)| k != "view.fields")
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    let words = match rows.fields.as_slice() {
+        [RowField::Icon, RowField::Item] => {
+            fields.push(("view.fields", "icon"));
+            "as a table"
+        }
+        [RowField::Icon] => "as cards",
+        _ => return None,
+    };
+    let query: Vec<String> = fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", page::enc(k), page::enc(v)))
+        .collect();
+    Some(page::Presentation {
+        href: format!("search?{}", query.join("&")),
+        words,
+    })
+}
 
 /// `saved` and `saved_revision` taken out of a search's fields, which the
 /// fold would refuse: together or not at all, `saved` an id's shape and
@@ -1024,7 +1081,7 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
         Ok(shown) => web.page(
             "Item",
             Head::default().with("item", &shown.basis),
-            &page::item(&shown, &page::item_badges(&shown)),
+            &page::item(&shown),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
     }

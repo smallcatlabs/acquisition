@@ -6,7 +6,9 @@
 //! does not. The answer and item pages render their documents themselves
 //! (4-full part 1, step 4): each fact in the words the CLI's text says it
 //! in, made once in `search_cmd.rs`, the layout the page's, and every way
-//! on the page's own ([`answer`]), so they print no command line. The
+//! on the page's own ([`answer`]), so they print no command line. An item
+//! is one card ([`card`], step 5) on both: a row that carries the item on
+//! the answer page, `show`'s document on the item page. The
 //! plan, refresh and jobs pages still print the CLI's text, in a `pre`
 //! (`mod.rs` renders them through [`pre`]), until they are rendered from
 //! their documents too (#182). A page sorts, filters, groups and composes
@@ -16,7 +18,7 @@
 
 use acquisition_search::Classed;
 use acquisition_search::answer::{
-    Answer, Count, ExplainOut, Request, RowsOut, TradeOut, ViewOut, Zero,
+    Answer, Count, ExplainOut, Request, RowField, RowsOut, TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
 use acquisition_search::show::Shown;
@@ -25,7 +27,7 @@ use acquisition_verbs::refusal::Way;
 use acquisition_verbs::saved::{ReadRow, SavedSearches};
 
 use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
-use crate::search_cmd::{self, RowPiece};
+use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
 use crate::plural;
@@ -614,7 +616,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
-    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
+    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
     out.push_str(&query_box(realm, None, "", None, None));
     out.push_str(&trade_box(realm));
     out.push_str(&fetch_leagues());
@@ -632,7 +634,9 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
 /// rows' order and number are the big form's three controls, "Show",
 /// "Sort by" and "highest first" (the page seat's fault 6), set on an
 /// answer to the rows view it showed; "Show" offers the search's own
-/// default first, sent empty, so a box left as it is asks no limit.
+/// default first, sent empty, so a box left as it is asks no limit. An
+/// answer shown as the table carries `view.fields=icon`, so an edited
+/// query is a table too.
 pub(crate) fn query_box(
     realm: &str,
     membership: Option<&str>,
@@ -653,6 +657,11 @@ pub(crate) fn query_box(
     if let Some((id, at)) = saved {
         carried.push_str(&hidden("saved", id));
         carried.push_str(&hidden("saved_revision", &at.to_string()));
+    }
+    // the table where the answer was one, so an edited query keeps it;
+    // cards are the default and need no field
+    if rows.is_some_and(|r| r.fields == [RowField::Icon]) {
+        carried.push_str(&hidden("view.fields", "icon"));
     }
     let listed = acquisition_store::bound::LISTED;
     let limit = rows.map_or(listed, |r| r.limit);
@@ -821,12 +830,17 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// the document carries is a way on through `spell`, a link where a page
 /// takes it and its words where none does, and no command line is
 /// printed. Opened from a saved search, it says so above the answer and
-/// carries the search through its query box and its continuation.
+/// carries the search through its query box and its continuation. Rows
+/// that carry the item are cards ([`card`]), each followed by what the
+/// row shows of the query; rows that do not are the compact table; and
+/// `presentation`, which the handler makes from the page's own URL, is
+/// the one link to the same answer the other way.
 pub(crate) fn answer(
     a: &Answer,
     opened: Option<&Opened>,
     links: &SavedLinks,
     spell: Spell,
+    presentation: Option<&Presentation>,
 ) -> String {
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
@@ -852,7 +866,20 @@ pub(crate) fn answer(
     out.push_str(&opening(a, now, spell));
     match &a.view {
         ViewOut::Rows(rows) => {
-            out.push_str(&rows_table(a, now));
+            if let Some(other) = presentation {
+                out.push_str(&format!(
+                    "<p><a class=\"presentation\" href=\"{}\">{}</a></p>\n",
+                    esc(&other.href),
+                    esc(other.words)
+                ));
+            }
+            // a card wherever the rows carry the item, the compact table
+            // otherwise: the document's view says which, never the URL
+            out.push_str(&if rows.fields.contains(&RowField::Item) {
+                cards(a, now)
+            } else {
+                rows_table(a, now)
+            });
             if rows.left_out > 0 {
                 let shown = esc(&search_cmd::rows_shown_words(a, rows));
                 out.push_str(&match &rows.next {
@@ -1043,6 +1070,153 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
     out
 }
 
+/// The link to the same answer in the other presentation (the step's
+/// design): the page's own URL, its fields as sent, with `view.fields=icon`
+/// added or removed, and its words. It carries no request of the
+/// document, so it is no way: a plain link of its own class.
+pub(crate) struct Presentation {
+    pub href: String,
+    pub words: &'static str,
+}
+
+/// What a row shows of the query and its sort, each line in the text's
+/// words, what it leaves out a link to the item whole.
+fn row_lines(a: &Answer, row: &acquisition_search::answer::Row) -> Vec<String> {
+    let whole = |words: String| format!("<a href=\"item/{}\">{}</a>", enc(&row.id), esc(&words));
+    let (shows, more) = search_cmd::row_shows(a, row);
+    shows
+        .into_iter()
+        .map(|piece| match piece {
+            RowPiece::Seen(s) => esc(&s),
+            RowPiece::MoreSorted(n) => whole(search_cmd::more_sorted_words(n)),
+        })
+        .chain(
+            more.iter()
+                .map(|(n, path)| whole(search_cmd::more_of_term_words(*n, path))),
+        )
+        .collect()
+}
+
+/// The rows as cards, in the answer's order: each row's item as [`card`]
+/// renders it, its name a link to the item page, then what the row shows
+/// of the query.
+fn cards(a: &Answer, now: i64) -> String {
+    if a.rows.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("<div class=\"cards\">\n");
+    for row in &a.rows {
+        let Some(shown) = &row.shown else {
+            continue;
+        };
+        let icon = row.icon.as_ref().and_then(|icon| icon.as_deref());
+        out.push_str(&card(ItemParts::of_row(shown), &row.place, icon, true, now));
+        let lines = row_lines(a, row);
+        if !lines.is_empty() {
+            out.push_str(&format!("<p class=\"shows\">{}</p>\n", lines.join("<br>")));
+        }
+    }
+    out.push_str("</div>\n");
+    out
+}
+
+/// One item as a card (4-full part 1, step 5), from what `show`'s one
+/// maker makes of it and where it lies, in the trade site's order: the
+/// art where it was asked, the badges, the name (a link to the item page
+/// where `link`), the base, the properties with the item level and the
+/// requirements, the lines in the item's own order — the deriver's, by
+/// source word, a group per run of one source, each line with its kind —
+/// the flags, the sockets, the price, and the place with its age and
+/// where the item left. Every fact in the words the CLI's text says it
+/// in, made once in `search_cmd.rs`; the layout and the labels are the
+/// page's. The answer page renders a card per row, the item page one.
+pub(crate) fn card(
+    parts: ItemParts<'_>,
+    place: &acquisition_search::corpus::Place,
+    icon: Option<&str>,
+    link: bool,
+    now: i64,
+) -> String {
+    let it = parts.item;
+    let name = search_cmd::title(it.name.as_deref(), it.typeline.as_deref());
+    let mut out = String::from("<div class=\"card\">\n");
+    if let Some(url) = icon {
+        out.push_str(&format!(
+            "<img class=\"art\" src=\"{}\" alt=\"{}\">\n",
+            esc(url),
+            esc(&name)
+        ));
+    }
+    out.push_str(&item_badges(parts));
+    let rarity = esc(&it.rarity.as_deref().unwrap_or("").to_lowercase());
+    let title = esc(&search_cmd::shown_title(it));
+    out.push_str(&if link {
+        format!(
+            "<p><a class=\"name rarity-{rarity}\" href=\"item/{}\">{title}</a></p>\n",
+            enc(&it.facts.id)
+        )
+    } else {
+        format!("<p class=\"name rarity-{rarity}\">{title}</p>\n")
+    });
+    if let Some(base) = &it.base {
+        out.push_str(&format!("<p class=\"base\">{}</p>\n", esc(base)));
+    }
+    let properties = search_cmd::shown_properties(it);
+    if !properties.is_empty() {
+        let lines: Vec<String> = properties.iter().map(|p| esc(p)).collect();
+        out.push_str(&format!(
+            "<p class=\"properties\">{}</p>\n",
+            lines.join("<br>")
+        ));
+    }
+    // a group per run of one source, in the item's own order
+    let mut group: Option<&str> = None;
+    for l in parts.lines {
+        if group != Some(l.line.source.as_str()) {
+            if group.is_some() {
+                out.push_str("</div>\n");
+            }
+            out.push_str("<div class=\"mods\">\n");
+            group = Some(l.line.source.as_str());
+        }
+        let text: Vec<String> = l.line.text.split('\n').map(esc).collect();
+        out.push_str(&format!(
+            "<p class=\"mod\">{} <span class=\"mod-kind\">{}</span></p>\n",
+            text.join("<br>"),
+            esc(&search_cmd::line_kind_words(l))
+        ));
+    }
+    if group.is_some() {
+        out.push_str("</div>\n");
+    }
+    if !it.flags.is_empty() {
+        out.push_str(&format!(
+            "<p class=\"flags\">is {}</p>\n",
+            esc(&it.flags.join(", "))
+        ));
+    }
+    if let Some(sockets) = search_cmd::sockets_words(it) {
+        out.push_str(&format!(
+            "<p class=\"sockets\">sockets {}</p>\n",
+            esc(&sockets)
+        ));
+    }
+    out.push_str(&format!(
+        "<p class=\"price\">price {}</p>\n",
+        esc(&search_cmd::price_words(&it.facts.id, parts.price))
+    ));
+    let mut placed = esc(&search_cmd::shown_place_words(place, now));
+    if let Some(removed_at) = it.facts.removed_at {
+        placed.push_str(&format!(
+            "<br>removed {}",
+            esc(&search_cmd::shown_removed_words(now, removed_at))
+        ));
+    }
+    out.push_str(&format!("<p class=\"place\">{placed}</p>\n"));
+    out.push_str("</div>\n");
+    out
+}
+
 /// The rows, a row per item with its art, its name a link to the item
 /// page, what it shows of its terms and its sort — what it leaves out a
 /// link to the item whole — and where it lies.
@@ -1059,20 +1233,7 @@ fn rows_table(a: &Answer, now: i64) -> String {
             Some(Some(url)) => format!("<img src=\"{}\" alt=\"{}\">", esc(url), esc(&name)),
             _ => String::new(),
         };
-        let whole =
-            |words: String| format!("<a href=\"item/{}\">{}</a>", enc(&row.id), esc(&words));
-        let (shows, more) = search_cmd::row_shows(a, row);
-        let lines: Vec<String> = shows
-            .into_iter()
-            .map(|piece| match piece {
-                RowPiece::Seen(s) => esc(&s),
-                RowPiece::MoreSorted(n) => whole(search_cmd::more_sorted_words(n)),
-            })
-            .chain(
-                more.iter()
-                    .map(|(n, path)| whole(search_cmd::more_of_term_words(*n, path))),
-            )
-            .collect();
+        let lines = row_lines(a, row);
         let mut place = search_cmd::place_text(&row.place, now);
         if let Some(removed_at) = row.removed_at {
             place.push_str(&format!(
@@ -1477,41 +1638,27 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
     out
 }
 
-/// One item (4-full part 1, step 4): `show`'s document rendered as HTML
-/// — its art and its badges, its title, then each part `show` states in
-/// the text's words, made once in `search_cmd.rs`: the price and why
-/// there is none, with no command and no link — the lines with their
-/// source, template and slots, what is unread, the item against a query
-/// where one was asked, and the basis.
-pub(crate) fn item(shown: &Shown, badges: &str) -> String {
+/// One item (4-full part 1, steps 4 and 5): `show`'s document rendered
+/// as HTML — the item as a card ([`card`], the one the answer page
+/// renders a row's item through, its name no link), then a fact table of
+/// what the card leaves out — the id, the class, the category with what
+/// it left open, the stack, the note, what is unread — then the lines
+/// with their template, slots, rows and limits, the item against a query
+/// where one was asked, and the basis, each fact in the text's words,
+/// made once in `search_cmd.rs`. The price says why there is none, with
+/// no command and no link.
+pub(crate) fn item(shown: &Shown) -> String {
     let it = &shown.item;
     let now = acquisition_store::now();
-    let name = search_cmd::title(it.name.as_deref(), it.typeline.as_deref());
-    let icon = it
-        .icon
-        .as_ref()
-        .map(|url| format!("<p><img src=\"{}\" alt=\"{}\"></p>\n", esc(url), esc(&name)))
-        .unwrap_or_default();
-    let rarity = it.rarity.as_deref().unwrap_or("").to_lowercase();
-    let mut out = format!(
-        "{icon}{badges}<p class=\"name rarity-{}\">{}</p>\n<table class=\"shown\">\n",
-        esc(&rarity),
-        esc(&search_cmd::shown_title(it))
+    let mut out = card(
+        ItemParts::of_shown(shown),
+        &shown.place,
+        it.icon.as_deref(),
+        false,
+        now,
     );
+    out.push_str("<table class=\"shown\">\n");
     out.push_str(&fact_row("Id", &esc(&it.facts.id)));
-    if let Some(removed_at) = it.facts.removed_at {
-        out.push_str(&fact_row(
-            "Removed",
-            &esc(&search_cmd::shown_removed_words(now, removed_at)),
-        ));
-    }
-    out.push_str(&fact_row(
-        "Place",
-        &esc(&search_cmd::shown_place_words(&shown.place, now)),
-    ));
-    if let Some(base) = &it.base {
-        out.push_str(&fact_row("Base", &esc(base)));
-    }
     out.push_str(&fact_row(
         "Class",
         &esc(&search_cmd::class_words(&shown.class)),
@@ -1521,26 +1668,11 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
         category.push_str(&format!("<br>{}", esc(&search_cmd::open_words(open))));
     }
     out.push_str(&fact_row("Category", &category));
-    out.push_str(&fact_row(
-        "Price",
-        &esc(&search_cmd::price_words(&it.facts.id, &shown.price)),
-    ));
     if let Some(stack) = it.stack {
         out.push_str(&fact_row("Stack", &esc(&stack.to_string())));
     }
     if let Some(note) = &it.note {
         out.push_str(&fact_row("Note", &esc(note)));
-    }
-    if !it.flags.is_empty() {
-        out.push_str(&fact_row("Is", &esc(&it.flags.join(", "))));
-    }
-    if let Some(sockets) = search_cmd::sockets_words(it) {
-        out.push_str(&fact_row("Sockets", &esc(&sockets)));
-    }
-    let properties = search_cmd::shown_properties(it);
-    if !properties.is_empty() {
-        let cell: Vec<String> = properties.iter().map(|p| esc(p)).collect();
-        out.push_str(&fact_row("Shown", &cell.join("<br>")));
     }
     let unread = match it.unread.is_empty() {
         true => esc(search_cmd::UNREAD_NOTHING),
@@ -1655,9 +1787,9 @@ fn answer_badges(a: &Answer) -> String {
 /// The moved-world review's badges on one item (Do 9): a class the table
 /// could not decide, each part unread, each line whose flags are unknown
 /// — each a state `show`'s document carries, which its text says below.
-pub(crate) fn item_badges(shown: &Shown) -> String {
+pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
     let mut out = Vec::new();
-    match &shown.class {
+    match parts.class {
         Classed::Is(_) | Classed::All(_) => {}
         Classed::Open(why) | Classed::Among { why, .. } => {
             out.push(badge(&format!("class undecided — {}", why.problem)))
@@ -1666,10 +1798,10 @@ pub(crate) fn item_badges(shown: &Shown) -> String {
             out.push(badge("class undecided"))
         }
     }
-    for unread in &shown.item.unread {
+    for unread in &parts.item.unread {
         out.push(badge(&format!("unread — {}", unread.problem)));
     }
-    for line in &shown.lines {
+    for line in parts.lines {
         let line = &line.line;
         if !line.flags_unknown.is_empty() {
             out.push(badge(&format!(

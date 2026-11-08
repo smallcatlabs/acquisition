@@ -26,7 +26,13 @@
 //!   C142, the defences' reading beside it), and `view.limit`,
 //!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
 //!   to the counts view in its place (the review of 4b, its sixth
-//!   finding), whose tables the answer page prints as the CLI does. And
+//!   finding), whose tables the answer page prints as the CLI does; and
+//!   `view.fields`, the row's fields as the CLI's `--fields` names them
+//!   (`icon`, or `icon,item`), read by the search's one reader: sent
+//!   empty or not at all, the page's default, the item with its art, so
+//!   the answer page renders cards; `icon`, the compact table (4-full
+//!   part 1, step 5). A count asks no row's fields, and one sent beside
+//!   it is the view selection's refusal. And
 //!   `text`, the query box: a query in the language, run as the user's
 //!   own in place of the trade input (the 4b sitting round, Do 6). And
 //!   `trade`, the trade site box: a site search as the CLI's `--trade`
@@ -215,6 +221,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "view.sort",
         "view.desc",
         "view.count",
+        "view.fields",
         "text",
         "trade",
         "defences",
@@ -268,6 +275,9 @@ pub(crate) struct Folded {
     /// A count by these keys in place of the rows: the counts view, the
     /// keys read as the CLI's `--count` reads its list (`count_keys`).
     pub count: Option<Vec<String>>,
+    /// The row's fields where `view.fields` was sent with a value, read
+    /// by the search's one reader; none where it was not, the default.
+    pub fields: Option<Vec<RowField>>,
     /// The query box's text (the 4b sitting round, Do 6): where given,
     /// the search is that text, the user's own query, and the trade
     /// input is dropped — the rule the request already has for an edited
@@ -280,7 +290,8 @@ pub(crate) struct Folded {
 
 impl Folded {
     /// The request the MCP's `search` reads, as the page asks it: the
-    /// envelope as the trade input, each row with its icon (C140). The
+    /// envelope as the trade input, each row with its icon (C140) and its
+    /// item where no other fields were sent, none under a count. The
     /// view is built by the shared view selection, `Shape::of`, as the
     /// CLI builds its own, so the page inherits its refusals — a sort
     /// beside a count among them — and builds no view itself (C46; the
@@ -312,10 +323,13 @@ impl Folded {
                 sort: self.sort.clone(),
                 desc: self.desc,
                 after: None,
-                // a count shows no rows, so it asks no row's fields
-                fields: match self.count {
-                    Some(_) => Vec::new(),
-                    None => vec![RowField::Icon],
+                // the fields sent, which a count refuses; else none for a
+                // count, which shows no rows, and the item with its art for
+                // rows, the page's cards
+                fields: match (&self.fields, &self.count) {
+                    (Some(fields), _) => fields.clone(),
+                    (None, Some(_)) => Vec::new(),
+                    (None, None) => vec![RowField::Icon, RowField::Item],
                 },
             },
         )?;
@@ -351,6 +365,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         sort: None,
         desc: false,
         count: None,
+        fields: None,
         text: None,
         trade: None,
     };
@@ -392,6 +407,9 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
             "defences" => defences = Some(value.to_string()),
             "view.desc" => folded.desc = true,
             "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),
+            "view.fields" => {
+                folded.fields = Some(RowField::list(value).map_err(|e| e.message)?);
+            }
             _ => {
                 let path = name
                     .strip_prefix("query.")
@@ -690,6 +708,41 @@ mod tests {
             folded.envelope["query"]["filters"]["misc_filters"]["filters"]["ilvl"]["min"],
             "lots"
         );
+    }
+
+    /// 4-full part 1, step 5: `view.fields` is the row's fields as the
+    /// CLI's `--fields` names them. Absent or empty, the page's default:
+    /// the item with its art (cards); `icon`, the table; an unknown word
+    /// a usage error; any of them beside a count, the view selection's
+    /// refusal; a count alone asks none.
+    #[test]
+    fn the_fold_reads_the_rows_fields_and_a_count_asks_none() {
+        let form = Form::load().unwrap();
+        let asked = |pairs: &[(&str, &str)]| {
+            fold(&form, &fields(pairs)).map(|folded| folded.request().map(|r| r["view"].clone()))
+        };
+        let cards = json!({ "rows": { "fields": ["icon", "item"] } });
+        assert_eq!(asked(&[]).unwrap().unwrap(), cards);
+        assert_eq!(asked(&[("view.fields", "")]).unwrap().unwrap(), cards);
+        assert_eq!(
+            asked(&[("view.fields", "icon")]).unwrap().unwrap(),
+            json!({ "rows": { "fields": ["icon"] } })
+        );
+        assert_eq!(
+            asked(&[("view.fields", "icon,item")]).unwrap().unwrap(),
+            cards
+        );
+        let unknown = asked(&[("view.fields", "price")]).unwrap_err();
+        assert!(
+            unknown.contains("`price` is no field a row carries"),
+            "{unknown}"
+        );
+        let beside = asked(&[("view.fields", "icon"), ("view.count", "rarity")])
+            .unwrap()
+            .unwrap_err();
+        assert!(beside.message.contains("`fields`"), "{}", beside.message);
+        let counted = asked(&[("view.count", "rarity")]).unwrap().unwrap();
+        assert!(counted.get("rows").is_none(), "{counted}");
     }
 
     #[test]

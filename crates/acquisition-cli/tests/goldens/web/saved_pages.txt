@@ -50,11 +50,38 @@ GET search?<the ring search>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</p>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -176,13 +203,60 @@ GET search?<rings, opened>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -213,13 +287,60 @@ GET search?<rings, opened, after the row moved>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -250,13 +371,60 @@ GET search?<rings, opened, after its text changed>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -287,13 +455,60 @@ GET search?<rings, opened, after it was renamed>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -348,13 +563,60 @@ GET search?<rings, opened, after it was cleared>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -461,14 +723,72 @@ GET search?<everything, opened>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate</a><br><span class="base">Glorious Plate</span> <span class="fate">unique</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate">
+<p><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate · unique · frame unique</a></p>
+<p class="base">Glorious Plate</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+500 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -525,13 +845,60 @@ GET search?<belts, opened, reloaded>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
 <tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
+<p class="base">Wombgift Chalice</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

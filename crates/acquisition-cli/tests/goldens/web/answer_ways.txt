@@ -14,12 +14,51 @@ GET search?<every ring, tabs never fetched in two leagues>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a><br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=class%3Arings&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">class Rings</p>
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">class Rings</p>
+<div class="card">
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">class Rings</p>
+</div>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -130,19 +169,99 @@ GET search?<a name eleven items carry>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 14 items · 3 locations fetched<br>3 locations never fetched: PremiumStash 3 of 6 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>11 matches (fetched <age> ago, pc · Standard / Kestrels)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k01">Kestrel 01 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 1, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k02">Kestrel 02 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 2, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k03">Kestrel 03 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 3, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k04">Kestrel 04 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 4, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k05">Kestrel 05 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 5, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k06">Kestrel 06 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 6, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k07">Kestrel 07 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 7, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k08">Kestrel 08 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 8, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k09">Kestrel 09 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 9, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k10">Kestrel 10 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 10, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k01">Kestrel 01 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k02">Kestrel 02 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 2, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k03">Kestrel 03 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 3, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k04">Kestrel 04 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 4, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k05">Kestrel 05 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 5, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k06">Kestrel 06 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 6, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k07">Kestrel 07 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 7, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k08">Kestrel 08 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 8, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k09">Kestrel 09 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 9, y 0 · fetched <age> ago</p>
+</div>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/k10">Kestrel 10 Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</p>
+</div>
+</div>
 <p>rows 1–10 of 11 shown · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
@@ -183,11 +302,34 @@ GET search?<a site search with an ambiguous clause>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 16 items · 4 locations fetched<br>3 locations never fetched: PremiumStash 3 of 7 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rarity)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"></td><td><a class="name rarity-" href="item/both">Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate"></span></td><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 30<br>30% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</td><td>Standard / Rarity · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"></td><td><a class="name rarity-" href="item/plain">Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate"></span></td><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 25<br>25% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</td><td>Standard / Rarity · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-" href="item/both">Iron Ring</a></p>
+<p class="base">Iron Ring</p>
+<div class="mods">
+<p class="mod">30% increased Rarity of Items found <span class="mod-kind">explicit</span></p>
+<p class="mod">10% reduced Rarity of Items found <span class="mod-kind">explicit</span></p>
+<p class="mod">Recover 2% of Mana on Kill <span class="mod-kind">explicit</span></p>
+</div>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 30<br>30% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-" href="item/plain">Iron Ring</a></p>
+<p class="base">Iron Ring</p>
+<div class="mods">
+<p class="mod">25% increased Rarity of Items found <span class="mod-kind">explicit</span></p>
+<p class="mod">Recover 2% of Mana on Kill <span class="mod-kind">explicit</span></p>
+</div>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 25<br>25% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -218,10 +360,29 @@ GET search?<a row that leaves lines out>
 <tr><th>Scope</th><td>account Alice#1234 · pc · live · 17 items · 5 locations fetched<br>3 locations never fetched: PremiumStash 3 of 8 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Spirit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/many">Many Loop Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td>sorts by sum(line(template:spirit).arg1) 36<br>+1 to Spirit (explicit)<br>+2 to Spirit (explicit)<br>+3 to Spirit (explicit)<br>+4 to Spirit (explicit)<br>+5 to Spirit (explicit)<br>+6 to Spirit (explicit)<br><a href="item/many">2 more sorted</a><br><a href="item/many">2 more of term 0</a></td><td>Standard / Spirit · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/many">Many Loop Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Item Level: 70</p>
+<div class="mods">
+<p class="mod">+1 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+2 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+3 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+4 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+5 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+6 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+7 to Spirit <span class="mod-kind">explicit</span></p>
+<p class="mod">+8 to Spirit <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Spirit · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">sorts by sum(line(template:spirit).arg1) 36<br>+1 to Spirit (explicit)<br>+2 to Spirit (explicit)<br>+3 to Spirit (explicit)<br>+4 to Spirit (explicit)<br>+5 to Spirit (explicit)<br>+6 to Spirit (explicit)<br><a href="item/many">2 more sorted</a><br><a href="item/many">2 more of term 0</a></p>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

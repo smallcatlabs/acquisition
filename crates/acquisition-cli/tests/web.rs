@@ -27,7 +27,7 @@ const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
 /// The row fields the answer page asks by default, as `acq search
 /// --fields` names them: what each JSON comparison of a page with the CLI
 /// asks of the CLI, so the two compare whole.
-const PAGE_FIELDS: &str = "icon";
+const PAGE_FIELDS: &str = "icon,item";
 
 /// The league list (Standard, Hardcore, and Settlers with no tab on
 /// disk), and one league of two tabs: `Rings` with two life rings and Kaom's Heart,
@@ -643,9 +643,54 @@ fn every_search_page_is_a_wording_golden() {
             "<p class=\"count\">2 matches</p>",
             "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;",
             "+95 to maximum Life",
+            // the rows are cards by default: a line's kind, the price,
+            // the place with its age, and the way to the table
+            "<div class=\"cards\">",
+            "<span class=\"mod-kind\">explicit</span>",
+            "<p class=\"price\">price none (",
+            "<p class=\"place\">pc · Standard / Rings",
+            " ago</p>",
+            "<a class=\"presentation\" href=\"search?",
+            ">as a table</a>",
         ],
     );
+    assert!(
+        !answer.body.contains("class=\"results\""),
+        "{}",
+        answer.body
+    );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
+    // the same search as the table, asked on the form: the compact table,
+    // the query box keeping it, and the way back to the cards, which
+    // answers
+    let mut tabled = ring_search();
+    tabled.push(("view.fields", "icon"));
+    let table_path = format!("search?{}", query_string(&tabled));
+    let table = web.get(&table_path);
+    assert_eq!(table.status, 200, "{}", table.body);
+    assert!(!table.body.contains("class=\"card\""), "{}", table.body);
+    pages.page(
+        "GET search?<the ring search as a table>",
+        &table,
+        &[
+            "<table class=\"results\">",
+            "alt=\"Doom Loop Two-Stone Ring\"",
+            "<input type=\"hidden\" name=\"view.fields\" value=\"icon\">",
+            ">as cards</a>",
+        ],
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &table_path, &table);
+    let link = "<a class=\"presentation\" href=\"";
+    let back = &table.body[table.body.find(link).unwrap() + link.len()..];
+    let back = back[..back.find('"').unwrap()].replace("&amp;", "&");
+    assert!(!back.contains("view.fields"), "{back}");
+    let cards = web.get(&back);
+    assert_eq!(cards.status, 200, "{}", cards.body);
+    assert!(
+        cards.body.contains("<div class=\"cards\">"),
+        "{}",
+        cards.body
+    );
     // the query box: the answer holds the text it ran, to edit; an edited
     // text runs as the user's own query, the trade input dropped — the
     // translation's section on the ring search's answer, none on the edit
@@ -761,12 +806,15 @@ fn every_search_page_is_a_wording_golden() {
     );
     let counted = web.get(&counted_path);
     assert_eq!(counted.status, 200, "{}", counted.body);
-    // a count shows no rows: its tables, and no rows table
-    assert!(
-        !counted.body.contains("class=\"results\""),
-        "{}",
-        counted.body
-    );
+    // a count shows no rows: its tables, no rows table, no card and no
+    // other presentation
+    for none in [
+        "class=\"results\"",
+        "class=\"card\"",
+        "class=\"presentation\"",
+    ] {
+        assert!(!counted.body.contains(none), "{none}: {}", counted.body);
+    }
     assert!(
         counted.body.contains("class=\"counted\""),
         "{}",
@@ -845,14 +893,14 @@ fn every_search_page_is_a_wording_golden() {
             "Doom Loop Two-Stone Ring",
             "<th>Class</th><td>Rings</td>",
             "+95 to maximum Life",
-            "<th>Price</th><td>none (",
+            "<p class=\"price\">price none (",
             ART,
         ],
     );
-    // the price line says the price or why there is none, and nothing
+    // the card's price says the price or why there is none, and nothing
     // after: no command and no link
-    let price = &item.body[item.body.find("<th>Price</th>").unwrap()..];
-    let price = &price[..price.find("</tr>").unwrap()];
+    let price = &item.body[item.body.find("<p class=\"price\">").unwrap()..];
+    let price = &price[..price.find("</p>").unwrap()];
     assert!(!price.contains("why") && !price.contains("href"), "{price}");
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);

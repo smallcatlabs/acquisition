@@ -69,6 +69,19 @@ td.icon img { max-width: 47px; max-height: 94px; }
 .rarity-unique { color: var(--unique); }
 .base { color: var(--muted); }
 
+/* the cards: an item each, in the trade site's order */
+.cards { display: flex; flex-direction: column; gap: .6rem; margin: .5rem 0; }
+.card { background: var(--panel); border: 1px solid var(--rule); padding: .5rem .75rem; text-align: center; }
+.card p { margin: .2rem 0; }
+.card img.art { max-width: 94px; max-height: 188px; display: block; margin: 0 auto .3rem; }
+.card .properties, .card .flags, .card .sockets, .card .place { color: var(--muted); }
+.card .mods { border-top: 1px solid var(--rule); padding: .25rem 0; }
+.card .mod { color: var(--magic); }
+.card .mod-kind { color: var(--muted); font-size: 12px; }
+.card .price { color: var(--accent); }
+.cards .shows { margin: -.4rem 0 0; padding: .3rem .75rem; border: 1px solid var(--rule); border-top: 0; font-size: 12.5px; }
+a.presentation { font-size: 12.5px; }
+
 /* the refresh page's lists */
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
