@@ -1492,7 +1492,7 @@ fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
         // one node, forced each way: the words are literal — forced,
         // never removed, never a contribution (`answer.rs`)
         ViewOut::Explain(explain) => {
-            line(format!("explain {}  {}", explain.path, explain.node));
+            line(format!("explain {}", explain_words(explain)));
             line(format!(
                 "  as given      {}",
                 forced_words(explain.given.matched, explain.given.undecided)
@@ -1514,11 +1514,7 @@ fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
         for nothing in &zero.resolved_to_nothing {
             line(nothing_words(zero, nothing));
             for s in &nothing.suggestions {
-                line(format!(
-                    "            {}   ({})",
-                    s.term,
-                    plural(s.items, "item", "items")
-                ));
+                line(format!("            {}", suggestion_words(s, "   ")));
             }
         }
         // what the zero answer offers, each a command and never its
@@ -1951,7 +1947,7 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
         label_text(&bucket.label, all_realms)
     );
     if let Some(sum) = &bucket.sum {
-        first.push_str(&format!("   sum {}", summed_text(sum)));
+        first.push_str(&format!("   {}", sum_words(sum)));
     }
     if let Some(slots) = slots_words(bucket) {
         first.push_str(&format!("   {slots}"));
@@ -1969,13 +1965,13 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
             .sources
             .iter()
             .chain(&bucket.flags)
-            .map(|k| format!("{} {}", k.kind, k.count.count))
+            .map(kind_words)
             .collect();
         out.push(format!("           {}", kinds.join(" · ")));
         // a kind with no route says why
         for k in bucket.sources.iter().chain(&bucket.flags) {
             if let Some(needs) = &k.needs {
-                out.push(format!("           {}: {needs}", k.kind));
+                out.push(format!("           {}", needs_words(&k.kind, needs)));
             }
         }
     }
@@ -1983,6 +1979,42 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
         out.push(format!("           {needs}"));
     }
     out
+}
+
+/// A bucket's or a cell's sum.
+pub(crate) fn sum_words(sum: &Summed) -> String {
+    format!("sum {}", summed_text(sum))
+}
+
+/// A vocabulary row's kind, with its count.
+pub(crate) fn kind_words(kind: &acquisition_search::counts::OfKind) -> String {
+    format!("{} {}", kind.kind, kind.count.count)
+}
+
+/// What a kind or a value with no route needs, said beside it.
+pub(crate) fn needs_words(what: &str, needs: &str) -> String {
+    format!("{what}: {needs}")
+}
+
+/// A crossed table's items with no value of a key.
+pub(crate) fn none_words(n: usize) -> String {
+    format!("{n} none")
+}
+
+/// A crossed table's items it could not place, by what was unread.
+pub(crate) fn cross_tally_words(tally: &[acquisition_search::counts::Tallied]) -> Option<String> {
+    tally_words(tally).map(|tally| format!("undecided: {tally}"))
+}
+
+/// A zero answer's suggestion: the term that selects a value, `gap`, and
+/// the items that carry it.
+pub(crate) fn suggestion_words(s: &acquisition_search::answer::Suggestion, gap: &str) -> String {
+    format!("{}{gap}({})", s.term, plural(s.items, "item", "items"))
+}
+
+/// The node an explain forces, by its path.
+pub(crate) fn explain_words(explain: &acquisition_search::answer::ExplainOut) -> String {
+    format!("{}  {}", explain.path, explain.node)
 }
 
 /// A bucket's slots, each its range.
@@ -2103,15 +2135,15 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
         let of: Vec<String> = cell.of.iter().map(|l| label_text(l, all_realms)).collect();
         let mut row = format!("  {:>7}  {}", cell.count.count, of.join(" × "));
         if let Some(sum) = &cell.sum {
-            row.push_str(&format!("   sum {}", summed_text(sum)));
+            row.push_str(&format!("   {}", sum_words(sum)));
         }
         out.push(row);
         // a cell with no route says why, once per value that has none
         for label in &cell.of {
             if let Some(needs) = &label.needs {
                 out.push(format!(
-                    "           {}: {needs}",
-                    label_text(label, all_realms)
+                    "           {}",
+                    needs_words(&label_text(label, all_realms), needs)
                 ));
             }
         }
@@ -2119,13 +2151,15 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
     for margin in &cross.margins {
         if margin.none.count + margin.undecided.count > 0 {
             out.push(format!(
-                "           {}: {} none · {} undecided",
-                margin.key, margin.none.count, margin.undecided.count
+                "           {}: {} · {}",
+                margin.key,
+                none_words(margin.none.count),
+                undecided_words(margin.undecided.count)
             ));
         }
     }
-    if let Some(tally) = tally_words(&cross.tally) {
-        out.push(format!("           undecided: {tally}"));
+    if let Some(tally) = cross_tally_words(&cross.tally) {
+        out.push(format!("           {tally}"));
     }
     out.extend(unmatched_text(&cross.unmatched_leagues));
     out
@@ -2378,9 +2412,8 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
         ));
     }
     out.push_str(&format!(
-        "place   {} · {}\n",
-        s.place.realm,
-        place_text(&s.place, acquisition_store::now())
+        "place   {}\n",
+        shown_place_words(s, acquisition_store::now())
     ));
     if let Some(base) = &item.base {
         out.push_str(&format!("base    {base}\n"));
@@ -2388,7 +2421,7 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     out.push_str(&format!("class   {}\n", class_words(&s.class)));
     out.push_str(&format!("category {}\n", category_words(&s.category)));
     for open in &s.category.open {
-        out.push_str(&format!("         open {}\n", open_words(open)));
+        out.push_str(&format!("         {}\n", open_words(open)));
     }
     // what the listing state prices it at (C81): the price, or why none —
     // and the command that says why, with the target form `price show`
@@ -2433,9 +2466,19 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
             line_kind_words(l),
             l.line.text.replace('\n', " / ")
         ));
-        out.push_str(&format!("        {:<22}{}\n", "", line_template_words(l)));
+        out.push_str(&format!(
+            "        {:<22}{}{}\n",
+            "",
+            line_template_quoted(l),
+            spaced_slots(line_slots_words(l))
+        ));
         for row in &l.line.rows {
-            out.push_str(&format!("        {:<22}{}\n", "", line_row_words(row)));
+            out.push_str(&format!(
+                "        {:<22}{}{}\n",
+                "",
+                line_row_quoted(row),
+                spaced_slots(line_row_slots_words(row))
+            ));
         }
         if let Some(limit) = l.limit {
             out.push_str(&format!("        {:<22}{limit}\n", ""));
@@ -2547,7 +2590,12 @@ pub(crate) fn open_words(open: &acquisition_search::category::Open) -> String {
     } else {
         plural(open.ids.len(), "id", "ids")
     };
-    format!("{ids}: {}", open.why.problem)
+    format!("open {ids}: {}", open.why.problem)
+}
+
+/// Where a shown item lies: its realm, then its place.
+pub(crate) fn shown_place_words(s: &Shown, now: i64) -> String {
+    format!("{} · {}", s.place.realm, place_text(&s.place, now))
 }
 
 /// What the listing state prices the item at (C81): the price, its side,
@@ -2610,42 +2658,40 @@ pub(crate) fn line_kind_words(l: &acquisition_search::show::ShownLine) -> String
         .join(", ")
 }
 
-/// A line's template, quoted, and its slots.
-pub(crate) fn line_template_words(l: &acquisition_search::show::ShownLine) -> String {
+/// A line's template, quoted.
+pub(crate) fn line_template_quoted(l: &acquisition_search::show::ShownLine) -> String {
+    format!("\"{}\"", l.line.template.replace('\n', "\\n"))
+}
+
+/// A line's slots, each its word and its number.
+pub(crate) fn line_slots_words(l: &acquisition_search::show::ShownLine) -> Option<String> {
     let slots: Vec<String> = l
         .slots
         .iter()
         .map(|(word, n)| format!("{word} {}", number(n)))
         .collect();
-    format!(
-        "\"{}\"{}",
-        l.line.template.replace('\n', "\\n"),
-        if slots.is_empty() {
-            String::new()
-        } else {
-            format!("   {}", slots.join(" · "))
-        }
-    )
+    (!slots.is_empty()).then(|| slots.join(" · "))
 }
 
-/// A row of a mod of several: each row is a name of it, and names its
-/// own numbers.
-pub(crate) fn line_row_words(row: &acquisition_search::derive::Row) -> String {
+/// A row of a mod of several, quoted: each row is a name of it.
+pub(crate) fn line_row_quoted(row: &acquisition_search::derive::Row) -> String {
+    format!("row \"{}\"", row.template)
+}
+
+/// A row's own numbers.
+pub(crate) fn line_row_slots_words(row: &acquisition_search::derive::Row) -> Option<String> {
     let slots: Vec<String> = row
         .read()
         .slots()
         .into_iter()
         .map(|(word, n)| format!("{word} {}", slot_number(n)))
         .collect();
-    format!(
-        "row \"{}\"{}",
-        row.template,
-        if slots.is_empty() {
-            String::new()
-        } else {
-            format!("   {}", slots.join(" · "))
-        }
-    )
+    (!slots.is_empty()).then(|| slots.join(" · "))
+}
+
+/// Slots after a template as the text sets them, three spaces apart.
+fn spaced_slots(slots: Option<String>) -> String {
+    slots.map(|s| format!("   {s}")).unwrap_or_default()
 }
 
 /// What an item with nothing unread says of it.

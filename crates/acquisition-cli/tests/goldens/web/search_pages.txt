@@ -73,7 +73,7 @@ GET search?<the ring search>
 <tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 <tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -109,7 +109,7 @@ GET search?<an edited text>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 <tr><td>1</td><td>line(&quot;# to maximum Life&quot; arg1&gt;=90)</td><td>2</td><td>2</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/together" href="/<token>/search?realm=pc&amp;text=line%28%22%23%20to%20maximum%20Life%22%29%20-line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D90%29%20sum%28line%28%22%23%20to%20maximum%20Life%22%29.arg1%29%3E%3D90">1 reaches 90 only together</a></td></tr>
 </table>
-<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -157,7 +157,7 @@ GET search?<a trade site search's URL>
 <tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
 <tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">3 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">3 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -208,7 +208,7 @@ GET search?<an xbox URL from the pc page>
 <tr><td>0</td><td>league=Hardcore</td><td><a class="way" data-way="/terms/0/matched" href="/<token>/search?realm=xbox&amp;text=league%3DHardcore">1</a></td><td>0</td><td>0</td><td>0</td><td></td></tr>
 <tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>0</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">1 more count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">1 count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -255,7 +255,7 @@ GET search?<the site's query JSON with its sort>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -306,7 +306,7 @@ GET search?<the league counted by rarity>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">3 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">3 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -347,7 +347,7 @@ GET search?<every ring, one row shown>
 <tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -382,7 +382,7 @@ GET search?<every item counted by class>
 <tr><td>1</td><td>Body Armours</td></tr>
 <tr><td><a class="way" data-way="/view/counts/tables/0/buckets/2" href="/<token>/search?realm=pc&amp;text=undecided%28class%29">1</a></td><td>(undecided) · the class: base not in the table unread 1</td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -427,7 +427,7 @@ GET search?<rings named as the undecided chalice is>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 <tr><td>1</td><td>name=&quot;Brood Lure&quot;</td><td><a class="way" data-way="/terms/1/matched" href="/<token>/search?realm=pc&amp;text=name%3D%22Brood%20Lure%22">1</a></td><td>4</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -473,8 +473,8 @@ GET item/r1
 <tr><th>Unread</th><td>nothing</td></tr>
 </table>
 <table class="lines">
-<tr><th>Source</th><th>Line</th><th>Template</th></tr>
-<tr><td>explicit</td><td>+95 to maximum Life</td><td>&quot;# to maximum Life&quot;   arg1 95</td></tr>
+<tr><th>Source</th><th>Line</th><th>Template</th><th>Slots</th></tr>
+<tr><td>explicit</td><td>+95 to maximum Life</td><td>&quot;# to maximum Life&quot;</td><td>arg1 95</td></tr>
 </table>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

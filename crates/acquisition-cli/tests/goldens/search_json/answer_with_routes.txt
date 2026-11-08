@@ -32,3 +32,25 @@ routes  each returns exactly the members counted
   term 0 lacked (1), over the scope:
     acq search --account 'Alice#1234' --realm pc ' -line("# to maximum Life")'
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --request <scratch>/route.json
+# holds "then    99 matches where this route was printed"
+--- stdout
+query   rarity=rare
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
+            1 location was never fetched: nothing here says what it holds
+then    99 matches where this route was printed
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            id r2
+        Dull Turn Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id plain
+        Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id r3
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    rarity=rare  4 matched · 1 failed
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

@@ -117,3 +117,60 @@ routes  each returns exactly the members counted (2 more: --routes)
   term 1 matched (1), over the scope:
     acq search --account 'Alice#1234' --realm pc rarity=unique
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99'
+# holds "1 part more: --explain <path>, a part's path as the terms block numbers it"
+--- stdout
+query   ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   0 matches
+            1 location was never fetched: nothing here says what it holds
+offers  each part of the query forced true and forced false, the part fewest items match first
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 10
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 0
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 1
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 2
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 3
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 4
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 5
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 6
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 7
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --explain 8
+            1 part more: --explain <path>, a part's path as the terms block numbers it
+        every item in scope, this query set aside
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99' --limit 10 --context corpus
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    ilvl>=1   5 matched
+  1    ilvl>=2   5 matched
+  2    ilvl>=3   5 matched
+  3    ilvl>=4   5 matched
+  4    ilvl>=5   5 matched
+  5    ilvl>=6   5 matched
+  6    ilvl>=7   5 matched
+  7    ilvl>=8   5 matched
+  8    ilvl>=9   5 matched
+  9    ilvl>=10  5 matched
+  10   ilvl>=99  0 matched · 5 failed
+routes  each returns exactly the members counted (1 more: --routes)
+  term 0 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=1'
+  term 1 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=2'
+  term 2 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=3'
+  term 3 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=4'
+  term 4 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=5'
+  term 5 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=6'
+  term 6 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=7'
+  term 7 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=8'
+  term 8 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=9'
+  term 9 matched (5), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'ilvl>=10'
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

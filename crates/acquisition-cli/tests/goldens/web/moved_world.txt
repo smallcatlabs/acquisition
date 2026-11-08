@@ -21,8 +21,8 @@ GET item/new
 <tr><th>Unread</th><td>nothing</td></tr>
 </table>
 <table class="lines">
-<tr><th>Source</th><th>Line</th><th>Template</th></tr>
-<tr><td>explicit</td><td>+40 to maximum Life</td><td>&quot;# to maximum Life&quot;   arg1 40</td></tr>
+<tr><th>Source</th><th>Line</th><th>Template</th><th>Slots</th></tr>
+<tr><td>explicit</td><td>+40 to maximum Life</td><td>&quot;# to maximum Life&quot;</td><td>arg1 40</td></tr>
 </table>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
@@ -51,8 +51,8 @@ GET item/mech
 <tr><th>Unread</th><td>`wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</td></tr>
 </table>
 <table class="lines">
-<tr><th>Source</th><th>Line</th><th>Template</th></tr>
-<tr><td>wombgift</td><td>Grants 3 Echoes of the Brood</td><td>&quot;Grants # Echoes of the Brood&quot;   arg1 3</td></tr>
+<tr><th>Source</th><th>Line</th><th>Template</th><th>Slots</th></tr>
+<tr><td>wombgift</td><td>Grants 3 Echoes of the Brood</td><td>&quot;Grants # Echoes of the Brood&quot;</td><td>arg1 3</td></tr>
 </table>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
@@ -132,7 +132,7 @@ GET search?<every ring>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>

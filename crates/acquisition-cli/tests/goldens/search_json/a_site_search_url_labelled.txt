@@ -28,3 +28,38 @@ terms   each term counted alone over all live pc items in all leagues, never ove
   1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed
 routes  each returns exactly the members counted (3 more: --routes)
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc --trade-file -
+--- stdin
+{"query":{"stats":[{"filters":[{"id":"explicit.stat_9999999900"},{"id":"explicit.stat_9999999901"},{"id":"explicit.stat_9999999902"},{"id":"explicit.stat_9999999903"},{"id":"explicit.stat_9999999904"},{"id":"explicit.stat_9999999905"},{"id":"explicit.stat_9999999906"},{"id":"explicit.stat_9999999907"},{"id":"explicit.stat_9999999908"},{"id":"explicit.stat_9999999909"},{"id":"explicit.stat_9999999910"}],"type":"and"}]}}
+# holds "… and 1 more: the JSON's query.trade.clauses"
+--- stdout
+trade   from the query JSON: PARTIAL — 11 clauses not run, so this is not the site's search
+        over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        NOT RUN   stats.0.0   no row of the stat table is `explicit.stat_9999999900`
+        NOT RUN   stats.0.1   no row of the stat table is `explicit.stat_9999999901`
+        NOT RUN   stats.0.2   no row of the stat table is `explicit.stat_9999999902`
+        NOT RUN   stats.0.3   no row of the stat table is `explicit.stat_9999999903`
+        NOT RUN   stats.0.4   no row of the stat table is `explicit.stat_9999999904`
+        NOT RUN   stats.0.5   no row of the stat table is `explicit.stat_9999999905`
+        NOT RUN   stats.0.6   no row of the stat table is `explicit.stat_9999999906`
+        NOT RUN   stats.0.7   no row of the stat table is `explicit.stat_9999999907`
+        NOT RUN   stats.0.8   no row of the stat table is `explicit.stat_9999999908`
+        NOT RUN   stats.0.9   no row of the stat table is `explicit.stat_9999999909`
+        NOT RUN   … and 1 more: the JSON's query.trade.clauses
+query   (every item in scope)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
+            1 location was never fetched: nothing here says what it holds
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            id r2
+        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id kaom
+        Dull Turn Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id plain
+        Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id r3
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

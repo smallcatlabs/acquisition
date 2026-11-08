@@ -882,6 +882,7 @@ fn every_search_page_is_a_wording_golden() {
             let answered = web.raw("GET", link, None, &[], "");
             assert_eq!(answered.status, 200, "{link}: {}", answered.body);
             assert!(answered.body.contains(said), "{}", answered.body);
+            every_request_an_answer_carries_is_a_way_on_its_page(&web, link, &answered);
         }
     }
     // a tab's id: the refusal's way on is the page's own, a link to the
@@ -911,6 +912,7 @@ fn every_search_page_is_a_wording_golden() {
     let listed = web.raw("GET", link, None, &[], "");
     assert_eq!(listed.status, 200, "{link}: {}", listed.body);
     assert!(listed.body.contains("Doom Loop"), "{}", listed.body);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, link, &listed);
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }
@@ -1028,7 +1030,7 @@ fn the_moved_world_renders_with_a_badge() {
         &mech,
         &["flags unknown", "echoing", "Grants 3 Echoes of the Brood"],
     );
-    let untranslated = web.get(&format!(
+    let untranslated_path = format!(
         "search?{}",
         query_string(&[
             ("realm", "pc"),
@@ -1036,14 +1038,16 @@ fn the_moved_world_renders_with_a_badge() {
             ("query.stats[0].filters[0].id", "explicit.stat_9999999999"),
             ("view.limit", "20"),
         ])
-    ));
+    );
+    let untranslated = web.get(&untranslated_path);
     assert_eq!(untranslated.status, 200);
     pages.page(
         "GET search?<a stat the table lacks>",
         &untranslated,
         &["not the site&#39;s search", "PARTIAL", "stats.0.0"],
     );
-    let undecided = web.get(&format!(
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &untranslated_path, &untranslated);
+    let undecided_path = format!(
         "search?{}",
         query_string(&[
             ("realm", "pc"),
@@ -1052,12 +1056,14 @@ fn the_moved_world_renders_with_a_badge() {
                 "accessory.ring"
             ),
         ])
-    ));
+    );
+    let undecided = web.get(&undecided_path);
     pages.page(
         "GET search?<every ring>",
         &undecided,
         &["undecided", "Wombgift Chalice"],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &undecided_path, &undecided);
     page_golden(file!(), "moved_world", &pages);
 }
 
@@ -1172,7 +1178,11 @@ fn every_request_an_answer_carries_is_a_way_on_its_page(
     page: &harness::Reply,
 ) {
     assert_eq!(page.status, 200, "{path}: {}", page.body);
-    let doc = web.get_json(path);
+    // a path as a test asks it, or absolute as a page links it
+    let doc = match path.starts_with('/') {
+        true => json_at(web, path),
+        false => web.get_json(path),
+    };
     let mut holders = Vec::new();
     holding_requests(&doc, "", &mut holders);
     let ways = ways_on(main_of(&page.body));
@@ -1473,6 +1483,43 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         &[
             "<td>ambiguous</td><td>stats.0.0</td>",
             "read the other way: adds 0, drops <a class=\"way\" data-way=\"/query/trade/clauses/1/other/drops\" href=",
+        ],
+    );
+    // a row that leaves lines out: eight Spirit lines, its term and its
+    // sort each showing part of them, what each left out a link to the
+    // item whole
+    let spirit: Vec<String> = (1..=8).map(|n| format!("+{n} to Spirit")).collect();
+    tabs.push(tab("s9", "Spirit"));
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        100,
+    );
+    record(
+        stash("s9"),
+        "Standard",
+        json!({ "stash": { "id": "s9", "name": "Spirit", "type": "PremiumStash", "items": [
+            { "id": "many", "name": "Many Loop", "typeLine": "Iron Ring", "baseType": "Iron Ring",
+              "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 70, "x": 0, "y": 0,
+              "explicitMods": spirit } ] } }),
+        101,
+    );
+    check(
+        &mut pages,
+        "GET search?<a row that leaves lines out>",
+        &format!(
+            "search?{}",
+            query_string(&[
+                ("realm", "pc"),
+                ("text", "line(template:spirit)"),
+                ("view.sort", "sum(line(template:spirit).arg1)"),
+            ])
+        ),
+        &[
+            " more sorted</a>",
+            " more of term 0</a>",
+            "<a href=\"item/many\">",
         ],
     );
     page_golden(file!(), "answer_ways", &pages);
@@ -3066,7 +3113,8 @@ fn the_saved_pages_are_a_wording_golden() {
         listed.body
     );
     // a create from an answer, and the list it lands on
-    let answer = web.get(&format!("search?{}", query_string(&ring_search())));
+    let ring_path = format!("search?{}", query_string(&ring_search()));
+    let answer = web.get(&ring_path);
     pages.page(
         "GET search?<the ring search>",
         &answer,
@@ -3076,6 +3124,7 @@ fn the_saved_pages_are_a_wording_golden() {
             ">Save this search</button>",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
     let created = send(
         &web,
         &form_on(&answer.body, "Save this search", None).typed("name", "my rings"),
@@ -3160,15 +3209,18 @@ fn the_saved_pages_are_a_wording_golden() {
             ">Save as a new search</button>",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &location, &opened);
     assert!(
         !saved_parts(&opened.body).contains("acq "),
         "{}",
         opened.body
     );
     saved_cli(&world, &["set", "--id", "0000000000a2", "--realm", "pc"]);
+    let moved = follow(&web, &location);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &location, &moved);
     pages.page(
         "GET search?<rings, opened, after the row moved>",
-        &follow(&web, &location),
+        &moved,
         &[
             "Saved search 0000000000a2, opened at revision 1, has been written since: it is now \
              &quot;rings&quot; at revision 2, last written",
@@ -3176,9 +3228,11 @@ fn the_saved_pages_are_a_wording_golden() {
         ],
     );
     saved_cli(&world, &["set", "--id", "0000000000a2", "rarity=unique"]);
+    let moved = follow(&web, &location);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &location, &moved);
     pages.page(
         "GET search?<rings, opened, after its text changed>",
-        &follow(&web, &location),
+        &moved,
         &["This answer&#39;s query is not the saved one&#39;s: the saved query is rarity=unique over pc · live."],
     );
     saved_cli(
@@ -3186,6 +3240,7 @@ fn the_saved_pages_are_a_wording_golden() {
         &["set", "--id", "0000000000a2", "--name", "unique rings"],
     );
     let reloaded = follow(&web, &location);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &location, &reloaded);
     pages.page(
         "GET search?<rings, opened, after it was renamed>",
         &reloaded,
@@ -3210,9 +3265,11 @@ fn the_saved_pages_are_a_wording_golden() {
         ],
     );
     saved_cli(&world, &["clear", "0000000000a2"]);
+    let moved = follow(&web, &location);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &location, &moved);
     pages.page(
         "GET search?<rings, opened, after it was cleared>",
-        &follow(&web, &location),
+        &moved,
         &[
             "Saved search 0000000000a2 is gone: no saved search has that id now. Saving here makes a new one.",
             ">Save this search</button>",
@@ -3239,7 +3296,8 @@ fn the_saved_pages_are_a_wording_golden() {
     assert!(!list.body.contains("cannot read"), "{}", list.body);
     pages.page("GET saved <after it>", &list, &["3 saved searches"]);
     // a save over a row since replaced by one this build cannot read
-    let (_, amulets) = redirected(&web, &link_saying(&list.body, "amulets"));
+    let (amulets_at, amulets) = redirected(&web, &link_saying(&list.body, "amulets"));
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &amulets_at, &amulets);
     newer("0000000000a1", Some(1));
     let over = send(
         &web,
@@ -3289,9 +3347,12 @@ fn the_saved_pages_are_a_wording_golden() {
     pages.placeholder(&everything, "everything");
     let open = follow(&web, &link_saying(&list.body, "everything"));
     pages.redirect("GET saved/open?id=<everything>", &open);
+    let everything_at = open.header("location").unwrap().to_string();
+    let everything_page = follow(&web, &everything_at);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &everything_at, &everything_page);
     pages.page(
         "GET search?<everything, opened>",
-        &follow(&web, open.header("location").unwrap()),
+        &everything_page,
         &[
             "Saved search &quot;everything&quot;, opened at revision 1",
             "<textarea id=\"query-text\" name=\"text\" rows=\"3\"></textarea>",
@@ -3333,9 +3394,11 @@ fn the_saved_pages_are_a_wording_golden() {
         ),
         &["this build cannot read it:"],
     );
+    let belts_page = follow(&web, &belted);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &belted, &belts_page);
     pages.page(
         "GET search?<belts, opened, reloaded>",
-        &follow(&web, &belted),
+        &belts_page,
         &[
             "Saved search 0000000000a4 holds a value this build cannot read; clear it from",
             ">Save this search</button>",

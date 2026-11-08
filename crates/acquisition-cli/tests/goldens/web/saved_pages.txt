@@ -62,7 +62,7 @@ GET search?<the ring search>
 <tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 <tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -188,7 +188,7 @@ GET search?<rings, opened>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -225,7 +225,7 @@ GET search?<rings, opened, after the row moved>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -262,7 +262,7 @@ GET search?<rings, opened, after its text changed>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -299,7 +299,7 @@ GET search?<rings, opened, after it was renamed>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -360,7 +360,7 @@ GET search?<rings, opened, after it was cleared>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -537,7 +537,7 @@ GET search?<belts, opened, reloaded>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>

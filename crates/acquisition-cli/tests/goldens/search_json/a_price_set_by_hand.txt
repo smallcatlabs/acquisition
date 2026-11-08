@@ -52,3 +52,37 @@ lines   explicit              +75 to maximum Life
                               "# to maximum Life"   arg1 20
 unread  nothing
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show r2
+# holds "price   5 chaos · manual · from tab/pc/t1"
+--- stdout
+Rune Coil Two-Stone Ring · rare · frame rare
+id      r2
+place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   5 chaos · manual · from tab/pc/t1 · why: acq price show --account 'Alice#1234' --realm pc item/r2
+is      identified
+shown   Item Level: 84
+lines   explicit              +75 to maximum Life
+                              "# to maximum Life"   arg1 75
+        implicit              +20 to maximum Life
+                              "# to maximum Life"   arg1 20
+unread  nothing
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show odd
+# holds "price   undecided: the note cannot be read"
+--- stdout
+Numbered Loop Two-Stone Ring · rare · frame rare
+id      odd
+place   pc · Standard / Sale · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   undecided: the note cannot be read: it is no string, and a note would decide · why: acq price show --account 'Alice#1234' --realm pc item/odd
+is      identified
+shown   Item Level: 84
+unread  `note` is a number, not a string
+basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

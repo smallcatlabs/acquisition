@@ -895,7 +895,7 @@ pub(crate) fn answer(
             "<p class=\"unrouted\">{}</p>\n",
             esc(&format!(
                 "{} {} no link: an answer carries those routes only where every route is asked, which no page asks",
-                plural(unrouted, "more count", "more counts"),
+                plural(unrouted, "count", "counts"),
                 if unrouted == 1 { "carries" } else { "carry" }
             ))
         ));
@@ -1115,7 +1115,7 @@ fn count_table(table: &Table, t: usize, all_realms: bool, spell: Spell) -> Strin
         let at = format!("/view/counts/tables/{t}/buckets/{b}");
         let mut cell = esc(&search_cmd::label_text(&bucket.label, all_realms));
         if let Some(sum) = &bucket.sum {
-            cell.push_str(&esc(&format!(" · sum {}", search_cmd::summed_text(sum))));
+            cell.push_str(&esc(&format!(" · {}", search_cmd::sum_words(sum))));
         }
         for words in [
             search_cmd::slots_words(bucket),
@@ -1142,19 +1142,15 @@ fn count_table(table: &Table, t: usize, all_realms: bool, spell: Spell) -> Strin
                         .enumerate()
                         .map(|(k, kind)| (format!("{at}/flags/{k}"), kind)),
                 )
-                .map(|(at, kind)| {
-                    count_at(
-                        spell,
-                        &at,
-                        &kind.count,
-                        &format!("{} {}", kind.kind, kind.count.count),
-                    )
-                })
+                .map(|(at, kind)| count_at(spell, &at, &kind.count, &search_cmd::kind_words(kind)))
                 .collect();
             cell.push_str(&format!("<br>{}", kinds.join(" · ")));
             for kind in bucket.sources.iter().chain(&bucket.flags) {
                 if let Some(needs) = &kind.needs {
-                    cell.push_str(&format!("<br>{}", esc(&format!("{}: {needs}", kind.kind))));
+                    cell.push_str(&format!(
+                        "<br>{}",
+                        esc(&search_cmd::needs_words(&kind.kind, needs))
+                    ));
                 }
             }
         }
@@ -1197,15 +1193,15 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
             .collect();
         let mut words = esc(&of.join(" × "));
         if let Some(sum) = &cell.sum {
-            words.push_str(&esc(&format!(" · sum {}", search_cmd::summed_text(sum))));
+            words.push_str(&esc(&format!(" · {}", search_cmd::sum_words(sum))));
         }
         for label in &cell.of {
             if let Some(needs) = &label.needs {
                 words.push_str(&format!(
                     "<br>{}",
-                    esc(&format!(
-                        "{}: {needs}",
-                        search_cmd::label_text(label, all_realms)
+                    esc(&search_cmd::needs_words(
+                        &search_cmd::label_text(label, all_realms),
+                        needs
                     ))
                 ));
             }
@@ -1232,7 +1228,7 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
                     spell,
                     &at("none"),
                     &margin.none,
-                    &format!("{} none", margin.none.count)
+                    &search_cmd::none_words(margin.none.count)
                 ),
                 count_at(
                     spell,
@@ -1243,8 +1239,8 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
             ));
         }
     }
-    if let Some(tally) = search_cmd::tally_words(&cross.tally) {
-        out.push_str(&format!("<p>{}</p>\n", esc(&format!("undecided: {tally}"))));
+    if let Some(tally) = search_cmd::cross_tally_words(&cross.tally) {
+        out.push_str(&format!("<p>{}</p>\n", esc(&tally)));
     }
     if let Some(words) = search_cmd::unmatched_words(&cross.unmatched_leagues) {
         out.push_str(&format!("<p>{}</p>\n", esc(&words)));
@@ -1258,7 +1254,7 @@ fn cross_table(cross: &CrossOut, all_realms: bool, spell: Spell) -> String {
 fn explained(explain: &ExplainOut, spell: Spell) -> String {
     let mut out = format!(
         "<p class=\"count-head\">{}</p>\n<table class=\"explained\">\n",
-        esc(&format!("Explain {}  {}", explain.path, explain.node))
+        esc(&format!("Explain {}", search_cmd::explain_words(explain)))
     );
     out.push_str(&fact_row(
         "As given",
@@ -1321,11 +1317,7 @@ fn zero_block(zero: &Zero, spell: Spell) -> String {
             for s in &nothing.suggestions {
                 out.push_str(&format!(
                     "<li>{}</li>\n",
-                    esc(&format!(
-                        "{} ({})",
-                        s.term,
-                        plural(s.items, "item", "items")
-                    ))
+                    esc(&search_cmd::suggestion_words(s, " "))
                 ));
             }
             out.push_str("</ul>\n");
@@ -1515,11 +1507,7 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
     }
     out.push_str(&fact_row(
         "Place",
-        &esc(&format!(
-            "{} · {}",
-            shown.place.realm,
-            search_cmd::place_text(&shown.place, now)
-        )),
+        &esc(&search_cmd::shown_place_words(shown, now)),
     ));
     if let Some(base) = &it.base {
         out.push_str(&fact_row("Base", &esc(base)));
@@ -1530,10 +1518,7 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
     ));
     let mut category = esc(&search_cmd::category_words(&shown.category));
     for open in &shown.category.open {
-        category.push_str(&format!(
-            "<br>{}",
-            esc(&format!("open {}", search_cmd::open_words(open)))
-        ));
+        category.push_str(&format!("<br>{}", esc(&search_cmd::open_words(open))));
     }
     out.push_str(&fact_row("Category", &category));
     out.push_str(&fact_row("Price", &esc(&search_cmd::price_words(shown))));
@@ -1567,22 +1552,27 @@ pub(crate) fn item(shown: &Shown, badges: &str) -> String {
     out.push_str("</table>\n");
     if !shown.lines.is_empty() {
         out.push_str(
-            "<table class=\"lines\">\n<tr><th>Source</th><th>Line</th><th>Template</th></tr>\n",
+            "<table class=\"lines\">\n<tr><th>Source</th><th>Line</th><th>Template</th><th>Slots</th></tr>\n",
         );
+        // the template and its slots each a cell, a row of a mod of
+        // several and a limit a line of the template's cell beside its
+        // own slots, so no gap of the text's is lost to HTML's spaces
         for l in &shown.lines {
-            let mut template = vec![esc(&search_cmd::line_template_words(l))];
-            template.extend(
-                l.line
-                    .rows
-                    .iter()
-                    .map(|row| esc(&search_cmd::line_row_words(row))),
-            );
+            let mut template = vec![esc(&search_cmd::line_template_quoted(l))];
+            let mut slots = vec![esc(&search_cmd::line_slots_words(l).unwrap_or_default())];
+            for row in &l.line.rows {
+                template.push(esc(&search_cmd::line_row_quoted(row)));
+                slots.push(esc(
+                    &search_cmd::line_row_slots_words(row).unwrap_or_default()
+                ));
+            }
             template.extend(l.limit.map(esc));
             out.push_str(&format!(
-                "<tr><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                 esc(&search_cmd::line_kind_words(l)),
                 esc(&l.line.text.replace('\n', " / ")),
-                template.join("<br>")
+                template.join("<br>"),
+                slots.join("<br>")
             ));
         }
         out.push_str("</table>\n");

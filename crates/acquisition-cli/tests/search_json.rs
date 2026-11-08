@@ -662,6 +662,22 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
             "{digest}: {shown}"
         );
     }
+    // a route read back with the count it was printed with, which has
+    // moved: the answer says what the route said
+    let route = base.join("route.json");
+    std::fs::write(
+        &route,
+        json!({ "count": 99, "denominator": "scope", "request": {
+            "scope": { "account": USER, "realm": "pc" },
+            "query": { "text": "rarity=rare" },
+            "view": { "rows": {} } } })
+        .to_string(),
+    )
+    .unwrap();
+    t.run(
+        &["search", "--request", route.to_str().unwrap()],
+        &["then    99 matches where this route was printed"],
+    );
     golden(file!(), "answer_with_routes", &t);
 
     // rule 5, the route property at a terminal: every command the answer
@@ -842,6 +858,23 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     );
     let err = String::from_utf8(out.stderr).unwrap();
     assert!(!err.contains("Abyss Jewels"), "{err}");
+    // a row that leaves out what its sort and its term touched past what
+    // it shows says how much, each with the command that shows the item
+    // whole (the words the web page's links to the item say)
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "line(template:spirit)",
+            "--sort",
+            "sum(line(template:spirit).arg1)",
+        ],
+        &[
+            " more sorted: acq show --account 'Alice#1234' many",
+            " more of term 0: acq show --account 'Alice#1234' many",
+        ],
+    );
     golden(file!(), "first_seat_sort_lines_and_ids", &t);
 }
 
@@ -1064,6 +1097,16 @@ fn step_10_explain_context_and_against_at_a_terminal() {
         &["search", "--realm", "pc", "rarity=rare rarity=unique"],
         &["--limit 10 --context corpus"],
     ));
+    // past ten parts, the rest of the offers to explain counted
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "ilvl>=1 ilvl>=2 ilvl>=3 ilvl>=4 ilvl>=5 ilvl>=6 ilvl>=7 ilvl>=8 ilvl>=9 ilvl>=10 ilvl>=99",
+        ],
+        &["1 part more: --explain <path>, a part's path as the terms block numbers it"],
+    );
     golden(file!(), "explain_aside_and_against", &t);
     let commands = printed_commands(&shown);
     let offered: Vec<&String> = commands
@@ -1198,6 +1241,54 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
         &["price   12.5 chaos · manual · why: acq price show --account 'Alice#1234' --realm pc item/r1"],
     );
     t.run(&["show", "r2"], &["price   none (nothing applies)"]);
+    // a price from the tab's row, and one a note that cannot be read
+    // leaves undecided in a public tab
+    let set = acq(&base, &["price", "set", "tab/pc/t1", "exact", "5", "chaos"]);
+    assert!(set.status.success(), "{set:?}");
+    t.run(
+        &["show", "r2"],
+        &["price   5 chaos · manual · from tab/pc/t1"],
+    );
+    let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
+    let pc = json!({ "realm": "pc", "league": "Standard" });
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &pc,
+            200,
+            &json!({ "stashes": [
+                { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+                { "id": "t2", "name": "Dump", "type": "PremiumStash" },
+                { "id": "t3", "name": "Never", "type": "PremiumStash" },
+                { "id": "s1", "name": "Sale", "type": "PremiumStash", "metadata": { "public": true } } ] }),
+            40,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "s1".into(),
+                sub: None,
+            },
+            &pc,
+            200,
+            &json!({ "stash": { "id": "s1", "name": "Sale", "type": "PremiumStash", "items": [
+                { "id": "odd", "name": "Numbered Loop", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
+                  "rarity": "Rare", "frameTypeId": "Rare", "identified": true, "ilvl": 84, "x": 0, "y": 0,
+                  "note": 5 } ] } }),
+            41,
+        )
+        .unwrap();
+    drop(store);
+    t.run(
+        &["show", "odd"],
+        &["price   undecided: the note cannot be read"],
+    );
     golden(file!(), "a_price_set_by_hand", &t);
 }
 
@@ -2187,6 +2278,27 @@ fn step_10_membership_all_at_a_terminal() {
     // `acq show` shows it, marked
     let shown = text(&t.run(&["show", "r2"], &["removed "]));
     assert!(shown.lines().any(|l| l.starts_with("removed ")), "{shown}");
+    // a tab that left the listing having held nothing: its id under all
+    // says so, with no route
+    Store::open(&account_path(&mock, USER))
+        .unwrap()
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+                { "id": "t2", "name": "Dump", "type": "PremiumStash" } ] }),
+            50,
+        )
+        .unwrap();
+    t.run(
+        &["search", "--realm", "pc", "--membership", "all", "id:t3"],
+        &["this id is a tab that left the scope", " and held no item"],
+    );
     golden(file!(), "membership_all", &t);
     assert!(!text(&acq(&base, &["show", "r1"])).contains("\nremoved "));
 
@@ -2533,6 +2645,15 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         ],
     ));
     assert_eq!(shown.lines().nth(1), Some(TRADE_OVER), "{shown}");
+    // past ten clauses of one status, the rest counted
+    let unknown: Vec<Value> = (0..11)
+        .map(|n| json!({ "id": format!("explicit.stat_99999999{n:02}") }))
+        .collect();
+    t.run_fed(
+        &["search", "--realm", "pc", "--trade-file", "-"],
+        Some(&json!({ "query": { "stats": [{ "type": "and", "filters": unknown }] } }).to_string()),
+        &["… and 1 more: the JSON's query.trade.clauses"],
+    );
     golden(file!(), "a_site_search_url_labelled", &t);
 
     // --print-request: the site search beside the text it translates to,
