@@ -23,7 +23,7 @@
 //! (`category.rs`): the ids a count lists it under, and what left an id
 //! open.
 //!
-//! **One maker of what `show` carries of an item** ([`ShownItem::of`]):
+//! **One maker of what `show` carries of an item** (`ShownItem::of`):
 //! the item without its lines, the lines with their slots and limits,
 //! the class, the category as `show` says it and the price, made from a
 //! held item (`corpus::Held`) — the one this read holds, and each one a
@@ -104,7 +104,7 @@ pub struct Shown {
 }
 
 /// What `show` carries of one item, made by the one maker
-/// ([`ShownItem::of`]) that `show` and a rows view asking `item` both
+/// (`ShownItem::of`) that `show` and a rows view asking `item` both
 /// call (C103, one deriver per fact): the item without its lines, which
 /// follow with their slots, its class, its category as `show` says it and
 /// its price, serialized flat in that order. A row carries it after its

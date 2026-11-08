@@ -226,7 +226,7 @@
 //!   the item's art, and `item`, the item as `show` gives it — five keys
 //!   flat after the row's own, `item`, `class`, `category`, `price` and
 //!   `lines`, made from the held item by `show`'s one maker
-//!   ([`crate::show::ShownItem::of`]), so no second maker of any of them
+//!   (`show::ShownItem::of`), so no second maker of any of them
 //!   stands here. A row's `place` stays its own: the corpus names what a
 //!   socketed item sits in, `show` gives its id. Under `item` an answer
 //!   holds at most `acquisition_store::bound::ITEM_ROWS` rows whatever
