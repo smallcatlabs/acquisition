@@ -32,7 +32,7 @@ GET <the form>
 </div>
 </div>
 <the search form's panes and controls: golden web/search_form>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="trade-text">A trade site search: its URL, its id or its query JSON</label><textarea id="trade-text" name="trade" rows="2"></textarea><button type="submit">Run the site's search</button> <span class="fate">translated here, sent nowhere; a URL's realm is the search's</span></form>
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 
@@ -55,6 +55,8 @@ GET search?<the ring search>
 # holds " ago</p>"
 # holds "<a class=\"presentation\" href=\"search?"
 # holds ">as a table</a>"
+# holds "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)"
+# holds "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
@@ -100,6 +102,7 @@ GET search?<the ring search>
 </div>
 <p class="shows">category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
 </div>
+<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -107,11 +110,11 @@ GET search?<the ring search>
 <tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 <tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -121,7 +124,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 GET search?<the ring search as a table>
 # holds "<table class=\"results\">"
 # holds "alt=\"Doom Loop Two-Stone Ring\""
-# holds "<input type=\"hidden\" name=\"view.fields\" value=\"icon\">"
+# holds "<option value=\"icon\" selected>a table</option>"
 # holds ">as cards</a>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
@@ -142,6 +145,7 @@ GET search?<the ring search as a table>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
+<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -149,11 +153,11 @@ GET search?<the ring search as a table>
 <tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 <tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="view.fields" value="icon"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -190,6 +194,7 @@ GET search?<an edited text>
 </div>
 <p class="shows">class Rings<br>+95 to maximum Life (explicit)</p>
 </div>
+<p class="rows-shown">rows 1–1 of 1 shown, in the store&#39;s order (no sort asked)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -197,11 +202,11 @@ GET search?<an edited text>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 <tr><td>1</td><td>line(&quot;# to maximum Life&quot; arg1&gt;=90)</td><td>2</td><td>2</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/together" href="/<token>/search?realm=pc&amp;text=line%28%22%23%20to%20maximum%20Life%22%29%20-line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D90%29%20sum%28line%28%22%23%20to%20maximum%20Life%22%29.arg1%29%3E%3D90">1 reaches 90 only together</a></td></tr>
 </table>
-<p class="unrouted">5 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">5 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -211,6 +216,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 GET search?<a trade site search's URL>
 # holds "not the site&#39;s search: 2 clauses not run"
 # holds "from a URL: PARTIAL"
+# holds "<p class=\"save-note\">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>"
 # holds "<td>NOT RUN</td><td>stats.1</td>"
 # holds "<td>reported</td><td>status</td>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
@@ -278,18 +284,20 @@ GET search?<a trade site search's URL>
 </div>
 <p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
 </div>
+<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
 <tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">3 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">3 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
+<p class="save-note">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
@@ -335,12 +343,13 @@ GET search?<an xbox URL from the pc page>
 <tr><td>0</td><td>league=Hardcore</td><td><a class="way" data-way="/terms/0/matched" href="/<token>/search?realm=xbox&amp;text=league%3DHardcore">1</a></td><td>0</td><td>0</td><td>0</td><td></td></tr>
 <tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>0</td><td>1</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">1 count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">1 count has no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
+<p class="save-note">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="xbox"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
@@ -412,6 +421,7 @@ GET search?<the site's query JSON with its sort>
 </div>
 <p class="shows">category accessory.ring</p>
 </div>
+<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked)</p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -421,11 +431,11 @@ GET search?<the site's query JSON with its sort>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
 </table>
-<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -472,11 +482,11 @@ GET search?<the league counted by rarity>
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
 <tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">3 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">3 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -484,7 +494,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </main>
 
 GET search?<every ring, one row shown>
-# holds "rows 1–1 of 3 shown · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/"
+# holds "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/"
 # holds "search?next=acq1."
 # holds "\">more</a>"
 # holds "data-way=\"/terms/0/undecided\" href="
@@ -514,7 +524,7 @@ GET search?<every ring, one row shown>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p>rows 1–1 of 3 shown · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -525,11 +535,66 @@ GET search?<every ring, one row shown>
 <tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 </table>
-<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings</textarea><label class="control">Show <select name="view.limit"><option value="1" selected>1</option><option value="">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings</textarea><label class="control">Show <select name="view.limit"><option value="1" selected>1</option><option value="">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<every ring, the second row>
+# holds "rows 2–2 of 3 shown, in the store&#39;s order (no sort asked)"
+# holds "\">first rows</a>"
+# holds ">as a table</a>"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">3 matches</p>
+<p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
+<table class="opening">
+<tr><th>Query</th><td>class:rings</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a></td></tr>
+</table>
+<p><a class="presentation" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
+<p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
+<p class="base">Two-Stone Ring</p>
+<p class="properties">Item Level: 84</p>
+<div class="mods">
+<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+</div>
+<div class="mods">
+<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">class Rings</p>
+</div>
+<p class="rows-shown">rows 2–2 of 3 shown, in the store&#39;s order (no sort asked) · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a> · <a class="first" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1">first rows</a></p>
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+</table>
+<p class="unrouted">2 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings</textarea><label class="control">Show <select name="view.limit"><option value="1" selected>1</option><option value="">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -560,11 +625,11 @@ GET search?<every item counted by class>
 <tr><td>1</td><td>Body Armours</td></tr>
 <tr><td><a class="way" data-way="/view/counts/tables/0/buckets/2" href="/<token>/search?realm=pc&amp;text=undecided%28class%29">1</a></td><td>(undecided) · the class: base not in the table unread 1</td></tr>
 </table>
-<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
@@ -605,11 +670,11 @@ GET search?<rings named as the undecided chalice is>
 <tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
 <tr><td>1</td><td>name=&quot;Brood Lure&quot;</td><td><a class="way" data-way="/terms/1/matched" href="/<token>/search?realm=pc&amp;text=name%3D%22Brood%20Lure%22">1</a></td><td>4</td><td>0</td><td>0</td><td></td></tr>
 </table>
-<p class="unrouted">2 counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="unrouted">2 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings name=&quot;Brood Lure&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings name=&quot;Brood Lure&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings name=&quot;Brood Lure&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>

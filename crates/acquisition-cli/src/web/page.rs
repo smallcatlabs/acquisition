@@ -96,9 +96,27 @@ impl Head {
     }
 }
 
+/// The account a page serves, as its nav bar names it on every page
+/// (the page seat of 2026-11-08, its fault 11: a runner learned the
+/// account from an error): its name, or none yet, where the server waits
+/// for a login.
+pub(crate) fn account_words(account: Option<&str>) -> String {
+    match account {
+        Some(name) => format!("account {name}"),
+        None => "no account yet".to_string(),
+    }
+}
+
 /// A page: the template filled, the body last so nothing in it is read
-/// as a placeholder.
-pub(crate) fn page(token: &str, title: &str, head: Head, body: &str) -> String {
+/// as a placeholder. `account` is the account the server serves, none
+/// before one is found.
+pub(crate) fn page(
+    token: &str,
+    title: &str,
+    account: Option<&str>,
+    head: Head,
+    body: &str,
+) -> String {
     let refresh = head
         .refresh
         .map(|s| format!("<meta http-equiv=\"refresh\" content=\"{s}\">\n"))
@@ -129,6 +147,7 @@ pub(crate) fn page(token: &str, title: &str, head: Head, body: &str) -> String {
         .replace("{script}", &script)
         .replace("{title}", &esc(title))
         .replace("{token}", token)
+        .replace("{account}", &esc(&account_words(account)))
         .replace("{basis}", &basis)
         .replace("{body}", body)
 }
@@ -478,6 +497,24 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String
         )
     };
     let mut out = String::from("<div class=\"save\">\n");
+    // a saved search holds the translated text alone (#188's first half),
+    // so a translation that is not the site's search says what is saved
+    // (the page seat of 2026-11-08, its fault 1)
+    if let Some(trade) = &a.query.trade {
+        let kept = match trade.fidelity {
+            Fidelity::Partial => Some("the clauses not run are not saved"),
+            Fidelity::Ambiguous => Some("each ambiguous clause is saved as it was read here"),
+            Fidelity::Exact => None,
+        };
+        if let Some(kept) = kept {
+            out.push_str(&format!(
+                "<p class=\"save-note\">{}</p>\n",
+                esc(&format!(
+                    "Saved, this is the query as translated above, not the site's search: {kept}."
+                ))
+            ));
+        }
+    }
     match opened {
         Some(Opened {
             id,
@@ -634,9 +671,10 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
 /// rows' order and number are the big form's three controls, "Show",
 /// "Sort by" and "highest first" (the page seat's fault 6), set on an
 /// answer to the rows view it showed; "Show" offers the search's own
-/// default first, sent empty, so a box left as it is asks no limit. An
-/// answer shown as the table carries `view.fields=icon`, so an edited
-/// query is a table too.
+/// default first, sent empty, so a box left as it is asks no limit. Its
+/// "Results as" is the big form's (the page seat of 2026-11-08, its T2):
+/// cards, sent empty, or the table, set on an answer to the way it
+/// showed, so an edited query keeps it.
 pub(crate) fn query_box(
     realm: &str,
     membership: Option<&str>,
@@ -658,11 +696,6 @@ pub(crate) fn query_box(
         carried.push_str(&hidden("saved", id));
         carried.push_str(&hidden("saved_revision", &at.to_string()));
     }
-    // the table where the answer was one, so an edited query keeps it;
-    // cards are the default and need no field
-    if rows.is_some_and(|r| r.fields == [RowField::Icon]) {
-        carried.push_str(&hidden("view.fields", "icon"));
-    }
     let listed = acquisition_store::bound::LISTED;
     let limit = rows.map_or(listed, |r| r.limit);
     let mut limits = vec![(String::new(), listed)];
@@ -681,13 +714,21 @@ pub(crate) fn query_box(
         })
         .collect();
     let sort = rows.and_then(|r| r.sort.as_deref()).unwrap_or_default();
+    // the presentation, as the big form's "Results as": cards, the default
+    // sent empty, or the table, selected where the answer was one
+    let tabled = rows.is_some_and(|r| r.fields == [RowField::Icon]);
+    let results_as = format!(
+        "<label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label>",
+        if tabled { "" } else { " selected" },
+        if tabled { " selected" } else { "" }
+    );
     let desc = if rows.is_some_and(|r| r.desc) {
         " checked"
     } else {
         ""
     };
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> <button type=\"submit\">Run this query</button></form>\n",
+        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> {results_as} <button type=\"submit\">Run this query</button></form>\n",
         esc(text),
         esc(sort)
     )
@@ -833,14 +874,14 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// carries the search through its query box and its continuation. Rows
 /// that carry the item are cards ([`card`]), each followed by what the
 /// row shows of the query; rows that do not are the compact table; and
-/// `presentation`, which the handler makes from the page's own URL, is
-/// the one link to the same answer the other way.
+/// `rows_links`, which the handler makes, are the plain links to the same
+/// answer the other way and, on a continuation's page, to its first rows.
 pub(crate) fn answer(
     a: &Answer,
     opened: Option<&Opened>,
     links: &SavedLinks,
     spell: Spell,
-    presentation: Option<&Presentation>,
+    rows_links: &RowsLinks,
 ) -> String {
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
@@ -866,7 +907,7 @@ pub(crate) fn answer(
     out.push_str(&opening(a, now, spell));
     match &a.view {
         ViewOut::Rows(rows) => {
-            if let Some(other) = presentation {
+            if let Some(other) = &rows_links.other {
                 out.push_str(&format!(
                     "<p><a class=\"presentation\" href=\"{}\">{}</a></p>\n",
                     esc(&other.href),
@@ -880,21 +921,33 @@ pub(crate) fn answer(
             } else {
                 rows_table(a, now)
             });
-            if rows.left_out > 0 {
-                let shown = esc(&search_cmd::rows_shown_words(a, rows));
-                out.push_str(&match &rows.next {
-                    Some(next) => format!(
-                        "<p>{shown} · {}</p>\n",
-                        way_on(
-                            spell,
-                            "/view/rows/next",
-                            &Way::Search(Box::new(next.request.clone())),
-                            "more",
-                            &carried_query
-                        )
-                    ),
-                    None => format!("<p>{shown} · a larger number of rows returns the rest</p>\n"),
-                });
+            // which rows are shown and in what order, wherever there are
+            // rows or rows left out; then the way on, and on a
+            // continuation's page the way back to the first rows
+            if rows.left_out > 0 || !a.rows.is_empty() {
+                let mut line = esc(&search_cmd::rows_shown_words(a, rows));
+                if rows.left_out > 0 {
+                    line.push_str(&match &rows.next {
+                        Some(next) => format!(
+                            " · {}",
+                            way_on(
+                                spell,
+                                "/view/rows/next",
+                                &Way::Search(Box::new(next.request.clone())),
+                                "more",
+                                &carried_query
+                            )
+                        ),
+                        None => " · a larger number of rows returns the rest".to_string(),
+                    });
+                }
+                if let Some(first) = &rows_links.first {
+                    line.push_str(&format!(
+                        " · <a class=\"first\" href=\"{}\">first rows</a>",
+                        esc(first)
+                    ));
+                }
+                out.push_str(&format!("<p class=\"rows-shown\">{line}</p>\n"));
             }
         }
         ViewOut::Counts(counts) => {
@@ -920,11 +973,7 @@ pub(crate) fn answer(
     if unrouted > 0 {
         out.push_str(&format!(
             "<p class=\"unrouted\">{}</p>\n",
-            esc(&format!(
-                "{} {} no link: an answer carries those routes only where every route is asked, which no page asks",
-                plural(unrouted, "count", "counts"),
-                if unrouted == 1 { "carries" } else { "carry" }
-            ))
+            esc(&search_cmd::unrouted_words(unrouted))
         ));
     }
     out.push_str(&basis_foot(&search_cmd::basis_text(&a.basis)));
@@ -1077,6 +1126,15 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
 pub(crate) struct Presentation {
     pub href: String,
     pub words: &'static str,
+}
+
+/// The plain links beside a rows answer's rows, which the handler makes
+/// (the page builds no request): the same answer the other way, and on a
+/// continuation's page the same search from its first rows.
+#[derive(Default)]
+pub(crate) struct RowsLinks {
+    pub other: Option<Presentation>,
+    pub first: Option<String>,
 }
 
 /// What a row shows of the query and its sort, each line in the text's

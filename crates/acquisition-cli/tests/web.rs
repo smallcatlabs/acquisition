@@ -652,10 +652,20 @@ fn every_search_page_is_a_wording_golden() {
             " ago</p>",
             "<a class=\"presentation\" href=\"search?",
             ">as a table</a>",
+            // the order the rows stand in, where no sort was asked
+            "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)",
+            // the query box's presentation, the big form's
+            "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
         ],
     );
     assert!(
         !answer.body.contains("class=\"results\""),
+        "{}",
+        answer.body
+    );
+    // an exact translation saves as the site's search: no note
+    assert!(
+        !answer.body.contains("class=\"save-note\""),
         "{}",
         answer.body
     );
@@ -675,7 +685,7 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "<table class=\"results\">",
             "alt=\"Doom Loop Two-Stone Ring\"",
-            "<input type=\"hidden\" name=\"view.fields\" value=\"icon\">",
+            "<option value=\"icon\" selected>a table</option>",
             ">as cards</a>",
         ],
     );
@@ -733,6 +743,9 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "not the site&#39;s search: 2 clauses not run",
             "from a URL: PARTIAL",
+            // what a save of it keeps (the page seat of 2026-11-08, its
+            // fault 1)
+            "<p class=\"save-note\">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>",
             "<td>NOT RUN</td><td>stats.1</td>",
             "<td>reported</td><td>status</td>",
         ],
@@ -838,13 +851,51 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<every ring, one row shown>",
         &first,
         &[
-            "rows 1–1 of 3 shown · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
+            "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
             "search?next=acq1.",
             "\">more</a>",
             "data-way=\"/terms/0/undecided\" href=",
         ],
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, first_path, &first);
+    // the page "more" reaches keeps the other way and has the way back to
+    // the first rows, each answering (the page seat of 2026-11-08, its
+    // fault 6)
+    let href = |body: &str, before: &str| {
+        let at = body[..body.find(before).unwrap()].rfind("href=\"").unwrap() + 6;
+        body[at..at + body[at..].find('"').unwrap()]
+            .replace("&amp;", "&")
+            .trim_start_matches(&format!("/{}/", web.token))
+            .to_string()
+    };
+    let more_path = href(&first.body, "\">more</a>");
+    let more = web.get(&more_path);
+    assert_eq!(more.status, 200, "{}", more.body);
+    pages.page(
+        "GET search?<every ring, the second row>",
+        &more,
+        &[
+            "rows 2–2 of 3 shown, in the store&#39;s order (no sort asked)",
+            "\">first rows</a>",
+            ">as a table</a>",
+        ],
+    );
+    let back = web.get(&href(&more.body, "\">first rows</a>"));
+    assert_eq!(back.status, 200, "{}", back.body);
+    assert!(back.body.contains("rows 1–1 of 3 shown"), "{}", back.body);
+    assert!(!back.body.contains("first rows"), "{}", back.body);
+    let tabled = web.get(&href(&more.body, "\">as a table</a>"));
+    assert_eq!(tabled.status, 200, "{}", tabled.body);
+    assert!(
+        tabled.body.contains("rows 1–1 of 3 shown"),
+        "{}",
+        tabled.body
+    );
+    assert!(
+        tabled.body.contains("<table class=\"results\">"),
+        "{}",
+        tabled.body
+    );
     // a count whose undecided bucket carries its route by default: the
     // chalice whose base the class table lacks
     let classed_path = "search?realm=pc&view.count=class";
@@ -996,6 +1047,14 @@ fn the_form_renders_the_realm_it_is_asked_for() {
         &none,
         &["no account&#39;s store in", "log in with `acq auth`"],
     );
+    // the nav bar says no account is served yet (the page seat of
+    // 2026-11-08, its fault 11)
+    assert!(
+        none.body
+            .contains("<span class=\"account\">no account yet</span>"),
+        "{}",
+        none.body
+    );
     let jobs = web.raw(
         "GET",
         &format!("/{}/jobs", web.token),
@@ -1009,6 +1068,12 @@ fn the_form_renders_the_realm_it_is_asked_for() {
     assert_eq!(web.get("assets/page.css").status, 200);
     seed(&scratch.0);
     let form = web.get("?realm=xbox");
+    assert!(
+        form.body
+            .contains("<span class=\"account\">account Alice#1234</span>"),
+        "{}",
+        form.body
+    );
     // the league list is the account's, across realms; whether a league
     // has tabs on disk is the realm's
     assert!(
@@ -1795,6 +1860,23 @@ fn the_refresh_loop_runs_through_the_pages() {
             "{inside} outside the folder"
         );
     }
+    // the folder's tabs are its members, indented under it; the tabs
+    // after it are the list's own, at its level (the page seat of
+    // 2026-11-08, its fault 15)
+    for (member, tab) in [
+        (true, "old1"),
+        (true, "old2"),
+        (false, "uniq"),
+        (false, "maps"),
+    ] {
+        let row = format!(
+            "<tr class=\"{}\"><td><input type=\"checkbox\" name=\"tab\" value=\"{tab}\">",
+            if member { "row member" } else { "row" }
+        );
+        assert!(tabs.body.contains(&row), "{row}: {}", tabs.body);
+    }
+    assert!(at("value=\"old2\"") < folder_end && folder_end < at("value=\"uniq\""));
+    assert!(at("value=\"uniq\"") < at("value=\"maps\""));
     assert!(at("Refresh selected") < at("<summary>Stash tabs ("));
     assert!(at("Plan under the policy") < at("<summary>Characters ("));
     // a league with no character beside a realm with two: the page says
@@ -2042,6 +2124,14 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let plan = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
     assert_eq!(plan.status, 200, "{}", plan.body);
     assert!(plan.body.contains("Alice"), "{}", plan.body);
+    // every page names the account it serves, the one found, not the
+    // daemon's
+    assert!(
+        plan.body
+            .contains("<span class=\"account\">account Alice</span>"),
+        "{}",
+        plan.body
+    );
     assert!(!plan.body.contains("Bob"), "{}", plan.body);
     let envelope = hidden_plan(&plan.body);
     let refused = web.post("apply", &[("plan", &envelope)]);

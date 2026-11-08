@@ -19,6 +19,7 @@
 body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 80rem; padding: 0 1rem 3rem; background: var(--page); color: var(--text); }
 a { color: var(--accent); }
 nav { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--rule); }
+nav .account { margin-left: auto; color: var(--muted); }
 h1 { font-size: 1.2rem; margin: 1rem 0 .5rem; }
 pre { white-space: pre-wrap; font: 12.5px/1.35 ui-monospace, monospace; }
 input, select, button { background: var(--page); color: var(--text); border: 1px solid var(--rule); border-radius: 3px; padding: .2rem .35rem; font: inherit; }
@@ -86,6 +87,8 @@ a.presentation { font-size: 12.5px; }
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
 details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }
+/* a folder's tabs sit under it, so a tab after the folder reads as the list's own */
+tr.member > td:nth-child(2) { padding-left: 1.75rem; }
 table.tabs { table-layout: fixed; }
 table.tabs col.tick { width: 2.5rem; }
 table.tabs col.type, table.tabs col.items { width: 18%; }

@@ -445,8 +445,17 @@ impl Web {
         Ok(self.account.get_or_init(|| found))
     }
 
+    /// The name of the account this server serves, none before one is
+    /// found: what every page's nav bar names.
+    fn account_name(&self) -> Option<&str> {
+        self.account.get().map(|a| a.entry.username.as_str())
+    }
+
     fn page(&self, title: &str, head: Head, body: &str) -> Response {
-        html(StatusCode::OK, page::page(&self.token, title, head, body))
+        html(
+            StatusCode::OK,
+            page::page(&self.token, title, self.account_name(), head, body),
+        )
     }
 
     /// A refusal's document, in the one refusal shape (round 4 of the 2g
@@ -479,7 +488,13 @@ impl Web {
         };
         html(
             StatusCode::BAD_REQUEST,
-            page::page(&self.token, title, head, &page::refused(&doc)),
+            page::page(
+                &self.token,
+                title,
+                self.account_name(),
+                head,
+                &page::refused(&doc),
+            ),
         )
     }
 
@@ -905,8 +920,13 @@ async fn search(
         // the realm the page carried beside a site search whose URL names
         // another: not read, and said above the answer (#188)
         let mut carried = None;
+        let mut continued = None;
         let request = match pick(&fields, "next") {
-            Some(token) => Request::from_token(token)?,
+            Some(token) => {
+                let request = Request::from_token(token)?;
+                continued = Some(request.clone());
+                request
+            }
             None => {
                 let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
                 if let (Some(trade), Some(realm)) = (&folded.trade, &folded.realm)
@@ -930,12 +950,12 @@ async fn search(
             }
             _ => None,
         };
-        Ok((answer, opened, carried))
+        Ok((answer, opened, carried, continued))
     })
     .await;
     match asked {
-        Ok((answer, _, _)) if json => document(&answer),
-        Ok((answer, opened, carried)) => {
+        Ok((answer, _, _, _)) if json => document(&answer),
+        Ok((answer, opened, carried, continued)) => {
             let mut head = Head::default().with("answer", &answer.basis);
             if let Some(Opened {
                 row: OpenedRow::Read(row),
@@ -955,7 +975,7 @@ async fn search(
                     )
                 })
                 .unwrap_or_default();
-            let other = presentation(&sent, &answer);
+            let rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
             web.page(
                 "Answer",
                 head,
@@ -971,7 +991,7 @@ async fn search(
                                 .request(way)
                                 .and_then(|(link, _)| link.as_str().map(str::to_string))
                         },
-                        other.as_ref(),
+                        &rows_links,
                     )
                 ),
             )
@@ -983,41 +1003,84 @@ async fn search(
 /// A request's fields as a page sends them, in order.
 type Fields = Vec<(String, String)>;
 
-/// The link to the same answer the other way (4-full part 1, step 5): on
-/// a rows answer that has a row and was reached by the form's fields —
-/// not a continuation, whose token holds its view whole — the page's own
-/// URL, its fields as sent, with `view.fields=icon` added where it shows
-/// cards and taken out where it shows the table. None where its rows
-/// carry another list than the page's two, which no form asks.
-fn presentation(sent: &Fields, answer: &acquisition_search::Answer) -> Option<page::Presentation> {
-    use acquisition_search::answer::{RowField, ViewOut};
+/// The plain links beside a rows answer that has a row (4-full part 1,
+/// step 5, and the page seat of 2026-11-08, its fault 6): the same answer
+/// the other way — cards or the table — and, on a continuation's page,
+/// the same search from its first rows. Reached by the form's fields, the
+/// other way is the page's own URL, its fields as sent, with
+/// `view.fields=icon` added where it shows cards and taken out where it
+/// shows the table. Reached by a continuation, whose token holds its
+/// view whole, both are the continued request from its start — its place
+/// and basis dropped, the other way's fields swapped — spelt as the form
+/// would ask it, the saved search the page was opened from carried; none
+/// where the form cannot ask it (a site search, which the form reads as
+/// its translated text). None where the rows carry another list than
+/// the page's two, which no form asks.
+fn rows_links(
+    web: &Web,
+    sent: &Fields,
+    continued: Option<&Request>,
+    answer: &acquisition_search::Answer,
+) -> page::RowsLinks {
+    use acquisition_search::answer::{RowField, Shape, ViewOut};
+    let none = page::RowsLinks::default();
     let ViewOut::Rows(rows) = &answer.view else {
-        return None;
+        return none;
     };
-    if answer.rows.is_empty() || pick(sent, "next").is_some() {
-        return None;
+    if answer.rows.is_empty() {
+        return none;
     }
-    let mut fields: Vec<(&str, &str)> = sent
-        .iter()
-        .filter(|(k, _)| k != "view.fields")
-        .map(|(k, v)| (k.as_str(), v.as_str()))
-        .collect();
-    let words = match rows.fields.as_slice() {
-        [RowField::Icon, RowField::Item] => {
-            fields.push(("view.fields", "icon"));
-            "as a table"
-        }
-        [RowField::Icon] => "as cards",
-        _ => return None,
+    let (other, words) = match rows.fields.as_slice() {
+        [RowField::Icon, RowField::Item] => (vec![RowField::Icon], "as a table"),
+        [RowField::Icon] => (vec![RowField::Icon, RowField::Item], "as cards"),
+        _ => return none,
     };
-    let query: Vec<String> = fields
+    let Some(continued) = continued else {
+        let mut fields: Vec<(&str, &str)> = sent
+            .iter()
+            .filter(|(k, _)| k != "view.fields")
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        if other == [RowField::Icon] {
+            fields.push(("view.fields", "icon"));
+        }
+        let query: Vec<String> = fields
+            .iter()
+            .map(|(k, v)| format!("{}={}", page::enc(k), page::enc(v)))
+            .collect();
+        return page::RowsLinks {
+            other: Some(page::Presentation {
+                href: format!("search?{}", query.join("&")),
+                words,
+            }),
+            first: None,
+        };
+    };
+    // the continued search from its start, as the form would ask it, the
+    // saved search it was opened from carried as every link of it is
+    let saved: String = sent
         .iter()
-        .map(|(k, v)| format!("{}={}", page::enc(k), page::enc(v)))
+        .filter(|(k, _)| k == "saved" || k == "saved_revision")
+        .map(|(k, v)| format!("&{}={}", page::enc(k), page::enc(v)))
         .collect();
-    Some(page::Presentation {
-        href: format!("search?{}", query.join("&")),
-        words,
-    })
+    let spelt = |request: Request| {
+        web.asked_by_the_form(&request)
+            .map(|fields| format!("{}{saved}", web.link("search", &fields)))
+    };
+    let mut first = continued.clone();
+    first.basis = None;
+    let Shape::Rows(view) = &mut first.view.shape else {
+        return none;
+    };
+    view.after = None;
+    let mut swapped = first.clone();
+    if let Shape::Rows(view) = &mut swapped.view.shape {
+        view.fields = other;
+    }
+    page::RowsLinks {
+        other: spelt(swapped).map(|href| page::Presentation { href, words }),
+        first: spelt(first),
+    }
 }
 
 /// `saved` and `saved_revision` taken out of a search's fields, which the
@@ -1274,13 +1337,17 @@ fn filter_row(columns: &[&str]) -> String {
 /// The stash list's groups as the document gives them (the sitting
 /// round's review, its fourth finding): a run of tabs one table, a
 /// folder a group of its own holding its tabs' table, each map or unique
-/// tab's pages nested under it. `top` heads the first table with the
-/// columns and their filter boxes; every table shares the columns' widths
-/// (`table.tabs`), so a folder's rows line up under them.
+/// tab's pages nested under it. `top` is the list's own level, which
+/// heads the first table with the columns and their filter boxes; every
+/// table shares the columns' widths (`table.tabs`), so a folder's rows
+/// line up under them, each a `member` the stylesheet indents, so a tab
+/// after a folder reads as the list's own and not the folder's (the page
+/// seat of 2026-11-08, its fault 15).
 fn tab_groups(groups: &[acquisition_search::tabs::TabGroup], now: i64, top: bool) -> String {
+    let class = if top { "row" } else { "row member" };
     let row = |tab: &acquisition_store::TabRow, tick: String| {
         format!(
-            "<tr class=\"row\"><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+            "<tr class=\"{class}\"><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
             esc(&tab.name),
             esc(&tab.r#type),
             esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),

@@ -1453,6 +1453,20 @@ pub(crate) fn row_shows(
     (shows, more)
 }
 
+/// The counts a page shows with no link, and why, plainly (the page seat
+/// of 2026-11-08, its T3: "carries those routes only where every route
+/// is asked" was not understood).
+pub(crate) fn unrouted_words(n: usize) -> String {
+    format!(
+        "{} no link: a count's route is listed only when every route is asked for, which a page never does",
+        if n == 1 {
+            "1 count has".to_string()
+        } else {
+            format!("{n} counts have")
+        }
+    )
+}
+
 /// The sort's lines a row leaves out.
 pub(crate) fn more_sorted_words(n: usize) -> String {
     format!("{n} more sorted")
@@ -1478,21 +1492,33 @@ fn answer_more(a: &Answer) -> Option<String> {
     }
 }
 
-/// Which rows an answer shows of its matches, where rows are left out,
-/// and, where a limit asked was lowered to the item rows' bound, so.
+/// Which rows an answer shows of its matches; where a limit asked was
+/// lowered to the item rows' bound, so; and, where no sort was asked,
+/// the order they stand in.
 pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::RowsOut) -> String {
-    format!(
-        "{} of {} shown{}",
-        if rows.returned == 0 {
-            "none".to_string()
-        } else {
-            format!("rows {}–{}", rows.after + 1, rows.after + rows.returned)
-        },
-        a.total.matched,
-        capped_words(rows)
-            .map(|words| format!(" ({words})"))
-            .unwrap_or_default()
-    )
+    let shown = if rows.returned == 0 {
+        "none".to_string()
+    } else {
+        format!("rows {}–{}", rows.after + 1, rows.after + rows.returned)
+    };
+    let capped = capped_words(rows)
+        .map(|words| format!(" ({words})"))
+        .unwrap_or_default();
+    let order = order_words(rows)
+        .filter(|_| rows.returned > 0)
+        .map(|words| format!(", {words}"))
+        .unwrap_or_default();
+    format!("{shown} of {} shown{capped}{order}", a.total.matched)
+}
+
+/// The order rows stand in where no sort was asked: the store's stable
+/// order (`answer.rs`, "Rows"), said so a reader does not look for one
+/// (the page seat of 2026-11-08, its fault 13); none where a sort was
+/// asked, which each row says it sorts by.
+pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<&'static str> {
+    rows.sort
+        .is_none()
+        .then_some("in the store's order (no sort asked)")
 }
 
 /// C53 (an answer says the limit it applied): where the limit asked was

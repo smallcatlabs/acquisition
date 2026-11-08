@@ -109,8 +109,8 @@ facts: 14 tabs, 7 fetched (<fetches>); stash listing <age> ago
 </table>
 <details class="folder holds" open><summary>Old leagues · Folder · 2 tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr class="row"><td><input type="checkbox" name="tab" value="old1"></td><td>Old 1</td><td>PremiumStash</td><td>2</td><td><age> ago</td></tr>
-<tr class="row"><td><input type="checkbox" name="tab" value="old2"></td><td>Old 2</td><td>QuadStash</td><td>2</td><td><age> ago</td></tr>
+<tr class="row member"><td><input type="checkbox" name="tab" value="old1"></td><td>Old 1</td><td>PremiumStash</td><td>2</td><td><age> ago</td></tr>
+<tr class="row member"><td><input type="checkbox" name="tab" value="old2"></td><td>Old 2</td><td>QuadStash</td><td>2</td><td><age> ago</td></tr>
 </table>
 </details>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>

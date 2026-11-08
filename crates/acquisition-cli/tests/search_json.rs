@@ -2071,7 +2071,7 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         .unwrap_or_else(|| panic!("no more line:\n{shown}"));
     assert!(
         more.starts_with(&format!(
-            "more    rows 1–2 of {total} shown: acq search --account 'Alice#1234' --next acq1."
+            "more    rows 1–2 of {total} shown, in the store's order (no sort asked): acq search --account 'Alice#1234' --next acq1."
         )),
         "{more}"
     );
