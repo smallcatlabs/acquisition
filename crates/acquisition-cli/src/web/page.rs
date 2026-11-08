@@ -1189,11 +1189,8 @@ pub(crate) fn card(
     if group.is_some() {
         out.push_str("</div>\n");
     }
-    if !it.flags.is_empty() {
-        out.push_str(&format!(
-            "<p class=\"flags\">is {}</p>\n",
-            esc(&it.flags.join(", "))
-        ));
+    if let Some(flags) = search_cmd::flags_words(it) {
+        out.push_str(&format!("<p class=\"flags\">is {}</p>\n", esc(&flags)));
     }
     if let Some(sockets) = search_cmd::sockets_words(it) {
         out.push_str(&format!(

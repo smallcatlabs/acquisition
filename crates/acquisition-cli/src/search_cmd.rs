@@ -2502,8 +2502,8 @@ pub(crate) fn item_text(parts: ItemParts<'_>, realm: &str, account: &str) -> Str
     if let Some(note) = &item.note {
         out.push_str(&format!("note    {note}\n"));
     }
-    if !item.flags.is_empty() {
-        out.push_str(&format!("is      {}\n", item.flags.join(", ")));
+    if let Some(flags) = flags_words(item) {
+        out.push_str(&format!("is      {flags}\n"));
     }
     if let Some(sockets) = sockets_words(item) {
         out.push_str(&format!("sockets {sockets}\n"));
@@ -2699,6 +2699,12 @@ pub(crate) fn price_words(id: &str, price: &Priced) -> String {
         Priced::None { why: reason, .. } => format!("none ({reason})"),
         Priced::Open(reason) => format!("undecided: {}", reason.problem),
     }
+}
+
+/// What the item is (`identified`, `corrupted`, …), its flags as the
+/// body names them, none where it names none.
+pub(crate) fn flags_words(item: &acquisition_search::derive::Item) -> Option<String> {
+    (!item.flags.is_empty()).then(|| item.flags.join(", "))
 }
 
 /// The sockets as the game shows them, and the largest link group.
