@@ -10,9 +10,11 @@ last of `roadmap/LEDGER.md`. Cut by a session that read the design on
 puts first was run by this session, before the brief, and its numbers
 are the Input; the build measures the built rows once more (Do 4).
 Cut again on 2026-11-08 under the cold review at `dbe99100`
-(`roadmap/reviews/4-full-1-cards-brief-dbe99100.md`) and again under
-the review at `117a72c8` (`roadmap/reviews/4-full-1-cards-brief-117a72c8.md`),
-the foot saying what each finding changed.
+(`roadmap/reviews/4-full-1-cards-brief-dbe99100.md`), under the review
+at `117a72c8` (`roadmap/reviews/4-full-1-cards-brief-117a72c8.md`) and
+under the review at `3d226f73`
+(`roadmap/reviews/4-full-1-cards-brief-3d226f73.md`), the fourth cut the
+bound, the foot saying what each finding changed.
 Where the design and the tree disagree the brief takes the tree's fact
 and says so (Input). Where the design is silent on a card's words or
 layout, this brief decides, and the foot lists each decision for the
@@ -53,8 +55,8 @@ the one maker `show` uses, with no second evaluator in the page.
   `show`; why `show` per row is no answer: a full read an item).
 - `decisions/search.md`: C100 (one answer shape; a row compact by
   default, the caller may name fields; the body only through `show`),
-  C103 (one deriver per fact), C108 (the corpus read). 
-  `decisions/frontends.md`: C16 (the page renders documents and composes
+  C103 (one deriver per fact); `decisions/store.md` C108 (the corpus
+  read). `decisions/frontends.md`: C16 (the page renders documents and composes
   nothing; a presentation choice is the URL's), C53 (output levels: ten
   listed by default, what an answer is for never cut, the number held
   once, JSON changes additive), C115 (the total and the view first),
@@ -128,8 +130,10 @@ the one maker `show` uses, with no second evaluator in the page.
 - The tests: `crates/acquisition-search/tests/rows.rs`
   (`c140_a_row_carries_the_icon_when_the_view_names_it`, line 1243; the
   fixture helpers it uses from `tests/common/mod.rs`: `store`,
-  `list_tabs`, `fetch_tab`, `item`, `view`, `load`, `load_with`, `show`,
-  `answer`, `intent`); `tests/price.rs` (how a price is written for a
+  `list_tabs`, `fetch_tab`, `item`, `load`, `load_with`, `show`,
+  `answer`, `intent` — `load` and `show` each open an empty intent file
+  of their own, `load_with` takes one — and `view`, `rows.rs`'s own
+  helper at line 104); `tests/price.rs` (how a price is written for a
   test); `tests/explain.rs` (the view-refusal table near line 825);
   `tests/refusal.rs` (`the_list_the_walk_checks_is_the_list_describe_prints`);
   `tests/surface_faults.rs` (line 724, `["fields", "show basis"]`).
@@ -222,7 +226,7 @@ chosen, not derived: 200, the largest number of rows the answer page's
 Show control offers (`form.rs`, `LIMITS`), so no choice a page offers is
 cut, at a measured 0.57 MB; a thousand rows at once is step 6's
 server-windowed table, not a page of cards. The cap is a count, held
-once in the search crate beside the rows (C53, the number held once),
+once beside C53's other number (Do 5),
 never a byte measure; the foot puts the choice to the owner.
 
 **Where the design and the tree disagree.**
@@ -361,12 +365,23 @@ unchanged. The orchestrating session files it as `trigger:ci`,
 
 ## Do
 
-1. **No ruling is needed.** C100 says the caller may name fields; the
-   cap is a count the design gave to the spike; the fold's
-   `view.fields` is the design's (§2), its routes unchanged (C138). No
-   document field changes meaning: every JSON change is a key added
-   (C53, JSON changes additive). The words and the card's layout this
-   brief leaves open are the step's own design (Rules).
+1. **One question to the owner, before Do 5.** C53 says a list's
+   number "is held once, and every maker applies it", and its home,
+   `acquisition_store::bound`, says "A request's `limit` names more or
+   fewer"; the cap lowers a named `limit` under `item`, said by
+   `view.rows.limit`. This brief reads that as within C53 (a ceiling
+   said in the answer, nothing cut silently, what an answer is for
+   never cut) and as the design's own cap; the owner may read it as a
+   change to what `limit` means and want a line. Drafted, for C53's
+   end: "Under `item` a rows answer holds at most the item rows' bound,
+   whatever its `limit` names, and says the limit it applied; the rest
+   are its continuation." The orchestrating session brings it with the
+   brief; Do 2 to Do 4 do not wait on it, and Do 5 does. Nothing else
+   needs a ruling: C100 says the caller may name fields; the fold's
+   `view.fields` is the design's (§2), its routes unchanged (C138); every
+   JSON change is a key added (C53, JSON changes additive). The words
+   and the card's layout this brief leaves open are the step's own
+   design (Rules).
 2. **The one maker, `show`'s projection factored out of `read_one`**, in
    `show.rs`: one function that takes a `Held` and makes what `show`
    carries of the item — the item without its lines; the lines, each
@@ -376,10 +391,14 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    removal, in words at `now`, as `Shown::aged` does today). Suggested
    shape: a struct of the five (say `ShownItem`), serialized flat with
    the keys `item`, `class`, `category`, `price`, `lines` in that order,
-   `item` through `without_lines`; `Shown` holds it flattened between
-   `place` and `against`, so `show`'s JSON is byte for byte what it is
-   today (every test and golden reading `show`'s JSON or text unchanged
-   is the proof). `read_one` builds a `Held` today only inside
+   `item` through `without_lines`, which a row holds flattened; `Shown`
+   keeps its five fields as they are, filled from the maker's struct, so
+   `show`'s JSON is byte for byte what it is today and no reader of
+   `Shown`'s fields moves (the CLI's and the page's, and
+   `tests/sockets.rs` lines 453, 559 and 590, which read `.item`);
+   every test and golden reading `show`'s JSON or text unchanged is the
+   proof. A worker who flattens `Shown` instead edits those readers'
+   field paths and says so. `read_one` builds a `Held` today only inside
    `against`'s branch (`show.rs`, near line 333); it builds one always,
    hands it to the maker and, where a query is given, to
    `against_held`; nothing else in `show.rs` makes any of the five. The
@@ -423,7 +442,9 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    JSON bytes and the median of eleven asks of the answer and its JSON.
    Run release, alone, over a fresh `sqlite3 -readonly … ".backup …"` of
    `search/item-facts/raw/spike-GERWARIC_7694-2026-09-13.db` under your
-   scratch (its SHA-256 checked against Input's before and after). The
+   scratch (the source's SHA-256 checked against Input's, before and
+   after the backup; the backup's own hash need not match). `answer`
+   ages its answer before returning it, in the spike and in M9 alike. The
    numbers go to `search/MEASUREMENTS.md` as M9, in M8's form (the
    command, the copy, the date, the machine, the numbers, the verdict
    first). The check on the spike: the 200-row answer's bytes within a
@@ -431,9 +452,12 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    well inside it); outside it, the build stops before Do 5 and brings
    the numbers to the orchestrating session. The time is recorded, the
    projection's cost now inside it, and decides nothing (Input).
-5. **The cap**, in `answer.rs`, held once beside the rows (say `pub
+5. **The cap**, after the owner's word on Do 1's question, held once
+   beside C53's other number in `acquisition_store::bound` (say `pub
    const ITEM_ROWS: usize = 200`, its doc citing M9 and the page's Show
-   choices): under `item`, the rows view answers at most that many
+   choices, and the line the owner gives, if he gives one), so
+   `answer.rs`'s comment that the rows' number is "the store's one
+   number … never a second one here" stays true, reworded to name both: under `item`, the rows view answers at most that many
    rows, whatever `limit` asks — the applied limit is
    `view.rows.limit` — the rest `left_out`, and `next` continues them at
    the applied limit, asking the same fields. An item is never cut:
@@ -478,24 +502,30 @@ unchanged. The orchestrating session files it as `trigger:ci`,
      icon,item]`, which `readme_tour.rs` holds against the binary's
      flags; the `acq web` line (line 203, "with item art") says the
      results are cards, a table on asking.
+   - The word functions the item's block calls that take a whole
+     `Shown` and read part of it are retyped here to the part they read
+     (`price_words`: the item's id and its price; `shown_title`: the
+     item; `shown_place_words`: the place), so a row's item and `show`'s
+     are said by the same calls; Do 7 calls them as retyped, and
+     `item_badges` is retyped there.
    - The text (C53, a function of the JSON): a row prints its head, its
-     shows and its `id` line as today; under `icon` an `icon` line after
+     shows and its `id` line as today, its head under `item` titled by
+     `shown_title` (name, rarity and frame) in place of the compact
+     title and rarity, so the frame is said; under `icon` an `icon` line after
      the `id` line, `            icon <url>`, or `            icon none`
      where the body names none; under `item` then the item as `show`
      prints it, from its `base` line to its `unread` lines, unindented,
      the price line with its why command as `show` prints it, and a
-     blank line after. Not printed again: the title, `id`, `removed` and
-     `place` lines (the row's head says them) and the basis (the
+     blank line after. Not printed again: `show`'s title, `id`, `removed`
+     and `place` lines (the row's head says them) and the basis (the
      answer's foot says it once). `shown_text` is split so the item's
      block is one function both call; the why command names the account
      as every command an answer prints does (`Answer::account_named`).
 7. **The card**, in `page.rs`, one function rendering one item from
    what Do 2's maker makes and its place, with no word of its own that a
-   word function in `search_cmd.rs` makes (one maker per wording): the
-   three word functions that take a whole `Shown` and read part of it
-   (`shown_title`, `shown_place_words`, `price_words`) are retyped to
-   the part they read, so a row's item and `show`'s are said by the same
-   calls. The card, in the site's order, each element with a class of
+   word function in `search_cmd.rs` makes (one maker per wording),
+   calling the word functions as Do 6 retyped them, and `item_badges`
+   retyped here to the item's parts. The card, in the site's order, each element with a class of
    its own:
    - the art (`<img src alt>` as today, the `alt` the title), the
      item's badges (`item_badges`, retyped to the item's parts: class
@@ -586,7 +616,9 @@ unchanged. The orchestrating session files it as `trigger:ci`,
      is undecided, and, under membership `all`, a removed item: every
      row of the answer under `fields: ["icon", "item"]` has keys
      `item`, `class`, `category`, `price`, `lines` equal to `show`'s for
-     its id, with the same intent file, both aged at one `now`
+     its id, over one intent file (`load_with(&s, &intent, …)` and
+     `acquisition_search::show(&s, &intent, …)`; `load` and `show` of
+     `common` each open an empty one), both aged at one `now`
      (`Answer::aged`, `Shown::aged`), and the answer's `basis` equal to
      each `show`'s. Seen failing once with the row's category made from
      the ids alone (the report says so).
@@ -635,8 +667,10 @@ unchanged. The orchestrating session files it as `trigger:ci`,
    The order the steps above require: the fold's no-fields-for-a-count
    with or before Do 3; Do 4 after Do 3 and before Do 5; Do 6 whole in
    one commit, `RowsOut.fields` in it and the four JSON comparisons of
-   Input gaining `--fields icon` there; Do 8's default in the commit
-   that turns them to `--fields icon,item`. No commit leaves the web
+   Input gaining `--fields icon` there; Do 7 and Do 8 in one commit,
+   which regenerates the four web goldens and `search_form.txt`, rewrites
+   the item page's holds (`web.rs` lines 845 and 851) and turns the
+   four comparisons to `--fields icon,item`. No commit leaves the web
    tests red. The commit that builds `--fields` carries, in C154's form (a
    retirement names what now holds it): "retired the `--fields` row of
    `c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name`
@@ -652,8 +686,10 @@ unchanged. The orchestrating session files it as `trigger:ci`,
 - `NOT_BUILT` holds `rebind` and `show basis` alone
   (`grep -n 'construct: "fields"' crates/acquisition-search/src/bind.rs`
   finds nothing); `RowField` has `Icon` and `Item`; the cap is one
-  constant in the search crate, 200, its doc citing M9, and the CLI's
-  help names it under a test.
+  constant beside `LISTED` in `acquisition_store::bound`, 200, its doc
+  citing M9, `answer.rs`'s comment on the store's one number naming
+  both, and the CLI's help names it under a test; the owner's word on Do
+  1's question is cited in the commit that adds it.
 - `show.rs` makes the five keys in one function that `read_one` and the
   rows view both call: the maker's name, as the commit gives it, is
   called in `read_one` and in `answer.rs`'s making of a `Row` (a grep
@@ -744,7 +780,8 @@ Agent-facing design decided here, the session's:
   do.
 - **`fields` beside a count is refused**, as a sort there is; an
   unknown field word is `unknown_name`, its words drafted in Do 3.
-- **The CLI's text under `item`**: each row's head, shows and id, then
+- **The CLI's text under `item`**: each row's head (titled as `show`
+  titles an item, the frame with it), shows and id, then
   `show`'s lines from `base` to `unread`; under `icon` an `icon` line.
 - **The card's order and content** (Do 7): art and badges, name, base,
   properties with item level and requirements, lines in the deriver's
@@ -760,6 +797,9 @@ Agent-facing design decided here, the session's:
   had: a route carries no fields, and the fold's default is cards.
 
 Raised, for the owner:
+- **Before Do 5: does the cap want a line of C53?** It lowers a named
+  `limit` under `item`, saying the limit it applied; Do 1 drafts the
+  line, and this brief reads C53 as holding it without one.
 - **No byte ceiling over a search answer.** The design cites C166's
   frame; no search answer crosses a frame. The cap bounds a page of
   cards by count; a single item past 5 KB (the copy's largest is
@@ -780,7 +820,9 @@ Raised, for the owner:
   page's (`show` reads one item): one card, two inputs.
 - **The red Linux gate** on `4b28dad1` and `7c1ce05a`
   (`the_refresh_loop_runs_through_the_pages`, the plan page's stash
-  listing response 5 where the golden holds 4): to be filed.
+  listing response 5 where the golden holds 4): to be filed by the
+  orchestrating session (this brief's writer touches only the brief and
+  its reviews).
 
 ## Cuts
 
@@ -819,3 +861,20 @@ over what rows carry (Do 7); 7 the trade helper's change said as one
 to make (Input); 8 the hidden field wherever the query box carries the
 rows view, the Show control's wording corrected (Do 8); 9 `read_one`'s
 `Held` built always, the rows path cloning the item (Do 2).
+
+Cut 4, 2026-11-08, under the cold review at `3d226f73`
+(`roadmap/reviews/4-full-1-cards-brief-3d226f73.md`, eight findings):
+1 the word functions retyped in Do 6, where the CLI's block needs them
+(Do 6, Do 7); 2 Do 7 and Do 8 in one commit, the item page's holds in
+it (Do 10); 3 the cap beside C53's number in `acquisition_store::bound`,
+and the owner asked before Do 5 whether lowering a named `limit` wants
+a line of C53, a line drafted (Do 1, Do 5, the foot); 4 `Shown` keeps
+its fields, the readers named should a worker flatten it (Do 2); 5 a
+row's head under `item` titled with the frame (Do 6, the foot); 6 not
+taken: filing an issue is the orchestrating session's, and the brief
+says so (Input); 7 the source's hash, not the backup's, checked; the
+answer is aged in both (`answer` ages before returning, answer.rs line
+982), so that half did not hold (Do 4); 8 C108's file, `view`'s home,
+the equality pin over one intent file (Read, Do 9). The fourth cut is
+the bound: no fifth review follows, and the report to the orchestrating
+session says what stands.
