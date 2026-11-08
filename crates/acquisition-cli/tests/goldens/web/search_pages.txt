@@ -40,7 +40,7 @@ GET <the form>
 
 GET search?<the ring search>
 # holds "from the query JSON: exact"
-# holds "total   2 matches"
+# holds "<th>Total</th><td>2 matches"
 # holds "Doom Loop"
 # holds "Rune Coil"
 # holds "alt=\"Doom Loop Two-Stone Ring\""
@@ -52,29 +52,31 @@ GET search?<the ring search>
 <main>
 <h1>Answer</h1>
 <p class="count">2 matches</p>
-<pre>
-trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-query   league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   2 matches (fetched <age> ago, pc · Standard / Rings)
-</pre>
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    league=Standard                                          5 matched
-  1    category=&quot;accessory.ring&quot;                                3 matched · 1 failed · 1 undecided
-  2    sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70  3 matched · 2 failed
-routes  each returns exactly the members counted (5 more: --routes)
-  term 1 undecided (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
+<tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
+<tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -83,36 +85,34 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </main>
 
 GET search?<an edited text>
-# holds "query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"
-# holds "total   1 match"
+# holds "<th>Query</th><td>class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"
+# holds "<th>Total</th><td>1 match"
 # holds "Doom Loop"
 # holds "The query, in the language"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">1 match</p>
-<pre>
-query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   1 match (fetched <age> ago, pc · Standard / Rings)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Rings)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    class:rings                         3 matched · 1 failed · 1 undecided
-       → Rings (3)
-  1    line(&quot;# to maximum Life&quot; arg1&gt;=90)  2 matched · 2 failed · 1 lacked · 1 reaches 90 only together
-routes  each returns exactly the members counted (5 more: --routes)
-  term 0 undecided (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(class:rings)&#39;
-  term 1 only together (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;line(&quot;# to maximum Life&quot;) -line(&quot;# to maximum Life&quot; arg1&gt;=90) sum(line(&quot;# to maximum Life&quot;).arg1)&gt;=90&#39;
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+<tr><td>1</td><td>line(&quot;# to maximum Life&quot; arg1&gt;=90)</td><td>2</td><td>2</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/together" href="/<token>/search?realm=pc&amp;text=line%28%22%23%20to%20maximum%20Life%22%29%20-line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D90%29%20sum%28line%28%22%23%20to%20maximum%20Life%22%29.arg1%29%3E%3D90">1 reaches 90 only together</a></td></tr>
+</table>
+<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -123,37 +123,44 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 GET search?<a trade site search's URL>
 # holds "not the site&#39;s search: 2 clauses not run"
 # holds "from a URL: PARTIAL"
-# holds "NOT RUN   stats.1 "
-# holds "reported  status"
+# holds "<td>NOT RUN</td><td>stats.1</td>"
+# holds "<td>reported</td><td>status</td>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">3 matches</p>
 <p><span class="badge">not the site&#39;s search: 2 clauses not run</span></p>
-<pre>
-trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-        NOT RUN   stats.1    A crucible tree path is not read; not run.
-        NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
-        reported  status     Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.
-query   league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   3 matches (fetched <age> ago, pc · Standard / Rings)
-</pre>
+<section class="trade">
+<p>from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<table class="clauses">
+<tr><th>Status</th><th>Clause</th><th>Says</th></tr>
+<tr><td>NOT RUN</td><td>stats.1</td><td>A crucible tree path is not read; not run.</td></tr>
+<tr><td>NOT RUN</td><td>stats.1.0</td><td>its group `stats.1` translates whole or not at all, and is unsupported</td></tr>
+<tr><td>reported</td><td>status</td><td>Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.</td></tr>
+</table>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate</a><br><span class="base">Glorious Plate</span> <span class="fate">unique</span></td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 500<br>+500 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    league=Standard                                          5 matched
-  1    sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70  3 matched · 2 failed
-routes  each returns exactly the members counted (3 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
+<tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">3 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -163,37 +170,48 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 
 GET search?<an xbox URL from the pc page>
 # holds "names its realm, xbox: it ran there, not in pc"
+# holds "<span class=\"way\" data-way=\"/zero/offers/explain/0\">part "
+# holds "<span class=\"way\" data-way=\"/zero/offers/explain/1\">part "
+# holds "<span class=\"way\" data-way=\"/zero/offers/context\">every item in scope, this query set aside</span>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="notice">The site search&#39;s URL names its realm, xbox: it ran there, not in pc, the realm the page showed.</p>
 <p class="count">0 matches</p>
 <p><span class="badge">not the site&#39;s search: 2 clauses not run</span></p>
-<pre>
-trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-        NOT RUN   stats.1    A crucible tree path is not read; not run.
-        NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
-        reported  status     Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.
-query   league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · xbox · live · 1 item · 1 location fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   0 matches
-</pre>
-<pre>
-offers  each part of the query forced true and forced false, the part fewest items match first
-    acq search --account &#39;Alice#1234&#39; --realm xbox &#39;league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70&#39; --explain 1
-    acq search --account &#39;Alice#1234&#39; --realm xbox &#39;league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70&#39; --explain 0
-        every item in scope, this query set aside
-    acq search --account &#39;Alice#1234&#39; --realm xbox &#39;league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70&#39; --context corpus
-terms   each term counted alone over all live xbox items in all leagues, never over the matches
-  0    league=Hardcore                                          1 matched
-  1    sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70  0 matched · 1 failed
-routes  each returns exactly the members counted (1 more: --routes)
-  term 0 matched (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm xbox league=Hardcore
+<section class="trade">
+<p>from a URL: PARTIAL — 2 clauses not run, so this is not the site&#39;s search</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<table class="clauses">
+<tr><th>Status</th><th>Clause</th><th>Says</th></tr>
+<tr><td>NOT RUN</td><td>stats.1</td><td>A crucible tree path is not read; not run.</td></tr>
+<tr><td>NOT RUN</td><td>stats.1.0</td><td>its group `stats.1` translates whole or not at all, and is unsupported</td></tr>
+<tr><td>reported</td><td>status</td><td>Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.</td></tr>
+</table>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · xbox · live · 1 item · 1 location fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>0 matches</td></tr>
+</table>
+<div class="zero">
+<p>Offers: each part of the query forced true and forced false, the part fewest items match first</p>
+<ul class="offers">
+<li><span class="way" data-way="/zero/offers/explain/0">part 1: sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</span></li>
+<li><span class="way" data-way="/zero/offers/explain/1">part 0: league=Hardcore</span></li>
+</ul>
+<p><span class="way" data-way="/zero/offers/context">every item in scope, this query set aside</span></p>
+</div>
+<p class="terms-head">Terms: each term counted alone over all live xbox items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>league=Hardcore</td><td><a class="way" data-way="/terms/0/matched" href="/<token>/search?realm=xbox&amp;text=league%3DHardcore">1</a></td><td>0</td><td>0</td><td>0</td><td></td></tr>
+<tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>0</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">1 more count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Hardcore sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="xbox"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -203,39 +221,44 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 
 GET search?<the site's query JSON with its sort>
 # holds "from the query JSON: exact"
-# holds "reported  sort  The site&#39;s sort is reported and not applied"
+# holds "<td>reported</td><td>sort</td><td>The site&#39;s sort is reported and not applied"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">3 matches</p>
 <p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
-<pre>
-trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-        reported  sort  The site&#39;s sort is reported and not applied: order the rows yourself.
-query   category=&quot;accessory.ring&quot;
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · 1 undecided
-</pre>
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<table class="clauses">
+<tr><th>Status</th><th>Clause</th><th>Says</th></tr>
+<tr><td>reported</td><td>sort</td><td>The site&#39;s sort is reported and not applied: order the rows yourself.</td></tr>
+</table>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>category=&quot;accessory.ring&quot;</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1 undecided</a></td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-undecided the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice · id new
-            `Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    category=&quot;accessory.ring&quot;  3 matched · 1 failed · 1 undecided
-routes  each returns exactly the members counted (2 more: --routes)
-  undecided at the root (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-  term 0 undecided (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -256,33 +279,161 @@ a search is a query in the language or a trade site search, not both: run one bo
 </main>
 
 GET search?<the league counted by rarity>
-# holds "count   rarity · 2 values"
-# holds "4  rare"
-# holds "1  unique"
+# holds "Count rarity · 2 values"
+# holds "<td>4</td><td>rare</td>"
+# holds "<td>1</td><td>unique</td>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Answer</h1>
 <p class="count">5 matches</p>
-<pre>
-trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-query   league=Standard
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
-<pre>
-count   rarity · 2 values
-        4  rare
-        1  unique
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    league=Standard  5 matched
-routes  each returns exactly the members counted (3 more: --routes)
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>league=Standard</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
+<p class="count-head">Count rarity · 2 values</p>
+<table class="counted">
+<tr><th>Items</th><th>rarity</th></tr>
+<tr><td>4</td><td>rare</td></tr>
+<tr><td>1</td><td>unique</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">3 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<every ring, one row shown>
+# holds "rows 1–1 of 3 shown · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/"
+# holds "search?next=acq1."
+# holds "\">more</a>"
+# holds "data-way=\"/terms/0/undecided\" href="
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">3 matches</p>
+<p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
+<table class="opening">
+<tr><th>Query</th><td>class:rings</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a></td></tr>
+</table>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+</table>
+<p>rows 1–1 of 3 shown · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings</textarea><label class="control">Show <select name="view.limit"><option value="1" selected>1</option><option value="">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<every item counted by class>
+# holds "Count class · "
+# holds "data-way=\"/view/counts/tables/0/buckets/2\" href="
+# holds ">1</a></td><td>(undecided) · "
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">5 matches</p>
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>(every item in scope)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
+<p class="count-head">Count class · 3 values</p>
+<table class="counted">
+<tr><th>Items</th><th>class</th></tr>
+<tr><td>3</td><td>Rings</td></tr>
+<tr><td>1</td><td>Body Armours</td></tr>
+<tr><td><a class="way" data-way="/view/counts/tables/0/buckets/2" href="/<token>/search?realm=pc&amp;text=undecided%28class%29">1</a></td><td>(undecided) · the class: base not in the table unread 1</td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<rings named as the undecided chalice is>
+# holds "<p class=\"count\">0 matches</p>"
+# holds "<p>No match · <a class=\"way\" data-way=\"/zero/undecided\" href="
+# holds "data-way=\"/total/undecided\" href="
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">0 matches</p>
+<p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
+<table class="opening">
+<tr><th>Query</th><td>class:rings name=&quot;Brood Lure&quot;</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>0 matches · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%20name%3D%22Brood%20Lure%22%29">1 undecided</a></td></tr>
+</table>
+<div class="zero">
+<p>No match · <a class="way" data-way="/zero/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%20name%3D%22Brood%20Lure%22%29">1 undecided</a></p>
+<p>Offers: each part of the query forced true and forced false, the part fewest items match first</p>
+<ul class="offers">
+<li><span class="way" data-way="/zero/offers/explain/0">part 1: name=&quot;Brood Lure&quot;</span></li>
+<li><span class="way" data-way="/zero/offers/explain/1">part 0: class:rings</span></li>
+</ul>
+<p><span class="way" data-way="/zero/offers/context">every item in scope, this query set aside</span></p>
+</div>
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td><a class="way" data-way="/terms/0/matched" href="/<token>/search?realm=pc&amp;text=class%3Arings">3</a></td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+<tr><td>1</td><td>name=&quot;Brood Lure&quot;</td><td><a class="way" data-way="/terms/1/matched" href="/<token>/search?realm=pc&amp;text=name%3D%22Brood%20Lure%22">1</a></td><td>4</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings name=&quot;Brood Lure&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings name=&quot;Brood Lure&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>
@@ -301,29 +452,33 @@ GET search?realm=pc&view.count=rarity&view.sort=ilvl
 
 GET item/r1
 # holds "Doom Loop Two-Stone Ring"
-# holds "class   Rings"
+# holds "<th>Class</th><td>Rings</td>"
 # holds "+95 to maximum Life"
-# holds "why: acq price show --account &#39;Alice#1234&#39; --realm pc item/r1"
+# holds "<th>Price</th><td>none ("
 # holds "https://web.poecdn.com/gen/image/ring.png"
 <meta name="basis" content="{&quot;item&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
 <main>
 <h1>Item</h1>
 <p><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></p>
-<pre>
-Doom Loop Two-Stone Ring · rare · frame rare
-id      r1
-place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
-base    Two-Stone Ring
-class   Rings
-category accessory.ring
-price   none (nothing applies) · why: acq price show --account &#39;Alice#1234&#39; --realm pc item/r1
-is      identified
-shown   Item Level: 84
-lines   explicit              +95 to maximum Life
-                              &quot;# to maximum Life&quot;   arg1 95
-unread  nothing
+<p class="name rarity-rare">Doom Loop Two-Stone Ring · rare · frame rare</p>
+<table class="shown">
+<tr><th>Id</th><td>r1</td></tr>
+<tr><th>Place</th><td>pc · Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><th>Base</th><td>Two-Stone Ring</td></tr>
+<tr><th>Class</th><td>Rings</td></tr>
+<tr><th>Category</th><td>accessory.ring</td></tr>
+<tr><th>Price</th><td>none (nothing applies)</td></tr>
+<tr><th>Is</th><td>identified</td></tr>
+<tr><th>Shown</th><td>Item Level: 84</td></tr>
+<tr><th>Unread</th><td>nothing</td></tr>
+</table>
+<table class="lines">
+<tr><th>Source</th><th>Line</th><th>Template</th></tr>
+<tr><td>explicit</td><td>+95 to maximum Life</td><td>&quot;# to maximum Life&quot;   arg1 95</td></tr>
+</table>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 
 </main>
 

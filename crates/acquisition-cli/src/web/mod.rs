@@ -75,9 +75,16 @@
 //!   that page; the saved ways — the list, an opening, a write, a clear —
 //!   as the C168 section below spells them; any other way on is no
 //!   page's, and nothing on a page stands for it. The plan page prints no
-//!   command to type next: its Apply button is that way on. The words are
-//!   still the CLI's (`failure_words`), as are the command lines the
-//!   refresh and jobs pages print, which no route takes.
+//!   command to type next: its Apply button is that way on. An answer's
+//!   ways on are spelled the same way (4-full part 1, step 4): every
+//!   request the answer carries — a count's route, a removed id's, a
+//!   value list's rest, a zero answer's offers — and the scope's
+//!   never-fetched tabs go through [`Paged`], a link where a page takes
+//!   one and the count or the words where none does; a continuation, a
+//!   request with its place, is `search?next=` and its token, on an
+//!   answer or a refusal alike. The words are still the CLI's
+//!   (`failure_words`), as are the command lines the refresh and jobs
+//!   pages print, which no route takes (#182).
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
@@ -692,6 +699,19 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
             ]
         };
         let link = match way {
+            // a continuation, a request with its place, is the one way a
+            // page spells it: its token, for the account served
+            Way::Search(request) if continues(request) => {
+                if !request
+                    .scope
+                    .account
+                    .as_deref()
+                    .is_none_or(|a| self.web.serves(a))
+                {
+                    return None;
+                }
+                self.web.link("search", &[("next", request.token())])
+            }
             Way::Search(request) => self
                 .web
                 .link("search", &self.web.asked_by_the_form(request)?),
@@ -758,6 +778,17 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
         };
         Some((json!(link), None))
     }
+}
+
+/// Whether `request` is a continuation: a rows request with its place,
+/// the rows it starts after and the basis that place is in, as
+/// `Request::from_token` takes one.
+fn continues(request: &Request) -> bool {
+    request.basis.is_some()
+        && matches!(
+            &request.view.shape,
+            acquisition_search::answer::Shape::Rows(rows) if rows.after.is_some()
+        )
 }
 
 /// `request` with each count key as the key's one reader spells it
@@ -916,7 +947,12 @@ async fn search(
                 head,
                 &format!(
                     "{said}{}",
-                    page::answer(&answer, opened.as_ref(), &web.saved_links())
+                    page::answer(&answer, opened.as_ref(), &web.saved_links(), &|way| {
+                        use acquisition_verbs::refusal::Surface as _;
+                        Paged { web: &web }
+                            .request(way)
+                            .and_then(|(link, _)| link.as_str().map(str::to_string))
+                    })
                 ),
             )
         }
@@ -975,18 +1011,20 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
     let shown = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
         let opened = account.open()?;
-        Ok((
-            acquisition_search::show(&opened.facts, &opened.intent, &id, false)?,
-            account.entry.username.clone(),
-        ))
+        Ok(acquisition_search::show(
+            &opened.facts,
+            &opened.intent,
+            &id,
+            false,
+        )?)
     })
     .await;
     match shown {
-        Ok((shown, _)) if wants_json(&headers) => document(&shown),
-        Ok((shown, account)) => web.page(
+        Ok(shown) if wants_json(&headers) => document(&shown),
+        Ok(shown) => web.page(
             "Item",
             Head::default().with("item", &shown.basis),
-            &page::item(&shown, &account, &page::item_badges(&shown)),
+            &page::item(&shown, &page::item_badges(&shown)),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
     }

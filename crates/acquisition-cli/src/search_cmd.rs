@@ -732,7 +732,7 @@ fn open_as_asked(
 /// the sync policy (C146, a count says what it counts), where `intent 33`
 /// read as a count nobody could name (the release seat: cli-opus-2 calls
 /// 34 and 96, mcp-opus call 19).
-fn basis_text(b: &acquisition_search::Basis) -> String {
+pub(crate) fn basis_text(b: &acquisition_search::Basis) -> String {
     format!(
         "basis   store {} · build {} · snapshot {} · facts v{} · prices and policy revision {} · derivation {} · classes v{} · categories v{} · beast colours v{} · totals v{} · defences v{} · currency v{} · notes v{}",
         b.store,
@@ -899,65 +899,33 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 /// counted (C53) — and, beside an ambiguous clause whose other reading
 /// the catalogue holds, what that reading adds and drops (C119), its
 /// routes where the answer's routes are. The whole is the JSON's
-/// `query.trade`.
+/// `query.trade`. The words are [`fidelity_words`], [`TRADE_OVER`],
+/// [`clauses_listed`] and [`stake_words`], the answer page's too.
 pub(crate) fn trade_text(t: &TradeOut) -> Vec<String> {
-    let from = match t.source {
-        Source::Url => "a URL",
-        Source::Id => "a search id",
-        Source::Json => "the query JSON",
-    };
-    let of = |status: Status| -> Vec<&ClauseOut> {
-        t.clauses.iter().filter(|c| c.status == status).collect()
-    };
-    let (unsupported, ambiguous) = (of(Status::Unsupported), of(Status::Ambiguous));
-    let reported: Vec<&ClauseOut> = t
-        .clauses
+    let mut out = vec![
+        format!("trade   {}", fidelity_words(t)),
+        format!("        over      {TRADE_OVER}"),
+    ];
+    let listed = clauses_listed(t);
+    let width = listed
         .iter()
-        .filter(|c| matches!(c.status, Status::ListingOnly | Status::Disabled))
-        .collect();
-    let mut out = vec![match t.fidelity {
-        Fidelity::Partial => format!(
-            "trade   from {from}: PARTIAL — {} not run, so this is not the site's search",
-            plural(unsupported.len(), "clause", "clauses")
-        ),
-        Fidelity::Ambiguous => format!(
-            "trade   from {from}: ambiguous — every clause ran, {} as the site may not read {}",
-            ambiguous.len(),
-            if ambiguous.len() == 1 { "it" } else { "them" }
-        ),
-        Fidelity::Exact => format!(
-            "trade   from {from}: exact — every clause with a stash meaning ran as the site reads it"
-        ),
-    }];
-    out.push(
-        "        over      the items the store has fetched, priced or not — what it never fetched is \
-         the scope's: the site shows public listings, a tab's being tab.public, so the search is the \
-         site's and the items are yours"
-            .to_string(),
-    );
-    let width = unsupported
-        .iter()
-        .chain(&ambiguous)
-        .chain(&reported)
-        .map(|c| c.at.chars().count() + 2)
+        .flat_map(|(_, clauses)| clauses)
+        .map(|(_, c)| c.at.chars().count() + 2)
         .max()
         .unwrap_or(0);
-    for (word, clauses) in [
-        ("NOT RUN  ", &unsupported),
-        ("ambiguous", &ambiguous),
-        ("reported ", &reported),
-    ] {
-        for c in clauses.iter().take(10) {
+    for (word, clauses) in listed {
+        let word = format!("{word:<9}");
+        for (_, c) in clauses.iter().take(10) {
             let stake = c.other.as_ref().map_or(String::new(), |o| {
                 format!(
-                    " · read the other way: adds {}, drops {}",
-                    o.adds.count, o.drops.count
+                    " · {}",
+                    stake_words(&o.adds.count.to_string(), &o.drops.count.to_string())
                 )
             });
             out.push(format!(
                 "        {word} {:<width$}{}{stake}",
                 c.at,
-                c.notes.last().map_or("", String::as_str)
+                clause_note(c)
             ));
         }
         if clauses.len() > 10 {
@@ -968,6 +936,69 @@ pub(crate) fn trade_text(t: &TradeOut) -> Vec<String> {
         }
     }
     out
+}
+
+/// How far a translated text is the site's search, from where it came.
+pub(crate) fn fidelity_words(t: &TradeOut) -> String {
+    let from = match t.source {
+        Source::Url => "a URL",
+        Source::Id => "a search id",
+        Source::Json => "the query JSON",
+    };
+    let count = |status: Status| t.clauses.iter().filter(|c| c.status == status).count();
+    match t.fidelity {
+        Fidelity::Partial => format!(
+            "from {from}: PARTIAL — {} not run, so this is not the site's search",
+            plural(count(Status::Unsupported), "clause", "clauses")
+        ),
+        Fidelity::Ambiguous => {
+            let ambiguous = count(Status::Ambiguous);
+            format!(
+                "from {from}: ambiguous — every clause ran, {ambiguous} as the site may not read {}",
+                if ambiguous == 1 { "it" } else { "them" }
+            )
+        }
+        Fidelity::Exact => format!(
+            "from {from}: exact — every clause with a stash meaning ran as the site reads it"
+        ),
+    }
+}
+
+/// What a translated search runs over, said beside every one.
+pub(crate) const TRADE_OVER: &str = "the items the store has fetched, priced or not — what it never fetched is \
+     the scope's: the site shows public listings, a tab's being tab.public, so the search is the \
+     site's and the items are yours";
+
+/// The clauses a translation lists, by status in the text's order — not
+/// run, ambiguous, reported — each with its index among the report's
+/// clauses: every one the document holds.
+pub(crate) fn clauses_listed(t: &TradeOut) -> [(&'static str, Vec<(usize, &ClauseOut)>); 3] {
+    let of = |keep: &dyn Fn(Status) -> bool| -> Vec<(usize, &ClauseOut)> {
+        t.clauses
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| keep(c.status))
+            .collect()
+    };
+    [
+        ("NOT RUN", of(&|s| s == Status::Unsupported)),
+        ("ambiguous", of(&|s| s == Status::Ambiguous)),
+        (
+            "reported",
+            of(&|s| matches!(s, Status::ListingOnly | Status::Disabled)),
+        ),
+    ]
+}
+
+/// What a listed clause says: its last note.
+pub(crate) fn clause_note(c: &ClauseOut) -> &str {
+    c.notes.last().map_or("", String::as_str)
+}
+
+/// An ambiguous clause's other reading, its adds and drops as each
+/// surface writes a count.
+pub(crate) fn stake_words(adds: &str, drops: &str) -> String {
+    format!("read the other way: adds {adds}, drops {drops}")
 }
 
 /// The path column of a terms or nodes block: five wide, as the paths of
@@ -1003,9 +1034,10 @@ fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
 }
 
 /// The answer's opening (C53, the answer first): a site search's
-/// translation, the query, the scope and the total — what the web UI's
-/// answer page states above its table, word for word.
-pub(crate) fn answer_head(a: &Answer) -> String {
+/// translation, the query, the scope and the total — the text's; the
+/// answer page says the same facts in the same words, each made by the
+/// functions this calls, in its own layout.
+fn answer_head(a: &Answer) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
     let mut line = |s: String| {
@@ -1017,23 +1049,68 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     if let Some(trade) = &typed.trade {
         trade_text(trade).into_iter().for_each(&mut line);
     }
-    let query = if a.query.text.is_empty() {
-        "(every item in scope)"
-    } else {
-        &a.query.text
-    };
-    line(format!("query   {query}"));
+    line(format!("query   {}", query_words(&a.query.text)));
     if let Some(aside) = &a.set_aside {
         line(format!(
-            "aside   {} — set aside under --context corpus, counted nowhere",
-            aside.text
+            "aside   {}",
+            aside_words(&aside.text, " under --context corpus")
         ));
     }
+    line(format!("scope   {}", scope_words(&a.scope)));
+    let mut never = format!("        {}", never_fetched_words(&a.scope, now));
+    // the list that exists: `tabs` over a league the query names, or the
+    // one holding the most never fetched, the others counted (C118, #36)
+    if let Some(pointer) = a.tabs_pointer() {
+        never.push_str(&format!(
+            " · each tab: {}",
+            crate::printed::tabs_command(&pointer)
+        ));
+        if pointer.other_leagues > 0 {
+            never.push_str(&format!(
+                " · {}",
+                other_leagues_words(pointer.other_leagues)
+            ));
+        }
+    }
+    line(never);
+    if let Some(words) = realm_not_held_words(&a.scope) {
+        line(format!("        {words}"));
+    }
+    let mut total = format!("total   {}", total_words(a, now));
+    if a.total.undecided.count > 0 {
+        total.push_str(&format!(" · {}", undecided_words(a.total.undecided.count)));
+    }
+    line(total);
+    if let Some(words) = never_fetched_sentence(a.scope.coverage.never_fetched) {
+        line(format!("            {words}"));
+    }
+    if let Some(words) = before_words(a) {
+        line(format!("then    {words}"));
+    }
+    out
+}
 
-    let scope = &a.scope;
+/// The query as an answer states it: its text, or what an empty one is.
+pub(crate) fn query_words(text: &str) -> &str {
+    if text.is_empty() {
+        "(every item in scope)"
+    } else {
+        text
+    }
+}
+
+/// The query typed beside the corpus context, set aside `under` the
+/// surface's spelling of that context.
+pub(crate) fn aside_words(text: &str, under: &str) -> String {
+    format!("{text} — set aside{under}, counted nowhere")
+}
+
+/// The scope's first line: the account, the realm, the membership with
+/// its counts and the locations fetched.
+pub(crate) fn scope_words(scope: &acquisition_search::answer::ScopeOut) -> String {
     let account = scope.account.name.as_deref().unwrap_or(&scope.account.uuid);
-    let first = format!(
-        "scope   account {account} · {} · {} · {} fetched",
+    format!(
+        "account {account} · {} · {} · {} fetched",
         scope.realm.as_str(),
         match (scope.membership, scope.coverage.removed) {
             (Membership::Removed, Some(removed)) => format!(
@@ -1048,13 +1125,19 @@ pub(crate) fn answer_head(a: &Answer) -> String {
             (_, None) => format!("live · {}", plural(scope.coverage.items, "item", "items")),
         },
         plural(scope.coverage.fetched, "location", "locations"),
-    );
-    line(first);
-    // an age over several lists names the set it is the oldest of
-    // (answer-facts seat run 2, cli fault 8: `location list seen 57d ago`
-    // read as the stash list's, 53 days old; it was a character list's)
-    let mut never = format!(
-        "        {}{} · {}",
+    )
+}
+
+/// The scope's never-fetched locations by type and the lists' age. An
+/// age over several lists names the set it is the oldest of
+/// (answer-facts seat run 2, cli fault 8: `location list seen 57d ago`
+/// read as the stash list's, 53 days old; it was a character list's).
+pub(crate) fn never_fetched_words(
+    scope: &acquisition_search::answer::ScopeOut,
+    now: i64,
+) -> String {
+    format!(
+        "{}{} · {}",
         plural(scope.coverage.never_fetched, "location", "locations"),
         never_fetched_text(&scope.coverage.never_fetched_by_type),
         match scope.coverage.span.list_seen {
@@ -1064,38 +1147,35 @@ pub(crate) fn answer_head(a: &Answer) -> String {
             ),
             None => "no location list seen".to_string(),
         },
-    );
-    // the list that exists: `tabs` over a league the query names, or the
-    // one holding the most never fetched, the others counted (C118, #36)
-    if let Some(pointer) = a.tabs_pointer() {
-        never.push_str(&format!(
-            " · each tab: {}",
-            crate::printed::tabs_command(&pointer)
-        ));
-        if pointer.other_leagues > 0 {
-            never.push_str(&format!(
-                " · {} never-fetched tabs",
-                plural(
-                    pointer.other_leagues,
-                    "other league holds",
-                    "other leagues hold"
-                )
-            ));
-        }
-    }
-    line(never);
-    if scope.realm_not_held {
-        line(format!(
-            "        this store holds nothing under {}: it holds {}",
+    )
+}
+
+/// The other leagues holding never-fetched tabs, beside the one pointed at.
+pub(crate) fn other_leagues_words(n: usize) -> String {
+    format!(
+        "{} never-fetched tabs",
+        plural(n, "other league holds", "other leagues hold")
+    )
+}
+
+/// A named realm the store holds nothing under, and what it holds.
+pub(crate) fn realm_not_held_words(scope: &acquisition_search::answer::ScopeOut) -> Option<String> {
+    scope.realm_not_held.then(|| {
+        format!(
+            "this store holds nothing under {}: it holds {}",
             scope.realm.as_str(),
             if scope.coverage.realms_held.is_empty() {
                 "no realm".to_string()
             } else {
                 scope.coverage.realms_held.join(", ")
             }
-        ));
-    }
-    let mut total = format!("total   {}", plural(a.total.matched, "match", "matches"));
+        )
+    })
+}
+
+/// The total and the matches' fetch span, the undecided apart.
+pub(crate) fn total_words(a: &Answer, now: i64) -> String {
+    let mut total = plural(a.total.matched, "match", "matches");
     if let Some(span) = &a.total.span
         && let (Some(oldest), Some(newest)) = (span.oldest_fetch, span.newest_fetch)
     {
@@ -1112,40 +1192,43 @@ pub(crate) fn answer_head(a: &Answer) -> String {
             span_words(span, ago(now, Some(oldest)), ago(now, Some(newest)))
         ));
     }
-    if a.total.undecided.count > 0 {
-        total.push_str(&format!(" · {} undecided", a.total.undecided.count));
-    }
-    line(total);
-    // under every total, not a zero's alone: a count of N is as blind to
-    // the never-fetched as a count of none (the trade seat: cli-sonnet
-    // call 6, its fault 4; mcp-sonnet's debrief, answer 5)
-    // the number agrees through the sentence: "it holds" for one (the
-    // page seat's probe, stop 10)
-    match a.scope.coverage.never_fetched {
-        0 => {}
-        1 => line(
-            "            1 location was never fetched: nothing here says what it holds".to_string(),
-        ),
-        n => line(format!(
-            "            {n} locations were never fetched: nothing here says what they hold"
+    total
+}
+
+/// A count of items undecided.
+pub(crate) fn undecided_words(n: usize) -> String {
+    format!("{n} undecided")
+}
+
+/// Under every total, not a zero's alone: a count of N is as blind to
+/// the never-fetched as a count of none (the trade seat: cli-sonnet call
+/// 6, its fault 4; mcp-sonnet's debrief, answer 5). The number agrees
+/// through the sentence: "it holds" for one (the page seat's probe, stop
+/// 10).
+pub(crate) fn never_fetched_sentence(n: usize) -> Option<String> {
+    match n {
+        0 => None,
+        1 => Some("1 location was never fetched: nothing here says what it holds".to_string()),
+        n => Some(format!(
+            "{n} locations were never fetched: nothing here says what they hold"
         )),
     }
+}
 
-    if let Some(before) = &a.before {
-        line(match &before.counted_at {
-            Some(basis) => format!(
-                "then    {} where this route was printed — {}",
-                plural(before.count, "match", "matches"),
-                basis.against(&a.basis)
-            ),
-            None => format!(
-                "then    {} where this route was printed",
-                plural(before.count, "match", "matches")
-            ),
-        });
-    }
-
-    out
+/// What a route said when it was printed, where it runs on a later basis.
+pub(crate) fn before_words(a: &Answer) -> Option<String> {
+    let before = a.before.as_ref()?;
+    Some(match &before.counted_at {
+        Some(basis) => format!(
+            "{} where this route was printed — {}",
+            plural(before.count, "match", "matches"),
+            basis.against(&a.basis)
+        ),
+        None => format!(
+            "{} where this route was printed",
+            plural(before.count, "match", "matches")
+        ),
+    })
 }
 
 /// A fetch span's extremes as a line says them, each with its own age:
@@ -1209,31 +1292,53 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
         if first { "rows    " } else { "        " }
     ));
     let (shows, more) = row_shows(a, row);
+    let show = || crate::printed::show_command(a, &row.id);
+    let shows: Vec<String> = shows
+        .into_iter()
+        .map(|piece| match piece {
+            RowPiece::Seen(s) => s,
+            RowPiece::MoreSorted(n) => format!("{}: {}", more_sorted_words(n), show()),
+        })
+        .collect();
     if !shows.is_empty() {
         line(format!("            {}", shows.join(" · ")));
     }
-    for more in more {
-        line(format!("            {more}"));
+    for (n, path) in more {
+        line(format!(
+            "            {}: {}",
+            more_of_term_words(n, &path),
+            show()
+        ));
     }
     line(format!("            id {}", row.id));
     out
 }
 
+/// One piece of what a row shows: a line it shows, or the sort's count
+/// of what it left out, which each surface follows with its own way to
+/// the item whole.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(crate) enum RowPiece {
+    Seen(String),
+    MoreSorted(usize),
+}
+
 /// What a row shows of its matched terms and its sort, each line once
-/// for each occurrence the part showing it most shows, and the lines
-/// saying what each term touched past them: the touched lines the web
-/// UI's table carries in a cell.
+/// for each occurrence the part showing it most shows, and, for each term
+/// that touched more than it shows, how many more and the term's path —
+/// the words a surface follows with its way to the item whole (the text's
+/// `acq show` line, the page's link to the item).
 pub(crate) fn row_shows(
     a: &Answer,
     row: &acquisition_search::answer::Row,
-) -> (Vec<String>, Vec<String>) {
+) -> (Vec<RowPiece>, Vec<(usize, String)>) {
     // each part of the row — the sort, each term — shows a set of the
     // item's occurrences, so a line printed twice by one part is two
     // occurrences: the row prints each line as many times as the part
     // that shows it most, in the order the parts show it, whichever
     // order the terms were written in (the review of 9b, 2026-09-26,
     // twice: a total of 40 showed contributors of 10 and 20 alone)
-    let mut parts: Vec<Vec<String>> = Vec::new();
+    let mut parts: Vec<Vec<RowPiece>> = Vec::new();
     if let Some(sorted) = &row.sort {
         // what sorted the row (F6): a field's name before its number,
         // a line or a sum's contributors after — and the sort's own
@@ -1263,36 +1368,39 @@ pub(crate) fn row_shows(
             _ if !key.is_empty() => by.replacen("by ", &format!("by {key} "), 1),
             _ => by,
         };
-        let mut by_sort = vec![format!("sorts {named}")];
-        by_sort.extend(rest.map(evidence_text));
+        let mut by_sort = vec![RowPiece::Seen(format!("sorts {named}"))];
+        by_sort.extend(rest.map(|e| RowPiece::Seen(evidence_text(e))));
         if sorted.left_out > 0 {
-            by_sort.push(format!(
-                "{} more sorted: {}",
-                sorted.left_out,
-                crate::printed::show_command(a, &row.id)
-            ));
+            by_sort.push(RowPiece::MoreSorted(sorted.left_out));
         }
         parts.push(by_sort);
     }
     for touched in &row.matched {
-        parts.push(touched.shows.iter().map(evidence_text).collect());
+        parts.push(
+            touched
+                .shows
+                .iter()
+                .map(|e| RowPiece::Seen(evidence_text(e)))
+                .collect(),
+        );
     }
-    let mut need: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut need: std::collections::HashMap<&RowPiece, usize> = std::collections::HashMap::new();
     for part in &parts {
-        let mut in_part: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        let mut in_part: std::collections::HashMap<&RowPiece, usize> =
+            std::collections::HashMap::new();
         for s in part {
-            *in_part.entry(s.as_str()).or_default() += 1;
+            *in_part.entry(s).or_default() += 1;
         }
         for (s, n) in in_part {
             let most = need.entry(s).or_default();
             *most = (*most).max(n);
         }
     }
-    let mut printed: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-    let mut shows: Vec<String> = Vec::new();
+    let mut printed: std::collections::HashMap<&RowPiece, usize> = std::collections::HashMap::new();
+    let mut shows: Vec<RowPiece> = Vec::new();
     for s in parts.iter().flatten() {
-        let done = printed.entry(s.as_str()).or_default();
-        if *done < need[s.as_str()] {
+        let done = printed.entry(s).or_default();
+        if *done < need[s] {
             *done += 1;
             shows.push(s.clone());
         }
@@ -1301,29 +1409,27 @@ pub(crate) fn row_shows(
         .matched
         .iter()
         .filter(|t| t.left_out > 0)
-        .map(|touched| {
-            format!(
-                "{} more of term {}: {}",
-                touched.left_out,
-                touched.path,
-                crate::printed::show_command(a, &row.id)
-            )
-        })
+        .map(|touched| (touched.left_out, touched.path.clone()))
         .collect();
     (shows, more)
 }
 
+/// The sort's lines a row leaves out.
+pub(crate) fn more_sorted_words(n: usize) -> String {
+    format!("{n} more sorted")
+}
+
+/// A term's lines a row leaves out.
+pub(crate) fn more_of_term_words(n: usize, path: &str) -> String {
+    format!("{n} more of term {path}")
+}
+
 /// The rows' continuation as the text says it, where rows are left out.
-pub(crate) fn answer_more(a: &Answer) -> Option<String> {
+fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
         ViewOut::Rows(rows) if rows.left_out > 0 => Some(format!(
-            "more    {} of {} shown: {}\n",
-            if rows.returned == 0 {
-                "none".to_string()
-            } else {
-                format!("rows {}–{}", rows.after + 1, rows.after + rows.returned)
-            },
-            a.total.matched,
+            "more    {}: {}\n",
+            rows_shown_words(a, rows),
             match &rows.next {
                 Some(next) => next.command(),
                 None => "a larger --limit returns the rest".to_string(),
@@ -1333,18 +1439,30 @@ pub(crate) fn answer_more(a: &Answer) -> Option<String> {
     }
 }
 
+/// Which rows an answer shows of its matches, where rows are left out.
+pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::RowsOut) -> String {
+    format!(
+        "{} of {} shown",
+        if rows.returned == 0 {
+            "none".to_string()
+        } else {
+            format!("rows {}–{}", rows.after + 1, rows.after + rows.returned)
+        },
+        a.total.matched
+    )
+}
+
 /// Everything after the rows: a count's tables, an explain, what a zero
 /// answer offers, why items are undecided, the terms, the routes and the
-/// basis last — what the web UI's answer page states under its table.
-pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
+/// basis last — the text's; the answer page says the same facts in the
+/// same words in its own layout, its ways on its own.
+fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
     let mut line = |s: String| {
         out.push_str(s.trim_end());
         out.push('\n');
     };
-    let typed = a.set_aside.as_ref().unwrap_or(&a.query);
-    let scope = &a.scope;
     match &a.view {
         ViewOut::Rows(_) => {}
         ViewOut::Counts(counts) => {
@@ -1374,17 +1492,10 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
         // one node, forced each way: the words are literal — forced,
         // never removed, never a contribution (`answer.rs`)
         ViewOut::Explain(explain) => {
-            let counted = |matched: usize, undecided: usize| {
-                let mut out = plural(matched, "match", "matches");
-                if undecided > 0 {
-                    out.push_str(&format!(" · {undecided} undecided"));
-                }
-                out
-            };
             line(format!("explain {}  {}", explain.path, explain.node));
             line(format!(
                 "  as given      {}",
-                counted(explain.given.matched, explain.given.undecided)
+                forced_words(explain.given.matched, explain.given.undecided)
             ));
             for (label, forced) in [
                 ("forced true ", &explain.forced_true),
@@ -1392,7 +1503,7 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
             ] {
                 line(format!(
                     "  {label}  {}",
-                    counted(forced.matched.count, forced.undecided.count)
+                    forced_words(forced.matched.count, forced.undecided.count)
                 ));
                 line(format!("                {}", forced.query.text));
             }
@@ -1401,18 +1512,7 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
 
     if let Some(zero) = &a.zero {
         for nothing in &zero.resolved_to_nothing {
-            line(format!(
-                "nothing in scope carries the {} of term {}: {} — {}",
-                nothing.of,
-                nothing.path,
-                nothing.term,
-                match nothing.note {
-                    Some(note) => note,
-                    // an id that left: its term has said so
-                    None if nothing.of == "id" => "it left the scope, as its term says",
-                    None => zero.said,
-                }
-            ));
+            line(nothing_words(zero, nothing));
             for s in &nothing.suggestions {
                 line(format!(
                     "            {}   ({})",
@@ -1425,22 +1525,19 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
         // output: explain of each part, then the corpus
         let offers = &zero.offers;
         if !offers.explain.is_empty() {
-            line(
-                "offers  each part of the query forced true and forced false, the part fewest items match first"
-                    .to_string(),
-            );
+            line(format!("offers  {EXPLAIN_OFFERS}"));
             for offer in &offers.explain {
                 line(format!("    {}", offer.request.command()));
             }
             if offers.explain_left_out > 0 {
                 line(format!(
-                    "            {} more: --explain <path>, a part's path as the terms block numbers it",
-                    plural(offers.explain_left_out, "part", "parts")
+                    "            {}: --explain <path>, a part's path as the terms block numbers it",
+                    more_parts_words(offers.explain_left_out)
                 ));
             }
         }
         if let Some(offer) = &offers.context {
-            line("        every item in scope, this query set aside".to_string());
+            line(format!("        {CONTEXT_OFFER}"));
             line(format!("    {}", offer.request.command()));
         }
     }
@@ -1451,34 +1548,20 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
             "{}{} unread — e.g. {} · id {}",
             if i == 0 { "undecided " } else { "          " },
             reason.reason.unread,
-            reason.example.name.as_deref().unwrap_or("(no name)"),
+            example_name(&reason.example),
             reason.example.id
         ));
-        line(format!(
-            "            {}; {}",
-            reason.reason.problem, reason.reason.hint
-        ));
+        line(format!("            {}", reason_words(&reason.reason)));
     }
     if a.total.reasons_left_out > 0 {
         line(format!(
-            "          {} more: the undecided route below lists every item with its reasons",
-            plural(a.total.reasons_left_out, "reason", "reasons")
+            "          {}",
+            reasons_left_out_words(a.total.reasons_left_out, "below")
         ));
     }
 
     if !a.terms.is_empty() {
-        line(format!(
-            "terms   each term counted alone over all {} {} in all leagues, never over the matches",
-            match scope.membership {
-                Membership::Live => "live",
-                Membership::All => "live and removed",
-                Membership::Removed => "removed",
-            },
-            match &scope.realm {
-                Realm::All => "items of every realm".to_string(),
-                Realm::One(realm) => format!("{realm} items"),
-            }
-        ));
+        line(format!("terms   {}", terms_words(&a.scope)));
         let width = a
             .terms
             .iter()
@@ -1501,16 +1584,7 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
             .map(|(count, word)| format!("{} {word}", count.count))
             .collect();
             if let Some(together) = term.together.as_ref().filter(|t| t.count.count > 0) {
-                counts.push(format!(
-                    "{} {} {} only together",
-                    together.count.count,
-                    if together.count.count == 1 {
-                        "reaches"
-                    } else {
-                        "reach"
-                    },
-                    number(&together.bound)
-                ));
+                counts.push(together_words(together));
             }
             line(format!(
                 "  {:<path_width$}{:<width$}  {}",
@@ -1520,13 +1594,11 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
             ));
             if let Some(removed) = &term.removed {
                 line(format!(
-                    "       this id is {} {} that left the scope {}{}",
-                    if removed.what == "item" { "an" } else { "a" },
-                    removed.what,
-                    ago(now, Some(removed.removed_at)),
+                    "       {}{}",
+                    removed_words(removed, now),
                     match &removed.route {
                         Some(route) => format!(": {}", route.command()),
-                        None => " and held no item".to_string(),
+                        None => format!(" {REMOVED_HELD_NONE}"),
                     }
                 ));
             }
@@ -1544,14 +1616,14 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
                     .values
                     .iter()
                     .take(shown)
-                    .map(|v| format!("{} ({})", v.value.replace('\n', "\\n"), v.items))
+                    .map(carried_words)
                     .collect();
                 let more = resolved.more + resolved.values.len().saturating_sub(shown);
                 if more > 0 {
                     // the count that lists every value, where one does
                     values.push(match &resolved.rest {
-                        Some(rest) => format!("{more} more: {}", rest.command()),
-                        None => format!("{more} more"),
+                        Some(rest) => format!("{}: {}", more_words(more), rest.command()),
+                        None => more_words(more),
                     });
                 }
                 if !values.is_empty() {
@@ -1565,6 +1637,67 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
     // hangs on (`answer.rs`, C115), under `--routes` every count's — the
     // undecided, the together and the unplaced first; a count that carries
     // none is counted as left to `--routes`
+    let counted = counted(a);
+    let hidden = counted.unrouted();
+    let routed = |routes: Vec<(String, &'_ Count)>| -> Vec<(String, usize, String)> {
+        routes
+            .into_iter()
+            .filter_map(|(what, count)| {
+                count
+                    .route
+                    .as_ref()
+                    .map(|r| (what, count.count, r.command()))
+            })
+            .collect()
+    };
+    let (first, rest) = (routed(counted.first), routed(counted.rest));
+    let shown: Vec<&(String, usize, String)> = first.iter().chain(&rest).collect();
+    if !shown.is_empty() || hidden > 0 {
+        line(if hidden > 0 {
+            format!("routes  {ROUTES_RETURN} ({hidden} more: --routes)")
+        } else {
+            format!("routes  {ROUTES_RETURN}")
+        });
+        for (what, count, command) in shown {
+            line(format!("  {what} ({count}), over the scope:"));
+            line(format!("    {command}"));
+        }
+    }
+    // the basis last: what the answer was computed from, read when it is
+    // asked about, never before the answer (C115)
+    line(basis_text(&a.basis));
+    out
+}
+
+/// What a route returns, said once above the routes.
+const ROUTES_RETURN: &str = "each returns exactly the members counted";
+
+/// Every count an answer carries, each with the words that name it
+/// ("term 1 undecided", "clause stats.0.0 read the other way, drops"):
+/// those a next step hangs on first — the undecided, the together, a
+/// stake, what a count could not place — and the rest after. The one
+/// enumeration both renderers read: the text prints the routes among
+/// them, and both say how many carry none ([`Counted::unrouted`]).
+pub(crate) struct Counted<'a> {
+    pub first: Vec<(String, &'a Count)>,
+    pub rest: Vec<(String, &'a Count)>,
+}
+
+impl Counted<'_> {
+    /// The counts that are not zero and carry no route: an answer carries
+    /// those routes only where every route is asked.
+    pub(crate) fn unrouted(&self) -> usize {
+        self.first
+            .iter()
+            .chain(&self.rest)
+            .filter(|(_, count)| count.count > 0 && count.route.is_none())
+            .count()
+    }
+}
+
+/// The counts `a` carries ([`Counted`]).
+pub(crate) fn counted(a: &Answer) -> Counted<'_> {
+    let typed = a.set_aside.as_ref().unwrap_or(&a.query);
     let mut first: Vec<(String, &Count)> = Vec::new();
     let mut rest: Vec<(String, &Count)> = Vec::new();
     // what an ambiguous clause's other reading would change (C119)
@@ -1641,39 +1774,120 @@ pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> Stri
             rest.push((what, count));
         }
     }
-    let routed = |routes: Vec<(String, &'_ Count)>| -> Vec<(String, usize, String)> {
-        routes
-            .into_iter()
-            .filter_map(|(what, count)| {
-                count
-                    .route
-                    .as_ref()
-                    .map(|r| (what, count.count, r.command()))
-            })
-            .collect()
-    };
-    let hidden = first
-        .iter()
-        .chain(&rest)
-        .filter(|(_, count)| count.count > 0 && count.route.is_none())
-        .count();
-    let (first, rest) = (routed(first), routed(rest));
-    let shown: Vec<&(String, usize, String)> = first.iter().chain(&rest).collect();
-    if !shown.is_empty() || hidden > 0 {
-        line(if hidden > 0 {
-            format!("routes  each returns exactly the members counted ({hidden} more: --routes)")
-        } else {
-            "routes  each returns exactly the members counted".to_string()
-        });
-        for (what, count, command) in shown {
-            line(format!("  {what} ({count}), over the scope:"));
-            line(format!("    {command}"));
-        }
+    Counted { first, rest }
+}
+
+/// An explained node's root counts, as given or forced.
+pub(crate) fn forced_words(matched: usize, undecided: usize) -> String {
+    let mut out = plural(matched, "match", "matches");
+    if undecided > 0 {
+        out.push_str(&format!(" · {}", undecided_words(undecided)));
     }
-    // the basis last: what the answer was computed from, read when it is
-    // asked about, never before the answer (C115)
-    line(basis_text(&a.basis));
     out
+}
+
+/// A selector nothing in scope carries, and why.
+pub(crate) fn nothing_words(
+    zero: &acquisition_search::answer::Zero,
+    nothing: &acquisition_search::answer::Nothing,
+) -> String {
+    format!(
+        "nothing in scope carries the {} of term {}: {} — {}",
+        nothing.of,
+        nothing.path,
+        nothing.term,
+        match nothing.note {
+            Some(note) => note,
+            // an id that left: its term has said so
+            None if nothing.of == "id" => "it left the scope, as its term says",
+            None => zero.said,
+        }
+    )
+}
+
+/// What a zero answer's offers to explain are, said once above them.
+pub(crate) const EXPLAIN_OFFERS: &str =
+    "each part of the query forced true and forced false, the part fewest items match first";
+
+/// What a zero answer's offer of the corpus context is.
+pub(crate) const CONTEXT_OFFER: &str = "every item in scope, this query set aside";
+
+/// The parts a zero answer's offers leave out.
+pub(crate) fn more_parts_words(n: usize) -> String {
+    format!("{} more", plural(n, "part", "parts"))
+}
+
+/// An undecided reason's example item by its name.
+pub(crate) fn example_name(example: &acquisition_search::answer::Example) -> &str {
+    example.name.as_deref().unwrap_or("(no name)")
+}
+
+/// What an undecided reason's problem is, and what may help.
+pub(crate) fn reason_words(reason: &acquisition_search::answer::Reason) -> String {
+    format!("{}; {}", reason.problem, reason.hint)
+}
+
+/// The undecided reasons left out, and where the route that lists every
+/// item with its reasons stands on the surface: `below`, the text's
+/// routes block; `above`, the page's total line.
+pub(crate) fn reasons_left_out_words(n: usize, at: &str) -> String {
+    format!(
+        "{} more: the undecided route {at} lists every item with its reasons",
+        plural(n, "reason", "reasons")
+    )
+}
+
+/// What the terms block counts over.
+pub(crate) fn terms_words(scope: &acquisition_search::answer::ScopeOut) -> String {
+    format!(
+        "each term counted alone over all {} {} in all leagues, never over the matches",
+        match scope.membership {
+            Membership::Live => "live",
+            Membership::All => "live and removed",
+            Membership::Removed => "removed",
+        },
+        match &scope.realm {
+            Realm::All => "items of every realm".to_string(),
+            Realm::One(realm) => format!("{realm} items"),
+        }
+    )
+}
+
+/// A term's only-together count with its bound.
+pub(crate) fn together_words(together: &acquisition_search::answer::Together) -> String {
+    format!(
+        "{} {} {} only together",
+        together.count.count,
+        if together.count.count == 1 {
+            "reaches"
+        } else {
+            "reach"
+        },
+        number(&together.bound)
+    )
+}
+
+/// An `id:` term's id that left the scope, and when.
+pub(crate) fn removed_words(removed: &acquisition_search::answer::Removed, now: i64) -> String {
+    format!(
+        "this id is {} {} that left the scope {}",
+        if removed.what == "item" { "an" } else { "a" },
+        removed.what,
+        ago(now, Some(removed.removed_at)),
+    )
+}
+
+/// What a retired place that left matching nothing held.
+pub(crate) const REMOVED_HELD_NONE: &str = "and held no item";
+
+/// One value a value list carries, with its items.
+pub(crate) fn carried_words(v: &acquisition_search::answer::Carried) -> String {
+    format!("{} ({})", v.value.replace('\n', "\\n"), v.items)
+}
+
+/// What a list leaves out.
+pub(crate) fn more_words(n: usize) -> String {
+    format!("{n} more")
 }
 
 // ---- a count's text ------------------------------------------------------------------------------------
@@ -1688,7 +1902,7 @@ fn json_text(value: &serde_json::Value) -> String {
 /// A bucket's name: its value, or `(none)`, `(undecided)` — in brackets,
 /// since a tab may be named `none`; a tab's league and id beside its
 /// name, and its realm where the scope spans realms.
-fn label_text(label: &Label, all_realms: bool) -> String {
+pub(crate) fn label_text(label: &Label, all_realms: bool) -> String {
     let mut out = match (label.bucket, &label.value) {
         ("value", Some(value)) => json_text(value),
         ("value", None) => "(no name)".to_string(),
@@ -1711,7 +1925,7 @@ fn label_text(label: &Label, all_realms: bool) -> String {
 /// items lacking the value, the sum is over the items that have it and
 /// the rest are counted beside it, where `sum 0 · 3 lacking` read as a
 /// measured zero over every item.
-fn summed_text(sum: &Summed) -> String {
+pub(crate) fn summed_text(sum: &Summed) -> String {
     let mut out = number(&sum.value);
     if sum.lacking > 0 {
         out.push_str(&format!(
@@ -1726,7 +1940,7 @@ fn summed_text(sum: &Summed) -> String {
     out
 }
 
-fn sum_of_text(sum: &SumOf) -> String {
+pub(crate) fn sum_of_text(sum: &SumOf) -> String {
     format!("{} over every match: {}", sum.name, summed_text(&sum.total))
 }
 
@@ -1739,30 +1953,11 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
     if let Some(sum) = &bucket.sum {
         first.push_str(&format!("   sum {}", summed_text(sum)));
     }
-    let slots: Vec<String> = bucket
-        .slots
-        .iter()
-        .map(|s| {
-            let end = |n: &Option<serde_json::Value>| n.as_ref().map_or("?".to_string(), number);
-            format!(
-                "{} {}..{}{}",
-                s.slot,
-                end(&s.min),
-                end(&s.max),
-                if s.incomplete { " (incomplete)" } else { "" }
-            )
-        })
-        .collect();
-    if !slots.is_empty() {
-        first.push_str(&format!("   {}", slots.join(" · ")));
+    if let Some(slots) = slots_words(bucket) {
+        first.push_str(&format!("   {slots}"));
     }
-    if !bucket.tally.is_empty() {
-        let tally: Vec<String> = bucket
-            .tally
-            .iter()
-            .map(|t| format!("{} unread {}", t.unread, t.items))
-            .collect();
-        first.push_str(&format!("   {}", tally.join(" · ")));
+    if let Some(tally) = tally_words(&bucket.tally) {
+        first.push_str(&format!("   {tally}"));
     }
     let mut out = vec![first];
     // a vocabulary row carries the term that selects it, ready to paste
@@ -1790,12 +1985,60 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
     out
 }
 
+/// A bucket's slots, each its range.
+pub(crate) fn slots_words(bucket: &Bucket) -> Option<String> {
+    let slots: Vec<String> = bucket
+        .slots
+        .iter()
+        .map(|s| {
+            let end = |n: &Option<serde_json::Value>| n.as_ref().map_or("?".to_string(), number);
+            format!(
+                "{} {}..{}{}",
+                s.slot,
+                end(&s.min),
+                end(&s.max),
+                if s.incomplete { " (incomplete)" } else { "" }
+            )
+        })
+        .collect();
+    (!slots.is_empty()).then(|| slots.join(" · "))
+}
+
+/// What a count could not read, by kind, with its items.
+pub(crate) fn tally_words(tally: &[acquisition_search::counts::Tallied]) -> Option<String> {
+    let tally: Vec<String> = tally
+        .iter()
+        .map(|t| format!("{} unread {}", t.unread, t.items))
+        .collect();
+    (!tally.is_empty()).then(|| tally.join(" · "))
+}
+
 /// What `--limit` is beside a count, where the two meet.
 fn limit_text(limit: usize) -> String {
     format!("limit   {limit}, the values a table lists: a count shows no rows")
 }
 
 fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
+    let head = format!(
+        "count   {}",
+        table_head_words(table, ": a larger --limit returns the rest")
+    );
+    std::iter::once(head)
+        .chain(
+            table
+                .buckets
+                .iter()
+                .flat_map(|b| bucket_text(b, all_realms)),
+        )
+        .chain(unmatched_text(&table.unmatched_leagues))
+        .collect()
+}
+
+/// A count table's heading: its key, the values it lists — every
+/// special bucket among them — and, where values are left out, how many
+/// are shown, followed by `rest`, the surface's words for how to see the
+/// rest.
+pub(crate) fn table_head_words(table: &Table, rest: &str) -> String {
     let (one, many) = if table.key.starts_with("line") {
         ("template", "templates")
     } else {
@@ -1811,13 +2054,13 @@ fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
         .filter(|b| matches!(b.label.bucket, "none" | "undecided"))
         .count();
     let mut head = format!(
-        "count   {} · {}",
+        "{} · {}",
         table.key,
         plural(table.values + special, one, many)
     );
     if table.left_out > 0 {
         head.push_str(&format!(
-            " · {} shown: a larger --limit returns the rest",
+            " · {} shown{rest}",
             table.values - table.left_out + special
         ));
     }
@@ -1828,46 +2071,34 @@ fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
         ));
         if table.computed_left_out > 0 {
             head.push_str(&format!(
-                " · {} shown: a larger --limit returns the rest",
+                " · {} shown{rest}",
                 table.computed - table.computed_left_out
             ));
         }
     }
-    std::iter::once(head)
-        .chain(
-            table
-                .buckets
-                .iter()
-                .flat_map(|b| bucket_text(b, all_realms)),
-        )
-        .chain(unmatched_text(&table.unmatched_leagues))
-        .collect()
+    head
 }
 
 /// The scope's leagues no match is in, after a table keyed by `league`:
 /// a bucket is a value an item holds, so they have none (#173).
 fn unmatched_text(leagues: &[String]) -> Option<String> {
+    unmatched_words(leagues).map(|words| format!("           {words}"))
+}
+
+pub(crate) fn unmatched_words(leagues: &[String]) -> Option<String> {
     (!leagues.is_empty()).then(|| {
         format!(
-            "           the scope's leagues no match is in have no bucket: {}",
+            "the scope's leagues no match is in have no bucket: {}",
             leagues.join(", ")
         )
     })
 }
 
 fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
-    let mut head = format!(
-        "cross   {} · {}",
-        cross.keys.join(" × "),
-        plural(cross.cells_in_all, "cell", "cells")
-    );
-    if cross.left_out > 0 {
-        head.push_str(&format!(
-            " · {} shown: a larger --limit returns the rest",
-            cross.cells_in_all - cross.left_out
-        ));
-    }
-    let mut out = vec![head];
+    let mut out = vec![format!(
+        "cross   {}",
+        cross_head_words(cross, ": a larger --limit returns the rest")
+    )];
     for cell in &cross.cells {
         let of: Vec<String> = cell.of.iter().map(|l| label_text(l, all_realms)).collect();
         let mut row = format!("  {:>7}  {}", cell.count.count, of.join(" × "));
@@ -1893,16 +2124,27 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
             ));
         }
     }
-    if !cross.tally.is_empty() {
-        let tally: Vec<String> = cross
-            .tally
-            .iter()
-            .map(|t| format!("{} unread {}", t.unread, t.items))
-            .collect();
-        out.push(format!("           undecided: {}", tally.join(" · ")));
+    if let Some(tally) = tally_words(&cross.tally) {
+        out.push(format!("           undecided: {tally}"));
     }
     out.extend(unmatched_text(&cross.unmatched_leagues));
     out
+}
+
+/// A crossed table's heading, as [`table_head_words`] says a table's.
+pub(crate) fn cross_head_words(cross: &CrossOut, rest: &str) -> String {
+    let mut head = format!(
+        "{} · {}",
+        cross.keys.join(" × "),
+        plural(cross.cells_in_all, "cell", "cells")
+    );
+    if cross.left_out > 0 {
+        head.push_str(&format!(
+            " · {} shown{rest}",
+            cross.cells_in_all - cross.left_out
+        ));
+    }
+    head
 }
 
 /// `--describe` as text, a function of the document it is given (C53):
@@ -2121,22 +2363,18 @@ fn describe_text(d: &Describe, totals: bool) -> String {
 /// `show`'s text. `account` is the name of the account the item was shown
 /// for, which the price's why line opens with: the basis names the
 /// account by its uuid, a fingerprint, where every printed command names
-/// it as the person does (the page seat's fault 13).
+/// it as the person does (the page seat's fault 13). The item page says
+/// the same facts in the same words, each made by the functions this
+/// calls, with no why line.
 pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     let item = &s.item;
     let mut out = String::new();
-    let mut head = title(item.name.as_deref(), item.typeline.as_deref());
-    for (label, value) in [("", &item.rarity), ("frame ", &item.frame)] {
-        if let Some(value) = value {
-            head.push_str(&format!(" · {label}{}", value.to_lowercase()));
-        }
-    }
-    out.push_str(&format!("{head}\n"));
+    out.push_str(&format!("{}\n", shown_title(s)));
     out.push_str(&format!("id      {}\n", item.facts.id));
     if let Some(removed_at) = item.facts.removed_at {
         out.push_str(&format!(
-            "removed {}: no longer in the stash, shown as it was last seen\n",
-            ago(acquisition_store::now(), Some(removed_at))
+            "removed {}\n",
+            shown_removed_words(acquisition_store::now(), removed_at)
         ));
     }
     out.push_str(&format!(
@@ -2147,78 +2385,28 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     if let Some(base) = &item.base {
         out.push_str(&format!("base    {base}\n"));
     }
-    // what the class table says (C106): the class, or why there is none
-    use acquisition_search::Classed;
-    match &s.class {
-        Classed::Is(class) => out.push_str(&format!("class   {class}\n")),
-        Classed::All(classes) => out.push_str(&format!(
-            "class   {} (each: the table lists the base under both)\n",
-            classes.join(", ")
-        )),
-        Classed::Among { why, .. } | Classed::Open(why) => {
-            out.push_str(&format!("class   undecided: {}\n", why.problem));
-        }
-        Classed::BaseUnread => out.push_str("class   undecided: the base was not read\n"),
-        Classed::FrameUnread { .. } => out.push_str(
-            "class   undecided: the frame, which decides an invitation's class, was not read\n",
-        ),
-        Classed::BestiaryUnread { candidates, .. } => out.push_str(&format!(
-            "class   undecided: the bestiary line, which tells a captured beast, was not read — {}\n",
-            candidates.join(" or ")
-        )),
-    }
-    // the category (C106): the id or ids a count lists the item under,
-    // none, or undecided — and the reason wherever an id is left open
-    let category = &s.category;
-    out.push_str(&match category.bucket {
-        "value" => format!("category {}\n", category.listed.join(", ")),
-        other => format!("category {other}\n"),
-    });
-    for open in &category.open {
-        let ids = if open.ids.len() <= 4 {
-            open.ids.join(", ")
-        } else {
-            plural(open.ids.len(), "id", "ids")
-        };
-        out.push_str(&format!("         open {ids}: {}\n", open.why.problem));
+    out.push_str(&format!("class   {}\n", class_words(&s.class)));
+    out.push_str(&format!("category {}\n", category_words(&s.category)));
+    for open in &s.category.open {
+        out.push_str(&format!("         open {}\n", open_words(open)));
     }
     // what the listing state prices it at (C81): the price, or why none —
     // and the command that says why, with the target form `price show`
     // takes, ready to paste (the trade seat: cli-sonnet-2 call 24, its
-    // fault 6, found `item/<id>` only in a refusal)
-    let target = format!("item/{}", item.facts.id);
-    // a removed item has no listing state for `price show` to read; the
-    // command opens as every printed command does, with the account the
-    // item was shown for, by its name, and its realm, since the defaults
-    // are another account's or another realm's where the store holds
-    // several
+    // fault 6, found `item/<id>` only in a refusal); a removed item has no
+    // listing state for `price show` to read; the command opens as every
+    // printed command does, with the account the item was shown for, by
+    // its name, and its realm, since the defaults are another account's
+    // or another realm's where the store holds several
     let why = match &s.price {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
         _ => format!(
-            " · why: {} {target}",
-            crate::printed::opening("price show", Some(account), Some(&s.place.realm))
+            " · why: {} item/{}",
+            crate::printed::opening("price show", Some(account), Some(&s.place.realm)),
+            item.facts.id
         ),
     };
-    match &s.price {
-        Priced::Is(p) => out.push_str(&format!(
-            "price   {} · {}{}{why}\n",
-            p.text,
-            p.side,
-            p.from
-                .as_deref()
-                .filter(|from| *from != target)
-                .map(|from| format!(" · from {from}"))
-                .unwrap_or_default()
-        )),
-        // why none, in the words the JSON carries: `none (none)` read as
-        // two empty fields (the re-sit, cli-opus call 41, its fault 7)
-        Priced::None { why: reason, .. } => {
-            out.push_str(&format!("price   none ({reason}){why}\n"))
-        }
-        Priced::Open(reason) => {
-            out.push_str(&format!("price   undecided: {}{why}\n", reason.problem))
-        }
-    }
+    out.push_str(&format!("price   {}{why}\n", price_words(s)));
     if let Some(stack) = item.stack {
         out.push_str(&format!("stack   {stack}\n"));
     }
@@ -2228,87 +2416,33 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     if !item.flags.is_empty() {
         out.push_str(&format!("is      {}\n", item.flags.join(", ")));
     }
-    // the sockets as the game shows them, and the largest link group
-    if let Some(groups) = acquisition_search::sockets::groups(item) {
-        let layout = groups.layout();
-        let links = match groups.links() {
-            acquisition_search::sockets::Counted::Absent => "no link group".to_string(),
-            counted => match (counted.value(), counted.floor()) {
-                (Some(n), _) => format!("links {n}"),
-                (None, Some(floor)) => format!("links at least {floor}, not established"),
-                (None, None) => "links not established".to_string(),
-            },
-        };
-        out.push_str(&format!(
-            "sockets {} · {links}\n",
-            if layout.is_empty() { "none" } else { &layout }
-        ));
+    if let Some(sockets) = sockets_words(item) {
+        out.push_str(&format!("sockets {sockets}\n"));
     }
-    let shown: Vec<&str> = item
-        .properties
-        .iter()
-        .map(|p| p.text.as_str())
-        .chain(item.item_level.as_deref())
-        .chain(item.requires.as_deref())
-        .collect();
-    for (i, text) in shown.iter().enumerate() {
+    for (i, text) in shown_properties(item).iter().enumerate() {
         out.push_str(&format!(
             "{}{}\n",
             if i == 0 { "shown   " } else { "        " },
-            text.replace('\n', " / ")
+            text
         ));
     }
     for (i, l) in s.lines.iter().enumerate() {
-        let kind: Vec<&str> = std::iter::once(l.line.source.as_str())
-            .chain(l.line.flags.iter().map(String::as_str))
-            .collect();
         out.push_str(&format!(
             "{}{:<22}{}\n",
             if i == 0 { "lines   " } else { "        " },
-            kind.join(", "),
+            line_kind_words(l),
             l.line.text.replace('\n', " / ")
         ));
-        let slots: Vec<String> = l
-            .slots
-            .iter()
-            .map(|(word, n)| format!("{word} {}", number(n)))
-            .collect();
-        out.push_str(&format!(
-            "        {:<22}\"{}\"{}\n",
-            "",
-            l.line.template.replace('\n', "\\n"),
-            if slots.is_empty() {
-                String::new()
-            } else {
-                format!("   {}", slots.join(" · "))
-            }
-        ));
-        // a mod of several rows: each row is a name of it, and names its
-        // own numbers
+        out.push_str(&format!("        {:<22}{}\n", "", line_template_words(l)));
         for row in &l.line.rows {
-            let slots: Vec<String> = row
-                .read()
-                .slots()
-                .into_iter()
-                .map(|(word, n)| format!("{word} {}", slot_number(n)))
-                .collect();
-            out.push_str(&format!(
-                "        {:<22}row \"{}\"{}\n",
-                "",
-                row.template,
-                if slots.is_empty() {
-                    String::new()
-                } else {
-                    format!("   {}", slots.join(" · "))
-                }
-            ));
+            out.push_str(&format!("        {:<22}{}\n", "", line_row_words(row)));
         }
         if let Some(limit) = l.limit {
             out.push_str(&format!("        {:<22}{limit}\n", ""));
         }
     }
     if item.unread.is_empty() {
-        out.push_str("unread  nothing\n");
+        out.push_str(&format!("unread  {UNREAD_NOTHING}\n"));
     }
     for (i, u) in item.unread.iter().enumerate() {
         out.push_str(&format!(
@@ -2320,13 +2454,8 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
     // why the item does or does not match a query: the root's outcome,
     // then each node's, a term with what it touched or why it is open
     if let Some(against) = &s.against {
-        let query = if against.query.text.is_empty() {
-            "(every item in scope)"
-        } else {
-            &against.query.text
-        };
-        out.push_str(&format!("against {query}\n"));
-        out.push_str(&format!("        {}\n", against.outcome.replace('_', " ")));
+        out.push_str(&format!("against {}\n", query_words(&against.query.text)));
+        out.push_str(&format!("        {}\n", outcome_words(against.outcome)));
         let width = against
             .nodes
             .iter()
@@ -2340,16 +2469,15 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
                 "  {:<path_width$}{:<width$}  {}\n",
                 node.path,
                 node.node,
-                node.outcome.replace('_', " ")
+                outcome_words(node.outcome)
             ));
             if !node.shows.is_empty() {
-                let shows: Vec<String> = node.shows.iter().map(evidence_text).collect();
-                out.push_str(&format!("            {}\n", shows.join(" · ")));
+                out.push_str(&format!("            {}\n", node_shows_words(node)));
             }
             if node.left_out > 0 {
                 out.push_str(&format!(
-                    "            {} more: the item whole is above\n",
-                    node.left_out
+                    "            {}\n",
+                    node_left_out_words(node.left_out)
                 ));
             }
         }
@@ -2359,6 +2487,187 @@ pub(crate) fn shown_text(s: &Shown, account: &str) -> String {
         out.push_str(&format!("body    {body}\n"));
     }
     out
+}
+
+/// An item's title as `show` heads it: its name and type, its rarity and
+/// its frame.
+pub(crate) fn shown_title(s: &Shown) -> String {
+    let item = &s.item;
+    let mut head = title(item.name.as_deref(), item.typeline.as_deref());
+    for (label, value) in [("", &item.rarity), ("frame ", &item.frame)] {
+        if let Some(value) = value {
+            head.push_str(&format!(" · {label}{}", value.to_lowercase()));
+        }
+    }
+    head
+}
+
+/// When a removed item left, and what is shown of it.
+pub(crate) fn shown_removed_words(now: i64, removed_at: i64) -> String {
+    format!(
+        "{}: no longer in the stash, shown as it was last seen",
+        ago(now, Some(removed_at))
+    )
+}
+
+/// What the class table says (C106): the class, or why there is none.
+pub(crate) fn class_words(class: &acquisition_search::Classed) -> String {
+    use acquisition_search::Classed;
+    match class {
+        Classed::Is(class) => class.to_string(),
+        Classed::All(classes) => format!(
+            "{} (each: the table lists the base under both)",
+            classes.join(", ")
+        ),
+        Classed::Among { why, .. } | Classed::Open(why) => format!("undecided: {}", why.problem),
+        Classed::BaseUnread => "undecided: the base was not read".to_string(),
+        Classed::FrameUnread { .. } => {
+            "undecided: the frame, which decides an invitation's class, was not read".to_string()
+        }
+        Classed::BestiaryUnread { candidates, .. } => format!(
+            "undecided: the bestiary line, which tells a captured beast, was not read — {}",
+            candidates.join(" or ")
+        ),
+    }
+}
+
+/// The category (C106): the id or ids a count lists the item under,
+/// none, or undecided.
+pub(crate) fn category_words(category: &acquisition_search::category::Shown) -> String {
+    match category.bucket {
+        "value" => category.listed.join(", "),
+        other => other.to_string(),
+    }
+}
+
+/// A category's ids left open, and why.
+pub(crate) fn open_words(open: &acquisition_search::category::Open) -> String {
+    let ids = if open.ids.len() <= 4 {
+        open.ids.join(", ")
+    } else {
+        plural(open.ids.len(), "id", "ids")
+    };
+    format!("{ids}: {}", open.why.problem)
+}
+
+/// What the listing state prices the item at (C81): the price, its side,
+/// and the row it is priced from where that is not the item's own; or
+/// none with the reason, in the words the JSON carries (`none (none)`
+/// read as two empty fields: the re-sit, cli-opus call 41, its fault 7);
+/// or undecided with the problem.
+pub(crate) fn price_words(s: &Shown) -> String {
+    let target = format!("item/{}", s.item.facts.id);
+    match &s.price {
+        Priced::Is(p) => format!(
+            "{} · {}{}",
+            p.text,
+            p.side,
+            p.from
+                .as_deref()
+                .filter(|from| *from != target)
+                .map(|from| format!(" · from {from}"))
+                .unwrap_or_default()
+        ),
+        Priced::None { why: reason, .. } => format!("none ({reason})"),
+        Priced::Open(reason) => format!("undecided: {}", reason.problem),
+    }
+}
+
+/// The sockets as the game shows them, and the largest link group.
+pub(crate) fn sockets_words(item: &acquisition_search::derive::Item) -> Option<String> {
+    let groups = acquisition_search::sockets::groups(item)?;
+    let layout = groups.layout();
+    let links = match groups.links() {
+        acquisition_search::sockets::Counted::Absent => "no link group".to_string(),
+        counted => match (counted.value(), counted.floor()) {
+            (Some(n), _) => format!("links {n}"),
+            (None, Some(floor)) => format!("links at least {floor}, not established"),
+            (None, None) => "links not established".to_string(),
+        },
+    };
+    Some(format!(
+        "{} · {links}",
+        if layout.is_empty() { "none" } else { &layout }
+    ))
+}
+
+/// The item's shown properties, its item level and its requirements.
+pub(crate) fn shown_properties(item: &acquisition_search::derive::Item) -> Vec<String> {
+    item.properties
+        .iter()
+        .map(|p| p.text.as_str())
+        .chain(item.item_level.as_deref())
+        .chain(item.requires.as_deref())
+        .map(|text| text.replace('\n', " / "))
+        .collect()
+}
+
+/// A line's source and flags.
+pub(crate) fn line_kind_words(l: &acquisition_search::show::ShownLine) -> String {
+    std::iter::once(l.line.source.as_str())
+        .chain(l.line.flags.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// A line's template, quoted, and its slots.
+pub(crate) fn line_template_words(l: &acquisition_search::show::ShownLine) -> String {
+    let slots: Vec<String> = l
+        .slots
+        .iter()
+        .map(|(word, n)| format!("{word} {}", number(n)))
+        .collect();
+    format!(
+        "\"{}\"{}",
+        l.line.template.replace('\n', "\\n"),
+        if slots.is_empty() {
+            String::new()
+        } else {
+            format!("   {}", slots.join(" · "))
+        }
+    )
+}
+
+/// A row of a mod of several: each row is a name of it, and names its
+/// own numbers.
+pub(crate) fn line_row_words(row: &acquisition_search::derive::Row) -> String {
+    let slots: Vec<String> = row
+        .read()
+        .slots()
+        .into_iter()
+        .map(|(word, n)| format!("{word} {}", slot_number(n)))
+        .collect();
+    format!(
+        "row \"{}\"{}",
+        row.template,
+        if slots.is_empty() {
+            String::new()
+        } else {
+            format!("   {}", slots.join(" · "))
+        }
+    )
+}
+
+/// What an item with nothing unread says of it.
+pub(crate) const UNREAD_NOTHING: &str = "nothing";
+
+/// An outcome against a query, as words.
+pub(crate) fn outcome_words(outcome: &str) -> String {
+    outcome.replace('_', " ")
+}
+
+/// What a node of `show --against` touched.
+pub(crate) fn node_shows_words(node: &acquisition_search::show::AgainstNode) -> String {
+    node.shows
+        .iter()
+        .map(evidence_text)
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+/// What a node touched past what it shows.
+pub(crate) fn node_left_out_words(n: usize) -> String {
+    format!("{n} more: the item whole is above")
 }
 
 /// A view's or a construct's name, the request's word, as this terminal

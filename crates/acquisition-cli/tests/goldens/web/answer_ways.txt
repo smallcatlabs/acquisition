@@ -1,0 +1,206 @@
+# golden web/answer_ways: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET search?<every ring, tabs never fetched in two leagues>
+# holds "data-way=\"tabs\" href=\"/"
+# holds "/refresh?realm=pc&amp;league=Standard\">each tab of Standard</a>"
+# holds "1 other league holds never-fetched tabs"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:61,&quot;facts_version&quot;:9,&quot;response&quot;:9},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">3 matches</p>
+<p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
+<table class="opening">
+<tr><th>Query</th><td>class:rings</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a><br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
+</table>
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 9 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<every ring outside Standard>
+# holds "/refresh?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:61,&quot;facts_version&quot;:9,&quot;response&quot;:9},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">0 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>class:rings -league=Standard</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Hardcore">each tab of Hardcore</a></td></tr>
+<tr><th>Total</th><td>0 matches<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<div class="zero">
+<p>Offers: each part of the query forced true and forced false, the part fewest items match first</p>
+<ul class="offers">
+<li><span class="way" data-way="/zero/offers/explain/0">part 1: -league=Standard</span></li>
+<li><span class="way" data-way="/zero/offers/explain/1">part 0: class:rings</span></li>
+</ul>
+<p><span class="way" data-way="/zero/offers/context">every item in scope, this query set aside</span></p>
+</div>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>class:rings</td><td><a class="way" data-way="/terms/0/matched" href="/<token>/search?realm=pc&amp;text=class%3Arings">3</a></td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1</a></td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Rings (3)</td></tr>
+<tr><td>1.0</td><td>league=Standard</td><td><a class="way" data-way="/terms/1/matched" href="/<token>/search?realm=pc&amp;text=league%3DStandard">5</a></td><td>0</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">1 more count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 9 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings -league=Standard</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="class:rings -league=Standard"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<the id that left>
+# holds "this id is an item that left the scope"
+# holds "data-way=\"/terms/0/removed\" href="
+# holds ">find it under membership all</a>"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:70,&quot;facts_version&quot;:9,&quot;response&quot;:10},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">0 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>id:r2</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 3 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>0 matches<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<div class="zero">
+<p>nothing in scope carries the id of term 0: id:r2 — it left the scope, as its term says</p>
+<p>Offers: each part of the query forced true and forced false, the part fewest items match first</p>
+<ul class="offers">
+<li><span class="way" data-way="/zero/offers/explain/0">part 0: id:r2</span></li>
+</ul>
+<p><span class="way" data-way="/zero/offers/context">every item in scope, this query set aside</span></p>
+</div>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>id:r2</td><td>0</td><td>3</td><td>0</td><td>0</td><td></td></tr>
+<tr class="removed"><td></td><td colspan="6">this id is an item that left the scope <age> ago · <a class="way" data-way="/terms/0/removed" href="/<token>/search?realm=pc&amp;membership=all&amp;text=id%3Ar2">find it under membership all</a></td></tr>
+</table>
+<p class="unrouted">1 more count carries no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 10 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">id:r2</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="id:r2"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<a name eleven items carry>
+# holds "Kestrel 01 (1)"
+# holds "Kestrel 10 (1)"
+# holds "data-way=\"/terms/0/resolved/rest\""
+# holds ">1 more<"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:81,&quot;facts_version&quot;:9,&quot;response&quot;:12},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">11 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>name:kestrel</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 14 items · 3 locations fetched<br>3 locations never fetched: PremiumStash 3 of 6 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>11 matches (fetched <age> ago, pc · Standard / Kestrels)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k01">Kestrel 01 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 1, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k02">Kestrel 02 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 2, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k03">Kestrel 03 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 3, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k04">Kestrel 04 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 4, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k05">Kestrel 05 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 5, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k06">Kestrel 06 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 6, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k07">Kestrel 07 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 7, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k08">Kestrel 08 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 8, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k09">Kestrel 09 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 9, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/k10">Kestrel 10 Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Kestrels · x 10, y 0 · fetched <age> ago</td></tr>
+</table>
+<p>rows 1–10 of 11 shown · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>name:kestrel</td><td>11</td><td>3</td><td>0</td><td>0</td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Kestrel 01 (1) · Kestrel 02 (1) · Kestrel 03 (1) · Kestrel 04 (1) · Kestrel 05 (1) · Kestrel 06 (1) · Kestrel 07 (1) · Kestrel 08 (1) · Kestrel 09 (1) · Kestrel 10 (1) · <a class="way" data-way="/terms/0/resolved/rest" href="/<token>/search?realm=pc&amp;text=name%3Akestrel&amp;view.count=name">1 more</a></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 12 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">name:kestrel</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="name:kestrel"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<a site search with an ambiguous clause>
+# holds "<td>ambiguous</td><td>stats.0.0</td>"
+# holds "read the other way: adds 0, drops <a class=\"way\" data-way=\"/query/trade/clauses/1/other/drops\" href="
+<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:91,&quot;facts_version&quot;:9,&quot;response&quot;:14},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<main>
+<h1>Answer</h1>
+<p class="count">2 matches</p>
+<p><span class="badge">ambiguous: 2 clauses as the site may not read</span></p>
+<section class="trade">
+<p>from the query JSON: ambiguous — every clause ran, 2 as the site may not read them</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<table class="clauses">
+<tr><th>Status</th><th>Clause</th><th>Says</th></tr>
+<tr><td>ambiguous</td><td>stats.0.0</td><td>the bound sums the text and its plurals; not its forms &quot;#% reduced Rarity of Items found&quot; (opposite) · read the other way: adds 0, drops <a class="way" data-way="/query/trade/clauses/1/other/drops" href="/<token>/search?realm=pc&amp;text=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29%3E%3D20%20line%28%22%23%25%20reduced%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29%20line%28%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20or%20%22Lose%20%23%25%20of%20Mana%20on%20Kill%22%29%20source%3Dexplicit%29">1</a></td></tr>
+<tr><td>ambiguous</td><td>stats.0.1</td><td>the text&#39;s other id: explicit.stat_1604736568</td></tr>
+</table>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1)&gt;=20 line((&quot;Recover #% of Mana on Kill&quot; or &quot;Lose #% of Mana on Kill&quot;) source=explicit)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 16 items · 4 locations fetched<br>3 locations never fetched: PremiumStash 3 of 7 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rarity)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"></td><td><a class="name rarity-" href="item/both">Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate"></span></td><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 30<br>30% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</td><td>Standard / Rarity · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-" href="item/plain">Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate"></span></td><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 25<br>25% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</td><td>Standard / Rarity · x 0, y 0 · fetched <age> ago</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1)&gt;=20</td><td>2</td><td>14</td><td>0</td><td>0</td><td></td></tr>
+<tr><td>1</td><td>line((&quot;Recover #% of Mana on Kill&quot; or &quot;Lose #% of Mana on Kill&quot;) source=explicit)</td><td>2</td><td>0</td><td>14</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">4 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 14 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1)&gt;=20 line((&quot;Recover #% of Mana on Kill&quot; or &quot;Lose #% of Mana on Kill&quot;) source=explicit)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1)&gt;=20 line((&quot;Recover #% of Mana on Kill&quot; or &quot;Lose #% of Mana on Kill&quot;) source=explicit)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>

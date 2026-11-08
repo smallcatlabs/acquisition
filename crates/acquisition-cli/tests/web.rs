@@ -416,9 +416,9 @@ fn a_trade_url_in_the_box_answers_as_acq_search_trade_does() {
     let main = unescaped(main_of(&answer.body));
     for fact in [
         "not the site's search: 2 clauses not run",
-        "trade   from a URL: PARTIAL — 2 clauses not run",
-        "NOT RUN   stats.1    A crucible tree path is not read",
-        "reported  status",
+        "from a URL: PARTIAL — 2 clauses not run",
+        "<td>NOT RUN</td><td>stats.1</td><td>A crucible tree path is not read",
+        "<td>reported</td><td>status</td>",
         TRADE_TEXT,
     ] {
         assert!(main.contains(fact), "{fact}: {main}");
@@ -625,13 +625,14 @@ fn every_search_page_is_a_wording_golden() {
             "Run the site's search",
         ],
     );
-    let answer = web.get(&format!("search?{}", query_string(&ring_search())));
+    let ring_path = format!("search?{}", query_string(&ring_search()));
+    let answer = web.get(&ring_path);
     pages.page(
         "GET search?<the ring search>",
         &answer,
         &[
             "from the query JSON: exact",
-            "total   2 matches",
+            "<th>Total</th><td>2 matches",
             "Doom Loop",
             "Rune Coil",
             "alt=\"Doom Loop Two-Stone Ring\"",
@@ -641,36 +642,42 @@ fn every_search_page_is_a_wording_golden() {
             "+95 to maximum Life",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
     // the query box: the answer holds the text it ran, to edit; an edited
-    // text runs as the user's own query, the trade input dropped
+    // text runs as the user's own query, the trade input dropped — the
+    // translation's section on the ring search's answer, none on the edit
     assert!(answer.body.contains("name=\"text\""), "{}", answer.body);
-    let edited = web.get(&format!(
+    assert!(answer.body.contains("class=\"trade\""), "{}", answer.body);
+    let edited_path = format!(
         "search?{}",
         query_string(&[
             ("realm", "pc"),
             ("text", "class:rings \"# to maximum Life\">=90")
         ])
-    ));
+    );
+    let edited = web.get(&edited_path);
     assert_eq!(edited.status, 200, "{}", edited.body);
-    assert!(!edited.body.contains("trade   from"), "{}", edited.body);
+    assert!(!edited.body.contains("class=\"trade\""), "{}", edited.body);
     pages.page(
         "GET search?<an edited text>",
         &edited,
         &[
-            "query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)",
-            "total   1 match",
+            "<th>Query</th><td>class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)",
+            "<th>Total</th><td>1 match",
             "Doom Loop",
             "The query, in the language",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &edited_path, &edited);
     // the trade box (#188): a URL, its fidelity and its clauses; a URL
     // naming another realm than the page's; the query JSON with the
     // site's sort, reported and not applied; the two boxes together
     let url = crate::search_json::trade_url();
-    let traded = web.get(&format!(
+    let traded_path = format!(
         "search?{}",
         query_string(&[("realm", "pc"), ("trade", url.as_str())])
-    ));
+    );
+    let traded = web.get(&traded_path);
     assert_eq!(traded.status, 200, "{}", traded.body);
     pages.page(
         "GET search?<a trade site search's URL>",
@@ -678,25 +685,34 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "not the site&#39;s search: 2 clauses not run",
             "from a URL: PARTIAL",
-            "NOT RUN   stats.1 ",
-            "reported  status",
+            "<td>NOT RUN</td><td>stats.1</td>",
+            "<td>reported</td><td>status</td>",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &traded_path, &traded);
     let elsewhere = format!(
         "https://www.pathofexile.com/trade/search/xbox/Hardcore/{}",
         crate::search_json::TRADE_ID
     );
-    let moved = web.get(&format!(
+    let moved_path = format!(
         "search?{}",
         query_string(&[("realm", "pc"), ("trade", elsewhere.as_str())])
-    ));
+    );
+    let moved = web.get(&moved_path);
     assert_eq!(moved.status, 200, "{}", moved.body);
+    // a zero answer's offers, which no page asks: each in words, no link
     pages.page(
         "GET search?<an xbox URL from the pc page>",
         &moved,
-        &["names its realm, xbox: it ran there, not in pc"],
+        &[
+            "names its realm, xbox: it ran there, not in pc",
+            "<span class=\"way\" data-way=\"/zero/offers/explain/0\">part ",
+            "<span class=\"way\" data-way=\"/zero/offers/explain/1\">part ",
+            "<span class=\"way\" data-way=\"/zero/offers/context\">every item in scope, this query set aside</span>",
+        ],
     );
-    let sorted = web.get(&format!(
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &moved_path, &moved);
+    let sorted_path = format!(
         "search?{}",
         query_string(&[
             ("realm", "pc"),
@@ -705,16 +721,18 @@ fn every_search_page_is_a_wording_golden() {
                 r#"{"query":{"filters":{"type_filters":{"filters":{"category":{"option":"accessory.ring"}}}}},"sort":{"price":"asc"}}"#
             ),
         ])
-    ));
+    );
+    let sorted = web.get(&sorted_path);
     assert_eq!(sorted.status, 200, "{}", sorted.body);
     pages.page(
         "GET search?<the site's query JSON with its sort>",
         &sorted,
         &[
             "from the query JSON: exact",
-            "reported  sort  The site&#39;s sort is reported and not applied",
+            "<td>reported</td><td>sort</td><td>The site&#39;s sort is reported and not applied",
         ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &sorted_path, &sorted);
     let both = web.get(&format!(
         "search?{}",
         query_string(&[
@@ -729,7 +747,7 @@ fn every_search_page_is_a_wording_golden() {
         &both,
         &["not both: run one box at a time"],
     );
-    let counted = web.get(&format!(
+    let counted_path = format!(
         "search?{}",
         query_string(&[
             ("realm", "pc"),
@@ -737,14 +755,76 @@ fn every_search_page_is_a_wording_golden() {
             ("view.count", "rarity"),
             ("view.limit", "20"),
         ])
-    ));
+    );
+    let counted = web.get(&counted_path);
     assert_eq!(counted.status, 200, "{}", counted.body);
-    assert!(!counted.body.contains("<table>"), "a count shows no rows");
+    // a count shows no rows: its tables, and no rows table
+    assert!(
+        !counted.body.contains("class=\"results\""),
+        "{}",
+        counted.body
+    );
+    assert!(
+        counted.body.contains("class=\"counted\""),
+        "{}",
+        counted.body
+    );
     pages.page(
         "GET search?<the league counted by rarity>",
         &counted,
-        &["count   rarity · 2 values", "4  rare", "1  unique"],
+        &[
+            "Count rarity · 2 values",
+            "<td>4</td><td>rare</td>",
+            "<td>1</td><td>unique</td>",
+        ],
     );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, &counted_path, &counted);
+    // rows left out: the continuation, a link that answers the next rows
+    let first_path = "search?realm=pc&text=class%3Arings&view.limit=1";
+    let first = web.get(first_path);
+    assert_eq!(first.status, 200, "{}", first.body);
+    pages.page(
+        "GET search?<every ring, one row shown>",
+        &first,
+        &[
+            "rows 1–1 of 3 shown · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
+            "search?next=acq1.",
+            "\">more</a>",
+            "data-way=\"/terms/0/undecided\" href=",
+        ],
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, first_path, &first);
+    // a count whose undecided bucket carries its route by default: the
+    // chalice whose base the class table lacks
+    let classed_path = "search?realm=pc&view.count=class";
+    let classed = web.get(classed_path);
+    assert_eq!(classed.status, 200, "{}", classed.body);
+    pages.page(
+        "GET search?<every item counted by class>",
+        &classed,
+        &[
+            "Count class · ",
+            "data-way=\"/view/counts/tables/0/buckets/2\" href=",
+            ">1</a></td><td>(undecided) · ",
+        ],
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, classed_path, &classed);
+    // a zero answer whose one candidate is undecided: its undecided in the
+    // zero block, a way, beside the total's
+    let zero_path = "search?realm=pc&text=class%3Arings+name%3D%22Brood+Lure%22";
+    let zero = web.get(zero_path);
+    assert_eq!(zero.status, 200, "{}", zero.body);
+    assert_eq!(web.get_json(zero_path)["total"]["matched"], 0);
+    pages.page(
+        "GET search?<rings named as the undecided chalice is>",
+        &zero,
+        &[
+            "<p class=\"count\">0 matches</p>",
+            "<p>No match · <a class=\"way\" data-way=\"/zero/undecided\" href=",
+            "data-way=\"/total/undecided\" href=",
+        ],
+    );
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, zero_path, &zero);
     // a sort beside a count is the shared view selection's refusal, as
     // the CLI's `--count` beside `--sort` is
     let both = web.get("search?realm=pc&view.count=rarity&view.sort=ilvl");
@@ -755,20 +835,22 @@ fn every_search_page_is_a_wording_golden() {
         &["orders rows, and a count shows none"],
     );
     let item = web.get("item/r1");
-    // the why line names the served account by its name, never by the
-    // basis's uuid (the page seat's fault 13)
-    assert!(!item.body.contains("--account u-web"), "{}", item.body);
     pages.page(
         "GET item/r1",
         &item,
         &[
             "Doom Loop Two-Stone Ring",
-            "class   Rings",
+            "<th>Class</th><td>Rings</td>",
             "+95 to maximum Life",
-            "why: acq price show --account &#39;Alice#1234&#39; --realm pc item/r1",
+            "<th>Price</th><td>none (",
             ART,
         ],
     );
+    // the price line says the price or why there is none, and nothing
+    // after: no command and no link
+    let price = &item.body[item.body.find("<th>Price</th>").unwrap()..];
+    let price = &price[..price.find("</tr>").unwrap()];
+    assert!(!price.contains("why") && !price.contains("href"), "{price}");
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
@@ -778,12 +860,12 @@ fn every_search_page_is_a_wording_golden() {
     // of two texts among them, which fold back through the form's one
     // count field (the review at 3ce22d81)
     for (asked, spelled, said) in [
-        ("rarity", "rarity", "count   rarity"),
-        ("Rarity", "rarity", "count   rarity"),
+        ("rarity", "rarity", "Count rarity"),
+        ("Rarity", "rarity", "Count rarity"),
         (
             "line%3Aresist%2Clife",
             "line%3Aresist%2Cline%3Alife",
-            "count   line:resist",
+            "Count line:resist",
         ),
     ] {
         let counted = web.get(&format!("search?text=class%3Arings&view.count={asked}"));
@@ -977,6 +1059,423 @@ fn the_moved_world_renders_with_a_badge() {
         &["undecided", "Wombgift Chalice"],
     );
     page_golden(file!(), "moved_world", &pages);
+}
+
+/// A way on as a page marks it (4-full part 1, step 4): the pointer its
+/// `data-way` names, and its link where it is one.
+#[derive(Debug)]
+struct PageWay {
+    at: String,
+    href: Option<String>,
+}
+
+/// Every element a page marks `class="way"`, in order.
+fn ways_on(body: &str) -> Vec<PageWay> {
+    body.match_indices("class=\"way\"")
+        .map(|(at, _)| {
+            let start = body[..at].rfind('<').unwrap();
+            let end = at + body[at..].find('>').unwrap();
+            let tag = format!(" {}", &body[start + 1..end]);
+            PageWay {
+                at: attribute(&tag, "data-way").unwrap_or_else(|| panic!("no data-way: {tag}")),
+                href: attribute(&tag, "href"),
+            }
+        })
+        .collect()
+}
+
+/// The JSON pointer of every object in `doc` holding a `request`, a site
+/// search's clause apart (its `site` is the site's own JSON), never
+/// looking inside a request.
+fn holding_requests(doc: &Value, at: &str, found: &mut Vec<String>) {
+    match doc {
+        Value::Object(map) => {
+            if map.contains_key("request") {
+                found.push(at.to_string());
+            }
+            for (key, child) in map {
+                if key == "request" || (key == "site" && at.contains("/trade/clauses/")) {
+                    continue;
+                }
+                holding_requests(child, &format!("{at}/{key}"), found);
+            }
+        }
+        Value::Array(items) => {
+            for (i, child) in items.iter().enumerate() {
+                holding_requests(child, &format!("{at}/{i}"), found);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Whether an answer's scope points at never-fetched tabs, read from its
+/// JSON as the search crate's `tabs_pointer` reads it: under one realm, a
+/// never-fetched league the query does not exclude and, where the query
+/// names leagues (`league=` and-ed or or-ed), one of those named.
+fn tabs_pointed(answer: &Value) -> bool {
+    // each `league=` term with whether a `not` holds it
+    fn terms(t: &Value, excluded: bool, found: &mut Vec<(String, bool)>) {
+        if t["field"]
+            .as_str()
+            .is_some_and(|f| f.eq_ignore_ascii_case("league"))
+            && t["op"] == "="
+            && let Some(league) = t["value"].as_str()
+        {
+            found.push((league.to_lowercase(), excluded));
+        }
+        for key in ["all", "any"] {
+            for child in t[key].as_array().into_iter().flatten() {
+                terms(child, excluded, found);
+            }
+        }
+        if !t["not"].is_null() {
+            terms(&t["not"], true, found);
+        }
+    }
+    if answer["scope"]["realm"] == "all" {
+        return false;
+    }
+    let mut found = Vec::new();
+    terms(&answer["query"]["tree"], false, &mut found);
+    let named = found.iter().any(|(_, excluded)| !excluded);
+    answer["scope"]["never_fetched_leagues"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_lowercase)
+        .any(|league| {
+            let has = |excluded: bool| found.iter().any(|(l, e)| *l == league && *e == excluded);
+            !has(true) && (!named || has(false))
+        })
+}
+
+/// The value lists' rests no page's count field reads, by their key: a
+/// rest of these is said in words. None yet: every rest a page reaches is
+/// a count the form asks.
+const RESTS_NO_FORM_READS: [&str; 0] = [];
+
+/// Every request an answer carries is a way on its page (4-full part 1,
+/// step 4, Do 8): for each object of the page's document holding a
+/// `request`, exactly one element marked `class="way"` names its pointer,
+/// and none names another; the scope's never-fetched tabs a way exactly
+/// where the answer points at them. Each link answers `200`: the tabs'
+/// the refresh page, and every other with JSON asked the answer to its
+/// request — the members counted where its holder has a count, the next
+/// rows where it is the continuation, and the request's query, realm and
+/// membership. Each way in words is a zero answer's offer, which no page
+/// asks, or a rest no page's count field reads.
+fn every_request_an_answer_carries_is_a_way_on_its_page(
+    web: &WebUi,
+    path: &str,
+    page: &harness::Reply,
+) {
+    assert_eq!(page.status, 200, "{path}: {}", page.body);
+    let doc = web.get_json(path);
+    let mut holders = Vec::new();
+    holding_requests(&doc, "", &mut holders);
+    let ways = ways_on(main_of(&page.body));
+    for holder in &holders {
+        assert_eq!(
+            ways.iter().filter(|w| w.at == *holder).count(),
+            1,
+            "{path}: the request at {holder} is not one way on the page: {ways:?}"
+        );
+    }
+    for way in &ways {
+        assert!(
+            way.at == "tabs" || holders.contains(&way.at),
+            "{path}: the way {way:?} names no request of the document {holders:?}"
+        );
+    }
+    assert_eq!(
+        ways.iter().filter(|w| w.at == "tabs").count(),
+        usize::from(tabs_pointed(&doc)),
+        "{path}: the never-fetched tabs' way: {ways:?}"
+    );
+    for way in &ways {
+        let Some(href) = &way.href else {
+            let rest = way.at.ends_with("/resolved/rest")
+                && RESTS_NO_FORM_READS.iter().any(|key| {
+                    doc.pointer(&format!("{}/request/view/counts/keys/0", way.at))
+                        .and_then(Value::as_str)
+                        == Some(key)
+                });
+            let offer = way.at == "/zero/offers/context"
+                || way
+                    .at
+                    .strip_prefix("/zero/offers/explain/")
+                    .is_some_and(|i| i.parse::<usize>().is_ok());
+            assert!(
+                offer || rest,
+                "{path}: {way:?} is words where a page takes it"
+            );
+            continue;
+        };
+        assert!(
+            href.starts_with(&format!("/{}/", web.token)),
+            "{path}: {href}"
+        );
+        if way.at == "tabs" {
+            let tabs = follow(web, href);
+            assert_eq!(tabs.status, 200, "{href}: {}", tabs.body);
+            continue;
+        }
+        let reply = web.raw("GET", href, None, &[("Accept", "application/json")], "");
+        assert_eq!(reply.status, 200, "{path}: {href}: {}", reply.body);
+        let answer: Value = serde_json::from_str(&reply.body).unwrap();
+        let holder = doc.pointer(&way.at).unwrap();
+        if let Some(count) = holder.get("count") {
+            assert_eq!(
+                &answer["total"]["matched"], count,
+                "{path}: {} returns other than the members counted",
+                way.at
+            );
+        }
+        if way.at == "/view/rows/next" {
+            let rows = &doc["view"]["rows"];
+            let after = rows["after"].as_u64().unwrap_or(0) + rows["returned"].as_u64().unwrap();
+            assert_eq!(answer["view"]["rows"]["after"], after, "{path}: {href}");
+        }
+        let request = &holder["request"];
+        if let Some(text) = request.pointer("/query/text") {
+            assert_eq!(&answer["query"]["text"], text, "{path}: {}", way.at);
+        }
+        if let Some(realm) = request.pointer("/scope/realm") {
+            assert_eq!(&answer["scope"]["realm"], realm, "{path}: {}", way.at);
+        }
+        assert_eq!(
+            answer["scope"]["membership"],
+            request
+                .pointer("/scope/membership")
+                .cloned()
+                .unwrap_or(json!("live")),
+            "{path}: {}",
+            way.at
+        );
+    }
+}
+
+/// C143 on the answer and item pages (4-full part 1, step 4): every page
+/// headed `GET search` or `GET item/` that answered in a golden under
+/// `tests/goldens/web/` holds no `acq ` and no ` --` before a letter —
+/// the ways on are the page's own. Read from the files, as `no_ids.rs`
+/// reads them: the pages served are the goldens'. The refresh and jobs
+/// pages are not read; they print the CLI's command lines still.
+#[test]
+fn an_answer_or_item_page_prints_no_command_line_and_no_flag() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/web");
+    let mut read = 0;
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let file = entry.unwrap().path();
+        let text = std::fs::read_to_string(&file).unwrap();
+        // a recording's label follows a blank line, or opens the file
+        let mut pages: Vec<Vec<&str>> = Vec::new();
+        let mut blank = true;
+        for line in text.lines() {
+            if blank && (line.starts_with("GET ") || line.starts_with("POST ")) {
+                pages.push(Vec::new());
+            }
+            if let Some(page) = pages.last_mut() {
+                page.push(line);
+            }
+            blank = line.is_empty();
+        }
+        for page in pages {
+            let label = page[0];
+            let answered = !page.iter().any(|l| l.starts_with("--- status"));
+            if !(label.starts_with("GET search") || label.starts_with("GET item/")) || !answered {
+                continue;
+            }
+            read += 1;
+            for line in &page[1..] {
+                let flag = line.match_indices(" --").any(|(at, _)| {
+                    line[at + 3..]
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_alphabetic())
+                });
+                assert!(
+                    !line.contains("acq ") && !flag,
+                    "{}: {label}: {line}",
+                    file.display()
+                );
+            }
+        }
+    }
+    assert!(read > 20, "only {read} answer and item pages read");
+}
+
+/// The ways no seeded page reaches are a wording golden (4-full part 1,
+/// step 4, Do 7): a world staged apart from `seed`'s pages, each page
+/// recorded after the staging it needs and checked as every answer page
+/// is ([`every_request_an_answer_carries_is_a_way_on_its_page`]) — tabs
+/// never fetched in two pc leagues, the scope pointing at the league
+/// holding the most and counting the other, and at the other where the
+/// query excludes the first; an id that left, with its way under
+/// membership `all`; a value list cut with its rest; and an ambiguous
+/// clause of a site search with what its other reading drops.
+#[test]
+fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
+    let (scratch, web) = offline_web("webways");
+    let mut pages = Pages::new(&scratch.0, &web);
+    let mut store = Store::open(&account_path(&scratch.0.join("mock"), USER)).unwrap();
+    let mut record = |ep: Endpoint, league: &str, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": league }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    let listing = |league: &str| Endpoint::Stashes {
+        realm: "pc".into(),
+        league: league.into(),
+    };
+    let stash = |id: &str| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: id.into(),
+        sub: None,
+    };
+    let tab = |id: &str, name: &str| json!({ "id": id, "name": name, "type": "PremiumStash" });
+    let mut tabs = vec![tab("t1", "Rings"), tab("t2", "Launch")];
+    let check = |pages: &mut Pages, label: &str, path: &str, facts: &[&str]| {
+        let page = web.get(path);
+        pages.page(label, &page, facts);
+        every_request_an_answer_carries_is_a_way_on_its_page(&web, path, &page);
+    };
+
+    // tabs never fetched: two in Standard, one in Hardcore
+    tabs.extend([tab("t3", "Maps"), tab("t4", "Gems")]);
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        60,
+    );
+    record(
+        listing("Hardcore"),
+        "Hardcore",
+        json!({ "stashes": [tab("h1", "Dump")] }),
+        61,
+    );
+    check(
+        &mut pages,
+        "GET search?<every ring, tabs never fetched in two leagues>",
+        "search?realm=pc&text=class%3Arings",
+        &[
+            "data-way=\"tabs\" href=\"/",
+            "/refresh?realm=pc&amp;league=Standard\">each tab of Standard</a>",
+            "1 other league holds never-fetched tabs",
+        ],
+    );
+    check(
+        &mut pages,
+        "GET search?<every ring outside Standard>",
+        "search?realm=pc&text=class%3Arings+-league%3DStandard",
+        &["/refresh?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"],
+    );
+
+    // an id that left: Rune Coil gone from its tab at a later fetch
+    record(
+        stash("t1"),
+        "Standard",
+        json!({ "stash": { "id": "t1", "name": "Rings", "type": "PremiumStash", "items": [
+            { "id": "r1", "name": "Doom Loop", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
+              "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 84, "x": 0, "y": 0,
+              "explicitMods": ["+95 to maximum Life"] } ] } }),
+        70,
+    );
+    check(
+        &mut pages,
+        "GET search?<the id that left>",
+        "search?realm=pc&text=id%3Ar2",
+        &[
+            "this id is an item that left the scope",
+            "data-way=\"/terms/0/removed\" href=",
+            ">find it under membership all</a>",
+        ],
+    );
+
+    // a value list cut: eleven names a term's `:` resolves to
+    let kestrels: Vec<Value> = (1..=11)
+        .map(|n| {
+            json!({ "id": format!("k{n:02}"), "name": format!("Kestrel {n:02}"), "typeLine": "Iron Ring",
+                    "baseType": "Iron Ring", "rarity": "Rare", "frameTypeId": 2, "identified": true,
+                    "ilvl": 70, "x": n, "y": 0 })
+        })
+        .collect();
+    tabs.push(tab("t5", "Kestrels"));
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        80,
+    );
+    record(
+        stash("t5"),
+        "Standard",
+        json!({ "stash": { "id": "t5", "name": "Kestrels", "type": "PremiumStash", "items": kestrels } }),
+        81,
+    );
+    check(
+        &mut pages,
+        "GET search?<a name eleven items carry>",
+        "search?realm=pc&text=name%3Akestrel",
+        &[
+            "Kestrel 01 (1)",
+            "Kestrel 10 (1)",
+            "data-way=\"/terms/0/resolved/rest\"",
+            ">1 more<",
+        ],
+    );
+
+    // an ambiguous clause with what its other reading drops (the recipe
+    // of `seat_faults.rs`'s ambiguous clause, run through the trade box)
+    let ring = |id: &str, rarity: &[&str]| {
+        let mut lines: Vec<&str> = rarity.to_vec();
+        lines.push("Recover 2% of Mana on Kill");
+        json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring", "frameTypeId": 2, "x": 0, "y": 0, "explicitMods": lines })
+    };
+    tabs.push(tab("m1", "Rarity"));
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        90,
+    );
+    record(
+        stash("m1"),
+        "Standard",
+        json!({ "stash": { "id": "m1", "name": "Rarity", "type": "PremiumStash", "items": [
+            ring("plain", &["25% increased Rarity of Items found"]),
+            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]) ] } }),
+        91,
+    );
+    check(
+        &mut pages,
+        "GET search?<a site search with an ambiguous clause>",
+        &format!(
+            "search?{}",
+            query_string(&[
+                ("realm", "pc"),
+                (
+                    "trade",
+                    r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#
+                ),
+            ])
+        ),
+        &[
+            "<td>ambiguous</td><td>stats.0.0</td>",
+            "read the other way: adds 0, drops <a class=\"way\" data-way=\"/query/trade/clauses/1/other/drops\" href=",
+        ],
+    );
+    page_golden(file!(), "answer_ways", &pages);
 }
 
 /// The links a refusal page offers, in order, as a browser follows them.
@@ -1675,7 +2174,7 @@ fn link_saying(body: &str, says: &str) -> String {
 }
 
 /// An answer's saved parts: the notices above it and the save forms
-/// under its query box (its own tail keeps the CLI's lines until step 4).
+/// under its query box, the answer itself apart.
 fn saved_parts(body: &str) -> String {
     let notices = body
         .lines()
@@ -1810,12 +2309,9 @@ fn c16_every_page_s_basis_line_is_its_documents_own() {
     // a continuation, followed as the page links it
     let first = web.get("search?realm=pc&text=class%3Arings&view.limit=1");
     let more = link_saying(&first.body, "more");
-    let next = follow(&web, &at(&more));
+    let next = follow(&web, &more);
     assert_eq!(next.status, 200, "{}", next.body);
-    assert_eq!(
-        entry(&next.body, "answer"),
-        json_at(&web, &at(&more))["basis"]
-    );
+    assert_eq!(entry(&next.body, "answer"), json_at(&web, &more)["basis"]);
     let item = web.get("item/r1");
     assert_eq!(
         entry(&item.body, "item"),
@@ -2397,12 +2893,9 @@ fn saved_open_runs_the_rows_search_and_writes_nothing() {
         more.contains(&format!("&saved={all}&saved_revision=1")),
         "{more}"
     );
-    let next = follow(&web, &format!("/{token}/{more}"));
+    let next = follow(&web, &more);
     assert_eq!(next.status, 200, "{}", next.body);
-    assert_eq!(
-        json_at(&web, &format!("/{token}/{more}"))["scope"]["membership"],
-        "all"
-    );
+    assert_eq!(json_at(&web, &more)["scope"]["membership"], "all");
     assert!(next.body.contains("opened at revision 1"), "{}", next.body);
     // an id no row holds: the list offered, followed as rendered
     let missing = web.get("saved/open?id=0000000000ff");

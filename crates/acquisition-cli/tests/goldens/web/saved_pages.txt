@@ -41,29 +41,31 @@ GET search?<the ring search>
 <main>
 <h1>Answer</h1>
 <p class="count">2 matches</p>
-<pre>
-trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-query   league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   2 matches (fetched <age> ago, pc · Standard / Rings)
-</pre>
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rings)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    league=Standard                                          5 matched
-  1    category=&quot;accessory.ring&quot;                                3 matched · 1 failed · 1 undecided
-  2    sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70  3 matched · 2 failed
-routes  each returns exactly the members counted (5 more: --routes)
-  term 1 undecided (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>league=Standard</td><td>5</td><td>0</td><td>0</td><td>0</td><td></td></tr>
+<tr><td>1</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/1/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
+<tr><td>2</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>3</td><td>2</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">5 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -169,12 +171,11 @@ GET search?<rings, opened>
 <h1>Answer</h1>
 <p class="saved">Saved search &quot;rings&quot;, opened at revision 1 · <a href="/<token>/saved">the saved searches</a></p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -182,12 +183,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a2"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><label class="filter-title">Name <input name="name" value="rings" aria-label="the search's name"></label> <button type="submit">Save over &quot;rings&quot;</button></form>
@@ -204,12 +208,11 @@ GET search?<rings, opened, after the row moved>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;rings&quot; at revision 2, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 2. · <a href="/<token>/saved">the saved searches</a></p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -217,12 +220,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a2"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><label class="filter-title">Name <input name="name" value="rings" aria-label="the search's name"></label> <button type="submit">Save over &quot;rings&quot;</button></form>
@@ -239,12 +245,11 @@ GET search?<rings, opened, after its text changed>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;rings&quot; at revision 3, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 3. · <a href="/<token>/saved">the saved searches</a></p>
 <p class="saved">This answer&#39;s query is not the saved one&#39;s: the saved query is rarity=unique over pc · live.</p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -252,12 +257,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a2"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><label class="filter-title">Name <input name="name" value="rings" aria-label="the search's name"></label> <button type="submit">Save over &quot;rings&quot;</button></form>
@@ -274,12 +282,11 @@ GET search?<rings, opened, after it was renamed>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;unique rings&quot; at revision 4, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 4. · <a href="/<token>/saved">the saved searches</a></p>
 <p class="saved">This answer&#39;s query is not the saved one&#39;s: the saved query is rarity=unique over pc · live.</p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -287,12 +294,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a2"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><label class="filter-title">Name <input name="name" value="unique rings" aria-label="the search's name"></label> <button type="submit">Save over &quot;unique rings&quot;</button></form>
@@ -333,12 +343,11 @@ GET search?<rings, opened, after it was cleared>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2 is gone: no saved search has that id now. Saving here makes a new one.</p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -346,12 +355,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a2"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -444,12 +456,11 @@ GET search?<everything, opened>
 <h1>Answer</h1>
 <p class="saved">Saved search &quot;everything&quot;, opened at revision 1 · <a href="/<token>/saved">the saved searches</a></p>
 <p class="count">5 matches</p>
-<pre>
-query   (every item in scope)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>(every item in scope)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate</a><br><span class="base">Glorious Plate</span> <span class="fate">unique</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -458,9 +469,9 @@ total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="<everything>"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="id" value="<everything>"><input type="hidden" name="if_revision" value="1"><label class="filter-title">Name <input name="name" value="everything" aria-label="the search's name"></label> <button type="submit">Save over &quot;everything&quot;</button></form>
@@ -509,12 +520,11 @@ GET search?<belts, opened, reloaded>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a4 holds a value this build cannot read; clear it from <a href="/<token>/saved">the saved searches</a>.</p>
 <p class="count">4 matches</p>
-<pre>
-query   rarity=rare
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<table class="opening">
+<tr><th>Query</th><td>rarity=rare</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -522,12 +532,15 @@ total   4 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  4 matched · 1 failed
-routes  each returns exactly the members counted (2 more: --routes)
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>rarity=rare</td><td>4</td><td>1</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="saved" value="0000000000a4"><input type="hidden" name="saved_revision" value="1"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">rarity=rare</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>

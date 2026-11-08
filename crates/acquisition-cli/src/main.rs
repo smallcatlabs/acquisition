@@ -238,8 +238,8 @@ enum Cmd {
         #[arg(long)]
         no_browser: bool,
     },
-    /// The web UI: a page over loopback that renders what these verbs
-    /// print — the search as a form shaped like the trade site's, or a
+    /// The web UI: a page over loopback that renders the documents these
+    /// verbs answer — the search as a form shaped like the trade site's, or a
     /// trade site search's URL, id or query JSON run as `search --trade`
     /// runs it, its answer as a table with each item's art, one item, and
     /// the refresh

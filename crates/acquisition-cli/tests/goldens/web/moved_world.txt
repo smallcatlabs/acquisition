@@ -8,22 +8,25 @@ GET item/new
 <main>
 <h1>Item</h1>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
-<pre>
-Brood Lure Wombgift Chalice · rare · frame rare
-id      new
-place   pc · Standard / Launch · x 0, y 0 · fetched <age> ago
-base    Wombgift Chalice
-class   undecided: `Wombgift Chalice` is not in the class table (classes v1)
-category undecided
-         open 79 ids: `Wombgift Chalice` is not in the class table (classes v1)
-price   none (nothing applies) · why: acq price show --account &#39;Alice#1234&#39; --realm pc item/new
-is      identified
-shown   Item Level: 84
-lines   explicit              +40 to maximum Life
-                              &quot;# to maximum Life&quot;   arg1 40
-unread  nothing
+<p class="name rarity-rare">Brood Lure Wombgift Chalice · rare · frame rare</p>
+<table class="shown">
+<tr><th>Id</th><td>new</td></tr>
+<tr><th>Place</th><td>pc · Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><th>Base</th><td>Wombgift Chalice</td></tr>
+<tr><th>Class</th><td>undecided: `Wombgift Chalice` is not in the class table (classes v1)</td></tr>
+<tr><th>Category</th><td>undecided<br>open 79 ids: `Wombgift Chalice` is not in the class table (classes v1)</td></tr>
+<tr><th>Price</th><td>none (nothing applies)</td></tr>
+<tr><th>Is</th><td>identified</td></tr>
+<tr><th>Shown</th><td>Item Level: 84</td></tr>
+<tr><th>Unread</th><td>nothing</td></tr>
+</table>
+<table class="lines">
+<tr><th>Source</th><th>Line</th><th>Template</th></tr>
+<tr><td>explicit</td><td>+40 to maximum Life</td><td>&quot;# to maximum Life&quot;   arg1 40</td></tr>
+</table>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 
 </main>
 
@@ -35,21 +38,25 @@ GET item/mech
 <main>
 <h1>Item</h1>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
-<pre>
-Echo Seed Two-Stone Ring · rare · frame rare
-id      mech
-place   pc · Standard / Launch · x 0, y 0 · fetched <age> ago
-base    Two-Stone Ring
-class   Rings
-category accessory.ring
-price   none (nothing applies) · why: acq price show --account &#39;Alice#1234&#39; --realm pc item/mech
-is      identified
-shown   Item Level: 84
-lines   wombgift              Grants 3 Echoes of the Brood
-                              &quot;Grants # Echoes of the Brood&quot;   arg1 3
-unread  `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no
+<p class="name rarity-rare">Echo Seed Two-Stone Ring · rare · frame rare</p>
+<table class="shown">
+<tr><th>Id</th><td>mech</td></tr>
+<tr><th>Place</th><td>pc · Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><th>Base</th><td>Two-Stone Ring</td></tr>
+<tr><th>Class</th><td>Rings</td></tr>
+<tr><th>Category</th><td>accessory.ring</td></tr>
+<tr><th>Price</th><td>none (nothing applies)</td></tr>
+<tr><th>Is</th><td>identified</td></tr>
+<tr><th>Shown</th><td>Item Level: 84</td></tr>
+<tr><th>Unread</th><td>`wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</td></tr>
+</table>
+<table class="lines">
+<tr><th>Source</th><th>Line</th><th>Template</th></tr>
+<tr><td>wombgift</td><td>Grants 3 Echoes of the Brood</td><td>&quot;Grants # Echoes of the Brood&quot;   arg1 3</td></tr>
+</table>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 
 </main>
 
@@ -62,15 +69,19 @@ GET search?<a stat the table lacks>
 <h1>Answer</h1>
 <p class="count">5 matches</p>
 <p><span class="badge">not the site&#39;s search: 1 clause not run</span></p>
-<pre>
-trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-        NOT RUN   stats.0.0  no row of the stat table is `explicit.stat_9999999999`
-query   (every item in scope)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)
-</pre>
+<section class="trade">
+<p>from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+<table class="clauses">
+<tr><th>Status</th><th>Clause</th><th>Says</th></tr>
+<tr><td>NOT RUN</td><td>stats.0.0</td><td>no row of the stat table is `explicit.stat_9999999999`</td></tr>
+</table>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>(every item in scope)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch)</td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate</a><br><span class="base">Glorious Plate</span> <span class="fate">unique</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
@@ -79,9 +90,9 @@ total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newes
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value=""><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
@@ -97,32 +108,34 @@ GET search?<every ring>
 <h1>Answer</h1>
 <p class="count">3 matches</p>
 <p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
-<pre>
-trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
-        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
-query   category=&quot;accessory.ring&quot;
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · 1 undecided
-</pre>
+<section class="trade">
+<p>from the query JSON: exact — every clause with a stash meaning ran as the site reads it</p>
+<p>Over the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours</p>
+</section>
+<table class="opening">
+<tr><th>Query</th><td>category=&quot;accessory.ring&quot;</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>0 locations never fetched · location lists seen, the oldest <age> ago</td></tr>
+<tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1 undecided</a></td></tr>
+</table>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<pre>
-undecided the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice · id new
-            `Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    category=&quot;accessory.ring&quot;  3 matched · 1 failed · 1 undecided
-routes  each returns exactly the members counted (2 more: --routes)
-  undecided at the root (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-  term 0 undecided (1), over the scope:
-    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+<table class="reasons">
+<tr><th>Unread</th><th>Example</th><th>Why</th></tr>
+<tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
+</table>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>category=&quot;accessory.ring&quot;</td><td>3</td><td>1</td><td>0</td><td><a class="way" data-way="/terms/0/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28category%3D%22accessory.ring%22%29">1</a></td><td></td></tr>
+</table>
+<p class="unrouted">2 more counts carry no link: an answer carries those routes only where every route is asked, which no page asks</p>
+<p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
-</pre>
+</p>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <button type="submit">Run this query</button></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="category=&quot;accessory.ring&quot;"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
