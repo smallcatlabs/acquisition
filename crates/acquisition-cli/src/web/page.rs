@@ -285,9 +285,10 @@ pub(crate) struct SavedLinks {
 
 /// The saved searches (4-full part 1, step 3, Do 4): the list's head
 /// line, then a row per search in the document's order, each with a link
-/// that opens it and its rename and clear forms naming the revision
-/// listed; a row this build cannot read, its clear alone; the rows left
-/// out counted, with the link that lists every one.
+/// that opens it, its rename form naming the revision listed and its
+/// Clear, a link to the page that asks first ([`saved_ask`]); a row this
+/// build cannot read, its Clear alone; the rows left out counted, with
+/// the link that lists every one.
 pub(crate) fn saved_list(
     listed: &SavedSearches,
     links: &SavedLinks,
@@ -322,7 +323,12 @@ pub(crate) fn saved_list(
             ),
             None => String::new(),
         };
-        let clear = post_form(&links.clear, keyed(), "", "Clear");
+        // a clear asks first (the owner, "Clear should ask first"): a
+        // link to the page that shows the row and holds the clear's form
+        let clear = format!(
+            "<a class=\"ask\" href=\"{}\">Clear</a>",
+            esc(&format!("{}?id={id}", links.clear))
+        );
         let opened = row.name().map(|_| open(&id));
         out.push_str(&format!(
             "<tr>{}<td>{rename}{clear}</td></tr>\n",
@@ -339,6 +345,39 @@ pub(crate) fn saved_list(
         ));
     }
     out
+}
+
+/// A clear asked first (the owner, 2026-11-07, "Clear should ask
+/// first"): the row as the list shows it, unlinked, and the clear's form
+/// at the revision shown, beside a link back to the list. The page
+/// writes nothing; its form's POST is the clear. A row this build cannot
+/// read is asked about the same way, since a clear is the one thing a
+/// page can do with it.
+pub(crate) fn saved_ask(row: &Value, links: &SavedLinks) -> String {
+    let said = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let named = match row.get("name").and_then(Value::as_str) {
+        Some(name) => format!("the saved search \"{name}\""),
+        None => format!("the saved search {}", said(&row["id"])),
+    };
+    format!(
+        "<p>{}</p>\n<table class=\"saved\">\n{SAVED_HEAD}<tr>{}</tr>\n</table>\n{} <a href=\"{}\">Keep it</a>\n",
+        esc(&format!(
+            "Clear {named}? It is this store's saved search, whoever saved it: \
+             clearing it takes it off the list for every page, agent and terminal \
+             that reads this store."
+        )),
+        saved_cells(row, None),
+        post_form(
+            &links.clear,
+            [
+                ("id", said(&row["id"])),
+                ("if_revision", row["revision"].to_string()),
+            ],
+            "",
+            "Clear"
+        ),
+        esc(&links.list)
+    )
 }
 
 /// The saved search an answer was opened from (4-full part 1, step 3,

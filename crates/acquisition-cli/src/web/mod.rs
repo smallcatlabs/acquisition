@@ -107,7 +107,14 @@
 //! - **C168, the saved pages** (`roadmap/briefs/4-full-1-pages.md`, Do 4
 //!   to Do 8): `GET saved` is [`saved::list`]'s document, ten rows and the
 //!   whole under `expand=true`, each row with a link that opens it and
-//!   its rename and clear forms naming the revision listed. `GET
+//!   its rename form naming the revision listed and a Clear link. A
+//!   clear asks first (the owner, 2026-11-07, "Clear should ask first"):
+//!   `GET saved/clear?id=` takes an id alone, writes nothing, and shows
+//!   the row with the clear's form at the revision shown and a link back
+//!   to the list, its basis keyed `saved_search`; an id no row has is
+//!   refused, offering the list, and a row this build cannot read is
+//!   asked about like any other, a clear being all a page can do with
+//!   it. `GET
 //!   saved/open?id=` takes an id alone and writes nothing: the row
 //!   [`saved::show`] finds is used only where its id is the URL's (a name
 //!   may have an id's shape; one rule with the answer page's), and the
@@ -284,7 +291,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/jobs"), get(jobs))
         .route(&at("/saved"), get(saved_list).post(saved_set))
         .route(&at("/saved/open"), get(saved_open))
-        .route(&at("/saved/clear"), post(saved_clear))
+        .route(&at("/saved/clear"), get(saved_ask).post(saved_clear))
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&web),
             with_account,
@@ -1588,6 +1595,48 @@ async fn saved_set(
     })
     .await;
     web.written(written, &headers)
+}
+
+/// A clear asked first (the owner, 2026-11-07, "Clear should ask
+/// first"): the row at the URL's id, shown with the clear's form at its
+/// revision, its basis keyed `saved_search`. It writes nothing, so a
+/// reload of it writes nothing. An id no row has is refused from the row
+/// in hand, offering the list, as an opening is.
+async fn saved_ask(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    let asked = blocking(&web, move |web| -> Result<_, Failure> {
+        taken(&fields, &["id"], "a saved search's clear, asked first")?;
+        let id = sent(&fields, "id").unwrap_or_default().to_string();
+        if !saved::is_id(&id) {
+            return Err(Failure::Usage(format!(
+                "{id:?} is no saved search's id: a page clears a saved search by its id, twelve \
+                 hex characters, as the saved searches list it"
+            )));
+        }
+        match web.saved_at(&id)? {
+            Some(row) => Ok(row),
+            None => Err(listed(
+                "saved_search_not_found",
+                format!("no saved search has the id {id}"),
+            )),
+        }
+    })
+    .await;
+    match asked {
+        Ok(row) if wants_json(&headers) => document(&row),
+        Ok(row) => {
+            let doc = serde_json::to_value(&row).unwrap_or_default();
+            web.page(
+                "Clear a saved search",
+                Head::default().with("saved_search", row.revision()),
+                &page::saved_ask(&doc, &web.saved_links()),
+            )
+        }
+        Err(failure) => web.failed("Saved search", &failure, &headers),
+    }
 }
 
 /// A saved search cleared (Do 6) at exactly the revision named.

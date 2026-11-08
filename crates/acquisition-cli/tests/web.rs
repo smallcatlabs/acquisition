@@ -214,10 +214,10 @@ fn c138_the_listener_answers_its_own_pages_alone() {
         ("GET", &format!("/{token}/apply"), None, vec![], 405),
         // a page route takes no post
         ("POST", &format!("/{token}/plan"), None, vec![], 405),
-        // the saved pages: a clear is a POST alone, an opening a GET
-        // alone, and a write without the token or from another site's
-        // page is refused before it runs
-        ("GET", &format!("/{token}/saved/clear"), None, vec![], 405),
+        // the saved pages: a clear's GET asks and names an id, an opening
+        // is a GET alone, and a write without the token or from another
+        // site's page is refused before it runs
+        ("GET", &format!("/{token}/saved/clear"), None, vec![], 400),
         ("POST", &format!("/{token}/saved/open"), None, vec![], 405),
         ("POST", "/saved", None, vec![], 404),
         (
@@ -1294,6 +1294,24 @@ fn landed_on_the_list(web: &WebUi, reply: &harness::Reply) {
     assert!(reply.body.is_empty(), "{}", reply.body);
 }
 
+/// A clear as a page makes it (the owner, "Clear should ask first"):
+/// the list's Clear link for `id`, never a form, followed to the asking
+/// page, which writes nothing (the file's revision unchanged across it),
+/// and the clear's one form on that page.
+fn asked_clear(web: &WebUi, world: &Path, list: &str, id: &str) -> (harness::Reply, PageForm) {
+    let link = format!("/{}/saved/clear?id={id}", web.token);
+    assert!(
+        list.contains(&format!("href=\"{link}\">Clear</a>")),
+        "no Clear link for {id}:\n{list}"
+    );
+    let before = file_revision(world);
+    let asking = follow(web, &link);
+    assert_eq!(asking.status, 200, "{}", asking.body);
+    assert_eq!(file_revision(world), before, "asking wrote");
+    let form = form_on(&asking.body, "Clear", Some(id));
+    (asking, form)
+}
+
 /// `acq saved <args> --json` in the page's world: its one document.
 fn saved_json(world: &Path, args: &[&str]) -> Value {
     let mut args: Vec<&str> = ["saved"].iter().chain(args).copied().collect();
@@ -1459,7 +1477,8 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
 /// for each document it renders that carries a version, that document's
 /// own field as the same URL answers it as JSON — the answer's and the
 /// item's `basis`, the list's `revision`, the row's `revision` as `acq
-/// saved show` reads it, a conflict's `current.revision` — and a page
+/// saved show` reads it on an opened answer and on a clear asked first, a
+/// conflict's `current.revision` — and a page
 /// whose documents carry none carries no line. The plan's is pinned in
 /// the refresh loop.
 #[test]
@@ -1535,6 +1554,15 @@ fn c16_every_page_s_basis_line_is_its_documents_own() {
     assert_eq!(
         entry(&conflict.body, "saved_search"),
         refused["current"]["revision"]
+    );
+    // a clear asked first: the row it would clear, as its JSON and the
+    // terminal read it
+    let asking = at("saved/clear?id=0000000000a1");
+    let asked = entry(&follow(&web, &asking).body, "saved_search");
+    assert_eq!(asked, json_at(&web, &asking)["revision"]);
+    assert_eq!(
+        asked,
+        saved_json(&world, &["show", "0000000000a1"])["revision"]
     );
     // the form page and a refusal with no `current` carry no line
     assert_eq!(basis_line(&web.get("").body), None);
@@ -1623,7 +1651,7 @@ fn c168_a_page_writes_a_saved_search_as_the_verbs_write_it() {
         "kept rings"
     );
     // a clear from the list as JSON, its undo the create at the id
-    let clear = form_on(&web.get("saved").body, "Clear", Some(&browsed));
+    let (_, clear) = asked_clear(&web, &world, &web.get("saved").body, &browsed);
     let (status, cleared) = sent_json(&web, &clear);
     assert_eq!(status, 200, "{cleared}");
     assert_eq!(cleared["written"], Value::Null);
@@ -1638,7 +1666,7 @@ fn c168_a_page_writes_a_saved_search_as_the_verbs_write_it() {
     assert_eq!(back["written"], saved_json(&world, &["show", &browsed]));
     assert_eq!(back["written"]["name"], "kept rings");
     // and as the browser sends it: 303, the row gone
-    let clear = form_on(&web.get("saved").body, "Clear", Some(&browsed));
+    let (_, clear) = asked_clear(&web, &world, &web.get("saved").body, &browsed);
     landed_on_the_list(&web, &send(&web, &clear, false));
     assert_eq!(saved_json(&world, &["list"])["total"], 0);
 }
@@ -1660,6 +1688,8 @@ fn c168_a_stale_page_is_refused_and_offered_the_write_over_the_row_as_it_stands(
     }
     crate::saved_json::put(&mock, "0000000000ff", "zz");
     let list = web.get("saved?expand=true");
+    // the clear asked at the revision listed, before anything moves
+    let (_, clear) = asked_clear(&web, &world, &list.body, "0000000000ff");
     // the row renamed at the terminal; the page's rename at the old one
     saved_cli(
         &world,
@@ -1698,7 +1728,6 @@ fn c168_a_stale_page_is_refused_and_offered_the_write_over_the_row_as_it_stands(
         (&json!("mine"), &json!(3))
     );
     // a clear at a revision that moved, its offer posted as rendered
-    let clear = form_on(&list.body, "Clear", Some("0000000000ff"));
     let before = file_revision(&world);
     let refused = send(&web, &clear, false);
     assert_eq!(refused.status, 400, "{}", refused.body);
@@ -1711,10 +1740,11 @@ fn c168_a_stale_page_is_refused_and_offered_the_write_over_the_row_as_it_stands(
     landed_on_the_list(&web, &send(&web, &again, false));
     // a clear's undo posted twice: the second a create meeting the row it
     // put back, offered the list whole, where that row stands past ten
-    let clear = form_on(
+    let (_, clear) = asked_clear(
+        &web,
+        &world,
         &web.get("saved?expand=true").body,
-        "Clear",
-        Some("00000000000a"),
+        "00000000000a",
     );
     let (_, cleared) = sent_json(&web, &clear);
     let undo = offered_form(&cleared["undo"]);
@@ -1800,7 +1830,7 @@ fn c168_a_search_over_every_item_saves_opens_and_clears_through_the_forms() {
         (&shown["name"], &shown["text"]),
         (&json!("all of it"), &json!(""))
     );
-    let clear = form_on(&web.get("saved").body, "Clear", Some(&id));
+    let (_, clear) = asked_clear(&web, &world, &web.get("saved").body, &id);
     let (status, cleared) = sent_json(&web, &clear);
     assert_eq!(status, 200, "{cleared}");
     let (status, back) = sent_json(&web, &offered_form(&cleared["undo"]));
@@ -1809,7 +1839,8 @@ fn c168_a_search_over_every_item_saves_opens_and_clears_through_the_forms() {
     assert_eq!(back["written"]["name"], "all of it");
 }
 
-/// Do 6's and Do 7's failing inputs: each refused, nothing written.
+/// Do 6's and Do 7's failing inputs, and a clear asked first with no
+/// row to ask about: each refused, nothing written.
 #[test]
 fn c168_each_malformed_write_or_opening_is_refused_and_writes_nothing() {
     let (scratch, web) = offline_web("webmalformed");
@@ -1941,6 +1972,38 @@ fn c168_each_malformed_write_or_opening_is_refused_and_writes_nothing() {
             refused["error"].as_str().unwrap().contains(said),
             "{refused}"
         );
+    }
+    // a clear asked first: an id's shape, the id alone, a row at it; the
+    // id no row has offers the list
+    for (query, kind, said) in [
+        ("", "usage", "is no saved search's id"),
+        ("?id=rings", "usage", "is no saved search's id"),
+        (
+            "?id=0000000000a1&if_revision=1",
+            "usage",
+            "`if_revision` is no field",
+        ),
+        (
+            "?id=0000000000ff",
+            "saved_search_not_found",
+            "no saved search has the id 0000000000ff",
+        ),
+    ] {
+        let path = format!("/{token}/saved/clear{query}");
+        let page = follow(&web, &path);
+        assert_eq!(page.status, 400, "{query}: {}", page.body);
+        let refused = json_at(&web, &path);
+        assert_eq!(refused["kind"], kind, "{query}: {refused}");
+        assert!(
+            refused["error"].as_str().unwrap().contains(said),
+            "{refused}"
+        );
+        if kind == "saved_search_not_found" {
+            assert_eq!(
+                link_saying(&page.body, "the saved searches, each with its id"),
+                format!("/{token}/saved")
+            );
+        }
     }
     assert_eq!(file_revision(&world), before);
 }
@@ -2195,10 +2258,16 @@ fn the_saved_pages_are_a_wording_golden() {
             "via test",
             "this build cannot read it:",
             ">Rename</button>",
-            ">Clear</button>",
+            "saved/clear?id=0000000000a2\">Clear</a>",
         ],
     );
     assert!(!main_of(&listed.body).contains("acq "), "{}", listed.body);
+    // the list holds no clear's form: a clear asks first
+    assert!(
+        !listed.body.contains(">Clear</button>"),
+        "the list clears without asking: {}",
+        listed.body
+    );
     // a create from an answer, and the list it lands on
     let answer = web.get(&format!("search?{}", query_string(&ring_search())));
     pages.page(
@@ -2240,12 +2309,39 @@ fn the_saved_pages_are_a_wording_golden() {
     pages.redirect("POST saved <my rings renamed kept rings>", &renamed);
     let list = follow(&web, renamed.header("location").unwrap());
     pages.page("GET saved <after the rename>", &list, &["kept rings"]);
-    let cleared = send(
-        &web,
-        &form_on(&list.body, "Clear", Some("0000000000a3")),
-        false,
+    let (asking, clear) = asked_clear(&web, &world, &list.body, "0000000000a3");
+    pages.page(
+        "GET saved/clear?id=0000000000a3 <boots, asked first>",
+        &asking,
+        &[
+            "Clear the saved search &quot;boots&quot;? It is this store&#39;s saved search, \
+             whoever saved it",
+            "<td>boots</td><td>pc · live</td><td>rarity=rare</td><td>1</td>",
+            "name=\"if_revision\" value=\"1\"",
+            ">Clear</button>",
+            "/saved\">Keep it</a>",
+        ],
     );
-    pages.redirect("POST saved/clear <boots>", &cleared);
+    assert!(!main_of(&asking.body).contains("acq "), "{}", asking.body);
+    assert_eq!(
+        basis_line(&asking.body),
+        Some(json!({ "saved_search": 1 })),
+        "{}",
+        asking.body
+    );
+    // a reload of the asking page writes nothing either
+    let before = file_revision(&world);
+    assert_eq!(
+        follow(&web, &format!("/{}/saved/clear?id=0000000000a3", web.token)).status,
+        200
+    );
+    assert_eq!(
+        file_revision(&world),
+        before,
+        "a reload of the asking page wrote"
+    );
+    let cleared = send(&web, &clear, false);
+    pages.redirect("POST saved/clear <boots, from the asking page>", &cleared);
     let list = follow(&web, cleared.header("location").unwrap());
     assert!(!list.body.contains("boots"), "{}", list.body);
     pages.page("GET saved <after the clear>", &list, &["5 saved searches"]);
@@ -2327,11 +2423,17 @@ fn the_saved_pages_are_a_wording_golden() {
     );
     // the row this build cannot read, cleared from the list
     let list = web.get("saved");
-    let cleared = send(
-        &web,
-        &form_on(&list.body, "Clear", Some("0000000000f1")),
-        false,
+    let (asking, clear) = asked_clear(&web, &world, &list.body, "0000000000f1");
+    pages.page(
+        "GET saved/clear?id=0000000000f1 <the row this build cannot read, asked first>",
+        &asking,
+        &[
+            "Clear the saved search 0000000000f1?",
+            "this build cannot read it:",
+            ">Clear</button>",
+        ],
     );
+    let cleared = send(&web, &clear, false);
     pages.redirect(
         "POST saved/clear <the row this build cannot read>",
         &cleared,
