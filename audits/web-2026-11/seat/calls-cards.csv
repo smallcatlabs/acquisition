@@ -1,0 +1,14 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,T2,"[""search"", ""--describe""]",0,33687,0,55,whole,the pages name no reference for the query language
+2,T6,"[""saved"", ""list""]",0,242,0,5,whole,
+3,T6,"[""search"", ""--saved"", ""friend life 70"", ""--limit"", ""5""]",1,0,254,5,whole,
+4,T6,"[""--account"", ""GERWARIC#7694"", ""search"", ""--limit=5"", ""--saved=friend life 70""]",0,3545,0,460,whole,the offered command from call 3
+5,T6,"[""search"", ""--help""]",0,10729,0,4,whole,how to make rows carry the whole item
+6,T6,"[""--account"", ""GERWARIC#7694"", ""search"", ""category=\""accessory.ring\"" rarity=rare sum(line(\""# to maximum Life\"" source=explicit).arg1)>=70"", ""--sort"", ""sum(line(\""# to maximum Life\"" source=explicit).arg1)"", ""--desc"", ""--limit"", ""2"", ""--fields"", ""icon,item""]",1,0,172,41,whole,"rings search, rows with the whole item"
+7,T6,"[""--account"", ""GERWARIC#7694"", ""search"", ""--realm"", ""pc"", ""category=\""accessory.ring\"" rarity=rare sum(line(\""# to maximum Life\"" source=explicit).arg1)>=70"", ""--sort"", ""sum(line(\""# to maximum Life\"" source=explicit).arg1)"", ""--desc"", ""--limit"", ""2"", ""--fields"", ""icon,item""]",0,6390,0,459,whole,call 6 again with the realm it asked for
+8,T7,"[""stashes"", ""--account"", ""seat"", ""--realm"", ""pc"", ""--league"", ""Rehearsal""]",0,2022,92,508,whole,the Refresh page offers no way to list tabs; it names this command
+9,T7,"[""--account"", ""seat"", ""jobs"", ""result"", ""7""]",2,0,106,4,whole,the pages show 0 items after the apply; what did the fetch of Dump return
+10,T7,"[""--account"", ""seat"", ""result"", ""7""]",0,455,60,4,whole,"the tour line ""acq jobs … | status <id> | result <id>"" read as separate verbs after call 9 refused"
+11,T7,"[""--account"", ""seat"", ""result"", ""14""]",0,451,61,5,whole,Maps fetched with the substashes box but the page shows no pages
+12,T7,"[""characters"", ""--account"", ""seat""]",0,667,94,510,whole,Refresh page says no characters known and names this command
