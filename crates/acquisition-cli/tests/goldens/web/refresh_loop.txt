@@ -150,7 +150,7 @@ GET plan?<two tabs selected>
 # holds "a selection"
 # holds "fetch 2 tabs"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;character_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:12},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;dump&quot;,&quot;cur1&quot;]},&quot;snapshot_response&quot;:15,&quot;snapshot_taken_at&quot;:<epoch>,&quot;stash_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:4}}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;character_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:<response>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;dump&quot;,&quot;cur1&quot;]},&quot;snapshot_response&quot;:15,&quot;snapshot_taken_at&quot;:<epoch>,&quot;stash_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:<response>}}}">
 <main>
 <h1>Plan</h1>
 <pre>

@@ -1768,6 +1768,15 @@ fn the_refresh_loop_runs_through_the_pages() {
         &selected,
         &["a selection", "fetch 2 tabs", ">Apply</button>"],
     );
+    // C16: the basis line is the envelope's own, read unmasked (the
+    // golden masks its listings' response ids, #192)
+    let held: Value = serde_json::from_str(&hidden_plan(&selected.body)).unwrap();
+    assert_eq!(
+        basis_line(&selected.body).expect("the plan page's basis line")["plan"],
+        held["basis"],
+        "{}",
+        selected.body
+    );
     let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
     assert_eq!(applied.status, 303, "{}", applied.body);
     until_done(&web);

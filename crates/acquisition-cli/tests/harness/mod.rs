@@ -1147,21 +1147,33 @@ fn basis_rule(text: &str) -> String {
 /// source edit; and an epoch under a key ending `_at` (a plan's
 /// `snapshot_taken_at`, a listing's `fetched_at`) is `<epoch>`: the
 /// harness's instant, or the mock daemon's fetch, both the wall clock's,
-/// which moves between runs.
+/// which moves between runs; and a listing's `response_id` is
+/// `<response>`: one apply's children run at once on their routes, so a
+/// listing fetched beside a selection's tabs or characters takes its id
+/// in the order the daemon's scheduler lands them, which differs between
+/// platforms (#192). A test that pins a plan page's basis reads the line
+/// unmasked against the envelope the page holds.
 fn basis_meta_rule(line: &str) -> String {
-    let mut out = String::with_capacity(line.len());
-    let mut rest = line;
-    while let Some(at) = rest.find("_at&quot;:") {
-        let from = at + "_at&quot;:".len();
-        out.push_str(&rest[..from]);
-        let digits = rest[from..]
-            .bytes()
-            .take_while(|b| b.is_ascii_digit() || *b == b'-')
-            .count();
-        out.push_str(if digits > 0 { "<epoch>" } else { "" });
-        rest = &rest[from + digits..];
+    let mut out = line.to_string();
+    for (key, with) in [
+        ("_at&quot;:", "<epoch>"),
+        ("response_id&quot;:", "<response>"),
+    ] {
+        let mut masked = String::with_capacity(out.len());
+        let mut rest = out.as_str();
+        while let Some(at) = rest.find(key) {
+            let from = at + key.len();
+            masked.push_str(&rest[..from]);
+            let digits = rest[from..]
+                .bytes()
+                .take_while(|b| b.is_ascii_digit() || *b == b'-')
+                .count();
+            masked.push_str(if digits > 0 { with } else { "" });
+            rest = &rest[from + digits..];
+        }
+        masked.push_str(rest);
+        out = masked;
     }
-    out.push_str(rest);
     for (word, with) in [("store", "<store>"), ("build", "<build>")] {
         let key = format!("&quot;{word}&quot;:&quot;");
         let mut from = 0;
