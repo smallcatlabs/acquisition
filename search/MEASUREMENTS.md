@@ -612,3 +612,36 @@ ten while macOS's empty large regions grew from 61 to 489 MB
 (`vmmap --summary`). A resident consumer pays it on every moved basis;
 before the step every `acq-mcp` call did. The driver's text is in the step's report, not the
 tree.
+
+**M9 — rows carrying the item (4-full part 1, step 5, `b90102be`, 2026-11-08): 200 rows under `fields: ["icon", "item"]` are 0.57 MB of compact JSON, asked and serialized over a held corpus in 4.7 ms; 1,000 are 2.9 MB in 13.3 ms. The spike's bytes held, within 0.2%; the cap is a count chosen, not this number.**
+`cargo build --release -p acquisition-search --example rows-item`, then
+`target/release/examples/rows-item <scratch>/copy.db`, alone on the
+machine (Apple M4, rustc 1.99.0), over a fresh `sqlite3 -readonly
+search/item-facts/raw/spike-GERWARIC_7694-2026-09-13.db ".backup
+<scratch>/copy.db"` — the M3 copy, its SHA-256 `fbae8786…bccfda7` the
+same before and after the backup — opened by its path with an empty
+intent file in memory, never a store directory. The corpus of pc held
+(load 455 ms, 22,623 live items), then for 20, 200 and 1,000 rows of the
+empty query, the request asking `fields: ["icon", "item"]` with no cap
+in the tree: the answer's compact JSON bytes (and pretty, as `acq search
+--json` prints), and the median of eleven asks of the answer and its
+JSON, each row's item made by `show`'s one maker inside it. The answer
+is aged before it is returned.
+
+| N | rows | compact JSON (pretty) | the spike's compact answer plus the items' five keys | answer and its JSON, held corpus |
+| ---: | ---: | ---: | ---: | ---: |
+| 20 | 20 | 53,490 B (87,736) | 53,503 B | 3.3 ms |
+| 200 | 200 | 566,279 B (967,629) | 566,472 B | 4.7 ms |
+| 1,000 | 1,000 | 2,901,010 B (4,975,153) | 2,902,003 B | 13.3 ms |
+
+The spike (`roadmap/briefs/4-full-1-cards.md`, Input) wrapped each
+row's five keys as an object of its own and aged each at its own
+`show`'s time; the built rows carry them flat, so the built answer is
+a byte a row smaller (−193 B at 200, −993 B at 1,000), as its bias
+said. The time now holds the projection the spike could not time — a
+clone of each held item, its lines' slots, its category's words, the
+item's value without its lines — and at 1,000 rows it is 13.3 ms where
+the compact answer and the items' JSON were 3.9 and 2.1. Time decides
+nothing here: no renderer is in it (the CLI's text, the page's HTML, a
+browser's layout), and the CLI's ask is its load. The cap, 200 rows
+under `item`, is the page's largest Show choice (`acquisition_store::bound::ITEM_ROWS`).
