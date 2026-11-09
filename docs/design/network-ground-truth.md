@@ -1007,9 +1007,9 @@ rustls 0.23 with `ring`, `std` and `tls12`, and reqwest without
 and extension order, groups, ALPN) is not known and GGG's support does
 not see its rules; the claim is only that nothing else has been
 presented under the continuous user-agent, so a block after a change
-of stack could not be told from a block caused by it. The C++ app
-presents Qt's stack under the same registration, so GGG has seen two.
-Held by C169.
+of stack could not be told from a block caused by it. What stack the
+C++ app presents under the same registration is not read here. Held
+by C169.
 
 
 ## Open questions
