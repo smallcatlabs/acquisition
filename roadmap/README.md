@@ -342,6 +342,18 @@ Each in his words, with the commit that landed it.
   shows the row and holds the clear's form, so a page reads whole with
   no script and a reload of the asking page writes nothing. A rename on
   the page asks nothing: it is replayed from the row that stands.
+- 2026-11-09, two trigger labels, after the triage of the issues the
+  semantic-model audit and the language retrospective filed (#196 to
+  #214, each labelled `trigger:user` though no user met one): "Yes
+  let's add that. I will audit the budgets later." `trigger:ruling`
+  ("the owner's word fires it") and `trigger:step` ("the next step in
+  its area takes it") join the trigger list in `AGENTS.md`, "Where
+  things live". Relabelled the same day: #205, #207 and #208 to
+  `live`; #199, #210, #212 and #213 to `ruling`, #191 and #193 gaining
+  it beside `seat`; #196, #197, #198, #200, #201, #203, #206, #209,
+  #211 and #214 to `step`. `AGENTS.md` stands over its byte budget
+  until his audit. No registry entry: it is process, and adds no edge
+  and no boundary (the commit carrying this line).
 
 ## Roles
 
