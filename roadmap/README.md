@@ -362,8 +362,11 @@ Each in his words, with the commit that landed it.
   check holds the two declared reqwest lines beside the resolve, the
   source and release line of reqwest, rustls, ring and webpki-roots,
   and no TLS option or crypto provider named in source; C169 and N52
-  say "the Rust daemon" and only what was read. Whether a patch
-  release of those crates floats is still his to rule.
+  say "the Rust daemon" and only what was read. On whether a patch
+  release of those crates floats, the same day: "Patches are generally
+  compatible, so my gut would be to allow them", and, asked whether
+  that stands as the ruling, "Yes, I'm happy with that". C169's clause
+  "a patch release is a dependency bump" is his word; no check changes.
 
 ## Roles
 
