@@ -354,6 +354,16 @@ Each in his words, with the commit that landed it.
   #211 and #214 to `step`. `AGENTS.md` stands over its byte budget
   until his audit. No registry entry: it is process, and adds no edge
   and no boundary (the commit carrying this line).
+- 2026-11-09, #204's review (`reviews/204-tls-stack-d9d882a7.md`, a
+  fresh sub-agent of the authoring session under `REVIEW-PROMPT.md`,
+  Codex not being installed where the session ran): "This review
+  counts. Let's build your recommendation." Its nine findings are
+  answered by one rule each in the commit carrying this line: the
+  check holds the two declared reqwest lines beside the resolve, the
+  source and release line of reqwest, rustls, ring and webpki-roots,
+  and no TLS option or crypto provider named in source; C169 and N52
+  say "the Rust daemon" and only what was read. Whether a patch
+  release of those crates floats is still his to rule.
 
 ## Roles
 

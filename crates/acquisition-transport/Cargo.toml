@@ -17,9 +17,10 @@ repository.workspace = true
 [dependencies]
 http = "1"
 # TLS is required by real-GGG mode (the default, C88); the mock peer stays loopback.
-# C169: this line's features are the TLS stack GGG has seen (N52). A
-# feature added or dropped here, `http2` among them, is ruled first;
-# tools/arch-check.sh check 5 reads the resolved set.
+# C169: this line is the TLS stack the Rust daemon has presented (N52).
+# A feature added or dropped here, `http2` among them, is ruled first;
+# tools/arch-check.sh check 5 holds this line, the daemon's dev line
+# equal to it, and what the graph resolves from them.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]

@@ -29,8 +29,13 @@
 # declares and the daemon inherits, or through a non-member crate the
 # daemon links, one of them named as the transport crate is; a member but the daemon linking the transport crate; and
 # the transport crate linking a member. The TLS stack's cases (§5, C169)
-# give the one client another feature set: HTTP/2 offered beside
-# HTTP/1.1, and the native backend in rustls's place.
+# give the one client another stack by each way the check reads: a
+# feature added to the transport's reqwest line or dropped from it, the
+# daemon's dev line alone moved, the native backend or the native roots
+# on both lines, another crypto provider, a second rustls, a patched
+# rustls at the same version, a TLS option on a client builder, and a
+# crypto provider installed in the daemon's source; a comment that names
+# one passes.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -45,7 +50,8 @@ cd "$(dirname "$0")/.."
 # path already there is someone's (uncommitted work, or a link to it),
 # and removing it would lose it, so the suite refuses to start.
 owned=(crates/acquisition-helper crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs
-       crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs crates/acquisition-cli/tests/zz_breaker.rs)
+       crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs crates/acquisition-cli/tests/zz_breaker.rs
+       crates/acquisition-daemon/src/zz_breaker.rs crates/acquisition-transport/src/zz_breaker.rs)
 for p in "${owned[@]}"; do
   if [[ -e $p || -L $p ]]; then
     echo "refusing to start: $p exists, and the suite would delete it on every restore"; exit 2
@@ -201,20 +207,46 @@ run_case 'the daemon links a non-member named acquisition-transport' refuse 'req
 run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
 run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
 run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
-# C169: the stack the registration has presented. Each case rewrites the
-# transport's one reqwest line; the daemon's dev edge keeps its own, so
-# the second case resolves both backends, which is still not the one named.
-transport_features() {  # transport_features <the features list, in place of the manifest's>
-  python3 - "$1" <<'PY'
+# C169: the stack the Rust daemon has presented. Each refusal is matched
+# on the line of the graph that differs, never on the verdict alone, so a
+# case green for another line's reason fails here (the cold review of
+# d9d882a7, finding 6).
+reqwest_features() {  # reqwest_features <features list> <manifest>...: in place of each manifest's reqwest features
+  local list=$1 m; shift
+  for m in "$@"; do
+    python3 - "$list" "$m" <<'PY' || return 1
 import pathlib, sys
-p = pathlib.Path('crates/acquisition-transport/Cargo.toml'); s = p.read_text(); a = 'features = ["json", "rustls-tls"]'
-assert s.count(a) == 1, 'the transport reqwest line not found once'
-p.write_text(s.replace(a, 'features = ' + sys.argv[1]))
+p = pathlib.Path(sys.argv[2]); s = p.read_text(); a = 'default-features = false, features = ["json", "rustls-tls"]'
+assert s.count(a) == 1, 'the reqwest line not found once in ' + sys.argv[2]
+p.write_text(s.replace(a, 'default-features = false, features = ' + sys.argv[1]))
 PY
+  done
 }
-TLS='the TLS stack          is not the one the registration has presented'
-run_case 'the one client offers HTTP/2'                          refuse "$TLS" transport_features '["json", "rustls-tls", "http2"]'
-run_case 'the one client takes the native TLS backend'           refuse "$TLS" transport_features '["json", "native-tls"]'
+TM=crates/acquisition-transport/Cargo.toml
+DM=crates/acquisition-daemon/Cargo.toml
+# A copy of the rustls the graph resolves, patched in under the registry's
+# name: the same version from another source.
+patched_rustls() {
+  local dir
+  dir=$(cargo metadata --format-version 1 --all-features | jq -r '[.packages[] | select(.name == "rustls" and (.version | startswith("0.23."))) | .manifest_path][0]') || return 1
+  [[ -f $dir ]] || { echo 'no rustls 0.23 manifest in the graph' >&2; return 1; }
+  cp -R "$(dirname "$dir")" "$scratch/x/rustls-fork" && adddep Cargo.toml "rustls = { path = \"$scratch/x/rustls-fork\" }" '[patch.crates-io]'
+}
+words() { printf '%b' "$2" >"$1"; }   # words <file> <text>: a source file no module names, read by the grep alone
+G='graph:  '
+SET='the TLS stack          is set in source'
+run_case 'the TLS stack as it stands'                            pass   'the TLS stack as named' none
+run_case 'the one client offers HTTP/2'                          refuse "${G}declared acquisition-transport normal ^0.12 no-default-features http2,json,rustls-tls" reqwest_features '["json", "rustls-tls", "http2"]' $TM
+run_case 'the one client drops its TLS feature (the dev line would put it back)' refuse "${G}declared acquisition-transport normal ^0.12 no-default-features json"$'\n' reqwest_features '["json"]' $TM
+run_case 'the daemon'"'"'s test client alone declares another line' refuse "${G}declared acquisition-daemon dev ^0.12 no-default-features http2,json,rustls-tls" reqwest_features '["json", "rustls-tls", "http2"]' $DM
+run_case 'both lines take the native TLS backend'                refuse "${G}declared acquisition-transport normal ^0.12 no-default-features json,native-tls" reqwest_features '["json", "native-tls"]' $TM $DM
+run_case 'both lines take the platform'"'"'s roots'              refuse "${G}resolved reqwest 0.12 crates.io json,rustls-tls-native-roots" reqwest_features '["json", "rustls-tls-native-roots"]' $TM $DM
+run_case 'rustls gains the aws-lc-rs provider'                   refuse "${G}resolved rustls 0.23 crates.io aws" adddep $TM 'rustls = { version = "0.23", features = ["aws-lc-rs"] }'
+run_case 'a second rustls joins the graph'                       refuse "${G}resolved rustls 0.22 crates.io" adddep $TM 'rustls_old = { package = "rustls", version = "0.22", default-features = false }'
+run_case 'rustls patched from a path at the same version'        refuse "${G}resolved rustls 0.23 path" patched_rustls
+run_case 'a client builder sets a TLS option'                    refuse "$SET" words crates/acquisition-transport/src/zz_breaker.rs 'fn f() {\n    let _ = reqwest::Client::builder().min_tls_version(reqwest::tls::Version::TLS_1_3);\n}\n'
+run_case 'the daemon installs a crypto provider'                 refuse "$SET" words crates/acquisition-daemon/src/zz_breaker.rs 'fn f() {\n    let _ = rustls::crypto::ring::default_provider().install_default();\n}\n'
+run_case 'a comment names a TLS option'                          pass   'the TLS stack as named' words crates/acquisition-daemon/src/zz_breaker.rs '// install_default is never called here (C169)\n'
 run_case 'the store links tokio through a [dependencies.tokio] table' refuse 'acquisition-store      links tokio' adddep crates/acquisition-store/Cargo.toml 'workspace = true' '[dependencies.tokio]'
 
 echo '== the code: the search crate'"'"'s edges (C89)'

@@ -994,19 +994,22 @@ reads a negative span as none (an open question for a sitting on a
 league announced before it opens). The mock's entries carry a
 `startAt` so the fixture holds one.
 
-**N52. Every request this registration's Rust daemon has sent GGG was
-carried by one TLS stack: rustls 0.23 with the ring crypto provider and
-the bundled webpki roots, through reqwest 0.12, offering HTTP/1.1
-alone.** [OBSERVED — High; read from the tree's history 2026-11-09,
-no request made for this claim] The real provider's first commit
-(`8bece72d`, 2026-08-20) declared reqwest with no default features and
-`rustls-tls`, and every manifest line since is that line, so each row
-of `RUN-LEDGER.md` was sent under it; `Cargo.lock` resolves it to
-rustls 0.23 with `ring`, `std` and `tls12`, and reqwest without
-`http2`. What Cloudflare reads from the resulting ClientHello (cipher
-and extension order, groups, ALPN) is not known and GGG's support does
-not see its rules; the claim is only that nothing else has been
-presented under the continuous user-agent, so a block after a change
+**N52. Every request the Rust daemon has sent GGG from a committed
+tree was carried by one TLS stack: rustls 0.23 with the ring crypto
+provider and the bundled webpki roots, through reqwest 0.12, offering
+HTTP/1.1 alone.** [CODE — High; read from the tree's history
+2026-11-09, no request made and no ClientHello captured] The commit
+that landed the real provider (`8bece72d`, 2026-08-20) declared reqwest
+with no default features and `rustls-tls`, every manifest line since is
+that line, and no commit's client builder has set a TLS option, so
+each row of `RUN-LEDGER.md` was sent under it. `cargo metadata`'s
+resolve, the reader C169's check uses, gives rustls 0.23 with `ring`,
+`std` and `tls12` and reqwest without `http2`; `Cargo.lock` held rustls
+at three patch releases of 0.23 across those rows, so what is constant
+is a release line, not a byte-for-byte hello. What Cloudflare reads
+from the ClientHello (cipher and extension order, groups, ALPN) is not
+known and GGG's support does not see its rules; the claim is only that
+the Rust daemon has presented nothing else, so a block after a change
 of stack could not be told from a block caused by it. What stack the
 C++ app presents under the same registration is not read here. Held
 by C169.

@@ -15,8 +15,11 @@
 #      client's crate (C161): reqwest linked in a normal or build edge by
 #      the transport crate alone, which links no member and which no
 #      member but the daemon links; and the TLS stack that client
-#      presents (C169): reqwest's and rustls's release lines and
-#      resolved features, read from the same graph, are the ones named.
+#      presents (C169), as far as a manifest, the graph and the source
+#      decide it: the two declared reqwest lines, the release line,
+#      source and resolved features of reqwest and rustls, the release
+#      line and source of ring and webpki-roots, and no TLS option or
+#      crypto provider named in the transport's or the daemon's source.
 #
 #   7. One reader of a group's meaning: outside the search crate's modules
 #      that build, print and validate the query tree, and the one that
@@ -221,17 +224,31 @@ if ! http_dependents=$(jq -r '
   echo 'EDGE    jq failed reading the dependents of reqwest'
   rm -f "$meta"; exit 1
 fi
-# What the one client presents in a TLS ClientHello, as far as the graph
-# decides it (C169): every package named reqwest or rustls in the resolve,
-# one line each, `<name> <major.minor> <resolved features>`, sorted, a
-# feature whose name opens `__` (a crate's private plumbing) left out.
-# The backend and its crypto provider are rustls's features, the root
-# store and the offered protocols (no `http2`, so ALPN names HTTP/1.1
-# alone) reqwest's; a second rustls in the graph is a second line.
+# What the one client presents in a TLS ClientHello, as far as a manifest
+# and the graph decide it (C169), sorted, one line each:
+#   `declared <member> <kind> <requirement> <default features> <features>`
+#     for every dependency on reqwest a workspace member declares, as its
+#     manifest spells it. The resolve below is a union over every edge,
+#     the daemon's dev edge among them, so a feature the transport's line
+#     dropped would be put back by the dev line and read as present (the
+#     cold review of d9d882a7, finding 1); the declared lines are what a
+#     release build takes.
+#   `resolved <name> <major.minor> <source> <features>`
+#     for every package named reqwest, rustls, ring or webpki-roots in the
+#     resolve: the backend and its provider are rustls's features, the
+#     root store's choice and the offered protocols (no `http2`, so ALPN
+#     names HTTP/1.1 alone) reqwest's, a feature whose name opens `__` (a
+#     crate's private plumbing) left out; ring is the provider's code and
+#     webpki-roots the root list, held by release line with `-` for their
+#     features. The source is `crates.io` or the id's own, so a patched
+#     copy at the same version is another line; a second copy of any of
+#     the four is a second line.
 if ! tls_stack=$(jq -r '
     ([.packages[] | {key: .id, value: .}] | from_entries) as $pkg
-    | [.resolve.nodes[] | select($pkg[.id].name == "reqwest" or $pkg[.id].name == "rustls")
-       | "\($pkg[.id].name) \($pkg[.id].version | split(".")[0:2] | join(".")) \([.features[] | select(startswith("__") | not)] | sort | join(","))"]
+    | ([.packages[] | select(.source == null) | . as $m | .dependencies[] | select(.name == "reqwest")
+        | "declared \($m.name) \(.kind // "normal") \(.req) \(if .uses_default_features then "default-features" else "no-default-features" end) \(.features | sort | join(","))"]
+       + [.resolve.nodes[] | $pkg[.id] as $p | select($p.name == "reqwest" or $p.name == "rustls" or $p.name == "ring" or $p.name == "webpki-roots")
+        | "resolved \($p.name) \($p.version | split(".")[0:2] | join(".")) \(if $p.source == "registry+https://github.com/rust-lang/crates.io-index" then "crates.io" else ($p.source // "path") end) \(if $p.name == "reqwest" or $p.name == "rustls" then ([.features[] | select(startswith("__") | not)] | sort | join(",")) else "-" end)"])
     | sort | .[]' "$meta"); then
   echo 'EDGE    jq failed reading the TLS stack'
   rm -f "$meta"; exit 1
@@ -394,7 +411,7 @@ tls_is() {  # tls_is <why> <line>...: the graph's reqwest and rustls lines are e
   shift
   want=$(printf '%s\n' "$@")
   if [[ $tls_stack != "$want" ]]; then
-    printf 'EDGE    %-22s is not the one the registration has presented — %s\n' 'the TLS stack' "$why"
+    printf 'EDGE    %-22s is not the one the Rust daemon has presented — %s\n' 'the TLS stack' "$why"
     printf '          named:  %s\n' "$@"
     while IFS= read -r want; do printf '          graph:  %s\n' "$want"; done <<<"$tls_stack"
     fail=1; edge_bad=1
@@ -422,13 +439,29 @@ allow acquisition-protocol normal serde serde_json
 entered_by reqwest acquisition-transport acquisition-daemon 'reqwest is linked in a normal or build edge by acquisition-transport alone, the one production transport, and as a dev-dependency by the daemon'"'"'s tests alone; send through the choke point, which owns that transport (C161, C1)'
 no_member acquisition-transport 'the transport crate links no workspace crate: the daemon gives it the user-agent and the timeouts (C1, C161)'
 only_self acquisition-transport 'no package but acquisition-daemon links the transport crate, whose one caller is the choke point (C1, C161)' acquisition-daemon
-# C169: the stack GGG has seen under the continuous user-agent. A patch
-# release moves neither line; a new release line, another backend or
-# provider, another root store or `http2` does, and is ruled before it
-# is named here.
-tls_is 'a change of TLS backend, crypto provider, root store, offered protocol or release line is the owner'"'"'s ruling, then a live run, never a dependency bump (C169, N52)' \
-  'reqwest 0.12 json,rustls-tls,rustls-tls-webpki-roots,rustls-tls-webpki-roots-no-provider' \
-  'rustls 0.23 ring,std,tls12'
+# C169: the stack every send of the Rust daemon has been carried by (N52).
+# A patch release moves no line; a new release line, another backend,
+# provider, root store or source, `http2`, or a declared line that is not
+# the other's does, and is ruled before it is named here.
+tls_is 'a change of TLS backend, crypto provider, root store, offered protocol, source or release line is the owner'"'"'s ruling, then a live run, never a dependency bump (C169, N52)' \
+  'declared acquisition-daemon dev ^0.12 no-default-features json,rustls-tls' \
+  'declared acquisition-transport normal ^0.12 no-default-features json,rustls-tls' \
+  'resolved reqwest 0.12 crates.io json,rustls-tls,rustls-tls-webpki-roots,rustls-tls-webpki-roots-no-provider' \
+  'resolved ring 0.17 crates.io -' \
+  'resolved rustls 0.23 crates.io ring,std,tls12' \
+  'resolved webpki-roots 1.0 crates.io -'
+# What no manifest decides (the same review, finding 2): a TLS option on
+# a client builder, and the process's default crypto provider, which
+# reqwest takes before its own ring. Neither is named, outside a comment
+# line, by the transport's source or the daemon's, tests included: the
+# one client is built with a user-agent and a redirect policy alone. A
+# spelling grep, as the door grep below is (#196).
+tls_words='install_default|CryptoProvider|_tls_version|tls_sni|tls_info|tls_built_in|add_root_certificate|add_crl|use_preconfigured_tls|use_rustls_tls|use_native_tls|danger_accept_invalid|\.identity\(|http2_|http3_|https_only'
+if tls_hits=$(grep -rnE "$tls_words" crates/acquisition-transport/src crates/acquisition-daemon/src | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'); then
+  printf 'EDGE    %-22s is set in source — a TLS option on a client or a crypto provider installed in the daemon changes what the Rust daemon presents, and is the owner'"'"'s ruling first (C169)\n' 'the TLS stack'
+  while IFS= read -r line; do printf '          %s\n' "${line:0:160}"; done <<<"$tls_hits"
+  fail=1; edge_bad=1
+fi
 allow acquisition-protocol dev    serde serde_json
 allow acquisition-protocol build  sha2
 if grep -rqE 'Annotations|annotations_path' crates/acquisition-daemon/src crates/acquisition-protocol/src crates/acquisition-client/src; then
