@@ -28,7 +28,9 @@
 # second member, by the daemon again, through an alias the workspace
 # declares and the daemon inherits, or through a non-member crate the
 # daemon links, one of them named as the transport crate is; a member but the daemon linking the transport crate; and
-# the transport crate linking a member.
+# the transport crate linking a member. The TLS stack's cases (§5, C169)
+# give the one client another feature set: HTTP/2 offered beside
+# HTTP/1.1, and the native backend in rustls's place.
 #
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
@@ -199,6 +201,20 @@ run_case 'the daemon links a non-member named acquisition-transport' refuse 'req
 run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
 run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
 run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
+# C169: the stack the registration has presented. Each case rewrites the
+# transport's one reqwest line; the daemon's dev edge keeps its own, so
+# the second case resolves both backends, which is still not the one named.
+transport_features() {  # transport_features <the features list, in place of the manifest's>
+  python3 - "$1" <<'PY'
+import pathlib, sys
+p = pathlib.Path('crates/acquisition-transport/Cargo.toml'); s = p.read_text(); a = 'features = ["json", "rustls-tls"]'
+assert s.count(a) == 1, 'the transport reqwest line not found once'
+p.write_text(s.replace(a, 'features = ' + sys.argv[1]))
+PY
+}
+TLS='the TLS stack          is not the one the registration has presented'
+run_case 'the one client offers HTTP/2'                          refuse "$TLS" transport_features '["json", "rustls-tls", "http2"]'
+run_case 'the one client takes the native TLS backend'           refuse "$TLS" transport_features '["json", "native-tls"]'
 run_case 'the store links tokio through a [dependencies.tokio] table' refuse 'acquisition-store      links tokio' adddep crates/acquisition-store/Cargo.toml 'workspace = true' '[dependencies.tokio]'
 
 echo '== the code: the search crate'"'"'s edges (C89)'

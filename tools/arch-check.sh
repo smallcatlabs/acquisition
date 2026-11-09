@@ -14,7 +14,9 @@
 #      itself — each forbidden edge refused at any depth; and the one HTTP
 #      client's crate (C161): reqwest linked in a normal or build edge by
 #      the transport crate alone, which links no member and which no
-#      member but the daemon links.
+#      member but the daemon links; and the TLS stack that client
+#      presents (C169): reqwest's and rustls's release lines and
+#      resolved features, read from the same graph, are the ones named.
 #
 #   7. One reader of a group's meaning: outside the search crate's modules
 #      that build, print and validate the query tree, and the one that
@@ -219,6 +221,21 @@ if ! http_dependents=$(jq -r '
   echo 'EDGE    jq failed reading the dependents of reqwest'
   rm -f "$meta"; exit 1
 fi
+# What the one client presents in a TLS ClientHello, as far as the graph
+# decides it (C169): every package named reqwest or rustls in the resolve,
+# one line each, `<name> <major.minor> <resolved features>`, sorted, a
+# feature whose name opens `__` (a crate's private plumbing) left out.
+# The backend and its crypto provider are rustls's features, the root
+# store and the offered protocols (no `http2`, so ALPN names HTTP/1.1
+# alone) reqwest's; a second rustls in the graph is a second line.
+if ! tls_stack=$(jq -r '
+    ([.packages[] | {key: .id, value: .}] | from_entries) as $pkg
+    | [.resolve.nodes[] | select($pkg[.id].name == "reqwest" or $pkg[.id].name == "rustls")
+       | "\($pkg[.id].name) \($pkg[.id].version | split(".")[0:2] | join(".")) \([.features[] | select(startswith("__") | not)] | sort | join(","))"]
+    | sort | .[]' "$meta"); then
+  echo 'EDGE    jq failed reading the TLS stack'
+  rm -f "$meta"; exit 1
+fi
 rm -f "$meta"
 # The two answers must agree row by row, by identity and by name: the
 # table's rows, projected to (member id, kind, dep id, member, name) and
@@ -372,6 +389,17 @@ entered_by() {  # entered_by <name> <package> <dev package> <why>: every normal 
     fail=1; edge_bad=1
   fi
 }
+tls_is() {  # tls_is <why> <line>...: the graph's reqwest and rustls lines are exactly these
+  local why=$1 want
+  shift
+  want=$(printf '%s\n' "$@")
+  if [[ $tls_stack != "$want" ]]; then
+    printf 'EDGE    %-22s is not the one the registration has presented — %s\n' 'the TLS stack' "$why"
+    printf '          named:  %s\n' "$@"
+    while IFS= read -r want; do printf '          graph:  %s\n' "$want"; done <<<"$tls_stack"
+    fail=1; edge_bad=1
+  fi
+}
 # The frontends are named here; a new one (the GUI, a queue TUI) is added
 # to the daemon's list when its package exists — the reverse direction,
 # that nothing links the daemon, needs no list.
@@ -394,6 +422,13 @@ allow acquisition-protocol normal serde serde_json
 entered_by reqwest acquisition-transport acquisition-daemon 'reqwest is linked in a normal or build edge by acquisition-transport alone, the one production transport, and as a dev-dependency by the daemon'"'"'s tests alone; send through the choke point, which owns that transport (C161, C1)'
 no_member acquisition-transport 'the transport crate links no workspace crate: the daemon gives it the user-agent and the timeouts (C1, C161)'
 only_self acquisition-transport 'no package but acquisition-daemon links the transport crate, whose one caller is the choke point (C1, C161)' acquisition-daemon
+# C169: the stack GGG has seen under the continuous user-agent. A patch
+# release moves neither line; a new release line, another backend or
+# provider, another root store or `http2` does, and is ruled before it
+# is named here.
+tls_is 'a change of TLS backend, crypto provider, root store, offered protocol or release line is the owner'"'"'s ruling, then a live run, never a dependency bump (C169, N52)' \
+  'reqwest 0.12 json,rustls-tls,rustls-tls-webpki-roots,rustls-tls-webpki-roots-no-provider' \
+  'rustls 0.23 ring,std,tls12'
 allow acquisition-protocol dev    serde serde_json
 allow acquisition-protocol build  sha2
 if grep -rqE 'Annotations|annotations_path' crates/acquisition-daemon/src crates/acquisition-protocol/src crates/acquisition-client/src; then
@@ -415,7 +450,7 @@ if grep -rqE "$doors" crates/acquisition-cli/src crates/acquisition-mcp/src; the
   fail=1; edge_bad=1
 fi
 if ((edge_bad == 0)); then
-  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only, reqwest only through transport, transport ∌ members, nothing ∌ transport but the daemon (C1, C34, C39, C41, C46, C89, C161, §2.1)'
+  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only, reqwest only through transport, transport ∌ members, nothing ∌ transport but the daemon, the TLS stack as named (C1, C34, C39, C41, C46, C89, C161, C169, §2.1)'
 fi
 
 # ---- 7. a group's meaning has one reader ---------------------------------
