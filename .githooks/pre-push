@@ -52,7 +52,15 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     range="$local_sha"
     base=''
   fi
-  found=$(git log --format='%H%x09%cn <%ce>%x09%s' "$range" | awk -F '\t' '
+  # A history git cannot read is refused, never passed as clean.
+  if ! log=$(git log --format='%H%x09%cn <%ce>%x09%s' "$range"); then
+    {
+      echo "pre-push: main takes no commit whose committer is Claude, and git could not read every commit this push to main carries."
+      echo "Repair the clone (git fsck names what is missing; git fetch $(q "$remote") may restore it), then push again."
+    } >&2
+    exit 1
+  fi
+  found=$(printf '%s\n' "$log" | awk -F '\t' '
     { c = $2; lc = tolower(c) }
     lc ~ /^claude[ <]/ || lc ~ /@anthropic\.com>$/ { print "  " substr($1, 1, 12) "  committer " c "  " $3 }')
   [ -n "$found" ] || continue
