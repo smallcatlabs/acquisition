@@ -85,7 +85,14 @@ HEXWORD=abcdef; HEXWORD+=a   # a hash of hex letters alone, built so the cited-c
 run_case 'a date'                                                refuse 'carries a date'          entry "$W" 'at compile, as of 2026-09-03. *Why:*'
 run_case 'a commit'                                              refuse 'carries a commit'        entry "$W" 'at compile (at 16bba23e). *Why:*'
 run_case 'a commit of hex letters alone'                          refuse 'carries a commit'        entry "$W" "at compile (at \`$HEXWORD\`). *Why:*"
-run_case 'an owner quote'                                        refuse 'carries "owner:"'        entry "$W" 'at compile (owner: "agreed"). *Why:*'
+run_case 'an owner quote'                                        refuse "carries an owner's quote"   entry "$W" 'at compile (owner: "agreed"). *Why:*'
+run_case 'a parenthesis naming the owner as the source'          refuse "carries an owner's quote"   entry "$W" 'at compile (the owner, #166). *Why:*'
+run_case "the owner's word and its quotation"                   refuse "carries an owner's quote"   entry "$W" "at compile, the owner's word: \"yes\". *Why:*"
+run_case "the owner's ruling as the reason"                     refuse "carries an owner's quote"   entry "$W" "at compile. *Why:* the owner's ruling; and"
+run_case "a sentence: under the owner's delegation"             refuse "carries an owner's quote"   entry "$W" "at compile. Under the owner's delegation. *Why:*"
+run_case 'his words quoted'                                      refuse "carries an owner's quote"   entry "$W" 'at compile, in his words "as drafted". *Why:*'
+run_case 'his name'                                              refuse "carries an owner's quote"   entry "$W" 'at compile, as Tom asked. *Why:*'
+run_case 'the owner named as a party is no quote'                pass   'none carrying a history marker' entry "$W" "at compile, and the owner rules the rest; a fourth is the owner's word, quoted in the commit, under the owner's delegation. *Why:*"
 run_case 'the word verbatim'                                     refuse 'carries "verbatim"'      entry "$W" 'at compile, quoted verbatim. *Why:*'
 run_case 'Amended'                                               refuse 'carries "Amended"'       entry "$W" 'at compile. Amended after the seat. *Why:*'
 run_case 'Decided'                                               refuse 'carries "Decided"'       entry "$W" 'at compile. Decided by the session. *Why:*'

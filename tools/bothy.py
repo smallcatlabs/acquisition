@@ -31,9 +31,10 @@ The entry rule. An entry is one bullet,
 4. A gloss of two to five words on every cited id, the first time it
    appears in the entry: `C53 (three output levels)`. The gloss helps
    the reader and binds nothing.
-5. No history: no date, no commit, no owner's quote, no "Decided",
-   "Ruled", "Amended" or "Kept", no seat call number, no measurement,
-   no note citation. `git log -S'C<n>'` and the commit messages hold
+5. No history: no date, no commit, no owner's quote in any form (his
+   words, or him named as the source: "(the owner, #166)", "Under the
+   owner's word."), no "Decided", "Ruled", "Amended" or "Kept", no seat
+   call number, no measurement, no note citation. `git log -S'C<n>'` and the commit messages hold
    it, and docs-check refuses the markers. A ruling whose build waits
    says `Unbuilt` and names its issue.
 6. A shape, held by `check`, never a size. The headline (the bold
