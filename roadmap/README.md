@@ -13,7 +13,8 @@ better Acquisition that is agent-friendly and agent-forward.
 - **The governance rebuild**, handed off on 2026-11-09 with its
   documents done and its tools not started.
 
-  Done, committed and not pushed: the process rulings
+  Done and pushed, its rulings read and approved by the owner (#227):
+  the process rulings
   (`decisions/process.md`, C170 to C185); this file cut to state; the
   brief template, the two review prompts and the cold-review skill;
   the documents' cold review, saved and answered
@@ -22,15 +23,12 @@ better Acquisition that is agent-friendly and agent-forward.
   owner's queue of old delegated decisions (#221 to #225).
 
   Next, each for a fresh session, one at a time in this tree:
-  1. The owner has read the rulings (#227) and approved all but C172,
-     which was rewritten at his word, with C185 taking the rules that
-     left it. Nothing is pushed until he has seen those two.
-  2. `briefs/governance-tools-1.md`, then
+  1. `briefs/governance-tools-1.md`, then
      `briefs/governance-tools-2.md` (#226), each with its cold review.
      Until the second lands, C180 and C184 say `Unbuilt`.
-  3. A cold agent sits at the instructions, the acceptance test
+  2. A cold agent sits at the instructions, the acceptance test
      (#228), after the tools.
-  4. The agent's memory is brought under C183 (#229).
+  3. The agent's memory is brought under C183 (#229).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed: the saved
   search, its MCP tools, the pages, the answer and item pages, and
@@ -69,9 +67,8 @@ area: `gh issue list --label trigger:step`.
 ## Waiting on the owner
 
 His queue is the open issues labelled `trigger:ruling`:
-`gh issue list --label trigger:ruling`. Thirteen were open on
-2026-11-09; #227 comes first, since the push waits on it. What only
-he can do:
+`gh issue list --label trigger:ruling`. Twelve were open on
+2026-11-09. What only he can do:
 
 - His morning at `acq web` in his own store (the live-run skill); step
   6 waits on it.
