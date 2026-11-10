@@ -144,6 +144,7 @@ push_case 'a cloud commit under a person'"'"'s'                refused refs/head
 push_case 'a cloud branch pushed onto main'               refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud:main"
 push_case 'a cloud commit to a remote with no main'       refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin main" 'git push -q origin :main'
 push_case 'a cloud branch on the remote, then onto no main'  refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud && git push -q origin cloud:main" 'git push -q origin :main'
+push_case 'a shallow clone pushing onto main'              refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && git push -q origin cloud && git clone -q --depth 1 --branch cloud \"file://\$PWD.git\" ../shallow && cd ../shallow && git config core.hooksPath \"$hooks\" && git push -q origin HEAD:main" 'git push -q origin :main' 'git fetch --unshallow'
 push_case 'a cloud merge: no rebase is offered'           refused refs/heads/main "git checkout -qb cloud side && $CLOUD git merge -q --no-ff --no-commit main && echo merged-only >h && git add h && $CLOUD git commit -qm 'a cloud merge' && git push -q origin cloud:main" true 'carries a merge'
 
 echo '== a push to main: what the hook lets through'
@@ -153,10 +154,11 @@ push_case 'a cloud commit to a branch not main'           landed  refs/heads/clo
 echo '== a push to main: the printed way on, run as printed, lands'
 # The refusal's way-on lines are run as printed, from where the case
 # stands, and then the push lands with this clone's user as committer.
-WAY='! git push -q origin "$1" 2>"$HOME_OUT" && sed -n "s/^  \\(git .*\\)\$/\\1/p" "$HOME_OUT" >"$HOME_OUT.sh" && grep -q . "$HOME_OUT.sh" && bash -e "$HOME_OUT.sh" >/dev/null 2>&1'
+WAY='! git push -q "${2:-origin}" "$1" 2>"$HOME_OUT" && sed -n "s/^  \\(git .*\\)\$/\\1/p" "$HOME_OUT" >"$HOME_OUT.sh" && grep -q . "$HOME_OUT.sh" && bash -e "$HOME_OUT.sh" >/dev/null 2>&1'
 export HOME_OUT=$scratch/way
 push_case 'on main: the way on lands'                     landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main && [[ \$(git log -1 --format=%cn) == breaker ]]"
 push_case 'from another checkout: the way on lands'       landed  refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git checkout -q main && bash -c '$WAY' _ cloud:main && [[ \$(git log -1 --format=%cn) == breaker ]]"
+push_case 'to a remote path with a space: the way on lands'  landed  refs/heads/main "ln -s \"\$PWD.git\" \"\$PWD sp.git\" && echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main \"\$PWD sp.git\" && grep -qF \"'\$PWD sp.git'\" \"\$HOME_OUT.sh\" && [[ \$(git log -1 --format=%cn) == breaker ]]"
 push_case 'to a remote with no main: the way on lands'    landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main && [[ \$(git log -1 --format=%cn) == breaker ]]" 'git push -q origin :main'
 
 echo

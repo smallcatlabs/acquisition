@@ -16,16 +16,35 @@
 # `main`. The way on names the refused branch and its base, so it runs
 # from any checkout; a rebase would drop what a merge alone carries, so
 # a push carrying a merge gets no rebase (main's ruleset takes linear
-# history only).
+# history only). A shallow clone cannot read every commit it pushes, so
+# a push to `main` from one is refused until it fetches the whole
+# history. Each name in a printed command is quoted for the shell.
 # Enable with: git config core.hooksPath .githooks
 
 remote="$1"
 zero_only() { case "$1" in *[!0]*) return 1 ;; esac; return 0; }
+# q <word>: the word as a POSIX shell reads it back unchanged.
+q() {
+  case "$1" in
+    *[!A-Za-z0-9_./:@+=,-]*|'') printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+shallow=$(git rev-parse --is-shallow-repository 2>/dev/null)
 bad=''
 ways=''
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$remote_ref" = refs/heads/main ] || continue
   zero_only "$local_sha" && continue  # a deletion carries no commit
+  if [ "$shallow" = true ]; then
+    {
+      echo "pre-push: main takes no commit whose committer is Claude, and this clone is shallow: it cannot read every commit this push to main carries."
+      echo "Fetch the whole history, then push again:"
+      echo
+      echo "  git fetch --unshallow $(q "$remote")"
+    } >&2
+    exit 1
+  fi
   if ! zero_only "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
     range="$remote_sha..$local_sha"
     base=$(git rev-parse --short=12 "$remote_sha")
@@ -40,14 +59,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   bad="$bad$found
 "
   case "$local_ref" in
-    refs/heads/*) branch=${local_ref#refs/heads/}; again="git push $remote $branch:main" ;;
-    *) branch=$(git rev-parse --short=12 "$local_sha"); again="git push $remote HEAD:main" ;;
+    refs/heads/*) branch=$(q "${local_ref#refs/heads/}"); again="git push $(q "$remote") $(q "${local_ref#refs/heads/}:main")" ;;
+    *) branch=$(git rev-parse --short=12 "$local_sha"); again="git push $(q "$remote") HEAD:main" ;;
   esac
   if [ -n "$(git rev-list --min-parents=2 "$range")" ]; then
     ways="${ways}This push carries a merge, which main's ruleset refuses (linear history only), and a rebase would drop what the merge alone carries: make the change a line of commits first.
 "
   elif [ -z "$base" ] && ! zero_only "$remote_sha"; then
-    ways="${ways}This clone does not hold $remote's main: run git fetch $remote, then push again to read the way on.
+    ways="${ways}This clone does not hold the remote's main: run git fetch $(q "$remote"), then push again to read the way on.
 "
   elif [ -n "$base" ]; then
     ways="${ways}  git rebase --force-rebase $base $branch
