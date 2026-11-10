@@ -20,7 +20,10 @@ better Acquisition that is agent-friendly and agent-forward.
   the documents' cold review, saved and answered
   (`reviews/governance-docs-8bd924bb.md`); what holds each invariant,
   named in `AGENTS.md`, with the gaps filed (#216 to #219); the
-  owner's queue of old delegated decisions (#221 to #225).
+  owner's queue of old delegated decisions (#221 to #225). The
+  audit's record is `audits/governance-2026-11/README.md` and the
+  reports beside it, kept until this step closes: its close deletes
+  them and cites their commit in `HISTORY.md`.
 
   Next, each for a fresh session, one at a time in this tree:
   1. `briefs/governance-tools-1.md`, then
