@@ -5,8 +5,8 @@
 # plan offers no server-side rule that refuses such a push, and the
 # pre-push hook is skipped by `--no-verify` or a clone without
 # `core.hooksPath`; this check cannot refuse the push, only make it a
-# red run. Gate (Linux)'s `committer` job runs it on each push to `main`
-# with the push's `before` and `after`.
+# red run. The Committer workflow (`.github/workflows/committer.yml`)
+# runs it on each push to `main` with the push's `before` and `after`.
 #
 # The commits read are those after `before` when the clone holds it, and
 # otherwise every commit `after` reaches (a new branch's `before` is all

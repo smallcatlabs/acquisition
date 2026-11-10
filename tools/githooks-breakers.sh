@@ -191,14 +191,14 @@ check_case() {
 }
 
 echo '== CI: a push to main carrying a Claude committer fails the run (C186)'
-check_case 'a cloud commit in the push'                    reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK \$b HEAD"
-check_case 'a cloud commit under a person'"'"'s'                reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
-check_case 'a new branch: before is zeros'                 reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK 0000000000000000000000000000000000000000 HEAD"
-check_case 'a force push: before is gone'                  reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK 1111111111111111111111111111111111111111 HEAD"
-check_case 'a person'"'"'s commit in the push'                  clean    "b=\$(git rev-parse HEAD) && echo x >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
-check_case 'a cloud commit before the push is not read'    clean    "echo x >>f && $CLOUD git commit -qam 'a cloud change' && b=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
-check_case 'a shallow clone'                               unread   "git clone -q --depth 1 \"file://\$PWD\" ../shallow-ci && cd ../shallow-ci && \$CHECK 0000000000000000000000000000000000000000 HEAD"
-check_case 'a history git cannot read'                     unread   "echo x >>f && $CLOUD git commit -qam 'a cloud change' && c=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && rm -f .git/objects/\${c:0:2}/\${c:2} && \$CHECK 0000000000000000000000000000000000000000 HEAD"
+check_case 'a cloud commit in the push'                    reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && \"\$CHECK\" \$b HEAD"
+check_case 'a cloud commit under a person'"'"'s'                reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && \"\$CHECK\" \$b HEAD"
+check_case 'a new branch: before is zeros'                 reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \"\$CHECK\" 0000000000000000000000000000000000000000 HEAD"
+check_case 'a force push: before is gone'                  reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \"\$CHECK\" 1111111111111111111111111111111111111111 HEAD"
+check_case 'a person'"'"'s commit in the push'                  clean    "b=\$(git rev-parse HEAD) && echo x >>f && git commit -qam 'a person' && \"\$CHECK\" \$b HEAD"
+check_case 'a cloud commit before the push is not read'    clean    "echo x >>f && $CLOUD git commit -qam 'a cloud change' && b=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && \"\$CHECK\" \$b HEAD"
+check_case 'a shallow clone'                               unread   "git clone -q --depth 1 \"file://\$PWD\" ../shallow-ci && cd ../shallow-ci && \"\$CHECK\" 0000000000000000000000000000000000000000 HEAD"
+check_case 'a history git cannot read'                     unread   "echo x >>f && $CLOUD git commit -qam 'a cloud change' && c=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && rm -f .git/objects/\${c:0:2}/\${c:2} && \"\$CHECK\" 0000000000000000000000000000000000000000 HEAD"
 
 # The check runs only where a workflow runs it: Committer, on each push
 # to main, with the push's before and after, reading the whole history.
