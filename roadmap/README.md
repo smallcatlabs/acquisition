@@ -33,7 +33,7 @@ better Acquisition that is agent-friendly and agent-forward.
 
   Next, each for a fresh session, one at a time in this tree:
   1. A cold agent sits at the instructions, the acceptance test
-     (#228).
+     (#228); how it runs is `audits/governance-2026-11/seat/BRIEF.md`.
   2. The agent's memory is brought under C183 (#229).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed: the saved

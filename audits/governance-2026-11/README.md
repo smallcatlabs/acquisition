@@ -37,6 +37,7 @@ address and three local paths removed.
 | `7-invariant-holders.md` | what would fail if each of the five invariants broke |
 | `8-owner-read-harvest.md` | every promise that the owner would read something later |
 | `9-queue-drafts.md` | the drafts of the owner's queue, #221 to #225 |
+| `seat/` | #228's sitting: how it runs, its prompt, and the baseline's prompt |
 
 Two reports are not here: 5, on the agent-side apparatus, and 10, a
 sort of an agent's private memory against the tree. Both describe that
