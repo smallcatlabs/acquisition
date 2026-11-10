@@ -2,10 +2,10 @@
 """bothy — a linter and reader for a markdown decision registry.
 
     python3 -I tools/bothy.py check                 lint the registry; exit 1 on a fault
-    python3 -I tools/bothy.py list [decisions|parks] [--area NAME]
+    python3 -I tools/bothy.py list [decisions|parks] [--area NAME]   the index: each headline whole
     python3 -I tools/bothy.py show C<n>             one entry, what it cites, what cites it, where code holds it
     python3 -I tools/bothy.py pack --area store     what to read before touching an area
-    python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs
+    python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs   the rulings the file cites, first
     python3 -I tools/bothy.py --root DIR ...        the tree to read (default: the script's parent directory)
 
 The registry is the root file, `AGENTS.md` (the one file every session
@@ -36,17 +36,48 @@ The entry rule. An entry is one bullet,
    no note citation. `git log -S'C<n>'` and the commit messages hold
    it, and docs-check refuses the markers. A ruling whose build waits
    says `Unbuilt` and names its issue.
-6. One bullet under docs-check's length limit, 800 bytes: a prompt to
-   route a mechanism to the code, never a budget to fill.
-7. The owner's words stay the authority: an entry changes only by his
-   ruling, and the commit that changes it quotes him.
+6. A shape, held by `check`, never a size. The headline (the bold
+   sentence after the id) states the rule whole in at most 160 bytes.
+   The headline and the ruling together are at most six clauses. A
+   clause is counted on the text before *Why:*, each code span read as
+   one word and parenthesised text left out, split at `. ` or `; ` and
+   at a final `.` or `;`. An entry that needs more is two rulings: the
+   second takes a new id, by the owner's ruling.
+7. *Pinned:* names at most three files, and every name it ticks
+   exists. A ticked token with a `/` or a file extension is a path, a
+   file or a directory, written as the registry writes one: from the
+   tree, from `crates/`, from one crate, or a bare file name that a
+   file under `crates/`, `tools/` or `.github/` carries. Any other
+   ticked token occurs in a file the same *Pinned:* names, or under a
+   directory it names, as written or by its last `::` segment, so a
+   prefix is written `c35_`; where no file is named, it occurs under
+   `crates/`, `tools/` or `.github/`. Past three holders, keep a
+   structural check, then the test at the lowest crate that holds the
+   property, then a test whose name carries the id; `show` lists the
+   rest.
+8. `decisions/shape-baseline.tsv` is the entries that were over a limit
+   of rule 6 when `check` first held the shape, one row each: id,
+   headline bytes, clauses, tab-separated. The file only shrinks. A row
+   lets its entry stay as far over a limit as the row says and no
+   further; where a row's number is within the limit, the limit holds.
+   An entry with no row meets both limits, so no row is ever added. A
+   row whose entry now meets both is stale and is removed.
+9. The owner's words stay the authority: an entry's ruling and its
+   *Why:* change only by his ruling, and the commit that changes them
+   quotes him. Its *Pinned:* is kept true by whoever moves a holder.
+
+The invariants are held like entries: each numbered item of `AGENTS.md`
+carries one *Pinned:*, under rule 7.
 
 The not-doing rule. "Not doing" at the foot of an area file is one
 bullet per thing someone would propose and the project declines:
 `- <item>: not until <trigger>.`, or `- <item>: refused …` for what no
 trigger reopens. The backlog is GitHub issues, never this list.
 
-`pack --path` routes a file by the `decisions/<area>.md` its module doc
+`pack --path` prints the entries the file cites by id, whole, then the
+headlines of its area's other entries, then the area's "Not doing".
+Neither `pack` form repeats `AGENTS.md`, which every session has
+loaded. It routes a file by the `decisions/<area>.md` its module doc
 names near the top; a file that names none is routed by the area intros
 with a ticked token its path ends with, whole path components, or one
 that starts with its crate, so a crate path in an intro routes every
@@ -56,12 +87,14 @@ not one: `search/README.md` names no other `README.md` (#106).
 
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
-*Details:* or *Evidence:*; a not-doing line states its trigger or its
-refusal and is not struck through; a path the registry names exists; a
-module doc that names an area names one that exists. docs-check keeps
-the byte budgets, the entry length, the history markers, the citations
-from code and the uncited ids. The two do not overlap; a fault has one
-reporter.
+*Details:* or *Evidence:*; an entry keeps its shape or stays within its
+baseline row; a *Pinned:*, an entry's or an invariant's, names at most
+three files and only names that exist; a not-doing line states its
+trigger or its refusal and is not struck through; a path the registry
+names exists; a module doc that names an area names one that exists.
+docs-check keeps the history markers, the citations from code, the
+uncited ids and the count of cross-cutting rulings. The two do not
+overlap; a fault has one reporter.
 
 Faults print as `FAIL  <kind>  <file>:<line>  <what is wrong and what to do>`.
 Notes print as `note  ...` and never fail. Standard library only.
@@ -92,6 +125,16 @@ TICK_RE = re.compile(r"`([^`\s]+)`")
 PATH_EXT = re.compile(r"\.(rs|md|sh|py|sql|json|toml|csv|txt)$")
 HISTORY = re.compile(r"` at `[0-9a-f]{7,}`")
 MODDOC_AREA = re.compile(r"decisions/(\w+)\.md")
+# The entry's shape (the entry rule, 6 to 8). A *Pinned:* is read with its
+# own two patterns: a ticked token there may hold a space (a table row's
+# name), and a file is any token with a `/` or one of these extensions.
+HEAD_LIMIT = 160
+CLAUSE_LIMIT = 6
+PIN_FILES = 3
+BASELINE = "decisions/shape-baseline.tsv"
+PIN_TICK = re.compile(r"`([^`]+)`")
+PIN_PATH = re.compile(r"/|\.(rs|sh|py|toml|yml|yaml|md|txt|tsv|json)$")
+SEARCHED = ("crates", "tools", ".github")
 CODE_EXT = (".rs", ".sh", ".py", ".sql", ".toml")
 
 
@@ -104,7 +147,7 @@ class Registry:
         self.order = []       # ids in file order
         self.parks = []       # the not-doing lines, each a dict
         self.principles = {}  # P<n> -> the bullet that carries it
-        self.invariants = []  # (n, text: the item's lines)
+        self.invariants = []  # (n, text: the item's lines, the line it starts on)
         self.areas = {}       # area -> {file, title, intro, sections: [(heading, line)], park_heading}
         self.orientation = ""
         self.cross_heading = ""
@@ -113,6 +156,8 @@ class Registry:
             if name.endswith(".md"):
                 self._read_area(name[:-3])
         self.code = None
+        self.searched = None  # every file under SEARCHED, walked once
+        self._text = {}       # a file's text, read once
 
     def path(self, rel):
         return os.path.join(self.root, rel)
@@ -144,10 +189,10 @@ class Registry:
                 continue
             if section.startswith("Invariants"):
                 if INV_RE.match(line):
-                    self.invariants.append((int(line.split(".")[0]), line))
+                    self.invariants.append((int(line.split(".")[0]), line, n))
                 elif line.startswith("   ") and line.strip() and self.invariants:
-                    k, text = self.invariants[-1]
-                    self.invariants[-1] = (k, text + "\n" + line)
+                    k, text, at = self.invariants[-1]
+                    self.invariants[-1] = (k, text + "\n" + line, at)
                 continue
             if section.startswith("Principles"):
                 m = PRIN_RE.match(line)
@@ -283,6 +328,61 @@ class Registry:
             bases += [self.path(os.path.join("crates", c)) for c in os.listdir(self.path("crates"))]
         return any(os.path.exists(os.path.join(base, tok)) for base in bases)
 
+    def searched_files(self):
+        """Every file under `crates/` (not target), `tools/` and `.github/`:
+        where a *Pinned:* that names no file must find what it ticks, and
+        where a bare file name is looked up."""
+        if self.searched is None:
+            self.searched = []
+            for top in SEARCHED:
+                self.searched += self._under(self.path(top))
+        return self.searched
+
+    def _under(self, top):
+        found = []
+        for dirpath, dirs, names in os.walk(top):
+            dirs[:] = [d for d in dirs if d not in ("target", "__pycache__")]
+            found += [os.path.join(dirpath, name) for name in sorted(names)]
+        return found
+
+    def text(self, full):
+        if full not in self._text:
+            try:
+                with open(full, encoding="utf-8", errors="replace") as fh:
+                    self._text[full] = fh.read()
+            except OSError:
+                self._text[full] = ""
+        return self._text[full]
+
+    def pinned_files(self, tok):
+        """The files a path in a *Pinned:* names: the file itself, every file
+        under a directory, or every file that carries a bare name. Empty
+        means the path exists nowhere."""
+        tok = tok.split("#")[0].split(":")[0]
+        if not tok or tok.startswith(("/", "~")) or ".." in tok.split("/"):
+            return []
+        bases = [self.root, self.path("crates"), self.git_root()]
+        if os.path.isdir(self.path("crates")):
+            bases += [self.path(os.path.join("crates", c)) for c in sorted(os.listdir(self.path("crates")))]
+        found = []
+        for base in bases:
+            full = os.path.join(base, tok)
+            if os.path.isfile(full):
+                found.append(full)
+            elif os.path.isdir(full):
+                found += self._under(full)
+        if not found and "/" not in tok:
+            found = [f for f in self.searched_files() if os.path.basename(f) == tok]
+        return list(dict.fromkeys(found))
+
+    def cited_by(self, rel):
+        """The entries a file cites by id, in the registry's order."""
+        full = self.path(rel)
+        if not os.path.isfile(full):
+            return []
+        named = set(re.findall(r"\bC\d+\b", self.text(full)))
+        return [i for i in self.order if i in named]
+
     def area_of_path(self, rel):
         """The area a file belongs to: the module doc names `decisions/<area>.md`
         near the top, else the area whose intro names the file or its crate."""
@@ -320,6 +420,100 @@ def bare(text):
     return re.sub(r"^[\s.;,]+|[\s.;,]+$", "", text)
 
 
+def clauses(title, body):
+    """The clauses of an entry: its headline and its ruling, the text before
+    `*Why:*`, each code span read as one word and parenthesised text left
+    out, split at `. ` or `; ` and at a final `.` or `;`."""
+    text = title + " " + body.partition("*Why:*")[0]
+    text = re.sub(r"\([^)]*\)", "", re.sub(r"`[^`]*`", "X", text))
+    return [c for c in re.split(r"[.;]\s+|[.;]$", text.strip()) if c.strip()]
+
+
+def read_baseline(reg):
+    """`decisions/shape-baseline.tsv`: id -> (headline bytes, clauses, line).
+    No file is an empty baseline."""
+    rows = {}
+    if not os.path.exists(reg.path(BASELINE)):
+        return rows
+    for n, line in enumerate(reg._lines(BASELINE), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 3 or not re.fullmatch(r"C\d+", parts[0]) or not (parts[1].isdigit() and parts[2].isdigit()):
+            reg.fail("baseline", BASELINE, n, "a row is `C<n>`, the headline's bytes and the clauses, tab-separated; "
+                     "fix the row, or remove it if its entry meets the limits")
+        elif parts[0] in rows:
+            reg.fail("baseline", BASELINE, n, f"{parts[0]} has a row at line {rows[parts[0]][2]} too; an entry has one row: remove this one")
+        else:
+            rows[parts[0]] = (int(parts[1]), int(parts[2]), n)
+    return rows
+
+
+SPLIT = "say it in less, or split the entry: the second ruling takes a new id, by the owner's ruling"
+
+
+def check_shape(reg):
+    """The entry rule's 6 and 8: a headline of at most 160 bytes and at most
+    six clauses, or no further over either than the entry's baseline row."""
+    base = read_baseline(reg)
+    for i in reg.order:
+        d = reg.decisions[i]
+        where = (d["file"], d["line"])
+        head, count = len(d["title"].encode()), len(clauses(d["title"], d["body"]))
+        if i not in base:
+            if head > HEAD_LIMIT:
+                reg.fail("headline", *where, f"{i}'s headline is {head} bytes, over {HEAD_LIMIT}; a headline states the rule whole in one short sentence: {SPLIT}")
+            if count > CLAUSE_LIMIT:
+                reg.fail("clauses", *where, f"{i} has {count} clauses before its *Why:*, over {CLAUSE_LIMIT}; "
+                         f"route a mechanism to the doc comment that cites {i}, or split the entry: the second ruling takes a new id, by the owner's ruling")
+            continue
+        row_head, row_count, row_line = base[i]
+        if head <= HEAD_LIMIT and count <= CLAUSE_LIMIT:
+            reg.fail("baseline", BASELINE, row_line, f"{i} now meets both limits ({head} bytes, {count} clauses), so its row is stale; remove the row")
+            continue
+        if head > max(HEAD_LIMIT, row_head):
+            reg.fail("baseline", *where, f"{i}'s headline is {head} bytes, over the {max(HEAD_LIMIT, row_head)} its row in {BASELINE} allows; "
+                     f"the baseline only shrinks, so the row stays as it is: {SPLIT}")
+        if count > max(CLAUSE_LIMIT, row_count):
+            reg.fail("baseline", *where, f"{i} has {count} clauses, over the {max(CLAUSE_LIMIT, row_count)} its row in {BASELINE} allows; "
+                     f"the baseline only shrinks, so the row stays as it is: {SPLIT}")
+    for i, (_, _, row_line) in base.items():
+        if i not in reg.decisions:
+            reg.fail("baseline", BASELINE, row_line, f"{i} has a row and no entry, so the row is stale; remove the row")
+
+
+def check_pinned(reg, file, line, label, pinned):
+    """The entry rule's 7, on the text after one `*Pinned:*`: at most three
+    files, and every ticked name exists."""
+    ticks = PIN_TICK.findall(pinned)
+    paths = [t for t in ticks if PIN_PATH.search(t)]
+    if len(paths) > PIN_FILES:
+        reg.fail("pinned", file, line, f"{label}'s *Pinned:* names {len(paths)} files, over {PIN_FILES}; keep a structural check, "
+                 "then the test at the lowest crate that holds the property, then a test whose name carries the id, and drop the rest: "
+                 "`show` lists where the code names the id")
+    files, missing = [], False
+    for tok in paths:
+        found = reg.pinned_files(tok)
+        files += found
+        if found:
+            continue
+        missing = True
+        if " " not in tok and reg.is_path(tok):
+            continue    # the path check below reports it: a fault has one reporter
+        reg.fail("pinned", file, line, f"{label}'s *Pinned:* names `{tok}`, which is no file under the tree, crates/ or one crate, "
+                 "and no file name under crates/, tools/ or .github/; name the file that holds the property now, or untick what is not a file")
+    if missing:
+        return    # what the missing file was to hold is judged once it is named
+    for tok in ticks:
+        if PIN_PATH.search(tok):
+            continue
+        needles = {tok, tok.rsplit("::", 1)[-1]}
+        if not any(n in reg.text(f) for f in (files if paths else reg.searched_files()) for n in needles):
+            where = "no file it names holds" if paths else "nothing under crates/, tools/ or .github/ holds"
+            reg.fail("pinned", file, line, f"{label}'s *Pinned:* ticks `{tok}`, which {where}; write the test's or the check's name as the code has it now "
+                     "(a prefix as `c35_`), name the file that holds it, or untick what is not a name")
+
+
 def check(reg, show_notes=True):
     # every cross-reference resolves
     for i in reg.order:
@@ -353,6 +547,23 @@ def check(reg, show_notes=True):
             if mk in d["markers"]:
                 reg.fail("entry", *where, f"{i} carries *{mk}:*; the entry rule has none: `show {i}` lists where the code names it, "
                          "and evidence is cited in the ruling or the *Why:* with its gloss")
+    # every entry keeps its shape, or stays within its baseline row
+    check_shape(reg)
+    # every *Pinned:*, an entry's or an invariant's, names at most three files and only names that exist
+    for i in reg.order:
+        d = reg.decisions[i]
+        if d["markers"].count("Pinned") == 1:
+            check_pinned(reg, d["file"], d["line"], i, d["body"].partition("*Pinned:*")[2])
+    for k, text, at in reg.invariants:
+        flat = " ".join(part.strip() for part in text.split("\n"))
+        n = flat.count("*Pinned:*")
+        if n != 1:
+            reg.fail("invariant", ROOT, at, f"invariant {k} has {n or 'no'} *Pinned:*{' sections' if n else ''}; an invariant ends with one, naming the check or the test that fails "
+                     "when it breaks, or `nothing yet`")
+        elif not bare(flat.partition("*Pinned:*")[2]):
+            reg.fail("invariant", ROOT, at, f"invariant {k} has an empty *Pinned:*; name the check or the test that fails when it breaks, or `nothing yet`")
+        else:
+            check_pinned(reg, ROOT, at, f"invariant {k}", flat.partition("*Pinned:*")[2])
     # every not-doing line states its trigger or its refusal, and is not struck through
     for p in reg.parks:
         where = (p["file"], p["line"])
@@ -399,8 +610,8 @@ def check(reg, show_notes=True):
         return 1
     print(f"ok    registry  {len(reg.decisions)} decisions in {1 + len(reg.areas)} files, {len(reg.parks)} not-doing lines, "
           f"{len(set(reg.principles.values()))} principles folding {len(reg.principles)} ids, "
-          f"{len(reg.invariants)} invariants: every cross-reference resolves, every entry has its Why and its Pinned, every not-doing line states its trigger, "
-          "every path named exists")
+          f"{len(reg.invariants)} invariants: every cross-reference resolves, every entry has its Why and its Pinned and keeps its shape, "
+          "every Pinned names at most three files and only names that exist, every not-doing line states its trigger, every path named exists")
     return 0
 
 
@@ -415,13 +626,13 @@ def cmd_list(reg, what, area):
             d = reg.decisions[i]
             if area and d["area"] != area:
                 continue
-            print(f"{i:<5} {d['area']:<14} {short(d['title'])}")
+            print(f"{i:<5} {d['area']:<14} {d['title']}")
     if what in ("parks", "all"):
         for p in reg.parks:
             if area and p["area"] != area:
                 continue
             item = p["item"] or p["body"]
-            print(f"not   {p['area']:<14} {short(item)}  [{p['file']}:{p['line']}]")
+            print(f"not   {p['area']:<14} {item}  [{p['file']}:{p['line']}]")
 
 
 def cmd_show(reg, cid):
@@ -451,72 +662,93 @@ def cmd_show(reg, cid):
 
 
 # ---- pack ------------------------------------------------------------------
+NOT_REPEATED = ("`AGENTS.md` is not repeated here: every session has it loaded, with the invariants, the cross-cutting rulings "
+                "and the principles. What follows is from `decisions/<area>.md`, which is the authority; "
+                "`python3 -I tools/bothy.py show C<n>` prints one entry whole.")
+
+
+def not_doing(reg, a):
+    meta, parks = reg.areas[a], [p for p in reg.parks if p["area"] == a]
+    if not parks:
+        return []
+    out = [(meta["park_heading"] or f"## {NOT_DOING}").replace("## ", f"## `{a}`: ", 1), ""]
+    if meta["park_intro"]:
+        out += [meta["park_intro"], ""]
+    return out + [p["text"] for p in parks] + [""]
+
+
 def cmd_pack(reg, area, path):
-    code = reg.read_code()
     if path:
-        areas = reg.area_of_path(path)
-        if not areas:
-            print(f"no area governs {path}: no module doc near its top names a decisions/<area>.md and no area's intro names it. "
-                  f"Areas: {', '.join(sorted(reg.areas))}. Use --area.", file=sys.stderr)
-            return 2
-        head = f"# What to read before touching `{path}`"
-    else:
-        if area not in reg.areas:
-            print(f"no area {area}; areas: {', '.join(sorted(reg.areas))}", file=sys.stderr)
-            return 2
-        areas = [area]
-        head = f"# What to read before touching `{area}`"
-    out = [head, "", "Every line below is verbatim from `AGENTS.md` and `decisions/<area>.md`, which are the authority; "
-           "this is a view of them, assembled by `tools/bothy.py pack`.", ""]
-    if reg.orientation:
-        out += ["## What Acquisition is", "", reg.orientation, ""]
-    if reg.invariants:
-        out += ["## Invariants (never break these)", ""] + [t for _, t in reg.invariants] + [""]
-    if reg.principles:
-        out += ["## Principles (cited as P<n>)", ""] + ["- " + t for t in dict.fromkeys(reg.principles.values())] + [""]
-    cross = [reg.decisions[i]["text"] for i in reg.order if reg.decisions[i]["area"] == "cross-cutting"]
-    if cross:
-        out += [reg.cross_heading or "## Cross-cutting rulings", ""] + cross + [""]
+        return pack_path(reg, path)
+    if area not in reg.areas:
+        print(f"no area {area}; areas: {', '.join(sorted(reg.areas))}", file=sys.stderr)
+        return 2
+    code = reg.read_code()
+    meta = reg.areas[area]
+    title = re.sub(r"^Decisions\s+—\s+", "", meta["title"])
+    out = [f"# What to read before touching `{area}`", "", NOT_REPEATED, "",
+           f"## Rulings for `{area}` — {title}", "", meta["intro"], ""]
+    current = None
+    for i in reg.order:
+        d = reg.decisions[i]
+        if d["area"] != area:
+            continue
+        if d["section"] != current:
+            current = d["section"]
+            out += [f"### {current}", ""]
+        out.append(d["text"])
+    out.append("")
+    out += not_doing(reg, area)
+    out += ["## Where each ruling is held (file:line that names it; the mechanism lives there)", ""]
+    for i in reg.order:
+        if reg.decisions[i]["area"] != area:
+            continue
+        firsts, seen = [], set()
+        for f, n in code["held"].get(i, []):
+            if f not in seen:
+                seen.add(f)
+                firsts.append(f"{f}:{n}")
+        out.append(f"- {i}: " + (", ".join(firsts[:6]) + (" …" if len(firsts) > 6 else "") if firsts else "nothing names it yet"))
+    out.append("")
+    mods = sorted(code["moddoc"].get(area, []))
+    if mods:
+        out += ["## Module docs that name this area (read the one you will change)", ""] + [f"- {m}" for m in mods] + [""]
+    print("\n".join(out))
+    return 0
+
+
+def pack_path(reg, path):
+    """What a file's own citations lead to: the entries it cites, whole,
+    then its area's other headlines, then the area's "Not doing"."""
+    full = path if os.path.isabs(path) else reg.path(path)
+    rel = os.path.relpath(os.path.abspath(full), reg.root)
+    if rel.startswith("..") or not os.path.exists(full):
+        print(f"no file {path} in {reg.root}: `pack --path` reads a file that exists, named from the repository's root. "
+              f"`git ls-files '*{os.path.basename(path)}'` finds one by its name; `pack --area <area>` needs no file.", file=sys.stderr)
+        return 2
+    areas = reg.area_of_path(rel)
+    if not areas:
+        print(f"no area governs {rel}: no module doc near its top names a decisions/<area>.md and no area's intro names it. "
+              f"Areas: {', '.join(sorted(reg.areas))}. Use --area.", file=sys.stderr)
+        return 2
+    cited = reg.cited_by(rel)
+    whole = [i for i in cited if reg.decisions[i]["area"] != "cross-cutting"]
+    loaded = [i for i in cited if reg.decisions[i]["area"] == "cross-cutting"]
+    out = [f"# What to read before touching `{rel}`", "", NOT_REPEATED, "", f"## The rulings `{rel}` cites", ""]
+    out += [reg.decisions[i]["text"] for i in whole]
+    if loaded:
+        out += ([""] if whole else []) + ["Cited from `AGENTS.md`: " + ", ".join(loaded) + "."]
+    if not cited:
+        out.append("It cites none by id.")
+    out.append("")
     for a in areas:
         meta = reg.areas[a]
         title = re.sub(r"^Decisions\s+—\s+", "", meta["title"])
-        out += [f"## Rulings for `{a}` — {title}", "", meta["intro"], ""]
-        current = None
-        for i in reg.order:
-            d = reg.decisions[i]
-            if d["area"] != a:
-                continue
-            if d["section"] != current:
-                current = d["section"]
-                out += [f"### {current}", ""]
-            out.append(d["text"])
-        out.append("")
-        parks = [p for p in reg.parks if p["area"] == a]
-        if parks:
-            out += [(meta["park_heading"] or f"## {NOT_DOING}").replace("## ", f"## `{a}`: ", 1), ""]
-            if meta["park_intro"]:
-                out += [meta["park_intro"], ""]
-            out += [p["text"] for p in parks] + [""]
-    cross_parks = [p["text"] for p in reg.parks if p["area"] == "cross-cutting"]
-    if cross_parks:
-        out += [f"## {NOT_DOING} (cross-cutting)", ""] + cross_parks + [""]
-    out += ["## Where each ruling is held (file:line that names it; the mechanism lives there)", ""]
-    for a in areas:
-        for i in reg.order:
-            d = reg.decisions[i]
-            if d["area"] != a:
-                continue
-            held = code["held"].get(i, [])
-            firsts, seen = [], set()
-            for f, n in held:
-                if f not in seen:
-                    seen.add(f)
-                    firsts.append(f"{f}:{n}")
-            out.append(f"- {i}: " + (", ".join(firsts[:6]) + (" …" if len(firsts) > 6 else "") if firsts else "nothing names it yet"))
-    out.append("")
-    mods = sorted({f for a in areas for f in code["moddoc"].get(a, [])})
-    if mods:
-        out += ["## Module docs that name this area (read the one you will change)", ""] + [f"- {m}" for m in mods] + [""]
+        rest = [i for i in reg.order if reg.decisions[i]["area"] == a and i not in whole]
+        if rest:
+            out += [f"## The other rulings of `{a}` — {title} (headlines; `{meta['file']}` has each whole)", ""]
+            out += [f"- {i} — {reg.decisions[i]['title']}" for i in rest] + [""]
+        out += not_doing(reg, a)
     print("\n".join(out))
     return 0
 

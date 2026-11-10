@@ -24,7 +24,8 @@ A test registry.
 ## Invariants
 
 1. **Nothing leaves
-   the tree.**
+   the tree.** *Pinned:*
+   nothing yet.
 
 ## Cross-cutting rulings
 
@@ -41,7 +42,7 @@ The rulings that bind the store (`acquisition-store/src/lib.rs`). Read this befo
 
 ## Store
 
-- **@2 — Facts are kept as received.** *Why:* a derivation can be redone (@1). *Pinned:* nothing yet.
+- **@2 — Facts are kept as received.** *Why:* a derivation can be redone (@1). *Pinned:* `store::record` in `acquisition-store/src/lib.rs`.
 - **@3 — The store sends nothing.** *Why:* a read observes. *Pinned:* `tests/read.rs`.
 
 ## Not doing
@@ -61,8 +62,8 @@ out=$(run)
 if [[ $out != ok* ]]; then echo "the clean fixture must pass:"; echo "$out"; exit 1; fi
 echo "ok      clean fixture passes"
 n=0; bad=0
-expect() {  # expect <kind> <python edit over the fixture>
-  local kind=$1 edit=${2//@/C} out
+expect() {  # expect <kind> <python edit over the fixture> [words the refusal must carry]
+  local kind=$1 edit=${2//@/C} says=${3:-} out
   fixture
   python3 -I - "$tmp" <<PY
 import pathlib, sys
@@ -71,8 +72,8 @@ $edit
 PY
   out=$(run)
   n=$((n+1))
-  if [[ $out == *"FAIL  $kind"* ]]; then
-    printf 'ok      %-10s refused\n' "$kind"
+  if [[ $out == *"FAIL  $kind"* && $out == *"$says"* ]]; then
+    printf 'ok      %-10s refused%s\n' "$kind" "${says:+: $says}"
   else
     printf 'MISSED  %-10s not refused:\n%s\n' "$kind" "$out"; bad=1
   fi
@@ -101,6 +102,37 @@ expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replac
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`tests/read.rs`", "`tests/gone.rs`"))'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`acquisition-store/src/lib.rs`", "`acquisition-store/src/old.rs`"))'
 expect routing   'p=root/"crates/acquisition-store/src/lib.rs"; p.write_text(p.read_text().replace("decisions/store.md", "decisions/stores.md"))'
+# the entry's shape (the entry rule, 6 to 8): a headline of at most 160
+# bytes, at most six clauses, and a baseline row that lets an entry stay as
+# far over as it was and no further. LONG makes a 175-byte headline.
+LONG='p=root/"decisions/store.md"; p.write_text(p.read_text().replace("The store sends nothing.", "The store sends nothing, " + "and reads " * 13 + "and reads all of it."))'
+BASE='(root/"decisions/shape-baseline.tsv").write_text'
+expect headline  "$LONG" 'is 175 bytes, over 160'
+expect clauses   'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("nothing.** *Why:* a read", "nothing.** One. Two; three (four. five). Four `a. b`. Five. Six. *Why:* a read"))' 'has 7 clauses'
+expect baseline  "$LONG; $BASE('# id\\n@3\\t165\\t1\\n')" 'over the 165 its row'
+expect baseline  "$BASE('@3\\t170\\t1\\n')" 'stale; remove the row'
+expect baseline  "$BASE('@9\\t170\\t1\\n')" 'no entry'
+expect baseline  "$LONG; $BASE('@3 170 1\\n')" 'tab-separated'
+# a *Pinned:* names at most three files, and every name it ticks exists
+expect pinned    'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Pinned:* `tests/read.rs`, `acquisition-store/src/lib.rs`, `crates/acquisition-store/tests/read.rs`, `crates/acquisition-store/src/lib.rs`."))' 'names 4 files'
+expect pinned    'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`store::record`", "`store::recorded`"))' 'no file it names holds'
+expect pinned    'p=root/"AGENTS.md"; p.write_text(p.read_text().replace("(P1). *Pinned:* nothing yet.", "(P1). *Pinned:* the `c1_` tests."))' 'nothing under crates/, tools/ or .github/ holds'
+expect pinned    'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Pinned:* the tests of `gone.rs`."))' 'is no file'
+expect invariant 'p=root/"AGENTS.md"; p.write_text(p.read_text().replace(" *Pinned:*\n   nothing yet.", ""))' 'has no *Pinned:*'
+expect pinned    'p=root/"AGENTS.md"; p.write_text(p.read_text().replace("   nothing yet.", "   `tests/read.rs`, `no_such_test`."))' 'invariant 1'
+# what must pass: an entry as far over as its baseline row, and a bare
+# file name, a directory and a prefix in a *Pinned:*
+fixture
+python3 -I - "$tmp" <<'PY'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+p = root / "decisions/store.md"
+p.write_text(p.read_text().replace("The store sends nothing.", "The store sends nothing, " + "and reads " * 13 + "and reads all of it.")
+             .replace("*Pinned:* `tests/read.rs`.", "*Pinned:* the `rec` function of `lib.rs`, under `acquisition-store/src/`."))
+(root / "decisions/shape-baseline.tsv").write_text("# id\theadline bytes\tclauses\nC3\t175\t1\n")
+PY
+out=$(run); n=$((n+1))
+if [[ $out == ok* ]]; then echo "ok      an entry at its baseline row passes, and a bare name, a directory and a prefix are names"; else echo "WRONG   a kept shape or a true name was refused:"; echo "$out"; bad=1; fi
 # what must pass: history, an API route, a key shape
 fixture
 python3 -I - "$tmp" <<'PY'
@@ -125,8 +157,15 @@ for f in ("README.md", "notes/README.md"):
 PY
 pack() { python3 -I "$here/bothy.py" --root "$tmp" pack --path "$1" 2>&1; }
 n=$((n+1))
-if out=$(pack notes/README.md) && [[ $out == *'Rulings for `store`'* ]]; then echo "ok      routing   the path an intro names is routed"; else echo "MISSED  routing   notes/README.md not routed to store:"; echo "$out"; bad=1; fi
+if out=$(pack notes/README.md) && [[ $out == *'rulings of `store`'* ]]; then echo "ok      routing   the path an intro names is routed"; else echo "MISSED  routing   notes/README.md not routed to store:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if ! out=$(pack README.md) && [[ $out == *'no area governs README.md'* ]]; then echo "ok      routing   a file sharing only its last name is not"; else echo "MISSED  routing   README.md routed by a basename:"; echo "$out"; bad=1; fi
+# pack --path leads with what the file cites and repeats nothing of
+# AGENTS.md; a path that does not exist is refused.
+fixture
+n=$((n+1))
+if out=$(pack crates/acquisition-store/src/lib.rs) && [[ $out == *'cites'*'- **C3 — The store sends nothing.**'* && $out != *'A test registry.'* && $out != *'Every rule has one home'* ]]; then echo "ok      pack      the cited entries lead, and AGENTS.md is not repeated"; else echo "MISSED  pack      the cited entries do not lead, or AGENTS.md is repeated:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if ! out=$(pack crates/acquisition-store/src/gone.rs) && [[ $out == *'no file crates/acquisition-store/src/gone.rs'* ]]; then echo "ok      pack      a path that does not exist is refused"; else echo "MISSED  pack      a path that does not exist was routed:"; echo "$out"; bad=1; fi
 echo "$n cases"
 exit $bad
