@@ -1,0 +1,12 @@
+#!/bin/sh
+# The prepare-commit-msg hook (`decisions/process.md`, C184, the commit
+# trailer). git skips `commit-msg` for a revert and a cherry-pick, so a
+# message that is final when this runs, whose source is `message` (`-m`,
+# `-F`, a revert, a cherry-pick), is held here by the commit-msg hook
+# itself; a message an editor will write waits for `commit-msg`. A `-m`
+# that `-e` sends to an editor is held here too: put the line in `-m`.
+# Enable with: git config core.hooksPath .githooks
+
+case "${2-}" in
+  message) exec "$(dirname "$0")/commit-msg" "$1" ;;
+esac

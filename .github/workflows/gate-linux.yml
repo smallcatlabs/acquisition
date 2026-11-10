@@ -214,6 +214,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: tools/docs-check-breakers.sh
 
+      - name: The commit hooks' breakers
+        if: ${{ !cancelled() }}
+        run: tools/githooks-breakers.sh
+
       - name: The architecture check's breakers
         if: ${{ !cancelled() }}
         run: tools/arch-check-breakers.sh

@@ -1,6 +1,11 @@
 #!/bin/sh
-# Rewrite Claude's "Co-Authored-By:" trailer to "Assisted-by:".
-# Human co-author trailers are left alone.
+# The commit-msg hook (`decisions/process.md`, C184, the commit trailer).
+# It rewrites Claude's "Co-Authored-By:" trailer to "Assisted-by:", and
+# leaves a human co-author's trailer alone. In an agent's shell, which
+# sets CLAUDECODE (at any value; a person's terminal does not), it then
+# refuses a message with no line beginning "Assisted-by:" and prints the
+# line to add. git runs this hook for a commit and a merge, never for a
+# revert or a cherry-pick: `prepare-commit-msg` runs it for those.
 # Enable with: git config core.hooksPath .githooks
 
 msg_file="$1"
@@ -9,4 +14,16 @@ tmp="$msg_file.tmp.$$"
 sed \
   -e 's/^[Cc]o-[Aa]uthored-[Bb]y:[[:space:]]*\(Claude.*\)$/Assisted-by: \1/' \
   -e 's/^[Cc]o-[Aa]uthored-[Bb]y:[[:space:]]*\(.*@anthropic\.com>.*\)$/Assisted-by: \1/' \
-  "$msg_file" > "$tmp" && mv "$tmp" "$msg_file"
+  "$msg_file" > "$tmp" && mv "$tmp" "$msg_file" || exit 1
+
+if [ -n "${CLAUDECODE+set}" ] && ! grep -q '^Assisted-by:' "$msg_file"; then
+  {
+    echo "commit-msg: a commit made from an agent's shell (CLAUDECODE is set) names its assistant, and this message names none."
+    echo "End the message with this line, <model> the model's name; the hook writes it as Assisted-by:"
+    echo
+    echo "Co-Authored-By: Claude <model> <noreply@anthropic.com>"
+    echo
+    echo "A revert or a cherry-pick takes --no-commit, then git commit with the line."
+  } >&2
+  exit 1
+fi

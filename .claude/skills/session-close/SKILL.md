@@ -43,9 +43,10 @@ now let it retire (C153, the stopping rule).
 
 The message ends with `Co-Authored-By: Claude <model>
 <noreply@anthropic.com>`, which the commit-msg hook writes as
-`Assisted-by:` (C184, the commit trailer). The hook adds nothing when
-the line is missing, so read the trailer after a commit:
-`git log -1 --format='%(trailers)'`.
+`Assisted-by:` (C184, the commit trailer). In an agent's shell the
+hooks refuse a commit, a merge or a revert whose message names no
+assistant, and print the line to add; a revert takes `--no-commit`,
+then `git commit` with the line.
 
 What else a session writes back, and where, is `AGENTS.md`, "Where
 things live": a ruling to its area file, a finding to a test or the

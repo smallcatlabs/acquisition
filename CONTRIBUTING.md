@@ -23,8 +23,9 @@ is held to the same rule as my own commits:
 - You, the person who submits it, are its author, and you answer for
   every line of it, however it was written.
 - Disclose the assistance with an `Assisted-by:` trailer on your
-  commits. This repository's commit-msg hook writes Claude's trailer
-  that way; `AGENTS.md` says how to turn it on.
+  commits. This repository's commit hooks write Claude's trailer that
+  way, and refuse a commit from Claude Code's shell that names no
+  assistant; `AGENTS.md` says how to turn them on.
 - The gate decides, for an assisted change as for any other.
 
 ## Issues

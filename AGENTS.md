@@ -195,7 +195,8 @@ exit statuses. Its stages, in order: `build` `test` `clippy`
 `artifacts` `tree`. `--docs` runs the five that build no Rust. CI runs
 `cargo doc` (`--only doc` here).
 
-Once per clone: `git config core.hooksPath .githooks` (the commit-msg
-hook writes Claude's trailer as `Assisted-by:`; a Claude session's
-start hook in `.claude/settings.json` sets it, a cloud clone included)
+Once per clone: `git config core.hooksPath .githooks` (the commit
+hooks write Claude's trailer as `Assisted-by:`, and refuse a commit from
+an agent's shell that names no assistant; a Claude session's start hook
+in `.claude/settings.json` sets it, a cloud clone included)
 and `cargo install cargo-nextest --locked` (the gate's runner).

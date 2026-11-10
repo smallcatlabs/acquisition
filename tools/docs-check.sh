@@ -22,7 +22,8 @@
 #      and *.rs / *.sh / *.py / *.sql file names.
 #   4. The README's form: one line per verb in the tour, a row per knob.
 #   5. The clone's hooks: `core.hooksPath` names `.githooks`, whose
-#      commit-msg hook writes Claude's trailer as `Assisted-by:`. A note,
+#      hooks write Claude's trailer as `Assisted-by:` and refuse an
+#      agent's commit that names no assistant (C184). A note,
 #      never a failure: a clone that only builds (CI) needs no hook, and
 #      the setting is the clone's, so `AGENTS.md` says to make it once.
 #   6. Document paths: a backticked document name in the governed files
@@ -309,9 +310,9 @@ fi
 # Unset, git reads the empty .git/hooks and a commit keeps the trailer it
 # was written with: two of step 2's commits did (2026-10-15).
 if [[ $(git config --get core.hooksPath || true) == .githooks ]]; then
-  printf 'ok      %-13s core.hooksPath is .githooks: the commit-msg hook writes the trailer\n' hooks
+  printf 'ok      %-13s core.hooksPath is .githooks: the hooks write the trailer and refuse an agent'"'"'s commit that names no assistant\n' hooks
 else
-  echo "note    hooks         core.hooksPath is not .githooks, so the commit-msg hook does not run: git config core.hooksPath .githooks (AGENTS.md)"
+  echo "note    hooks         core.hooksPath is not .githooks, so the commit hooks do not run: git config core.hooksPath .githooks (AGENTS.md)"
 fi
 
 # ---- 6. document paths -----------------------------------------------------
