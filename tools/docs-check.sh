@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Six checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
-# rule that can be broken silently becomes a lint):
+# Its checks, by number, all mechanical (P4 and P5, `AGENTS.md`,
+# "Principles": a rule that can be broken silently becomes a lint):
 #
-#   1. One byte budget, on the one file every session loads, `AGENTS.md`.
-#      Growth past it is the signal that a narrative landed where a
-#      ruling, a test or a commit message belongs (`AGENTS.md`, "Where
-#      things live"). A note, never a failure (the owner's ruling of
-#      2026-10-26): a budget that failed had entries edited to the byte,
-#      so the check says where the file stands and routing happens at a
-#      session close. Every other document is read on demand and has no
-#      budget.
+#   1. The state file's cap: `roadmap/README.md`, read first by every
+#      step, says what is now, what is next and what waits on the owner,
+#      and fails over its cap (C180, the state file). No other document
+#      has a byte budget (`decisions/process.md`, "Not doing").
 #   2. The decision registry: one bullet per decision with no history in
 #      it, a capped count of cross-cutting ones in `AGENTS.md`, every
-#      cited id real, the uncited ones reported, and an entry over the
-#      length limit noted, never failed (the same ruling).
+#      cited id real, and the uncited ones reported. An entry's length
+#      is no check of this script: `tools/bothy.py` holds its shape.
 #  2b. Cited commits: a hash in the governed files is a commit of this
 #      history, and a history citation, `<path>` at `<hash>`, names the
 #      path as it was at that commit.
@@ -33,6 +29,9 @@
 #      names a file in this tree, or is cited at its commit.
 #   7. Goldens: every golden file is named by a `golden(` call in its
 #      stem's test file, so none outlives the test that wrote it (C122).
+#   8. The gate's stages: the names `AGENTS.md`, "Quality gate", gives
+#      after "Its stages, in order:" are `tools/gate.sh`'s `names=(…)`,
+#      in the same order.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -40,28 +39,28 @@ cd "$(dirname "$0")/.."
 
 fail=0
 
-# ---- 1. budgets (bytes) ---------------------------------------------------
-budget() {
-  local file=$1 limit=$2 size
-  size=$(wc -c <"$file" | tr -d ' ')
-  if ((size > limit)); then
-    printf 'note    %-18s %7d > %7d bytes — over its budget: route a narrative to its home at the close\n' "$file" "$size" "$limit"
-  elif ((size * 10 > limit * 9)); then
-    printf 'near    %-18s %7d / %7d bytes — over 90%%: route a narrative to its home at the close\n' "$file" "$size" "$limit"
-  else
-    printf 'ok      %-18s %7d / %7d bytes\n' "$file" "$size" "$limit"
-  fi
-}
-budget AGENTS.md 16600
+# ---- 1. the state file's cap (bytes) --------------------------------------
+# Each close rewrites the file and git holds what it said before, so
+# growth past the cap is history or done work left in it.
+STATE=roadmap/README.md
+STATE_CAP=6000
+size=$(wc -c <"$STATE" | tr -d ' ')
+if ((size > STATE_CAP)); then
+  printf 'STATE   %-18s %7d > %7d bytes — over its cap: it says what is now, what is next and what waits on the owner; move the rest out (git holds what it said before)\n' "$STATE" "$size" "$STATE_CAP"
+  fail=1
+else
+  printf 'ok      %-18s %7d / %7d bytes\n' "$STATE" "$size" "$STATE_CAP"
+fi
 
 # ---- 2. the decision registry ------------------------------------------
-# Every decision is one bullet under a length limit (a narrative cannot fit,
-# so the mechanism goes to the code); every `C<n>` cited anywhere exists in
-# the registry; a decision nothing cites is reported (enforced by nothing is
-# either a lint, a test, or a smell). "Anywhere" is the code, the tools, the
-# skills, the control documents, the review checklist, the history and the
-# roadmap — and never the registry's own cross-references, which are not
-# a test, a doc or a tool naming the decision. Two kinds of roadmap file
+# Every decision is one bullet; every `C<n>` cited anywhere exists in the
+# registry; a decision nothing cites is reported (enforced by nothing is
+# either a lint, a test, or a smell). "Anywhere" is the code, the tools,
+# the skills, the workflows, the control documents, the review checklist,
+# the history and the roadmap — and never the registry's own
+# cross-references, which are not a test, a doc or a tool naming the
+# decision. The workflows are read in their *.yml, as 2b reads them: a
+# ruling cited only from one was reported uncited. Two kinds of roadmap file
 # are read by neither this scan nor 2b's, being text no session may
 # correct: a saved review (`roadmap/reviews/`, an outside model's answer
 # verbatim, kept there for good) and the dated assessment
@@ -82,7 +81,6 @@ SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
 # the history citations look it up there, not at the commit that
 # deleted it (tools hygiene's fix round, the `search/repoe/` extracts).
 AT_HASH='\bat(?:\s|//[!/]?|#)+`?[0-9a-f]{7,40}\b\^?`?'
-ENTRY_LIMIT=800
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
 # spread over AGENTS.md (cross-cutting only) and decisions/*.md (per area)
@@ -96,17 +94,8 @@ if ((cross > CROSS_LIMIT)); then
 else
   printf 'ok      %-18s %5d always-loaded decisions (limit %d)\n' AGENTS.md "$cross" "$CROSS_LIMIT"
 fi
-over=0
-while IFS= read -r line; do
-  n=$(printf '%s' "$line" | wc -c | tr -d ' ')
-  if ((n > ENTRY_LIMIT)); then
-    printf 'note    %-18s %5d > %d bytes, over the entry limit: route the mechanism to the code  %s\n' registry "$n" "$ENTRY_LIMIT" "$(printf '%s' "$line" | cut -c1-40)"
-    over=$((over+1))
-  fi
-done <"$reg"
 ids=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sed 's/^- \*\*//' | sort -u)
 count=$(printf '%s\n' "$ids" | grep -c .)
-((over > 0)) || printf 'ok      %-18s %5d decisions, every entry within %d bytes\n' registry "$count" "$ENTRY_LIMIT"
 # An entry carries no history (the entry rule, `tools/bothy.py`'s
 # docstring): no date, no commit, no owner's quote, no "Amended",
 # "Decided" or "Ruled", no seat call number. `git log -S'C<n>'` and the
@@ -137,8 +126,8 @@ PY
 if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
 # AGENTS.md is read without its entry lines: it holds the cross-cutting
 # entries, and an entry is not a citation of itself.
-cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills 2>/dev/null \
-  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}"
+cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills .github 2>/dev/null \
+  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' --include='*.yml' "${SKIP_ROADMAP[@]}"
   grep -vE '^- \*\*C[0-9]+ ' AGENTS.md | grep -oE '\bC[0-9]+\b' || true; } | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
 if [[ -n $unknown ]]; then
@@ -398,5 +387,28 @@ sys.exit(1 if bad else 0)
 PY
 ); then fail=1; fi
 printf '%s\n' "$goldens"
+
+# ---- 8. the gate's stages --------------------------------------------------
+# `AGENTS.md`, "Quality gate", names the stages in the sentence that
+# begins "Its stages, in order:", each ticked, to the sentence's full
+# stop; `tools/gate.sh` runs the full list from its one `names=(…)`
+# line. The two drift silently: a stage added to the script and not to
+# the entry point is a stage no session knows it runs.
+if ! stages=$(python3 -I - <<'PY'
+import re, sys
+agents, gate = open("AGENTS.md", encoding="utf-8").read(), open("tools/gate.sh", encoding="utf-8").read()
+said = re.findall(r"Its stages, in order:([^.]*)\.", agents)
+ran = re.findall(r"(?m)^names=\(([^)]*)\)$", gate)
+if len(said) != 1 or len(ran) != 1:
+    print(f'STAGES  AGENTS.md has {len(said)} sentences beginning "Its stages, in order:", and tools/gate.sh {len(ran)} names=(…) lines: each has one, so the two can be compared')
+    sys.exit(1)
+said, ran = re.findall(r"`([^`]+)`", said[0]), ran[0].split()
+if said != ran:
+    print(f"STAGES  AGENTS.md says the stages are {' '.join(said)}; tools/gate.sh runs {' '.join(ran)}: make the sentence after \"Its stages, in order:\" name the script's names=(…), in its order")
+    sys.exit(1)
+print(f"ok      {'stages':<13} {len(ran)} stages, AGENTS.md naming the gate's own, in its order")
+PY
+); then fail=1; fi
+printf '%s\n' "$stages"
 
 exit $fail

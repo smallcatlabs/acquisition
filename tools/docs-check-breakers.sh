@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # docs-check-breakers.sh — proves docs-check.sh refuses what it claims to,
-# by breaking a document and watching it refuse: the registry's history
-# scan (§2) and the cited commits (§2b), which read a commit written as
+# by breaking a document and watching it refuse: the state file's cap
+# (§1), the registry's count of cross-cutting rulings and its uncited
+# scan (§2), the registry's history scan (§2) and the cited commits (§2b), which read a commit written as
 # history through one matcher, and the history citations (§2b), each
 # path as it was at its commit, the document paths (§6), and the stale
 # identifiers (§3) as they read the skills and the glossary, the knob
-# table (§4) and the goldens (§7). The dependency guard's cases and the group rule's moved with
+# table (§4), the goldens (§7) and the gate's stage list (§8). The dependency guard's cases and the group rule's moved with
 # their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
 # two suites do not cross.
 #
@@ -29,7 +30,7 @@ for f in roadmap/reviews/zz-breaker.md "$golden_breaker" "$knob_src" "$knob_test
   if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
 done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(AGENTS.md GLOSSARY.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md deny.toml)
+files=(AGENTS.md GLOSSARY.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md deny.toml tools/gate.sh .github/workflows/weekly.yml)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -47,14 +48,16 @@ pass=0; failed=0
 # cuts bytes under the C locale, and half an em dash made the saved output
 # binary to grep (tools hygiene's report).
 clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'; }
-run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> <setup...>
+run_case() {  # run_case <name> <refuse|pass|lacks> <pattern the output must contain, or lack> <setup...>
   local name=$1 want=$2 pattern=$3; shift 3
   local out status
   if ! "$@" 2>"$scratch/setup.err"; then
     printf 'FAIL    %-52s the breaker did not apply: %s\n' "$name" "$(head -c 200 "$scratch/setup.err")"; failed=$((failed+1)); restore; return
   fi
   out=$(tools/docs-check.sh 2>&1); status=$?
-  if [[ $want == refuse && $status -ne 0 && $out == *"$pattern"* ]] \
+  if [[ $want == lacks && $status -eq 0 && $out != *"$pattern"* ]]; then
+    printf 'ok      %-52s %s: %s\n' "$name" "$want" "$pattern"; pass=$((pass+1))
+  elif [[ $want == refuse && $status -ne 0 && $out == *"$pattern"* ]] \
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
@@ -90,11 +93,26 @@ run_case 'Ruled'                                                 refuse 'carries
 run_case 'a seat call number'                                    refuse 'carries a call number'   entry "$W" 'at compile (cli-opus call 26). *Why:*'
 run_case 'a lowercase "ruled first" and a count are no history'  pass   'none carrying a history marker' entry "$W" 'at compile, ruled first over 3,347 tabs. *Why:*'
 
-echo '== the budget and the entry limit note and never fail (the owner'"'"'s ruling of 2026-10-26)'
-long_words=$(printf 'plain words %.0s' {1..70})
-run_case 'an entry over the length limit'                        pass   'over the entry limit'   entry "$W" "at compile, $long_words. *Why:*"
-pad_agents() { printf '\n%s\n' "$(printf 'x%.0s' {1..400})" >>AGENTS.md; }
-run_case 'AGENTS.md over its budget'                              pass   'over its budget'        pad_agents
+echo '== the state file fails over its cap (C180, the state file)'
+pad_state() { printf '\n%s\n' "$(printf 'x%.0s' {1..6000})" >>roadmap/README.md; }
+run_case 'the state file over its cap'                           refuse 'over its cap'            pad_state
+
+echo '== the registry: the count of cross-cutting rulings, and a ruling a workflow cites'
+# The ids are built here, so the citation scan of tools/ never reads them.
+NEW=C; NEW+=9990
+cross_entry() {  # one more cross-cutting ruling than the count allows
+  python3 - "$NEW" <<'PY'
+import pathlib, sys
+p = pathlib.Path('AGENTS.md'); s = p.read_text(); a = '\n## Principles\n'
+assert s.count(a) == 1, 'no one Principles heading'
+p.write_text(s.replace(a, f'- **{sys.argv[1]} — A breaker\'s ruling.** *Why:* it is one too many. *Pinned:* nothing yet.\n' + a))
+PY
+}
+run_case 'one cross-cutting ruling over the count'                refuse 'always-loaded decisions >' cross_entry
+area_entry() { printf -- '- **%s — A breaker'"'"'s ruling.** *Why:* it is cited once. *Pinned:* nothing yet.\n' "$NEW" >>decisions/plans.md; }
+cited_by_workflow() { area_entry && printf '# %s is cited here alone.\n' "$NEW" >>.github/workflows/weekly.yml; }
+run_case 'a ruling nothing cites is reported'                    pass   "$NEW"                    area_entry
+run_case 'a ruling cited only from a workflow is cited'          lacks  "$NEW"                    cited_by_workflow
 
 echo '== a commit written as history: one matcher for both scans (the outside review of 484fce3b, finding 2)'
 H7=fedcba; H7+=f     # a hash of letters, and one of nine, built here so the scans of tools/ never read them
@@ -175,6 +193,29 @@ echo '== a golden is named by its test file (C122)'
 orphan() { printf '# an orphan\n' >"$golden_breaker"; }
 run_case 'a golden no golden( call names'                        refuse "GOLDEN  $golden_breaker" orphan
 run_case 'every golden named'                                    pass   'goldens, each named by its test file' none
+
+echo '== the gate'"'"'s stage list in AGENTS.md is the script'"'"'s, in order'
+agents_stages() {  # agents_stages <old> <new>: an exact-once substitution in the sentence
+  python3 - "$1" "$2" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path('AGENTS.md'); s = p.read_text()
+m = re.search(r"Its stages, in order:[^.]*\.", s)
+assert m and m.group(0).count(sys.argv[1]) == 1, 'edit anchor not found once in the sentence: ' + sys.argv[1]
+p.write_text(s[:m.start()] + m.group(0).replace(sys.argv[1], sys.argv[2]) + s[m.end():])
+PY
+}
+swapped() { agents_stages '`fmt` `diff`' '`diff` `fmt`'; }
+gate_gains() {
+  python3 - <<'PY'
+import pathlib, re
+p = pathlib.Path('tools/gate.sh'); s = p.read_text()
+line = re.compile(r'(?m)^names=\((.*) tree\)$')
+assert len(line.findall(s)) == 1, 'no one names=( line ending in tree'
+p.write_text(line.sub(lambda m: 'names=(' + m.group(1) + ' zzbreaker tree)', s))
+PY
+}
+run_case 'AGENTS.md names two stages out of order'               refuse 'AGENTS.md says the stages are build test clippy winclippy diff fmt' swapped
+run_case 'the script gains a stage AGENTS.md does not name'      refuse 'artifacts zzbreaker tree: make the sentence' gate_gains
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
