@@ -81,7 +81,9 @@ what fails if it breaks, and says where nothing does yet.
   recorded in the commit that builds it, and entered in the registry
   only when the close finds it a property another area must know. Who
   commits and pushes, how a decision reaches him, and how a step is
-  reviewed and closed is `decisions/process.md`. A finding (what
+  reviewed and closed is `decisions/process.md`, whose grants stand
+  over a harness's own defaults (commit only when asked, branch
+  first). A finding (what
   building or running taught) is recorded after, at its home below.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon. A `--workspace` test run writes the same `acqd`,
@@ -108,7 +110,7 @@ what fails if it breaks, and says where nothing does yet.
 | `acquisition-store` | facts, intent and world storage, neutral read snapshots, the search read (`corpus.rs`) and the world (`world.rs`) | `decisions/store.md`, `decisions/daemon.md` |
 | `acquisition-plan` | offline refresh planning and pricing | `decisions/plans.md`, `decisions/pricing.md` |
 | `acquisition-search` | item search over the store's read API: the query language, the item derived from its stored body, the answer; its working directory is `search/` (read its README first) | `decisions/search.md`, `decisions/trade.md` |
-| `acquisition-verbs` | the verbs that need the daemon and the store together, and every frontend's account, world and door | `decisions/frontends.md` |
+| `acquisition-verbs` | the verbs that need the daemon and the store together, and every frontend's account, world and shared openers | `decisions/frontends.md` |
 | `acquisition-cli` (`acq`) | clap, rendering and `acq web`; generated help `CLI-REFERENCE.md` | `decisions/frontends.md` |
 | `acquisition-mcp` (`acq-mcp`) | the stdio MCP frontend, sharing semantics through plan and search; generated tools `MCP-REFERENCE.md` | `decisions/frontends.md` |
 
@@ -125,7 +127,9 @@ starting or closing a step, or ordering a review:
 
 The rulings every area must know. Each area's own are in its file, one
 bullet per ruling in the form `tools/bothy.py`'s docstring states;
-tests and docs cite rulings by id.
+tests and docs cite rulings by id. `tools/docs-check.sh` caps this
+list at 18 entries, so a new one here moves another to its area's
+file.
 
 - **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate, the store and the transport crate, nothing else; the transport crate alone links an HTTP client, links no workspace crate, and only the daemon links it; the store links none of the workspace crates; the protocol crate links serde alone; the verbs crate holds what needs the daemon and the store together and links client, protocol, store, planner and search; a frontend links those and the verbs crate as it needs them, never the daemon; nothing below the verbs crate links it, and neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/arch-check.sh` (the edges).
 - **C2 — The daemon owns shared state; clients talk to it over local IPC.** *Why:* invariant 1 becomes structural. *Pinned:* nothing yet.
@@ -154,13 +158,13 @@ tests and docs cite rulings by id.
 
 ## Where things live
 
-- **A ruling**: `decisions/<area>.md`, in the entry rule's form, the owner's word first. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
+- **A ruling**: `decisions/<area>.md`, in the entry rule's form, recorded before the code that depends on it; a new entry's id is the highest that `python3 -I tools/bothy.py list` prints, plus one. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
 - **A finding**: the test named for the fault, or the commit message. A fault that came back is a row in `REVIEW-CHECKLIST.md`, the review checklist by area, read before reviewing a change there.
 - **Work not done yet**: a GitHub issue, labelled `area:*` (its area file) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event; `ci`, a red CI run; `ruling`, the owner's word; `step`, the next step in its area). A feature waiting to be asked for is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
 - **A decision waiting on the owner**: an issue labelled `trigger:ruling`, one decision each. No commit, ledger or report promises him a later read.
 - **A fact about GGG**: a numbered claim in `docs/design/network-ground-truth.md` (the trade appendix beside it); `acquisition-qt` takes copies, never the reverse.
 - **A live run**: one `RUN-LEDGER.md` row, read by its tail; evidence under gitignored `runs/`. A seat: one `SEAT-LEDGER.md` row.
-- **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour.
+- **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour. A refusal's or an answer's words: the type that renders them, found by `git grep` of a phrase, held by one golden (C153, one golden per wording) and regenerated with `ACQ_UPDATE_FIXTURES=1 cargo nextest run -p <crate> --test main <filter>`, whose diff is read before the commit.
 - **History**: `HISTORY.md`, one line per slice; the rest is `git log`. A closed step's record is its close commit, `git log --grep='^Step: '`. A deleted text is cited as `<path>` at `<commit>`.
 - **The road**: `roadmap/README.md`, what is happening now, what is next and what only the owner can do; read first for any step.
 - **A step's working papers**: its brief under `roadmap/briefs/`, its reviews' answers under `roadmap/reviews/`. A seat's or an audit's record: `audits/<slice>/`. None is on a reading path; a brief or an issue points into one when it is needed.

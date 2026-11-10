@@ -61,12 +61,14 @@ new text uses that word rather than "door".
   own rather than crossed with another.
 - **fixture** (in the daemon's tests): a test's stand-in for GGG,
   answering what a transport carries to it.
-- **fold**: what a phase close does to its ledger lines (many into
-  one); in the web form, the turning of submitted fields into one
+- **fold**: what a phase close does to its steps' close commits
+  (many into one `HISTORY.md` line); in the web form, the turning of submitted fields into one
   trade request.
 - **golden**: a recorded wording a frontend test compares against,
   regenerated under `ACQ_UPDATE_FIXTURES=1`, and naming the facts a
   reader must find (C122, one harness for every test).
+- **group**: steps run under one design and one name, such as the
+  test-shape group (t1 to t7), whose close is one `HISTORY.md` line.
 - **home**: the one place a kind of record belongs: a ruling in its
   area file, a finding in its test or commit, a refresh token in the
   keyring (`AGENTS.md`, "Where things live").
@@ -92,6 +94,8 @@ new text uses that word rather than "door".
   declined until a named trigger.
 - **parked** (a job): one turned away before its send by a halt, an
   exit or a cancel.
+- **phase**: one of the project's numbered stages, such as phase 4,
+  the GUI; its close adds one `HISTORY.md` line.
 - **pin** (a test): to hold a behaviour or a ruling with a test; every
   ruling names what pins it, or says nothing does yet.
 - **pin** (an input): a fixed version of an outside source, such as a
@@ -124,10 +128,13 @@ new text uses that word rather than "door".
 - **sitting**: a session in which the owner opens prepared trade-site
   searches in a browser and the recorder captures what the site
   answers.
+- **sitting** (at the instructions): a seat whose tool is the
+  instructions themselves, a blind agent reading them read-only for
+  set tasks (`audits/governance-2026-11/seat/`).
 - **slice**: a closed body of work (the refresh, pricing, search and
   honesty slices) with one `HISTORY.md` line.
-- **step**: one brief, build, gate, commit, review and close in the
-  roadmap, with one ledger line; inside a slice's record, a numbered
+- **step**: one issue or brief, build, gate, commits, review and close
+  (`decisions/process.md`, C173), recorded by its close commit; inside a slice's record, a numbered
   stage of its build.
 - **tail** (a round): the fix round after a step's first fix round.
 - **tail** (of a ledger): its newest rows, the ones read first.

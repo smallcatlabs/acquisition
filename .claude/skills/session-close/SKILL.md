@@ -39,7 +39,7 @@ A test or a check deleted is one line per retirement, `retired X;
 held by Y`, Y running in the gate or in CI at that commit (C154, the
 retirement rule). The close lists every such line from the step's
 commits beside what the step pinned, and asks what the step's pins
-now let it retire (C153, the stopping rule).
+now let it retire (C153, a close retires as it pins).
 
 The message ends with `Co-Authored-By: Claude <model>
 <noreply@anthropic.com>`, which the commit-msg hook writes as
@@ -65,10 +65,15 @@ The close is one commit, and its message is the step's record
 - names what was retired and what was left open, each with its home
   (an issue, a "Not doing" line, or the reason);
 - ends with the trailer `Step: <step id>`, above the `Co-Authored-By:`
-  line, so `git log --grep='^Step: '` lists the closed steps;
-- rewrites `roadmap/README.md`: "Now", "Next" and "Waiting on the
-  owner" as they stand after this step, with nothing of what they
-  said before.
+  line, so `git log --grep='^Step: '` lists the closed steps; the id
+  is the brief's file name without `.md` (`governance-tools-2`), or
+  for an issue with no brief its area and number (`search-179`), and
+  its saved reviews carry the same id;
+- closes the step's issue, if it has one, naming the close's commit;
+- rewrites `roadmap/README.md` where the step moved what it says:
+  "Now", "Next" and "Waiting on the owner" as they stand after this
+  step, with nothing of what they said before. A step the road never
+  named leaves it unchanged, and the message says so.
 
 A decision in the owner's classes that the step needs or took is an
 issue labelled `trigger:ruling` (C179), opened before the close, and
