@@ -1,0 +1,19 @@
+#!/bin/sh
+# claude-committers <revision range>... — the one test of a committer
+# for C186 (`decisions/process.md`, the committer on `main`), read by the
+# pre-push hook and by CI's committer check (`tools/committer-check.sh`),
+# so the two cannot disagree. git never runs this file: it is no hook's
+# name.
+#
+# It prints one line per commit in the range whose committer's name is
+# Claude or whose address is at anthropic.com, and exits 1 when it
+# printed any, 0 when none, and 2 when git cannot read the range: a
+# history that cannot be read is never passed as clean.
+
+log=$(git log --format='%H%x09%cn <%ce>%x09%s' "$@") || exit 2
+found=$(printf '%s\n' "$log" | awk -F '\t' '
+  NF { c = $2; lc = tolower(c) }
+  lc ~ /^claude[ <]/ || lc ~ /@anthropic\.com>$/ { print "  " substr($1, 1, 12) "  committer " c "  " $3 }')
+[ -n "$found" ] || exit 0
+printf '%s\n' "$found"
+exit 1

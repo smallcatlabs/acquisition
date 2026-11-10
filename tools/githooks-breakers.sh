@@ -2,7 +2,10 @@
 # githooks-breakers.sh — proves the hooks under `.githooks/` hold C184
 # (the commit trailer) and C186 (the committer on `main`), each case in a
 # fresh scratch repository whose `core.hooksPath` is this tree's
-# `.githooks`; a push case pushes to a bare scratch remote. In an agent's shell
+# `.githooks`; a push case pushes to a bare scratch remote. CI's
+# committer check (`tools/committer-check.sh`, which reads the hook's own
+# test of a committer, `.githooks/claude-committers`) is read the same
+# way, and its workflow is read for the step that runs it. In an agent's shell
 # (`CLAUDECODE` set, at any value) a commit, a merge or a revert whose
 # message names no assistant is refused, the refusal prints the line to
 # add, and nothing is committed; Claude's `Co-Authored-By:` line is
@@ -161,6 +164,56 @@ push_case 'on main: the way on lands'                     landed  refs/heads/mai
 push_case 'from another checkout: the way on lands'       landed  refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git checkout -q main && bash -c '$WAY' _ cloud:main && [[ \$(git log -1 --format=%cn) == breaker ]]"
 push_case 'to a remote path with a space: the way on lands'  landed  refs/heads/main "ln -s \"\$PWD.git\" \"\$PWD sp.git\" && echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main \"\$PWD sp.git\" && grep -qF \"'\$PWD sp.git'\" \"\$HOME_OUT.sh\" && [[ \$(git log -1 --format=%cn) == breaker ]]"
 push_case 'to a remote with no main: the way on lands'    landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main && [[ \$(git log -1 --format=%cn) == breaker ]]" 'git push -q origin :main'
+
+# ---- CI's committer check (C186: what slips past the hook) ----------------
+# `tools/committer-check.sh <before> <after>`, as the Committer workflow
+# runs it on each push to main, read in a fresh repository: a push that
+# carries a Claude committer fails the run by name, a person's passes, and
+# a history it cannot read in full fails rather than passing as clean.
+checker=$(cd "$(dirname "$hooks")" && pwd)/tools/committer-check.sh
+# check_case <name> <reported|clean|unread> <shell command; $CHECK runs the check>
+check_case() {
+  local name=$1 want=$2 cmd=$3 out status wrong=''
+  if ! fresh >"$scratch/setup.err" 2>&1; then
+    printf 'FAIL    %-52s the scratch repository was not made: %s\n' "$name" "$(head -c 200 "$scratch/setup.err")"; failed=$((failed+1)); return
+  fi
+  out=$(CHECK=$checker bash -c "$cmd" 2>&1); status=$?
+  case $want in
+    reported) ((status == 1)) || wrong+=" it exited $status;"; [[ $out == *'COMMITTER main took a commit whose committer is Claude'* ]] || wrong+=' it did not name the rule;' ;;
+    clean)    ((status == 0)) || wrong+=" it exited $status;"; [[ $out == 'ok      committer'* ]] || wrong+=' it did not say ok;' ;;
+    unread)   ((status == 2)) || wrong+=" it exited $status;"; [[ $out == *'committer-check:'* ]] || wrong+=' it did not say why;' ;;
+  esac
+  if [[ -z $wrong ]]; then
+    printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(clip <<<"$out")"; pass=$((pass+1))
+  else
+    printf 'FAIL    %-52s wanted %s, but%s got:\n%s\n' "$name" "$want" "$wrong" "$(sed 's/^/          /' <<<"$out")"; failed=$((failed+1))
+  fi
+}
+
+echo '== CI: a push to main carrying a Claude committer fails the run (C186)'
+check_case 'a cloud commit in the push'                    reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK \$b HEAD"
+check_case 'a cloud commit under a person'"'"'s'                reported "b=\$(git rev-parse HEAD) && echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
+check_case 'a new branch: before is zeros'                 reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK 0000000000000000000000000000000000000000 HEAD"
+check_case 'a force push: before is gone'                  reported "echo x >>f && $CLOUD git commit -qam 'a cloud change' && \$CHECK 1111111111111111111111111111111111111111 HEAD"
+check_case 'a person'"'"'s commit in the push'                  clean    "b=\$(git rev-parse HEAD) && echo x >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
+check_case 'a cloud commit before the push is not read'    clean    "echo x >>f && $CLOUD git commit -qam 'a cloud change' && b=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && \$CHECK \$b HEAD"
+check_case 'a shallow clone'                               unread   "git clone -q --depth 1 \"file://\$PWD\" ../shallow-ci && cd ../shallow-ci && \$CHECK 0000000000000000000000000000000000000000 HEAD"
+check_case 'a history git cannot read'                     unread   "echo x >>f && $CLOUD git commit -qam 'a cloud change' && c=\$(git rev-parse HEAD) && echo y >>f && git commit -qam 'a person' && rm -f .git/objects/\${c:0:2}/\${c:2} && \$CHECK 0000000000000000000000000000000000000000 HEAD"
+
+# The check runs only where a workflow runs it: Committer, on each push
+# to main, with the push's before and after, reading the whole history.
+wf=$(dirname "$hooks")/.github/workflows/committer.yml
+wrong=''
+[[ -f $wf ]] || wrong+=' no committer.yml;'
+if [[ -f $wf ]]; then
+  grep -qE '^  push:$' "$wf" && grep -qE '^    branches: \[main\]$' "$wf" || wrong+=' it does not run on a push to main;'
+  grep -qF 'fetch-depth: 0' "$wf" || wrong+=' it does not check out the whole history;'
+  grep -qF 'BEFORE: ${{ github.event.before }}' "$wf" && grep -qF 'AFTER: ${{ github.sha }}' "$wf" || wrong+=' it does not pass the push'"'"'s before and after;'
+  grep -qF 'run: tools/committer-check.sh "$BEFORE" "$AFTER"' "$wf" || wrong+=' no step runs the check;'
+  ! grep -q 'cancel-in-progress: true' "$wf" || wrong+=' a later push would cancel it;'
+fi
+if [[ -z $wrong ]]; then printf 'ok      %-52s %s\n' 'the Committer workflow runs the check on main' 'present'; pass=$((pass+1))
+else printf 'FAIL    %-52s%s\n' 'the Committer workflow runs the check on main' "$wrong"; failed=$((failed+1)); fi
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

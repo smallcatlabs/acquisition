@@ -1,0 +1,35 @@
+name: Committer
+
+# C186 (`decisions/process.md`, the committer on main): main takes no
+# commit whose committer is Claude. The pre-push hook refuses one, but
+# `--no-verify` skips it and a clone without `core.hooksPath` has none,
+# and the plan offers no ruleset rule that refuses one server-side. This
+# run cannot refuse the push; it reports one as a red run, reading the
+# commits the push added with the hook's own test of a committer
+# (`tools/committer-check.sh`).
+#
+# Its own workflow, with no cancel-in-progress: a later push must not
+# cancel the run that reads an earlier push's commits, as a push cancels
+# the gate's run in progress.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  committer:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history: the commits before the push's tip are read,
+      # and a shallow clone fails the check.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: No commit in the push has a Claude committer
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: tools/committer-check.sh "$BEFORE" "$AFTER"

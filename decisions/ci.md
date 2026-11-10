@@ -1,6 +1,6 @@
 # Decisions — CI, release and the runners
 
-Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules apply unchanged): the rulings that bind where and how the repository's workflows run — `.github/workflows/gate-linux.yml`, `gate-windows.yml`, `weekly.yml`, `release.yml` — and the runners they run on. Read this before touching a workflow.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules apply unchanged): the rulings that bind where and how the repository's workflows run — `.github/workflows/gate-linux.yml`, `gate-windows.yml`, `weekly.yml`, `release.yml`, `committer.yml` — and the runners they run on. Read this before touching a workflow.
 
 ## Runners
 
