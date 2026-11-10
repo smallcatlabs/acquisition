@@ -10,8 +10,9 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The governance rebuild**, handed off on 2026-11-09: its documents
-  and both its tools steps are done.
+- **The governance rebuild**, handed off on 2026-11-09: its documents,
+  both its tools steps and its acceptance sitting are done, and #229,
+  first in "Next", is all that is left of it.
 
   Done and pushed, its rulings read and approved by the owner (#227):
   the process rulings
@@ -26,15 +27,12 @@ better Acquisition that is agent-friendly and agent-forward.
   docs-check's cap on this file and its check of the gate's stage
   list, the commit hooks' refusal of an agent's commit naming no
   assistant, and the gate's record of its verdicts in
-  `runs/gate/verdicts.tsv` (governance-tools-2). The audit's record is
+  `runs/gate/verdicts.tsv` (governance-tools-2); a cold agent sat at
+  the instructions, its stops fixed or filed as #236 to #239
+  (`audits/governance-2026-11/seat/`, #228). The audit's record is
   `audits/governance-2026-11/README.md` and the reports beside it,
   kept until the rebuild closes: its close deletes them and cites
   their commit in `HISTORY.md`.
-
-  Next, each for a fresh session, one at a time in this tree:
-  1. A cold agent sits at the instructions, the acceptance test
-     (#228); how it runs is `audits/governance-2026-11/seat/BRIEF.md`.
-  2. The agent's memory is brought under C183 (#229).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed: the saved
   search, its MCP tools, the pages, the answer and item pages, and
@@ -44,31 +42,36 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Next
 
-In order. A session takes the first item it can, without a planning
-session; an item leaves when its step closes or the owner strikes it.
+In order. A session takes the first item (C180), skipping one that
+names a wait not yet met, without a planning session; an item leaves
+when its step closes or the owner strikes it.
 
-1. What holds the invariants: #216 (a second HTTP path), #217 (a token
+1. The agent's memory brought under C183, the tree's rules out of
+   memory (#229): on the owner's machine, where the memory lives. Its
+   close is the governance rebuild's.
+2. What holds the invariants: #216 (a second HTTP path), #217 (a token
    on disk), #218 (the mutation run reaches invariants 3 to 5).
-2. 4-full part 1, step 6: the dense table, after the owner's morning.
-3. 4-full parts 2 and 3, each its own design session
+3. 4-full part 1, step 6: the dense table, after the owner's morning.
+4. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
-4. The test-shape group's t6, one canonical mock world and the door's
+5. The test-shape group's t6, one canonical mock world and the door's
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
-5. The queued search and trade issues: #38, #46, #47, and #37 once the
+6. The queued search and trade issues: #38, #46, #47, and #37 once the
    owner has sat the site.
-6. `alpha.2` (milestone "League 3.30 and alpha.2"): regenerate the
+7. `alpha.2` (milestone "League 3.30 and alpha.2"): regenerate the
    tables when their inputs exist (a post-launch `poe1` pin, the
    owner's four site captures), then the release, where the
    `keyring-macos` job runs for the first time. The prune verb (#43)
    rides with it.
-7. PoE2 (milestone "PoE2 launch"): the route flip and the
+8. PoE2 (milestone "PoE2 launch"): the route flip and the
    first-contact checklist prepared unmerged; a first contact only if
    GGG ships the stash endpoint.
 
 Issues labelled `trigger:step` are taken by the next step in their
-area: `gh issue list --label trigger:step`.
+area, and an issue the owner names is its own step whatever its
+label: `gh issue list --label trigger:step`.
 
 ## Waiting on the owner
 
