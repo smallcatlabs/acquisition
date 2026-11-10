@@ -14,7 +14,7 @@ A row is what the standing rule says: date, daemon tip, result, sends as
 POST/HEAD/GET, violations, and notes holding the observed policy, the run
 directory and pointers to where each lesson landed — a trap to the
 live-run skill, a fact about GGG to a numbered ground-truth claim
-(`docs/design/network-ground-truth.md`, authored master-side), an owner
+(`docs/design/network-ground-truth.md`, authored here), an owner
 verdict verbatim beside the ruling it decides. The lesson's text does not
 live here.
 

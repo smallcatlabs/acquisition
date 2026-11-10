@@ -122,8 +122,10 @@ test against the mock with rails 1 and 5 forced on.
    sign after the build, since one that re-links `acqd` writes a fresh
    unsigned one). The drivers do all of this themselves and start
    `acqd` directly.
-4. `ls -t runs/ | head` against `RUN-LEDGER.md`: a bundle newer than
-   the last row is a run that happened off the record.
+4. `ls -t runs/ | grep '^20' | head` against `RUN-LEDGER.md`: a live
+   run's bundle is named by its date, and one newer than the last row
+   is a run that happened off the record. The other names under
+   `runs/` are mutation and census evidence, not runs.
 
 ## The refresh loop (policy → plan → apply → replan)
 

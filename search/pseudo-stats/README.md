@@ -332,7 +332,7 @@ with the mutants that show the reading can fail and the most a sitting used of w
 
 ## Candidate claims
 
-For `docs/design/trade-ground-truth.md`, authored master-side; each is what the captures show, dated
+For `docs/design/trade-ground-truth.md`, authored here; each is what the captures show, dated
 2026-09-26 where no date is given, Standard, PC.
 
 | Claim | Evidence |

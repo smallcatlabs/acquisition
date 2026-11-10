@@ -31,7 +31,7 @@ is held to the same rule as my own commits:
 
 The backlog is this repository's GitHub issues, each labelled `area:*`
 (the file under `decisions/` it belongs to) and `trigger:*` (what would
-start it: a user's report, a seat run, a second consumer, the GUI, a
-live run). What I have chosen not to do is a "Not doing" line at the
+start it; `AGENTS.md`, "Where things live", lists them). What I have
+chosen not to do is a "Not doing" line at the
 foot of the area's file in `decisions/`, with the trigger that would
 reopen it, or refused outright. A bug report is welcome as an issue.
