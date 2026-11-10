@@ -949,5 +949,5 @@ fi
 if [ "$MODE" = live ]; then
     echo ""
     echo "next: paste the ledger row into RUN-LEDGER.md, the owner's friction notes verbatim"
-    echo "inside it; anything learned about GGG goes to ground truth master-side."
+    echo "inside it; anything learned about GGG goes to ground truth here, docs/design/network-ground-truth.md."
 fi

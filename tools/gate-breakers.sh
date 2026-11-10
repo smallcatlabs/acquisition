@@ -4,8 +4,10 @@
 # know, the fixture switch reaching a stage, a working tree its
 # stages changed (#87), a feature pin taken out (#124), a release
 # matrix row the features stage cannot read, and cargo failing under it
-# (the review of #91), and the Windows-target clippy where its target is
-# not installed (#106) and the compiler it names on each host.
+# (the review of #91), the Windows-target clippy where its target is
+# not installed (#106) and the compiler it names on each host, and the
+# verdict record, which a run appends and whose failure leaves the exit
+# status as the stages made it.
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -16,8 +18,10 @@
 # unparseable, fails the suite instead of passing as a refusal. Every
 # case restores the files it touched from copies and compares them byte
 # for byte — never `git checkout`, which discards uncommitted work — and
-# a trap restores on any exit. Run it when a stage or a refusal is added
-# to gate.sh; CI runs it beside the gate, not in it.
+# a trap restores on any exit. Every case's gate writes its record under
+# the suite's scratch, never to the clone's own: a staged refusal is no
+# verdict on a tree. Run it when a stage or a refusal is added to
+# gate.sh; CI runs it beside the gate, not in it.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 unset ACQ_UPDATE_FIXTURES   # the suite's own shell sets nothing a case did not
@@ -40,7 +44,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
-  rm -f "${owned[@]}"
+  rm -f "${owned[@]}" "$scratch/verdicts.tsv"
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -80,7 +84,7 @@ clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'
 run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> <setup> <gate command...>
   local name=$1 want=$2 pattern=$3 setup=$4; shift 4
   local out status
-  if ! $setup 2>"$scratch/setup.err"; then
+  if ! { gate_edit 'VERDICTS=runs/gate/verdicts.tsv' "VERDICTS=$scratch/verdicts.tsv" && $setup; } 2>"$scratch/setup.err"; then
     printf 'FAIL    %-52s the breaker did not apply: %s\n' "$name" "$(head -c 200 "$scratch/setup.err")"; failed=$((failed+1)); restore; return
   fi
   if ! bash -n tools/gate.sh 2>/dev/null; then
@@ -191,6 +195,32 @@ names_cc() {
 }
 run_case 'a Mac or Linux host: the stub'                         pass   'the compiler: '"$PWD"'/tools/windows-cc-stub.sh' names_cc env -u OS $gate --only winclippy
 run_case 'a Windows host: the native tools'                      pass   'the compiler: native'     names_cc env OS=Windows_NT $gate --only winclippy
+
+echo '== the verdict record: a line per stage, and its failure never the verdict'
+# The record's lines as the case reads them: their count, their fields,
+# and each line's selection, stage and status; its exit is the gate's.
+recorded() {
+  local rc
+  "$@"; rc=$?
+  python3 -I - "$scratch/verdicts.tsv" <<'PY'
+import re, sys
+rows = [l.rstrip("\n").split("\t") for l in open(sys.argv[1], encoding="utf-8")]
+shape = all(len(r) == 7 and re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", r[0]) and r[2] in ("clean", "dirty")
+            and r[5].isdigit() and r[6].isdigit() for r in rows)
+heads = {r[1] for r in rows}
+print(f"record: {len(rows)} lines{', 7 fields each' if shape else ', NOT IN SHAPE'}, HEAD {' '.join(sorted(heads))}: "
+      + " | ".join(f"{r[3]} {r[4]} {r[5]}" for r in rows))
+PY
+  return "$rc"
+}
+HEAD_SHORT=$(git rev-parse --short HEAD)
+run_case 'a --docs run appends a line per stage'                 pass   "record: 5 lines, 7 fields each, HEAD $HEAD_SHORT: --docs diff 0 | --docs docs 0 | --docs arch 0 | --docs trade 0 | --docs bothy 0" none recorded $gate --docs
+diff_fails() { stage_does diff false; }
+run_case 'a failing stage is recorded with its status'           refuse "record: 1 lines, 7 fields each, HEAD $HEAD_SHORT: --only diff diff 1" diff_fails recorded $gate --only diff
+unwritable() { gate_edit "VERDICTS=$scratch/verdicts.tsv" 'VERDICTS=/dev/null/verdicts.tsv'; }
+unwritable_failing() { unwritable && diff_fails; }
+run_case 'a record not written: a green gate stays green'        pass   $'the verdict below stands\ngate: green'  unwritable         $gate --only diff
+run_case 'a record not written: a failing gate still fails'      refuse $'the verdict below stands\ngate: FAILED' unwritable_failing $gate --only diff
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

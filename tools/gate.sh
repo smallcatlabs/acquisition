@@ -17,10 +17,18 @@
 # `stage  rc  seconds`, is the verdict, and the script exits 1 when any
 # stage failed, so a commit is gated on this script's exit alone.
 #
-# The full gate ends with `artifacts`: the three executables a frontend
-# spawns or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
-# directory) are hashed, `cargo build --workspace` runs, and the stage
-# fails if the build compiled anything or any hash moved. A
+# After its table, every run appends one line per stage to
+# `runs/gate/verdicts.tsv`, under the gitignored `runs/`, so a stage can
+# later be retired on its record: tab-separated, the UTC time the run
+# started, `HEAD`'s short hash, `clean` or `dirty` (the working tree as
+# the run found it), the selection as typed (`full`, `--docs`, `--only
+# <stage>`), the stage, its exit status and its seconds. A record that
+# cannot be written costs one line on stderr, never the verdict.
+#
+# The `artifacts` stage hashes the three executables a frontend spawns
+# or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
+# directory), runs `cargo build --workspace`, and fails if the build
+# compiled anything or any hash moved. A
 # `--workspace` test run writes them as the plain build does (#88: one
 # feature graph for both, and an integration test in every binary's
 # crate, so cargo writes each binary on a test run), and the stage holds
@@ -93,6 +101,7 @@ unset ACQ_UPDATE_FIXTURES
 names=(build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
 ONLY=(doc)   # selectable by --only, never in the full list
 DOCS=(diff docs arch trade bothy)
+VERDICTS=runs/gate/verdicts.tsv
 
 # The `artifacts` stage (the header): what the stages before it left
 # must be what the plain build writes. Equality counts only between
@@ -300,9 +309,10 @@ usage() { sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; }
 
 selected=()
 case ${1:-} in
-  '') selected=("${names[@]}") ;;
-  --docs) selected=("${DOCS[@]}") ;;
+  '') selected=("${names[@]}"); selection=full ;;
+  --docs) selected=("${DOCS[@]}"); selection=--docs ;;
   --only)
+    selection="--only ${2:-}"
     for name in "${names[@]}" "${ONLY[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
     if ((${#selected[@]} == 0)); then
       echo "gate.sh: --only takes one of: ${names[*]} ${ONLY[*]}" >&2; exit 2
@@ -310,6 +320,16 @@ case ${1:-} in
   -h | --help) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
 esac
+
+# The record's fields that are the run's, read before any stage: what
+# the gate judged is the tree it found.
+started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+head=$(git rev-parse --short HEAD 2>/dev/null) || head=none
+if porcelain=$(git status --porcelain 2>/dev/null); then
+  [[ -z $porcelain ]] && found=clean || found=dirty
+else
+  found=unknown
+fi
 
 tree_before=''
 [[ " ${selected[*]} " == *' tree '* ]] && tree_before=$(tree_snapshot)
@@ -329,5 +349,17 @@ for i in "${!selected[@]}"; do
   printf '%-9s %3d %7d\n' "${selected[$i]}" "${rcs[$i]}" "${secs[$i]}"
   ((rcs[i] == 0)) || failed=1
 done
+
+# The record (the header). Its failure is reported and leaves the exit
+# status to the stages.
+record() {
+  local i
+  mkdir -p "$(dirname "$VERDICTS")" 2>/dev/null || return 1
+  { for i in "${!selected[@]}"; do
+      printf '%s\t%s\t%s\t%s\t%s\t%d\t%d\n' "$started" "$head" "$found" "$selection" "${selected[$i]}" "${rcs[$i]}" "${secs[$i]}"
+    done >>"$VERDICTS"; } 2>/dev/null
+}
+record || echo "gate: verdicts: could not append to $VERDICTS, so this run is not in the record; the verdict below stands" >&2
+
 if ((failed)); then echo 'gate: FAILED'; exit 1; fi
 echo 'gate: green'
