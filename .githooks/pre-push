@@ -9,38 +9,62 @@
 # GitHub. A merge made on GitHub's site is no push and passes no hook;
 # GitHub commits a squash or a rebase merge as itself. `--no-verify`
 # skips this hook, as it skips every one.
+#
+# The commits read are those the push adds after the remote's tip when
+# this clone has that tip, and otherwise every commit the pushed one
+# reaches: a commit another remote branch already holds is still new to
+# `main`. The way on names the refused branch and its base, so it runs
+# from any checkout; a rebase would drop what a merge alone carries, so
+# a push carrying a merge gets no rebase (main's ruleset takes linear
+# history only).
 # Enable with: git config core.hooksPath .githooks
 
 remote="$1"
 zero_only() { case "$1" in *[!0]*) return 1 ;; esac; return 0; }
 bad=''
-while read -r _local_ref local_sha remote_ref remote_sha; do
+ways=''
+while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$remote_ref" = refs/heads/main ] || continue
   zero_only "$local_sha" && continue  # a deletion carries no commit
-  # The commits the push adds to the remote's main: those after its
-  # tip when this clone has that tip, else every commit no ref of this
-  # remote already holds.
   if ! zero_only "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
     range="$remote_sha..$local_sha"
+    base=$(git rev-parse --short=12 "$remote_sha")
   else
-    range="$local_sha --not --remotes=$remote"
+    range="$local_sha"
+    base=''
   fi
-  # shellcheck disable=SC2086  # the range is words on purpose
-  found=$(git log --format='%H%x09%cn <%ce>%x09%s' $range | awk -F '\t' '
+  found=$(git log --format='%H%x09%cn <%ce>%x09%s' "$range" | awk -F '\t' '
     { c = $2; lc = tolower(c) }
     lc ~ /^claude[ <]/ || lc ~ /@anthropic\.com>$/ { print "  " substr($1, 1, 12) "  committer " c "  " $3 }')
-  [ -n "$found" ] && bad="$bad$found
+  [ -n "$found" ] || continue
+  bad="$bad$found
 "
+  case "$local_ref" in
+    refs/heads/*) branch=${local_ref#refs/heads/}; again="git push $remote $branch:main" ;;
+    *) branch=$(git rev-parse --short=12 "$local_sha"); again="git push $remote HEAD:main" ;;
+  esac
+  if [ -n "$(git rev-list --min-parents=2 "$range")" ]; then
+    ways="${ways}This push carries a merge, which main's ruleset refuses (linear history only), and a rebase would drop what the merge alone carries: make the change a line of commits first.
+"
+  elif [ -z "$base" ] && ! zero_only "$remote_sha"; then
+    ways="${ways}This clone does not hold $remote's main: run git fetch $remote, then push again to read the way on.
+"
+  elif [ -n "$base" ]; then
+    ways="${ways}  git rebase --force-rebase $base $branch
+  $again
+"
+  else
+    ways="${ways}  git rebase --force-rebase --root $branch
+  $again
+"
+  fi
 done
 
 [ -z "$bad" ] && exit 0
 {
   echo "pre-push: main takes no commit whose committer is Claude, and this push to main carries:"
   printf '%s' "$bad"
-  echo "Commit them again here, keeping each author and message (the committer becomes this clone's user):"
-  echo
-  echo "  git rebase --force-rebase $remote/main"
-  echo
-  echo "then check that each is signed (git log --format='%h %G? %cn'), and push again."
+  echo "Commit them again here, keeping each author and message (the committer becomes this clone's user), check each is signed (git log --format='%h %G? %cn'), and push:"
+  printf '%s' "$ways"
 } >&2
 exit 1

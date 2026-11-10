@@ -90,6 +90,9 @@ run_case 'a parenthesis naming the owner as the source'          refuse "carries
 run_case "the owner's word and its quotation"                   refuse "carries an owner's quote"   entry "$W" "at compile, the owner's word: \"yes\". *Why:*"
 run_case "the owner's ruling as the reason"                     refuse "carries an owner's quote"   entry "$W" "at compile. *Why:* the owner's ruling; and"
 run_case "a sentence: under the owner's delegation"             refuse "carries an owner's quote"   entry "$W" "at compile. Under the owner's delegation. *Why:*"
+run_case "the owner's word opening a sentence"                 refuse "carries an owner's quote"   entry "$W" 'at compile. The owner'"'"'s word: "yes". *Why:*'
+run_case 'a parenthesis naming the owner, capitalised'           refuse "carries an owner's quote"   entry "$W" 'at compile (The Owner, #166). *Why:*'
+run_case 'his words quoted, capitalised'                         refuse "carries an owner's quote"   entry "$W" 'at compile. His words: "as drafted". *Why:*'
 run_case 'his words quoted'                                      refuse "carries an owner's quote"   entry "$W" 'at compile, in his words "as drafted". *Why:*'
 run_case 'his name'                                              refuse "carries an owner's quote"   entry "$W" 'at compile, as Tom asked. *Why:*'
 run_case 'the owner named as a party is no quote'                pass   'none carrying a history marker' entry "$W" "at compile, and the owner rules the rest; a fourth is the owner's word, quoted in the commit, under the owner's delegation. *Why:*"

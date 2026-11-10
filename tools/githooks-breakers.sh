@@ -107,9 +107,9 @@ run_case 'a revert naming no assistant'                   landed  person      'g
 # the cloud environment makes it.
 REFUSAL='pre-push: main takes no commit whose committer is Claude'
 CLOUD='GIT_COMMITTER_NAME=Claude GIT_COMMITTER_EMAIL=noreply@anthropic.com'
-# push_case <name> <refused|landed> <remote ref to read> <shell command> [<setup run before the ref is read>]
+# push_case <name> <refused|landed> <remote ref to read> <shell command> [<setup run before the ref is read>] [<the way on a refusal prints>]
 push_case() {
-  local name=$1 want=$2 ref=$3 cmd=$4 pre=${5:-true}
+  local name=$1 want=$2 ref=$3 cmd=$4 pre=${5:-true} way=${6:-git rebase --force-rebase}
   local out status before after local_tip wrong=''
   if ! { fresh && git init -q --bare "$repo.git" && git remote add origin "$repo.git" && git push -q origin main && bash -c "$pre"; } >"$scratch/setup.err" 2>&1; then
     printf 'FAIL    %-52s the scratch remote was not made: %s\n' "$name" "$(head -c 200 "$scratch/setup.err")"; failed=$((failed+1)); return
@@ -122,10 +122,12 @@ push_case() {
     ((status != 0)) || wrong+=' it exited 0;'
     [[ $after == "$before" ]] || wrong+=" the remote's $ref moved;"
     [[ $out == *"$REFUSAL"* ]] || wrong+=' the refusal did not name the rule;'
-    [[ $out == *"git rebase --force-rebase"* ]] || wrong+=' the refusal did not print the way on;'
+    [[ $out == *"$way"* ]] || wrong+=" the refusal did not print the way on ($way);"
+    [[ $way == 'git rebase --force-rebase' || $out != *'git rebase'* ]] || wrong+=' it offered a rebase;'
   else
     ((status == 0)) || wrong+=" it exited $status;"
     [[ $after == "$local_tip" ]] || wrong+=" the remote's $ref is not the local commit;"
+    [[ $after != "$before" ]] || wrong+=" the remote's $ref did not move;"
   fi
   if [[ -z $wrong ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$( ([[ $want == refused ]] && grep -m1 -F "$REFUSAL" <<<"$out" || git log -1 --format='%cn: %s') | clip)"; pass=$((pass+1))
@@ -141,11 +143,21 @@ push_case 'the committer named by its address alone'      refused refs/heads/mai
 push_case 'a cloud commit under a person'"'"'s'                refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && git push -q origin main"
 push_case 'a cloud branch pushed onto main'               refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud:main"
 push_case 'a cloud commit to a remote with no main'       refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin main" 'git push -q origin :main'
+push_case 'a cloud branch on the remote, then onto no main'  refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud && git push -q origin cloud:main" 'git push -q origin :main'
+push_case 'a cloud merge: no rebase is offered'           refused refs/heads/main "git checkout -qb cloud side && $CLOUD git merge -q --no-ff --no-commit main && echo merged-only >h && git add h && $CLOUD git commit -qm 'a cloud merge' && git push -q origin cloud:main" true 'carries a merge'
 
 echo '== a push to main: what the hook lets through'
 push_case 'a person'"'"'s commit to main'                       landed  refs/heads/main 'echo x >>f && git commit -qam "a person" && git push -q origin main'
 push_case 'a cloud commit to a branch not main'           landed  refs/heads/cloud "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud"
-push_case 'a cloud commit committed again, then pushed'   landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git rebase -q --force-rebase origin/main && git push -q origin main"
+
+echo '== a push to main: the printed way on, run as printed, lands'
+# The refusal's way-on lines are run as printed, from where the case
+# stands, and then the push lands with this clone's user as committer.
+WAY='! git push -q origin "$1" 2>"$HOME_OUT" && sed -n "s/^  \\(git .*\\)\$/\\1/p" "$HOME_OUT" >"$HOME_OUT.sh" && grep -q . "$HOME_OUT.sh" && bash -e "$HOME_OUT.sh" >/dev/null 2>&1'
+export HOME_OUT=$scratch/way
+push_case 'on main: the way on lands'                     landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main && [[ \$(git log -1 --format=%cn) == breaker ]]"
+push_case 'from another checkout: the way on lands'       landed  refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git checkout -q main && bash -c '$WAY' _ cloud:main && [[ \$(git log -1 --format=%cn) == breaker ]]"
+push_case 'to a remote with no main: the way on lands'    landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && bash -c '$WAY' _ main && [[ \$(git log -1 --format=%cn) == breaker ]]" 'git push -q origin :main'
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

@@ -109,18 +109,21 @@ count=$(printf '%s\n' "$ids" | grep -c .)
 # ("(the owner, #166)"), his word or ruling followed by a colon, a
 # semicolon or a quotation mark, "Under the owner's word." or
 # "Under the owner's delegation." as a sentence of its own, his words
-# quoted, and his name. A ruling may still name him as a party: "the
-# owner rules", "a fourth is the owner's word, quoted in the commit".
+# quoted, and his name. Each form is matched in any case ("The owner's
+# word:" opening a sentence), except the sentence, which is one by its
+# capital, and his name, which is one by its capital. A ruling may still
+# name him as a party: "the owner rules", "a fourth is the owner's word,
+# quoted in the commit".
 history=$(python3 -I - "$reg" "$AT_HASH" <<'PY'
 import re, sys
 MARKERS = [
     ("a date", r"\b\d{4}-\d{2}-\d{2}\b"),
     ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b|" + sys.argv[2]),
-    ("an owner's quote", r"(?i:\bowner:)"
+    ("an owner's quote", r"(?i:\bowner:"
         r"|\(the owner\b"
         r"|\bthe owner's (?:words?|ruling)\s*(?:[:;]|,?\s*[\"“])"
+        r"|\bhis words?\s*[:,]?\s*[\"“])"
         r"|(?:^|[.*]\s)Under the owner's (?:words?|ruling|delegation)\."
-        r"|\bhis words?\s*[:,]?\s*[\"“]"
         r"|\bTom\b"),
     ('"verbatim"', r"(?i:\bverbatim\b)"),
     ('"Amended"', r"\bAmended\b"),
