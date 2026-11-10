@@ -48,7 +48,7 @@ is a new id.
    occurs under `crates/`, `tools/` or `.github/`. `nothing yet`
    passes.
 6. **The invariants are checked like entries**: each numbered item
-   carries `*Pinned:*`, under rules 4's cap and 5.
+   carries `*Pinned:*`, under decision 4's cap and decision 5.
 7. **`list` prints each headline whole.**
 8. **`pack --path <file>`** prints, in order: the entries the file
    cites by id, whole; the headlines of its area's other entries; the
@@ -61,16 +61,44 @@ is a new id.
    kept true by whoever moves a holder.
 
 ## Find first
-- The entries over each limit, by the counter decision 2 defines: the
-  rows of the baseline.
-- The `*Pinned:*` fields naming more than three files, and for each
-  holder you would drop, whether its test name or doc comment cites
-  the id: `python3 -I tools/bothy.py show C<n>` lists where code
-  names it.
+Run this census first. It prints the entries over a shape limit
+(`shape`, id, headline bytes, clauses: the rows of the baseline) and
+the `*Pinned:*` fields naming more than three files (`pinned`, id,
+files). It is the counter of decisions 2 and 5, and `check` must
+agree with it.
+
+```sh
+python3 -I - <<'PY'
+import glob, re
+PATH = re.compile(r"/|\.(rs|sh|py|toml|yml|yaml|md|txt|tsv|json)$")
+for path in ["AGENTS.md", *sorted(glob.glob("decisions/*.md"))]:
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"- \*\*(C\d+)\s+—\s+(.*?)\*\*\s*(.*)$", line)
+        if not m:
+            continue
+        cid, head, rest = m.groups()
+        body, _, tail = rest.partition("*Why:*")
+        text = re.sub(r"\([^)]*\)", "", re.sub(r"`[^`]*`", "X", head + " " + body))
+        clauses = [c for c in re.split(r"[.;]\s+|[.;]$", text.strip()) if c.strip()]
+        if len(head.encode()) > 160 or len(clauses) > 6:
+            print("shape", cid, len(head.encode()), len(clauses), sep="\t")
+        ticks = re.findall(r"`([^`]+)`", tail.partition("*Pinned:*")[2])
+        files = [t for t in ticks if PATH.search(t)]
+        if len(files) > 3:
+            print("pinned", cid, len(files), sep="\t")
+PY
+```
+
+Then:
+
+- For each holder you would drop from a `*Pinned:*`, whether its test
+  name or doc comment cites the id:
+  `python3 -I tools/bothy.py show C<n>` lists where code names it.
 - Every reader of bothy's output:
   `git grep -n 'bothy' -- ':!roadmap/reviews' ':!roadmap/briefs' ':!audits'`
-- Whether any test or build reads what this step changes:
-  `git grep -n -E 'bothy|shape-baseline|decisions/' -- 'crates/*.rs' 'crates/*/build.rs'`
+- Whether any test or build reads what this step changes (a comment
+  that names a file is not a read):
+  `git grep -n -E '(include_str|read_to_string|File::open|Command::new)[^;]*(bothy|shape-baseline|decisions/)' -- 'crates/*.rs' 'crates/*/build.rs'`
 
 ## Done when
 - `python3 -I tools/bothy.py check` exits 0 on the tree.
@@ -97,14 +125,17 @@ is a new id.
 - The words of any ruling or `*Why:*`, and splitting any entry.
 - Anything under `crates/`: where a dropped holder does not cite its
   id, list it in the report and edit no code.
+- An entry or an invariant that cannot meet a rule unless words before
+  its `*Pinned:*` change: leave it, and say so in the report.
 - `tools/arch-check.sh`.
 
 ## Rules
 `TEMPLATE.md`. For this step: `tools/gate.sh --docs` is the gate,
 once "Find first" shows no test or build reads what changes; the
-orchestrating session runs the full gate after the sibling step.
-End each commit message with
-`Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+sibling step runs the full gate on the last tree. Order the step's
+cold review yourself when it is committed (the cold-review skill).
+Do not push while #227 is open: the push waits on the owner's read of
+the process rulings.
 
 ## Report
 `TEMPLATE.md`.

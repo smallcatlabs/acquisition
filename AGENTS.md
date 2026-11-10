@@ -196,7 +196,6 @@ exit statuses. Its stages, in order: `build` `test` `clippy`
 `cargo doc` (`--only doc` here).
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
-hook writes Claude's trailer as `Assisted-by:` and refuses an agent's
-commit that carries none; a Claude session's start hook in
-`.claude/settings.json` sets it, a cloud clone included)
+hook writes Claude's trailer as `Assisted-by:`; a Claude session's
+start hook in `.claude/settings.json` sets it, a cloud clone included)
 and `cargo install cargo-nextest --locked` (the gate's runner).

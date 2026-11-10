@@ -12,8 +12,9 @@ retired on evidence.
 - `decisions/process.md`: C180 (the state file and its cap), C184 (the
   trailer the hook holds), C182 (a fault becomes structure), and "Not
   doing" (a byte budget is refused).
-- `governance-tools-1.md` has landed: `tools/bothy.py` holds the
-  entry's shape, so the entry-length note here has a holder.
+- `governance-tools-1.md` has landed (`git log --oneline
+  --grep='governance-tools-1'` shows its commits): `tools/bothy.py`
+  holds the entry's shape, so the entry-length note here has a holder.
 - `tools/docs-check.sh` and `tools/docs-check-breakers.sh`;
   `tools/gate.sh` and `tools/gate-breakers.sh`;
   `.githooks/commit-msg`; `.github/workflows/gate-linux.yml`, the
@@ -68,8 +69,11 @@ retired on evidence.
   `git grep -n -E 'git (commit|merge|revert)|CLAUDECODE' -- tools .github .claude .githooks`
 - The breaker scripts the CI job runs: `.github/workflows/gate-linux.yml`,
   the `breakers` job.
-- Whether any test or build reads what this step changes:
-  `git grep -n -E 'docs-check|gate\.sh|commit-msg|verdicts' -- 'crates/*.rs' 'crates/*/build.rs'`
+- Whether any test or build reads what this step changes (a comment
+  that names a file is not a read):
+  `git grep -n -E '(include_str|read_to_string|File::open|Command::new)[^;]*(docs-check|gate\.sh|commit-msg|verdicts)' -- 'crates/*.rs' 'crates/*/build.rs'`
+- Every sentence that says what the hook does today, to make true:
+  `git grep -n -i -E 'Assisted-by|commit-msg' -- AGENTS.md CONTRIBUTING.md .claude decisions roadmap/briefs/TEMPLATE.md`
 
 ## Done when
 - `tools/docs-check.sh` exits 0 on the tree, prints no byte line for
@@ -90,6 +94,10 @@ retired on evidence.
 - A `--docs` run appends five lines to `runs/gate/verdicts.tsv`, and
   `tools/gate-breakers.sh` has a case showing the exit status is
   unchanged when the record cannot be written.
+- C180's and C184's `*Pinned:*` in `decisions/process.md` name the
+  check and the hook in place of `Unbuilt, #226`, and `AGENTS.md`
+  ("Once per clone") and the session-close skill say that the hook
+  refuses. No other word of either entry changes.
 - `tools/gate-breakers.sh` exits 0, and the full `tools/gate.sh`
   exits 0 on the step's tree.
 
@@ -102,8 +110,9 @@ retired on evidence.
 ## Rules
 `TEMPLATE.md`. For this step: the full gate runs once, on the last
 tree, because `tools/gate.sh` itself changes. Your own commits must
-pass the hook you are changing. End each commit message with
-`Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+pass the hook you are changing. Order the step's cold review yourself
+when it is committed (the cold-review skill). Do not push while #227
+is open: the push waits on the owner's read of the process rulings.
 
 ## Report
 `TEMPLATE.md`.

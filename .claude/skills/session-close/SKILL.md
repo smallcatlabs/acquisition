@@ -42,8 +42,10 @@ commits beside what the step pinned, and asks what the step's pins
 now let it retire (C153, the stopping rule).
 
 The message ends with `Co-Authored-By: Claude <model>
-<noreply@anthropic.com>`; the commit-msg hook writes it as
-`Assisted-by:` and refuses an agent's commit that carries none (C184).
+<noreply@anthropic.com>`, which the commit-msg hook writes as
+`Assisted-by:` (C184, the commit trailer). The hook adds nothing when
+the line is missing, so read the trailer after a commit:
+`git log -1 --format='%(trailers)'`.
 
 What else a session writes back, and where, is `AGENTS.md`, "Where
 things live": a ruling to its area file, a finding to a test or the

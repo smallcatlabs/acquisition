@@ -11,9 +11,16 @@ how.
 
 ## 1. Count first
 
-`ls roadmap/reviews | grep '^<step>-'` shows the rounds this artifact
-has had. A fourth review of one artifact (a brief, or a build with its
-fix rounds) is the owner's word, quoted in the commit that saves it.
+Count each artifact apart, by the step's whole name, and never count a
+saved prompt:
+
+- a brief's reviews:
+  `ls roadmap/reviews | grep '^<step>-brief-' | grep -v -- '-prompt\.md$'`
+- a build's, with its fix rounds:
+  `ls roadmap/reviews | grep '^<step>-' | grep -v -e '-brief-' -e '-prompt\.md$'`
+
+A fourth review of one artifact (a brief, or a build with its fix
+rounds) is the owner's word, quoted in the commit that saves it.
 After a third round that still finds faults which change what gets
 built, stop and bring him what it found: the design is unsettled.
 
@@ -64,5 +71,5 @@ prompt is not saved: it is the standing file at that commit.
 - A finding that would change a ruling's words, or that has two
   defensible answers in the owner's classes, goes to his queue
   (`decisions/process.md`, C179) before it is built.
-- A clean round ends the reviewing. A round that changed only comments
-  and documents needs no review of its own.
+- A clean round ends the reviewing. Whether a fix round needs a review
+  of its own is C175's to say, and this skill does not restate it.
