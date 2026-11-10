@@ -60,12 +60,12 @@ what fails if it breaks, and says where nothing does yet.
 5. **Refresh tokens are never stored in plaintext on disk.** The OS
    keyring is their default home. *Pinned:*
    `acquisition-daemon/src/auth.rs`,
-   `a_secret_and_a_keyring_entry_have_no_serialize`;
+   `a_secret_and_a_keyring_entry_have_no_serialize` and
+   `a_secret_and_a_token_responses_debug_name_no_token`;
+   `acquisition-daemon/src/daemon/tests/login.rs`,
+   `a_login_and_a_refresh_leave_no_token_in_any_file_of_the_world`;
    `acquisition-daemon/src/daemon/tests/log.rs`,
-   `a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text`;
-   `acquisition-daemon/src/rails.rs`,
-   `journal_writes_one_flushed_line_without_secrets`. No test reads the
-   disk after a login yet (#217).
+   `a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text`.
 
 ## Hard rules
 

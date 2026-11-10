@@ -682,9 +682,17 @@ pub fn keyring_clear(service: &str, username: &str) -> Result<(), NotCleared> {
 mod tests {
     use super::*;
 
-    /// C144: a token response's `Debug` names neither token.
+    /// C144: a token response's `Debug` names neither token; and the bare
+    /// secret, under `Debug` and `Display`, names none of its text
+    /// (invariant 5, #217): the formats every wrapper's redaction rests
+    /// on.
     #[test]
-    fn a_token_responses_debug_names_no_token() {
+    fn a_secret_and_a_token_responses_debug_name_no_token() {
+        let bare = Secret::from("rt-bare-q8Zt");
+        for shown in [format!("{bare:?}"), format!("{bare}"), format!("{bare:#?}")] {
+            assert!(!shown.contains("q8Zt"), "{shown}");
+            assert_eq!(shown, "<redacted>");
+        }
         let tokens = TokenResponse {
             access_token: "at-secret".into(),
             refresh_token: "rt-secret".into(),

@@ -1770,3 +1770,101 @@ fn the_retry_word_is_quoted_for_the_declared_shell() {
         assert_eq!(shell_word(word), want(here), "{word}");
     }
 }
+
+// ---- invariant 5 on disk (#217) --------------------------------------
+
+/// The four planted tokens: the login's grant and the refresh's.
+const PLANTED: [&str; 4] = [
+    "at-planted-k7Qv",
+    "rt-planted-k7Qv",
+    "at-rotated-p2Wx",
+    "rt-rotated-p2Wx",
+];
+
+/// Every file under `dir`, at any depth, as bytes, by path.
+fn files_under(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(at) = pending.pop() {
+        for entry in std::fs::read_dir(&at).expect("the world's directory reads") {
+            let path = entry.expect("a world entry reads").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.is_file() {
+                let bytes = std::fs::read(&path).expect("a world file reads");
+                files.push((path, bytes));
+            }
+        }
+    }
+    files
+}
+
+/// Invariant 5 on disk (#217): a login and a refresh through the door
+/// with planted tokens, in a world whose queue (`daemon.db`) and rails
+/// state are files under its store directory, beside the daemon's log
+/// and its journal. The credential store saved both refresh tokens, so
+/// the tokens reached the daemon's every write path; and no file the
+/// daemon wrote, read as bytes, holds any token's text. What holds it
+/// is the secret type (no `Serialize`, a placeholder under `Debug` and
+/// `Display`) and the credential store being the one place a token is
+/// written; this is what fails if a token reaches a file by any other
+/// path.
+#[test]
+fn a_login_and_a_refresh_leave_no_token_in_any_file_of_the_world() {
+    let clock = Arc::new(ParkingClock::new());
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    let store = credentials.clone();
+    let script = vec![
+        exchange("200 OK", token_body(PLANTED[0], PLANTED[1], "Alice#1234")),
+        profile("200 OK", profile_of("Alice#1234")),
+        exchange("200 OK", token_body(PLANTED[2], PLANTED[3], "Alice#1234")),
+    ];
+    let jobs_db = JobDb::open(&daemon_db_path(&dir)).expect("the world's queue opens");
+    logged_out(Server::Script(script), &clock, &credentials, &store_dir)
+        .jobs_db(jobs_db)
+        .rails(RailsConfig {
+            state_path: Some(dir.join("rails-state.json")),
+            ..RailsConfig::default()
+        })
+        .world(dir.display().to_string(), dir.clone())
+        .run(|mut door| async move {
+            let landed = log_in(&mut door, "code-x").await;
+            assert_eq!(landed.login_ok.as_deref(), Some("Alice#1234"), "{landed:?}");
+            let check = door
+                .request(Request::AuthCheck {
+                    account: Some("Alice#1234".into()),
+                })
+                .await;
+            assert!(matches!(check, Response::Auth { .. }), "{check:?}");
+            door.settle().await;
+            assert_eq!(
+                saved_refresh_tokens(&store.saves.lock().unwrap())
+                    .into_iter()
+                    .map(|(_, token, _)| token)
+                    .collect::<Vec<_>>(),
+                [PLANTED[1], PLANTED[3]],
+                "both grants reached the credential store"
+            );
+            let mut read = files_under(&dir);
+            assert!(
+                read.iter().any(|(path, _)| path == &daemon_db_path(&dir)),
+                "the queue is a file of the world: {read:?}"
+            );
+            read.push(("the daemon log".into(), door.log_text().into_bytes()));
+            read.push(("the journal".into(), door.journal_text().into_bytes()));
+            for (path, bytes) in &read {
+                for token in PLANTED {
+                    assert!(
+                        !bytes
+                            .windows(token.len())
+                            .any(|window| window == token.as_bytes()),
+                        "{} holds the token {token}",
+                        path.display()
+                    );
+                }
+            }
+            door.finish().await;
+        });
+}
