@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# githooks-breakers.sh — proves the commit hooks under `.githooks/` hold
-# C184 (the commit trailer), each case in a fresh scratch repository whose
-# `core.hooksPath` is this tree's `.githooks`. In an agent's shell
+# githooks-breakers.sh — proves the hooks under `.githooks/` hold C184
+# (the commit trailer) and C186 (the committer on `main`), each case in a
+# fresh scratch repository whose `core.hooksPath` is this tree's
+# `.githooks`; a push case pushes to a bare scratch remote. In an agent's shell
 # (`CLAUDECODE` set, at any value) a commit, a merge or a revert whose
 # message names no assistant is refused, the refusal prints the line to
 # add, and nothing is committed; Claude's `Co-Authored-By:` line is
@@ -96,6 +97,55 @@ echo '== a person'"'"'s shell: the hooks only rewrite'
 run_case 'a commit naming no assistant'                   landed  person      'echo x >>f && git commit -qam "a change"' 'a change'
 run_case 'a human co-author kept, Claude'"'"'s line rewritten'  landed  person      "echo x >>f && git commit -qam 'a change${nl}${nl}${HUMAN}${nl}${CLAUDE}'" "$HUMAN" "$WRITTEN"
 run_case 'a revert naming no assistant'                   landed  person      'git revert --no-edit HEAD'
+
+# ---- the pre-push hook (C186, the committer on main) ---------------------
+# Each case pushes from a fresh repository to a bare remote that already
+# holds its main (pushed through the hook by a person's commits). A
+# refusal is evidence only when it names the property and the remote's
+# ref is unmoved; a push that lands leaves the remote's ref at the local
+# commit. A cloud session's commit is made with Claude as committer, as
+# the cloud environment makes it.
+REFUSAL='pre-push: main takes no commit whose committer is Claude'
+CLOUD='GIT_COMMITTER_NAME=Claude GIT_COMMITTER_EMAIL=noreply@anthropic.com'
+# push_case <name> <refused|landed> <remote ref to read> <shell command> [<setup run before the ref is read>]
+push_case() {
+  local name=$1 want=$2 ref=$3 cmd=$4 pre=${5:-true}
+  local out status before after local_tip wrong=''
+  if ! { fresh && git init -q --bare "$repo.git" && git remote add origin "$repo.git" && git push -q origin main && bash -c "$pre"; } >"$scratch/setup.err" 2>&1; then
+    printf 'FAIL    %-52s the scratch remote was not made: %s\n' "$name" "$(head -c 200 "$scratch/setup.err")"; failed=$((failed+1)); return
+  fi
+  before=$(git --git-dir="$repo.git" rev-parse -q --verify "$ref")
+  out=$(bash -c "$cmd" 2>&1); status=$?
+  after=$(git --git-dir="$repo.git" rev-parse -q --verify "$ref")
+  local_tip=$(git rev-parse HEAD)
+  if [[ $want == refused ]]; then
+    ((status != 0)) || wrong+=' it exited 0;'
+    [[ $after == "$before" ]] || wrong+=" the remote's $ref moved;"
+    [[ $out == *"$REFUSAL"* ]] || wrong+=' the refusal did not name the rule;'
+    [[ $out == *"git rebase --force-rebase"* ]] || wrong+=' the refusal did not print the way on;'
+  else
+    ((status == 0)) || wrong+=" it exited $status;"
+    [[ $after == "$local_tip" ]] || wrong+=" the remote's $ref is not the local commit;"
+  fi
+  if [[ -z $wrong ]]; then
+    printf 'ok      %-52s %s: %s\n' "$name" "$want" "$( ([[ $want == refused ]] && grep -m1 -F "$REFUSAL" <<<"$out" || git log -1 --format='%cn: %s') | clip)"; pass=$((pass+1))
+  else
+    printf 'FAIL    %-52s wanted %s, but%s exit %d, got:\n%s\n' "$name" "$want" "$wrong" "$status" "$(sed 's/^/          /' <<<"$out")"
+    failed=$((failed+1))
+  fi
+}
+
+echo '== a push to main: a commit whose committer is Claude is refused (C186)'
+push_case 'a cloud commit pushed to main'                 refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin main"
+push_case 'the committer named by its address alone'      refused refs/heads/main "echo x >>f && GIT_COMMITTER_NAME=Cloud GIT_COMMITTER_EMAIL=noreply@anthropic.com git commit -qam 'a cloud change' && git push -q origin main"
+push_case 'a cloud commit under a person'"'"'s'                refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && echo y >>f && git commit -qam 'a person' && git push -q origin main"
+push_case 'a cloud branch pushed onto main'               refused refs/heads/main "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud:main"
+push_case 'a cloud commit to a remote with no main'       refused refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin main" 'git push -q origin :main'
+
+echo '== a push to main: what the hook lets through'
+push_case 'a person'"'"'s commit to main'                       landed  refs/heads/main 'echo x >>f && git commit -qam "a person" && git push -q origin main'
+push_case 'a cloud commit to a branch not main'           landed  refs/heads/cloud "git checkout -qb cloud && echo x >>f && $CLOUD git commit -qam 'a cloud change' && git push -q origin cloud"
+push_case 'a cloud commit committed again, then pushed'   landed  refs/heads/main "echo x >>f && $CLOUD git commit -qam 'a cloud change' && git rebase -q --force-rebase origin/main && git push -q origin main"
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

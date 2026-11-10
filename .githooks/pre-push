@@ -1,0 +1,46 @@
+#!/bin/sh
+# The pre-push hook (`decisions/process.md`, C186, the committer on
+# `main`). `main` takes no commit whose committer is Claude: a cloud
+# session commits with the owner as author and Claude as committer, and
+# such a commit is committed again here, keeping its author and message,
+# before it reaches `main`. This hook refuses a push to `main` that
+# carries one, names each, and prints how to commit them again. A push
+# to any other branch is not read, so a cloud branch still reaches
+# GitHub. A merge made on GitHub's site is no push and passes no hook;
+# GitHub commits a squash or a rebase merge as itself. `--no-verify`
+# skips this hook, as it skips every one.
+# Enable with: git config core.hooksPath .githooks
+
+remote="$1"
+zero_only() { case "$1" in *[!0]*) return 1 ;; esac; return 0; }
+bad=''
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = refs/heads/main ] || continue
+  zero_only "$local_sha" && continue  # a deletion carries no commit
+  # The commits the push adds to the remote's main: those after its
+  # tip when this clone has that tip, else every commit no ref of this
+  # remote already holds.
+  if ! zero_only "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    range="$remote_sha..$local_sha"
+  else
+    range="$local_sha --not --remotes=$remote"
+  fi
+  # shellcheck disable=SC2086  # the range is words on purpose
+  found=$(git log --format='%H%x09%cn <%ce>%x09%s' $range | awk -F '\t' '
+    { c = $2; lc = tolower(c) }
+    lc ~ /^claude[ <]/ || lc ~ /@anthropic\.com>$/ { print "  " substr($1, 1, 12) "  committer " c "  " $3 }')
+  [ -n "$found" ] && bad="$bad$found
+"
+done
+
+[ -z "$bad" ] && exit 0
+{
+  echo "pre-push: main takes no commit whose committer is Claude, and this push to main carries:"
+  printf '%s' "$bad"
+  echo "Commit them again here, keeping each author and message (the committer becomes this clone's user):"
+  echo
+  echo "  git rebase --force-rebase $remote/main"
+  echo
+  echo "then check that each is signed (git log --format='%h %G? %cn'), and push again."
+} >&2
+exit 1
