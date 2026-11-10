@@ -32,6 +32,8 @@ is a standing file, and you add only what names the artifact:
 - A committed round, against its brief:
   `codex exec --sandbox read-only "$(cat roadmap/briefs/REVIEW-PROMPT.md) The commit: <sha>." < /dev/null`
   A range is written `<first>^..<last>`, so git includes the first.
+  A step whose done-when lands in more than one commit is reviewed as
+  one range through its close, so a line the close meets is in view.
 - A round whose brief is an issue: the same, with the issue's own text
   appended after the commit (`gh issue view <n> --json title,body`),
   since the reviewer has no network.
