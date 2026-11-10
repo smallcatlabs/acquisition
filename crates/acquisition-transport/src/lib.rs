@@ -26,9 +26,11 @@
 //! crate in the workspace's production build reaches reqwest
 //! (`tools/arch-check.sh` check 5), and the compiler that the daemon, with
 //! no dependency on reqwest of its own, can name it only through what this
-//! crate exports. Two properties are held by review, by the owner's ruling
-//! on #160, and by no check: the daemon's choke point is the one caller of
-//! [`Production::new`]; and this crate's public API exports no reqwest
+//! crate exports. The daemon's choke point is the one caller of
+//! [`Production::new`], held by a spelling check of the type's name
+//! (`tools/arch-check.sh` check 15, #216), which guards a slip, not an
+//! adversary. One property is held by review, by the owner's ruling on
+//! #160, and by no check: this crate's public API exports no reqwest
 //! item, no re-export, alias or type naming it, so the client stays
 //! reachable only through [`Transport`]. The public items, every one read
 //! at any change to this crate (`REVIEW-CHECKLIST.md`, network): [`Pending`]

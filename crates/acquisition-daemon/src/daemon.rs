@@ -1391,15 +1391,15 @@ impl Builder {
                 self.clock.clone(),
             ))
         });
+        // The one production choke point, and with it the one production
+        // transport (`tools/arch-check.sh`, check 15); a test's transport
+        // takes the production one's place.
+        let choke = ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base);
         #[cfg(test)]
         let choke = match self.transport {
-            Some(transport) => {
-                ChokePoint::with_transport(self.clock, rails, &self.provider.api_base, transport)
-            }
-            None => ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base),
+            Some(transport) => choke.carried_by(transport),
+            None => choke,
         };
-        #[cfg(not(test))]
-        let choke = ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base);
         Daemon::declare_route_knowledge(&choke);
         let jobs_db = match self.jobs_db {
             Some(db) => db,

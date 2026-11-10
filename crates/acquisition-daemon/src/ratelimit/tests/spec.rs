@@ -2625,13 +2625,22 @@ async fn send_the_seam_table(choke: &ChokePoint, base: &str) {
 /// One row of the seam's table sent through `choke`, its URL on `base`:
 /// the status it landed with, or its failure in words.
 async fn send_seam_row(choke: &ChokePoint, row: &SeamRow, base: &str) -> Result<u16, String> {
+    send_seam_row_as(choke, row, row.route, &format!("{base}{}", row.path)).await
+}
+
+/// One row of the seam's table sent through `choke` as `route` to `url`.
+async fn send_seam_row_as(
+    choke: &ChokePoint,
+    row: &SeamRow,
+    route: &str,
+    url: &str,
+) -> Result<u16, String> {
     let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
-    let url = format!("{base}{}", row.path);
     match (row.method, row.bearer) {
         ("HEAD", _) => choke
             .head(
-                row.route,
-                &url,
+                route,
+                url,
                 Some(&bearer as &dyn Bearer),
                 choke.now(),
                 ALWAYS_WANTED,
@@ -2640,17 +2649,17 @@ async fn send_seam_row(choke: &ChokePoint, row: &SeamRow, base: &str) -> Result<
             .map(|(status, _, _)| status.as_u16())
             .map_err(|error| error.to_string()),
         ("POST", _) => choke
-            .post_form(row.route, &url, row.form, choke.now(), ALWAYS_WANTED)
+            .post_form(route, url, row.form, choke.now(), ALWAYS_WANTED)
             .await
             .map(|landed| landed.status.as_u16())
             .map_err(|error| error.to_string()),
         (_, true) => choke
-            .get_bearer(row.route, &url, &bearer, choke.now(), ALWAYS_WANTED)
+            .get_bearer(route, url, &bearer, choke.now(), ALWAYS_WANTED)
             .await
             .map(|landed| landed.status.as_u16())
             .map_err(|error| error.to_string()),
         (_, false) => choke
-            .get(row.route, &url, choke.now(), ALWAYS_WANTED)
+            .get(route, url, choke.now(), ALWAYS_WANTED)
             .await
             .map(|landed| landed.status.as_u16())
             .map_err(|error| error.to_string()),
@@ -3446,58 +3455,64 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
     .await;
 }
 
+/// C21, the permit spans the body: each send of the seam's table that
+/// carries a body (the bearer GET, the token POST, the plain GET) holds
+/// its gate permit until its body completes. Per row, three sends of it on
+/// three routes, each answered with its head at once and its body held:
+/// two reach the transport, the third waits at the gate until one of the
+/// first two bodies completes (invariant 1; #216).
 #[tokio::test]
-async fn common_gate_caps_gets_until_response_bodies_complete() {
-    let (arrived_tx, mut arrived_rx) = mpsc::unbounded_channel();
-    let mut release_senders = Vec::new();
-    let mut paths = Vec::new();
-    for (index, path) in ["/0", "/1", "/2"].into_iter().enumerate() {
-        let (sender, release) = oneshot::channel();
-        release_senders.push(Some(sender));
-        let arrived = arrived_tx.clone();
-        let headers = full_rate_headers(&format!("body-policy-{index}"), None);
-        let response = raw_response("200 OK", &headers, 2, "{}");
-        let held: Answer1 = Box::new(move || {
-            arrived.send(index).unwrap();
-            Box::pin(async move { Reply::Held(response, release) })
-        });
-        paths.push((path, held));
-    }
-    let (served, seen) = answering(paths);
+async fn common_gate_caps_each_send_until_its_body_completes() {
+    for row in SEAM_TABLE.iter().filter(|row| row.method != "HEAD") {
+        let name = format!("{} {}", row.method, row.route);
+        let (arrived_tx, mut arrived_rx) = mpsc::unbounded_channel();
+        let mut release_senders = Vec::new();
+        let mut paths = Vec::new();
+        for (index, path) in ["/0", "/1", "/2"].into_iter().enumerate() {
+            let (sender, release) = oneshot::channel();
+            release_senders.push(Some(sender));
+            let arrived = arrived_tx.clone();
+            let headers = full_rate_headers(&format!("body-policy-{index}"), None);
+            let response = raw_response("200 OK", &headers, 2, "{}");
+            let held: Answer1 = Box::new(move || {
+                arrived.send(index).unwrap();
+                Box::pin(async move { Reply::Held(response, release) })
+            });
+            paths.push((path, held));
+        }
+        let (served, seen) = answering(paths);
 
-    let choke = Arc::new(parked_over(served));
-    let sends: Vec<_> = (0..3)
-        .map(|index| {
-            let choke = choke.clone();
-            let url = at(&format!("/{index}"));
-            tokio::spawn(async move {
-                choke
-                    .get(&format!("route-{index}"), &url, choke.now(), ALWAYS_WANTED)
-                    .await
+        let choke = parked_on(&Arc::new(ParkingClock::new()), served);
+        let sends: Vec<_> = (0..3)
+            .map(|index| {
+                let choke = choke.clone();
+                let route = format!("{}-{index}", row.route);
+                let url = at(&format!("/{index}"));
+                tokio::spawn(async move { send_seam_row_as(&choke, row, &route, &url).await })
             })
-        })
-        .collect();
+            .collect();
 
-    let first = arrived_rx.recv().await.unwrap();
-    let second = arrived_rx.recv().await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_millis(50), arrived_rx.recv())
+        let first = arrived_rx.recv().await.unwrap();
+        let second = arrived_rx.recv().await.unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), arrived_rx.recv())
+                .await
+                .is_err(),
+            "{name}: a third actual send bypassed the global cap"
+        );
+        release_senders[first].take().unwrap().send(()).unwrap();
+        let third = tokio::time::timeout(HANG, arrived_rx.recv())
             .await
-            .is_err(),
-        "a third actual send bypassed the global cap"
-    );
-    release_senders[first].take().unwrap().send(()).unwrap();
-    let third = tokio::time::timeout(HANG, arrived_rx.recv())
-        .await
-        .expect("a body completion releases the permit")
-        .unwrap();
-    for index in [second, third] {
-        release_senders[index].take().unwrap().send(()).unwrap();
+            .expect("a body completion releases the permit")
+            .unwrap();
+        for index in [second, third] {
+            release_senders[index].take().unwrap().send(()).unwrap();
+        }
+        for send in sends {
+            assert_eq!(send.await.unwrap(), Ok(200), "{name}");
+        }
+        assert_eq!(seen.lock().unwrap().len(), 3, "{name}");
     }
-    for send in sends {
-        send.await.unwrap().unwrap();
-    }
-    assert_eq!(seen.lock().unwrap().len(), 3);
 }
 
 #[tokio::test]

@@ -7,8 +7,8 @@
 use super::*;
 
 // The seam's neutral types, for the crate and its test transports; the
-// production transport is the transport crate's, built here alone (C161,
-// the owner's ruling on #160: review holds it).
+// production transport is the transport crate's, built here alone (C161;
+// `tools/arch-check.sh` check 15 holds it, #216).
 #[cfg(test)]
 pub(crate) use acquisition_transport::Pending;
 pub(crate) use acquisition_transport::{Answer, Prepared, Transport};
@@ -253,30 +253,21 @@ const HALT_POLL: Duration = Duration::from_secs(1);
 /// harness's pacing oracle reads it so).
 pub(crate) const PACING_FLOOR: Duration = Duration::from_millis(50);
 
-/// The one production transport, with the registration's user-agent as
-/// its client's default (invariant 4) and no timeout (the deadline is the
-/// choke point's, [`REQUEST_TIMEOUT`]).
-fn production() -> acquisition_transport::Production {
-    acquisition_transport::Production::new(crate::provider::USER_AGENT)
-}
-
 impl ChokePoint {
     /// The daemon's choke point: its clock, its rails, and the provider's
     /// API base, whose origin is the only one a bearer goes to (C128).
+    /// The one production transport is built here alone, and this is
+    /// called once outside the daemon's tests, by the daemon's builder
+    /// (`tools/arch-check.sh`, check 15; invariant 1, #216): the
+    /// registration's user-agent as its client's default (invariant 4) and
+    /// no timeout (the deadline is the choke point's, [`REQUEST_TIMEOUT`]).
     pub(crate) fn with_clock_and_rails(
         clock: Arc<dyn Clock>,
         rails: Arc<Rails>,
         api_base: &str,
     ) -> Self {
-        ChokePoint {
-            transport: Box::new(production()),
-            limiter: Mutex::new(Limiter::new()),
-            gate: SendGate::new(),
-            sends: Mutex::new(VecDeque::new()),
-            clock,
-            rails,
-            bearer_origin: url::Url::parse(api_base).ok().map(|base| base.origin()),
-        }
+        let production = acquisition_transport::Production::new(crate::provider::USER_AGENT);
+        ChokePoint::over(clock, rails, api_base, Box::new(production))
     }
 
     /// The daemon's choke point over another transport, for a test: a
@@ -288,9 +279,32 @@ impl ChokePoint {
         api_base: &str,
         transport: Box<dyn Transport>,
     ) -> Self {
-        let mut choke = ChokePoint::with_clock_and_rails(clock, rails, api_base);
-        choke.transport = transport;
-        choke
+        ChokePoint::over(clock, rails, api_base, transport)
+    }
+
+    /// This choke point with `transport` in its transport's place, for
+    /// the daemon's builder under a test.
+    #[cfg(test)]
+    pub(crate) fn carried_by(mut self, transport: Box<dyn Transport>) -> Self {
+        self.transport = transport;
+        self
+    }
+
+    fn over(
+        clock: Arc<dyn Clock>,
+        rails: Arc<Rails>,
+        api_base: &str,
+        transport: Box<dyn Transport>,
+    ) -> Self {
+        ChokePoint {
+            transport,
+            limiter: Mutex::new(Limiter::new()),
+            gate: SendGate::new(),
+            sends: Mutex::new(VecDeque::new()),
+            clock,
+            rails,
+            bearer_origin: url::Url::parse(api_base).ok().map(|base| base.origin()),
+        }
     }
 
     /// C128 — A bearer goes only to the provider's API origin: scheme, host
@@ -345,8 +359,17 @@ impl ChokePoint {
     /// C161 — `request` carried by the transport, and its answer bounded by
     /// the send's `deadline` on the clock: one cut before any answer is a
     /// transport failure in [`send_expired`]'s words, the transport's
-    /// future dropped at the cut, which closes its connection.
-    async fn carry(&self, request: Prepared, deadline: Instant) -> Result<Answer, String> {
+    /// future dropped at the cut, which closes its connection. The one
+    /// reader of the transport, and it takes the send's gate permit, as
+    /// [`Self::body_by`] does: a send method the seam's table does not walk
+    /// still cannot reach the transport, or read a body, holding none
+    /// (invariant 1; #216).
+    async fn carry(
+        &self,
+        _permit: &SendPermit,
+        request: Prepared,
+        deadline: Instant,
+    ) -> Result<Answer, String> {
         by_on(&*self.clock, deadline, self.transport.send(request))
             .await
             .unwrap_or_else(|Expired| Err(send_expired()))
@@ -357,6 +380,7 @@ impl ChokePoint {
     /// [`body_expired`]'s words, the status kept by the caller.
     async fn body_by(
         &self,
+        _permit: &SendPermit,
         body: acquisition_transport::Pending<'static, Result<String, String>>,
         deadline: Instant,
     ) -> Result<String, String> {
@@ -568,7 +592,7 @@ impl ChokePoint {
             self.degrade(route, &reason);
             return Err(ProbeError::OffOrigin(reason));
         }
-        let _permit = self
+        let permit = self
             .acquire_head(route, wanted)
             .await
             .map_err(|error| match error {
@@ -597,7 +621,7 @@ impl ChokePoint {
         // C161: the send's one deadline, taken as it is handed over.
         let deadline = self.now() + REQUEST_TIMEOUT;
         let sent = match authorized {
-            Ok(()) => self.carry(request, deadline).await,
+            Ok(()) => self.carry(&permit, request, deadline).await,
             Err(error) => Err(error),
         };
         let (policy, retry_after, raw, headers) = sent.as_ref().map_or_else(
@@ -626,7 +650,10 @@ impl ChokePoint {
         // permit live through the complete exchange even for a malformed
         // server response that does carry one.
         let completed = match sent {
-            Ok(answer) => Ok((answer.status, self.body_by(answer.body, deadline).await)),
+            Ok(answer) => Ok((
+                answer.status,
+                self.body_by(&permit, answer.body, deadline).await,
+            )),
             Err(error) => Err(error),
         };
         let outcome: Result<Policy, String> = match &completed {
@@ -822,6 +849,7 @@ impl ChokePoint {
     #[allow(clippy::too_many_arguments)]
     async fn finish_send(
         &self,
+        permit: &SendPermit,
         endpoint: &str,
         method: &'static str,
         url: &str,
@@ -866,7 +894,7 @@ impl ChokePoint {
                 let redirect = status
                     .is_redirection()
                     .then(|| redirect_evidence(&answer.headers));
-                let body = self.body_by(answer.body, deadline).await;
+                let body = self.body_by(permit, answer.body, deadline).await;
                 Ok((status, body.map(|body| redirect.unwrap_or(body))))
             }
             Err(error) => Err(error),
@@ -1022,7 +1050,7 @@ impl ChokePoint {
         since: Instant,
         wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
-        let _permit = self.acquire_send(route, wanted).await?;
+        let permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
         let mut request = Prepared::new(http::Method::POST, url, crate::provider::USER_AGENT);
         request.form = Some(
@@ -1032,9 +1060,11 @@ impl ChokePoint {
                 .collect(),
         );
         let deadline = self.now() + REQUEST_TIMEOUT;
-        let result = self.carry(request, deadline).await;
-        self.finish_send(route, "POST", url, result, deadline, true, wait, true)
-            .await
+        let result = self.carry(&permit, request, deadline).await;
+        self.finish_send(
+            &permit, route, "POST", url, result, deadline, true, wait, true,
+        )
+        .await
     }
 
     /// Bearer-authenticated GET. The dispatcher may pre-wait while the job is
@@ -1050,7 +1080,7 @@ impl ChokePoint {
         wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
         self.admit_bearer_url(url).map_err(SendError::OffOrigin)?;
-        let _permit = self.acquire_send(route, wanted).await?;
+        let permit = self.acquire_send(route, wanted).await?;
         let Some(token) = bearer.token() else {
             return Err(SendError::StaleBearer);
         };
@@ -1058,11 +1088,13 @@ impl ChokePoint {
         let mut request = Prepared::new(http::Method::GET, url, crate::provider::USER_AGENT);
         let deadline = self.now() + REQUEST_TIMEOUT;
         let result = match token.authorize(&mut request.headers) {
-            Ok(()) => self.carry(request, deadline).await,
+            Ok(()) => self.carry(&permit, request, deadline).await,
             Err(error) => Err(error),
         };
         let response = self
-            .finish_send(route, "GET", url, result, deadline, true, wait, false)
+            .finish_send(
+                &permit, route, "GET", url, result, deadline, true, wait, false,
+            )
             .await;
         // C129: a 401 Cloudflare gave in GGG's place is no rejection of
         // the bearer, as on the probe: the token GGG never judged stands.
@@ -1084,13 +1116,15 @@ impl ChokePoint {
         since: Instant,
         wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
-        let _permit = self.acquire_send(route, wanted).await?;
+        let permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
         let request = Prepared::new(http::Method::GET, url, crate::provider::USER_AGENT);
         let deadline = self.now() + REQUEST_TIMEOUT;
-        let result = self.carry(request, deadline).await;
-        self.finish_send(route, "GET", url, result, deadline, true, wait, false)
-            .await
+        let result = self.carry(&permit, request, deadline).await;
+        self.finish_send(
+            &permit, route, "GET", url, result, deadline, true, wait, false,
+        )
+        .await
     }
 }
 

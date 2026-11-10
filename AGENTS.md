@@ -31,10 +31,11 @@ what fails if it breaks, and says where nothing does yet.
    navigation is outside this boundary. A daemon HTTP path that
    bypasses the choke point or the gate is a critical bug however
    reasonable it looks locally. *Pinned:* `tools/arch-check.sh` (check
-   5: only the transport crate links `reqwest`, and only the daemon
-   links it); `acquisition-daemon/src/ratelimit/tests/spec.rs`,
-   `c161_each_send_is_cut_at_its_deadline_and_releases_its_permit`. A
-   second HTTP path has no holder yet (#216).
+   5: no member reaches an HTTP client but through the transport crate,
+   which only the daemon links; check 15: one production transport,
+   built by one choke point); `acquisition-daemon/src/ratelimit/tests/spec.rs`,
+   `c161_each_send_is_cut_at_its_deadline_and_releases_its_permit` and
+   `common_gate_caps_each_send_until_its_body_completes`.
 2. **Rate-limit headers from GGG (`X-Rate-Limit-*`) are the source of
    truth.** Local rate-limit state is a prediction; headers correct it.
    *Pinned:* `acquisition-daemon/src/ratelimit/tests/spec.rs`,

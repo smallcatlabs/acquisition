@@ -14,7 +14,8 @@
 #      itself — each forbidden edge refused at any depth; and the one HTTP
 #      client's crate (C161): reqwest linked in a normal or build edge by
 #      the transport crate alone, which links no member and which no
-#      member but the daemon links; and the TLS stack that client
+#      member but the daemon links, and no member reaching any HTTP
+#      client by another road (#216); and the TLS stack that client
 #      presents (C169), as far as a manifest, the graph and the source
 #      decide it: the two declared reqwest lines, the release line,
 #      source and resolved features of reqwest and rustls, the release
@@ -57,6 +58,11 @@
 #  13. Retired (#160): reqwest in the one transport's file is now held
 #      by check 5's transport edges and by the daemon having no normal
 #      dependency on reqwest, which the compiler holds.
+#
+#  15. One production transport (#216, invariant 1): outside the
+#      transport crate, `Production` is named on one code line, in
+#      `ChokePoint::with_clock_and_rails`, which the daemon's production
+#      source calls once, in `Builder::build`.
 #
 #  14. One test clock (#175): under a crate's `tests/`, in every file that
 #      reaches the process harness, outside `harness/`, no code line reads
@@ -222,6 +228,52 @@ if ! http_dependents=$(jq -r '
     | [.resolve.nodes[] as $n | $n.deps[] | select($name[.pkg] == "reqwest") | .dep_kinds[] | "\(.kind // "normal")\t\($name[$n.id])\t\($n.id)"]
     | unique | .[]' "$meta"); then
   echo 'EDGE    jq failed reading the dependents of reqwest'
+  rm -f "$meta"; exit 1
+fi
+# Who reaches an HTTP client other than through the transport crate
+# (invariant 1, #216): for every workspace member but the transport, the
+# packages it reaches — its direct edges of every kind, then normal and
+# build edges at any depth, as the closure above walks — with the
+# transport crate's node never entered, and the daemon's one dev edge to
+# reqwest (its tests' socket client, which `entered_by` below holds) not
+# taken. One `read <member>` line per member walked, then one `reach
+# <member> <name> <path by names>` line per package it reaches whose name
+# is in `$clients` (a crate that is an HTTP client, or a client's
+# connector) or, by a direct edge, in `$wire` (an HTTP implementation
+# that serves as well as sends: axum serves the pages over hyper, so it
+# is refused only where a member names it, which is the only way a
+# member's code can call its client). The rule below refuses any reach
+# line, and a read count short of the members.
+http_clients='reqwest ureq isahc curl curl-sys surf attohttpc minreq awc hyper-rustls hyper-tls hyper-openssl http-client ehttp'
+http_wire='hyper hyper-util h2 h3'
+if ! http_reach=$(jq -r --arg transport acquisition-transport --arg dev acquisition-daemon \
+    --arg clients "$http_clients" --arg wire "$http_wire" '
+    ([.packages[] | {key: .id, value: .name}] | from_entries) as $name
+    | ([.resolve.nodes[] | {key: .id, value: .deps}] | from_entries) as $deps
+    | ($clients | split(" ")) as $clients
+    | ($wire | split(" ")) as $wire
+    | ([.workspace_members[] | select($name[.] == $transport)] | first) as $tid
+    | if $tid == null then "none" else
+      (.workspace_members[] as $m | select($m != $tid)
+       | ([$deps[$m][] | .pkg] | map({key: ., value: true}) | from_entries) as $direct
+       | { seen: {($m): $name[$m]}, queue: [], from: {} }
+       | .queue = [ $deps[$m][] | select(.pkg != $tid)
+                    | select(($name[$m] == $dev and $name[.pkg] == "reqwest" and all(.dep_kinds[]; .kind == "dev")) | not)
+                    | .pkg ]
+       | .from = ([ .queue[] | {key: ., value: $m} ] | from_entries)
+       | until(.queue == [];
+           .queue[0] as $x | .queue |= .[1:]
+           | if .seen[$x] then . else
+               .seen[$x] = (.seen[.from[$x]] + " → " + $name[$x])
+               | reduce ($deps[$x][] | select(any(.dep_kinds[]; .kind != "dev")) | select(.pkg != $tid) | .pkg) as $y
+                   (.; if .seen[$y] or .from[$y] then . else .from[$y] = $x | .queue += [$y] end)
+             end)
+       | "read\t\($name[$m])",
+         (.seen | to_entries[] | select(.key != $m)
+          | select(($name[.key] | IN($clients[])) or (($name[.key] | IN($wire[])) and $direct[.key]))
+          | "reach\t\($name[$m])\t\($name[.key])\t\(.value)"))
+      end' "$meta"); then
+  echo 'EDGE    jq failed reading who reaches an HTTP client'
   rm -f "$meta"; exit 1
 fi
 # What the one client presents in a TLS ClientHello, as far as a manifest
@@ -439,6 +491,25 @@ allow acquisition-protocol normal serde serde_json
 entered_by reqwest acquisition-transport acquisition-daemon 'reqwest is linked in a normal or build edge by acquisition-transport alone, the one production transport, and as a dev-dependency by the daemon'"'"'s tests alone; send through the choke point, which owns that transport (C161, C1)'
 no_member acquisition-transport 'the transport crate links no workspace crate: the daemon gives it the user-agent and the timeouts (C1, C161)'
 only_self acquisition-transport 'no package but acquisition-daemon links the transport crate, whose one caller is the choke point (C1, C161)' acquisition-daemon
+http_only_through() {  # http_only_through <why>: no member reaches an HTTP client but through the transport crate
+  local why=$1 kind m n path read=0 members=0 k mi di bad=''
+  while IFS=$'\t' read -r k _ _ mi di _; do [[ $k == closure && $mi == "$di" ]] && members=$((members + 1)); done <<<"$table"
+  while IFS=$'\t' read -r kind m n path; do
+    case $kind in
+      read)  read=$((read + 1)) ;;
+      '')    ;;
+      reach) bad+="          $path"$'\n'
+             printf 'EDGE    %-22s reaches %s outside the transport crate — %s\n' "$m" "$n" "$why" ;;
+      *)     printf 'EDGE    the HTTP client reader answered "%s" — the graph was not read\n' "$kind"; fail=1; edge_bad=1; return ;;
+    esac
+  done <<<"$http_reach"
+  [[ -n $bad ]] && { printf '%s' "$bad"; fail=1; edge_bad=1; }
+  if ((read != members - 1)); then
+    printf 'EDGE    the HTTP client reader walked %d members of %d but the transport — the graph was not read\n' "$read" "$members"
+    fail=1; edge_bad=1
+  fi
+}
+http_only_through 'an HTTP client reached by any other road is a second path to GGG that no gate counts: send through the choke point, whose transport is the one client (invariant 1, C161)'
 # C169: the stack every send of the Rust daemon has been carried by (N52).
 # A patch release moves no line; a new release line, another backend,
 # provider, root store or source, `http2`, or a declared line that is not
@@ -483,7 +554,7 @@ if grep -rqE "$doors" crates/acquisition-cli/src crates/acquisition-mcp/src; the
   fail=1; edge_bad=1
 fi
 if ((edge_bad == 0)); then
-  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only, reqwest only through transport, transport ∌ members, nothing ∌ transport but the daemon, the TLS stack as named (C1, C34, C39, C41, C46, C89, C161, C169, §2.1)'
+  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only, reqwest only through transport, no HTTP client but through transport, transport ∌ members, nothing ∌ transport but the daemon, the TLS stack as named (C1, C34, C39, C41, C46, C89, C161, C169, §2.1)'
 fi
 
 # ---- 7. a group's meaning has one reader ---------------------------------
@@ -934,5 +1005,85 @@ sys.exit(1 if bad else 0)
 PY
 ); then fail=1; fi
 printf '%s\n' "$clock"
+
+# ---- 15. one production transport, built by one choke point -------------
+# Invariant 1 (#216): every send the daemon makes goes through one choke
+# point and its one gate, and the choke point's transport is the one HTTP
+# client (C161, check 5). A second `Production` built anywhere is a second
+# client whose sends no gate counts; a second production choke point is a
+# second gate. Neither is a dependency edge, so the source holds them:
+# outside the transport crate, the word `Production` stands on one code
+# line of the workspace, inside `fn with_clock_and_rails` in the daemon's
+# `ratelimit/choke.rs`; and under `crates/acquisition-daemon/src`, outside
+# its `tests/` directories and a file's tail test module (check 12's
+# reader), `with_clock_and_rails` is named once besides its definition,
+# inside `fn build` in `daemon.rs`, the daemon's builder. Any spelling
+# that builds one names the type (an alias is a `use` that names it), and
+# a call by any path names the constructor. Comment lines are not read.
+if ! production=$(python3 -I -c "$(tail_reader)
+$(cat <<'PY'
+import glob, re, sys
+CHOKE = "crates/acquisition-daemon/src/ratelimit/choke.rs"
+BUILDER = "crates/acquisition-daemon/src/daemon.rs"
+WORD = re.compile(r"(?<![\w])Production(?![\w])")
+CTOR = re.compile(r"(?<![\w])with_clock_and_rails(?![\w])")
+DEFN = re.compile(r"\bfn\s+with_clock_and_rails\b")
+def span_of(code, head):
+    for at, line in enumerate(code, 1):
+        if re.match(r"\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn " + head + r"\b", line):
+            depth = 0; opened = False
+            for end, body in enumerate(code[at - 1:], at):
+                depth += body.count("{") - body.count("}")
+                opened = opened or "{" in body
+                if opened and depth == 0:
+                    return (at, end)
+    return None
+bad = []; named = []; called = []; n = 0
+for path in sorted(glob.glob("crates/**/*.rs", recursive=True)):
+    if path.startswith("crates/acquisition-transport/"):
+        continue
+    n += 1
+    lines = open(path, encoding="utf-8").read().splitlines()
+    code = ["" if l.lstrip().startswith("//") else l for l in lines]
+    for at, line in enumerate(code, 1):
+        named += [(path, at)] * len(WORD.findall(line))
+    if not path.startswith("crates/acquisition-daemon/src/") or "/tests/" in path:
+        continue
+    exempt, refusal = tail_module(path, lines, code, "TRANSPORT", "the constructor's calls", "invariant 1")
+    if refusal:
+        bad.append(refusal)
+        continue
+    for at, line in enumerate(code, 1):
+        if exempt and exempt[0] <= at <= exempt[1]:
+            continue
+        hits = len(CTOR.findall(line)) - len(DEFN.findall(line))
+        called += [(path, at)] * hits
+choke = span_of([("" if l.lstrip().startswith("//") else l) for l in open(CHOKE, encoding="utf-8").read().splitlines()], "with_clock_and_rails")
+build = span_of([("" if l.lstrip().startswith("//") else l) for l in open(BUILDER, encoding="utf-8").read().splitlines()], "build")
+def within(site, path, span):
+    return span is not None and site[0] == path and span[0] <= site[1] <= span[1]
+if len(named) != 1 or not within(named[0], CHOKE, choke):
+    for path, at in named:
+        if not within((path, at), CHOKE, choke):
+            bad.append(f"TRANSPORT {path}:{at} names the production transport outside the choke point's constructor: a second one is an HTTP client no gate counts; send through the choke point, which builds the one in ChokePoint::with_clock_and_rails (invariant 1, C161)")
+    if len(named) > 1 and all(within(site, CHOKE, choke) for site in named):
+        bad.append(f"TRANSPORT {CHOKE}:{named[1][1]} names the production transport {len(named)} times in ChokePoint::with_clock_and_rails, where it is built once (invariant 1, C161)")
+    if not named:
+        bad.append(f"TRANSPORT {CHOKE} names no production transport: ChokePoint::with_clock_and_rails builds the one, and the check reads it there (invariant 1, C161)")
+if len(called) != 1 or not within(called[0], BUILDER, build):
+    for path, at in called:
+        if not within((path, at), BUILDER, build):
+            bad.append(f"TRANSPORT {path}:{at} builds a production choke point outside the daemon's builder: a second choke point is a second gate and a second client; share the daemon's one (invariant 1, C161)")
+    if len(called) > 1 and all(within(site, BUILDER, build) for site in called):
+        bad.append(f"TRANSPORT {BUILDER}:{called[1][1]} builds the production choke point {len(called)} times in Builder::build, where the daemon builds one (invariant 1, C161)")
+    if not called:
+        bad.append(f"TRANSPORT {BUILDER} builds no production choke point in fn build: the check reads the one call there (invariant 1, C161)")
+if bad:
+    print("\n".join(bad))
+    sys.exit(1)
+print(f"ok      {'transport':<13} {n} workspace source files outside the transport crate: the production transport is named once, {named[0][0]}:{named[0][1]} in ChokePoint::with_clock_and_rails, which the daemon's production source calls once, {called[0][0]}:{called[0][1]} in Builder::build (invariant 1, C161)")
+PY
+)"); then fail=1; fi
+printf '%s\n' "$production"
 
 exit $fail

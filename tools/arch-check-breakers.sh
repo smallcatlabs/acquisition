@@ -28,7 +28,15 @@
 # second member, by the daemon again, through an alias the workspace
 # declares and the daemon inherits, or through a non-member crate the
 # daemon links, one of them named as the transport crate is; a member but the daemon linking the transport crate; and
-# the transport crate linking a member. The TLS stack's cases (§5, C169)
+# the transport crate linking a member; any other HTTP client (#216),
+# a stand-in under a client's name, declared by a member, reached
+# through a non-member crate, or taken by the daemon's tests, and hyper
+# or hyper-util named by a member though axum may bring hyper to serve,
+# and the reader that walks no member. Check 15's cases (#216) build a
+# second production transport (in another file, under an alias, in the
+# constructor itself) and a second production choke point (in another
+# file, in the builder, behind a `#[cfg(test)]` item that is no tail
+# module); a comment and a tail test module pass. The TLS stack's cases (§5, C169)
 # give the one client another stack by each way the check reads: a
 # feature added to the transport's reqwest line or dropped from it, the
 # daemon's dev line alone moved, the native backend or the native roots
@@ -62,7 +70,7 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
        crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
        crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs
-       crates/acquisition-transport/Cargo.toml)
+       crates/acquisition-transport/Cargo.toml crates/acquisition-daemon/src/ratelimit/choke.rs crates/acquisition-daemon/src/daemon.rs)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -87,6 +95,8 @@ crate devonly devonly          0.1.0 ""
 crate outside outside          0.1.0 "\n[dev-dependencies]\ndevonly = { path = \"$scratch/x/devonly\" }\n"
 crate impostor  acquisition-transport 0.9.0 "\n[dependencies]\nreqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n"
 crate httpbridge http-bridge   0.1.0 "\n[dependencies]\nreqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n"
+crate fakeureq  ureq          0.1.0 ""
+crate fetcher   fetcher       0.1.0 "\n[dependencies]\nureq = { path = \"$scratch/x/fakeureq\" }\n"
 
 # ---- edits ---------------------------------------------------------------
 adddep() {  # adddep <manifest> <line> [<table, default [dependencies]>]
@@ -143,7 +153,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|dependencies|layout|exempt|timers|blocking' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|EXEMPT|TIMER|BLOCKING|TRANSPORT|dependencies|layout|exempt|timers|blocking|transport' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -207,6 +217,18 @@ run_case 'the daemon links a non-member named acquisition-transport' refuse 'req
 run_case 'a frontend links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli' adddep crates/acquisition-cli/Cargo.toml "$TP"
 run_case 'the client links the transport crate'                  refuse 'acquisition-transport  is linked by acquisition-cli acquisition-client' adddep crates/acquisition-client/Cargo.toml "$TP"
 run_case 'the transport crate links a member'                    refuse 'acquisition-transport  links acquisition-protocol' adddep crates/acquisition-transport/Cargo.toml 'acquisition-protocol = { path = "../acquisition-protocol" }'
+# Any HTTP client, not reqwest alone (#216): a client crate is named by a
+# local stand-in under its name, so the cases need no registry; hyper is
+# the real one, which axum already brings the CLI to serve its pages.
+UQ="ureq = { path = \"$scratch/x/fakeureq\" }"
+run_case 'the CLI serves its pages over hyper, through axum'     pass   'no HTTP client but through transport' none
+run_case 'the client declares another HTTP client'              refuse 'acquisition-client     reaches ureq outside the transport crate' adddep crates/acquisition-client/Cargo.toml "$UQ"
+run_case 'the CLI links a crate that links another client'      refuse 'acquisition-cli → fetcher → ureq' adddep crates/acquisition-cli/Cargo.toml "fetcher = { path = \"$scratch/x/fetcher\" }"
+run_case 'the daemon declares another client beside the transport' refuse 'acquisition-daemon     reaches ureq outside the transport crate' adddep crates/acquisition-daemon/Cargo.toml "$UQ"
+run_case 'the daemon'"'"'s tests take another client'             refuse 'acquisition-daemon     reaches ureq outside the transport crate' adddep crates/acquisition-daemon/Cargo.toml "$UQ" '[dev-dependencies]'
+run_case 'the CLI names hyper itself'                            refuse 'acquisition-cli        reaches hyper outside the transport crate' adddep crates/acquisition-cli/Cargo.toml 'hyper = "1"'
+run_case 'the HTTP client reader walks no member'               refuse 'the HTTP client reader walked 0 members' tool '| "read\t\($name[$m])",' '| empty,'
+run_case 'the store names hyper-util itself'                     refuse 'acquisition-store      reaches hyper-util outside the transport crate' adddep crates/acquisition-store/Cargo.toml 'hyper-util = "0.1"'
 # C169: the stack the Rust daemon has presented. Each refusal is matched
 # on the line of the graph that differs, never on the verdict alone, so a
 # case green for another line's reason fails here (the cold review of
@@ -248,6 +270,31 @@ run_case 'a client builder sets a TLS option'                    refuse "$SET" w
 run_case 'the daemon installs a crypto provider'                 refuse "$SET" words crates/acquisition-daemon/src/zz_breaker.rs 'fn f() {\n    let _ = rustls::crypto::ring::default_provider().install_default();\n}\n'
 run_case 'a comment names a TLS option'                          pass   'the TLS stack as named' words crates/acquisition-daemon/src/zz_breaker.rs '// install_default is never called here (C169)\n'
 run_case 'the store links tokio through a [dependencies.tokio] table' refuse 'acquisition-store      links tokio' adddep crates/acquisition-store/Cargo.toml 'workspace = true' '[dependencies.tokio]'
+
+echo '== the code: one production transport, built by one choke point (check 15, #216)'
+PT='a second one is an HTTP client no gate counts'
+PC='a second choke point is a second gate'
+CHOKE_RS=crates/acquisition-daemon/src/ratelimit/choke.rs
+DAEMON_RS=crates/acquisition-daemon/src/daemon.rs
+inside() {  # inside <file> <anchor> <line>: the line added after the anchor, found once
+  python3 - "$1" "$2" "$3" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); s = p.read_text(); a = sys.argv[2]
+assert s.count(a) == 1, 'anchor not found once: ' + a[:60]
+p.write_text(s.replace(a, a + sys.argv[3], 1))
+PY
+}
+LET='        let production = acquisition_transport::Production::new(crate::provider::USER_AGENT);\n'
+BUILD='        let choke = ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base);\n'
+run_case 'the one transport, the one choke point'                pass   'the production transport is named once' none
+run_case 'a second transport built in the daemon'                refuse "zz_breaker.rs:2 names the production transport outside the choke point's constructor: $PT" words crates/acquisition-daemon/src/zz_breaker.rs '// breaker\nfn f() { let _ = acquisition_transport::Production::new("x"); }\n'
+run_case 'the transport imported under another name'             refuse "zz_breaker.rs:1 names the production transport outside" words crates/acquisition-daemon/src/zz_breaker.rs 'use acquisition_transport::Production as Client;\nfn f() { let _ = Client::new("x"); }\n'
+run_case 'a second transport in the constructor itself'          refuse 'names the production transport 2 times in ChokePoint::with_clock_and_rails' inside $CHOKE_RS "$(printf "$LET")"$'\n' '        let _second = acquisition_transport::Production::new(crate::provider::USER_AGENT);'$'\n'
+run_case 'a comment names the transport'                         pass   'the production transport is named once' words crates/acquisition-daemon/src/zz_breaker.rs '// acquisition_transport::Production::new is the choke point'"'"'s alone\n'
+run_case 'a second production choke point in the daemon'         refuse "zz_breaker.rs:2 builds a production choke point outside the daemon's builder: $PC" words crates/acquisition-daemon/src/zz_breaker.rs '// breaker\nfn f(c: std::sync::Arc<dyn crate::ratelimit::Clock>, r: std::sync::Arc<crate::rails::Rails>) { let _ = crate::ratelimit::ChokePoint::with_clock_and_rails(c, r, "x"); }\n'
+run_case 'the builder builds a second choke point'               refuse 'builds the production choke point 2 times in Builder::build' inside $DAEMON_RS "$(printf "$BUILD")"$'\n' '        let _second = ChokePoint::with_clock_and_rails(Arc::new(crate::ratelimit::SystemClock), Arc::new(Rails::disabled()), "x");'$'\n'
+run_case 'a choke point built in a tail test module'             pass   'the production transport is named once' words crates/acquisition-daemon/src/zz_breaker.rs '// breaker\n#[cfg(test)]\nmod tests {\n    fn f(c: std::sync::Arc<dyn crate::ratelimit::Clock>, r: std::sync::Arc<crate::rails::Rails>) { let _ = crate::ratelimit::ChokePoint::with_clock_and_rails(c, r, "x"); }\n}\n'
+run_case 'a choke point built behind a cfg(test) item, not a tail module' refuse "builds a production choke point outside the daemon's builder" words crates/acquisition-daemon/src/zz_breaker.rs '// breaker\n#[cfg(test)]\nfn f(c: std::sync::Arc<dyn crate::ratelimit::Clock>, r: std::sync::Arc<crate::rails::Rails>) { let _ = crate::ratelimit::ChokePoint::with_clock_and_rails(c, r, "x"); }\nfn g() {}\n'
 
 echo '== the code: the search crate'"'"'s edges (C89)'
 SP='acquisition-search = { path = "../acquisition-search" }'
