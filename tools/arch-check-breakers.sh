@@ -67,7 +67,7 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
-files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh
+files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs crates/acquisition-daemon/tests/environment.rs tools/arch-check.sh
        crates/acquisition-client/tests/harness/mod.rs crates/acquisition-daemon/src/daemon/routes.rs tools/persist-verify.py tools/tracer-verify.py
        crates/acquisition-daemon/src/ratelimit.rs crates/acquisition-daemon/src/auth.rs crates/acquisition-daemon/src/daemon/kinds.rs
        crates/acquisition-transport/Cargo.toml crates/acquisition-daemon/src/ratelimit/choke.rs crates/acquisition-daemon/src/daemon.rs)
@@ -348,8 +348,18 @@ run_case 'the rule forgets the module that computes the meaning' refuse "$GR" no
 echo '== the code: one test binary of modules per crate, the files that set the environment their own (C122)'
 second_plain() { printf '// breaker: a second binary that sets nothing\n#[test]\nfn f() {}\n' >crates/acquisition-cli/tests/zz_breaker.rs; }
 merged_session() { printf 'mod watch_recovery;\n' >>crates/acquisition-cli/tests/main.rs; }
-run_case 'a second file without session( under tests/'           refuse 'LAYOUT  crates/acquisition-cli/tests: 2 files call no session(' second_plain
+run_case 'a second file without session( under tests/'           refuse 'LAYOUT  crates/acquisition-cli/tests: 2 files set no process environment' second_plain
 run_case 'a session( file listed as a mod of the plain one'      refuse 'lists watch_recovery as a module' merged_session
+merged_setter() { printf 'mod environment;\n' >>crates/acquisition-daemon/tests/main.rs; }
+run_case 'a set_var( file listed as a mod of the plain one'      refuse 'lists environment as a module, and environment.rs sets the process environment' merged_setter
+setter_unset() { python3 - <<'PY'
+import pathlib
+p = pathlib.Path('crates/acquisition-daemon/tests/environment.rs'); s = p.read_text()
+assert 'set_var(' in s and 'remove_var(' in s, 'the knobs test sets nothing'
+p.write_text(s.replace('set_var(', 'set_var_(').replace('remove_var(', 'remove_var_('))
+PY
+}
+run_case 'the daemon'"'"'s knobs test stops setting the environment' refuse 'LAYOUT  crates/acquisition-daemon/tests: 2 files set no process environment' setter_unset
 unlisted_root() {  # the CLI manifest's watch_recovery entry deleted
   python3 - <<'PY'
 import pathlib

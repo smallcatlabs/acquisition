@@ -8,7 +8,7 @@
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use crate::daemon::dispatch::may_requeue_429;
-use crate::daemon::kinds::classify_api_body;
+use crate::daemon::kinds::{classify_api_body, token_failure};
 use crate::daemon::*;
 use crate::rails::Verdict;
 
@@ -190,4 +190,26 @@ fn c165_a_failed_responses_kind_is_read_from_its_status() {
         };
         assert_eq!(*read, kind, "{status}: {message}");
     }
+}
+
+/// C165's table (#218's mutants): a token refusal with no typed cause
+/// fails its job by the refusal's own kind — a session that cannot give a
+/// token is not logged in, the provider not answering is upstream, and
+/// anything else is the daemon's own fault; a typed cause decides first.
+#[test]
+fn a_token_refusal_fails_its_job_by_its_cause_else_its_kind() {
+    for (kind, want) in [
+        (ErrorKind::NotLoggedIn, FailureKind::NotLoggedIn),
+        (ErrorKind::UnknownAccount, FailureKind::NotLoggedIn),
+        (ErrorKind::AmbiguousAccount, FailureKind::NotLoggedIn),
+        (ErrorKind::Upstream, FailureKind::Upstream),
+        (ErrorKind::Internal, FailureKind::Internal),
+    ] {
+        assert_eq!(token_failure(&Refusal::new(kind, "x")), want, "{kind:?}");
+    }
+    let typed = Refusal {
+        failure: Some(FailureKind::Upstream),
+        ..Refusal::new(ErrorKind::NotLoggedIn, "x")
+    };
+    assert_eq!(token_failure(&typed), FailureKind::Upstream);
 }

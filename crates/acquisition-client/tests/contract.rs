@@ -1601,3 +1601,27 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     drop(successor);
     let _ = std::fs::remove_file(&socket);
 }
+
+/// Invariant 4, outside the daemon crate (#218): the `acqd` the gate
+/// built carries the registration's user-agent, written out here, where
+/// no edit to the daemon reaches it. The daemon's mock refuses a request
+/// without the user-agent it writes out itself, so an edit to the
+/// daemon's constant alone fails the daemon's tests; an edit to both
+/// leaves the built daemon without this string, and fails here. The
+/// version segment moves with each release, as the shipped app's does;
+/// the shape and the contact are the registration's.
+#[test]
+fn the_built_daemon_carries_the_registrations_user_agent() {
+    let registered = format!(
+        "acquisition/{} (contact: gerwaric@gmail.com)",
+        env!("CARGO_PKG_VERSION")
+    );
+    let daemon = std::fs::read(acqd_built()).expect("the built daemon reads");
+    assert!(
+        daemon
+            .windows(registered.len())
+            .any(|window| window == registered.as_bytes()),
+        "{} does not carry the registration's user-agent {registered:?}",
+        acqd_built().display()
+    );
+}

@@ -1,6 +1,10 @@
 # cargo-mutants over the rate-limit choke point, the limiter, the policy
 # parse and the send gate (#86): invariants 1 and 2 broken by machine, as
-# TESTING-NOTES.md breaks them by hand. Read by a bare `cargo mutants` at
+# TESTING-NOTES.md breaks them by hand; and since #218 over the code of
+# invariants 3 to 5: the rails (a block's verdict and its persisted mark,
+# `rails.rs`), the no-retry rule (`daemon/kinds.rs`), the registered
+# user-agent (`provider.rs`) and the secret and its keyring entry
+# (`auth.rs`). Read by a bare `cargo mutants` at
 # the root and by the weekly workflow (`.github/workflows/weekly.yml`), so
 # both run the same set. A run is hours, never the gate's.
 #
@@ -23,13 +27,21 @@ examine_globs = [
     "crates/acquisition-daemon/src/ratelimit/*.rs",
     "crates/acquisition-daemon/src/gate.rs",
     "crates/acquisition-transport/src/lib.rs",
+    "crates/acquisition-daemon/src/rails.rs",
+    "crates/acquisition-daemon/src/daemon/kinds.rs",
+    "crates/acquisition-daemon/src/provider.rs",
+    "crates/acquisition-daemon/src/auth.rs",
 ]
 test_package = ["acquisition-daemon", "acquisition-transport"]
 test_tool = "nextest"
 
 # The mutants the daemon's tests cannot tell apart, each with its reason.
 # The first run (cargo-mutants 27.1.0, #86) left 46 alive; 34 are pinned
-# as tests in `ratelimit/tests/spec.rs`, and these 12 are listed. Each
+# as tests in `ratelimit/tests/spec.rs`, and these 12 are listed. #218's
+# run over the four files it added (325 mutants) left 40 alive: 32 are
+# pinned (in `auth.rs`, `rails.rs`, `daemon/tests/responses.rs` and the
+# knobs binary `tests/environment.rs`), and the 8 in `kinds.rs` below
+# are listed. Each
 # names its line: the same operator elsewhere in the function is caught
 # and must stay tested, so a pattern for the function would hide it. A
 # listed line that moves comes back as missed, to be read again.
@@ -64,4 +76,17 @@ exclude_re = [
     # differ only in the degraded reason's words, and a HEAD response
     # carries no body for the client to fail on.
     'choke\.rs:668:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
+    # A send that carries a token a refresh installed while it waited:
+    # the comparison decides only whether a log line says so, and the log
+    # is diagnostic, read by no frontend.
+    'kinds\.rs:148:20: replace != with == in <impl Bearer for SessionBearer<._>>::token$',
+    # The session code beside the no-retry rule (#218 widened the run to
+    # kinds.rs for invariant 3, whose own code is caught): a later
+    # profile's uuid refresh, C87's one retry after a stale bearer, and
+    # a rejection's landing. Each wants a door scenario of its own: #242.
+    'kinds\.rs:211:9: replace Daemon::with_index with \(\)$',
+    'kinds\.rs:516:25: replace == with != in Daemon::execute_inner$',
+    'kinds\.rs:825:57: (delete ! in|replace match guard !retried with (true|false) in) Daemon::execute_inner$',
+    'kinds\.rs:968:48: replace match guard !retried with true in Daemon::api_get$',
+    'kinds\.rs:139:9: replace SessionBearer<.a>::cleared_at -> Option<AuthGenerations> with Some\(Default::default\(\)\)$',
 ]

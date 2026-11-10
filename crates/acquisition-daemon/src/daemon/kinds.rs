@@ -66,7 +66,7 @@ fn observation_failure(error: &crate::ratelimit::PolicyObservationError) -> Fail
 /// else by the refusal's own kind — a session that cannot give a token
 /// `not_logged_in`, the provider not answering `upstream`, the daemon's
 /// own fault `internal`.
-fn token_failure(refusal: &Refusal) -> FailureKind {
+pub(super) fn token_failure(refusal: &Refusal) -> FailureKind {
     if let Some(kind) = refusal.failure {
         return kind;
     }

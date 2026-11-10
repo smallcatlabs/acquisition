@@ -1190,7 +1190,8 @@ enum Step {
     /// A second lifetime while this one is live: a door opened beside
     /// this one on the same rails state path, facing no server, whose
     /// `DaemonStatus` `rails.halted` carries these words or is `None`;
-    /// then finished.
+    /// when halted, a `fetch` submitted there stays waiting and its
+    /// journal holds no send; then finished.
     SecondLifetime { halted: Option<String> },
 }
 
@@ -2592,6 +2593,29 @@ fn c158_the_wire_table_through_the_door() {
                         .beside(&door)
                         .await;
                         let read = halted_of(second.request(Request::DaemonStatus {}).await);
+                        // A halt the second lifetime reports admits no
+                        // send there either (invariant 3, #218): a job it
+                        // is given waits, and its journal stays empty.
+                        if halted.is_some() {
+                            let id = second.submit("fetch", None).await;
+                            second.settle().await;
+                            let state = second
+                                .every_job()
+                                .await
+                                .into_iter()
+                                .find(|job| job.id == id)
+                                .map(|job| job.state);
+                            assert_eq!(
+                                state,
+                                Some(JobState::Waiting),
+                                "{name}: a job in a second lifetime under the mark"
+                            );
+                            assert_eq!(
+                                second.journal(),
+                                Vec::<Value>::new(),
+                                "{name}: a second lifetime under the mark sent"
+                            );
+                        }
                         second.finish().await;
                         assert_halted(
                             &name,

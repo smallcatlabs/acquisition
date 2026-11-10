@@ -48,15 +48,17 @@ what fails if it breaks, and says where nothing does yet.
    and the one known incident: ground truth N1–N4, N28. *Pinned:*
    `acquisition-daemon/src/daemon/tests/dispatch.rs`,
    `a_cloudflare_block_admits_nothing_and_survives_a_restart` and
-   `dispatcher_never_retries_403_or_503`. Its code has no mutants yet
-   (#218).
+   `dispatcher_never_retries_403_or_503`; `.cargo/mutants.toml`, the
+   weekly mutation run over the block's verdict and mark and the
+   no-retry rule.
 4. **The user-agent string stays continuous with the existing
    registration** ("Acquisition 1.0, same registration, new
    capabilities"). *Pinned:* `acquisition-daemon/src/mockggg.rs`,
    `REGISTERED_USER_AGENT`, which every request to the mock must carry;
    `acquisition-transport/src/lib.rs`,
-   `the_production_transport_sends_the_prepared_user_agent_not_its_default`.
-   Nothing outside the daemon crate pins the string yet (#218).
+   `the_production_transport_sends_the_prepared_user_agent_not_its_default`;
+   `acquisition-client/tests/contract.rs`,
+   `the_built_daemon_carries_the_registrations_user_agent`.
 5. **Refresh tokens are never stored in plaintext on disk.** The OS
    keyring is their default home. *Pinned:*
    `acquisition-daemon/src/auth.rs`,

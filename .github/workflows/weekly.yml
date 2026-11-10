@@ -7,7 +7,10 @@ name: Weekly
 # scopes it: each mutant is a deliberate break of invariant 1 or 2 that the
 # daemon's tests must catch. The first run, on the development machine
 # (10 cores, -j 4), took 112 minutes and 16.8 CPU-hours, so a four-core
-# runner splits it four ways. A shard fails on a mutant the tests missed,
+# runner splits it four ways. #218 widened the scope from 427 mutants to
+# 752 (invariants 3 to 5); the four shards' longest had run 133 minutes
+# of the job's 300 (run 42637884509), and at 752 would near 235, so the
+# run splits six ways. A shard fails on a mutant the tests missed,
 # never on a timeout (a mutant that hangs the suite is caught); every
 # shard's `mutants.out` is uploaded whatever the outcome. Nothing here
 # talks to GGG: the daemon's tests send to local servers only.
@@ -33,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v7
 
@@ -49,10 +52,10 @@ jobs:
       # In place: the runner's checkout is clean and thrown away. Exit 2 is
       # a missed mutant and 3 a timeout, read from the lists below; any
       # other non-zero status (4, the unmutated tree failing) fails here.
-      - name: Mutants, shard ${{ matrix.shard }} of 4
+      - name: Mutants, shard ${{ matrix.shard }} of 6
         run: |
           status=0
-          cargo mutants --in-place --shard ${{ matrix.shard }}/4 || status=$?
+          cargo mutants --in-place --shard ${{ matrix.shard }}/6 || status=$?
           case $status in 0|2|3) ;; *) exit $status ;; esac
 
       - name: No mutant missed

@@ -590,11 +590,12 @@ fi
 # every other file as a module, so the shared modules and the crate's own
 # dependencies link once. A file that sets the process environment (a
 # `session(`, the harness's one lock and isolation list applied to the
-# test's own process) is its own binary, since a process-wide write leaks
+# test's own process, or a `set_var(` or `remove_var(` of its own, as the
+# daemon's knobs test, which has no harness, #218) is its own binary, since a process-wide write leaks
 # into every test beside it under `cargo test` (measured: six and nine
 # tests failed when the CLI's and the MCP's were merged). Read as files:
 # the roots are the files no other file under `tests/` lists as a module;
-# at most one root calls no `session(`, and it lists none that does. A
+# at most one root sets nothing, and it lists none that does. A
 # file a manifest no longer discovers and no root lists is a second plain
 # root, refused alike. Then held to the manifest, read with tomllib:
 # where it sets `autotests = false` its `[[test]]` paths are the roots
@@ -606,6 +607,7 @@ fi
 if ! layout=$(python3 -I - <<'PY'
 import glob, os, re, sys, tomllib
 MOD = re.compile(r"(?m)^\s*(?:pub\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;")
+SETS = re.compile(r"(?<![\w])(?:session|set_var|remove_var)\(")
 bad = []; n = 0
 for tests in sorted(glob.glob("crates/*/tests")):
     text = {os.path.basename(f)[:-3]: open(f, encoding="utf-8").read() for f in sorted(glob.glob(tests + "/*.rs"))}
@@ -614,13 +616,13 @@ for tests in sorted(glob.glob("crates/*/tests")):
     n += 1
     listed = {m for t in text.values() for m in MOD.findall(t)}
     roots = [stem for stem in text if stem not in listed]
-    plain = [stem for stem in roots if "session(" not in text[stem]]
+    plain = [stem for stem in roots if not SETS.search(text[stem])]
     if len(plain) > 1:
-        bad.append(f"LAYOUT  {tests}: {len(plain)} files call no session( ({', '.join(plain)}) — one is the crate's binary of modules, and the rest are modules of it or binaries that set the process environment (C122)")
+        bad.append(f"LAYOUT  {tests}: {len(plain)} files set no process environment (no session(, set_var( or remove_var() ({', '.join(plain)}) — one is the crate's binary of modules, and the rest are modules of it or binaries that set the process environment (C122)")
     for root in plain:
         for m in MOD.findall(text[root]):
-            if m in text and "session(" in text[m]:
-                bad.append(f"LAYOUT  {tests}/{root}.rs lists {m} as a module, and {m}.rs calls session( — a file that sets the process environment is its own binary (C122)")
+            if m in text and SETS.search(text[m]):
+                bad.append(f"LAYOUT  {tests}/{root}.rs lists {m} as a module, and {m}.rs sets the process environment — a file that sets the process environment is its own binary (C122)")
     crate = os.path.dirname(tests)
     with open(os.path.join(crate, "Cargo.toml"), "rb") as f:
         manifest = tomllib.load(f)

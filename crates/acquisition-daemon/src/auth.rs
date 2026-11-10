@@ -707,6 +707,57 @@ mod tests {
         );
     }
 
+    /// The login's random values (#218's mutants): a state is its prefix
+    /// and 24 random bytes in unpadded URL-safe base64, never the same
+    /// twice; and the PKCE challenge is RFC 7636's S256, by its appendix
+    /// B's vector.
+    #[test]
+    fn a_state_is_random_and_a_challenge_is_rfc_7636s_s256() {
+        let (first, second) = (random_token("st"), random_token("st"));
+        assert_ne!(first, second);
+        for state in [&first, &second] {
+            let random = state.strip_prefix("st-").expect("the prefix leads");
+            assert_eq!(
+                URL_SAFE_NO_PAD.decode(random).map(|b| b.len()),
+                Ok(24),
+                "{state}"
+            );
+        }
+        assert_eq!(
+            s256("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+    }
+
+    /// C47 at its bound (#218's mutants): a saved access token whose
+    /// expiry is exactly `now` plus a year's lifetime restores; one a
+    /// second past it restores the refresh token alone.
+    #[test]
+    fn a_saved_access_token_restores_up_to_the_lifetime_bound_and_not_past_it() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
+        let saved = |expires: u64| {
+            let secret = serde_json::json!({
+                "refresh_token": "rt-bound",
+                "access_token": "at-bound",
+                "access_expires_at": expires,
+            })
+            .to_string()
+            .into();
+            KeyringEntry::from_secret(&secret, now)
+        };
+        let bound = 946_684_800 + 366 * 24 * 60 * 60;
+        assert_eq!(
+            saved(bound).expires_at(),
+            Some(SystemTime::UNIX_EPOCH + Duration::from_secs(bound))
+        );
+        let past = saved(bound + 1);
+        assert_eq!(
+            (past.access_token.is_none(), past.expires_at()),
+            (true, None)
+        );
+        assert_eq!(past.refresh_token, "rt-bound");
+    }
+
     /// C135: an entry written is the entry read, both tokens and the
     /// expiry, and its `Debug` names neither token.
     #[test]
@@ -727,6 +778,25 @@ mod tests {
         assert_eq!(read.expires_at(), Some(now + Duration::from_secs(3600)));
         let shown = format!("{read:?}");
         assert!(!shown.contains("kept"), "{shown}");
+        assert!(
+            shown.contains("refresh_token: \"<redacted>\"") && shown.contains("access_expires_at"),
+            "{shown}"
+        );
+    }
+
+    /// A clear that did not happen, in the words a login's rollback
+    /// failure carries (`daemon/login.rs`): the keyring off with its
+    /// reason, or the keyring's own refusal (#218's mutants).
+    #[test]
+    fn a_clear_that_did_not_happen_says_why() {
+        assert_eq!(
+            NotCleared::Off("disabled by ACQ_NO_KEYRING".into()).to_string(),
+            "the keyring is off (disabled by ACQ_NO_KEYRING)"
+        );
+        assert_eq!(
+            NotCleared::Failed("the keychain is locked".into()).to_string(),
+            "the keychain is locked"
+        );
     }
 
     /// Whether `T` implements `Serialize`, decided at compile time by
@@ -883,6 +953,52 @@ mod tests {
         assert!(!send.ok);
         assert!(send.outcome.contains("body transfer failure"));
         assert!(record.ends.whole() && record.ends.faults().is_empty());
+    }
+
+    /// C47 at its bound (#218's mutants): a grant whose access token
+    /// lives exactly [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] is installed; one
+    /// a second longer is refused, in words that name the bound.
+    #[tokio::test]
+    async fn a_grants_lifetime_is_taken_up_to_its_bound_and_refused_past_it() {
+        let grant = |expires_in: u64| {
+            let body = serde_json::json!({
+                "access_token": "at-bound",
+                "refresh_token": "rt-bound",
+                "expires_in": expires_in,
+                "username": "test-user",
+            })
+            .to_string();
+            ScriptedResponse {
+                method: "POST",
+                path: "/token",
+                status: "",
+                headers: String::new(),
+                body: format!(
+                    "HTTP/1.1 200 OK\r\nX-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                ),
+            }
+        };
+        let bound = 366 * 24 * 60 * 60;
+        let (transport, _) = crate::transport::scripted(
+            &Hold::new(),
+            vec![grant(bound).into(), grant(bound + 1).into()],
+        );
+        let choke = choke_over(transport);
+        let provider = Provider::mock(BASE);
+        let taken = refresh(&choke, &provider, &"rt-test".into(), ALWAYS_WANTED)
+            .await
+            .expect("a grant at the bound is installed");
+        assert_eq!(taken.expires_in, bound);
+        let error = refresh(&choke, &provider, &"rt-test".into(), ALWAYS_WANTED)
+            .await
+            .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains(&format!("a lifetime of {} seconds", bound + 1)),
+            "{error}"
+        );
     }
 
     #[tokio::test]

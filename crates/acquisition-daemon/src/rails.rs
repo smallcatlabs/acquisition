@@ -501,10 +501,6 @@ impl Rails {
         warnings
     }
 
-    pub fn config(&self) -> &RailsConfig {
-        &self.config
-    }
-
     /// Why a send must be refused right now, if it must. Consulted before
     /// any gate permit is acquired. A persisted cause is named before the
     /// lifetime's, as in [`Rails::status`]: a Cloudflare 503 with the
@@ -1404,6 +1400,13 @@ mod tests {
         let err = verify_state(&current).unwrap_err();
         assert!(err.0.contains("not readable"), "{err}");
         assert!(err.to_string().contains("reset-tripwire"), "{err}");
+        // A state that is there but cannot be read is no clean start: a
+        // mark it may hold (a Cloudflare block's, invariant 3) is never
+        // dropped from a lifetime for want of a read (#218's mutants).
+        let unreadable = dir.join("rails-dir.json");
+        std::fs::create_dir(&unreadable).unwrap();
+        let err = verify_state(&unreadable).unwrap_err();
+        assert!(err.0.contains("could not be read"), "{err}");
     }
 
     /// The journal never carries a token or a body. Two things hold
@@ -1719,6 +1722,16 @@ mod tests {
             (status.journal.as_deref(), status.journal_path.as_deref()),
             (Some(path.as_str()), Some(path.as_str()))
         );
+        // A run directory that does not exist yet is made, so the run
+        // keeps its evidence (#218's mutants).
+        let nested = temp.path().join("runs").join("first").join("acq.jsonl");
+        let status = Rails::with_config(RailsConfig {
+            journal_path: Some(nested.clone()),
+            ..RailsConfig::default()
+        })
+        .status();
+        assert!(nested.is_file(), "the journal's directory was not made");
+        assert_eq!(status.journal, Some(nested.display().to_string()));
 
         let file = temp.path().join("not-a-dir");
         std::fs::write(&file, b"").unwrap();
@@ -1781,6 +1794,12 @@ mod tests {
         // A leap day, and the last second before a year turns.
         assert_eq!(iso_utc(at(1_709_164_800, 0)), "2024-02-29T00:00:00.000Z");
         assert_eq!(iso_utc(at(1_735_689_599, 999)), "2024-12-31T23:59:59.999Z");
+        // The calendar's century terms (#218's mutants): the last day of
+        // a 400-year era, a century that is no leap year, and the day
+        // after it.
+        assert_eq!(iso_utc(at(951_782_400, 0)), "2000-02-29T00:00:00.000Z");
+        assert_eq!(iso_utc(at(4_107_456_000, 0)), "2100-02-28T00:00:00.000Z");
+        assert_eq!(iso_utc(at(4_107_542_400, 0)), "2100-03-01T00:00:00.000Z");
     }
     #[test]
     fn a_head_trip_reports_headers_not_a_body() {
