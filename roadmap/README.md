@@ -11,7 +11,7 @@ better Acquisition that is agent-friendly and agent-forward.
 ## Now
 
 - **The governance rebuild**, handed off on 2026-11-09: its documents
-  are done, and the first of its two tools steps is closed.
+  and both its tools steps are done.
 
   Done and pushed, its rulings read and approved by the owner (#227):
   the process rulings
@@ -22,17 +22,19 @@ better Acquisition that is agent-friendly and agent-forward.
   named in `AGENTS.md`, with the gaps filed (#216 to #219); the
   owner's queue of old delegated decisions (#221 to #225);
   `tools/bothy.py` holding a registry entry by its shape, with its
-  baseline `decisions/shape-baseline.tsv` (governance-tools-1). The
-  audit's record is `audits/governance-2026-11/README.md` and the
-  reports beside it, kept until the rebuild closes: its close deletes
-  them and cites their commit in `HISTORY.md`.
+  baseline `decisions/shape-baseline.tsv` (governance-tools-1);
+  docs-check's cap on this file and its check of the gate's stage
+  list, the commit hooks' refusal of an agent's commit naming no
+  assistant, and the gate's record of its verdicts in
+  `runs/gate/verdicts.tsv` (governance-tools-2). The audit's record is
+  `audits/governance-2026-11/README.md` and the reports beside it,
+  kept until the rebuild closes: its close deletes them and cites
+  their commit in `HISTORY.md`.
 
   Next, each for a fresh session, one at a time in this tree:
-  1. `briefs/governance-tools-2.md` (#226), with its cold review.
-     Until it lands, C180 and C184 say `Unbuilt`.
-  2. A cold agent sits at the instructions, the acceptance test
-     (#228), after the tools.
-  3. The agent's memory is brought under C183 (#229).
+  1. A cold agent sits at the instructions, the acceptance test
+     (#228).
+  2. The agent's memory is brought under C183 (#229).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed: the saved
   search, its MCP tools, the pages, the answer and item pages, and
