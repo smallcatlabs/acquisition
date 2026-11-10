@@ -47,10 +47,15 @@ new text uses that word rather than "door".
 - **brief**: the committed document a worker or a seat reads for one
   step or one run: its goal, what to read, what done means.
 - **close** (a step's): the commit that checks the brief's done-when
-  against the tree, answers what the worker raised and writes the
-  ledger line (`roadmap/README.md`, "A step").
-- **close** (a phase's): the commit that folds the phase's ledger lines
-  into one and adds the `HISTORY.md` line.
+  against the tree, answers what the builder raised, carries the
+  `Step:` trailer and rewrites the road's state
+  (`decisions/process.md`, C178).
+- **close** (a phase's): the commit that adds the phase's `HISTORY.md`
+  line and retires the process text that something now holds.
+- **cold review**: a review by a model that is given the commit or the
+  brief and no account of it from its author.
+- **cut** (a brief's): one committed version of a brief; a re-cut is
+  the next, after a review.
 - **facet**: one of the two things a league's sync policy covers, its
   tabs or its characters; in the counts view, one field counted on its
   own rather than crossed with another.
@@ -72,9 +77,11 @@ new text uses that word rather than "door".
   `ACQ_STORE_DIR`; each has a row in the README's knob table.
 - **last** (a round): the final fix round of a step, after the tail.
 - **ledger**: a table of dated rows read from its newest end:
-  `RUN-LEDGER.md` for live runs, `SEAT-LEDGER.md` for seats,
-  `roadmap/LEDGER.md` for closed steps; `search/LEDGER.md`, the search
-  slice's closed record, is looked up by its row instead.
+  `RUN-LEDGER.md` for live runs, `SEAT-LEDGER.md` for seats;
+  `roadmap/LEDGER.md` holds the steps closed up to 2026-11-09, and a
+  later close is its commit (`git log --grep='^Step: '`);
+  `search/LEDGER.md`, the search slice's closed record, is looked up
+  by its row instead.
 - **ledger** (the job ledger): the daemon's persisted job queue on
   disk, which a frontend reads when no daemon answers.
 - **mirror**: the jobs table in the world's database, written at every

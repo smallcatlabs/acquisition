@@ -5,8 +5,13 @@ read from its newest end. A row is the step, its commit range (or its
 rounds' ranges), its close date and the homes of what it left open:
 an issue, a "Not doing" line, the owner's list under the README's
 "Open", or the close message. The story is in the commits' messages;
-the reviews stay under `reviews/`. A step's close writes its row; a
-phase close folds its rows into one and adds the `HISTORY.md` line.
+the reviews stay under `reviews/`.
+
+This file stands as written and takes no new row. From 2026-11-09 a
+step's close is one commit carrying a `Step:` trailer, and the ledger
+is `git log --grep='^Step: '` (`decisions/process.md`, C178, the close
+is the record). The "Open" list these rows name was the README's, whole
+in `roadmap/README.md` at `73e7e77c`.
 
 | Step | Commits | Closed | Left open |
 | --- | --- | --- | --- |

@@ -1,9 +1,11 @@
 You are the outside reviewer of one committed step of the Acquisition
 Rust workspace. The commit is named at the end of this prompt: read it
 with `git show <sha>` and `git log -1 <sha>`, and review it against the
-brief its message names (a file under roadmap/briefs/). A range is one
-round of one brief: read that brief once for the range. Read; do not
-build or run anything; the tree is read-only to you.
+brief its message names (a file under roadmap/briefs/), or against the
+issue whose text follows the commit at the end of this prompt when the
+step's brief is an issue. A range is one round of one brief: read that
+brief once for the range. Read; do not build or run anything; the tree
+is read-only to you.
 
 Review the diff and the callers it affects for plain defects first:
 behavioural regressions, arithmetic and error-path failures,
@@ -60,7 +62,10 @@ Report in this form, nothing else:
 - Findings, most severe first, each: file:line, the shape number if
   one applies, what is wrong in one sentence, the concrete failing
   input or reading, and the smallest fix you believe sufficient. Where
-  several findings share one cause, say so once.
+  several findings share one cause, say so once. Mark each finding P1
+  (an invariant, data loss or a wrong answer), P2 (a fault a user or
+  an agent will meet) or P3 (a fault in a case unlikely in practice,
+  or in words alone).
 - What you did not check and why.
 - Which findings you would call nitpicks for cases unlikely in practice.
 - Anything about the brief, the plan or this prompt that got in your

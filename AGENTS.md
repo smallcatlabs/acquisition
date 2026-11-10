@@ -21,7 +21,8 @@ asset, and every design decision defers to protecting it.
 
 ## Invariants
 
-As few as possible, each a property, never a mechanism.
+As few as possible, each a property, never a mechanism. Each names
+what fails if it breaks, and says where nothing does yet.
 
 1. **Every daemon-originated request to GGG goes through one rate-limit
    choke point and one send-lifetime global gate**: API GET, HEAD
@@ -29,16 +30,41 @@ As few as possible, each a property, never a mechanism.
    its own policy, ground truth N33). The browser-owned authorize
    navigation is outside this boundary. A daemon HTTP path that
    bypasses the choke point or the gate is a critical bug however
-   reasonable it looks locally.
+   reasonable it looks locally. *Pinned:* `tools/arch-check.sh` (check
+   5: only the transport crate links `reqwest`, and only the daemon
+   links it); `acquisition-daemon/src/ratelimit/tests/spec.rs`,
+   `c161_each_send_is_cut_at_its_deadline_and_releases_its_permit`. A
+   second HTTP path has no holder yet (#216).
 2. **Rate-limit headers from GGG (`X-Rate-Limit-*`) are the source of
    truth.** Local rate-limit state is a prediction; headers correct it.
+   *Pinned:* `acquisition-daemon/src/ratelimit/tests/spec.rs`,
+   `pacing_table` and
+   `eta_counts_reported_hits_the_local_history_never_saw`;
+   `acquisition-daemon/src/daemon/tests/harness.rs`,
+   `assert_never_over_the_limit`. Whether a lower reported count
+   corrects the local one is #219.
 3. **Never retry through a Cloudflare block.** Recognition signatures
-   and the one known incident: ground truth N1–N4, N28.
+   and the one known incident: ground truth N1–N4, N28. *Pinned:*
+   `acquisition-daemon/src/daemon/tests/dispatch.rs`,
+   `a_cloudflare_block_admits_nothing_and_survives_a_restart` and
+   `dispatcher_never_retries_403_or_503`. Its code has no mutants yet
+   (#218).
 4. **The user-agent string stays continuous with the existing
    registration** ("Acquisition 1.0, same registration, new
-   capabilities").
+   capabilities"). *Pinned:* `acquisition-daemon/src/mockggg.rs`,
+   `REGISTERED_USER_AGENT`, which every request to the mock must carry;
+   `acquisition-transport/src/lib.rs`,
+   `the_production_transport_sends_the_prepared_user_agent_not_its_default`.
+   Nothing outside the daemon crate pins the string yet (#218).
 5. **Refresh tokens are never stored in plaintext on disk.** The OS
-   keyring is their default home.
+   keyring is their default home. *Pinned:*
+   `acquisition-daemon/src/auth.rs`,
+   `a_secret_and_a_keyring_entry_have_no_serialize`;
+   `acquisition-daemon/src/daemon/tests/log.rs`,
+   `a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text`;
+   `acquisition-daemon/src/rails.rs`,
+   `journal_writes_one_flushed_line_without_secrets`. No test reads the
+   disk after a login yet (#217).
 
 ## Hard rules
 
@@ -50,13 +76,13 @@ As few as possible, each a property, never a mechanism.
 - **Rulings first, findings after.** A ruling (an invariant, a
   boundary, process, scope, anything touching the owner's real store
   or the real API) is his, recorded in `decisions/<area>.md` before the
-  code that depends on it; a commit or push waits for his word.
-  Agent-facing design (a verb, a flag, an MCP tool, a query word, the
-  words of an answer) is the session's: recorded in the commit that
-  builds it, listed at the close for his review, and entered in the
-  registry only when the close finds it a property another area must
-  know. A finding (what building or running taught) is recorded
-  after, at its home below.
+  code that depends on it. Agent-facing design (a verb, a flag, an MCP
+  tool, a query word, the words of an answer) is the session's:
+  recorded in the commit that builds it, and entered in the registry
+  only when the close finds it a property another area must know. Who
+  commits and pushes, how a decision reaches him, and how a step is
+  reviewed and closed is `decisions/process.md`. A finding (what
+  building or running taught) is recorded after, at its home below.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon. A `--workspace` test run writes the same `acqd`,
   `acq` and `acq-mcp` as that build, held by the gate's `artifacts`
@@ -91,7 +117,9 @@ Before touching an area, read its rulings file, its section of
 `src/lib.rs` doc (a frontend's `src/main.rs`) names its rulings file at
 the top, and `python3 -I tools/bothy.py pack --path <file>` prints what
 to read before touching a file. Before running `acq` or driving
-`acq-mcp`: `CLI-REFERENCE.md`, `MCP-REFERENCE.md`, or `--help`.
+`acq-mcp`: `CLI-REFERENCE.md`, `MCP-REFERENCE.md`, or `--help`. Before
+starting or closing a step, or ordering a review:
+`decisions/process.md`.
 
 ## Cross-cutting rulings
 
@@ -129,18 +157,21 @@ tests and docs cite rulings by id.
 - **A ruling**: `decisions/<area>.md`, in the entry rule's form, the owner's word first. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
 - **A finding**: the test named for the fault, or the commit message. A fault that came back is a row in `REVIEW-CHECKLIST.md`, the review checklist by area, read before reviewing a change there.
 - **Work not done yet**: a GitHub issue, labelled `area:*` (its area file) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event; `ci`, a red CI run; `ruling`, the owner's word; `step`, the next step in its area). A feature waiting to be asked for is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
+- **A decision waiting on the owner**: an issue labelled `trigger:ruling`, one decision each. No commit, ledger or report promises him a later read.
 - **A fact about GGG**: a numbered claim in `docs/design/network-ground-truth.md` (the trade appendix beside it); `acquisition-qt` takes copies, never the reverse.
 - **A live run**: one `RUN-LEDGER.md` row, read by its tail; evidence under gitignored `runs/`. A seat: one `SEAT-LEDGER.md` row.
 - **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour.
-- **History**: `HISTORY.md`, one line per slice; the rest is `git log`. A deleted text is cited as `<path>` at `<commit>`.
-- **The road ahead**: `roadmap/README.md`, read first for any step of it.
+- **History**: `HISTORY.md`, one line per slice; the rest is `git log`. A closed step's record is its close commit, `git log --grep='^Step: '`. A deleted text is cited as `<path>` at `<commit>`.
+- **The road**: `roadmap/README.md`, what is happening now, what is next and what only the owner can do; read first for any step.
+- **A step's working papers**: its brief under `roadmap/briefs/`, its reviews' answers under `roadmap/reviews/`. A seat's or an audit's record: `audits/<slice>/`. None is on a reading path; a brief or an issue points into one when it is needed.
 - **A working noun** (door, world, seat): `GLOSSARY.md`.
 
 ## Procedures
 
 Skills under `.claude/skills/`, each saying when it applies: live-run
 (anything that talks to the real GGG API), mock-session (every other
-`acq`), session-close (before the last commit of a session), seat (a
+`acq`), session-close (before the last commit of a session),
+cold-review (after a round that changes behaviour or a tool), seat (a
 blind agent at the tool), research-track, site-sitting (asking the
 trade site).
 
@@ -158,11 +189,14 @@ tools/trade-check.sh
 python3 -I tools/bothy.py check
 ```
 
-`tools/gate.sh` runs these, then the build again, with a table of exit
-statuses; `--docs` runs the five that build no Rust. CI runs `cargo
-doc` (`--only doc` here).
+`tools/gate.sh` runs these and four checks of its own, with a table of
+exit statuses. Its stages, in order: `build` `test` `clippy`
+`winclippy` `fmt` `diff` `docs` `arch` `trade` `bothy` `features`
+`artifacts` `tree`. `--docs` runs the five that build no Rust. CI runs
+`cargo doc` (`--only doc` here).
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
-hook writes Claude's trailer as `Assisted-by:`; a Claude session's
-start hook in `.claude/settings.json` sets it, a cloud clone included)
+hook writes Claude's trailer as `Assisted-by:` and refuses an agent's
+commit that carries none; a Claude session's start hook in
+`.claude/settings.json` sets it, a cloud clone included)
 and `cargo install cargo-nextest --locked` (the gate's runner).
