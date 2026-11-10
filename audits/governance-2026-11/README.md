@@ -41,7 +41,8 @@ address and three local paths removed; all but `seat/` are read at
 Two reports are not here: 5, on the agent-side apparatus, and 10, a
 sort of an agent's private memory against the tree. Both describe that
 memory file by file, and it is private. What they concluded is in C183
-(where a rule lives) and #229's close.
+(where a rule lives) and #229's close; the twelve memory files that
+close deleted are `audits/governance-2026-11/memory/` at `9122bd0d`.
 
 ## What it found
 
