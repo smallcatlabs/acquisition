@@ -67,8 +67,7 @@ area: `gh issue list --label trigger:step`.
 ## Waiting on the owner
 
 His queue is the open issues labelled `trigger:ruling`:
-`gh issue list --label trigger:ruling`. Twelve were open on
-2026-11-09. What only he can do:
+`gh issue list --label trigger:ruling`. What only he can do:
 
 - His morning at `acq web` in his own store (the live-run skill); step
   6 waits on it.
