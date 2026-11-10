@@ -14,7 +14,7 @@ better Acquisition that is agent-friendly and agent-forward.
   documents done and its tools not started.
 
   Done, committed and not pushed: the process rulings
-  (`decisions/process.md`, C170 to C184); this file cut to state; the
+  (`decisions/process.md`, C170 to C185); this file cut to state; the
   brief template, the two review prompts and the cold-review skill;
   the documents' cold review, saved and answered
   (`reviews/governance-docs-8bd924bb.md`); what holds each invariant,
@@ -22,8 +22,9 @@ better Acquisition that is agent-friendly and agent-forward.
   owner's queue of old delegated decisions (#221 to #225).
 
   Next, each for a fresh session, one at a time in this tree:
-  1. The owner reads the fifteen rulings (#227). Nothing is pushed
-     until he has.
+  1. The owner has read the rulings (#227) and approved all but C172,
+     which was rewritten at his word, with C185 taking the rules that
+     left it. Nothing is pushed until he has seen those two.
   2. `briefs/governance-tools-1.md`, then
      `briefs/governance-tools-2.md` (#226), each with its cold review.
      Until the second lands, C180 and C184 say `Unbuilt`.
