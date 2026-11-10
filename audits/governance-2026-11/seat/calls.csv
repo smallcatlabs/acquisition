@@ -1,0 +1,42 @@
+n,tool,input
+1,Bash,wc -c AGENTS.md CLAUDE.md ~/.claude/CLAUDE.md decisions/*.md GLOSSARY.md REVIEW-CHECKLIST.md roadmap/README.md HISTORY.md TESTING-NOTES.md README.md 2>&1; ls; ls decisions roadmap roadmap/briefs .claude/skills
+2,Bash,gh issue view 200
+3,Bash,wc -c /Users/tom/seat-worlds/governance-2026-11/tree/AGENTS.md /Users/tom/seat-worlds/governance-2026-11/tree/decisions/*.md /Users/tom/seat-worlds/governance-2026-11/tree/GLOSSARY.md /Users/tom/seat-worlds/governance-2026-11/tree/REVIEW-CHECKLIST.md /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/README.md
+4,Read,/Users/tom/seat-worlds/governance-2026-11/tree/decisions/process.md
+5,Bash,python3 -I tools/bothy.py pack --path Cargo.toml
+6,Bash,python3 -I tools/bothy.py pack --area frontends
+7,Bash,python3 -I tools/bothy.py pack --area frontends | wc -c
+8,Bash,"grep -n ""^#\|key order\|Key order"" REVIEW-CHECKLIST.md"
+9,Bash,ls /Users/tom/seat-worlds/governance-2026-11/tree /Users/tom/seat-worlds/governance-2026-11/tree/crates /Users/tom/seat-worlds/governance-2026-11/tree/roadmap /Users/tom/seat-worlds/governance-2026-11/tree/.claude/skills /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/briefs
+10,Read,/Users/tom/seat-worlds/governance-2026-11/tree/REVIEW-CHECKLIST.md
+11,Read,/Users/tom/seat-worlds/governance-2026-11/tree/roadmap/README.md
+12,Bash,wc -c /Users/tom/seat-worlds/governance-2026-11/tree/.claude/skills/*/SKILL.md /Users/tom/seat-worlds/governance-2026-11/tree/HISTORY.md /Users/tom/seat-worlds/governance-2026-11/tree/RUN-LEDGER.md /Users/tom/seat-worlds/governance-2026-11/tree/SEAT-LEDGER.md /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/briefs/TEMPLATE.md /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/briefs/REVIEW-PROMPT.md /Users/tom/seat-worlds/governance-2026-11/tree/CONTRIBUTING.md /Users/tom/seat-worlds/governance-2026-11/tree/tools/bothy.py /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/TEST-SHAPE.md /Users/tom/seat-worlds/governance-2026-11/tree/roadmap/LANGUAGE-RETROSPECTIVE-2026-11-09.md /Users/tom/seat-worlds/governance-2026-11/tree/CLAUDE.md /Users/tom/.claude/CLAUDE.md
+13,Bash,wc -c .claude/skills/*/SKILL.md HISTORY.md RUN-LEDGER.md SEAT-LEDGER.md roadmap/briefs/TEMPLATE.md roadmap/briefs/REVIEW-PROMPT.md roadmap/briefs/BRIEF-REVIEW-PROMPT.md CONTRIBUTING.md roadmap/TEST-SHAPE.md roadmap/LANGUAGE-RETROSPECTIVE-2026-11-09.md CLAUDE.md TESTING-NOTES.md CLI-REFERENCE.md MCP-REFERENCE.md tools/gate.sh tools/docs-check.sh
+14,Read,/Users/tom/seat-worlds/governance-2026-11/tree/.claude/skills/session-close/SKILL.md
+15,Read,/Users/tom/seat-worlds/governance-2026-11/tree/.claude/skills/cold-review/SKILL.md
+16,Read,/Users/tom/seat-worlds/governance-2026-11/tree/HISTORY.md
+17,Bash,git log --grep='^Step: ' --format='%h %s%n%(trailers:key=Step)' -12
+18,Bash,"grep -n ""features"" tools/gate.sh"
+19,Bash,"grep -rn -i ""step id\|step's whole name\|<step>"" decisions/process.md .claude/skills roadmap/briefs/TEMPLATE.md roadmap/README.md GLOSSARY.md AGENTS.md"
+20,Read,/Users/tom/seat-worlds/governance-2026-11/tree/GLOSSARY.md
+21,Bash,"grep -rn -i ""locked"" --include=*.rs crates | grep -i ""store\|lock"" | grep -v ""^.*//"" | head -30"
+22,Bash,"grep -rn -i ""is locked\|store_locked\|StoreLocked\|locked by"" crates --include='*.rs' | head -30"
+23,Bash,"grep -rn -i ""lock"" crates/acquisition-verbs/src/refusal.rs crates/acquisition-verbs/src/fault.rs crates/acquisition-store/src/error.rs crates/acquisition-protocol/src 2>/dev/null | head -30; grep -rln -i ""busy\|in use\|holds the lock\|world_locked\|lockfile\|flock"" crates --include='*.rs' | head -20"
+24,Bash,"grep -n -i ""busy\|in use\|lock"" crates/acquisition-store/src/world.rs | head -25; grep -n -i ""lock"" CLI-REFERENCE.md MCP-REFERENCE.md README.md | head"
+25,Bash,"grep -rn ""impl.*Display for LockError\|\""busy\""\|Busy =>\|kind: \""busy\|refused as busy"" crates --include='*.rs' | head -15"
+26,Read,/Users/tom/seat-worlds/governance-2026-11/tree/crates/acquisition-store/src/world.rs
+27,Bash,"grep -rn -i ""store_busy\|StoreBusy\|\""busy\b\|Busy\b"" crates/acquisition-store/src/lib.rs crates/acquisition-verbs/src | head -15"
+28,Bash,"grep -rln ""held by another process"" crates | head; grep -rn ""ACQ_UPDATE_FIXTURES"" AGENTS.md TESTING-NOTES.md decisions/*.md CONTRIBUTING.md README.md .claude/skills/*/SKILL.md | head"
+29,Bash,"grep -n ""held by another process"" crates/acquisition-cli/tests/world.rs crates/acquisition-daemon/src/daemon/endpoint.rs; ls crates/acquisition-cli/tests | head -50; python3 -I tools/bothy.py pack --path crates/acquisition-store/src/world.rs | head -5"
+30,Bash,"python3 -I tools/bothy.py pack --path crates/acquisition-store/src/world.rs | wc -c; grep -rl -i ""lock"" crates/acquisition-cli/tests/goldens | head; ls crates/acquisition-cli/tests/goldens | head -40"
+31,Bash,gh issue view 229
+32,Bash,gh issue view 216
+33,Bash,gh issue list --label trigger:ruling
+34,Bash,"wc -c tools/bothy.py && python3 -I -c ""import ast,sys;print(ast.get_docstring(ast.parse(open('tools/bothy.py').read())))"" | tee /dev/null | wc -c"
+35,Read,/Users/tom/seat-worlds/governance-2026-11/tree/tools/bothy.py
+36,Bash,"grep -ho ""^- \*\*C[0-9]*"" AGENTS.md decisions/*.md | tr -d '*- C' | sort -n | tail -3; grep -rn -i ""next id\|new id\|takes a new id\|highest"" AGENTS.md decisions/process.md tools/bothy.py tools/docs-check.sh | head"
+37,Bash,"python3 -I tools/bothy.py pack --area daemon | grep -n -i ""protocol\|C85\|C12 "" | head -20"
+38,Bash,"grep -n -i ""cross-cutting"" tools/docs-check.sh | head; grep -n -i ""owner, \|history marker\|Decided\|MARKER"" tools/docs-check.sh | head"
+39,Read,/Users/tom/seat-worlds/governance-2026-11/tree/tools/docs-check.sh
+40,Bash,git show -s --format=%B 517836f8 | head -60
+41,Bash,"gh issue view 179 --json state,closedAt,stateReason"
