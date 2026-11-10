@@ -23,7 +23,7 @@
 //!   evidence or scalar.
 //! - **Every occurrence twice** (C92): a term on a line binds one
 //!   occurrence, so no term on a line's group moves; a largest stays; a sum
-//!   doubles.
+//!   doubles, and a probe of a tree holding a sum may move with it.
 //! - **A reading is what its totals make** (C101, C93; step 9c3): a count
 //!   of totals matches what `holds( … )` over `has:` of each matches, and
 //!   a least what its totals' own comparisons match together — the
@@ -653,6 +653,31 @@ fn every_occurrence_in_another_order(
     Ok(())
 }
 
+/// Which of `q`'s terms, in [`terms`]' order, may move when every
+/// occurrence is written twice: a sum, which doubles; a term on the
+/// percentile, which moves with the lines it takes as the item's own; and
+/// a probe of a tree holding either, since what moves under it can decide
+/// what was open, or open what was decided (#179: `undecided(links>=2 or
+/// sum(…)>=11)` is open while the sum fails and decided once it holds).
+fn moves_with_every_occurrence_twice(q: &Q) -> Vec<bool> {
+    match q {
+        Q::Undecided(inner) => {
+            let mut moves = moves_with_every_occurrence_twice(inner);
+            moves.push(moves.contains(&true));
+            moves
+        }
+        Q::And(children) | Q::Or(children) | Q::Holds(children, _) => children
+            .iter()
+            .flat_map(moves_with_every_occurrence_twice)
+            .collect(),
+        Q::Not(inner) => moves_with_every_occurrence_twice(inner),
+        leaf => terms(leaf)
+            .into_iter()
+            .map(|(key, kind)| kind == TermKind::Sum || key.contains(PERCENTILE))
+            .collect(),
+    }
+}
+
 /// `stays` are the values that are no sum over lines, `doubles` the sums.
 fn every_occurrence_twice(
     bodies: &[Body],
@@ -666,15 +691,13 @@ fn every_occurrence_twice(
     let text = q_text(q, Spelling::Authored);
     let ask = |corpus: &Corpus| run(corpus, &request(&text, None, false, scope.len().max(1)));
     if let (Ok(a), Ok(b)) = (ask(&once), ask(&twice)) {
-        let kinds = terms(q);
+        let moves = moves_with_every_occurrence_twice(q);
+        assert_eq!(moves.len(), terms(q).len(), "`{text}`: one rule per term");
         let (a, b) = (
             term_members(&once, &scope, &a)?,
             term_members(&twice, &scope, &b)?,
         );
-        for (i, (key, kind)) in kinds.iter().enumerate() {
-            // a sum doubles, and the percentile moves with the lines it
-            // takes as the item's own — its terms, and a probe of it
-            let moves = *kind == TermKind::Sum || key.contains(PERCENTILE);
+        for (i, moves) in moves.into_iter().enumerate() {
             if !moves && a.get(i) != b.get(i) {
                 return Err(format!(
                     "`{text}`: term {i} moved when every occurrence was written twice: {:?} against {:?}",
@@ -861,6 +884,91 @@ proptest! {
         bodies in proptest::collection::vec(body(true), 0..6),
     ) {
         agrees(q, projection, sum, bodies)?;
+    }
+}
+
+/// The property's cases found by its draws, each a row run through the
+/// property's one case and checked to be what it pins: a probe of a tree
+/// whose sum crosses its bound when every occurrence is written twice, so
+/// that the probe matches the item once and fails it twice (#179; both
+/// were drawn on the Linux gate, `ACQ_CASES=full`). The property held the
+/// probe still, and the search was right to move it.
+#[test]
+fn the_property_s_drawn_cases_hold() {
+    let life = || {
+        G::And(vec![
+            G::Leaf("\"# to maximum Life\"".to_string()),
+            G::Leaf("arg1>=0".to_string()),
+        ])
+    };
+    let line = |kind: u8, n: i32, unread_number: bool| {
+        Elem::Line(LineM {
+            kind,
+            n,
+            unread_number,
+            flags: Flags::Each {
+                crafted: Tri::No,
+                fractured: Tri::No,
+            },
+            row: None,
+            second: None,
+        })
+    };
+    let body = |base: &'static str, implicit: Vec<Elem>, socks: Socks| Body {
+        explicit: Lines::Of(vec![]),
+        implicit: Lines::Of(implicit),
+        socks,
+        base: Some(base),
+        ..Body::blank(Tri::No)
+    };
+    let rows = [
+        // a resistance of 6 sums to 12 written twice; the links are
+        // unread, so the `or` is open until the sum holds
+        (
+            Q::Undecided(Box::new(Q::Or(vec![
+                Q::Plain("links>=2".to_string()),
+                Q::Sum(
+                    G::And(vec![
+                        G::Leaf("template:resistance".to_string()),
+                        G::Not(Box::new(G::And(vec![
+                            G::Leaf("source=explicit".to_string()),
+                            G::Leaf("arg1<=0".to_string()),
+                        ]))),
+                    ]),
+                    "arg1".to_string(),
+                    ">=11".to_string(),
+                ),
+            ]))),
+            body("Iron Ring", vec![line(1, 6, false)], Socks::Hole),
+        ),
+        // `Adds 1 to 8` reaches a high of 16 written twice; the life's
+        // number is unread, so the `or` is open until the total holds
+        (
+            Q::Undecided(Box::new(Q::Or(vec![
+                Q::Total("pseudo.adds_cold.high>=16".to_string()),
+                Q::Line(G::And(vec![
+                    G::Leaf("template:life".to_string()),
+                    G::Leaf("arg1>=0".to_string()),
+                ])),
+            ]))),
+            body(
+                "Plate Vest",
+                vec![line(0, 0, true), line(2, 1, false)],
+                Socks::Absent,
+            ),
+        ),
+    ];
+    for (q, item) in rows {
+        let text = q_text(&q, Spelling::Authored);
+        for (copy, open) in [
+            (item.clone(), vec!["i0"]),
+            (item.every_line_twice(), vec![]),
+        ] {
+            let (corpus, _) = fixture(vec![copy.json()]);
+            let answer = run(&corpus, &request(&text, None, false, 10)).unwrap();
+            assert_eq!(common::ids(&answer), open, "`{text}`");
+        }
+        agrees(q, (life(), "arg1"), (life(), "arg1"), vec![item]).unwrap();
     }
 }
 
