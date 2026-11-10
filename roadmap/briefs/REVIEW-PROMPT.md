@@ -20,7 +20,9 @@ shapes, which the records have taught because each came back until it
 was named:
 
 1. A claim wider than its evidence: a sentence written for the common
-   case and read as a rule; a number recalled rather than measured.
+   case and read as a rule; a number recalled rather than measured, or
+   one that does not say what it counts (occurrences, rows, calls,
+   bytes).
 2. A fix staging the nearest failure, not the named one: a test green
    for a reason other than the one the brief states.
 3. A sibling sentence left standing: the fix made where the fault was

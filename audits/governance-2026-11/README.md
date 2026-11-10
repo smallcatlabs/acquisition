@@ -5,11 +5,9 @@ process, its documents), and of what was proposed and ruled from it.
 The rulings it led to are `decisions/process.md`, C170 to C185; this
 directory is the evidence they rest on.
 
-**Kept until the governance rebuild closes.** `roadmap/README.md`,
-"Now", lists what is left of that step. Its close deletes these
-reports and adds the `HISTORY.md` line that cites the commit which
-added them; the acceptance sitting (#228) and the re-measure (#220)
-read them first.
+**The reports are whole at `8e04545a`.** The rebuild's close (#229)
+deleted them and kept this record and the sitting's (`seat/`); its
+`HISTORY.md` line cites that commit.
 
 ## The question
 
@@ -24,8 +22,9 @@ may not be what serves it today."
 Opus investigators, read-only, each given one slice and told to name
 the command behind every number and to mark judgment as judgment. A
 Fable session briefed them, re-ran the headline numbers, and wrote the
-synthesis. The files are their reports as returned, with one contact
-address and three local paths removed.
+synthesis. The files were their reports as returned, with one contact
+address and three local paths removed; all but `seat/` are read at
+`8e04545a`.
 
 | File | What it read |
 | --- | --- |
@@ -42,7 +41,7 @@ address and three local paths removed.
 Two reports are not here: 5, on the agent-side apparatus, and 10, a
 sort of an agent's private memory against the tree. Both describe that
 memory file by file, and it is private. What they concluded is in C183
-(where a rule lives) and #229.
+(where a rule lives) and #229's close.
 
 ## What it found
 

@@ -32,7 +32,9 @@ The choices that needed thought, each with its reason and what it
 rules out. Nothing the builder would decide the same way unprompted.
 An agent-facing design choice (a verb, a flag, a tool, a query word,
 the words of an answer) is the step's own, recorded in the commit
-that builds it.
+that builds it. A recipe names the calls and types on its path, read
+from their signatures and docs, rather than leaving the mechanism to
+the builder; a mechanism nobody has seen work is spiked first.
 
 ## Find first
 The commands the builder runs before changing anything, each with
@@ -70,7 +72,8 @@ skill apply. What a builder adds:
 - Touch nothing in the tree while the gate runs: its `tree` stage
   fails on any edit.
 - A commit message names this brief or its issue, and a count in it,
-  like a size, is measured after the last edit.
+  like a size, is measured after the last edit and written in a later
+  call, from the output of the command that measured it.
 - A test rides in the commit of the fix it pins, and a breaker case in
   the commit of the check it stages.
 - Each concern may commit after its own targeted tests; the one full
@@ -101,4 +104,6 @@ paragraph or a table:
 5. What surprised you, and what you would retract from your own report.
 6. Raised for review: anything about the brief, the plan, the tools or
    this way of working that got in your way or that you think is
-   wrong, even where you judged it unlikely to matter. A sentence each.
+   wrong, a risk you saw in what you built and accepted, and a change
+   beyond the brief you would make rather than made, even where you
+   judged it unlikely to matter. A sentence each.

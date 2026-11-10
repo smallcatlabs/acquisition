@@ -66,8 +66,12 @@ prompt is not saved: it is the standing file at that commit.
   break each fix in turn to see its test fail.
 - Look for the one rule beneath several findings, and fix by that
   rule, never case by case.
-- A finding for a case nobody will meet is named as not taken, with
-  the reason, in the round's commit message.
+- A finding is sized by who can meet its case, read from the code
+  that bounds it (a real account, or only a mock world). A fix is
+  weighed by the mechanism it adds against that risk; a small gap in
+  a promise an agent relies on is closed, not caveated; and a finding
+  for a case nobody will meet is named as not taken, with the reason,
+  in the round's commit message.
 - A finding that would change a ruling's words, or that has two
   defensible answers in the owner's classes, goes to his queue
   (`decisions/process.md`, C179) before it is built.

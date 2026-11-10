@@ -1,6 +1,6 @@
 ---
 name: seat
-description: Sit a blind agent at the tool as its user — a headless session that reads only a committed brief and the tool's own words, drives the release `acq` or `acq-mcp` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, and after any change to the surface an agent meets.
+description: Sit a blind agent at the tool as its user — a headless session that reads only a committed brief and the tool's own words, drives the release `acq` or `acq-mcp` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, after any change to the surface an agent meets, and after each GUI step before the owner sits at the pages.
 ---
 
 # Seat

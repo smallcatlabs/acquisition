@@ -19,8 +19,9 @@ Review it in this order:
    the owner's ruling is the most serious finding there is.
 2. Can it be built as drawn? For each decision it records: does the
    tree allow it, is there a simpler shape that meets the goal, does
-   it reuse a shape the tool already has? Name the first thing a
-   builder would have to guess.
+   it reuse a shape the tool already has? Does it list cases where a
+   criterion would decide them? Name the first thing a builder would
+   have to guess.
 3. Is each done-when line checkable from a commit alone, and does
    meeting every line make the goal true? Name a way to meet every
    line and miss the goal.
