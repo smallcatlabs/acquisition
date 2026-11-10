@@ -10,8 +10,8 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The governance rebuild**, handed off on 2026-11-09 with its
-  documents done and its tools not started.
+- **The governance rebuild**, handed off on 2026-11-09: its documents
+  are done, and the first of its two tools steps is closed.
 
   Done and pushed, its rulings read and approved by the owner (#227):
   the process rulings
@@ -20,15 +20,16 @@ better Acquisition that is agent-friendly and agent-forward.
   the documents' cold review, saved and answered
   (`reviews/governance-docs-8bd924bb.md`); what holds each invariant,
   named in `AGENTS.md`, with the gaps filed (#216 to #219); the
-  owner's queue of old delegated decisions (#221 to #225). The
+  owner's queue of old delegated decisions (#221 to #225);
+  `tools/bothy.py` holding a registry entry by its shape, with its
+  baseline `decisions/shape-baseline.tsv` (governance-tools-1). The
   audit's record is `audits/governance-2026-11/README.md` and the
-  reports beside it, kept until this step closes: its close deletes
+  reports beside it, kept until the rebuild closes: its close deletes
   them and cites their commit in `HISTORY.md`.
 
   Next, each for a fresh session, one at a time in this tree:
-  1. `briefs/governance-tools-1.md`, then
-     `briefs/governance-tools-2.md` (#226), each with its cold review.
-     Until the second lands, C180 and C184 say `Unbuilt`.
+  1. `briefs/governance-tools-2.md` (#226), with its cold review.
+     Until it lands, C180 and C184 say `Unbuilt`.
   2. A cold agent sits at the instructions, the acceptance test
      (#228), after the tools.
   3. The agent's memory is brought under C183 (#229).
