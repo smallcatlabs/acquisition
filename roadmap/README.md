@@ -10,17 +10,32 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
+- **The governance rebuild**, handed off on 2026-11-09 with its
+  documents done and its tools not started.
+
+  Done, committed and not pushed: the process rulings
+  (`decisions/process.md`, C170 to C184); this file cut to state; the
+  brief template, the two review prompts and the cold-review skill;
+  the documents' cold review, saved and answered
+  (`reviews/governance-docs-8bd924bb.md`); what holds each invariant,
+  named in `AGENTS.md`, with the gaps filed (#216 to #219); the
+  owner's queue of old delegated decisions (#221 to #225).
+
+  Next, each for a fresh session, one at a time in this tree:
+  1. The owner reads the fifteen rulings (#227). Nothing is pushed
+     until he has.
+  2. `briefs/governance-tools-1.md`, then
+     `briefs/governance-tools-2.md` (#226), each with its cold review.
+     Until the second lands, C180 and C184 say `Unbuilt`.
+  3. A cold agent sits at the instructions, the acceptance test
+     (#228), after the tools.
+  4. The agent's memory is brought under C183 (#229).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed: the saved
   search, its MCP tools, the pages, the answer and item pages, and
   cards. Next is the owner's morning at `acq web` in his own store,
   under the live-run skill. Step 6, the dense table, follows that
   morning, its spike first (the design's §7, step 6).
-- **The governance rebuild.** The documents are in: the process
-  rulings (`decisions/process.md`), this file cut to state, the brief
-  template and the review prompts. The registry's tools follow from
-  `briefs/governance-tools-1.md` and `briefs/governance-tools-2.md`,
-  then a cold agent sits at the instructions as the acceptance test.
 
 ## Next
 
@@ -40,7 +55,8 @@ session; an item leaves when its step closes or the owner strikes it.
    owner has sat the site.
 6. `alpha.2` (milestone "League 3.30 and alpha.2"): regenerate the
    tables when their inputs exist (a post-launch `poe1` pin, the
-   owner's four site captures), then the release. The prune verb (#43)
+   owner's four site captures), then the release, where the
+   `keyring-macos` job runs for the first time. The prune verb (#43)
    rides with it.
 7. PoE2 (milestone "PoE2 launch"): the route flip and the
    first-contact checklist prepared unmerged; a first contact only if
@@ -51,8 +67,10 @@ area: `gh issue list --label trigger:step`.
 
 ## Waiting on the owner
 
-His queue is the open issues labelled `trigger:ruling`, one decision
-each: `gh issue list --label trigger:ruling`. What only he can do:
+His queue is the open issues labelled `trigger:ruling`:
+`gh issue list --label trigger:ruling`. Thirteen were open on
+2026-11-09; #227 comes first, since the push waits on it. What only
+he can do:
 
 - His morning at `acq web` in his own store (the live-run skill); step
   6 waits on it.
