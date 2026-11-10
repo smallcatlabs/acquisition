@@ -23,8 +23,8 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. What holds the invariants: #217 (a token on disk), #218 (the
-   mutation run reaches invariants 3 to 5).
+1. What holds the invariants: #218 (the mutation run reaches
+   invariants 3 to 5).
 2. 4-full part 1, step 6: the dense table, after the owner's morning.
 3. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
