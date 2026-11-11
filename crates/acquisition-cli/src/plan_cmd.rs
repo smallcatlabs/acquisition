@@ -285,17 +285,9 @@ fn plan_note_lines(plan: &RefreshPlan, notes: &PlanNotes, now: i64) -> String {
             .basis
             .character_listing
             .as_ref()
+            .and(PlanSpans::of(plan, now).character_listing)
             // the plan's clock, as its wrapper and note measure it (S7)
-            .map(|l| {
-                format!(
-                    ", listed {}",
-                    acquisition_store::age::before(
-                        "the plan",
-                        plan.generated_at,
-                        Some(l.fetched_at)
-                    )
-                )
-            })
+            .map(|age| format!(", listed {} before the plan", dur(age)))
             .unwrap_or_default();
         out.push_str(&format!(
             "characters: none in {}{} (the realm's character listing{listed})\n",
@@ -338,10 +330,10 @@ pub async fn refresh_plan(
     let (
         Planned {
             plan,
+            ages,
             quote_note,
             notes,
             uncovered_tabs,
-            ..
         },
         account,
     ) = match source {
@@ -349,13 +341,15 @@ pub async fn refresh_plan(
             let plan = read_plan(source)?;
             let account = file_account(cx, &plan);
             (
+                // a reviewed file is said at this run's instant
                 Planned {
                     plan,
                     ages: acquisition_verbs::refresh::PlanAges::default(),
                     quote_note: None,
                     notes: PlanNotes::default(),
                     uncovered_tabs: None,
-                },
+                }
+                .aged(acquisition_store::now()),
                 account,
             )
         }
@@ -365,9 +359,9 @@ pub async fn refresh_plan(
             (account.open()?.plan(realm, league).await?, username)
         }
     };
-    // the answer's time, read after the compile and its awaited quote
-    // (the review of the seat's third round, finding 6)
-    let now = acquisition_store::now();
+    // the answer's time: the instant the plan's ages were said at, one
+    // read for the compile, its quote and its words (#211)
+    let now = ages.at.unwrap_or_else(acquisition_store::now);
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
         // why the quote is absent, and the compile's notes, are
@@ -453,6 +447,7 @@ pub async fn refresh_selection(
     let mut opened = cx.account()?.open()?;
     let Planned {
         plan,
+        ages,
         quote_note,
         notes,
         ..
@@ -464,7 +459,7 @@ pub async fn refresh_selection(
                 &plan,
                 quote_note.as_ref(),
                 &notes,
-                acquisition_store::now(),
+                ages.at.unwrap_or_else(acquisition_store::now),
                 false,
                 None,
                 &opened.account.entry.username,

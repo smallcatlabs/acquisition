@@ -119,6 +119,12 @@ pub struct PlanAges {
     /// stands.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quote_observed_at_age: Option<String>,
+    /// The answer's time these words were said at, the one instant every
+    /// frontend renders the plan at (#211: a text read the clock again
+    /// after the quote, and said another age than the words beside it).
+    /// None until [`Planned::aged`]; never serialized.
+    #[serde(skip)]
+    pub at: Option<i64>,
 }
 
 /// The spans a plan's ages are said from, in seconds (C53): the plan's
@@ -176,6 +182,7 @@ impl Planned {
             stash_listing_fetched_at_age: Some(listing(spans.stash_listing)),
             character_listing_fetched_at_age: Some(listing(spans.character_listing)),
             quote_observed_at_age: plan.quote.as_ref().map(|q| ago(now, Some(q.observed_at))),
+            at: Some(now),
         };
         self
     }

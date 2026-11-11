@@ -1505,7 +1505,8 @@ async fn plan(
     if wants_json(&headers) {
         return document(&planned);
     }
-    let now = acquisition_store::now();
+    // the instant the plan's ages were said at (#211)
+    let now = planned.ages.at.unwrap_or_else(acquisition_store::now);
     let mut body = pre(&plan_cmd::render_plan_on_a_page(
         &planned.plan,
         planned.quote_note.as_ref(),

@@ -540,6 +540,9 @@ fn a_plans_spans_say_what_each_derivation_said_over_every_edge() {
         }
         .aged(now)
         .ages;
+        // every frontend renders the plan at the instant its words were
+        // said, never a clock read of its own
+        assert_eq!(ages.at, Some(now), "{row}");
         assert_eq!(
             ages.generated_at_age.as_deref(),
             Some(cli_plan.as_str()),
