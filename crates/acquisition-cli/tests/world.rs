@@ -30,7 +30,9 @@ use serde_json::Value;
 
 use crate::harness;
 
-use harness::{Proc, TEMP_VARS, acqd, scratch, scratch_tmp, sockets_under, sole_json, text};
+use harness::{
+    Proc, TEMP_VARS, Transcript, acqd, golden, scratch, scratch_tmp, sockets_under, sole_json, text,
+};
 
 /// `acq` under one isolation: a store root (the world, whose socket
 /// derives from it, C83) and a log directory the caller names under
@@ -606,8 +608,24 @@ fn the_offline_reset_holds_the_world_lock() {
     let held = acquisition_store::world::Lock::acquire(&world.lock_path()).unwrap();
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let msg = sole_json(&out)["error"].as_str().unwrap().to_string();
-    assert!(msg.contains("held by another process"), "{msg}");
+    assert!(sole_json(&out)["error"].is_string(), "{out:?}");
+    // the refusal's words are the golden's (C153): the lock's path, that
+    // another process holds it, and its pid
+    let mut t = Transcript::new(base);
+    let refused = t.run(
+        &["daemon", "reset-tripwire"],
+        &[
+            "/store/daemon.lock is held by another process",
+            "is held by another process (pid ",
+        ],
+    );
+    // the pid is this test's own, the holder's: a golden normalises it,
+    // so it is asserted here
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains(&format!("(pid {})", std::process::id())),
+        "{refused:?}"
+    );
+    golden(file!(), "world_lock_held", &t);
     assert_eq!(std::fs::read_to_string(&current).unwrap(), staged);
     drop(held);
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);

@@ -1,0 +1,8 @@
+# golden world/world_lock_held: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq daemon reset-tripwire
+# holds "/store/daemon.lock is held by another process"
+# holds "is held by another process (pid "
+--- stderr
+Error: a daemon took this world while the reset ran: <scratch>/store/daemon.lock is held by another process (pid <pid>); `acq daemon reset-tripwire` again asks it
+--- exit 1

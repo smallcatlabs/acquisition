@@ -67,14 +67,10 @@ fn c83_the_lock_is_exclusive_and_names_its_holder() {
     );
     // A second acquisition from this process is a second open file
     // description: flock refuses it, and the refusal names the holder.
+    // its words are the CLI's golden `world/world_lock_held` (C153)
     let err = Lock::acquire(&path).unwrap_err();
     assert_eq!(err.holder, Some(std::process::id()), "{err}");
     assert!(err.io.is_none(), "{err}");
-    assert!(
-        err.to_string().contains("held by another process")
-            && err.to_string().contains(&std::process::id().to_string()),
-        "{err}"
-    );
     drop(held);
     let again = Lock::acquire(&path).expect("released on drop");
     drop(again);
