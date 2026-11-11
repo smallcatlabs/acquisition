@@ -31,10 +31,10 @@ use acquisition_plan::shop::{Cell, LeftOut, Page, ShopRender, Verdict};
 use acquisition_protocol::realm::Realm;
 use anyhow::{Context, Result};
 
-use crate::Ctx;
+use crate::run::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
 
-use crate::plural;
+use crate::terminal::plural;
 
 /// Groups of this many items or fewer are listed one per line; larger
 /// groups are counted (C53; `--expand` lists every one): the store's one
@@ -242,7 +242,7 @@ fn freshness_lines(r: &ShopRender, now: i64, account: &str, leagues: &str) -> St
             if f.stale_total > 0 {
                 // the plan of the render's league, as the account it
                 // ran as, so it runs as printed (the league seat's rule)
-                let plan = crate::printed_line(&crate::way_words(
+                let plan = crate::terminal::printed_line(&crate::terminal::way_words(
                     &acquisition_verbs::refusal::Way::RefreshPlan {
                         account: account.to_string(),
                         realm: r.listing.realm,

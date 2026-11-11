@@ -157,7 +157,7 @@ use acquisition_verbs::refusal::{Pointed, Way};
 use acquisition_verbs::saved::{self, SavedRow};
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 
-use crate::plural;
+use crate::terminal::plural;
 use anyhow::Result;
 use axum::Router;
 use axum::extract::{Form, Path, Query, State};
@@ -167,7 +167,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use serde_json::{Value, json};
 
-use crate::{Ctx, plan_cmd, store_cmd};
+use crate::run::Ctx;
+use crate::{plan_cmd, store_cmd};
 use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 
 /// The channel every write and submit from a page carries (C65).
@@ -272,7 +273,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
     // as `auth` does: `--json` changes what is printed, never whether the
     // browser opens; stdout under `--json` is the one document
     if !no_browser {
-        let opened = crate::open_browser(&url);
+        let opened = crate::auth_cmd::open_browser(&url);
         if !json {
             println!(
                 "({} Ctrl-C stops the server)",
@@ -703,14 +704,14 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
     /// does not cover among ten or fewer): the cause alone, its ways on the
     /// links beside it (the review of #97's build, its first finding).
     fn words(&self, e: &anyhow::Error) -> String {
-        crate::failure_words_by(e, |fault| match fault {
+        crate::terminal::failure_words_by(e, |fault| match fault {
             Fault::Replan { .. } => fault.to_string(),
             Fault::NotCovered { covered, .. }
                 if (1..=acquisition_store::bound::LISTED).contains(&covered.len()) =>
             {
                 fault.to_string()
             }
-            _ => crate::fault_words(fault),
+            _ => crate::terminal::fault_words(fault),
         })
     }
 
@@ -1420,7 +1421,7 @@ fn tab_groups(groups: &[acquisition_search::tabs::TabGroup], now: i64, top: bool
 /// human door and as the served account, landing on the jobs page.
 async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
     let submitted = async {
-        let mut client = crate::connect(&web.cx).await?;
+        let mut client = crate::run::connect(&web.cx).await?;
         acquisition_verbs::jobs::submit(
             &web.cx.frontend,
             &mut client,
@@ -1585,7 +1586,7 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
             let rails = match web.cx.frontend.daemon().await {
                 Ok(acquisition_verbs::DaemonReport::Running { status, .. }) => match *status {
                     acquisition_protocol::protocol::Response::DaemonStatus { rails, .. } => {
-                        crate::rails_text(&rails)
+                        crate::daemon_cmd::rails_text(&rails)
                     }
                     _ => String::new(),
                 },
@@ -1594,14 +1595,14 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
             web.page(
                 "Jobs",
                 head,
-                &pre(&format!("{rails}{}", crate::jobs_text(jobs))),
+                &pre(&format!("{rails}{}", crate::jobs_cmd::jobs_text(jobs))),
             )
         }
         absent => {
             if wants_json(&headers) {
                 return document(&absent);
             }
-            match crate::persisted_queue_text(&absent) {
+            match crate::jobs_cmd::persisted_queue_text(&absent) {
                 Ok(text) => web.page("Jobs", Head::default(), &pre(&text)),
                 Err(e) => web.failed("Jobs", &Failure::Other(e), &headers),
             }

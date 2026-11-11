@@ -11,7 +11,7 @@ use acquisition_verbs::events::LocationChanges;
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 
-use crate::Ctx;
+use crate::run::Ctx;
 
 /// The selected account's facts (C12, C121): resolved and opened through
 /// the layer, so no daemon is involved.
@@ -158,14 +158,14 @@ pub(crate) fn realm_prefix(realm: Realm) -> String {
 /// round).
 pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &str) -> String {
     let scope = [
-        crate::option_words("--account", account),
-        crate::option_words("--realm", realm.as_str()),
-        crate::option_words("--league", league),
+        crate::terminal::option_words("--account", account),
+        crate::terminal::option_words("--realm", realm.as_str()),
+        crate::terminal::option_words("--league", league),
     ]
     .concat();
     let job = |verb: &[&str]| {
         let words: Vec<String> = verb.iter().map(|w| w.to_string()).collect();
-        crate::printed_line(&[words, scope.clone()].concat())
+        crate::terminal::printed_line(&[words, scope.clone()].concat())
     };
     format!(
         "no tabs known for {}{league} in {} (run `{}` or `{}`)",
@@ -245,12 +245,12 @@ fn plural_of(n: usize, one: &str, many: &str) -> String {
 /// The command that lists one league's characters, as `account`, in the
 /// quoting every printed command takes (C156).
 fn characters_line(account: &str, realm: Realm, league: &str) -> String {
-    crate::printed_line(
+    crate::terminal::printed_line(
         &[
             ["acq", "store", "characters"].map(String::from).to_vec(),
-            crate::option_words("--account", account),
-            crate::option_words("--realm", realm.as_str()),
-            crate::option_words("--league", league),
+            crate::terminal::option_words("--account", account),
+            crate::terminal::option_words("--realm", realm.as_str()),
+            crate::terminal::option_words("--league", league),
         ]
         .concat(),
     )
@@ -461,13 +461,13 @@ fn remove_only_said(rows: &[acquisition_store::TabRow]) -> &'static str {
 fn tabs_next(account: &str, realm: Realm, league: &str) -> (String, String) {
     use acquisition_search::answer::{Counts, QueryInput, Request, Scope, Shape};
     use acquisition_search::tree::{Node, Op, Value as Term};
-    let mut words = crate::way_words(&acquisition_verbs::refusal::Way::Tabs {
+    let mut words = crate::terminal::way_words(&acquisition_verbs::refusal::Way::Tabs {
         account: account.to_string(),
         realm,
         league: league.to_string(),
     });
     words.push("--expand".to_string());
-    let expand = crate::printed_line(&words);
+    let expand = crate::terminal::printed_line(&words);
     let term = Node::Test {
         field: "league".into(),
         op: Op::Eq,
@@ -655,7 +655,7 @@ pub(crate) fn characters_text(
         if let Some(league) = &listed.league {
             every.push_str(&format!(
                 " {}",
-                crate::printed_line(&crate::option_words("--league", league))
+                crate::terminal::printed_line(&crate::terminal::option_words("--league", league))
             ));
         }
         out.push_str(&format!(
@@ -821,7 +821,7 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
     // C146: the rows shown of the whole on record, and where they are
     // part of it the command that lists them all, carrying the account
     // read (C156: a printed command runs as printed)
-    let bodies = |n: usize| crate::plural(n, "refused body", "refused bodies");
+    let bodies = |n: usize| crate::terminal::plural(n, "refused body", "refused bodies");
     let counted = if listed.returned < listed.total {
         format!(
             "{} shown of {} on record; `acq store refused {} --limit {}` lists them all",

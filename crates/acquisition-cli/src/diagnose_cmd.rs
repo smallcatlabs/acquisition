@@ -11,7 +11,7 @@ use acquisition_verbs::Tails;
 use acquisition_verbs::diagnose::{Diagnosis, JournalLine, Rails, Tail};
 use anyhow::Result;
 
-use crate::Ctx;
+use crate::run::Ctx;
 
 pub async fn run(cx: &Ctx, lines: Option<usize>, json: bool) -> Result<()> {
     let tails = lines.map_or(Tails::DEFAULT, Tails::both);
@@ -56,7 +56,7 @@ fn text(d: &Diagnosis) -> String {
 
     out.push_str("\n== daemon\n");
     match &d.daemon {
-        Ok(report) => out.push_str(&crate::daemon_text(report)),
+        Ok(report) => out.push_str(&crate::daemon_cmd::daemon_text(report)),
         Err(why) => unread(&mut out, why),
     }
 

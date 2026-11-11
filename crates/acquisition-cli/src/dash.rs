@@ -20,7 +20,7 @@ use ratatui::style::{Style, Stylize as _};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Cell, Paragraph, Row, Table, Wrap};
 
-use crate::attach;
+use crate::run::attach;
 use acquisition_client::client::{Client, DaemonError};
 
 const POLL: Duration = Duration::from_millis(250);
@@ -63,7 +63,7 @@ struct Snap {
     errors: Vec<ErrorRecord>,
 }
 
-pub async fn run(cx: &crate::Ctx, json: bool) -> Result<()> {
+pub async fn run(cx: &crate::run::Ctx, json: bool) -> Result<()> {
     let mut client = attach(cx).await?;
     if json {
         let resp = client.request(&Request::Dashboard {}).await?;
@@ -250,7 +250,7 @@ fn draw_header(f: &mut Frame, area: Rect, s: &Snap) {
         f.render_widget(
             Paragraph::new(vec![
                 Line::from(Span::styled(
-                    crate::RESTORING_SESSIONS,
+                    crate::auth_cmd::RESTORING_SESSIONS,
                     Style::new().yellow(),
                 )),
                 Line::from(format!("keyring {}", s.keyring)),
@@ -275,7 +275,7 @@ fn header_height(s: &Snap, width: u16) -> u16 {
         return 3;
     }
     let inner = usize::from(width.saturating_sub(2)).max(1);
-    let words: Vec<&str> = crate::RESTORING_SESSIONS.split(' ').collect();
+    let words: Vec<&str> = crate::auth_cmd::RESTORING_SESSIONS.split(' ').collect();
     let mut rows = 1usize;
     let mut used = 0usize;
     for word in words {
@@ -804,7 +804,7 @@ mod tests {
             .collect();
         let last = usize::from(height) - 2;
         let sentence = rows[2..last].join(" ");
-        assert_eq!(sentence, crate::RESTORING_SESSIONS, "{rows:#?}");
+        assert_eq!(sentence, crate::auth_cmd::RESTORING_SESSIONS, "{rows:#?}");
         assert_eq!(rows[last], "keyring restoring", "{rows:#?}");
         assert!(!rows.iter().any(|row| row.contains("not logged in")));
     }

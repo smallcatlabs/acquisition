@@ -70,10 +70,10 @@ use acquisition_store::Store;
 use anyhow::{Context as _, Result};
 use serde::Serialize;
 
-use crate::Ctx;
+use crate::run::Ctx;
 use crate::store_cmd::ago;
 
-use crate::plural;
+use crate::terminal::plural;
 
 /// What `acq search` was typed with.
 #[derive(clap::Args)]
@@ -274,12 +274,12 @@ fn fail(e: SearchError, json: bool) -> anyhow::Error {
     if json {
         println!(
             "{}",
-            acquisition_verbs::refusal::of_search(&e, &crate::Terminal::this_command())
+            acquisition_verbs::refusal::of_search(&e, &crate::terminal::Terminal::this_command())
         );
     } else {
         eprintln!("Error: {}", search_error_text(&e));
     }
-    crate::AlreadyReported.into()
+    crate::terminal::AlreadyReported.into()
 }
 
 /// A search refusal's words: its message, then each reading on a line of
@@ -299,7 +299,7 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
                 Some(names) => format!(
                     "    {}: {}",
                     o.reading,
-                    crate::printed_line(&crate::way_words(
+                    crate::terminal::printed_line(&crate::terminal::way_words(
                         &acquisition_verbs::refusal::Way::Describe {
                             names: names.clone()
                         }
@@ -714,20 +714,23 @@ fn open_as_asked(
                     "{}",
                     acquisition_verbs::refusal::document(
                         &e,
-                        &crate::Terminal::asking(sent.clone())
+                        &crate::terminal::Terminal::asking(sent.clone())
                     )
                 );
             } else {
-                eprintln!("Error: {}", crate::failure_words(&e));
+                eprintln!("Error: {}", crate::terminal::failure_words(&e));
                 // the ready commands: the request the JSON offers, rebound
                 // to each account (the review of round C's fix round,
                 // finding 1)
                 eprint!(
                     "{}",
-                    crate::ready_accounts(&e, &crate::Terminal::asking(sent.clone()))
+                    crate::terminal::ready_accounts(
+                        &e,
+                        &crate::terminal::Terminal::asking(sent.clone())
+                    )
                 );
             }
-            anyhow::Error::from(crate::AlreadyReported)
+            anyhow::Error::from(crate::terminal::AlreadyReported)
         })?;
     Ok((opened.facts, opened.intent))
 }

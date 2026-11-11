@@ -47,7 +47,7 @@
 //! connection stays. The frame reader is `frame.rs`, one copy in
 //! `acquisition-client` and one in `acquisition-daemon` (it needs tokio,
 //! which this crate never links). The sequence a
-//! subscriber follows is `acq jobs --watch` (`acquisition-cli/src/main.rs`):
+//! subscriber follows is `acq jobs --watch` (`acquisition-cli/src/jobs_cmd.rs`):
 //! subscribe, then `list` over a request connection, then every event is a
 //! reason to re-read, and after `resync_required` or a disconnect,
 //! subscribe and `list` again.

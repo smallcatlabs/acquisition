@@ -14,7 +14,8 @@ use acquisition_verbs::refusal::{Arguments, Way};
 use acquisition_verbs::saved::{self, SavedRow, SavedSearches, SavedWritten, Set};
 use anyhow::Result;
 
-use crate::{Ctx, Terminal, option_words, plural, printed_line, way_words};
+use crate::run::Ctx;
+use crate::terminal::{Terminal, option_words, plural, printed_line, way_words};
 
 /// `acq saved list`: ten, `--limit` that many, `--expand` every one.
 pub fn list(cx: &Ctx, limit: Option<usize>, expand: bool, json: bool) -> Result<()> {

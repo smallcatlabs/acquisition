@@ -30,7 +30,7 @@ use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
 use crate::search_cmd::{self, ItemParts, RowPiece};
 use serde_json::Value;
 
-use crate::plural;
+use crate::terminal::plural;
 
 /// The one template every page fills.
 const TEMPLATE: &str = include_str!("assets/page.html");

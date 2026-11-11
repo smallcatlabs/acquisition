@@ -40,13 +40,14 @@ use acquisition_protocol::realm::Realm;
 use acquisition_store::{AnnotationRow, Annotations, Provenance, Store, check_value};
 use anyhow::Result;
 
+use crate::run::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
-use crate::{Ctx, Terminal};
+use crate::terminal::Terminal;
 use acquisition_verbs::Held;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{Surface as _, Way};
 
-use crate::plural;
+use crate::terminal::plural;
 
 /// The selected account's facts file, opened beside its intent (C121,
 /// C12), and the account's name.
@@ -261,11 +262,11 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
 /// promises each or every item adds `--expand` itself, since the default
 /// lists ten (C53, the read economy). A write takes [`write_flags`].
 pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
-    crate::printed_line(
+    crate::terminal::printed_line(
         &[
-            crate::option_words("--account", account),
-            crate::option_words("--realm", h.realm.as_str()),
-            crate::option_words("--league", &h.league),
+            crate::terminal::option_words("--account", account),
+            crate::terminal::option_words("--realm", h.realm.as_str()),
+            crate::terminal::option_words("--league", &h.league),
         ]
         .concat(),
     )
@@ -275,7 +276,7 @@ pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
 /// alone, since a write takes no realm or league (its target names the
 /// place).
 pub(crate) fn write_flags(account: &str) -> String {
-    crate::printed_line(&crate::option_words("--account", account))
+    crate::terminal::printed_line(&crate::terminal::option_words("--account", account))
 }
 
 /// The facts line (C162): how many places `lead` counts, how many were
@@ -407,11 +408,12 @@ fn render_status(
         } else {
             // the answer's league as the account it ran as (the release
             // seat's rerun, call 48; the league seat's rule)
-            let plan = crate::printed_line(&crate::way_words(&Way::RefreshPlan {
-                account: account.to_string(),
-                realm: h.realm,
-                league: h.league.clone(),
-            }));
+            let plan =
+                crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshPlan {
+                    account: account.to_string(),
+                    realm: h.realm,
+                    league: h.league.clone(),
+                }));
             format!("`{plan}` shows what a refresh would fetch")
         };
         out.push_str(&format!("next: {next}\n"));
@@ -1745,7 +1747,7 @@ mod tests {
             "acq price clear --account a item/i-bad --if-revision 7"
         );
         assert!(
-            crate::Cli::try_parse_from(printed.split_whitespace()).is_ok(),
+            crate::cli::Cli::try_parse_from(printed.split_whitespace()).is_ok(),
             "clap refused the printed command: {printed}"
         );
         let target = printed

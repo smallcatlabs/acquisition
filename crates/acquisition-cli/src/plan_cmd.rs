@@ -81,9 +81,10 @@ use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges, UncoveredTabs};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
-use crate::{Ctx, store_cmd};
+use crate::run::Ctx;
+use crate::store_cmd;
 
-use crate::plural;
+use crate::terminal::plural;
 
 /// The channel every intent write from this binary is stamped with (C65).
 pub(crate) const WRITTEN_VIA: &str = "cli";
@@ -100,10 +101,10 @@ pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues
 /// call 22): the line named neither, so it could replace a policy and
 /// was refused with two accounts known.
 pub(crate) fn policy_set_line(account: &str, json: &str) -> String {
-    crate::printed_line(
+    crate::terminal::printed_line(
         &[
             vec!["acq".to_string(), "policy".into(), "set".into()],
-            crate::option_words("--account", account),
+            crate::terminal::option_words("--account", account),
             vec!["--if-revision".into(), "0".into(), json.to_string()],
         ]
         .concat(),
@@ -183,7 +184,8 @@ pub fn policy_set(
         cx.account()?
             .set_policy(&value, Expect::or(if_revision, Expect::Current), write)?;
     if json {
-        let receipt = acquisition_verbs::receipt::policy(&written, &crate::Terminal::writing());
+        let receipt =
+            acquisition_verbs::receipt::policy(&written, &crate::terminal::Terminal::writing());
         println!("{}", serde_json::to_string_pretty(&receipt)?);
     } else {
         println!(
@@ -217,7 +219,7 @@ fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String 
             covered.leagues.keys().map(move |league| {
                 format!(
                     "`{}`",
-                    crate::printed_line(&crate::way_words(&Way::RefreshPlan {
+                    crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshPlan {
                         account: written.target.account.clone(),
                         realm,
                         league: league.clone(),
@@ -233,7 +235,9 @@ fn preview_line(written: &acquisition_verbs::frontend::PolicyWritten) -> String 
         0 => String::new(),
         n => format!(
             ", and {n} more: `{}` lists them",
-            crate::printed_line(&crate::policy_show_words(&written.target.account))
+            crate::terminal::printed_line(&crate::terminal::policy_show_words(
+                &written.target.account
+            ))
         ),
     };
     match lines.is_empty() {
@@ -543,7 +547,7 @@ async fn apply_plan(
             );
         }
     }
-    let mut progress = crate::Progressor::new();
+    let mut progress = crate::jobs_cmd::Progressor::new();
     let mut report = |p: &acquisition_verbs::Progress| progress.report(p);
     let landed = opened
         .landed(
@@ -554,20 +558,21 @@ async fn apply_plan(
         )
         .await?
         // C165 and C143: a failure's way on as this terminal's commands
-        .offered(&crate::Terminal::writing());
+        .offered(&crate::terminal::Terminal::writing());
     if json {
         println!("{}", serde_json::to_string_pretty(&landed)?);
         return match landed.result.outcome {
             Outcome::Success { .. } => Ok(()),
-            _ => Err(crate::AlreadyReported.into()),
+            _ => Err(crate::terminal::AlreadyReported.into()),
         };
     }
     // The job's report on the stream `acq result` prints it on: stdout
     // for a success, stderr for a failure or a cancel, which left nothing
     // on stdout to use (#101); a failure's way on after it, as `acq
     // result` says it. What the store took is stdout either way.
-    let mut report = crate::job_report(id, &landed.result.outcome, &landed.result.failed_children);
-    report.push_str(&crate::way_on_line(&landed.result));
+    let mut report =
+        crate::jobs_cmd::job_report(id, &landed.result.outcome, &landed.result.failed_children);
+    report.push_str(&crate::jobs_cmd::way_on_line(&landed.result));
     match landed.result.outcome {
         Outcome::Success { .. } => {
             print!("{report}");
@@ -580,15 +585,15 @@ async fn apply_plan(
         Outcome::Failure { .. } => {
             eprint!("{report}");
             println!("{}", changes_line(&landed.store_changes));
-            if let Some(log) = crate::daemon_log_path(&mut client).await {
+            if let Some(log) = crate::daemon_cmd::daemon_log_path(&mut client).await {
                 eprintln!("daemon log: {log}");
             }
-            Err(crate::AlreadyReported.into())
+            Err(crate::terminal::AlreadyReported.into())
         }
         Outcome::Cancelled => {
             eprint!("{report}");
             println!("{}", changes_line(&landed.store_changes));
-            Err(crate::AlreadyReported.into())
+            Err(crate::terminal::AlreadyReported.into())
         }
     }
 }
@@ -613,7 +618,7 @@ fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan, account: &str) -> 
             "next: `{}` — {} more are planned now (what this apply revealed, \
              such as a map or unique tab's substashes, what it left undone, or what went stale \
              since); plan and apply until the plan says nothing to do",
-            crate::printed_line(&crate::way_words(&Way::RefreshPlan {
+            crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshPlan {
                 account: account.to_string(),
                 realm: plan.realm,
                 league: plan.league.clone(),
@@ -1030,7 +1035,7 @@ fn rendered(
     // either names the plan's account, realm and league, so it runs as
     // printed with a second account known (the league seat, cli call 28)
     let apply = |plan_file: Option<&str>| {
-        crate::printed_line(&crate::way_words(&Way::RefreshApply {
+        crate::terminal::printed_line(&crate::terminal::way_words(&Way::RefreshApply {
             account: account.to_string(),
             realm: plan.realm,
             league: plan.league.clone(),
