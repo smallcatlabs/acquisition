@@ -10,16 +10,9 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
-- **The re-triage's queue, before step 6**, at the owner's word of
-  2026-11-10 after his morning at `acq web`
-  (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
-  series, each issue its own step (C173); a group leaves this list
-  when its issues close:
-  - E, the daemon held by the compiler and tests: #209's fourth
-    round, on the one ending's shape, at the owner's word.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
-  milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6 waits
-  on the queue above.
+  milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
+  is designed next, for the owner's ruling before the spike.
 
 ## Next
 
