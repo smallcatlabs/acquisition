@@ -411,19 +411,35 @@ impl Daemon {
         let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault, mut lost_login) =
             (0, 0, 0, 0, 0, 0);
         let mut unreadable_tree = 0;
-        let mut fault_on_disk = true;
+        // C134 with #261: every write this restore makes under the lock,
+        // each ending's, each re-queue's and each probe row's delete, is
+        // folded into one fact, and the marker is removed only when all
+        // landed. A parent `maybe_finish_parent` ends after the lock is
+        // outside it, as it always was: the marker's job is never a parent
+        // (C134's arm excludes one). #209's fourth round, which ends the
+        // unreadable tree's parent there, will need this said again.
+        let mut every_write_landed = true;
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
         {
             let mut s = self.shared.lock().unwrap();
             s.next_id = next_id;
-            for mut entry in entries {
+            // #261: everything the restore loaded is in memory, as read,
+            // before any of it ends, so a tree's eviction (`evict_tree`,
+            // which takes a job whose parent is not in memory for a root)
+            // and a parent's tally see the whole tree. The info of each
+            // job as loaded is kept for its event, since a tree an ending
+            // concludes leaves memory with its last job, a terminal member
+            // still to be visited among it.
+            let mut loaded: Vec<JobInfo> = Vec::with_capacity(entries.len());
+            for entry in entries {
                 if entry.info.kind == "probe" {
                     dropped += 1;
                     // C6: the delete is a queue write like any other; a
                     // failed one is sticky, and the restore goes on, the
                     // row left on disk (`ended_elsewhere` answers it).
                     if let Err(e) = db.lock().unwrap().delete(entry.info.id) {
+                        every_write_landed = false;
                         self.trip_queue_failure(
                             &format!(
                                 "deleting probe job {}: a probe row could not be deleted at the restore",
@@ -434,131 +450,151 @@ impl Daemon {
                     }
                     continue;
                 }
+                loaded.push(entry.info.clone());
+                s.jobs.insert(entry.info.id, entry);
+            }
+            // Each job, in the order it was loaded, decided by the arms in
+            // their order: what ends, ends through the one ending (#261);
+            // what stays open is changed by name and written.
+            for as_loaded in loaded {
+                let id = as_loaded.id;
+                let Some(entry) = s.jobs.get_mut(&id) else {
+                    // left with its tree when an earlier job of it ended:
+                    // a terminal job, as it was loaded
+                    restored.push(as_loaded);
+                    continue;
+                };
+                let state = entry.info.state;
+                let open = matches!(state, JobState::Running | JobState::Waiting);
                 // C47, #209: an open job of a tree holding a row this
                 // daemon cannot read fails where it stands, parent or not,
                 // its held result dropped, and nothing of the tree is sent.
-                if let Some(unreadable) = tainted.get(&root_of(entry.info.id))
-                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
-                {
+                // The one place the restore ends a parent with children.
+                let ending = if let Some(unreadable) = tainted.get(&root_of(id)).filter(|_| open) {
                     unreadable_tree += 1;
-                    entry.info.state = JobState::Failed;
                     entry.deferred = None;
-                    entry.outcome = Some(Outcome::failure(
+                    Some(Outcome::failure(
                         FailureKind::Internal,
                         format!(
                             "not run: its tree holds job {unreadable}, whose stored row this daemon cannot read; the build that wrote it can read it"
                         ),
-                    ));
-                    self.persist(&mut entry);
-                    restored.push(entry.info.clone());
-                    s.jobs.insert(entry.info.id, entry);
-                    continue;
-                }
-                // C134: the marker's job, or a job on its probe's closed
-                // route, open and neither cancelling nor a parent (a
-                // parent's held or mid-fan-out finish is never a replay),
-                // fails whether its task had set it running or was still
-                // at the limiter.
-                let on_closed_route = closed_route.as_deref().is_some_and(|closed| {
-                    self.keyed_route_for(
-                        &entry.info.kind,
-                        &entry.info.params,
-                        entry.info.account.as_deref(),
-                    )
-                    .is_some_and(|(route, _)| route == closed)
-                });
-                if (faulted == Some(entry.info.id) || on_closed_route)
-                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
-                    && !entry.cancel_requested
-                    && entry.deferred.is_none()
-                    && !has_children.contains(&entry.info.id)
-                {
-                    fault += 1;
-                    entry.info.state = JobState::Failed;
-                    entry.outcome = Some(Outcome::failure(
-                        FailureKind::Interrupted,
-                        match &closed_route {
-                            Some(route) if on_closed_route => {
-                                format!("not sent on route {route}: {PROBE_FAULT_WORDS}")
-                            }
-                            _ => FAULT_WORDS.to_string(),
-                        },
-                    ));
-                    fault_on_disk &= self.persist(&mut entry);
-                } else if entry.info.kind == "profile"
-                    && entry.info.submitted_by == DAEMON_SUBMITTER
-                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
-                    && !entry.cancel_requested
-                {
-                    // C50: the fetch belongs to its login's lifetime. The
-                    // login's staged tokens died with that lifetime, so a
-                    // replay would send on the restored session with no
-                    // one waiting for the uuid.
-                    lost_login += 1;
-                    entry.info.state = JobState::Failed;
-                    entry.outcome =
-                        Some(Outcome::failure(FailureKind::NotLoggedIn, LOST_LOGIN_WORDS));
-                    self.persist(&mut entry);
-                } else if entry.info.state == JobState::Running {
-                    let no_probe_route = self
-                        .keyed_route_for(
+                    ))
+                } else {
+                    // C134: the marker's job, or a job on its probe's
+                    // closed route, open and neither cancelling nor a
+                    // parent (a parent's held or mid-fan-out finish is
+                    // never a replay), fails whether its task had set it
+                    // running or was still at the limiter.
+                    let on_closed_route = closed_route.as_deref().is_some_and(|closed| {
+                        self.keyed_route_for(
                             &entry.info.kind,
                             &entry.info.params,
                             entry.info.account.as_deref(),
                         )
-                        .is_some_and(|(route, _)| !Self::route_probes(&route));
-                    if entry.cancel_requested {
-                        entry.info.state = JobState::Cancelled;
-                        entry.outcome = Some(Outcome::Cancelled);
-                    } else if entry.deferred.is_some() {
-                        // Holding its result for children: no task to
-                        // give it; it finishes when they do.
-                        finish_parents.push(entry.info.id);
-                    } else if has_children.contains(&entry.info.id) {
-                        // Mid-fan-out: children were submitted but the
-                        // held result was not yet written. Re-running the
-                        // parent would submit them all again, so it holds
-                        // for the set it has — but how many children never
-                        // got submitted is unknowable, so once they land
-                        // it finishes as interrupted, never as success.
-                        entry.deferred = Some(Outcome::failure(
+                        .is_some_and(|(route, _)| route == closed)
+                    });
+                    if (faulted == Some(id) || on_closed_route)
+                        && open
+                        && !entry.cancel_requested
+                        && entry.deferred.is_none()
+                        && !has_children.contains(&id)
+                    {
+                        fault += 1;
+                        Some(Outcome::failure(
                             FailureKind::Interrupted,
-                            "interrupted by a daemon restart mid fan-out: the children \
+                            match &closed_route {
+                                Some(route) if on_closed_route => {
+                                    format!("not sent on route {route}: {PROBE_FAULT_WORDS}")
+                                }
+                                _ => FAULT_WORDS.to_string(),
+                            },
+                        ))
+                    } else if entry.info.kind == "profile"
+                        && entry.info.submitted_by == DAEMON_SUBMITTER
+                        && open
+                        && !entry.cancel_requested
+                    {
+                        // C50: the fetch belongs to its login's lifetime.
+                        // The login's staged tokens died with that
+                        // lifetime, so a replay would send on the restored
+                        // session with no one waiting for the uuid.
+                        lost_login += 1;
+                        Some(Outcome::failure(FailureKind::NotLoggedIn, LOST_LOGIN_WORDS))
+                    } else if state == JobState::Running {
+                        let no_probe_route = self
+                            .keyed_route_for(
+                                &entry.info.kind,
+                                &entry.info.params,
+                                entry.info.account.as_deref(),
+                            )
+                            .is_some_and(|(route, _)| !Self::route_probes(&route));
+                        if entry.cancel_requested {
+                            Some(Outcome::Cancelled)
+                        } else if entry.deferred.is_some() {
+                            // Holding its result for children: no task to
+                            // give it; it finishes when they do.
+                            finish_parents.push(id);
+                            every_write_landed &= self.persist(entry);
+                            None
+                        } else if has_children.contains(&id) {
+                            // Mid-fan-out: children were submitted but the
+                            // held result was not yet written. Re-running
+                            // the parent would submit them all again, so it
+                            // holds for the set it has — but how many
+                            // children never got submitted is unknowable,
+                            // so once they land it finishes as
+                            // interrupted, never as success.
+                            entry.deferred = Some(Outcome::failure(
+                                FailureKind::Interrupted,
+                                "interrupted by a daemon restart mid fan-out: the children \
                                     submitted before the restart ran (their responses are in \
                                     the store), but the full child set is unknown — resubmit \
                                     to complete it",
-                        ));
-                        held += 1;
-                        finish_parents.push(entry.info.id);
-                    } else if no_probe_route {
-                        // The replay premise — a probe reads the previous
-                        // lifetime's hits before anything sends — does not
-                        // hold on a no-probe route; a replay would go out
-                        // against an empty limiter.
-                        not_replayed += 1;
-                        entry.info.state = JobState::Failed;
-                        entry.outcome = Some(Outcome::failure(
-                            FailureKind::Interrupted,
-                            format!(
-                                "interrupted by a daemon restart and not replayed: \
+                            ));
+                            held += 1;
+                            finish_parents.push(id);
+                            every_write_landed &= self.persist(entry);
+                            None
+                        } else if no_probe_route {
+                            // The replay premise — a probe reads the
+                            // previous lifetime's hits before anything
+                            // sends — does not hold on a no-probe route; a
+                            // replay would go out against an empty limiter.
+                            not_replayed += 1;
+                            Some(Outcome::failure(
+                                FailureKind::Interrupted,
+                                format!(
+                                    "interrupted by a daemon restart and not replayed: \
 {} sends without a probe, so a replay could not learn the previous lifetime's hits first; \
 resubmit if still wanted",
-                                entry.info.kind
-                            ),
-                        ));
+                                    entry.info.kind
+                                ),
+                            ))
+                        } else {
+                            entry.info.state = JobState::Waiting;
+                            requeued += 1;
+                            every_write_landed &= self.persist(entry);
+                            None
+                        }
                     } else {
-                        entry.info.state = JobState::Waiting;
-                        requeued += 1;
+                        None
                     }
-                    self.persist(&mut entry);
+                };
+                match ending.and_then(|outcome| self.end(&mut s, id, outcome)) {
+                    Some(ended) => {
+                        every_write_landed &= ended.landed;
+                        restored.push(ended.info);
+                    }
+                    None => {
+                        let info = s.jobs.get(&id).map_or(as_loaded, |e| e.info.clone());
+                        restored.push(info);
+                    }
                 }
-                restored.push(entry.info.clone());
-                s.jobs.insert(entry.info.id, entry);
             }
             // C6: the list reads this daemon's work from the first id it
-            // issues and what the restore brought back by its ids, and a
-            // tree the restore concluded (a cancelled or failed root, a
-            // lost login's fetch) leaves memory as any concluded tree does.
+            // issues and what the restore brought back by its ids; a tree
+            // the restore concluded left memory as its last job ended
+            // (`end`), and a tree it loaded already terminal leaves here.
             s.first_id = next_id;
             s.restored = restored.iter().map(|info| info.id).collect();
             s.restored.sort_unstable();
@@ -566,14 +602,15 @@ resubmit if still wanted",
                 self.evict_tree(&mut s, info.id);
             }
         }
-        // C134: removed once its job's failure is on disk, so a second
-        // restore finds the job terminal and the marker gone. A failure
-        // the queue could not write keeps the marker: the row still says
-        // the job was open, and the next restore fails it, not replays it.
-        if !fault_on_disk {
+        // C134: removed once every write of the restore landed, its job's
+        // failure among them, so a second restore finds the job terminal
+        // and the marker gone. A write the queue refused keeps the marker:
+        // a row may still say the job was open, and the next restore fails
+        // it, not replays it.
+        if !every_write_landed {
             if let Some(path) = &marker {
                 self.log(&format!(
-                    "FAULT: the marker {} is kept: its job's failure could not be written",
+                    "FAULT: the marker {} is kept: a write of the restore could not be made, its job's failure among those it may have been",
                     path.display()
                 ));
             }

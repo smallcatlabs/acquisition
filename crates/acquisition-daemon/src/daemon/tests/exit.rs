@@ -1771,6 +1771,61 @@ async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
     for log in [log1, log2] {
         finish_harness(None, &log);
     }
+
+    // #209's third review, through #261's one fact: the marker names a
+    // leaf of a tree holding a row this daemon cannot read, so the leaf
+    // fails with its tree, not by the marker's arm; its write is refused
+    // while its parent's lands. The marker stays (once, only the
+    // marker's arm's write kept it), and the next restore, the refusal
+    // dropped, fails the leaf by the marker and removes it.
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
+    let db = acquisition_store::jobs::daemon_db_path(&dir);
+    {
+        let seed = JobDb::open(&db).unwrap();
+        let mut parent = sleep_row(11, "running");
+        parent.kind = "apply".into();
+        parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
+        seed.upsert(&parent).unwrap();
+        seed.upsert(&JobRow {
+            parent: Some(11),
+            ..sleep_row(12, "paused")
+        })
+        .unwrap();
+        seed.upsert(&JobRow {
+            parent: Some(11),
+            ..sleep_row(14, "running")
+        })
+        .unwrap();
+    }
+    let refuse = |sql: &str| {
+        rusqlite::Connection::open(&db)
+            .unwrap()
+            .execute_batch(sql)
+            .unwrap();
+    };
+    refuse(
+        "CREATE TRIGGER staged_refusal BEFORE INSERT ON jobs WHEN NEW.id = 14
+         BEGIN SELECT RAISE(ABORT, 'staged refusal'); END;",
+    );
+    let marker = dir.join("fault.json");
+    std::fs::write(&marker, "{\"job\":14}\n").unwrap();
+    let (daemon, log1) = world_daemon(&dir);
+    assert_eq!(row_of(&db, 11).state, "failed", "the parent's write landed");
+    assert_eq!(row_of(&db, 14).state, "running", "the leaf's was refused");
+    assert!(
+        marker.exists(),
+        "the marker was removed with its job's failure unwritten"
+    );
+    drop(daemon);
+    refuse("DROP TRIGGER staged_refusal;");
+    let (daemon, log2) = world_daemon(&dir);
+    assert_eq!(row_of(&db, 14).state, "failed", "the leaf was replayed");
+    assert!(!marker.exists(), "the marker outlived the written failure");
+    drop(daemon);
+    for log in [log1, log2] {
+        finish_harness(None, &log);
+    }
 }
 
 /// The child's exit status: the hook reached its end. `run` passes

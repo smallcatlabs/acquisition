@@ -2640,6 +2640,10 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
         for row in [
             held(11, None),
             disk_row(14, "sleep", "waiting", Some(11)),
+            JobRow {
+                cancel_requested: true,
+                ..disk_row(15, "sleep", "running", Some(11))
+            },
             held(21, None),
             disk_row(23, "sleep", "waiting", Some(21)),
             held(31, None),
@@ -2707,8 +2711,14 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
                     "job {job}: {outcome:?}"
                 );
             }
+            // #261: the one ending arbitrates a pending cancel everywhere,
+            // so a running job asked to cancel in such a tree ends
+            // cancelled, as it does in every other arm of the restore
+            let (info, outcome) = door.await_terminal(15).await;
+            assert_eq!(info.state, JobState::Cancelled, "{outcome:?}");
+            assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
             let log = door.log_text();
-            for id in [11, 14, 21, 23, 31, 33, 34] {
+            for id in [11, 14, 15, 21, 23, 31, 33, 34] {
                 assert!(!log.contains(&format!("job {id} -> running")), "{log}");
             }
             assert!(door.journal().is_empty(), "nothing is sent");
@@ -2737,9 +2747,10 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             };
             let mut ids: Vec<JobId> = jobs.iter().map(|job| job.id).collect();
             ids.sort_unstable();
-            assert_eq!(ids, [11, 14, 21, 23, 31, 33, 34], "{jobs:?}");
-            assert_eq!(counts.total, 7, "{counts:?}");
+            assert_eq!(ids, [11, 14, 15, 21, 23, 31, 33, 34], "{jobs:?}");
+            assert_eq!(counts.total, 8, "{counts:?}");
             assert_eq!(counts.failed, 7, "{counts:?}");
+            assert_eq!(counts.cancelled, 1, "{counts:?}");
             door.finish().await;
         });
     let after_the_tree: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
