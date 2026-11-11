@@ -350,8 +350,8 @@ impl Mcp {
 }
 
 /// The commands that are a person's act, which a refusal names as
-/// commands (C143's exception): the person's commands in the server's
-/// `SPOKEN`, longest first where one begins another.
+/// commands (C143's exception), longest first where one begins another:
+/// the list the server's spelling table kept until #178 retired it.
 const PERSONS: [&str; 6] = [
     "acq daemon reset-tripwire",
     "acq daemon stop",

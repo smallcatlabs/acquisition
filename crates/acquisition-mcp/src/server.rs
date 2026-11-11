@@ -24,10 +24,9 @@ use serde_json::{Value, json};
 
 use crate::describe::{Described, Entry, OWN_SECTIONS, own_listed, own_sections};
 use crate::params::*;
-use crate::prose::Prose;
 use crate::told::{
     CALLED, Called, Refused, Spoken, Told, answer, failed, price_realm, priced, refusal, refused,
-    refusing, settled, told, told_as,
+    refusing, settled, told,
 };
 
 /// The server: one frontend for its lifetime (C46), an agent's door
@@ -320,15 +319,12 @@ impl AcqMcp {
                 .collect();
             (!kept.is_empty()).then_some(kept)
         });
-        told_as(
-            &Described {
-                language,
-                pricing: chosen.next().flatten(),
-                daemon: chosen.next().flatten(),
-                store: chosen.next().flatten(),
-            },
-            Prose { all: true },
-        )
+        told(&Described {
+            language,
+            pricing: chosen.next().flatten(),
+            daemon: chosen.next().flatten(),
+            store: chosen.next().flatten(),
+        })
     }
 
     #[tool(

@@ -19,8 +19,6 @@ use rmcp::ErrorData;
 use rmcp::model::CallToolResult;
 use serde_json::{Value, json};
 
-use crate::prose::{Prose, spelled, spoken};
-
 /// A call the server could not serve, as a JSON-RPC error with the full
 /// context chain.
 fn err(e: anyhow::Error) -> ErrorData {
@@ -153,7 +151,7 @@ fn failure_words(e: &anyhow::Error, named: &str) -> String {
 /// and an uncovered league as JSON-RPC errors where the instructions
 /// promise results (mcp-opus-2 calls 50, 46).
 pub(crate) fn failed(e: anyhow::Error) -> Told {
-    let words = spelled(&failure_words(&e, "account"));
+    let words = failure_words(&e, "account");
     match e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
         Some(Fault::Daemon(refused)) => Err(daemon_error(refused.kind, words)),
         Some(Fault::Door(door)) => Err(connect_error(door, words)),
@@ -167,7 +165,7 @@ pub(crate) fn failed(e: anyhow::Error) -> Told {
 /// A refusal's document (C11, C121; round 4 of the 2g build, the one
 /// refusal shape): the verbs' one sorter
 /// (`acquisition_verbs::refusal::document`), its words this server's,
-/// `named` the argument that selects an account, and its offers spelled
+/// `named` the argument that selects an account, and its offers said
 /// as this server's requests ([`Spoken`]).
 pub(crate) fn refusal(e: &anyhow::Error, named: &str) -> Value {
     refusal::document(e, &Spoken { named })
@@ -457,13 +455,7 @@ pub(crate) type Told = Result<CallToolResult, ErrorData>;
 
 /// The document as a tool's result: one text block, serialized from the
 /// document itself, so its keys come in the order the document declares
-/// them (C115), and no structured content ([`told_as`]).
-pub(crate) fn told<T: serde::Serialize>(document: &T) -> Told {
-    told_as(document, Prose { all: false })
-}
-
-/// [`told`], the document's prose as [`Prose`] says: each string
-/// [`spoken`] for this server.
+/// them (C115), and no structured content.
 ///
 /// The text block alone, by measurement (step 2g's round 7): in the
 /// stream `claude` 2.1.312 logged for two successes of one tool, the
@@ -473,11 +465,8 @@ pub(crate) fn told<T: serde::Serialize>(document: &T) -> Told {
 /// So the text block alone carries the declared order to the model: the
 /// answer leads with what bears on the question (C115), and on the MCP
 /// the JSON is the text, with no second rendering (C53).
-pub(crate) fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
-    let text = spoken(
-        &serde_json::to_string(document).map_err(|e| err(e.into()))?,
-        prose,
-    );
+pub(crate) fn told<T: serde::Serialize>(document: &T) -> Told {
+    let text = serde_json::to_string(document).map_err(|e| err(e.into()))?;
     // C149: every answer is one JSON object; a bare array, a bare null or
     // a scalar is this server's fault, never served (held here, the one
     // door every answer passes, so no tool can regress alone)
@@ -486,8 +475,6 @@ pub(crate) fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
             "an answer must be one JSON object, and this tool's is not"
         )));
     }
-    // the text is one JSON document, whatever `spoken` did to it
-    serde_json::from_str::<serde::de::IgnoredAny>(&text).map_err(|e| err(e.into()))?;
     Ok(CallToolResult::success(vec![
         rmcp::model::ContentBlock::text(text),
     ]))
@@ -500,17 +487,15 @@ pub(crate) fn refused(e: impl Into<SearchError>) -> CallToolResult {
     refusing(refusal::of_search(&e.into(), &Spoken { named: "account" }))
 }
 
-/// A refusal's document as a tool's result, marked an error: its prose
-/// [`spoken`] for this server, its readings and offers payload; the text
-/// block alone, as an answer's is ([`told_as`]).
+/// A refusal's document as a tool's result, marked an error: the text
+/// block alone, as an answer's is ([`told`]).
 pub(crate) fn refusing(doc: Value) -> CallToolResult {
-    let text = spoken(&doc.to_string(), Prose { all: true });
-    CallToolResult::error(vec![rmcp::model::ContentBlock::text(text)])
+    CallToolResult::error(vec![rmcp::model::ContentBlock::text(doc.to_string())])
 }
 
 /// A pricing verb's answer as a tool's result: the document the CLI's
 /// `--json` prints, or its failure document, `{"error": …}`, in a result
-/// marked an error, its words [`spelled`] for this server.
+/// marked an error, in this server's words.
 pub(crate) fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
     match answer {
         Ok(document) => told(&document),

@@ -4,8 +4,8 @@
 //!
 //! This file is the entry and its wiring. `server.rs` holds the tool
 //! table and the handler, `params.rs` every tool's arguments, `told.rs`
-//! how an answer and a refusal are told, `prose.rs` the text block they
-//! are spoken as, and `describe.rs` the server's own index sections.
+//! how an answer and a refusal are told, and `describe.rs` the server's
+//! own index sections.
 //!
 //! A fourth thin client: it consumes exactly the two frontend surfaces —
 //! the daemon protocol (via `acquisition_client`) and the shared
@@ -87,18 +87,16 @@
 //!   and holds nothing.
 //!
 //! **Every text the server serves speaks its own words** (C143, the
-//! shared words first and an adapter's spelling after them; the readiness
+//! shared words first and an adapter's way on after them; the readiness
 //! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
-//! every text the shared crates make — a refusal, `describe`, an
-//! answer's `why` and `hint` — speaks the request's words, and its ways
-//! on are values this server sends as its tools' arguments (C143 as
-//! amended; #97, the harness's `c143_a_text_speaks_no_frontend`). Where
-//! a daemon's text still speaks a CLI command or flag (`acq accounts`,
-//! `--account`), `spoken` appends `— here,` and what each is here, from
-//! one table, `SPOKEN`. A person's command (`acq auth check`) is left as
-//! the person's; every other string of an answer is data, sent verbatim.
-//! The rewrite is on the serialized text, so the document's key order
-//! stands (C115). Pinned by `tests/spoken.rs`.
+//! every text the shared crates and the daemon make — a refusal,
+//! `describe`, an answer's `why` and `hint`, a daemon's refusal — speaks
+//! the request's words, and its ways on are values this server sends as
+//! its tools' arguments (C143 as amended; #97, #178; the harness's
+//! `c143_a_text_speaks_no_frontend`, which reads a protocol error's
+//! message too). A person's command (`acq auth check`) is left as the
+//! person's. A document is sent as serialized, so its key order stands
+//! (C115). Pinned by `tests/spoken.rs`.
 //!
 //! An account that cannot be picked is refused in the protocol's words
 //! (C121): `not_logged_in` when no account's store is found (naming the
@@ -121,7 +119,7 @@
 //! document the CLI's `--json` prints for the same request, and a
 //! refusal is a result marked `isError` holding the CLI's failure
 //! document, `{"error": …}` in the CLI's words (C11), this server's
-//! spelling after them. Pricing reads
+//! way on after them. Pricing reads
 //! intent and facts through the store: no daemon, no network (C64). The
 //! account is selected as the search's tools select it, with their three
 //! refusals; arguments a tool does not take are refused as theirs are. A
@@ -189,7 +187,6 @@
 
 mod describe;
 mod params;
-mod prose;
 mod server;
 mod told;
 mod transport;
