@@ -1,0 +1,5 @@
+- `dbced652`: The issue’s sentence-only done-when holds by inspection; the plan schema remains unchanged.
+- Findings: none. The shared CLI/web renderer removes the looping instruction, and the new golden covers planning before and after a fetch that lists no pages.
+- Execution, gate status, and test count: not verified; builds and runs were prohibited.
+- Nitpicks: none.
+- Brief, plan, or prompt impediments: none; the wording-only scope and deferred schema change were clear.
