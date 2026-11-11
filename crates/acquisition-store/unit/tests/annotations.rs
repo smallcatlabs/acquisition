@@ -707,8 +707,8 @@ fn a_writer_held_past_the_busy_timeout_is_busy_not_db() {
     let err = a
         .put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
         .unwrap_err();
+    // its words are the CLI's golden `price_json/a_busy_intent_file`
     assert!(matches!(err, AnnotationError::Busy { .. }), "{err}");
-    assert!(err.to_string().contains("run the command again"), "{err}");
     b.conn.execute_batch("ROLLBACK").unwrap();
     // The row is untouched: the same create succeeds once the lock is free.
     assert_eq!(
@@ -1390,7 +1390,7 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
         match &err {
             Some(AnnotationError::NotCurrent(e)) => assert_eq!(
                 (e.file, e.found, e.supported),
-                ("annotation", stamp, SCHEMA_VERSION)
+                (crate::annotations::HELD, stamp, SCHEMA_VERSION)
             ),
             other => panic!("expected NotCurrent, got {other:?}"),
         }

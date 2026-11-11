@@ -599,8 +599,16 @@ pub enum AnnotationError {
 /// it, by what it keeps, and every sentence ending with what to do
 /// next. A conflict, an unreadable row and an exhausted revision are
 /// worded above the store by the verbs that meet them.
-const HELD: &str = "the file that keeps what you set by hand (prices, the sync policy, saved \
+pub(crate) const HELD: &str = "the file that keeps what you set by hand (prices, the sync policy, saved \
                     searches)";
+
+/// What to do next where the file could not be read or written at all
+/// (#234's rule; the cold review of 8e0baadb, its first finding): the
+/// write is undone by SQLite, so a retry is safe, and a failure that
+/// repeats is the file's: kept, never deleted, since what it holds has
+/// no server to refetch from (C35), and reported.
+const DAMAGED: &str = "nothing was written — run the command again, and if it fails the same \
+                       way, keep the file as it is and report it";
 
 impl std::fmt::Display for AnnotationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -672,9 +680,15 @@ impl std::fmt::Display for AnnotationError {
                 row.scope, row.key, row.kind, row.revision, row.fault
             ),
             AnnotationError::HoldsAccountFacts(e) => write!(f, "{e}"),
-            AnnotationError::Db(e) => write!(f, "{HELD} could not be read or written: {e}"),
-            AnnotationError::Io(e) => write!(f, "{HELD} could not be read or written: {e}"),
-            AnnotationError::Json(e) => write!(f, "{HELD} could not be read or written: {e}"),
+            AnnotationError::Db(e) => {
+                write!(f, "{HELD} could not be read or written ({e}): {DAMAGED}")
+            }
+            AnnotationError::Io(e) => {
+                write!(f, "{HELD} could not be read or written ({e}): {DAMAGED}")
+            }
+            AnnotationError::Json(e) => {
+                write!(f, "{HELD} could not be read or written ({e}): {DAMAGED}")
+            }
         }
     }
 }
@@ -798,7 +812,7 @@ impl Annotations {
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found != SCHEMA_VERSION {
             return Err(AnnotationError::NotCurrent(crate::SchemaNotCurrent {
-                file: "annotation",
+                file: HELD,
                 found,
                 supported: SCHEMA_VERSION,
                 remedy: if found < SCHEMA_FLOOR {

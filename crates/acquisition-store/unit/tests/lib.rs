@@ -2423,7 +2423,7 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
         assert_eq!(
             err.downcast_ref::<SchemaNotCurrent>(),
             Some(&SchemaNotCurrent {
-                file: "facts",
+                file: "the facts file",
                 found: stamp,
                 supported: FACT_SCHEMA_VERSION,
                 remedy: MIGRATE_REMEDY,

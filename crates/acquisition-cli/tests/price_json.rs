@@ -2829,6 +2829,24 @@ fn a_busy_intent_file_is_said_as_the_user_knows_it_and_says_run_again() {
             "the text and the JSON say one sentence"
         );
     }
-    golden(file!(), "a_busy_intent_file", &t);
     holder.execute_batch("ROLLBACK").unwrap();
+    drop(holder);
+    // a file that is no database at all is said the same way, by what it
+    // keeps, with the step after a retry (the cold review of 8e0baadb)
+    std::fs::write(
+        acquisition_store::annotations_path(&mock, UUID),
+        "not a database",
+    )
+    .unwrap();
+    let out = t.run(
+        &["price", "set", "item/i-map", "exact", "2", "divine"],
+        &[
+            "the file that keeps what you set by hand",
+            "could not be read or written",
+            "run the command again, and if it fails the same way, keep the file as it is and report it",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(1));
+    assert!(!stderr(&out).contains("annotation"), "{}", stderr(&out));
+    golden(file!(), "a_busy_intent_file", &t);
 }

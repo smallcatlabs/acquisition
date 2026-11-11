@@ -308,8 +308,9 @@ impl std::error::Error for SchemaTooNew {}
 
 /// C124 (a read never migrates): a read-only open met a file stamped at
 /// another schema version than this build's — older, newer, or none.
-/// Nothing was written to it. `file` names which file in words ("facts",
-/// "annotation"); the facts store and the annotations file refuse alike.
+/// Nothing was written to it. `file` names which file as a user knows it,
+/// whole ("the facts file"; the annotation file by what it keeps, #234's
+/// rule); the facts store and the annotations file refuse alike.
 /// `remedy` is the next step for an older file, chosen by the door that
 /// opened it, since only that door knows which of its older versions its
 /// writing open migrates and which it refuses; the facts door passes
@@ -338,7 +339,7 @@ impl std::fmt::Display for SchemaNotCurrent {
         if found == 0 {
             write!(
                 f,
-                "the {file} file carries no schema version: it is empty or was not \
+                "{file} carries no schema version: it is empty or was not \
                  written by Acquisition, and a read-only open reads nothing from it; \
                  check that the store's directory and its `account` name an existing \
                  Acquisition store"
@@ -346,13 +347,13 @@ impl std::fmt::Display for SchemaNotCurrent {
         } else if found < supported {
             write!(
                 f,
-                "the {file} file is at schema version {found}, older than this build's \
+                "{file} is at schema version {found}, older than this build's \
                  version {supported}: {remedy}"
             )
         } else {
             write!(
                 f,
-                "the {file} file is at schema version {found}, newer than this build's \
+                "{file} is at schema version {found}, newer than this build's \
                  version {supported}: use the build that wrote it"
             )
         }
@@ -1380,7 +1381,7 @@ impl Store {
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found != FACT_SCHEMA_VERSION {
             return Err(anyhow::Error::new(SchemaNotCurrent {
-                file: "facts",
+                file: "the facts file",
                 found,
                 supported: FACT_SCHEMA_VERSION,
                 remedy: MIGRATE_REMEDY,

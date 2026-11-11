@@ -15,3 +15,11 @@ $ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"al
 --- stderr
 Error: the file that keeps what you set by hand (prices, the sync policy, saved searches) is busy: another process held it past 0 s, and nothing was written — run the command again
 --- exit 1
+
+$ acq price set item/i-map exact 2 divine
+# holds "the file that keeps what you set by hand"
+# holds "could not be read or written"
+# holds "run the command again, and if it fails the same way, keep the file as it is and report it"
+--- stderr
+Error: the file that keeps what you set by hand (prices, the sync policy, saved searches) could not be read or written (file is not a database): nothing was written — run the command again, and if it fails the same way, keep the file as it is and report it
+--- exit 1
