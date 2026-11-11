@@ -15,7 +15,7 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - B, a quiet tree for agents: #236, #230.
+  - B, a quiet tree for agents: #230.
   - C, what the table and the place pages stand on: #205, #211, #200,
     #214's items that touch no schema, and #150 (the site answers an
     inverted range with no results, his word).
