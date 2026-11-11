@@ -174,6 +174,10 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
 /// so the daemon is still there an hour less a second after the job and
 /// leaves at the hour, never at the job's end (before #208 it left at
 /// once, and the next command's fresh daemon probed every route again).
+/// A cancel's end is the same. The stamp is made under the lock that
+/// makes the job terminal, which the verdict reads it under, so no
+/// verdict sees the job ended with the hour spent; that place is held by
+/// reading (#208's review), as no seam opens the instant between them.
 #[test]
 fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     let clock = Arc::new(ParkingClock::new());
@@ -214,6 +218,23 @@ fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     assert!(
         daemon.is_idle(IDLE_SHUTDOWN),
         "an hour after the job's end, nothing holds the daemon"
+    );
+
+    // A cancel's end too: a job waiting two hours, then cancelled with no
+    // other activity, leaves the daemon its hour.
+    let waiting = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    clock.advance(2 * IDLE_SHUTDOWN);
+    daemon.cancel(waiting).unwrap();
+    assert!(
+        !daemon.is_idle(IDLE_SHUTDOWN),
+        "the cancel ended a job: the daemon stays"
+    );
+    clock.advance(IDLE_SHUTDOWN);
+    assert!(
+        daemon.is_idle(IDLE_SHUTDOWN),
+        "an hour after the cancel, nothing holds the daemon"
     );
     finish_harness(None, &log);
 }

@@ -463,6 +463,11 @@ impl Daemon {
             let Some(entry) = s.jobs.get_mut(&id) else {
                 return;
             };
+            // C3 as amended (#208): a job's end is activity, stamped
+            // under the lock that makes it terminal, so the idle verdict,
+            // which reads the stamp under this lock, never sees the job
+            // ended and the hour already spent.
+            self.mark_activity(self.choke.now());
             let outcome = if entry.cancel_requested {
                 Outcome::Cancelled
             } else {

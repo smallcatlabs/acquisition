@@ -1177,6 +1177,9 @@ resubmit if still wanted",
                     format!("job {id} already {state}"),
                 ));
             }
+            // C3 as amended (#208): the jobs this cancel ends are
+            // activity, stamped under the lock that ends them (`finish`).
+            self.mark_activity(self.choke.now());
             for t in s.tree(id) {
                 let entry = s.jobs.get_mut(&t).unwrap();
                 match entry.info.state {
