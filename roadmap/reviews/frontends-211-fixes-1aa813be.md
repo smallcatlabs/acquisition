@@ -1,0 +1,6 @@
+- **096d6897^..1aa813be — the narrowed #211 text-only done-when holds by inspection; both recorded review findings are addressed.**
+- **Findings:** None. Shared age derivations and the captured instant reach the affected renderers; the #214 cleanup preserves the pre-submit watermark and existing queue/reset behavior.
+- **Not checked:** Build, tests, gate results, and runtime equivalence are **not verified**, as requested.
+- **Nitpicks:** None.
+- **Brief/plan:** No explicit done-when list was supplied; I assessed the narrowed issue and recorded findings.
+- **Prompt:** The range also includes #214 without its issue text, limiting acceptance review of that separate step; supplying that text would resolve the gap.
