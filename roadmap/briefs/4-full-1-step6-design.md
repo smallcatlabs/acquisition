@@ -2,8 +2,9 @@
 
 A Fable design, 2026-11-11, for step 6 of `4-full-1-design.md` (§7),
 at the owner's word after his morning at `acq web`
-(`audits/web-2026-11/sitting/README.md`). Nothing here is built or
-ruled: §7 is drafts for the owner, and the briefs follow his word.
+(`audits/web-2026-11/sitting/README.md`). Ruled by him on 2026-11-11
+("Approved as designed."), with his answers to §7's three questions
+recorded there; nothing here is built, and the briefs follow.
 Read-only at `f19db25b`; nothing was run.
 
 What was read: the sitting's record; `4-full-1-design.md` whole;
@@ -46,7 +47,9 @@ carries one, the sort's, as `Sorted { value, status, shows }`.
 - **The list fills from the query.** With none named, the values are
   the ones the query compares, in the query's order, and the answer
   says the list it used. So a table "with only columns related to" the
-  result is the default, not a setting.
+  result is the default, not a setting. Before them the table always
+  shows the columns he ruled (§7): name, base, price, the price's age,
+  location, the location's age.
 - **The query's own value is the default order** (#38): a query that
   compares exactly one value, asked with no sort, is ordered by it,
   best first by its operator, and the answer names it. Several values
@@ -154,7 +157,22 @@ documents (#182), then the form's reshaping.
 
 ## 7. Drafts for the owner
 
-Each is his; nothing is entered until he rules.
+Each was his. Ruled 2026-11-11: "Approved as designed." for the five
+drafts below as recommended, and of the three patterns:
+
+- The columns always there: "Let's start with name, base, price, age
+  of price, location, age of location. There will be more here--e.g.
+  adding one search term from a trade group might automatically enable
+  the display of related terms, but this might want to be it's own
+  separate feature added later." The later feature is its own issue.
+  Which time the price's age reads is the build step's to find in the
+  price document, and his to say where the document holds none.
+- "Places stay in stash order."
+- "open as a card under it's row. (eventually this may become a side
+  panel or popup or some other UI element, but a card under the row is
+  acceptable to start with."
+
+As drafted:
 
 - **The view's shape**: §1's sentence.
 - **The navigation and routes** (C138): "Stash tabs" and "Characters"
