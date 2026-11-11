@@ -15,7 +15,7 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - C, what the table and the place pages stand on: #211, #200,
+  - C, what the table and the place pages stand on: #211,
     #214's items that touch no schema, and #150 (the site answers an
     inverted range with no results, his word).
   - D, one voice for refusals: the main account (#246, ruled yes),
