@@ -2302,6 +2302,93 @@ async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     finish_harness(None, &log);
 }
 
+/// Make every later write of a row already on the daemon's queue fail,
+/// the rows left readable: a trigger through a second connection to the
+/// same file aborts each write over an existing id (the store writes a
+/// row as `INSERT OR REPLACE`), so a state change the daemon persists
+/// after it fails as [`break_queue`]'s do, and an observer still reads
+/// the row as the last write that landed left it.
+fn freeze_queue_rows(db: &std::path::Path) {
+    rusqlite::Connection::open(db)
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER frozen BEFORE INSERT ON jobs \
+             WHEN EXISTS (SELECT 1 FROM jobs WHERE id = NEW.id) \
+             BEGIN SELECT RAISE(ABORT, 'frozen by the test'); END",
+        )
+        .unwrap();
+}
+
+/// C6's residual beside the completion's: a job a halt turns away after
+/// its pick goes back to waiting in memory, and when that write fails
+/// the queue is failed (sticky: the next submit is refused) while the
+/// row still says running, as the start left it. Memory is ahead of disk
+/// until the next lifetime, which restores the row as `restore_jobs`
+/// says. Two accounts' `whoami` under a ceiling of one send: the first
+/// refresh is held at the server while the other job waits behind it at
+/// the gate; the rows are frozen; the release lands the first, the
+/// ceiling halts, and the halt turns the other away.
+#[test]
+fn a_job_parked_after_a_failed_queue_write_is_waiting_in_memory_and_running_on_disk() {
+    let dir = TestPath::dir();
+    let path = daemon_db_path(&dir);
+    let ids: Mutex<Vec<JobId>> = Mutex::default();
+    let parked = &ids;
+    Door::open(
+        Server::Account(("POST", "/token", 0)),
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .rails(RailsConfig {
+        max_sends: Some(1),
+        ..RailsConfig::default()
+    })
+    .sessions(two_accounts())
+    .jobs_db(JobDb::open(&path).unwrap())
+    .run(|mut door| async move {
+        let (arrived, release) = door.held();
+        let mut jobs = Vec::new();
+        for account in ["test-user", "other"] {
+            jobs.push((account, door.submit("whoami", Some(account)).await));
+        }
+        tokio::time::timeout(HANG, arrived)
+            .await
+            .expect("a refresh reached the server")
+            .unwrap();
+        let first = door.sent()[0].1.clone();
+        let (landed, turned_away) = if first == jobs[0].0 {
+            (jobs[0].1, jobs[1].1)
+        } else {
+            (jobs[1].1, jobs[0].1)
+        };
+        freeze_queue_rows(&path);
+        release.send(()).unwrap();
+        door.await_terminal(landed).await;
+        door.settle().await;
+        let Response::Status { job } = door.request(Request::Status { id: turned_away }).await
+        else {
+            panic!("job {turned_away}'s status did not read")
+        };
+        assert_eq!(job.state, JobState::Waiting, "parked in memory");
+        assert!(
+            door.log_text().contains("turned away by a halt"),
+            "the halt turned it away: {}",
+            door.log_text()
+        );
+        let (kind, message) = refusal_of(
+            door.request(submit_of("sleep", json!({}), 0, "client", None))
+                .await,
+            "a submit after the failed write",
+        );
+        assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
+        parked.lock().unwrap().push(turned_away);
+        door.finish().await;
+    });
+    let id = ids.into_inner().unwrap()[0];
+    let row = on_disk(&dir, id).expect("the parked job's row");
+    assert_eq!(row.job.state, "running", "disk still says running");
+}
+
 /// A row as a previous daemon (or a neighbour connection) wrote it.
 fn disk_row(id: u64, kind: &str, state: &str, parent: Option<u64>) -> JobRow {
     JobRow {

@@ -24,7 +24,15 @@
 //!   flag trips finishes in memory but its outcome write fails, so disk
 //!   still says running and the next daemon restores it as `restore_jobs`
 //!   says — the send already happened, so refusing to finish it would
-//!   record nothing at all. The same teeth apply per transition: a
+//!   record nothing at all. The same residual, for the same reason, is
+//!   every other change a running job's own end makes (#209): a 429's
+//!   requeue (memory waiting with its retry counted, disk running with
+//!   none), a halt's park (memory waiting, disk running) and a parent's
+//!   deferred result (held in memory, not on disk). Each write's failure
+//!   trips the flag, so the divergence stops at that job, and the next
+//!   lifetime replays its row; the park is pinned
+//!   (`a_job_parked_after_a_failed_queue_write_is_waiting_in_memory_and_running_on_disk`).
+//!   The same teeth apply per transition: a
 //!   `waiting→running` write that fails reverts the job instead of running
 //!   it (a send the queue cannot see must not happen), `cancel` and
 //!   `set-priority` report a failed write instead of claiming success (the
