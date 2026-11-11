@@ -31,7 +31,9 @@
 //!
 //! An event a state cannot use is dropped by a transition that does
 //! nothing, never a panic: the driver's sources race (a late verdict, a
-//! second cause, a deadline beside a quiet).
+//! second cause, a deadline beside a quiet). Each such pair is spelled,
+//! never left to a wildcard, so a new event or state is a compile error
+//! at [`Life::step`] (#198).
 //!
 //! Pinned by the table of event scripts in `tests/exit.rs`, one row per
 //! transition, in a synchronous test; the driver by the real-wiring
@@ -152,34 +154,63 @@ impl Life {
         vec![Effect::Arm(Timer::Idle)]
     }
 
-    /// One event in, the effects it asks for out. An event the state
-    /// cannot use asks for nothing.
+    /// One event in, the effects it asks for out. Each state decides
+    /// each event, with no wildcard (#198): a new event or state is a
+    /// compile error here, never one dropped at runtime. An event the
+    /// state cannot use asks for nothing, said pair by pair.
+    // a `_` put back to quiet a new variant's errors is refused (#198)
+    #[deny(clippy::wildcard_enum_match_arm)]
     pub(super) fn step(&mut self, event: Event) -> Vec<Effect> {
-        match (self.state, event) {
-            (State::Serving, Event::Deadline(Timer::Idle)) => vec![Effect::Judge],
-            (State::Serving, Event::Busy) => vec![Effect::Arm(Timer::Idle)],
-            (State::Serving, Event::Idle) => vec![Effect::Begin],
-            (State::Serving, Event::ExitArmed { won: true }) => self.begun(Cause::Idle, vec![]),
-            (State::Serving, Event::StopRequested { won: true }) => self.begun(Cause::Stop, vec![]),
-            // The watcher swapped and did no more: the admission stop is
-            // the loop's first act.
-            (State::Serving, Event::Signal { won: true, why }) => {
-                self.begun(Cause::Signal, vec![Effect::StopAdmitting(why)])
-            }
-            (State::Draining, Event::Quiet) => {
-                self.state = State::Done;
-                vec![Effect::Cancel(Timer::Drain), Effect::Leave]
-            }
-            // The drain's return was always discarded: cut or clean differ
-            // only in the log.
-            (State::Draining, Event::Deadline(Timer::Drain)) => {
-                self.state = State::Done;
-                vec![Effect::Cut, Effect::Leave]
-            }
-            // A lost swap waits for its winner's own event; in the drain a
-            // second cause, a late verdict or a late deadline is nothing;
-            // after the leave everything is.
-            _ => vec![],
+        let state = self.state;
+        match state {
+            State::Serving => match event {
+                Event::Deadline(Timer::Idle) => vec![Effect::Judge],
+                Event::Busy => vec![Effect::Arm(Timer::Idle)],
+                Event::Idle => vec![Effect::Begin],
+                Event::ExitArmed { won: true } => self.begun(Cause::Idle, vec![]),
+                Event::StopRequested { won: true } => self.begun(Cause::Stop, vec![]),
+                // The watcher swapped and did no more: the admission stop
+                // is the loop's first act.
+                Event::Signal { won: true, why } => {
+                    self.begun(Cause::Signal, vec![Effect::StopAdmitting(why)])
+                }
+                // A lost swap waits for its winner's own event.
+                Event::ExitArmed { won: false }
+                | Event::StopRequested { won: false }
+                | Event::Signal { won: false, .. } => vec![],
+                // The drain's bound and the quiet are asked for only by
+                // the drain: one met while serving is nothing.
+                Event::Deadline(Timer::Drain) | Event::Quiet => vec![],
+            },
+            State::Draining => match event {
+                Event::Quiet => {
+                    self.state = State::Done;
+                    vec![Effect::Cancel(Timer::Drain), Effect::Leave]
+                }
+                // The drain's return was always discarded: cut or clean
+                // differ only in the log.
+                Event::Deadline(Timer::Drain) => {
+                    self.state = State::Done;
+                    vec![Effect::Cut, Effect::Leave]
+                }
+                // In the drain a second cause is nothing, won or lost: the
+                // first cause's drain stands.
+                Event::ExitArmed { .. } | Event::StopRequested { .. } | Event::Signal { .. } => {
+                    vec![]
+                }
+                // So is a late verdict or a late idle deadline.
+                Event::Deadline(Timer::Idle) | Event::Idle | Event::Busy => vec![],
+            },
+            // After the leave everything is nothing.
+            State::Done => match event {
+                Event::Deadline(Timer::Idle | Timer::Drain)
+                | Event::Idle
+                | Event::Busy
+                | Event::ExitArmed { .. }
+                | Event::StopRequested { .. }
+                | Event::Signal { .. }
+                | Event::Quiet => vec![],
+            },
         }
     }
 
