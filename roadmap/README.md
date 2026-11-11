@@ -15,8 +15,8 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - E, the daemon held by the compiler and tests: #198, #242, #209,
-    and #208 (the idle hour from a job's end, his "take it").
+  - E, the daemon held by the compiler and tests: #242, #209, and
+    #208 (the idle hour from a job's end, his "take it").
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6 waits
   on the queue above.
@@ -29,10 +29,12 @@ when its step closes or the owner strikes it.
 
 1. 4-full part 1, step 6: the dense table. Its view is designed first,
    as one view of values and places: #244 with the place pages (#248,
-   #194, #189, #182), the live match count (#245, ruled yes), and
-   #186 and #190 riding. The owner rules it before the spike (the
-   design's §7, step 6). The search form's reshaping (#184, #181,
-   #180, #185, #188, #183, #193) is the step after, one design.
+   #194, #189, #182) and whether a plan carries that a tab was ever
+   fetched (#191, taken up in this design at his word), the live match
+   count (#245, ruled yes), and #186 and #190 riding. The owner rules
+   it before the spike (the design's §7, step 6). The search form's
+   reshaping (#184, #181, #180, #185, #188, #183, #193) is the step
+   after, one design.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
