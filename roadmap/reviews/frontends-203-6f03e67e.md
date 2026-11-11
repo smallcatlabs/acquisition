@@ -1,0 +1,5 @@
+- `f3e84793^..6f03e67e` — the entry/wiring split meets the brief structurally; the full done-when is not established.
+- **P2 — [params.rs:109](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-mcp/src/params.rs:109):** The moved documentation still links to `AcqMcp::saved_into`, but `AcqMcp` is no longer in this module’s scope. The concrete failing reader is CI’s documentation stage, which denies unresolved intra-doc-link warnings. Qualify the target as `crate::server::AcqMcp::saved_into`.
+- **Not checked:** compilation, reference regeneration, tests and gate/CI outcomes — **not verified**, because execution was prohibited. Static comparison found the moved implementations unchanged apart from visibility, imports and formatting; reference diffs change only source-path headers.
+- **Nitpicks:** none; the documentation finding affects CI.
+- **Brief:** no changes suggested. **Plan:** no separate plan supplied. **Prompt:** no changes suggested.
