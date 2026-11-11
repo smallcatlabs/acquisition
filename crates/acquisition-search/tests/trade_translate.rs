@@ -857,13 +857,17 @@ proptest! {
 }
 
 /// A report clause is one of two shapes (C100): an exact clause with a
-/// term of its own that states it is `at`, `status`, `term` and `path`
-/// exactly; any other — `false()` says nothing matches, never why (#150)
-/// — keeps the site's filter and its catalogue rows.
+/// term of its own is `at`, `status`, `term` and `path` exactly; any
+/// other — or one that matches nothing, whose term never says why (#150),
+/// a slimmed row carrying no `rows` — keeps the site's filter and its
+/// catalogue rows.
 fn slim_or_whole(c: &Value) {
     let mut keys: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
     keys.sort();
-    if c["status"] == "exact" && c.get("term").is_some_and(|t| t != "false()") {
+    let inverted = c["rows"]
+        .as_array()
+        .is_some_and(|r| r.contains(&json!("query.inverted")));
+    if c["status"] == "exact" && c.get("term").is_some() && !inverted {
         assert_eq!(keys, ["at", "path", "status", "term"], "{c}");
     } else {
         assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
@@ -949,6 +953,32 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     assert_eq!(
         c["notes"].as_array().unwrap().last().unwrap(),
         "its minimum 85 is above its maximum 80",
+        "{c}"
+    );
+    // under `if` the clause's term is the stat absent or `false()`, which
+    // says nothing of the pair either: the clause is known by its row,
+    // never by its term's spelling (#150, the cold review of 23f225c1)
+    let under_if = asked(json!({ "query": { "stats": [{ "type": "if", "filters": [
+        { "id": "implicit.stat_3299347043", "value": { "min": 5, "max": 0 } }] }] } }));
+    let c = under_if["query"]["trade"]["clauses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["at"] == "stats.0.0")
+        .unwrap();
+    assert_eq!(c["status"], "exact", "{c}");
+    assert_ne!(c["term"], "false()", "{c}");
+    slim_or_whole(c);
+    assert!(
+        c["rows"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("query.inverted")),
+        "{c}"
+    );
+    assert_eq!(
+        c["notes"].as_array().unwrap().last().unwrap(),
+        "its minimum 5 is above its maximum 0",
         "{c}"
     );
     // the check refuses a row that says neither its term nor its filter

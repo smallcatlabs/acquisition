@@ -180,8 +180,8 @@
 //! - **The report's clauses** (C100): an exact clause with a term of its
 //!   own carries `at`, `status`, `term` and `path` alone, the text
 //!   stating the rest; every other — not exact, or with no term of its
-//!   own, a weighted sum's filter or a group, or a term `false()`, which
-//!   says nothing matches and never why — keeps the site's filter,
+//!   own, a weighted sum's filter or a group, or one that matches nothing
+//!   (`query.inverted`), whose term never says why — keeps the site's filter,
 //!   its catalogue rows and what they say ([`ClauseOut`]).
 //! - **A `:` or `~` selector is printed as authored with what it resolved
 //!   to beside it** (invariant 2): the values its matched items carry,
@@ -1326,9 +1326,9 @@ impl From<Translation> for TradeOut {
 /// what the term says, a pseudo stat's sentence once a filter (the trade
 /// seat's ring URL: its report 2.7 KB of a 7.9 KB answer of three rows).
 /// A clause with no term of its own — a filter inside a weighted sum,
-/// whose sum is its group's term, or a group that writes none — or whose
-/// term is `false()`, which says that nothing matches and never why (a
-/// range that runs backwards, #150), is not stated by the text, and keeps its whole row, as every clause that
+/// whose sum is its group's term, or a group that writes none — or one
+/// that matches nothing, which its term never says why (a range that runs
+/// backwards, its row `query.inverted`, #150), is not stated by the text, and keeps its whole row, as every clause that
 /// differs from the text does; the catalogue's sentences stay in
 /// `describe trade`.
 #[derive(Debug, Clone, Serialize)]
@@ -1354,12 +1354,23 @@ pub struct ClauseOut {
     reading: Option<Reading>,
 }
 
+impl ClauseOut {
+    /// Whether the clause matches nothing, a range that runs backwards
+    /// (#150): known by its row, never by its term's spelling.
+    pub fn matches_nothing(&self) -> bool {
+        self.rows
+            .iter()
+            .any(|r| r == crate::trade::translate::INVERTED)
+    }
+}
+
 impl From<Clause> for ClauseOut {
     fn from(c: Clause) -> ClauseOut {
         // slimmed only where the text states it: exact, with a term of
         // its own — a filter inside a weighted sum, or a group, has none —
-        // that says it: `false()` says nothing matches, never why (#150)
-        let exact = c.status == Status::Exact && c.term.as_deref().is_some_and(|t| t != "false()");
+        // and not one that matches nothing, whatever its term's spelling
+        // (`false()`, or `-L or false()` under `if`): no term says why (#150)
+        let exact = c.status == Status::Exact && c.term.is_some() && !c.matches_nothing();
         ClauseOut {
             at: c.at,
             site: (!exact).then_some(c.site),

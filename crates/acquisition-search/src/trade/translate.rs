@@ -279,6 +279,17 @@ pub struct Clause {
     pub other: Option<Reading>,
 }
 
+/// The catalogue row of a clause that matches nothing, a range that runs
+/// backwards (#150): what tells such a clause apart, never its term.
+pub const INVERTED: &str = "query.inverted";
+
+impl Clause {
+    /// Whether the clause matches nothing ([`INVERTED`]).
+    pub fn matches_nothing(&self) -> bool {
+        self.rows.iter().any(|r| r == INVERTED)
+    }
+}
+
 /// An ambiguous clause's other reading (C119): the fragment the clause
 /// would be read as the other way, and the path of the conjunct of the
 /// query it stands in for — the clause's own, or the weighted sum's it is
@@ -883,14 +894,14 @@ impl Translator<'_> {
             ..
         } = kept;
         let n = |b: Option<Number>| b.map(print::number_text).unwrap_or_default();
-        kept_notes.extend(self.note_of("query.inverted")?);
+        kept_notes.extend(self.note_of(INVERTED)?);
         let mut notes = kept_notes;
         notes.push(format!(
             "its minimum {} is above its maximum {}",
             n(min),
             n(max)
         ));
-        rows.push("query.inverted".to_string());
+        rows.push(INVERTED.to_string());
         Ok(Landed {
             status,
             rows,

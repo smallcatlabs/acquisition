@@ -982,8 +982,8 @@ pub(crate) const TRADE_OVER: &str = "the items the store has fetched, priced or 
 /// The clauses a translation lists, by status in the text's order — not
 /// run, ambiguous, reported — each with its index among the report's
 /// clauses: every one the document holds; and, last, each exact clause
-/// whose term is `false()`, which the text states as matching nothing and
-/// never why (a range that runs backwards, #150).
+/// that matches nothing, a range that runs backwards (#150), whose term
+/// never says why — known by its row, whatever the term's spelling.
 pub(crate) fn clauses_listed(t: &TradeOut) -> [(&'static str, Vec<(usize, &ClauseOut)>); 4] {
     let of = |keep: &dyn Fn(Status) -> bool| -> Vec<(usize, &ClauseOut)> {
         t.clauses
@@ -1004,7 +1004,7 @@ pub(crate) fn clauses_listed(t: &TradeOut) -> [(&'static str, Vec<(usize, &Claus
             t.clauses
                 .iter()
                 .enumerate()
-                .filter(|(_, c)| c.status == Status::Exact && c.term.as_deref() == Some("false()"))
+                .filter(|(_, c)| c.status == Status::Exact && c.matches_nothing())
                 .collect(),
         ),
     ]

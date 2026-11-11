@@ -3457,11 +3457,13 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
             "--realm",
             "pc",
             "--trade",
-            r#"{"query": {"filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}"#,
+            r#"{"query": {"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 5, "max": 0}}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}"#,
         ],
         &[
             "misc_filters.ilvl",
             "its minimum 85 is above its maximum 80",
+            "stats.0.0",
+            "its minimum 5 is above its maximum 0",
             "0 matches",
         ],
     );

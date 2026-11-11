@@ -1015,6 +1015,29 @@ fn every_search_page_is_a_wording_golden() {
     assert_eq!(listed.status, 200, "{link}: {}", listed.body);
     assert!(listed.body.contains("Doom Loop"), "{}", listed.body);
     every_request_an_answer_carries_is_a_way_on_its_page(&web, link, &listed);
+    // a site search whose ranges run backwards matches nothing, and the
+    // page says which clause and why, the term under `if` included (#150,
+    // the cold review of 23f225c1)
+    let inverted = format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            (
+                "trade",
+                r#"{"query": {"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 5, "max": 0}}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}"#
+            )
+        ])
+    );
+    let nothing = web.get(&inverted);
+    assert_eq!(nothing.status, 200, "{}", nothing.body);
+    pages.page(
+        &format!("GET {inverted}"),
+        &nothing,
+        &[
+            "<td>nothing</td><td>misc_filters.ilvl</td><td>its minimum 85 is above its maximum 80",
+            "<td>nothing</td><td>stats.0.0</td><td>its minimum 5 is above its maximum 0",
+        ],
+    );
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "search_pages", &pages);
 }

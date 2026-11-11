@@ -21,24 +21,31 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (1 more: --routes)
 basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
-$ acq search --realm pc --trade '{"query": {"filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}'
+$ acq search --realm pc --trade '{"query": {"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 5, "max": 0}}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}'
 # holds "misc_filters.ilvl"
 # holds "its minimum 85 is above its maximum 80"
+# holds "stats.0.0"
+# holds "its minimum 5 is above its maximum 0"
 # holds "0 matches"
 --- stdout
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
         nothing   misc_filters.ilvl  its minimum 85 is above its maximum 80
-query   false()
+        nothing   stats.0.0          its minimum 5 is above its maximum 0
+query   false() (-line("# to maximum Life" source=implicit) or false())
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
         1 location never fetched: MapStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
             1 location was never fetched: nothing here says what it holds
+nothing in scope carries the template of term 1.0.0: line("# to maximum Life" source=implicit) — a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
 offers  each part of the query forced true and forced false, the part fewest items match first
-    acq search --account 'Alice#1234' --realm pc 'false()' --explain 0
+    acq search --account 'Alice#1234' --realm pc 'false() (-line("# to maximum Life" source=implicit) or false())' --explain 0
+    acq search --account 'Alice#1234' --realm pc 'false() (-line("# to maximum Life" source=implicit) or false())' --explain 1
         every item in scope, this query set aside
-    acq search --account 'Alice#1234' --realm pc 'false()' --limit 10 --context corpus
+    acq search --account 'Alice#1234' --realm pc 'false() (-line("# to maximum Life" source=implicit) or false())' --limit 10 --context corpus
 terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    false()  0 matched · 2 failed
-routes  each returns exactly the members counted (1 more: --routes)
+  0     false()                                    0 matched · 2 failed
+  1.0.0 line("# to maximum Life" source=implicit)  0 matched · 2 lacked
+  1.1   false()                                    0 matched · 2 failed
+routes  each returns exactly the members counted (3 more: --routes)
 basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
