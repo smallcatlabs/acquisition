@@ -15,9 +15,8 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - C, what the table and the place pages stand on: #200
-    (preserve_order, his "yes, turn it on"), and #150 (the site answers
-    an inverted range with no results, his word).
+  - C, what the table and the place pages stand on: #150 (the site
+    answers an inverted range with no results, his word).
   - D, one voice for refusals: the main account (#246, ruled yes),
     then #247, #178, #234, #239 and #191's wording.
   - E, the daemon held by the compiler and tests: #198, #242, #209,
