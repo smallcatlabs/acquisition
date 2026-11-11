@@ -1598,11 +1598,11 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
                 &pre(&format!("{rails}{}", crate::jobs_cmd::jobs_text(jobs))),
             )
         }
-        absent => {
+        Jobs::Absent { ref persisted } => {
             if wants_json(&headers) {
-                return document(&absent);
+                return document(&listed);
             }
-            match crate::jobs_cmd::persisted_queue_text(&absent) {
+            match crate::jobs_cmd::persisted_queue_text(persisted.as_ref()) {
                 Ok(text) => web.page("Jobs", Head::default(), &pre(&text)),
                 Err(e) => web.failed("Jobs", &Failure::Other(e), &headers),
             }

@@ -1658,6 +1658,10 @@ impl RefreshPlan {
         let mut unspent = Vec::new();
         let mut spent = Vec::new();
         for action in &self.actions {
+            // the endpoint the action's job requests, decoded once: what
+            // its fetch landed under and what an open job holds (#214)
+            let (kind, params) = action.job();
+            let request = Endpoint::from_job(kind, &params);
             // the response each target's fetch landed in, with that
             // response's own time for the words: a listing's from its
             // basis, a fetch's from the response rows, never the target's
@@ -1678,15 +1682,12 @@ impl RefreshPlan {
                 RefreshAction::FetchTab { .. }
                 | RefreshAction::FetchSubstash { .. }
                 | RefreshAction::FetchCharacter { .. } => {
-                    let (kind, params) = action.job();
-                    Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e))
+                    request.as_ref().and_then(|e| snapshot.fetched_in(e))
                 }
             };
             let fetched = landed
                 .filter(|f| f.response_id > since)
                 .map(|f| f.fetched_at);
-            let (kind, params) = action.job();
-            let request = Endpoint::from_job(kind, &params);
             let open = || {
                 live.iter().filter(|job| {
                     request.is_some()

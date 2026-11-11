@@ -340,11 +340,13 @@ async fn a_plan_applied_twice_is_spent_the_second_time() {
         .unwrap();
     assert!(!plan.actions.is_empty(), "{plan:?}");
     let mut slot = None;
-    let Apply::Submitted(submitted) = opened.apply(&plan, None, &mut slot).await.unwrap() else {
+    let (Apply::Submitted(submitted), Some(before)) =
+        opened.apply_to_land(&plan, None, &mut slot).await.unwrap()
+    else {
         panic!("the first apply sent nothing")
     };
     let landed = opened
-        .landed(&mut client, &plan, submitted, None)
+        .landed(&mut client, &plan, submitted, before, None)
         .await
         .unwrap();
     assert!(
@@ -420,11 +422,13 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     // none.
     plan.quote = None;
     let mut slot = None;
-    let Apply::Submitted(submitted) = opened.apply(&plan, None, &mut slot).await.unwrap() else {
+    let (Apply::Submitted(submitted), Some(before)) =
+        opened.apply_to_land(&plan, None, &mut slot).await.unwrap()
+    else {
         panic!("nothing sent")
     };
     let landed = opened
-        .landed(&mut client, &plan, submitted, None)
+        .landed(&mut client, &plan, submitted, before, None)
         .await
         .unwrap();
     let Outcome::Failure { children, .. } = &landed.result.outcome else {

@@ -21,7 +21,7 @@ use crate::cli::{
 };
 use crate::daemon_cmd::daemon_text;
 use crate::jobs_cmd::{
-    block_on_job, jobs_text, print_outcome, print_persisted_job, print_persisted_queue,
+    block_on_job, jobs_text, persisted_queue_text, print_outcome, print_persisted_job,
     print_result, print_table, submit, times_said, wait_for_job, watch_jobs,
     watch_table_until_done,
 };
@@ -550,13 +550,16 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
                 return watch_jobs(cx, cli.json, state, all).await;
             }
             let jobs = cx.frontend.jobs(state, all).await?;
-            let Jobs::Live(listed) = &jobs else {
-                return print_persisted_queue(&jobs, cli.json);
-            };
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&jobs)?);
-            } else {
-                print!("{}", jobs_text(listed));
+                return Ok(());
+            }
+            match &jobs {
+                Jobs::Live(listed) => print!("{}", jobs_text(listed)),
+                // C45: no daemon, the persisted queue
+                Jobs::Absent { persisted } => {
+                    print!("{}", persisted_queue_text(persisted.as_ref())?)
+                }
             }
             Ok(())
         }
@@ -688,77 +691,34 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
                             })?),
                             None => None,
                         };
-                        let candidates: Vec<std::path::PathBuf> = world
-                            .map(|world| vec![world.rails_state_path(provider)])
-                            .unwrap_or_default();
-                        // A file it cannot read, or an empty directory in a
-                        // file's place, is removed (the daemon refuses to
-                        // start over either shape, and names this verb as
-                        // the remedy); anything else is named for the hand.
-                        // Each entry: the path, and whether it was removed
-                        // unread rather than reset.
-                        let mut cleared: Vec<(std::path::PathBuf, bool)> = Vec::new();
-                        for state in &candidates {
-                            let removed = match std::fs::symlink_metadata(state) {
-                                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-                                Err(e) => Err(e),
-                                Ok(meta) if meta.is_file() => match std::fs::read_to_string(state)
-                                    .ok()
-                                    .and_then(|text| serde_json::from_str::<RailsState>(&text).ok())
-                                {
-                                    Some(mut held) => {
-                                        // Nothing a reset clears: the
-                                        // dead-grant marks stay.
-                                        if !held.reset() {
-                                            continue;
-                                        }
-                                        held.write(state).map(|()| false)
-                                    }
-                                    None => std::fs::remove_file(state).map(|()| true),
-                                },
-                                Ok(meta) if meta.is_dir() => std::fs::remove_dir(state)
-                                    .map(|()| true)
-                                    .map_err(|e| {
-                                        std::io::Error::new(
-                                            e.kind(),
-                                            format!("it is a directory that is not empty ({e}); remove it by hand"),
-                                        )
-                                    }),
-                                Ok(_) => std::fs::remove_file(state).map(|()| true),
-                            };
-                            match removed {
-                                Ok(unread) => cleared.push((state.clone(), unread)),
-                                Err(e) => bail!(
-                                    "daemon is not running; could not clear {}: {e}",
-                                    state.display()
-                                ),
-                            }
-                        }
+                        let cleared: Option<(std::path::PathBuf, bool)> = match world
+                            .map(|world| world.rails_state_path(provider))
+                        {
+                            Some(state) => clear_rails_state(&state)?.map(|unread| (state, unread)),
+                            None => None,
+                        };
                         if cli.json {
-                            let first = cleared.first();
                             println!(
                                 "{}",
                                 json!({
-                                    "cleared": !cleared.is_empty(),
-                                    "state": first.map(|(state, _)| state),
-                                    "unreadable": first.is_some_and(|(_, unread)| *unread),
+                                    "cleared": cleared.is_some(),
+                                    "state": cleared.as_ref().map(|(state, _)| state),
+                                    "unreadable": cleared.as_ref().is_some_and(|(_, unread)| *unread),
                                 })
                             );
-                        } else if cleared.is_empty() {
-                            println!("daemon is not running and no rails halt is persisted");
                         } else {
-                            for (state, unread) in cleared {
-                                if unread {
-                                    println!(
-                                        "daemon is not running; removed {}, which could not be read as rails state: whatever it held is gone, a halt or dead-grant marks alike (the next daemon starts clear)",
-                                        state.display()
-                                    );
-                                } else {
-                                    println!(
-                                        "daemon is not running; cleared the rails halt persisted in {} (the next daemon's next send goes to GGG)",
-                                        state.display()
-                                    );
+                            match cleared {
+                                None => {
+                                    println!("daemon is not running and no rails halt is persisted")
                                 }
+                                Some((state, true)) => println!(
+                                    "daemon is not running; removed {}, which could not be read as rails state: whatever it held is gone, a halt or dead-grant marks alike (the next daemon starts clear)",
+                                    state.display()
+                                ),
+                                Some((state, false)) => println!(
+                                    "daemon is not running; cleared the rails halt persisted in {} (the next daemon's next send goes to GGG)",
+                                    state.display()
+                                ),
                             }
                         }
                     }
@@ -829,4 +789,47 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
 /// The `character` job's params, as `acq character` submits them.
 pub(crate) fn character_params(realm: Realm, name: &str) -> serde_json::Value {
     json!({ "realm": realm, "name": name })
+}
+
+/// `daemon reset-tripwire` with no daemon running: the rails state
+/// persisted at `state` reset, or removed where it cannot be read. A
+/// file it cannot read, or an empty directory in a file's place, is
+/// removed (the daemon refuses to start over either shape, and names
+/// this verb as the remedy); anything else is named for the hand. None
+/// where there is nothing to clear (no file, or only the dead-grant
+/// marks, which a reset keeps); else whether it was removed unread
+/// rather than reset.
+fn clear_rails_state(state: &std::path::Path) -> Result<Option<bool>> {
+    let removed = match std::fs::symlink_metadata(state) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => Err(e),
+        Ok(meta) if meta.is_file() => match std::fs::read_to_string(state)
+            .ok()
+            .and_then(|text| serde_json::from_str::<RailsState>(&text).ok())
+        {
+            Some(mut held) => {
+                // Nothing a reset clears: the
+                // dead-grant marks stay.
+                if !held.reset() {
+                    return Ok(None);
+                }
+                held.write(state).map(|()| false)
+            }
+            None => std::fs::remove_file(state).map(|()| true),
+        },
+        Ok(meta) if meta.is_dir() => std::fs::remove_dir(state).map(|()| true).map_err(|e| {
+            std::io::Error::new(
+                e.kind(),
+                format!("it is a directory that is not empty ({e}); remove it by hand"),
+            )
+        }),
+        Ok(_) => std::fs::remove_file(state).map(|()| true),
+    };
+    match removed {
+        Ok(unread) => Ok(Some(unread)),
+        Err(e) => bail!(
+            "daemon is not running; could not clear {}: {e}",
+            state.display()
+        ),
+    }
 }

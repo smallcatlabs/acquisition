@@ -12,7 +12,8 @@ use acquisition_protocol::job::{FailureKind, JobInfo, JobState, JobTimes, Outcom
 use acquisition_protocol::protocol::ListState;
 use acquisition_verbs::jobs::{job_info, result_live};
 use acquisition_verbs::{
-    ChildTally, FailedChild, Fault, Job, JobCounts, JobResult, Jobs, Listed, Progress,
+    ChildTally, FailedChild, Fault, Job, JobCounts, JobResult, Jobs, Listed, PersistedJobs,
+    Progress,
 };
 use anyhow::{Result, bail};
 
@@ -20,24 +21,12 @@ use crate::run::{Ctx, attach};
 use crate::store_cmd;
 use crate::terminal::{AlreadyReported, Terminal, plural};
 
-/// `jobs` with no daemon (C45): `running: false` and the persisted queue
-/// — the same table as the live list, without ETAs, under a line that
-/// says how old the picture is and what restores it.
-pub(crate) fn print_persisted_queue(jobs: &Jobs, json: bool) -> Result<()> {
-    if json {
-        println!("{}", serde_json::to_string_pretty(jobs)?);
-        return Ok(());
-    }
-    print!("{}", persisted_queue_text(jobs)?);
-    Ok(())
-}
-
 /// The persisted queue as text (C45): what `jobs` says with no daemon,
-/// and the web UI's jobs page with it.
-pub(crate) fn persisted_queue_text(jobs: &Jobs) -> Result<String> {
-    let Jobs::Absent { persisted } = jobs else {
-        return Ok(String::new());
-    };
+/// and the web UI's jobs page with it — the same table as the live list,
+/// without ETAs, under a line that says how old the picture is and what
+/// restores it. `persisted` is [`Jobs::Absent`]'s, none where this world
+/// has no queue yet.
+pub(crate) fn persisted_queue_text(persisted: Option<&PersistedJobs>) -> Result<String> {
     let spawns = "a job command or `acq auth` starts one";
     Ok(match persisted {
         None => format!("daemon is not running; no queue on disk ({spawns})\n"),

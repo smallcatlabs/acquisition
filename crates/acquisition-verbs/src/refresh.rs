@@ -228,10 +228,7 @@ pub enum Apply {
     Submitted(Submitted),
 }
 
-/// An apply the daemon admitted as a job, and what the process that submitted
-/// it needs to say what landed: the store's status at the submit, its
-/// event watermark included, since what changed is a difference of two
-/// statuses.
+/// An apply the daemon admitted as a job.
 #[derive(Debug, Serialize)]
 pub struct Submitted {
     pub job_id: u64,
@@ -239,11 +236,16 @@ pub struct Submitted {
     pub requests: usize,
     pub spent: Vec<Spent>,
     pub skipped: Skipped,
-    /// Boxed: the status is the largest part of an apply's answer, and
-    /// [`Apply`]'s arms stay of a size.
-    #[serde(skip)]
-    pub before: Box<Status>,
 }
+
+/// The store's status just before an apply's submit, its event watermark
+/// included: what [`Opened::landed`] measures the apply's changes from,
+/// since what changed is a difference of two statuses. Taken only by
+/// [`Opened::apply_to_land`], for the caller that will ask what landed
+/// (#214: every apply once paid a full status read no surface but the
+/// CLI's ever used); its one reader is `landed`.
+#[derive(Debug)]
+pub struct Watermark(Box<Status>);
 
 /// What an apply did once its job finished: its job's result, made by
 /// the one derivation every result is (`jobs::result_live`: the outcome,
@@ -631,6 +633,29 @@ impl Opened {
         max_requests: Option<u64>,
         client: &mut Option<Client>,
     ) -> Result<Apply, Fault> {
+        Ok(self.applying(plan, max_requests, client, false).await?.0)
+    }
+
+    /// [`Opened::apply`], for a caller that will wait and say what landed:
+    /// the store's [`Watermark`] is read just before the submit and
+    /// returned beside an [`Apply::Submitted`], for [`Opened::landed`];
+    /// none beside the other arms, which submit nothing.
+    pub async fn apply_to_land(
+        &mut self,
+        plan: &RefreshPlan,
+        max_requests: Option<u64>,
+        client: &mut Option<Client>,
+    ) -> Result<(Apply, Option<Watermark>), Fault> {
+        self.applying(plan, max_requests, client, true).await
+    }
+
+    async fn applying(
+        &mut self,
+        plan: &RefreshPlan,
+        max_requests: Option<u64>,
+        client: &mut Option<Client>,
+        watch: bool,
+    ) -> Result<(Apply, Option<Watermark>), Fault> {
         let frontend = self.account.frontend.clone();
         let username = self.account.entry.username.clone();
         plan.check_spendable(
@@ -653,12 +678,15 @@ impl Opened {
             // A strict subset of zero actions is satisfied by doing
             // nothing; the plan's own skipped and unknown reporting says
             // why it is empty.
-            return Ok(Apply::Nothing {
-                applied: false,
-                requests: 0,
-                note: NOTHING_TO_DO.into(),
-                skipped,
-            });
+            return Ok((
+                Apply::Nothing {
+                    applied: false,
+                    requests: 0,
+                    note: NOTHING_TO_DO.into(),
+                    skipped,
+                },
+                None,
+            ));
         }
         let facts = self.snapshot(plan.realm, &plan.league)?;
         let (mut unspent, mut spent) = plan.unspent(&facts, &[], &username);
@@ -683,20 +711,29 @@ impl Opened {
                 // now would fetch still counts them: no remaining count.
                 let queued = spent.iter().any(|s| matches!(s.by, SpentBy::Queued { .. }));
                 let remaining_requests = if queued { None } else { self.remaining(plan) };
-                return Ok(Apply::Spent {
-                    applied: false,
-                    requests: 0,
-                    note: format!(
-                        "nothing to do: every request of this plan is spent — {}",
-                        spent_phrase(&spent, now)
-                    ),
-                    spent,
-                    skipped,
-                    remaining_requests,
-                });
+                return Ok((
+                    Apply::Spent {
+                        applied: false,
+                        requests: 0,
+                        note: format!(
+                            "nothing to do: every request of this plan is spent — {}",
+                            spent_phrase(&spent, now)
+                        ),
+                        spent,
+                        skipped,
+                        remaining_requests,
+                    },
+                    None,
+                ));
             }
         };
-        let before = self.facts.status().map_err(Fault::Other)?;
+        let before = if watch {
+            Some(Watermark(Box::new(
+                self.facts.status().map_err(Fault::Other)?,
+            )))
+        } else {
+            None
+        };
         let job_id = submit(
             &frontend,
             connected,
@@ -706,14 +743,16 @@ impl Opened {
             Some(&username),
         )
         .await?;
-        Ok(Apply::Submitted(Submitted {
-            job_id,
-            account: username,
-            requests: unspent.len(),
-            spent,
-            skipped,
-            before: Box::new(before),
-        }))
+        Ok((
+            Apply::Submitted(Submitted {
+                job_id,
+                account: username,
+                requests: unspent.len(),
+                spent,
+                skipped,
+            }),
+            before,
+        ))
     }
 
     /// C53 (the next action) and C34: wait for a submitted apply, then
@@ -724,13 +763,14 @@ impl Opened {
         client: &mut Client,
         plan: &RefreshPlan,
         submitted: Submitted,
+        before: Watermark,
         progress: Option<&mut (dyn FnMut(&Progress) + Send)>,
     ) -> Result<Landed, Fault> {
         wait(client, submitted.job_id, progress).await?;
         let mut result = result_live(client, submitted.job_id).await?;
         // the account the apply was submitted as, whatever the status says
         result.account = Some(submitted.account);
-        let store_changes = StoreChanges::since(&self.facts, &submitted.before)?;
+        let store_changes = StoreChanges::since(&self.facts, &before.0)?;
         Ok(Landed {
             result,
             store_changes,

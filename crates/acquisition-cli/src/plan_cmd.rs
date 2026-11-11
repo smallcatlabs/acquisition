@@ -488,11 +488,12 @@ async fn apply_plan(
     // every printed next step names the account this apply runs as
     let account = opened.account.entry.username.clone();
     let mut slot = None;
-    let applied = opened.apply(&plan, max_requests, &mut slot).await;
+    let applied = opened.apply_to_land(&plan, max_requests, &mut slot).await;
     if let Some(client) = &slot {
         crate::note_spawn(client);
     }
-    let submitted = match applied? {
+    let (applied, before) = applied?;
+    let submitted = match applied {
         nothing @ Apply::Nothing { .. } => {
             // A strict subset of zero actions is satisfied by doing
             // nothing; "authorizes no requests" is the honest claim — a
@@ -532,6 +533,9 @@ async fn apply_plan(
     let Some(mut client) = slot else {
         bail!("the apply was submitted on no connection this command holds");
     };
+    let Some(before) = before else {
+        bail!("the apply was submitted with no store watermark to say what landed from");
+    };
     let id = submitted.job_id;
     if !json {
         let sending = requests(submitted.requests as u64);
@@ -554,6 +558,7 @@ async fn apply_plan(
             &mut client,
             &plan,
             submitted,
+            before,
             (!json).then_some(&mut report as &mut (dyn FnMut(&acquisition_verbs::Progress) + Send)),
         )
         .await?
