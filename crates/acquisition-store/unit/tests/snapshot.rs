@@ -252,6 +252,11 @@ fn metadata_rides_verbatim_and_removed_tabs_leave_the_snapshot() {
     assert_eq!(ids, vec!["t1", "m1", "s1"]);
 }
 
+/// C54: a fetch owns contents and nothing more. The listing's `name`,
+/// `type` and `metadata` survive a fetch whose body says otherwise, as
+/// GGG is free to send when the fetch was authorized before a rename;
+/// the next listing refreshes them. A substash's listing is its
+/// parent's fetch, so the stub's name outlives the substash's own body.
 #[test]
 fn a_fetch_never_clobbers_the_listed_metadata() {
     let mut s = store();
@@ -261,39 +266,77 @@ fn a_fetch_never_clobbers_the_listed_metadata() {
             &json!({}),
             200,
             &json!({ "stashes": [
-                { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0, "metadata": { "colour": "7c5436" } },
+                { "id": "t1", "name": "New", "type": "PremiumStash", "index": 0, "metadata": { "colour": "7c5436" } },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 1 },
             ]}),
             100,
         )
         .unwrap();
-    // The fetched body lands in `json` — with different metadata, as
-    // GGG is free to send — and the listing's copy must survive it.
+    // The fetched body lands in `json` — with an older name, type and
+    // metadata — and the listing's copy must survive it.
     s.record(
         &stash_ep("t1", None),
         &json!({ "league": "Standard", "id": "t1" }),
         200,
-        &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash",
+        &json!({ "stash": { "id": "t1", "name": "Old", "type": "NormalStash",
                 "metadata": { "colour": "000000" }, "items": [ item("i1") ] } }),
         110,
     )
     .unwrap();
+    // The parent's fetch lists its substash; the substash's own fetch
+    // spells its name otherwise.
+    s.record(
+        &stash_ep("m1", None),
+        &json!({ "league": "Standard", "id": "m1" }),
+        200,
+        &json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
+                "children": [ { "id": "s1", "name": "Tier 1", "type": "MapStash", "parent": "m1" } ] } }),
+        111,
+    )
+    .unwrap();
+    s.record(
+        &stash_ep("m1", Some("s1")),
+        &json!({ "league": "Standard", "id": "m1", "substash_id": "s1" }),
+        200,
+        &json!({ "stash": { "id": "s1", "name": "T1", "type": "NormalStash", "parent": "m1",
+                "items": [ item("i2") ] } }),
+        112,
+    )
+    .unwrap();
     let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
-    let t1 = &snap.tabs[0];
+    let tab = |id: &str| snap.tabs.iter().find(|t| t.id == id).unwrap();
+    let t1 = tab("t1");
+    assert_eq!(
+        (t1.name.as_str(), t1.r#type.as_str()),
+        ("New", "PremiumStash")
+    );
     assert_eq!(t1.metadata, json!({ "colour": "7c5436" }));
     assert_eq!((t1.fetched_at, t1.item_count), (Some(110), 1));
+    let s1 = tab("s1");
+    assert_eq!(
+        (s1.name.as_str(), s1.r#type.as_str()),
+        ("Tier 1", "MapStash")
+    );
+    assert_eq!((s1.fetched_at, s1.item_count), (Some(112), 1));
     // The next listing refreshes the listed copy.
     s.record(
             &listing_ep(),
             &json!({}),
             200,
             &json!({ "stashes": [
-                { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0, "metadata": { "colour": "ffffff" } },
+                { "id": "t1", "name": "Newer", "type": "QuadStash", "index": 0, "metadata": { "colour": "ffffff" } },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 1 },
             ]}),
             120,
         )
         .unwrap();
     let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
-    assert_eq!(snap.tabs[0].metadata, json!({ "colour": "ffffff" }));
+    let t1 = snap.tabs.iter().find(|t| t.id == "t1").unwrap();
+    assert_eq!(
+        (t1.name.as_str(), t1.r#type.as_str()),
+        ("Newer", "QuadStash")
+    );
+    assert_eq!(t1.metadata, json!({ "colour": "ffffff" }));
 }
 
 #[test]

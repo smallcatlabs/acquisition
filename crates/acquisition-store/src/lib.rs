@@ -2036,9 +2036,17 @@ impl Store {
                     let fetched = Value::Object(stash.clone());
                     // A fetch never revives a tab (only a listing — or, for
                     // a substash, its parent's fetch — owns membership).
+                    // C54: once a listing has named the row (`listed_at`;
+                    // a substash's listing is its parent's fetch), the
+                    // listing owns its `name` and `type` too, so a fetch
+                    // that lands after a newer listing cannot roll them
+                    // back; the body's own say stays verbatim in `json`.
+                    // A row no listing has named takes the body's values.
                     tx.execute(
                         "INSERT INTO tabs (realm, league, id, parent, name, type, json, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                         ON CONFLICT(realm, league, id) DO UPDATE SET name = excluded.name, type = excluded.type,
+                         ON CONFLICT(realm, league, id) DO UPDATE SET
+                           name = CASE WHEN tabs.listed_at IS NULL THEN excluded.name ELSE tabs.name END,
+                           type = CASE WHEN tabs.listed_at IS NULL THEN excluded.type ELSE tabs.type END,
                            json = excluded.json, fetched_at = excluded.fetched_at,
                            parent = COALESCE(excluded.parent, tabs.parent)",
                         params![realm, league, location, sub.as_ref().map(|_| id.clone()),

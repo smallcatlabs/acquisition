@@ -13,4 +13,4 @@ rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched <age> ago
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard  1 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 6 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

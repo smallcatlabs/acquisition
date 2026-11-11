@@ -1905,10 +1905,24 @@ fn a_tab_named_by_the_remove_only_mark_alone_is_named_by_its_id_everywhere() {
     let scratch = harness::scratch("seat-remove-only");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    // Standard's tab, fetched three days ago under the mark alone
+    // Standard's tab, listed under the mark alone and fetched three days
+    // ago. The listing owns the name (C54), so the mark is staged where
+    // GGG says it, on the listed tab; the fetch spells it too.
     let mock = base.join("store").join("mock");
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     let then = harness::now() - 3 * 86_400 - 60;
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "a1", "name": " (Remove-only)", "type": "PremiumStash", "index": 0 } ] }),
+            harness::now(),
+        )
+        .unwrap();
     store
         .record(
             &Endpoint::Stash {
