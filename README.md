@@ -216,9 +216,8 @@ that would get past it, a refused command line the same with
 `outcome: "failure"` with `error`, not a refusal. Every command takes
 `--account <username|name|uuid>` too, named each time: nothing
 remembers it, neither the store nor the environment. Without it, a
-verb that reads the store takes the one account known on disk and a job
-verb the one logged in; where there are several, it refuses and names
-them. The saved searches are the world's: `acq saved` needs no login,
+verb takes the one account known on disk; where there are several, it
+refuses and names them, a job before any daemon is reached. The saved searches are the world's: `acq saved` needs no login,
 and uses an account only to resolve the realm of a new search that
 names none.
 

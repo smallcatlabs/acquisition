@@ -848,6 +848,14 @@ impl AcqMcp {
         };
         settled(
             async {
+                // C51 (the owner's ruling on #246): the job's account chosen
+                // before the daemon is reached, so several known and none
+                // named is refused with none spawned
+                let account = acquisition_verbs::jobs::job_account(
+                    &self.frontend,
+                    &p.kind,
+                    p.account.as_deref(),
+                )?;
                 let mut client = self.frontend.connect().await?;
                 let id = acquisition_verbs::jobs::submit(
                     &self.frontend,
@@ -855,7 +863,7 @@ impl AcqMcp {
                     &p.kind,
                     p.params.unwrap_or_else(|| json!({})),
                     p.priority.unwrap_or(0),
-                    p.account.as_deref(),
+                    account.as_deref(),
                 )
                 .await?;
                 Ok(json!({ "job_id": id }))

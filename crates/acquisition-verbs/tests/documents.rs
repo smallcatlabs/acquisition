@@ -260,6 +260,44 @@ fn a_bare_name_shared_by_two_discriminators_is_ambiguous_with_both() {
     assert_eq!(picked.entry.uuid.as_deref(), Some("u-2"));
 }
 
+/// C51 (the owner's ruling on #246, 2026-11-11): a job names its account,
+/// chosen at the frontend's door before any daemon is reached. A named
+/// selector passes as typed; the one account known is named; among
+/// several, none named is `ambiguous_account` with the accounts to name,
+/// where before the daemon ran it as its one live session; a kind that
+/// needs no account names none; and with no account known the job names
+/// none, for the daemon to refuse as before.
+#[test]
+fn c51_a_job_names_its_account_and_among_several_none_named_is_refused() {
+    use acquisition_verbs::jobs::job_account;
+    let s = scratch();
+    let f = frontend(&s.mock);
+    assert_eq!(
+        job_account(&f, "stashes", None).unwrap(),
+        None,
+        "none known"
+    );
+    login(&s.mock, USER, UUID);
+    assert_eq!(
+        job_account(&f, "stashes", None).unwrap().as_deref(),
+        Some(USER),
+        "the one known is named"
+    );
+    login(&s.mock, "Bob#9", "u-bob");
+    let fault = job_account(&f, "stashes", None).unwrap_err();
+    assert_eq!(
+        Value::Object(fault.fields()),
+        json!({ "kind": "ambiguous_account", "accounts": [USER, "Bob#9"] })
+    );
+    assert_eq!(
+        job_account(&f, "stashes", Some("bob")).unwrap().as_deref(),
+        Some("bob"),
+        "a named selector passes as typed, for the daemon to match"
+    );
+    assert_eq!(job_account(&f, "sleep", None).unwrap(), None);
+    assert_eq!(job_account(&f, "fetch", None).unwrap(), None, "mock");
+}
+
 #[test]
 fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
     let s = scratch();

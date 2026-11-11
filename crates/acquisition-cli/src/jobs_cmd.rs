@@ -82,24 +82,20 @@ pub(crate) fn print_persisted_job(id: u64, job: &Job, json: bool) -> Result<()> 
     Ok(())
 }
 
-/// C3 and C4: submit a job as this process, the account flag passed to
-/// the daemon unresolved.
+/// C3 and C4: submit a job as this process, naming `account`, the one
+/// [`crate::run::connect_as`] chose before the daemon was reached (C51).
 pub(crate) async fn submit(
     cx: &Ctx,
     client: &mut Client,
+    account: Option<&str>,
     kind: String,
     params: serde_json::Value,
     priority: u8,
 ) -> Result<u64> {
-    Ok(acquisition_verbs::jobs::submit(
-        &cx.frontend,
-        client,
-        &kind,
-        params,
-        priority,
-        cx.account.as_deref(),
+    Ok(
+        acquisition_verbs::jobs::submit(&cx.frontend, client, &kind, params, priority, account)
+            .await?,
     )
-    .await?)
 }
 
 /// `jobs --watch`: the subscriber's sequence under C85, as the reference

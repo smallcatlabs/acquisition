@@ -280,6 +280,20 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         "{}",
         String::from_utf8_lossy(&set.stderr)
     );
+    // C51, the owner's ruling on #246: a job names its account among
+    // several, refused at the frontend's door before any daemon is
+    // reached, so none is spawned for it
+    let job = acq(&base, &["stashes", "--league", "Standard", "--json"]);
+    assert_eq!(job.status.code(), Some(1), "{job:?}");
+    let refused = sole_json(&job);
+    assert_eq!(refused["kind"], "ambiguous_account", "{refused}");
+    assert_eq!(refused["accounts"], json!(["Alice#1234", "Bob#5678"]));
+    let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
+    assert_eq!(
+        status["running"],
+        json!(false),
+        "a daemon was spawned: {status}"
+    );
 
     // #168's text half (the answer-facts seat, CLI run 1 call 11): the
     // text named the accounts and no command to run. It prints one ready

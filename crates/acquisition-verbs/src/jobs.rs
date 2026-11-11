@@ -48,6 +48,45 @@ pub struct Progress {
     pub children: Option<ChildTally>,
 }
 
+/// C51 (the owner's ruling on #246, 2026-11-11): the account a job of
+/// `kind` names to the daemon, chosen before any daemon is reached, so a
+/// refusal spawns none. A named selector is passed as typed, for the
+/// daemon to match against its sessions as before; a kind that needs no
+/// account ([`needs_no_account`]) names none; otherwise the frontend's
+/// door picks: the one account known is named, and among several, none
+/// named is `ambiguous_account` with the accounts to name. Where the door
+/// cannot read the index (no account known, or the index unreadable) the
+/// job names none and the daemon answers, as before: its rule, one
+/// session or a refusal, stays the backstop.
+pub fn job_account(
+    frontend: &Frontend,
+    kind: &str,
+    selector: Option<&str>,
+) -> Result<Option<String>, Fault> {
+    if let Some(named) = selector {
+        return Ok(Some(named.to_string()));
+    }
+    if needs_no_account(kind, frontend.provider) {
+        return Ok(None);
+    }
+    match frontend.account(None) {
+        Ok(account) => Ok(Some(account.entry.username)),
+        Err(fault @ Fault::AmbiguousAccount { .. }) => Err(fault),
+        Err(_) => Ok(None),
+    }
+}
+
+/// The kinds the daemon runs with no account (its `kind_needs_account`,
+/// read here so the frontend asks no account of them): `sleep`, and
+/// `fetch` under the stand-in provider.
+pub fn needs_no_account(kind: &str, provider: &str) -> bool {
+    match kind {
+        "sleep" => true,
+        "fetch" => provider != acquisition_protocol::provider::GGG,
+        _ => false,
+    }
+}
+
 /// C4 and C3: submit one job and return its id. `account` is the
 /// selector as the caller gave it, passed through unresolved; the
 /// submitter is this frontend's channel and process (C65).

@@ -58,6 +58,15 @@ pub(crate) async fn connect(cx: &Ctx) -> Result<Client> {
     Ok(client)
 }
 
+/// A job verb's connect (C51, the owner's ruling on #246): the account
+/// the job names, chosen through the frontend's door before any daemon is
+/// reached — so several accounts known and none named is refused as
+/// `ambiguous_account` with no daemon spawned for it — then [`connect`].
+pub(crate) async fn connect_as(cx: &Ctx, kind: &str) -> Result<(Client, Option<String>)> {
+    let account = acquisition_verbs::jobs::job_account(&cx.frontend, kind, cx.account.as_deref())?;
+    Ok((connect(cx).await?, account))
+}
+
 /// The running daemon, for a verb that observes it or acts on it (C10):
 /// never spawns or replaces. Absence and a mismatch are faults the CLI
 /// words; `daemon status` renders the same observation as states, and
@@ -160,15 +169,24 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
         },
         Cmd::Web { no_browser } => web::web(cli.account.clone(), no_browser, cli.json).await,
         Cmd::Profile => {
-            let mut client = connect(cx).await?;
-            let id = submit(cx, &mut client, "profile".into(), json!({}), 0).await?;
-            block_on_job(&mut client, id, cli.json).await
-        }
-        Cmd::Characters { realm } => {
-            let mut client = connect(cx).await?;
+            let (mut client, account) = connect_as(cx, "profile").await?;
             let id = submit(
                 cx,
                 &mut client,
+                account.as_deref(),
+                "profile".into(),
+                json!({}),
+                0,
+            )
+            .await?;
+            block_on_job(&mut client, id, cli.json).await
+        }
+        Cmd::Characters { realm } => {
+            let (mut client, account) = connect_as(cx, "characters").await?;
+            let id = submit(
+                cx,
+                &mut client,
+                account.as_deref(),
                 "characters".into(),
                 json!({ "realm": realm }),
                 0,
@@ -177,10 +195,11 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Character { name, realm } => {
-            let mut client = connect(cx).await?;
+            let (mut client, account) = connect_as(cx, "character").await?;
             let id = submit(
                 cx,
                 &mut client,
+                account.as_deref(),
                 "character".into(),
                 character_params(realm, &name),
                 0,
@@ -193,8 +212,16 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             expand,
         } => leagues_cmd::stored(cx, expand, cli.json),
         Cmd::Leagues { stored: false, .. } => {
-            let mut client = connect(cx).await?;
-            let id = submit(cx, &mut client, "leagues".into(), json!({}), 0).await?;
+            let (mut client, account) = connect_as(cx, "leagues").await?;
+            let id = submit(
+                cx,
+                &mut client,
+                account.as_deref(),
+                "leagues".into(),
+                json!({}),
+                0,
+            )
+            .await?;
             if cli.json {
                 return block_on_job(&mut client, id, true).await;
             }
@@ -249,10 +276,11 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             StoreCmd::Import { path } => store_cmd::import(cx, &path, cli.json),
         },
         Cmd::Stashes { league, realm } => {
-            let mut client = connect(cx).await?;
+            let (mut client, account) = connect_as(cx, "stashes").await?;
             let id = submit(
                 cx,
                 &mut client,
+                account.as_deref(),
                 "stashes".into(),
                 json!({ "realm": realm, "league": league }),
                 0,
@@ -267,10 +295,11 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             league,
             realm,
         } => {
-            let mut client = connect(cx).await?;
+            let (mut client, account) = connect_as(cx, "stash").await?;
             let id = submit(
                 cx,
                 &mut client,
+                account.as_deref(),
                 "stash".into(),
                 json!({ "realm": realm, "league": league, "id": id, "sub": sub, "deep": deep }),
                 0,
@@ -488,8 +517,8 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             detach,
         } => {
             let params: serde_json::Value = serde_json::from_str(&params)?;
-            let mut client = connect(cx).await?;
-            let id = submit(cx, &mut client, kind, params, priority).await?;
+            let (mut client, account) = connect_as(cx, &kind).await?;
+            let id = submit(cx, &mut client, account.as_deref(), kind, params, priority).await?;
             if detach {
                 if cli.json {
                     println!("{}", json!({ "job_id": id }));
@@ -504,12 +533,13 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             }
         }
         Cmd::Demo { count } => {
-            let mut client = connect(cx).await?;
+            let (mut client, account) = connect_as(cx, "fetch").await?;
             let mut ids = Vec::new();
             for i in 0..count {
                 let id = submit(
                     cx,
                     &mut client,
+                    account.as_deref(),
                     "fetch".into(),
                     json!({ "what": format!("demo stash tab {i}") }),
                     0,
