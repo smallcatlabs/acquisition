@@ -66,12 +66,17 @@ impl Daemon {
         {
             let s = self.shared.lock().unwrap();
             for e in s.jobs.values() {
-                if e.info.state.is_terminal() || e.info.kind == "probe" || e.deferred.is_some() {
+                if e.info().state.is_terminal()
+                    || e.info().kind == "probe"
+                    || e.deferred().is_some()
+                {
                     continue;
                 }
-                if let Some((endpoint, _)) =
-                    self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref())
-                {
+                if let Some((endpoint, _)) = self.keyed_route_for(
+                    &e.info().kind,
+                    &e.info().params,
+                    e.info().account.as_deref(),
+                ) {
                     *queued.entry(self.choke.serial_key(&endpoint)).or_insert(0) += 1;
                 }
             }

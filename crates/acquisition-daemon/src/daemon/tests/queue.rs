@@ -1912,7 +1912,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     {
         let mut s = daemon.shared.lock().unwrap();
         let entry = s.jobs.get_mut(&running).unwrap();
-        entry.info.state = JobState::Running;
+        entry.start(daemon.unix_now());
         daemon.persist(entry);
     }
     let waiting = daemon
@@ -2294,7 +2294,7 @@ async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     assert!(daemon.queue_failed().is_some());
     let s = daemon.shared.lock().unwrap();
     assert_eq!(
-        s.jobs.get(&id).map(|e| e.info.state),
+        s.jobs.get(&id).map(|e| e.info().state),
         Some(JobState::Done),
         "memory still holds the job, concluded"
     );
@@ -2558,7 +2558,7 @@ async fn a_transition_that_cannot_persist_does_not_run() {
     })
     .await
     .expect("the failed write tripped the queue");
-    let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
+    let state = daemon.shared.lock().unwrap().jobs[&id].info().state;
     assert_eq!(
         state,
         JobState::Waiting,
@@ -2998,36 +2998,40 @@ fn c165_each_time_is_set_at_its_transition_and_the_result_and_row_carry_them() {
 /// starts nothing; its end sets the finish, once.
 #[test]
 fn c165_a_requeued_job_keeps_its_first_start() {
-    let fresh = |state: JobState| Entry {
-        info: JobInfo {
-            id: 1,
-            kind: "stash".into(),
-            state,
-            priority: 0,
-            submitted_by: "client".into(),
-            eta_seconds: None,
-            parent: None,
-            retries: 0,
-            account: None,
-            params: json!({}),
-            times: JobTimes {
-                submitted_at: Some(100),
-                ..JobTimes::default()
+    let fresh = |state: JobState| {
+        Entry::fixture(
+            JobInfo {
+                id: 1,
+                kind: "stash".into(),
+                state,
+                priority: 0,
+                submitted_by: "client".into(),
+                eta_seconds: None,
+                parent: None,
+                retries: 0,
+                account: None,
+                params: json!({}),
+                times: JobTimes {
+                    submitted_at: Some(100),
+                    ..JobTimes::default()
+                },
             },
-        },
-        outcome: None,
-        cancel_requested: false,
-        deferred: None,
+            None,
+        )
     };
     let mut entry = fresh(JobState::Waiting);
-    let at = |entry: &Entry| (entry.info.times.started_at, entry.info.times.finished_at);
+    let at = |entry: &Entry| {
+        (
+            entry.info().times.started_at,
+            entry.info().times.finished_at,
+        )
+    };
     entry.stamp(101);
     assert_eq!(at(&entry), (None, None), "waiting: no start");
     entry.start(105);
     entry.stamp(105);
     assert_eq!(at(&entry), (Some(105), None), "the first start");
-    entry.info.state = JobState::Waiting;
-    entry.info.retries = 1;
+    entry.requeue_429();
     entry.stamp(106);
     entry.start(140);
     entry.stamp(140);
@@ -3037,7 +3041,13 @@ fn c165_a_requeued_job_keeps_its_first_start() {
     let mut held = fresh(JobState::Running);
     held.stamp(150);
     assert_eq!(at(&held), (None, None), "a persist starts nothing");
-    entry.info.state = JobState::Done;
+    let mut entry = Entry::fixture(
+        JobInfo {
+            state: JobState::Done,
+            ..entry.info().clone()
+        },
+        None,
+    );
     entry.stamp(141);
     entry.stamp(150);
     assert_eq!(at(&entry), (Some(105), Some(141)), "the finish, once");

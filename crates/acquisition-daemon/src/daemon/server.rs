@@ -316,7 +316,7 @@ impl Daemon {
                     let s = self.shared.lock().unwrap();
                     s.jobs
                         .get(&id)
-                        .map(|e| (e.info.state, e.outcome.clone(), e.info.times.clone()))
+                        .map(|e| (e.info().state, e.outcome().cloned(), e.info().times.clone()))
                 };
                 match held {
                     Some((_, Some(outcome), times)) => Response::Result { id, outcome, times },
@@ -429,7 +429,7 @@ impl Daemon {
                 let (waiting, running) =
                     s.jobs
                         .values()
-                        .fold((0, 0), |(w, r), e| match e.info.state {
+                        .fold((0, 0), |(w, r), e| match e.info().state {
                             JobState::Waiting => (w + 1, r),
                             JobState::Running => (w, r + 1),
                             _ => (w, r),
@@ -1048,8 +1048,8 @@ impl Daemon {
     /// do not: they are on disk, and its successor holds them until the
     /// reset (C25). A parent holding its result runs no task of its own.
     pub(super) fn has_live_jobs(s: &Shared, halted: bool) -> bool {
-        s.jobs.values().any(|e| match e.info.state {
-            JobState::Running => e.deferred.is_none() || !halted,
+        s.jobs.values().any(|e| match e.info().state {
+            JobState::Running => e.deferred().is_none() || !halted,
             JobState::Waiting => !halted,
             _ => false,
         })
@@ -1084,7 +1084,7 @@ impl InFlight {
             s.active_jobs.keys().copied().partition(|id| {
                 s.jobs
                     .get(id)
-                    .is_some_and(|e| e.info.state == JobState::Running)
+                    .is_some_and(|e| e.info().state == JobState::Running)
             });
         jobs.sort_unstable();
         held.sort_unstable();
@@ -1113,7 +1113,7 @@ impl InFlight {
                     None => true,
                     // Absent is evicted, so terminal: the id was set
                     // where the job was inserted (C6).
-                    Some(id) => s.jobs.get(&id).is_none_or(|e| e.info.state.is_terminal()),
+                    Some(id) => s.jobs.get(&id).is_none_or(|e| e.info().state.is_terminal()),
                 });
         InFlight {
             jobs,

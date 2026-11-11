@@ -160,8 +160,8 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     {
         let mut s = daemon.shared.lock().unwrap();
         let e = s.jobs.get_mut(&parent).unwrap();
-        e.info.state = JobState::Running;
-        e.deferred = Some(Outcome::Success { payload: json!({}) });
+        e.start(daemon.unix_now());
+        e.hold(Some(Outcome::Success { payload: json!({}) }));
     }
     let quote = match daemon
         .handle_request(

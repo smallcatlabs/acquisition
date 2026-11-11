@@ -449,10 +449,10 @@ impl Daemon {
                 let held = {
                     let s = self.shared.lock().unwrap();
                     s.jobs.get(&id).map(|e| {
-                        e.info
+                        e.info()
                             .state
                             .is_terminal()
-                            .then(|| e.outcome.clone())
+                            .then(|| e.outcome().cloned())
                             .flatten()
                     })
                 };

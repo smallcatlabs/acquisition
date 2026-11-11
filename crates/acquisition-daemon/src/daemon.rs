@@ -139,6 +139,8 @@ use acquisition_protocol::realm::{Family, Realm};
 
 use crate::{auth, mockggg};
 
+mod entry;
+use entry::{Ended, Entry};
 mod dispatch;
 mod endpoint;
 mod held;
@@ -323,110 +325,6 @@ const LOGIN_PROFILE_TIMEOUT: Duration = Duration::from_secs(120);
 /// ([`Daemon::login_within`]); the expiry fails the flow in words that
 /// say to run the login again (C137, pinned by forcing it).
 const LOGIN_WITHIN: Duration = Duration::from_secs(300);
-
-/// One job in memory. Its params are `info.params`, the one copy (C7,
-/// they travel on `JobInfo` as submitted).
-/// A job [`Daemon::end`] made terminal: its info, for the event sent
-/// after the lock, and whether its row's write landed (C6).
-pub(super) struct Ended {
-    pub(super) info: JobInfo,
-    pub(super) landed: bool,
-}
-
-struct Entry {
-    info: JobInfo,
-    outcome: Option<Outcome>,
-    cancel_requested: bool,
-    /// A parent's own result, held back until its descendants finish. Set
-    /// means "running, waiting on children, with no active dispatcher task".
-    deferred: Option<Outcome>,
-}
-
-impl Entry {
-    /// C165: the job's transition into running, the one place a start is
-    /// set: its first, kept by a 429's re-queue and a restart. A record
-    /// that never had one (a running row of schema v1, a parent restored
-    /// still running) keeps none: a persist is no start (the review of
-    /// round E, finding 4).
-    fn start(&mut self, now: i64) {
-        self.info.state = JobState::Running;
-        self.info.times.started_at.get_or_insert(now);
-    }
-
-    /// C165: the finish this state makes true, set once when the job is
-    /// terminal and never moved after. [`Daemon::persist`] calls it before
-    /// every write, so memory and the row agree. The submission is set at
-    /// submit, the start by [`Self::start`].
-    fn stamp(&mut self, now: i64) {
-        if self.info.state.is_terminal() {
-            self.info.times.finished_at.get_or_insert(now);
-        }
-    }
-
-    /// The row `daemon.db` holds for this job (C6): `JobInfo` column for
-    /// column plus the fields a restart needs. `eta_seconds` is a
-    /// prediction, never stored.
-    fn row(&self, now: i64) -> JobRow {
-        let json = |o: &Outcome| serde_json::to_value(o).unwrap_or(Value::Null);
-        JobRow {
-            id: self.info.id,
-            kind: self.info.kind.clone(),
-            state: self.info.state.to_string(),
-            priority: self.info.priority,
-            submitted_by: self.info.submitted_by.clone(),
-            parent: self.info.parent,
-            retries: self.info.retries,
-            account: self.info.account.clone(),
-            params: self.info.params.clone(),
-            outcome: self.outcome.as_ref().map(json),
-            deferred: self.deferred.as_ref().map(json),
-            cancel_requested: self.cancel_requested,
-            submitted_at: self.info.times.submitted_at.unwrap_or(now),
-            updated_at: now,
-            started_at: self.info.times.started_at,
-            finished_at: self.info.times.finished_at,
-        }
-    }
-
-    /// [`Entry::from_row`], a state word this daemon does not know
-    /// refused rather than read as no row.
-    fn from_row_read(row: JobRow) -> Result<Option<Entry>, Refusal> {
-        match job_state(&row.state) {
-            Some(_) => Ok(Entry::from_row(row)),
-            None => Err(Refusal::unknown_state(row.id, &row.state)),
-        }
-    }
-
-    /// A restored row. What a restart does with `running` (re-queue) or
-    /// `probe` (drop) is decided by the caller; this is the plain mapping.
-    fn from_row(row: JobRow) -> Option<Entry> {
-        let state = job_state(&row.state)?;
-        let outcome = |v: Option<Value>| v.and_then(|v| serde_json::from_value(v).ok());
-        Some(Entry {
-            info: JobInfo {
-                id: row.id,
-                kind: row.kind,
-                state,
-                priority: row.priority,
-                submitted_by: row.submitted_by,
-                eta_seconds: None,
-                parent: row.parent,
-                retries: row.retries,
-                account: row.account,
-                params: row.params,
-                times: JobTimes {
-                    submitted_at: Some(row.submitted_at),
-                    started_at: row.started_at,
-                    finished_at: row.finished_at,
-                    ..JobTimes::default()
-                },
-            },
-            outcome: outcome(row.outcome),
-            cancel_requested: row.cancel_requested,
-            deferred: outcome(row.deferred),
-        })
-    }
-}
 
 /// A job's state from the word `daemon.db` records it by.
 fn job_state(word: &str) -> Option<JobState> {
@@ -941,8 +839,8 @@ impl Shared {
     fn tree(&self, root: JobId) -> Vec<JobId> {
         let mut children: HashMap<JobId, Vec<JobId>> = HashMap::new();
         for e in self.jobs.values() {
-            if let Some(parent) = e.info.parent {
-                children.entry(parent).or_default().push(e.info.id);
+            if let Some(parent) = e.info().parent {
+                children.entry(parent).or_default().push(e.info().id);
             }
         }
         let mut tree = vec![root];
@@ -961,17 +859,17 @@ impl Shared {
         let mut waiting: Vec<&Entry> = self
             .jobs
             .values()
-            .filter(|e| e.info.state == JobState::Waiting)
+            .filter(|e| e.info().state == JobState::Waiting)
             .collect();
-        waiting.sort_by_key(|e| (std::cmp::Reverse(e.info.priority), e.info.id));
-        waiting.iter().map(|e| e.info.id).collect()
+        waiting.sort_by_key(|e| (std::cmp::Reverse(e.info().priority), e.info().id));
+        waiting.iter().map(|e| e.info().id).collect()
     }
 
     /// Snapshot with eta filled in for waiting jobs. The daemon can predict
     /// because it sees the whole queue and the limiter.
     fn snapshot(&self, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
         let entry = self.jobs.get(&id)?;
-        let mut info = entry.info.clone();
+        let mut info = entry.info().clone();
         info.eta_seconds = if info.state == JobState::Waiting {
             self.waiting_etas(daemon, Some(id)).get(&id).copied()
         } else {
@@ -990,7 +888,7 @@ impl Shared {
             .jobs
             .values()
             .map(|e| {
-                let mut info = e.info.clone();
+                let mut info = e.info().clone();
                 info.eta_seconds = if info.state == JobState::Waiting {
                     etas.get(&info.id).copied()
                 } else {
@@ -1015,7 +913,11 @@ impl Shared {
         for id in self.queue_order() {
             let e = &self.jobs[&id];
             let wanted = only.is_none_or(|o| o == id);
-            match daemon.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()) {
+            match daemon.keyed_route_for(
+                &e.info().kind,
+                &e.info().params,
+                e.info().account.as_deref(),
+            ) {
                 Some((route, _)) => {
                     let (passed, wanted_here) = routes.entry(route).or_default();
                     if wanted {

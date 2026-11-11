@@ -570,8 +570,10 @@ fn a_blocked_probe_is_no_probe_failure() {
                 .unwrap()
                 .jobs
                 .values()
-                .find(|entry| entry.info.kind == "probe" && entry.info.state == JobState::Waiting)
-                .map(|entry| entry.info.id)
+                .find(|entry| {
+                    entry.info().kind == "probe" && entry.info().state == JobState::Waiting
+                })
+                .map(|entry| entry.info().id)
                 .unwrap_or_else(|| panic!("{name}: the probe was turned away"));
             assert!(
                 daemon.shared.lock().unwrap().active_jobs.is_empty(),
@@ -598,7 +600,7 @@ fn a_blocked_probe_is_no_probe_failure() {
                 EndpointState::Unknown,
                 "{name}: a block teaches the route nothing"
             );
-            let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
+            let state = daemon.shared.lock().unwrap().jobs[&id].info().state;
             assert_eq!(
                 state,
                 JobState::Waiting,
@@ -607,7 +609,7 @@ fn a_blocked_probe_is_no_probe_failure() {
             assert_ne!(probe, id);
             let (state, retries) = {
                 let s = daemon.shared.lock().unwrap();
-                (s.jobs[&probe].info.state, s.jobs[&probe].info.retries)
+                (s.jobs[&probe].info().state, s.jobs[&probe].info().retries)
             };
             assert_eq!(
                 (state, retries),

@@ -139,11 +139,11 @@ impl Shared {
             ..ListCounts::default()
         };
         for e in self.jobs.values() {
-            match e.info.state {
+            match e.info().state {
                 JobState::Running => counts.running += 1,
                 JobState::Waiting => {
                     counts.waiting += 1;
-                    if let Some(&eta) = etas.get(&e.info.id)
+                    if let Some(&eta) = etas.get(&e.info().id)
                         && eta > 0
                     {
                         counts.soonest_eta_seconds =
@@ -226,7 +226,7 @@ impl Daemon {
         {
             Ok(()) => true,
             Err(e) => {
-                self.trip_queue_failure(&format!("persisting job {}", entry.info.id), &e);
+                self.trip_queue_failure(&format!("persisting job {}", entry.info().id), &e);
                 false
             }
         }
@@ -370,7 +370,7 @@ impl Daemon {
             let written = row.outcome.is_some();
             let why = match Entry::from_row(row) {
                 Some(entry)
-                    if written && entry.info.state.is_terminal() && entry.outcome.is_none() =>
+                    if written && entry.info().state.is_terminal() && entry.outcome().is_none() =>
                 {
                     "its stored outcome cannot be read by this daemon".to_string()
                 }
@@ -392,15 +392,15 @@ impl Daemon {
                 "JOBS: {unread} {rows} not restored: this daemon cannot read them, and the open jobs of their trees fail"
             ));
         }
-        let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
+        let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info().parent).collect();
         // C134: a marker naming a probe closes the probe's route. The jobs
         // open on it now fail below, whenever they would have dispatched
         // (a halt can hold them past any cooldown); the degrade covers a
         // job submitted on the route during the cooldown.
         let closed_route = entries
             .iter()
-            .find(|e| faulted == Some(e.info.id) && e.info.kind == "probe")
-            .and_then(|e| e.info.params.get("route").and_then(Value::as_str))
+            .find(|e| faulted == Some(e.info().id) && e.info().kind == "probe")
+            .and_then(|e| e.info().params.get("route").and_then(Value::as_str))
             .map(str::to_string);
         if let Some(route) = &closed_route {
             self.choke.degrade(route, PROBE_FAULT_WORDS);
@@ -433,25 +433,25 @@ impl Daemon {
             // still to be visited among it.
             let mut loaded: Vec<JobInfo> = Vec::with_capacity(entries.len());
             for entry in entries {
-                if entry.info.kind == "probe" {
+                if entry.info().kind == "probe" {
                     dropped += 1;
                     // C6: the delete is a queue write like any other; a
                     // failed one is sticky, and the restore goes on, the
                     // row left on disk (`ended_elsewhere` answers it).
-                    if let Err(e) = db.lock().unwrap().delete(entry.info.id) {
+                    if let Err(e) = db.lock().unwrap().delete(entry.info().id) {
                         every_write_landed = false;
                         self.trip_queue_failure(
                             &format!(
                                 "deleting probe job {}: a probe row could not be deleted at the restore",
-                                entry.info.id
+                                entry.info().id
                             ),
                             &e,
                         );
                     }
                     continue;
                 }
-                loaded.push(entry.info.clone());
-                s.jobs.insert(entry.info.id, entry);
+                loaded.push(entry.info().clone());
+                s.jobs.insert(entry.info().id, entry);
             }
             // Each job, in the order it was loaded, decided by the arms in
             // their order: what ends, ends through the one ending (#261);
@@ -464,7 +464,7 @@ impl Daemon {
                     restored.push(as_loaded);
                     continue;
                 };
-                let state = entry.info.state;
+                let state = entry.info().state;
                 let open = matches!(state, JobState::Running | JobState::Waiting);
                 // C47, #209: an open job of a tree holding a row this
                 // daemon cannot read fails where it stands, parent or not,
@@ -472,7 +472,7 @@ impl Daemon {
                 // The one place the restore ends a parent with children.
                 let ending = if let Some(unreadable) = tainted.get(&root_of(id)).filter(|_| open) {
                     unreadable_tree += 1;
-                    entry.deferred = None;
+                    entry.hold(None);
                     Some(Outcome::failure(
                         FailureKind::Internal,
                         format!(
@@ -487,16 +487,16 @@ impl Daemon {
                     // running or was still at the limiter.
                     let on_closed_route = closed_route.as_deref().is_some_and(|closed| {
                         self.keyed_route_for(
-                            &entry.info.kind,
-                            &entry.info.params,
-                            entry.info.account.as_deref(),
+                            &entry.info().kind,
+                            &entry.info().params,
+                            entry.info().account.as_deref(),
                         )
                         .is_some_and(|(route, _)| route == closed)
                     });
                     if (faulted == Some(id) || on_closed_route)
                         && open
-                        && !entry.cancel_requested
-                        && entry.deferred.is_none()
+                        && !entry.cancel_requested()
+                        && entry.deferred().is_none()
                         && !has_children.contains(&id)
                     {
                         fault += 1;
@@ -509,10 +509,10 @@ impl Daemon {
                                 _ => FAULT_WORDS.to_string(),
                             },
                         ))
-                    } else if entry.info.kind == "profile"
-                        && entry.info.submitted_by == DAEMON_SUBMITTER
+                    } else if entry.info().kind == "profile"
+                        && entry.info().submitted_by == DAEMON_SUBMITTER
                         && open
-                        && !entry.cancel_requested
+                        && !entry.cancel_requested()
                     {
                         // C50: the fetch belongs to its login's lifetime.
                         // The login's staged tokens died with that
@@ -523,14 +523,14 @@ impl Daemon {
                     } else if state == JobState::Running {
                         let no_probe_route = self
                             .keyed_route_for(
-                                &entry.info.kind,
-                                &entry.info.params,
-                                entry.info.account.as_deref(),
+                                &entry.info().kind,
+                                &entry.info().params,
+                                entry.info().account.as_deref(),
                             )
                             .is_some_and(|(route, _)| !Self::route_probes(&route));
-                        if entry.cancel_requested {
+                        if entry.cancel_requested() {
                             Some(Outcome::Cancelled)
-                        } else if entry.deferred.is_some() {
+                        } else if entry.deferred().is_some() {
                             // Holding its result for children: no task to
                             // give it; it finishes when they do.
                             finish_parents.push(id);
@@ -544,13 +544,13 @@ impl Daemon {
                             // children never got submitted is unknowable,
                             // so once they land it finishes as
                             // interrupted, never as success.
-                            entry.deferred = Some(Outcome::failure(
+                            entry.hold(Some(Outcome::failure(
                                 FailureKind::Interrupted,
                                 "interrupted by a daemon restart mid fan-out: the children \
                                     submitted before the restart ran (their responses are in \
                                     the store), but the full child set is unknown — resubmit \
                                     to complete it",
-                            ));
+                            )));
                             held += 1;
                             finish_parents.push(id);
                             every_write_landed &= self.persist(entry);
@@ -567,11 +567,11 @@ impl Daemon {
                                     "interrupted by a daemon restart and not replayed: \
 {} sends without a probe, so a replay could not learn the previous lifetime's hits first; \
 resubmit if still wanted",
-                                    entry.info.kind
+                                    entry.info().kind
                                 ),
                             ))
                         } else {
-                            entry.info.state = JobState::Waiting;
+                            entry.requeue();
                             requeued += 1;
                             every_write_landed &= self.persist(entry);
                             None
@@ -586,7 +586,7 @@ resubmit if still wanted",
                         restored.push(ended.info);
                     }
                     None => {
-                        let info = s.jobs.get(&id).map_or(as_loaded, |e| e.info.clone());
+                        let info = s.jobs.get(&id).map_or(as_loaded, |e| e.info().clone());
                         restored.push(info);
                     }
                 }
@@ -671,9 +671,9 @@ resubmit if still wanted",
         let Some(entry) = Entry::from_row_read(row)? else {
             return Ok(None);
         };
-        match entry.outcome {
-            Some(outcome) => Ok(Some((outcome, entry.info.times))),
-            None if written && entry.info.state.is_terminal() => {
+        match entry.outcome().cloned() {
+            Some(outcome) => Ok(Some((outcome, entry.info().times.clone()))),
+            None if written && entry.info().state.is_terminal() => {
                 Err(Refusal::unreadable_outcome(id))
             }
             None => Ok(None),
@@ -835,14 +835,14 @@ resubmit if still wanted",
             let mut ids: Vec<JobId> = s
                 .jobs
                 .values()
-                .filter(|e| e.info.id < below && state.holds(e.info.state))
-                .map(|e| e.info.id)
+                .filter(|e| e.info().id < below && state.holds(e.info().state))
+                .map(|e| e.info().id)
                 .collect();
             ids.sort_unstable_by_key(|id| std::cmp::Reverse(*id));
             ids.truncate(wanted);
             let candidates: Vec<(JobId, usize)> = ids
                 .iter()
-                .map(|id| (*id, info_bound(&s.jobs[id].info)))
+                .map(|id| (*id, info_bound(s.jobs[id].info())))
                 .collect();
             let held: HashSet<JobId> = s.jobs.keys().copied().collect();
             // A restored job still in memory is listed from memory.
@@ -928,8 +928,8 @@ resubmit if still wanted",
             let s = self.shared.lock().unwrap();
             for &id in &chosen {
                 match s.jobs.get(&id) {
-                    Some(e) if state.holds(e.info.state) => {
-                        let mut info = self.page_row(&e.info);
+                    Some(e) if state.holds(e.info().state) => {
+                        let mut info = self.page_row(e.info());
                         info.eta_seconds = if info.state == JobState::Waiting {
                             etas.get(&id).copied()
                         } else {
@@ -1067,9 +1067,9 @@ resubmit if still wanted",
             let s = self.shared.lock().unwrap();
             let p = s.jobs.get(&parent).ok_or_else(|| parent_gone(parent))?;
             (
-                p.info.priority,
-                p.info.submitted_by.clone(),
-                p.info.account.clone(),
+                p.info().priority,
+                p.info().submitted_by.clone(),
+                p.info().account.clone(),
             )
         };
         self.submit_with_parent(kind.into(), params, priority, by, account, Some(parent))
@@ -1146,7 +1146,7 @@ resubmit if still wanted",
             // cancellation has swept and missed it.
             if let Some(pid) = parent {
                 let p = s.jobs.get(&pid).ok_or_else(|| parent_gone(pid))?;
-                if p.info.state.is_terminal() || p.cancel_requested {
+                if p.info().state.is_terminal() || p.cancel_requested() {
                     return Err(Refusal::new(
                         ErrorKind::Refused,
                         format!("parent job {pid} was cancelled"),
@@ -1172,12 +1172,7 @@ resubmit if still wanted",
                     ..JobTimes::default()
                 },
             };
-            let mut entry = Entry {
-                info: info.clone(),
-                outcome: None,
-                cancel_requested: false,
-                deferred: None,
-            };
+            let mut entry = Entry::waiting(info.clone());
             if !self.persist(&mut entry) {
                 s.next_id -= 1;
                 let e = self.queue_failed().unwrap_or_default();
@@ -1200,7 +1195,7 @@ resubmit if still wanted",
         let mut persist_failed = false;
         {
             let mut s = self.shared.lock().unwrap();
-            let Some(state) = s.jobs.get(&id).map(|e| e.info.state) else {
+            let Some(state) = s.jobs.get(&id).map(|e| e.info().state) else {
                 drop(s);
                 let state = self.ended_elsewhere(id)?;
                 return Err(Refusal::new(
@@ -1223,13 +1218,13 @@ resubmit if still wanted",
                 let Some(entry) = s.jobs.get_mut(&t) else {
                     continue;
                 };
-                match entry.info.state {
+                match entry.info().state {
                     JobState::Waiting => {}
                     // A parent waiting on children isn't on any worker;
                     // cancel it outright.
-                    JobState::Running if entry.deferred.is_some() => entry.deferred = None,
+                    JobState::Running if entry.deferred().is_some() => entry.hold(None),
                     JobState::Running => {
-                        entry.cancel_requested = true;
+                        entry.request_cancel();
                         persist_failed |= !self.persist(entry);
                         continue;
                     }
@@ -1301,16 +1296,16 @@ resubmit if still wanted",
                 format!("job {id} is {state}, not waiting"),
             ));
         };
-        if entry.info.state != JobState::Waiting {
+        if entry.info().state != JobState::Waiting {
             return Err(Refusal::new(
                 ErrorKind::WrongState,
-                format!("job {id} is {}, not waiting", entry.info.state),
+                format!("job {id} is {}, not waiting", entry.info().state),
             ));
         }
-        let before = entry.info.priority;
-        entry.info.priority = priority;
+        let before = entry.info().priority;
+        entry.set_priority(priority);
         if !self.persist(entry) {
-            entry.info.priority = before;
+            entry.set_priority(before);
             return Err(Refusal::new(
                 ErrorKind::QueueFailed,
                 "priority unchanged: the queue write failed; the daemon refuses new work until restart",
@@ -1321,7 +1316,10 @@ resubmit if still wanted",
 
     pub(super) fn cancelled(&self, id: JobId) -> bool {
         let s = self.shared.lock().unwrap();
-        s.jobs.get(&id).map(|e| e.cancel_requested).unwrap_or(true)
+        s.jobs
+            .get(&id)
+            .map(|e| e.cancel_requested())
+            .unwrap_or(true)
     }
 
     /// C25: whether a cancel was asked of job `id` while it ran, the check
@@ -1330,7 +1328,7 @@ resubmit if still wanted",
     /// is still wanted.
     pub(super) fn cancel_asked(&self, id: JobId) -> bool {
         let s = self.shared.lock().unwrap();
-        s.jobs.get(&id).is_some_and(|e| e.cancel_requested)
+        s.jobs.get(&id).is_some_and(|e| e.cancel_requested())
     }
 }
 

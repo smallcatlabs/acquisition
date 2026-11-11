@@ -30,8 +30,7 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
         .jobs
         .get_mut(&id)
         .unwrap()
-        .info
-        .state = JobState::Running;
+        .start(daemon.unix_now());
     assert!(
         Daemon::has_live_jobs(&daemon.shared.lock().unwrap(), true),
         "a running job keeps even a halted daemon up"
@@ -108,7 +107,7 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         "a halted daemon idles out over its waiting queue"
     );
     assert_eq!(
-        daemon.shared.lock().unwrap().jobs[&waiting].info.state,
+        daemon.shared.lock().unwrap().jobs[&waiting].info().state,
         JobState::Waiting,
         "the queue is still there for the successor"
     );
@@ -197,8 +196,7 @@ fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
         .jobs
         .get_mut(&id)
         .unwrap()
-        .info
-        .state = JobState::Running;
+        .start(daemon.unix_now());
     clock.advance(2 * IDLE_SHUTDOWN);
     assert!(
         !daemon.is_idle(IDLE_SHUTDOWN),

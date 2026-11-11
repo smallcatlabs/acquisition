@@ -115,20 +115,24 @@ impl Daemon {
     /// network jobs with anything under the same policy, everything else
     /// only with itself.
     pub(super) fn serial_key(&self, e: &Entry) -> String {
-        if e.info.kind == "probe" {
+        if e.info().kind == "probe" {
             return "probe".into();
         }
-        match self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()) {
+        match self.keyed_route_for(
+            &e.info().kind,
+            &e.info().params,
+            e.info().account.as_deref(),
+        ) {
             Some((route, _)) => self.choke.serial_key(&route),
-            None => format!("solo:{}", e.info.id),
+            None => format!("solo:{}", e.info().id),
         }
     }
 
     pub(super) fn probe_pending(s: &Shared, route: &str) -> bool {
         s.jobs.values().any(|e| {
-            e.info.kind == "probe"
-                && !e.info.state.is_terminal()
-                && e.info.params.get("route").and_then(Value::as_str) == Some(route)
+            e.info().kind == "probe"
+                && !e.info().state.is_terminal()
+                && e.info().params.get("route").and_then(Value::as_str) == Some(route)
         })
     }
 

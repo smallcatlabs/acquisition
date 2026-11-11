@@ -91,16 +91,16 @@ impl Daemon {
         for id in s.queue_order() {
             let entry = &s.jobs[&id];
             let route = self.keyed_route_for(
-                &entry.info.kind,
-                &entry.info.params,
-                entry.info.account.as_deref(),
+                &entry.info().kind,
+                &entry.info().params,
+                entry.info().account.as_deref(),
             );
             // A halted daemon (the rails, `rails.rs`) sends nothing:
             // network jobs wait, on disk, for `reset-tripwire`, and so do
             // the kinds with no route that may still send (a probe's HEAD,
             // `whoami`'s refresh). A job a halt turned away after its pick
             // (C25) is so not picked again at once.
-            if halted && (route.is_some() || Self::sends_unrouted(&entry.info.kind)) {
+            if halted && (route.is_some() || Self::sends_unrouted(&entry.info().kind)) {
                 continue;
             }
             // A job whose route is still being probed has nothing to do yet.
@@ -137,9 +137,13 @@ impl Daemon {
             let s = self.shared.lock().unwrap();
             match s.jobs.get(&id) {
                 Some(e) => (
-                    self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()),
-                    e.info.account.clone(),
-                    e.info.kind.clone(),
+                    self.keyed_route_for(
+                        &e.info().kind,
+                        &e.info().params,
+                        e.info().account.as_deref(),
+                    ),
+                    e.info().account.clone(),
+                    e.info().kind.clone(),
                 ),
                 None => return,
             }
@@ -201,7 +205,7 @@ impl Daemon {
                 let step = {
                     let s = self.shared.lock().unwrap();
                     let Some(me) = s.jobs.get(&id) else { return };
-                    if me.info.state != JobState::Waiting {
+                    if me.info().state != JobState::Waiting {
                         return; // cancelled out from under us
                     }
                     // A higher-priority job on the same key may have arrived;
@@ -229,21 +233,20 @@ impl Daemon {
             let Some(entry) = s.jobs.get_mut(&id) else {
                 return;
             };
-            if entry.info.state != JobState::Waiting {
+            if entry.info().state != JobState::Waiting {
                 return;
             }
-            let first_start = entry.info.times.started_at;
+            let first_start = entry.info().times.started_at;
             entry.start(self.unix_now());
             if !self.persist(entry) {
                 // Disk still says waiting: after a restart this run would
                 // be invisible (a no-probe job would replay blind). A send
                 // the queue cannot see must not happen — revert, don't run,
                 // and keep no start that did not happen (C165).
-                entry.info.state = JobState::Waiting;
-                entry.info.times.started_at = first_start;
+                entry.revert_start(first_start);
                 return;
             }
-            (entry.info.clone(), entry.info.params.clone())
+            (entry.info().clone(), entry.info().params.clone())
         };
         let (info, params) = job;
         self.emit(info);
@@ -265,11 +268,10 @@ impl Daemon {
                     let Some(entry) = s.jobs.get_mut(&id) else {
                         return;
                     };
-                    if may_requeue_429(entry.info.retries, entry.cancel_requested) {
-                        entry.info.retries += 1;
-                        entry.info.state = JobState::Waiting;
+                    if may_requeue_429(entry.info().retries, entry.cancel_requested()) {
+                        entry.requeue_429();
                         self.persist(entry);
-                        Some(entry.info.clone())
+                        Some(entry.info().clone())
                     } else {
                         None
                     }
@@ -302,12 +304,12 @@ impl Daemon {
                     let Some(entry) = s.jobs.get_mut(&id) else {
                         return;
                     };
-                    if entry.cancel_requested {
+                    if entry.cancel_requested() {
                         None
                     } else {
-                        entry.info.state = JobState::Waiting;
+                        entry.park();
                         self.persist(entry);
-                        Some(entry.info.clone())
+                        Some(entry.info().clone())
                     }
                 };
                 match parked {
@@ -338,16 +340,17 @@ impl Daemon {
     pub(super) fn conclude(&self, id: JobId, outcome: Outcome) {
         let has_children = {
             let mut s = self.shared.lock().unwrap();
-            let spawned = s.jobs.values().any(|e| e.info.parent == Some(id));
+            let spawned = s.jobs.values().any(|e| e.info().parent == Some(id));
             if spawned
                 && let Some(entry) = s.jobs.get_mut(&id)
-                && entry.info.state == JobState::Running
+                && entry.info().state == JobState::Running
             {
-                entry.deferred = Some(if entry.cancel_requested {
+                let held = if entry.cancel_requested() {
                     Outcome::Cancelled
                 } else {
                     outcome.clone()
-                });
+                };
+                entry.hold(Some(held));
                 self.persist(entry);
             }
             spawned
@@ -367,25 +370,25 @@ impl Daemon {
             let Some(parent) = s.jobs.get(&pid) else {
                 return;
             };
-            if parent.deferred.is_none() {
+            if parent.deferred().is_none() {
                 return;
             }
             let children: Vec<&Entry> = s
                 .jobs
                 .values()
-                .filter(|e| e.info.parent == Some(pid))
+                .filter(|e| e.info().parent == Some(pid))
                 .collect();
-            if children.iter().any(|e| !e.info.state.is_terminal()) {
+            if children.iter().any(|e| !e.info().state.is_terminal()) {
                 return;
             }
             let (mut done, mut failed, mut cancelled) = (0, 0, 0);
             let mut failed_ids = Vec::new();
             for c in &children {
-                match c.info.state {
+                match c.info().state {
                     JobState::Done => done += 1,
                     JobState::Failed => {
                         failed += 1;
-                        failed_ids.push(c.info.id);
+                        failed_ids.push(c.info().id);
                     }
                     _ => cancelled += 1,
                 }
@@ -400,7 +403,7 @@ impl Daemon {
                 cancelled,
                 failed_ids,
             };
-            let deferred = s.jobs.get_mut(&pid).unwrap().deferred.take().unwrap();
+            let deferred = s.jobs.get_mut(&pid).unwrap().take_deferred().unwrap();
             // C23: every parent failure carries the tally as a field, the
             // sentence kept for a reader; a success carries it in its
             // payload, as it always has.
@@ -460,39 +463,6 @@ impl Daemon {
         }
     }
 
-    /// #261: the one ending, the only code that makes a job terminal.
-    /// Under `shared`, in order: a pending cancel is arbitrated (if
-    /// `cancel` set the flag at any point before this, including between a
-    /// caller computing `outcome` and the lock, the job ends `Cancelled`,
-    /// never with the stale outcome; work already sent may have landed
-    /// regardless, since sends are committed once dispatched); the state
-    /// and the outcome are set; activity is stamped (C3 as amended, #208:
-    /// under the lock the idle verdict reads it under, by the signature,
-    /// so no verdict sees the job ended with the hour spent); the row is
-    /// written, and whether it landed is returned (C6); the concluded tree
-    /// leaves memory (`evict_tree`). What must happen after the lock, the
-    /// event and the parent's tally (C23), is returned for the caller
-    /// ([`Self::after_end`]). `None` for a job memory does not hold.
-    pub(super) fn end(&self, s: &mut Shared, id: JobId, outcome: Outcome) -> Option<Ended> {
-        let entry = s.jobs.get_mut(&id)?;
-        self.mark_activity(self.choke.now());
-        let outcome = if entry.cancel_requested {
-            Outcome::Cancelled
-        } else {
-            outcome
-        };
-        entry.info.state = match &outcome {
-            Outcome::Success { .. } => JobState::Done,
-            Outcome::Failure { .. } => JobState::Failed,
-            Outcome::Cancelled => JobState::Cancelled,
-        };
-        entry.outcome = Some(outcome);
-        let landed = self.persist(entry);
-        let info = entry.info.clone();
-        self.evict_tree(s, id);
-        Some(Ended { info, landed })
-    }
-
     /// What follows an [`Self::end`] once `shared` is released: the job's
     /// terminal event, then its parent told, so the parent's tally is
     /// built where it always is (`maybe_finish_parent`, C23).
@@ -523,7 +493,7 @@ impl Daemon {
             return;
         }
         let mut root = id;
-        while let Some(parent) = s.jobs.get(&root).and_then(|e| e.info.parent) {
+        while let Some(parent) = s.jobs.get(&root).and_then(|e| e.info().parent) {
             if !s.jobs.contains_key(&parent) {
                 break;
             }
@@ -532,17 +502,20 @@ impl Daemon {
         if !s
             .jobs
             .get(&root)
-            .is_some_and(|e| e.info.state.is_terminal())
+            .is_some_and(|e| e.info().state.is_terminal())
         {
             return;
         }
         let tree = s.tree(root);
-        if tree.iter().any(|job| !s.jobs[job].info.state.is_terminal()) {
+        if tree
+            .iter()
+            .any(|job| !s.jobs[job].info().state.is_terminal())
+        {
             return;
         }
         for job in tree {
             if let Some(entry) = s.jobs.remove(&job) {
-                s.evicted.count(entry.info.state);
+                s.evicted.count(entry.info().state);
             }
         }
     }
@@ -555,12 +528,12 @@ impl Daemon {
             let Some(entry) = s.jobs.get_mut(&id) else {
                 return;
             };
-            if entry.info.state != JobState::Waiting {
+            if entry.info().state != JobState::Waiting {
                 return;
             }
             entry.start(self.unix_now());
             self.persist(entry);
-            entry.info.clone()
+            entry.info().clone()
         };
         self.emit(info);
         self.finish(id, outcome);

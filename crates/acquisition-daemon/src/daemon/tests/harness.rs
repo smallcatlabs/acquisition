@@ -551,7 +551,7 @@ pub(super) fn held(daemon: &Daemon, id: JobId) -> Option<(JobInfo, Option<Outcom
         .unwrap()
         .jobs
         .get(&id)
-        .map(|e| (e.info.clone(), e.outcome.clone()));
+        .map(|e| (e.info().clone(), e.outcome().cloned()));
     in_memory.or_else(|| {
         let info = daemon.stored_job(id).expect("the table reads")?;
         Some((info, daemon.stored_outcome(id).expect("the table reads")))

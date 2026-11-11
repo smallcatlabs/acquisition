@@ -17,9 +17,9 @@ use crate::daemon::*;
 fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
     let queue = s.queue_order();
     let entry = s.jobs.get(&id)?;
-    let mut info = entry.info.clone();
+    let mut info = entry.info().clone();
     info.eta_seconds = if info.state == JobState::Waiting {
-        match daemon.keyed_route_for(&info.kind, &entry.info.params, info.account.as_deref()) {
+        match daemon.keyed_route_for(&info.kind, &entry.info().params, info.account.as_deref()) {
             Some((route, _)) => {
                 let ahead = queue
                     .iter()
@@ -29,9 +29,9 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
                             .get(q)
                             .and_then(|e| {
                                 daemon.keyed_route_for(
-                                    &e.info.kind,
-                                    &e.info.params,
-                                    e.info.account.as_deref(),
+                                    &e.info().kind,
+                                    &e.info().params,
+                                    e.info().account.as_deref(),
                                 )
                             })
                             .is_some_and(|(r, _)| r == route)
@@ -116,7 +116,12 @@ async fn list_matches_the_per_job_walk_on_a_mixed_queue() {
             (40, JobState::Running),
             (61, JobState::Done),
         ] {
-            s.jobs.get_mut(&id).unwrap().info.state = state;
+            // a fixture: the job rebuilt in that state, not ended
+            let info = JobInfo {
+                state,
+                ..s.jobs[&id].info().clone()
+            };
+            s.jobs.insert(id, Entry::fixture(info, None));
         }
     }
 
@@ -230,8 +235,7 @@ async fn c166_a_page_is_one_state_newest_first_and_the_counts_are_the_whole_list
         .jobs
         .get_mut(&6)
         .unwrap()
-        .info
-        .state = Running;
+        .start(daemon.unix_now());
     let held: Vec<JobId> = {
         let mut held: Vec<JobId> = daemon.shared.lock().unwrap().jobs.keys().copied().collect();
         held.sort_unstable();

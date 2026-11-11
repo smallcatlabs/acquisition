@@ -36,8 +36,7 @@ fn fan_out(daemon: &Daemon) -> (JobId, JobId, JobId) {
         .jobs
         .get_mut(&parent)
         .unwrap()
-        .info
-        .state = JobState::Running;
+        .start(daemon.unix_now());
     let quick = daemon
         .submit_child(parent, "stash", json!({ "id": "a" }))
         .unwrap();

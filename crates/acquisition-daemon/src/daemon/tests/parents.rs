@@ -112,7 +112,7 @@ async fn a_cancelled_parent_cannot_gain_children() {
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
-        s.jobs.get_mut(&parent).unwrap().info.state = JobState::Running;
+        s.jobs.get_mut(&parent).unwrap().start(daemon.unix_now());
     }
     daemon.cancel(parent).unwrap();
     let err = daemon.submit_child(parent, "stash", json!({})).unwrap_err();
@@ -134,7 +134,7 @@ async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
-        s.jobs.get_mut(&parent).unwrap().info.state = JobState::Running;
+        s.jobs.get_mut(&parent).unwrap().start(daemon.unix_now());
     }
     let _child = daemon.submit_child(parent, "stash", json!({})).unwrap();
     // The cancellation lands after the fan-out submitted its last
@@ -166,7 +166,7 @@ async fn cancelled_children_do_not_make_a_parent_successful() {
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
-        s.jobs.get_mut(&parent).unwrap().info.state = JobState::Running;
+        s.jobs.get_mut(&parent).unwrap().start(daemon.unix_now());
     }
     let child = daemon.submit_child(parent, "stash", json!({})).unwrap();
     daemon.cancel(child).unwrap();
@@ -195,7 +195,7 @@ async fn a_cancellation_pending_at_finish_wins_the_terminal_state() {
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
-        s.jobs.get_mut(&id).unwrap().info.state = JobState::Running;
+        s.jobs.get_mut(&id).unwrap().start(daemon.unix_now());
     }
     daemon.cancel(id).unwrap();
     daemon.finish(

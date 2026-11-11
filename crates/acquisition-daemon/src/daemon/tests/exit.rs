@@ -362,7 +362,9 @@ fn exit_turns_away_a_job_parked_past_running() {
         assert_eq!(cut, None, "nothing was cut");
 
         for id in [p.parked, p.first] {
-            let info = door.daemon().shared.lock().unwrap().jobs[&id].info.clone();
+            let info = door.daemon().shared.lock().unwrap().jobs[&id]
+                .info()
+                .clone();
             assert_eq!(info.state, JobState::Waiting, "job {id} in memory");
             assert_eq!(info.retries, 0, "job {id}: no retry spent");
             let row = row_of(&rows, id);
@@ -664,7 +666,7 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
         loop {
             let held = {
                 let s = daemon.shared.lock().unwrap();
-                let info = &s.jobs[&id].info;
+                let info = s.jobs[&id].info();
                 info.retries == 1
                     && info.state == JobState::Waiting
                     && s.active_jobs.contains_key(&id)
@@ -698,7 +700,7 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
         drained < BOUND,
         "the drain did not wait out the hold: it left after {drained:?}"
     );
-    let info = daemon.shared.lock().unwrap().jobs[&id].info.clone();
+    let info = daemon.shared.lock().unwrap().jobs[&id].info().clone();
     assert_eq!(info.state, JobState::Waiting);
     assert_eq!(info.retries, 1, "the exit spent no retry");
     let row = row_of(&db, id);
