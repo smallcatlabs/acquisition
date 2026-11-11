@@ -12,7 +12,6 @@ use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
 use acquisition_store::{Annotations, Provenance, Store};
 use acquisition_verbs::leagues::PolicyRead;
-use acquisition_verbs::main_account;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::Arguments;
 use acquisition_verbs::saved::{self, Set};
@@ -42,10 +41,7 @@ pub(crate) struct AcqMcp {
 impl AcqMcp {
     /// C121: the account a call's selector names.
     fn account(&self, selector: Option<&str>) -> Result<Account, Fault> {
-        let account = self.frontend.account(selector)?;
-        // C187: the answer says the main account was taken
-        crate::told::took_main(&account);
-        Ok(account)
+        self.frontend.account(selector)
     }
 
     /// The selected account's facts, as the CLI's store verbs open them.
@@ -154,7 +150,7 @@ impl AcqMcp {
     // ---- store reads: no daemon, no GGG traffic ----
 
     #[tool(
-        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file and `last_login`, the last sign-in or token refresh: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). `main` is the main account (main_account_set), or null; `known` false where no longer held, so not taken. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file and `last_login`, the last sign-in or token refresh: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn accounts(&self, Parameters(p): Parameters<Args<AccountsParams>>) -> Told {
         answer(|| {
@@ -170,8 +166,8 @@ impl AcqMcp {
         answer(|| {
             let p = p.parse()?;
             let realm = realm_param(p.realm.as_deref())?;
-            // one account for the facts, the policy and the answer's
-            // `main_account` (the second cold review of #246, finding 1)
+            // one account for the facts and the policy: a login landing
+            // between two resolutions could answer each from another
             let account = self.account(p.account.as_deref())?;
             let store = account.facts()?;
             let league = p
@@ -235,11 +231,11 @@ impl AcqMcp {
         if let Err(e) = asked.request.check() {
             return Ok(refused(e));
         }
-        let selector = asked.request.scope.account.as_deref();
-        let (store, intent) = match self.open_search(selector, "scope.account") {
-            Ok(opened) => opened,
-            Err(refusal) => return Ok(*refusal),
-        };
+        let (store, intent) =
+            match self.open_search(asked.request.scope.account.as_deref(), "scope.account") {
+                Ok(opened) => opened,
+                Err(refusal) => return Ok(*refusal),
+            };
         match self
             .held
             .corpus(&asked.request, &store, &intent)
@@ -733,8 +729,9 @@ impl AcqMcp {
             Ok(p) => p,
             Err(refusal) => return Ok(*refusal),
         };
-        // one account for the intent, the facts and the answer's
-        // `main_account` (the cold review of a3bc5c38, its second finding)
+        // one account for the intent, the facts and the receipt: a login
+        // landing between two resolutions could pair one account's intent
+        // with another's facts
         let account = match self.account(p.account.as_deref()) {
             Ok(account) => account,
             Err(e) => return Ok(refusing(refusal(&e.into(), "account"))),
@@ -818,12 +815,6 @@ impl AcqMcp {
             realm: p.realm,
             membership: p.membership,
         };
-        // C187: a create resolving its realm over the main account says so
-        // in its refusal as in its receipt (the second cold review of
-        // #246, finding 3): the account noted before the write is tried
-        if set.id.is_none() && set.realm.is_none() && p.account.is_none() {
-            let _ = self.account(None);
-        }
         match saved::set(&self.frontend, p.account.as_deref(), &set, &mut saved::mint) {
             Ok(written) => told(&receipt::saved(&written, &Spoken { named: "account" })),
             Err(e) => failed(e),
@@ -845,40 +836,6 @@ impl AcqMcp {
         }
     }
 
-    #[tool(
-        description = "Set the main account, which a tool naming no `account` takes among several, or clear it (`main` null, at `if_revision`); local, no daemon. Without `if_revision` a set lands only where none is. Returns the receipt, its `undo` or `no_undo`."
-    )]
-    fn main_account_set(&self, Parameters(p): Parameters<Args<MainAccountSetParams>>) -> Told {
-        let p = match p.read() {
-            Ok(p) => p,
-            Err(refusal) => return Ok(*refusal),
-        };
-        // C52: naming no revision creates, never replaces; a clear names
-        // the revision it clears, exactly
-        let written = match (&p.main, p.if_revision) {
-            (Some(account), revision) => main_account::set(
-                &self.frontend,
-                account,
-                Expect::or(revision, Expect::Create),
-            ),
-            (None, Some(revision)) if revision > 0 => {
-                main_account::clear(&self.frontend, Expect::Exactly(revision))
-            }
-            (None, _) => Err(Arguments(
-                "a clear (`main` null) names the revision it clears: `accounts`' `main.revision`"
-                    .into(),
-            )
-            .into()),
-        };
-        match written {
-            Ok(written) => told(&receipt::main_account(
-                &written,
-                &Spoken { named: "account" },
-            )),
-            Err(e) => failed(e),
-        }
-    }
-
     // ---- daemon jobs ----
 
     #[tool(
@@ -892,20 +849,13 @@ impl AcqMcp {
         settled(
             async {
                 let mut client = self.frontend.connect().await?;
-                // C187: the account chosen once, named to the daemon, and
-                // the answer's `main_account` said of that same choice
-                let (selector, main) = self.frontend.daemon_selector(p.account.as_deref())?;
-                if let Some(main) = &main {
-                    crate::told::took_main(main);
-                }
-                let id = acquisition_verbs::jobs::submit_as(
+                let id = acquisition_verbs::jobs::submit(
                     &self.frontend,
                     &mut client,
                     &p.kind,
                     p.params.unwrap_or_else(|| json!({})),
                     p.priority.unwrap_or(0),
-                    selector,
-                    main.as_ref(),
+                    p.account.as_deref(),
                 )
                 .await?;
                 Ok(json!({ "job_id": id }))
@@ -988,7 +938,6 @@ impl ServerHandler for AcqMcp {
         let called = Called {
             tool: request.name.to_string(),
             arguments: request.arguments.clone().unwrap_or_default(),
-            main: Default::default(),
         };
         let call = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
         CALLED.scope(called, Self::tool_router().call(call)).await
@@ -999,7 +948,7 @@ impl ServerHandler for AcqMcp {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
             "Acquisition (provider: {}).\n\
-             - price_set, price_clear, set_sync_policy and every other _set or _clear tool \
+             - price_set, price_clear, set_sync_policy, saved_search_set and saved_search_clear \
              write locally and send nothing.\n\
              - submit_job, apply_plan and cancel_job talk to the daemon; in real mode a human \
              starts it and this server never spawns one.\n\

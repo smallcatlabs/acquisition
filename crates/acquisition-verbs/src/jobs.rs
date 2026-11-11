@@ -21,7 +21,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::fault::Fault;
-use crate::frontend::{Account, Frontend};
+use crate::frontend::Frontend;
 use crate::refusal::{Surface, Way, offer};
 
 /// How often [`wait`] reads the job while it runs.
@@ -49,11 +49,8 @@ pub struct Progress {
 }
 
 /// C4 and C3: submit one job and return its id. `account` is the
-/// selector as the caller gave it, passed through unresolved; where it
-/// names none and the main account is taken, that account's uuid is
-/// named in its place (C187, [`Frontend::daemon_selector`]: the daemon
-/// never reads intent). The submitter is this frontend's channel and
-/// process (C65).
+/// selector as the caller gave it, passed through unresolved; the
+/// submitter is this frontend's channel and process (C65).
 pub async fn submit(
     frontend: &Frontend,
     client: &mut Client,
@@ -62,67 +59,16 @@ pub async fn submit(
     priority: u8,
     account: Option<&str>,
 ) -> Result<u64, Fault> {
-    let (selector, main) = frontend.daemon_selector(account)?;
-    submit_as(
-        frontend,
-        client,
-        kind,
-        params,
-        priority,
-        selector,
-        main.as_ref(),
-    )
-    .await
-}
-
-/// [`submit`] with the selector already chosen, and the account it was
-/// chosen as where that was the main account (C187): a `not_logged_in`
-/// for it is said as the main account's ([`Fault::MainNotLoggedIn`]),
-/// so a reader learns why that account, and that naming another or
-/// logging it in is the way on.
-pub async fn submit_as(
-    frontend: &Frontend,
-    client: &mut Client,
-    kind: &str,
-    params: Value,
-    priority: u8,
-    selector: Option<String>,
-    main: Option<&Account>,
-) -> Result<u64, Fault> {
     let request = Request::Submit {
         kind: kind.into(),
         params,
         priority,
         submitted_by: format!("{}:{}", frontend.via, std::process::id()),
-        account: selector,
+        account: account.map(str::to_string),
     };
     match client.request(&request).await.map_err(Fault::from_client)? {
         Response::Submitted { id } => Ok(id),
-        Response::Error { kind, message } => {
-            let refusal = DaemonError { kind, message };
-            Err(
-                match main.and_then(|m| Some((m, crate::main_account::taken(m)?))) {
-                    Some((main, taken)) if kind == ErrorKind::NotLoggedIn => {
-                        Fault::MainNotLoggedIn(Box::new(crate::fault::MainNotLoggedIn {
-                            refusal,
-                            username: main.entry.username.clone(),
-                            taken,
-                            others: frontend
-                                .accounts()
-                                .map(|a| {
-                                    a.accounts
-                                        .into_iter()
-                                        .map(|row| row.username)
-                                        .filter(|name| *name != main.entry.username)
-                                        .collect()
-                                })
-                                .unwrap_or_default(),
-                        }))
-                    }
-                    _ => Fault::Daemon(refusal),
-                },
-            )
-        }
+        Response::Error { kind, message } => Err(Fault::Daemon(DaemonError { kind, message })),
         other => Err(unexpected(other)),
     }
 }

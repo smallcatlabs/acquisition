@@ -1,11 +1,11 @@
 # golden seat_faults/account_to_pick: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 $ acq tabs --league Allflame
-# holds "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT, or make one the main account, taken where none is named: `acq accounts main <name>`\n"
+# holds "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT\n"
 # holds "  `acq --account 'Alice#1234' tabs --league=Allflame`\n"
 # holds "  `acq --account 'Bob#5678' tabs --league=Allflame`\n"
 --- stderr
-Error: 2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT, or make one the main account, taken where none is named: `acq accounts main <name>`
+Error: 2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT
   `acq --account 'Alice#1234' tabs --league=Allflame`
   `acq --account 'Bob#5678' tabs --league=Allflame`
 --- exit 1
@@ -14,7 +14,7 @@ $ acq tabs
 # holds "12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one"
 # holds "\n  and 2 more: `acq accounts --expand` lists every account\n"
 --- stderr
-Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one with --account or ACQ_ACCOUNT, or make one the main account, taken where none is named: `acq accounts main <name>`
+Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one with --account or ACQ_ACCOUNT
   `acq --account 'Alice#1234' tabs`
   `acq --account 'Bob#5678' tabs`
   `acq --account 'Extra00#1' tabs`
@@ -27,65 +27,3 @@ Error: 12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extr
   `acq --account 'Extra07#1' tabs`
   and 2 more: `acq accounts --expand` lists every account
 --- exit 1
-
-$ acq accounts main 'Bob#5678'
-# holds "main account: Bob#5678 (revision 1), was none"
-# holds "`acq accounts main --clear --if-revision 1` undoes it"
---- stdout
-main account: Bob#5678 (revision 1), was none; a command naming no account takes it
-next: `acq accounts main --clear --if-revision 1` undoes it: no main account
-
-$ acq accounts
-# holds "Bob#5678 · main"
-# holds "main account: Bob#5678 (revision 1)"
---- stdout
-Alice#1234               last sign-in or token refresh <age> ago  not persisted  store 0.1 MB  uuid u-seat
-Bob#5678 · main          last sign-in or token refresh <age> ago  not persisted  store 0.1 MB  uuid u-bob
-Extra00#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x0
-Extra01#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x1
-Extra02#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x2
-Extra03#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x3
-Extra04#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x4
-Extra05#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x5
-Extra06#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x6
-Extra07#1                last sign-in or token refresh <age> ago  not persisted  store 0.0 MB  uuid u-x7
-10 of 12 accounts listed: `acq accounts --expand` lists every one
-main account: Bob#5678 (revision 1), taken where no account is named; `acq accounts main --clear` sets none
-
-$ acq tabs --league Allflame
-# holds "account Bob#5678: the main account, taken since none was named\n"
---- stdout
-no tabs known for Allflame in <scratch>/store/mock/Bob_5678.db (run `acq stashes --account 'Bob#5678' --realm pc --league Allflame` or `acq refresh --all --account 'Bob#5678' --realm pc --league Allflame`)
-facts: no tabs; stash never listed
-leagues: Allflame (this); none other
---- stderr
-account Bob#5678: the main account, taken since none was named
-
-$ acq search --realm pc rarity=rare
-# holds "account Bob#5678: the main account, taken since none was named\n"
---- stderr
-Error: facts file <scratch>/store/mock/Bob_5678.db records no account identity (no profile response has landed); a snapshot cannot pair your prices and policy with it — one login fixes this
-account Bob#5678: the main account, taken since none was named
---- exit 1
-
-$ acq accounts main 'Alice#1234' --if-revision 1
-# holds "main account: Alice#1234 (revision 2), was Bob#5678 (revision 1)"
---- stdout
-main account: Alice#1234 (revision 2), was Bob#5678 (revision 1); a command naming no account takes it
-next: `acq accounts main 'Bob#5678' --if-revision 2` puts the prior main account back
-
-$ acq search --realm pc rarity=rare
-# holds "scope   account Alice#1234 (the main account) · pc"
---- stdout
-query   rarity=rare
-scope   account Alice#1234 (the main account) · pc · live · 2 items · 2 locations fetched
-        0 locations never fetched · location lists seen, the oldest <age> ago
-total   0 matches
-offers  each part of the query forced true and forced false, the part fewest items match first
-    acq search --account 'Alice#1234' --realm pc rarity=rare --explain 0
-        every item in scope, this query set aside
-    acq search --account 'Alice#1234' --realm pc rarity=rare --limit 10 --context corpus
-terms   each term counted alone over all live pc items in all leagues, never over the matches
-  0    rarity=rare  0 matched · 2 lacked
-routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

@@ -134,18 +134,8 @@ fn a_faults_kind_and_fields_are_the_protocols_words() {
         (
             Fault::AmbiguousAccount {
                 candidates: vec![USER.into(), "Bob#9".into()],
-                main_unknown: false,
             },
             json!({ "kind": "ambiguous_account", "accounts": [USER, "Bob#9"] }),
-        ),
-        // C187: a main account set that the index no longer holds
-        (
-            Fault::AmbiguousAccount {
-                candidates: vec![USER.into(), "Bob#9".into()],
-                main_unknown: true,
-            },
-            json!({ "kind": "ambiguous_account", "accounts": [USER, "Bob#9"],
-                    "main_account_unknown": true }),
         ),
         (
             Fault::NoUuid {
@@ -270,213 +260,6 @@ fn a_bare_name_shared_by_two_discriminators_is_ambiguous_with_both() {
     assert_eq!(picked.entry.uuid.as_deref(), Some("u-2"));
 }
 
-/// C187, C121 — the door's precedence, first that applies: a named
-/// account; else, several known, the main account where the index still
-/// holds it (taken as main); else the sole account; else the refusal,
-/// which says where a main account is set that the index no longer
-/// holds. A named account wins over the main one, and a job verb names
-/// the main account's uuid to the daemon where it is taken, nothing
-/// where it is not.
-#[test]
-fn c187_the_door_takes_the_main_account_where_several_are_known_and_none_is_named() {
-    use acquisition_verbs::main_account;
-    let s = scratch();
-    let f = frontend(&s.mock);
-    login(&s.mock, USER, UUID);
-    // one account known: the sole one, never read as main
-    let sole = f.account(None).unwrap();
-    assert_eq!((sole.entry.username.as_str(), sole.main), (USER, false));
-    login(&s.mock, "Bob#9", "u-bob");
-    login(&s.mock, "Carol#7", "u-carol");
-    // several, none set: refused as before, the user file never made
-    let fault = f.account(None).unwrap_err();
-    assert_eq!(
-        Value::Object(fault.fields()),
-        json!({ "kind": "ambiguous_account", "accounts": [USER, "Bob#9", "Carol#7"] })
-    );
-    assert!(!acquisition_store::user_path(&s.mock).exists());
-    assert!(matches!(f.daemon_selector(None).unwrap(), (None, None)));
-    // set by a bare name: stored as the uuid, taken where none is named
-    let written = main_account::set(&f, "bob", Expect::Create).unwrap();
-    let row = written.written.clone().unwrap();
-    assert_eq!(
-        (row.uuid.as_deref(), row.username.as_deref(), row.known),
-        (Some("u-bob"), Some("Bob#9"), true)
-    );
-    let taken = f.account(None).unwrap();
-    assert_eq!((taken.entry.username.as_str(), taken.main), ("Bob#9", true));
-    let (selector, main) = f.daemon_selector(None).unwrap();
-    assert_eq!(selector.as_deref(), Some("u-bob"));
-    assert!(main.is_some_and(|a| a.main));
-    // a saved search's create resolves its realm over the main account,
-    // and its receipt says so (the cold review of a3bc5c38, finding 5)
-    Store::open(&account_path(&s.mock, "Bob#9"))
-        .unwrap()
-        .record(
-            &Endpoint::Profile,
-            &json!({}),
-            200,
-            &json!({ "uuid": "u-bob", "name": "Bob#9" }),
-            1_000,
-        )
-        .unwrap();
-    let saved = acquisition_verbs::saved::set(
-        &f,
-        None,
-        &acquisition_verbs::saved::Set {
-            id: None,
-            expect: Expect::Create,
-            name: Some("rings".into()),
-            text: Some("rarity=rare".into()),
-            realm: None,
-            membership: None,
-        },
-        &mut || Ok("0123456789ab".to_string()),
-    )
-    .unwrap();
-    assert_eq!(
-        saved.main_account,
-        Some(json!({ "name": "Bob#9", "uuid": "u-bob" }))
-    );
-    // a named account wins, and is not marked as main even when it is it
-    let named = f.account(Some("Carol#7")).unwrap();
-    assert_eq!(
-        (named.entry.username.as_str(), named.main),
-        ("Carol#7", false)
-    );
-    assert!(!f.account(Some("Bob#9")).unwrap().main);
-    assert_eq!(
-        f.daemon_selector(Some("Carol#7")).unwrap().0.as_deref(),
-        Some("Carol#7")
-    );
-    // a main account the index no longer holds is not taken, and said:
-    // an index written again without it (no verb forgets an account)
-    std::fs::remove_file(acquisition_store::index_path(&s.mock)).unwrap();
-    login(&s.mock, USER, UUID);
-    login(&s.mock, "Carol#7", "u-carol");
-    let fault = f.account(None).unwrap_err();
-    assert_eq!(
-        Value::Object(fault.fields()),
-        json!({ "kind": "ambiguous_account", "accounts": [USER, "Carol#7"],
-                "main_account_unknown": true })
-    );
-    assert!(
-        fault
-            .to_string()
-            .contains("the main account set earlier is none of them now"),
-        "{fault}"
-    );
-    assert!(matches!(f.daemon_selector(None).unwrap(), (None, None)));
-    let shown = main_account::shown(&f).unwrap().unwrap();
-    assert_eq!(
-        (shown.uuid.as_deref(), shown.username, shown.known),
-        (Some("u-bob"), None, false)
-    );
-    // and where its loss leaves one account, the sole one is taken
-    std::fs::remove_file(acquisition_store::index_path(&s.mock)).unwrap();
-    login(&s.mock, USER, UUID);
-    let sole = f.account(None).unwrap();
-    assert_eq!((sole.entry.username.as_str(), sole.main), (USER, false));
-}
-
-/// C187, C52, C78 — the main account's write is the saved search's in
-/// small: a create lands only where none is set, a write over one names
-/// its revision or (the human's default) replaces what stands, a stale
-/// revision is a conflict offering the same write again, and every
-/// receipt carries the undo that puts the prior back.
-#[test]
-fn c187_the_main_account_is_set_and_cleared_under_its_revision_with_an_undo() {
-    use acquisition_verbs::main_account::{self, MainWritten};
-    use acquisition_verbs::refusal::document;
-    let s = scratch();
-    let f = frontend(&s.mock);
-    login(&s.mock, USER, UUID);
-    login(&s.mock, "Bob#9", "u-bob");
-    let undo = |w: &MainWritten| w.undo().unwrap().0;
-    let created = main_account::set(&f, USER, Expect::Create).unwrap();
-    assert_eq!((created.revision, created.prior.is_none()), (1, true));
-    assert_eq!(undo(&created), Way::MainAccountClear { if_revision: 1 });
-    let refused = main_account::set(&f, "Bob#9", Expect::Create).unwrap_err();
-    let doc = document(&refused, &Plain);
-    assert_eq!(
-        (doc["kind"].clone(), doc["revision"].clone()),
-        (json!("conflict"), json!(1))
-    );
-    assert_eq!(doc["current"]["username"], USER, "{doc}");
-    let replaced = main_account::set(&f, "Bob#9", Expect::Exactly(1)).unwrap();
-    assert_eq!(replaced.revision, 2);
-    assert_eq!(
-        undo(&replaced),
-        Way::MainAccountSet {
-            account: USER.into(),
-            if_revision: 2
-        }
-    );
-    let current = main_account::set(&f, USER, Expect::Current).unwrap();
-    assert_eq!(current.revision, 3);
-    let stale = main_account::clear(&f, Expect::Exactly(2)).unwrap_err();
-    assert_eq!(document(&stale, &Plain)["revision"], 3);
-    let cleared = main_account::clear(&f, Expect::Current).unwrap();
-    assert_eq!((cleared.written.is_none(), cleared.revision), (true, 4));
-    assert_eq!(
-        undo(&cleared),
-        Way::MainAccountSet {
-            account: USER.into(),
-            if_revision: 0
-        }
-    );
-    assert!(main_account::shown(&f).unwrap().is_none());
-    assert!(f.account(None).is_err());
-    let nothing = main_account::clear(&f, Expect::Current).unwrap_err();
-    assert!(
-        format!("{nothing:#}").contains("no main account is set"),
-        "{nothing:#}"
-    );
-    // the undo of the clear lands over the tombstone
-    let back = main_account::set(&f, USER, Expect::Create).unwrap();
-    assert_eq!(back.revision, 5);
-    assert_eq!(f.account(None).unwrap().entry.username, USER);
-
-    // a stored main account this build cannot read (a later version) is
-    // never passed over nor replaced blind (the cold review of a3bc5c38,
-    // its first and third findings): the door and a job's selector refuse
-    // it, a write or a clear naming no revision is refused, and one naming
-    // its revision replaces it, the prior named with why and no undo
-    rusqlite::Connection::open(acquisition_store::user_path(&s.mock))
-        .unwrap()
-        .execute(
-            "UPDATE annotations SET value = ?1 WHERE kind = 'main-account'",
-            rusqlite::params![json!({ "version": 2, "uuid": UUID }).to_string()],
-        )
-        .unwrap();
-    assert!(f.account(None).is_err());
-    assert!(f.daemon_selector(None).is_err(), "a job fails closed");
-    assert!(
-        f.account(Some("Bob#9")).is_ok(),
-        "a named account needs no main"
-    );
-    for refused in [
-        main_account::set(&f, "Bob#9", Expect::Current).unwrap_err(),
-        main_account::clear(&f, Expect::Current).unwrap_err(),
-    ] {
-        assert!(
-            format!("{refused:#}").contains("cannot read"),
-            "{refused:#}"
-        );
-    }
-    let over = main_account::set(&f, "Bob#9", Expect::Exactly(5)).unwrap();
-    let prior = over.prior.clone().unwrap();
-    assert!(
-        prior
-            .unreadable
-            .as_deref()
-            .is_some_and(|u| u.contains("version 2")),
-        "{prior:?}"
-    );
-    assert!(over.undo().is_err(), "an unreadable prior has no undo");
-    assert_eq!(f.account(None).unwrap().entry.username, "Bob#9");
-}
-
 #[test]
 fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
     let s = scratch();
@@ -489,7 +272,6 @@ fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
             uuid: None,
             keyring_names: Vec::new(),
         },
-        main: false,
     };
     let fault = account.intent().err().expect("refused");
     assert!(matches!(fault, Fault::NoUuid { .. }), "{fault}");
@@ -2455,8 +2237,6 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::SavedSearchRun { .. } => Some("search"),
             Way::SavedSearchSet(_) => Some("saved_search_set"),
             Way::SavedSearchClear { .. } => Some("saved_search_clear"),
-            Way::MainAccountSet { .. } => Some("main_account_set"),
-            Way::MainAccountClear { .. } => Some("main_account_set"),
         };
         Some((json!(format!("{way:?}")), tool))
     }
@@ -2466,21 +2246,9 @@ impl acquisition_verbs::refusal::Surface for Plain {
 /// shape adds — `offers`, `readings`, `next`, the kind's own fields (an
 /// ambiguous saved search's `searches`, `total` and `left_out` among
 /// them) — where they have something to say.
-const REFUSAL_KEYS: [&str; 14] = [
-    "error",
-    "kind",
-    "offers",
-    "readings",
-    "next",
-    "accounts",
-    "revision",
-    "current",
-    "span",
-    "searches",
-    "total",
-    "left_out",
-    "file",
-    "main_account_unknown",
+const REFUSAL_KEYS: [&str; 13] = [
+    "error", "kind", "offers", "readings", "next", "accounts", "revision", "current", "span",
+    "searches", "total", "left_out", "file",
 ];
 
 /// A not_found's refusal as the planner makes it, over a scope named.
@@ -2522,7 +2290,6 @@ fn every_refusal_is_one_shape_from_one_function() {
         (
             Fault::AmbiguousAccount {
                 candidates: vec![USER.into(), "Bob#9".into()],
-                main_unknown: false,
             }
             .into(),
             "ambiguous_account",
@@ -2769,7 +2536,6 @@ fn an_account_that_cannot_be_picked_offers_the_request_as_each_name() {
     let doc = document(
         &Fault::AmbiguousAccount {
             candidates: vec![USER.into(), "Bob#9".into()],
-            main_unknown: false,
         }
         .into(),
         &Plain,

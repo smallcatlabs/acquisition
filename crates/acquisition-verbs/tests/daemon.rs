@@ -367,52 +367,6 @@ async fn a_plan_applied_twice_is_spent_the_second_time() {
     assert!(remaining_requests.is_some(), "{again:?}");
 }
 
-/// C187: a job naming no account takes the main account, named to the
-/// daemon by its uuid (the daemon never reads intent); one with no live
-/// session is the daemon's `not_logged_in`, said as the main account's,
-/// with `main_account` the verbs build and the others known as the way
-/// to name another. The main account logged in, the same submit lands.
-#[tokio::test]
-async fn c187_a_job_naming_none_takes_the_main_account_and_says_so_when_it_is_not_logged_in() {
-    use acquisition_verbs::main_account;
-    let s = session("main-job");
-    let (_daemon, frontend, opened, mut client) = world(&s).await;
-    let alice = opened.account.entry.username.clone();
-    acquisition_store::Index::load(&frontend.dir())
-        .unwrap()
-        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
-        .unwrap();
-    main_account::set(&frontend, "Bob#9", Expect::Create).unwrap();
-    let job = || json!({ "realm": "pc", "league": "Standard" });
-    let fault = submit(&frontend, &mut client, "stashes", job(), 0, None)
-        .await
-        .unwrap_err();
-    assert!(matches!(fault, Fault::MainNotLoggedIn(_)), "{fault:?}");
-    assert_eq!(
-        serde_json::Value::Object(fault.fields()),
-        json!({ "kind": "not_logged_in", "accounts": [alice],
-                "main_account": { "name": "Bob#9", "uuid": "u-bob" } })
-    );
-    assert!(
-        fault
-            .to_string()
-            .ends_with("Bob#9 was taken as the main account, since none was named"),
-        "{fault}"
-    );
-    // a named account still wins over the main one
-    submit(&frontend, &mut client, "stashes", job(), 0, Some(&alice))
-        .await
-        .expect("a named account");
-    main_account::set(&frontend, &alice, Expect::Exactly(1)).unwrap();
-    let id = submit(&frontend, &mut client, "stashes", job(), 0, None)
-        .await
-        .expect("the main account, logged in");
-    assert_eq!(
-        client.status(id).await.unwrap().account.as_deref(),
-        Some(alice.as_str())
-    );
-}
-
 /// C111: a plan whose every request a queued apply holds is spent with
 /// no remaining count, since what is queued has not landed.
 #[tokio::test]

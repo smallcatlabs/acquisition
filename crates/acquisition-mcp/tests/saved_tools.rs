@@ -650,49 +650,6 @@ fn every_saved_offer_sent_back_as_printed_answers() {
         let (ok, answer) = sent(&mut mcp, "search", offer);
         assert!(ok, "{offer}: {answer}");
     }
-    // C187 (morning 1's A2): the refusal names the main account's tool;
-    // set, the same run names no account and answers, and the receipt's
-    // undo, sent as printed, sets none again
-    assert!(
-        ambiguous["error"]
-            .as_str()
-            .is_some_and(|e| e.contains("main_account_set")),
-        "{ambiguous}"
-    );
-    let main = answered(&mut mcp, "main_account_set", json!({ "main": "Alice" }));
-    assert_eq!(main["written"]["username"], json!("Alice#1234"), "{main}");
-    let accounts = answered(&mut mcp, "accounts", json!({}));
-    assert_eq!(accounts["main"]["revision"], json!(1), "{accounts}");
-    let ran = answered(
-        &mut mcp,
-        "search",
-        json!({ "saved": id, "view": { "rows": { "limit": 1 } } }),
-    );
-    // one signal, the top-level `main_account`, and the same at both
-    // doors: the verbs build it, the CLI's `--json` and this server add it
-    let main_account = json!({ "name": "Alice#1234", "uuid": "u-search" });
-    assert_eq!(ran["main_account"], main_account, "{ran}");
-    assert_eq!(ran["scope"]["account"].get("main"), None, "{ran}");
-    let by_cli = printed(base, &["search", "--saved", &id]);
-    assert_eq!(by_cli["main_account"], ran["main_account"], "{by_cli}");
-    let policy = answered(&mut mcp, "sync_policy", json!({}));
-    assert_eq!(policy["main_account"], main_account, "{policy}");
-    let named = answered(&mut mcp, "sync_policy", json!({ "account": "Bob" }));
-    assert_eq!(named.get("main_account"), None, "{named}");
-    refused(
-        &mut mcp,
-        "main_account_set",
-        json!({ "main": "Bob" }),
-        "conflict",
-    );
-    let (ok, cleared) = sent(&mut mcp, "main_account_set", &main["undo"]);
-    assert!(ok, "{cleared}");
-    refused(
-        &mut mcp,
-        "search",
-        json!({ "saved": id }),
-        "ambiguous_account",
-    );
     assert!(no_daemon_appeared(base) && no_daemon_appeared(&two.0));
 }
 

@@ -123,10 +123,10 @@ made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
 directory whose `mock/` or `ggg/` holds the databases (`store` under
 the platform data dir when neither side sets it).
 
-It shares the store and the daemon with `acq`, and its 31 tools do
+It shares the store and the daemon with `acq`, and its 30 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
 `tabs`, `characters`, `item_events`, `store_status`, `store_refused`, `accounts`,
-`leagues`), set the main account (`main_account_set`), keep searches (`saved_searches`, `saved_search_set`,
+`leagues`), keep searches (`saved_searches`, `saved_search_set`,
 `saved_search_clear`),
 price items and render the shop (`price_status`, `price_list`,
 `price_show`, `price_set`, `price_clear`, `shop_render`,
@@ -162,7 +162,6 @@ acq <verb> --help   # every verb's reference
 acq auth [--no-browser]   # log in on GGG's page
 acq auth status | check | logout   # live sessions, or with no daemon what one would restore; token check; logout
 acq accounts [--expand]   # accounts this machine has logged into, ten and their count (no daemon)
-acq accounts main [<name> | --clear]   # the main account, taken where several are known and none is named
 
 # jobs: fetched through the daemon, which starts on demand; a route's first use probes its limits
 acq profile | leagues   # profile; account leagues

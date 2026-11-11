@@ -42,7 +42,6 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::frontend::PolicyWritten;
-use crate::main_account::MainWritten;
 use crate::refusal::{Surface, Way, offer};
 use crate::saved::SavedWritten;
 
@@ -216,15 +215,6 @@ pub fn policy_undo(written: &PolicyWritten) -> Result<(Way, String), String> {
 /// A saved search's write's receipt (C167; [`crate::saved`]): the
 /// write's document, then its `undo` or `no_undo` ([`SavedWritten::undo`]).
 pub fn saved<'a>(written: &'a SavedWritten, surface: &dyn Surface) -> Receipt<'a, SavedWritten> {
-    shaped(written, written.undo(), surface)
-}
-
-/// The main account's write's receipt (C187; [`crate::main_account`]):
-/// the write's document, then its `undo` or `no_undo`.
-pub fn main_account<'a>(
-    written: &'a MainWritten,
-    surface: &dyn Surface,
-) -> Receipt<'a, MainWritten> {
     shaped(written, written.undo(), surface)
 }
 

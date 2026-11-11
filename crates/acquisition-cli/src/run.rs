@@ -17,8 +17,7 @@ use serde_json::json;
 
 use crate::auth_cmd::{login, print_auth};
 use crate::cli::{
-    AccountsCmd, AuthCmd, Cli, Cmd, DaemonCmd, PolicyCmd, PriceCmd, ReferenceCmd, SavedCmd,
-    ShopCmd, StoreCmd,
+    AuthCmd, Cli, Cmd, DaemonCmd, PolicyCmd, PriceCmd, ReferenceCmd, SavedCmd, ShopCmd, StoreCmd,
 };
 use crate::daemon_cmd::daemon_text;
 use crate::jobs_cmd::{
@@ -44,71 +43,9 @@ pub(crate) struct Ctx {
 }
 
 impl Ctx {
-    /// C121: the account the flags select, resolved against the index;
-    /// C187: where it was taken as the main account, several being known
-    /// and none named, a note on stderr says which ([`Ctx::note_main`]) —
-    /// the search's answer says it itself, so the search resolves through
-    /// the frontend.
+    /// C121: the account the flags select, resolved against the index.
     pub fn account(&self) -> Result<Account, Fault> {
-        let account = self.frontend.account(self.account.as_deref())?;
-        self.note_main(Some(&account));
-        Ok(account)
-    }
-
-    /// The selector a job verb names to the daemon (C187): the flags',
-    /// else the main account's uuid where it is taken, noted as
-    /// [`Ctx::account`] notes it.
-    pub fn daemon_selector(&self) -> Result<Option<String>, Fault> {
-        let (selector, main) = self.frontend.daemon_selector(self.account.as_deref())?;
-        self.note_main(main.as_ref());
-        Ok(selector)
-    }
-
-    /// C187's one line, in text mode and under `--json` alike, where the
-    /// answer's JSON does not carry `main_account` (the CLI prints a
-    /// verb's JSON at many sites, so the field rides only the search's):
-    /// on stderr, where the CLI's notes go.
-    pub(crate) fn note_main(&self, account: Option<&Account>) {
-        if let Some(account) = account.filter(|a| a.main) {
-            note_taken(&account.entry.username);
-        }
-    }
-}
-
-/// C187's one line, the CLI's one wording of it: on stderr, where the
-/// CLI's notes go.
-pub(crate) fn note_taken(name: &str) {
-    eprintln!("account {name}: the main account, taken since none was named");
-}
-
-/// C187: the one line for a verb whose answer says it took the main
-/// account itself (the search's scope line and `main_account`), written
-/// only where that answer never came: any failure after the account was
-/// taken, so a refusal is never left without it (the second cold review
-/// of #246, finding 3). Dropped unanswered, it writes the line.
-pub(crate) struct SaidUnlessAnswered {
-    name: Option<String>,
-}
-
-impl SaidUnlessAnswered {
-    /// A guard over `taken`, the verbs' `main_account` or none.
-    pub(crate) fn new(taken: Option<&serde_json::Value>) -> Self {
-        SaidUnlessAnswered {
-            name: taken.and_then(|t| t["name"].as_str()).map(str::to_string),
-        }
-    }
-
-    /// The answer was printed and says it: no line.
-    pub(crate) fn answered(mut self) {
-        self.name = None;
-    }
-}
-
-impl Drop for SaidUnlessAnswered {
-    fn drop(&mut self) {
-        if let Some(name) = &self.name {
-            note_taken(name);
-        }
+        self.frontend.account(self.account.as_deref())
     }
 }
 
@@ -161,8 +98,7 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             }
             Some(AuthCmd::Check) => {
                 let mut client = connect(cx).await?;
-                // C187: naming none among several, the main account
-                let account = cx.daemon_selector()?;
+                let account = cx.account.clone();
                 match client.request(&Request::AuthCheck { account }).await? {
                     Response::Error { kind, message } => {
                         Err(anyhow::Error::from(DaemonError { kind, message })
@@ -178,10 +114,6 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             }
             Some(AuthCmd::Logout) => {
                 let mut client = attach(cx).await?;
-                // C187: a logout takes no main account; ending a session
-                // or forgetting a login is an act a person names (the
-                // ruling's one changed command is a job; the second cold
-                // review of #246, finding 2, declined)
                 let account = cx.account.clone();
                 let answer = client
                     .request(&Request::AuthLogout {
@@ -276,14 +208,7 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
                 _ => print_outcome(&result, false, true),
             }
         }
-        Cmd::Accounts { expand, cmd } => match cmd {
-            None => store_cmd::accounts(cx, expand, cli.json),
-            Some(AccountsCmd::Main {
-                account,
-                clear,
-                if_revision,
-            }) => store_cmd::main_account(cx, account.as_deref(), clear, if_revision, cli.json),
-        },
+        Cmd::Accounts { expand } => store_cmd::accounts(cx, expand, cli.json),
         Cmd::Tabs {
             league,
             realm,

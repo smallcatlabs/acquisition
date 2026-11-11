@@ -188,10 +188,6 @@ pub struct SavedWritten {
     /// back.
     #[serde(skip)]
     pub prior_value: Option<SavedSearch>,
-    /// C187: where a create's realm was resolved over the main account,
-    /// taken since none was named, which ([`crate::main_account::taken`]).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub main_account: Option<Value>,
 }
 
 /// What a saved search's write names: its id.
@@ -399,8 +395,8 @@ pub fn set(
     let via = Provenance::via(frontend.via);
     let now = acquisition_store::now();
     let Some(id) = &set.id else {
-        let (realm, main_account) = match realm {
-            Some(realm) => (realm, None),
+        let realm = match realm {
+            Some(realm) => realm,
             None => resolved_realm(frontend, account, membership.as_deref(), set)?,
         };
         let value = SavedSearch {
@@ -413,9 +409,7 @@ pub fn set(
             },
         };
         let row = created(&mut user, &value, &via, mint)?;
-        let mut receipt = written(&row.key.clone(), Some(row), None, None, now);
-        receipt.main_account = main_account;
-        return Ok(receipt);
+        return Ok(written(&row.key.clone(), Some(row), None, None, now));
     };
     // the row the write replaces, read once: at exactly the revision
     // named, or at the revision read; none for a create at the id
@@ -565,7 +559,6 @@ pub fn clear(frontend: &Frontend, id: &str, expect: Expect) -> anyhow::Result<Sa
         prior: Some(prior_row),
         revision: tombstone,
         prior_value,
-        main_account: None,
     })
 }
 
@@ -705,7 +698,6 @@ fn written(
         written,
         prior,
         prior_value,
-        main_account: None,
     }
 }
 
@@ -984,18 +976,12 @@ fn resolved_realm(
     account: Option<&str>,
     membership: Option<&str>,
     set: &Set,
-) -> anyhow::Result<(String, Option<Value>)> {
+) -> anyhow::Result<String> {
     let account = match frontend.account(account) {
         Ok(account) => account,
-        Err(Fault::NoAccounts { .. }) => {
-            return Ok((corpus::Realm::All.as_str().to_string(), None));
-        }
+        Err(Fault::NoAccounts { .. }) => return Ok(corpus::Realm::All.as_str().to_string()),
         Err(fault) => return Err(fault.into()),
     };
-    // C187: a realm resolved over the main account says so, in the
-    // receipt and in the refusal alike (the cold review of a3bc5c38, its
-    // fifth finding)
-    let taken = crate::main_account::taken(&account);
     let opened = account.open()?;
     let request = Request {
         scope: Scope {
@@ -1005,7 +991,7 @@ fn resolved_realm(
         ..Request::default()
     };
     match request.corpus(&opened.facts, &opened.intent) {
-        Ok(corpus) => Ok((corpus.realm.as_str().to_string(), taken)),
+        Ok(corpus) => Ok(corpus.realm.as_str().to_string()),
         Err(SearchError::Scope {
             kind: "realm_needed",
             message,
@@ -1027,15 +1013,11 @@ fn resolved_realm(
                     )
                 })
                 .collect();
-            let mut fields = Map::new();
-            if let Some(taken) = taken {
-                fields.insert("main_account".into(), taken);
-            }
             Err(Pointed {
                 kind: "realm_needed",
                 message,
                 ways,
-                fields,
+                fields: Map::new(),
             }
             .into())
         }

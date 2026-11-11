@@ -16,7 +16,7 @@ Commands:
   characters    List characters on the logged-in account. A route's first use queues a visible `probe` job — one HEAD that learns the policy and the account's current counters before anything real is sent
   character     Fetch one character with its equipment and inventory
   leagues       List the account's leagues: one a line, with its realm, its category and when it started (`--json`: GGG's answer whole). A new league is listed here the day it opens. `--stored` reads the list last fetched instead, with no daemon: the newest start first, each league beside when it started, whether the sync policy names it and what the store holds of it, ten unless `--expand`
-  accounts      Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside, the main account marked. `--json` is one document: `provider`, `total`, `accounts` (the listed, the main one `main: true`), `left_out` and `main`, the main account as set, or null
+  accounts      Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside. `--json` is one document: `provider`, `total`, `accounts` (the listed) and `left_out`
   tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than ten tabs is counted by type with its ten largest tabs instead; --limit lists more or fewer, --expand every one. --type and --never-fetched select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts. `--json` is the same document: the counts, `by_type`, and `rows`, the tabs listed, with `left_out` counting the rest
   search        Search the items the store holds (no daemon): a query over every live item of one realm, answered with the canonical query, the scope searched, the total, and the rows with the lines the query touched — then each term's counts over the scope, matched, failed, lacked, undecided, and the basis. Every count has a route: the command that returns exactly its members, printed where a next step hangs on it and every one under `--routes`. `--json` is the answer whole, in the same order, the query as text and as tree, a count's request where its route is printed; a failure is `{"error", "kind"}`, with `readings` where the query could be read otherwise and `offers`, each `{request, says}`, where a way on is a request `--request` reads. `--describe` prints the language, and what this build refuses by name
   show          One item as the search derives it, live or removed (no daemon): its fields, its place, every line with its kind, template and numbers, and what could not be read; `--json` the same, structured. `--body` adds the body as the store holds it, which is still there when deriving could not read it
@@ -44,7 +44,7 @@ Commands:
 
 Options:
       --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included: `{"error", "kind"}`, and where it has them `offers` (each `{request, says}`, a command line to run as printed, its words unquoted beside it as `argv` for a program to run with no shell, or a request `acq search --request` reads), `readings`, `next` (a person's act) and the kind's own fields. A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
-      --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, every verb but a logout takes the main account where one is set and still known (`acq accounts main`), and says it did; else a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them (`ambiguous_account`). With accounts known, a name that is none of them is refused as `unknown_account`; with none known, as `not_logged_in`. A job verb also needs the account logged in now (`not_logged_in` where it is not); a verb that reads the store needs only its store. A job's progress line and its JSON name the account it ran as. The saved searches are the world's, not an account's: `acq saved` needs no login and uses an account only to resolve a new search's realm [env: ACQ_ACCOUNT=]
+      --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them (`ambiguous_account`). With accounts known, a name that is none of them is refused as `unknown_account`; with none known, as `not_logged_in`. A job verb also needs the account logged in now (`not_logged_in` where it is not); a verb that reads the store needs only its store. A job's progress line and its JSON name the account it ran as. The saved searches are the world's, not an account's: `acq saved` needs no login and uses an account only to resolve a new search's realm [env: ACQ_ACCOUNT=]
   -h, --help               Print help
   -V, --version            Print version
 ```
@@ -166,33 +166,13 @@ Options:
 ## `acq accounts`
 
 ```text
-Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside, the main account marked. `--json` is one document: `provider`, `total`, `accounts` (the listed, the main one `main: true`), `left_out` and `main`, the main account as set, or null
+Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside. `--json` is one document: `provider`, `total`, `accounts` (the listed) and `left_out`
 
-Usage: acq accounts [OPTIONS] [COMMAND]
-
-Commands:
-  main  The main account: the one a command naming no account takes where several are known (`--account` and ACQ_ACCOUNT still win). Bare, it shows the main account; with an account, makes it the main one; with --clear, sets none. A write prints what it replaced and the command that puts it back
-  help  Print this message or the help of the given subcommand(s)
+Usage: acq accounts [OPTIONS]
 
 Options:
       --expand             List every account
   -h, --help               Print help
-```
-
-## `acq accounts main`
-
-```text
-The main account: the one a command naming no account takes where several are known (`--account` and ACQ_ACCOUNT still win). Bare, it shows the main account; with an account, makes it the main one; with --clear, sets none. A write prints what it replaced and the command that puts it back
-
-Usage: acq accounts main [OPTIONS] [ACCOUNT]
-
-Arguments:
-  [ACCOUNT]  The account to make the main one: a username, with or without its #discriminator, or a uuid
-
-Options:
-      --clear                      Set no main account: a command naming none among several is refused again
-      --if-revision <IF_REVISION>  Only write over exactly this revision (what `acq accounts` printed); refused naming the current one otherwise. 0 sets one only where none is set. Without it the write replaces whatever stands
-  -h, --help                       Print help
 ```
 
 ## `acq tabs`

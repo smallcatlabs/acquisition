@@ -358,25 +358,10 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     let all = sole_json(&acq(&base, &["accounts", "--expand", "--json"]));
     assert_eq!(all["accounts"].as_array().map(Vec::len), Some(12), "{all}");
     let text = String::from_utf8_lossy(&acq(&base, &["accounts"]).stdout).to_string();
-    // C187: the count line, then the main account's line, its next action
     assert!(
-        text.contains("\n10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
+        text.ends_with("10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
         "{text}"
     );
-    assert!(
-        text.ends_with(
-            "main account: none, so a command naming no account is refused; `acq accounts main 'Alice#1234'` sets one\n"
-        ),
-        "{text}"
-    );
-    assert_eq!(listed["main"], serde_json::Value::Null, "{listed}");
-    // a user file that cannot be read is said, never shown as no main
-    // account (the second cold review of #246, finding 4)
-    std::fs::write(mock.join("user.db"), "not a database").unwrap();
-    let shown = sole_json(&acq(&base, &["accounts", "main", "--json"]));
-    assert_eq!(shown["main"], serde_json::Value::Null, "{shown}");
-    assert!(shown["main_unavailable"].is_string(), "{shown}");
-    std::fs::remove_file(mock.join("user.db")).unwrap();
     // C146: the time is written by a sign-in and by a token refresh's
     // persist alike, so an account whose last write was a refresh says
     // both writers

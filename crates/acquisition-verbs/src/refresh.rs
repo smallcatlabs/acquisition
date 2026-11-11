@@ -21,7 +21,7 @@ use serde::Serialize;
 
 use crate::fault::Fault;
 use crate::frontend::Opened;
-use crate::jobs::{JobResult, Progress, result_live, wait};
+use crate::jobs::{JobResult, Progress, result_live, submit, wait};
 
 /// The quote attempt's bound: the plan in hand is the deliverable, and a
 /// wedged daemon or socket peer must not keep an offline plan from
@@ -665,7 +665,6 @@ impl Opened {
     ) -> Result<(Apply, Option<Watermark>), Fault> {
         let frontend = self.account.frontend.clone();
         let username = self.account.entry.username.clone();
-        let taken = self.account.clone();
         plan.check_spendable(
             frontend.provider,
             self.account.entry.uuid.as_deref(),
@@ -742,15 +741,13 @@ impl Opened {
         } else {
             None
         };
-        // C187: a refusal for the main account says it was taken as such
-        let job_id = crate::jobs::submit_as(
+        let job_id = submit(
             &frontend,
             connected,
             "apply",
             apply_params_of(&unspent, max_requests),
             0,
-            Some(username.clone()),
-            Some(&taken),
+            Some(&username),
         )
         .await?;
         Ok((

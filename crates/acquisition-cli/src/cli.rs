@@ -36,13 +36,10 @@ pub(crate) struct Cli {
     #[arg(long, global = true)]
     pub(crate) json: bool,
     /// Which account to act as: a username (with or without `#…`) or uuid.
-    /// Defaults to `ACQ_ACCOUNT`. With neither, every verb but a logout
-    /// takes the main account where one is set and still known (`acq
-    /// accounts main`), and says it did; else a verb that reads the store
-    /// takes the sole
-    /// account known on disk (`acq accounts`) and a job verb the sole
-    /// account logged in (`acq auth status`); with more than one, the
-    /// verb refuses and lists them (`ambiguous_account`).
+    /// Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the
+    /// store takes the sole account known on disk (`acq accounts`) and a
+    /// job verb the sole account logged in (`acq auth status`); with more
+    /// than one, the verb refuses and lists them (`ambiguous_account`).
     /// With accounts known, a name that is none of them is refused as
     /// `unknown_account`; with none known, as `not_logged_in`. A job verb
     /// also needs the account logged in now (`not_logged_in` where it is
@@ -135,16 +132,13 @@ pub(crate) enum Cmd {
         expand: bool,
     },
     /// Accounts this machine has logged into (the store's index; no
-    /// daemon): ten, --expand every one, the count of all of them beside,
-    /// the main account marked. `--json` is one document: `provider`,
-    /// `total`, `accounts` (the listed, the main one `main: true`),
-    /// `left_out` and `main`, the main account as set, or null.
+    /// daemon): ten, --expand every one, the count of all of them beside.
+    /// `--json` is one document: `provider`, `total`, `accounts` (the
+    /// listed) and `left_out`.
     Accounts {
         /// List every account.
         #[arg(long)]
         expand: bool,
-        #[command(subcommand)]
-        cmd: Option<AccountsCmd>,
     },
     /// Tabs of a league, from the shared store (no daemon round-trip):
     /// the counts first, then every tab with its type, items, age and id.
@@ -622,31 +616,6 @@ pub(crate) enum PriceCmd {
         /// The address, as for `set`.
         target: String,
         /// Only clear exactly this revision; see `set`.
-        #[arg(long)]
-        if_revision: Option<i64>,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum AccountsCmd {
-    /// The main account: the one a command naming no account takes where
-    /// several are known (`--account` and ACQ_ACCOUNT still win). Bare,
-    /// it shows the main account; with an account, makes it the main one;
-    /// with --clear, sets none. A write prints what it replaced and the
-    /// command that puts it back.
-    Main {
-        /// The account to make the main one: a username, with or without
-        /// its #discriminator, or a uuid.
-        #[arg(conflicts_with = "clear")]
-        account: Option<String>,
-        /// Set no main account: a command naming none among several is
-        /// refused again.
-        #[arg(long)]
-        clear: bool,
-        /// Only write over exactly this revision (what `acq accounts`
-        /// printed); refused naming the current one otherwise. 0 sets one
-        /// only where none is set. Without it the write replaces whatever
-        /// stands.
         #[arg(long)]
         if_revision: Option<i64>,
     },

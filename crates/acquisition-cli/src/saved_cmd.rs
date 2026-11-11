@@ -74,28 +74,7 @@ pub fn set(
         realm,
         membership,
     };
-    // C187: a create whose realm is resolved over the main account says
-    // so where it fails too, unless its `--json` refusal carries the field
-    // (the second cold review of #246, finding 3)
-    let taken = match (&set.id, &set.realm, &cx.account) {
-        (None, None, None) => cx
-            .frontend
-            .account(None)
-            .ok()
-            .and_then(|a| acquisition_verbs::main_account::taken(&a)),
-        _ => None,
-    };
-    let written = saved::set(&cx.frontend, cx.account.as_deref(), &set, &mut saved::mint)
-        .inspect_err(|e| {
-            let carried = e
-                .downcast_ref::<acquisition_verbs::refusal::Pointed>()
-                .is_some_and(|p| p.fields.contains_key("main_account"));
-            if let Some(name) = taken.as_ref().and_then(|t| t["name"].as_str())
-                && !(json && carried)
-            {
-                crate::run::note_taken(name);
-            }
-        })?;
+    let written = saved::set(&cx.frontend, cx.account.as_deref(), &set, &mut saved::mint)?;
     print_written(&written, cx.account.as_deref(), json)
 }
 
@@ -112,15 +91,6 @@ fn print_written(written: &SavedWritten, account: Option<&str>, json: bool) -> R
         let receipt = acquisition_verbs::receipt::saved(written, &Terminal::writing());
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
-    }
-    // C187: a realm resolved over the main account, said as the CLI's
-    // one line says it where no account place stands
-    if let Some(name) = written
-        .main_account
-        .as_ref()
-        .and_then(|m| m["name"].as_str())
-    {
-        crate::run::note_taken(name);
     }
     print!("{}", written_text(written, account));
     Ok(())

@@ -1411,13 +1411,6 @@ pub struct ScopeOut {
 pub struct Account {
     pub uuid: String,
     pub name: Option<String>,
-    /// C187: the account was taken as the main account, several being
-    /// known and none named. The search never knows it; the frontend that
-    /// opened the store sets it, for the text's account place alone: the
-    /// JSON's one signal is the answer's top-level `main_account`, which
-    /// the verbs build (`acquisition_verbs::main_account::mark`).
-    #[serde(skip)]
-    pub main: bool,
 }
 
 /// A count, and — when it is not zero — the request that returns exactly
@@ -2362,7 +2355,6 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
             account: Account {
                 uuid: corpus.basis.account.clone(),
                 name: corpus.account_name.clone(),
-                main: false,
             },
             realm: corpus.realm.clone(),
             membership: corpus.membership,
