@@ -296,6 +296,10 @@ fn c51_a_job_names_its_account_and_among_several_none_named_is_refused() {
     );
     assert_eq!(job_account(&f, "sleep", None).unwrap(), None);
     assert_eq!(job_account(&f, "fetch", None).unwrap(), None, "mock");
+    // an index that cannot be read is refused, never taken for none known
+    std::fs::write(s.mock.join("accounts.json"), "not json").unwrap();
+    let fault = job_account(&f, "stashes", None).unwrap_err();
+    assert_eq!(fault.kind(), "store", "{fault}");
 }
 
 #[test]

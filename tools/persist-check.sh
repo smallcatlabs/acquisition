@@ -8,7 +8,7 @@
 #   tools/persist-check.sh [--account NAME] <tab1,...,tab6>   # live, rails on
 #   tools/persist-check.sh --mock <tab1,...,tab6>              # same flow, mock
 #
-# With more than one persisted account, every job needs a selector: pass
+# With more than one account known, every job needs a selector: pass
 # --account naming the account whose tabs these are; it is passed to every
 # `acq` call that acts as an account (the refresh and the logout).
 #
@@ -150,11 +150,13 @@ if [ -n "$ACCOUNT" ]; then ACCT=(--account "$ACCOUNT"); fi
 if [ "$MODE" = live ]; then
     echo "accounts on this machine (the fresh daemon restores the persisted ones):"
     "$ACQ" accounts || true
-    # every account (`--expand`), under `accounts` (C53, C149)
-    persisted=$("$ACQ" accounts --expand --json 2>/dev/null |
-        jq '[.accounts[] | select(.persisted)] | length' || echo 0)
-    if [ "$persisted" -gt 1 ] && [ -z "$ACCOUNT" ]; then
-        echo "refusing: $persisted persisted accounts — every job needs a selector." >&2
+    # every account known (`--expand`), under `accounts` (C53, C149): the
+    # refresh refuses among several unless one is named (C51), so this
+    # refuses first, before a daemon is started and left running
+    known=$("$ACQ" accounts --expand --json 2>/dev/null |
+        jq '.accounts | length' || echo 0)
+    if [ "$known" -gt 1 ] && [ -z "$ACCOUNT" ]; then
+        echo "refusing: $known accounts known — every job needs a selector." >&2
         echo "rerun with --account <username>, the account whose tabs these are." >&2
         exit 2
     fi

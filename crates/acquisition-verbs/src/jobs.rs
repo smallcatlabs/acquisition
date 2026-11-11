@@ -54,10 +54,11 @@ pub struct Progress {
 /// daemon to match against its sessions as before; a kind that needs no
 /// account ([`needs_no_account`]) names none; otherwise the frontend's
 /// door picks: the one account known is named, and among several, none
-/// named is `ambiguous_account` with the accounts to name. Where the door
-/// cannot read the index (no account known, or the index unreadable) the
-/// job names none and the daemon answers, as before: its rule, one
-/// session or a refusal, stays the backstop.
+/// named is `ambiguous_account` with the accounts to name. With no
+/// account known (no index yet) the job names none and the daemon
+/// answers, as before (its own `not_logged_in`); an index that cannot be
+/// read is the store's refusal, as every reading verb gives it, never a
+/// job let through to whichever session the daemon holds.
 pub fn job_account(
     frontend: &Frontend,
     kind: &str,
@@ -71,8 +72,8 @@ pub fn job_account(
     }
     match frontend.account(None) {
         Ok(account) => Ok(Some(account.entry.username)),
-        Err(fault @ Fault::AmbiguousAccount { .. }) => Err(fault),
-        Err(_) => Ok(None),
+        Err(Fault::NoAccounts { .. }) => Ok(None),
+        Err(fault) => Err(fault),
     }
 }
 
