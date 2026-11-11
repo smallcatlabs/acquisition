@@ -559,6 +559,15 @@ impl Refusal {
         )
     }
 
+    /// C47, #209: a terminal row whose stored outcome no longer reads as
+    /// this build's. `Status` answers the row; `result` says it ended.
+    fn unreadable_outcome(id: JobId) -> Self {
+        Refusal::new(
+            ErrorKind::QueueFailed,
+            format!("job {id} ended, but its stored outcome cannot be read by this daemon"),
+        )
+    }
+
     fn queue_failed(cause: &str) -> Self {
         Refusal::new(
             ErrorKind::QueueFailed,

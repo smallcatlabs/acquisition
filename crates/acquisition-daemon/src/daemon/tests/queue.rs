@@ -2653,6 +2653,40 @@ fn c47_a_row_in_a_state_this_daemon_does_not_know_is_refused_never_no_job() {
     assert_eq!(row.job.state, "paused");
 }
 
+/// C47, #209: a finished row whose stored outcome no longer reads as
+/// this build's `Outcome` is not "no job" to `result` while `Status`
+/// answers it: `Status` reads the row, `result` is refused under
+/// `queue_failed` saying the job ended and its outcome cannot be read by
+/// this daemon, and the job list that holds it still lists it. The row
+/// is written through the test's own connection after the start, at an
+/// id past the daemon's first, as this daemon's own work would be.
+#[test]
+fn c47_a_finished_row_whose_outcome_no_longer_reads_is_refused_by_result_and_listed() {
+    let dir = TestPath::dir();
+    let path = daemon_db_path(&dir);
+    queue_door(&dir).run(|mut door| async move {
+        let mut row = disk_row(100, "sleep", "done", None);
+        row.outcome = Some(json!({ "outcome": "exploded" }));
+        JobDb::open(&path).unwrap().upsert(&row).unwrap();
+        let Response::Status { job } = door.request(Request::Status { id: 100 }).await else {
+            panic!("the row's status did not read")
+        };
+        assert_eq!(job.state, JobState::Done);
+        let (kind, message) = refusal_of(
+            door.request(Request::Result { id: 100 }).await,
+            "the result",
+        );
+        assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
+        assert_eq!(
+            message,
+            "job 100 ended, but its stored outcome cannot be read by this daemon"
+        );
+        let listed: Vec<JobId> = door.every_job().await.iter().map(|job| job.id).collect();
+        assert!(listed.contains(&100), "the list keeps it: {listed:?}");
+        door.finish().await;
+    });
+}
+
 /// C6: a cancel and a reprioritisation whose queue write fails say so,
 /// `QueueFailed`, instead of claiming success: the priority is unchanged
 /// and the cancellation holds for this lifetime only, as `Status` reads

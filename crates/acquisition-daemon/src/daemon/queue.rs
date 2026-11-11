@@ -566,7 +566,9 @@ resubmit if still wanted",
     /// [`Self::stored_outcome`] with the job's times beside it (C165), as
     /// the row records them.
     /// A row this daemon cannot read is refused, never "no job" (C47,
-    /// #209): a state word it does not know.
+    /// #209): a state word it does not know, or a terminal row whose
+    /// outcome no longer reads as this build's (`Status` answers that
+    /// row, so the two agree the job exists).
     pub(super) fn stored_result(&self, id: JobId) -> Result<Option<(Outcome, JobTimes)>, Refusal> {
         let row = match self.jobs_db.lock().unwrap().get(id) {
             Ok(Some(row)) => row,
@@ -578,7 +580,17 @@ resubmit if still wanted",
                 ));
             }
         };
-        Ok(Entry::from_row_read(row)?.and_then(|e| Some((e.outcome?, e.info.times))))
+        let written = row.outcome.is_some();
+        let Some(entry) = Entry::from_row_read(row)? else {
+            return Ok(None);
+        };
+        match entry.outcome {
+            Some(outcome) => Ok(Some((outcome, entry.info.times))),
+            None if written && entry.info.state.is_terminal() => {
+                Err(Refusal::unreadable_outcome(id))
+            }
+            None => Ok(None),
+        }
     }
 
     /// C6: a job this daemon does not hold in memory, as the table
