@@ -84,7 +84,10 @@ with a ticked token its path ends with, whole path components, or one
 that starts with its crate, so a crate path in an intro routes every
 unrouted file of that crate there (the 2d build: plans' intro names
 `kinds.rs` bare for that reason). A token ending with the file's name is
-not one: `search/README.md` names no other `README.md` (#106).
+not one: `search/README.md` names no other `README.md` (#106). A root
+file the workspace reads, a `.toml` or `.lock` at the root that nothing
+routes, reaches every member `Cargo.toml` lists, and is routed to the
+areas their entry files name (#236: `pack --path Cargo.toml` refused).
 
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
@@ -103,9 +106,11 @@ Notes print as `note  ...` and never fail. Standard library only.
 a check is added here.
 """
 import argparse
+import glob
 import os
 import re
 import sys
+import tomllib
 from collections import defaultdict
 
 DEC_RE = re.compile(r"^- \*\*(C\d+)\s+—\s+(.*?)\*\*\s*(.*)$")
@@ -383,6 +388,32 @@ class Registry:
             return []
         named = set(re.findall(r"\bC\d+\b", self.text(full)))
         return [i for i in self.order if i in named]
+
+    def members(self):
+        """The workspace manifest's members, as `Cargo.toml` lists them (a
+        glob expanded); none where the root has no manifest."""
+        full = self.path("Cargo.toml")
+        if not os.path.isfile(full):
+            return []
+        with open(full, "rb") as fh:
+            listed = tomllib.load(fh).get("workspace", {}).get("members", [])
+        found = []
+        for m in listed:
+            for d in sorted(glob.glob(m, root_dir=self.root)) if glob.has_magic(m) else [m]:
+                if os.path.isfile(self.path(f"{d}/Cargo.toml")) and d not in found:
+                    found.append(d)
+        return found
+
+    def workspace_areas(self):
+        """The areas a root file the workspace reads reaches: each member's,
+        read off its entry file's module doc as any file's is."""
+        found = []
+        for m in self.members():
+            for entry in (f"{m}/src/lib.rs", f"{m}/src/main.rs"):
+                if os.path.isfile(self.path(entry)):
+                    found += [a for a in self.area_of_path(entry) if a not in found]
+                    break
+        return found
 
     def area_of_path(self, rel):
         """The area a file belongs to: the module doc names `decisions/<area>.md`
@@ -728,6 +759,12 @@ def pack_path(reg, path):
               f"`git ls-files '*{os.path.basename(path)}'` finds one by its name; `pack --area <area>` needs no file.", file=sys.stderr)
         return 2
     areas = reg.area_of_path(rel)
+    # A root file the workspace reads (its manifest, its lock, a tool's
+    # `.toml` beside them) is named by no module doc and no intro; it
+    # reaches every member the manifest lists, so it is routed to theirs.
+    reaches = not areas and "/" not in rel and rel.endswith((".toml", ".lock"))
+    if reaches:
+        areas = reg.workspace_areas()
     if not areas:
         print(f"no area governs {rel}: no module doc near its top names a decisions/<area>.md and no area's intro names it. "
               f"Areas: {', '.join(sorted(reg.areas))}. Use --area.", file=sys.stderr)
@@ -742,6 +779,10 @@ def pack_path(reg, path):
     if not cited:
         out.append("It cites none by id.")
     out.append("")
+    if reaches:
+        out += [f"`{rel}` is a root file the workspace reads, so it reaches every member the manifest lists: every "
+                "cross-cutting ruling of `AGENTS.md` bears on it, C1's dependency edges first, and the areas its "
+                "members name follow.", ""]
     for a in areas:
         meta = reg.areas[a]
         title = re.sub(r"^Decisions\s+—\s+", "", meta["title"])

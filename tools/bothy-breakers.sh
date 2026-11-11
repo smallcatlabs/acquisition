@@ -167,5 +167,15 @@ n=$((n+1))
 if out=$(pack crates/acquisition-store/src/lib.rs) && [[ $out == *'cites'*'- **C3 — The store sends nothing.**'* && $out != *'A test registry.'* && $out != *'Every rule has one home'* ]]; then echo "ok      pack      the cited entries lead, and AGENTS.md is not repeated"; else echo "MISSED  pack      the cited entries do not lead, or AGENTS.md is repeated:"; echo "$out"; bad=1; fi
 n=$((n+1))
 if ! out=$(pack crates/acquisition-store/src/gone.rs) && [[ $out == *'no file crates/acquisition-store/src/gone.rs'* ]]; then echo "ok      pack      a path that does not exist is refused"; else echo "MISSED  pack      a path that does not exist was routed:"; echo "$out"; bad=1; fi
+# A root file the workspace reads is routed to the areas its members name,
+# and a root file nothing routes is still refused (#236).
+fixture
+printf '[workspace]\nmembers = ["crates/acquisition-store"]\n' >"$tmp/Cargo.toml"
+printf '[package]\nname = "acquisition-store"\n' >"$tmp/crates/acquisition-store/Cargo.toml"
+echo "# a readme" >"$tmp/README.md"
+n=$((n+1))
+if out=$(pack Cargo.toml) && [[ $out == *'reaches every member the manifest lists'*'rulings of `store`'* && $out != *'Every rule has one home'* ]]; then echo "ok      pack      the workspace manifest is routed to its members' areas"; else echo "MISSED  pack      Cargo.toml not routed to its members' areas:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if ! out=$(pack README.md) && [[ $out == *'no area governs README.md'* ]]; then echo "ok      pack      a root file the workspace does not read is still refused"; else echo "MISSED  pack      README.md routed as a workspace file:"; echo "$out"; bad=1; fi
 echo "$n cases"
 exit $bad
