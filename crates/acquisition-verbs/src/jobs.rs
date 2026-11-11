@@ -62,7 +62,7 @@ pub async fn submit(
     priority: u8,
     account: Option<&str>,
 ) -> Result<u64, Fault> {
-    let (selector, main) = frontend.daemon_selector(account);
+    let (selector, main) = frontend.daemon_selector(account)?;
     submit_as(
         frontend,
         client,

@@ -343,16 +343,29 @@ impl Frontend {
     /// else, with several accounts known, the main account's uuid where
     /// the index still holds it, and that account beside it, so the
     /// answer can say it was taken; else none, and the daemon picks among
-    /// its live sessions as it always has. Nothing here refuses: an index
-    /// or a user file that will not open leaves the selector as given,
-    /// for the daemon to answer.
-    pub fn daemon_selector(&self, selector: Option<&str>) -> (Option<String>, Option<Account>) {
+    /// its live sessions as it always has. An index that will not open
+    /// leaves the selector as given, for the daemon to answer; a main
+    /// account that is set and cannot be read is refused, never passed
+    /// over to whichever session is live (the cold review of a3bc5c38,
+    /// its first finding: the choice fails closed).
+    pub fn daemon_selector(
+        &self,
+        selector: Option<&str>,
+    ) -> Result<(Option<String>, Option<Account>), Fault> {
         if let Some(named) = selector {
-            return (Some(named.to_string()), None);
+            return Ok((Some(named.to_string()), None));
+        }
+        let Ok(index) = self.index() else {
+            return Ok((None, None));
+        };
+        if index.entries().len() < 2 {
+            return Ok((None, None));
         }
         match self.account(None) {
-            Ok(account) if account.main => (account.entry.uuid.clone(), Some(account)),
-            _ => (None, None),
+            Ok(account) if account.main => Ok((account.entry.uuid.clone(), Some(account))),
+            // the main account's own read failed: refused, never passed over
+            Err(fault @ (Fault::Other(_) | Fault::Unopened(_))) => Err(fault),
+            _ => Ok((None, None)),
         }
     }
 

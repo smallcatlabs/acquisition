@@ -295,7 +295,7 @@ fn c187_the_door_takes_the_main_account_where_several_are_known_and_none_is_name
         json!({ "kind": "ambiguous_account", "accounts": [USER, "Bob#9", "Carol#7"] })
     );
     assert!(!acquisition_store::user_path(&s.mock).exists());
-    assert!(matches!(f.daemon_selector(None), (None, None)));
+    assert!(matches!(f.daemon_selector(None).unwrap(), (None, None)));
     // set by a bare name: stored as the uuid, taken where none is named
     let written = main_account::set(&f, "bob", Expect::Create).unwrap();
     let row = written.written.clone().unwrap();
@@ -305,9 +305,39 @@ fn c187_the_door_takes_the_main_account_where_several_are_known_and_none_is_name
     );
     let taken = f.account(None).unwrap();
     assert_eq!((taken.entry.username.as_str(), taken.main), ("Bob#9", true));
-    let (selector, main) = f.daemon_selector(None);
+    let (selector, main) = f.daemon_selector(None).unwrap();
     assert_eq!(selector.as_deref(), Some("u-bob"));
     assert!(main.is_some_and(|a| a.main));
+    // a saved search's create resolves its realm over the main account,
+    // and its receipt says so (the cold review of a3bc5c38, finding 5)
+    Store::open(&account_path(&s.mock, "Bob#9"))
+        .unwrap()
+        .record(
+            &Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u-bob", "name": "Bob#9" }),
+            1_000,
+        )
+        .unwrap();
+    let saved = acquisition_verbs::saved::set(
+        &f,
+        None,
+        &acquisition_verbs::saved::Set {
+            id: None,
+            expect: Expect::Create,
+            name: Some("rings".into()),
+            text: Some("rarity=rare".into()),
+            realm: None,
+            membership: None,
+        },
+        &mut || Ok("0123456789ab".to_string()),
+    )
+    .unwrap();
+    assert_eq!(
+        saved.main_account,
+        Some(json!({ "name": "Bob#9", "uuid": "u-bob" }))
+    );
     // a named account wins, and is not marked as main even when it is it
     let named = f.account(Some("Carol#7")).unwrap();
     assert_eq!(
@@ -316,7 +346,7 @@ fn c187_the_door_takes_the_main_account_where_several_are_known_and_none_is_name
     );
     assert!(!f.account(Some("Bob#9")).unwrap().main);
     assert_eq!(
-        f.daemon_selector(Some("Carol#7")).0.as_deref(),
+        f.daemon_selector(Some("Carol#7")).unwrap().0.as_deref(),
         Some("Carol#7")
     );
     // a main account the index no longer holds is not taken, and said:
@@ -336,7 +366,7 @@ fn c187_the_door_takes_the_main_account_where_several_are_known_and_none_is_name
             .contains("the main account set earlier is none of them now"),
         "{fault}"
     );
-    assert!(matches!(f.daemon_selector(None), (None, None)));
+    assert!(matches!(f.daemon_selector(None).unwrap(), (None, None)));
     let shown = main_account::shown(&f).unwrap().unwrap();
     assert_eq!(
         (shown.uuid.as_deref(), shown.username, shown.known),
@@ -406,6 +436,45 @@ fn c187_the_main_account_is_set_and_cleared_under_its_revision_with_an_undo() {
     let back = main_account::set(&f, USER, Expect::Create).unwrap();
     assert_eq!(back.revision, 5);
     assert_eq!(f.account(None).unwrap().entry.username, USER);
+
+    // a stored main account this build cannot read (a later version) is
+    // never passed over nor replaced blind (the cold review of a3bc5c38,
+    // its first and third findings): the door and a job's selector refuse
+    // it, a write or a clear naming no revision is refused, and one naming
+    // its revision replaces it, the prior named with why and no undo
+    rusqlite::Connection::open(acquisition_store::user_path(&s.mock))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = ?1 WHERE kind = 'main-account'",
+            rusqlite::params![json!({ "version": 2, "uuid": UUID }).to_string()],
+        )
+        .unwrap();
+    assert!(f.account(None).is_err());
+    assert!(f.daemon_selector(None).is_err(), "a job fails closed");
+    assert!(
+        f.account(Some("Bob#9")).is_ok(),
+        "a named account needs no main"
+    );
+    for refused in [
+        main_account::set(&f, "Bob#9", Expect::Current).unwrap_err(),
+        main_account::clear(&f, Expect::Current).unwrap_err(),
+    ] {
+        assert!(
+            format!("{refused:#}").contains("cannot read"),
+            "{refused:#}"
+        );
+    }
+    let over = main_account::set(&f, "Bob#9", Expect::Exactly(5)).unwrap();
+    let prior = over.prior.clone().unwrap();
+    assert!(
+        prior
+            .unreadable
+            .as_deref()
+            .is_some_and(|u| u.contains("version 2")),
+        "{prior:?}"
+    );
+    assert!(over.undo().is_err(), "an unreadable prior has no undo");
+    assert_eq!(f.account(None).unwrap().entry.username, "Bob#9");
 }
 
 #[test]

@@ -36,10 +36,12 @@ pub(crate) struct Cli {
     #[arg(long, global = true)]
     pub(crate) json: bool,
     /// Which account to act as: a username (with or without `#…`) or uuid.
-    /// Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the
-    /// store takes the sole account known on disk (`acq accounts`) and a
-    /// job verb the sole account logged in (`acq auth status`); with more
-    /// than one, the verb refuses and lists them (`ambiguous_account`).
+    /// Defaults to `ACQ_ACCOUNT`. With neither, every verb takes the main
+    /// account where one is set and still known (`acq accounts main`),
+    /// and says it did; else a verb that reads the store takes the sole
+    /// account known on disk (`acq accounts`) and a job verb the sole
+    /// account logged in (`acq auth status`); with more than one, the
+    /// verb refuses and lists them (`ambiguous_account`).
     /// With accounts known, a name that is none of them is refused as
     /// `unknown_account`; with none known, as `not_logged_in`. A job verb
     /// also needs the account logged in now (`not_logged_in` where it is

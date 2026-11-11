@@ -233,27 +233,27 @@ pub fn set(frontend: &Frontend, account: &str, expect: Expect) -> anyhow::Result
     let via = Provenance::via(frontend.via);
     let now = acquisition_store::now();
     let index = Index::load(&frontend.dir()).ok();
+    // the row the write replaces, read once, readable or not (C151): a
+    // row this build cannot read is replaced only at its revision named,
+    // and is kept as the receipt's prior with why (the cold review of
+    // a3bc5c38, its third finding)
     let (prior, expected) = match expect {
         Expect::Create => (None, None),
         Expect::Exactly(revision) => {
             match user.at_revision(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, KIND, revision) {
-                Ok(row) => (Some(row), Some(revision)),
+                Ok(row) => (Some(MainRow::of(row, index.as_ref(), now)), Some(revision)),
                 Err(AnnotationError::Unreadable(row)) if row.revision == revision => {
-                    (None, Some(revision))
+                    (Some(unread(row.revision, row.fault)), Some(revision))
                 }
                 Err(e) => return Err(conflicted(e, Some(account), index.as_ref(), now)),
             }
         }
-        Expect::Current => match user.get(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, KIND) {
-            Ok(None) => (None, None),
-            Ok(Some(row)) => {
+        Expect::Current => match current(&user)? {
+            None => (None, None),
+            Some(row) => {
                 let revision = row.revision;
-                (Some(row), Some(revision))
+                (Some(MainRow::of(row, index.as_ref(), now)), Some(revision))
             }
-            Err(AnnotationError::Unreadable(row)) => {
-                return Err(blind(row.revision, &row.fault));
-            }
-            Err(e) => return Err(Fault::Other(e.into()).into()),
         },
     };
     let value = serde_json::to_value(MainAccount {
@@ -268,7 +268,7 @@ pub fn set(frontend: &Frontend, account: &str, expect: Expect) -> anyhow::Result
         target: MainTarget { main_account: true },
         revision: written.revision,
         written: Some(written),
-        prior: prior.map(|row| MainRow::of(row, index.as_ref(), now)),
+        prior,
     })
 }
 
@@ -296,11 +296,9 @@ pub fn clear(frontend: &Frontend, expect: Expect) -> anyhow::Result<MainWritten>
                 Err(e) => return Err(conflicted(e, None, index.as_ref(), now)),
             }
         }
-        Expect::Current => match user.get(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, KIND) {
-            Ok(None) => return Err(not_set()),
-            Ok(Some(row)) => MainRow::of(row, index.as_ref(), now),
-            Err(AnnotationError::Unreadable(row)) => unread(row.revision, row.fault),
-            Err(e) => return Err(Fault::Other(e.into()).into()),
+        Expect::Current => match current(&user)? {
+            None => return Err(not_set()),
+            Some(row) => MainRow::of(row, index.as_ref(), now),
         },
     };
     let tombstone = user
@@ -312,6 +310,21 @@ pub fn clear(frontend: &Frontend, expect: Expect) -> anyhow::Result<MainWritten>
         prior: Some(prior),
         revision: tombstone,
     })
+}
+
+/// The row that stands, for a write or a clear naming no revision: none,
+/// or one this build reads; one it cannot read is refused, never
+/// replaced or cleared blind (C35, C151).
+fn current(user: &acquisition_store::User) -> anyhow::Result<Option<AnnotationRow>> {
+    match user.get(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, KIND) {
+        Ok(None) => Ok(None),
+        Ok(Some(row)) => match check_value::<MainAccount>(&row.value) {
+            Ok(_) => Ok(Some(row)),
+            Err(e) => Err(blind(row.revision, &e.to_string())),
+        },
+        Err(AnnotationError::Unreadable(row)) => Err(blind(row.revision, &row.fault)),
+        Err(e) => Err(Fault::Other(e.into()).into()),
+    }
 }
 
 /// A row this build cannot read, named by its revision and why (C151).

@@ -58,10 +58,10 @@ impl Ctx {
     /// The selector a job verb names to the daemon (C187): the flags',
     /// else the main account's uuid where it is taken, noted as
     /// [`Ctx::account`] notes it.
-    pub fn daemon_selector(&self) -> Option<String> {
-        let (selector, main) = self.frontend.daemon_selector(self.account.as_deref());
+    pub fn daemon_selector(&self) -> Result<Option<String>, Fault> {
+        let (selector, main) = self.frontend.daemon_selector(self.account.as_deref())?;
         self.note_main(main.as_ref());
-        selector
+        Ok(selector)
     }
 
     /// C187's one line, in text mode and under `--json` alike, where the
@@ -128,7 +128,7 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             Some(AuthCmd::Check) => {
                 let mut client = connect(cx).await?;
                 // C187: naming none among several, the main account
-                let account = cx.daemon_selector();
+                let account = cx.daemon_selector()?;
                 match client.request(&Request::AuthCheck { account }).await? {
                     Response::Error { kind, message } => {
                         Err(anyhow::Error::from(DaemonError { kind, message })

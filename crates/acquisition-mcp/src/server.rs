@@ -81,21 +81,6 @@ impl AcqMcp {
             .map_err(|e| Box::new(refusing(refusal(&e.into(), named))))
     }
 
-    /// The selected account's intent file alone, for a verb that reads
-    /// and writes nothing else — the MCP opens for a verb what the CLI
-    /// opens for it, so a facts file the CLI's verb never opens cannot
-    /// refuse the tool's — with the account's name, for the commands its
-    /// receipt and refusals print as that account.
-    fn open_account_intent(
-        &self,
-        selector: Option<&str>,
-        named: &str,
-    ) -> std::result::Result<(Annotations, String), Refused> {
-        self.account(selector)
-            .and_then(|account| Ok((account.intent()?, account.entry.username)))
-            .map_err(|e| Box::new(refusing(refusal(&e.into(), named))))
-    }
-
     /// `search`'s `saved`: taken out of the arguments, resolved by the
     /// verbs (`saved::request_of`, what `acq search --saved` runs), and the
     /// saved search's text, realm and membership set into the arguments as
@@ -745,17 +730,19 @@ impl AcqMcp {
             Ok(p) => p,
             Err(refusal) => return Ok(*refusal),
         };
-        let (mut intent, username) = match self.open_account_intent(p.account.as_deref(), "account")
-        {
-            Ok(opened) => opened,
-            Err(refusal) => return Ok(*refusal),
+        // one account for the intent, the facts and the answer's
+        // `main_account` (the cold review of a3bc5c38, its second finding)
+        let account = match self.account(p.account.as_deref()) {
+            Ok(account) => account,
+            Err(e) => return Ok(refusing(refusal(&e.into(), "account"))),
+        };
+        let (mut intent, username) = match account.intent() {
+            Ok(intent) => (intent, account.entry.username.clone()),
+            Err(e) => return Ok(refusing(refusal(&e.into(), "account"))),
         };
         // the facts where they can be read, never made: what a container's
         // row covered is counted from them (#171); a clear needs none
-        let facts = self
-            .account(p.account.as_deref())
-            .map_err(|e| e.to_string())
-            .and_then(|account| account.facts_read());
+        let facts = account.facts_read();
         let written = acquisition_plan::pricing::clear(
             facts.as_ref().map_err(String::as_str),
             &mut intent,
@@ -896,17 +883,20 @@ impl AcqMcp {
         settled(
             async {
                 let mut client = self.frontend.connect().await?;
-                // C187: the job names the main account where it is taken
-                if let (_, Some(main)) = self.frontend.daemon_selector(p.account.as_deref()) {
-                    crate::told::took_main(&main);
+                // C187: the account chosen once, named to the daemon, and
+                // the answer's `main_account` said of that same choice
+                let (selector, main) = self.frontend.daemon_selector(p.account.as_deref())?;
+                if let Some(main) = &main {
+                    crate::told::took_main(main);
                 }
-                let id = acquisition_verbs::jobs::submit(
+                let id = acquisition_verbs::jobs::submit_as(
                     &self.frontend,
                     &mut client,
                     &p.kind,
                     p.params.unwrap_or_else(|| json!({})),
                     p.priority.unwrap_or(0),
-                    p.account.as_deref(),
+                    selector,
+                    main.as_ref(),
                 )
                 .await?;
                 Ok(json!({ "job_id": id }))

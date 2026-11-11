@@ -92,6 +92,15 @@ fn print_written(written: &SavedWritten, account: Option<&str>, json: bool) -> R
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
+    // C187: a realm resolved over the main account, said as the CLI's
+    // one line says it where no account place stands
+    if let Some(name) = written
+        .main_account
+        .as_ref()
+        .and_then(|m| m["name"].as_str())
+    {
+        eprintln!("account {name}: the main account, taken since none was named");
+    }
     print!("{}", written_text(written, account));
     Ok(())
 }
