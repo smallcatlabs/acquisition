@@ -2788,7 +2788,8 @@ fn unaged(row: &acquisition_store::AnnotationRow) -> acquisition_store::Annotati
 /// Round 5 of the 2g build: a receipt reads in the order its document
 /// declares, its `undo` or `no_undo` last (C115: an answer leads with
 /// what bears on the question) — never the sorted order a JSON value
-/// would give it.
+/// gave it while the workspace's serde_json sorted an object's keys
+/// (before #200 turned on `preserve_order`).
 #[test]
 fn a_receipt_keeps_its_documents_key_order_and_its_undo_after_it() {
     let s = scratch();
