@@ -1,0 +1,8 @@
+# golden seat_faults/a_daemons_unknown_account: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq --account Missing profile
+# holds "no account matches \"Missing\""
+# holds "(see `acq accounts`)"
+--- stderr
+Error: no account matches "Missing" (see `acq accounts`)
+--- exit 1

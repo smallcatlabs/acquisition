@@ -456,6 +456,14 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         assert_eq!(out.status.code(), Some(1), "{args:?}: {out:?}");
         assert_eq!(sole_json(&out)["kind"], kind, "{args:?}: {}", text(&out));
     }
+    // the daemon's own refusal says the account in the request's words,
+    // and the CLI adds its way on by the kind, as for its own (#178)
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["--account", "Missing", "profile"],
+        &["no account matches \"Missing\"", "(see `acq accounts`)"],
+    );
+    golden(file!(), "a_daemons_unknown_account", &t);
     let none = harness::scratch("seat-account-none");
     let out = sole_json(&acq(&none.0, &["--json", "tabs"]));
     assert_eq!(out["kind"], "not_logged_in", "{out}");

@@ -1200,8 +1200,11 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
         .valid_access_token(None, false, None)
         .await
         .unwrap_err();
+    // in the request's words, no frontend's flag (C143, #178)
     assert!(
-        err.message.contains("several accounts") && err.message.contains("--account"),
+        err.message.contains("several accounts")
+            && err.message.contains("the request names no account")
+            && !err.message.contains("--"),
         "{err}"
     );
     // old-user logs out: its jobs fail at token time, before any send.

@@ -648,10 +648,7 @@ impl Daemon {
                 // a name it never held is no login to make (C121).
                 acquisition_store::Resolve::NotFound(selector) => Refusal::new(
                     ErrorKind::UnknownAccount,
-                    format!(
-                        "no account matches {} (see `acq accounts`)",
-                        describe_str(&selector)
-                    ),
+                    format!("no account matches {}", describe_str(&selector)),
                 ),
                 acquisition_store::Resolve::Empty => {
                     Refusal::new(ErrorKind::NotLoggedIn, e.to_string())

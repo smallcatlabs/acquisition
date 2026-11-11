@@ -291,7 +291,9 @@ impl Mcp {
     pub fn call(&mut self, tool: &str, args: Value) -> Result<Value, String> {
         let resp = self.rpc("tools/call", json!({ "name": tool, "arguments": args }));
         if let Some(error) = resp.get("error") {
-            return Err(error["message"].as_str().unwrap_or_default().to_string());
+            let message = error["message"].as_str().unwrap_or_default().to_string();
+            c143_a_text_speaks_no_frontend(tool, &message);
+            return Err(message);
         }
         let result = &resp["result"];
         let text = || {
@@ -331,9 +333,12 @@ impl Mcp {
     /// call the server refused at the protocol level.
     pub fn expect_rpc_error(&mut self, tool: &str, args: Value) -> Value {
         let resp = self.rpc("tools/call", json!({ "name": tool, "arguments": args }));
-        resp.get("error")
+        let error = resp
+            .get("error")
             .cloned()
-            .unwrap_or_else(|| panic!("{tool} did not fail at the protocol level: {resp}"))
+            .unwrap_or_else(|| panic!("{tool} did not fail at the protocol level: {resp}"));
+        c143_a_text_speaks_no_frontend(tool, error["message"].as_str().unwrap_or_default());
+        error
     }
 
     pub fn expect_err(&mut self, tool: &str, args: Value) -> String {
@@ -357,8 +362,9 @@ const PERSONS: [&str; 6] = [
 ];
 
 /// C143, a shared text speaks the request's own words, never a
-/// frontend's flag: every text a test meets, through [`Mcp::call`] or
-/// [`Mcp::result`], is held free of a CLI command (`acq …`) and a flag
+/// frontend's flag: every text a test meets, through [`Mcp::call`],
+/// [`Mcp::result`] or [`Mcp::expect_rpc_error`], a protocol error's
+/// message among them (#178: the daemon's refusals), is held free of a CLI command (`acq …`) and a flag
 /// (`--league`) but a person's act ([`PERSONS`]), so each test that
 /// produces an answer or a refusal holds the rule over it (#97). Every
 /// string is read but those under a key that holds data ([`DATA`]), so

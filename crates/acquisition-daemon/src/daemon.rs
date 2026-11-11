@@ -449,7 +449,11 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// A request the daemon will not perform, classified where it is made
 /// (C47; the wire shape is C85's `Response::Error`): the [`ErrorKind`] a
 /// frontend branches on and the message a person reads, which stays
-/// useful on its own. Every site that makes one names its kind here, so
+/// useful on its own. The message says what the request lacks in the
+/// request's own words and names no frontend's flag or command, a
+/// person's own act apart (`acq auth`): each frontend adds its way on by
+/// the kind, as it does for its own refusal of that kind (C143, #178).
+/// Every site that makes one names its kind here, so
 /// nothing reaches the wire unclassified — the audit of 2026-09-10 that
 /// fixed the vocabulary, site by site:
 ///
@@ -465,8 +469,8 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `handle_conn`: a versioned request before `hello`, or after `subscribed` | `the connection has not opened with hello …` / `this connection is a subscription …` | `bad_request` |
 /// | `Sessions::get`, `get_mut`: no session at all | `not logged in — run acq auth` | `not_logged_in` |
 /// | `Sessions::get`, `get_mut`, `canonical_account`: none for the selector | `no session for … — run acq auth` | `not_logged_in` |
-/// | `resolve_account`, `canonical_account` (submit, quote, auth check): a selector no live session matches that the account index never held (`unmatched`, then `judged` on a counted landing under `credentials`, C148) | `no account matches … (see acq accounts)` | `unknown_account` |
-/// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
+/// | `resolve_account`, `canonical_account` (submit, quote, auth check): a selector no live session matches that the account index never held (`unmatched`, then `judged` on a counted landing under `credentials`, C148) | `no account matches …` | `unknown_account` |
+/// | `Sessions::get`: several live, none named | `several accounts are logged in (…), and the request names no account` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session that the index holds, or with no index to tell by | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
 /// | `refuse_while_stopping` (submit, once the exit has begun, C133; and, through `restored`, auth, auth check, logout and quote, before and after their wait for the start's restore, C148) | `the daemon is stopping; try again in a moment` | `refused` |
@@ -734,7 +738,7 @@ impl Sessions {
                 _ => Err(Refusal::new(
                     ErrorKind::AmbiguousAccount,
                     format!(
-                        "several accounts are logged in ({}); pick one with --account",
+                        "several accounts are logged in ({}), and the request names no account",
                         self.usernames().join(", ")
                     ),
                 )),
@@ -1876,10 +1880,7 @@ impl Daemon {
         match never_held {
             true => Refusal::new(
                 ErrorKind::UnknownAccount,
-                format!(
-                    "no account matches {} (see `acq accounts`)",
-                    describe_str(&selector)
-                ),
+                format!("no account matches {}", describe_str(&selector)),
             ),
             false => held,
         }

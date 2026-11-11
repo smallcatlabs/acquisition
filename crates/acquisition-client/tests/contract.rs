@@ -1521,7 +1521,12 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
         .await,
     );
     assert_eq!(kind, ErrorKind::AmbiguousAccount);
-    assert!(message.contains("--account"), "{message}");
+    // the request's own words, no frontend's flag: each frontend adds its
+    // way on by the kind (C143, #178)
+    assert!(
+        message.contains("the request names no account") && !message.contains("--"),
+        "{message}"
+    );
     let (kind, _) = kind_of(
         client
             .request(&Request::AuthLogout { account: None })

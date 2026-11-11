@@ -8,6 +8,7 @@
 
 use crate::printed::Printed as _;
 
+use acquisition_client::client::DaemonError;
 use acquisition_verbs::Fault;
 use serde_json::json;
 
@@ -82,13 +83,12 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
         | Fault::Policy(_)
         | Fault::Door(_)
         | Fault::Unresponsive(_)
-        | Fault::Daemon(_)
         | Fault::Transport(_)
         | Fault::Other(_) => fault.to_string(),
         Fault::NoAccounts { .. } => format!("{fault} — log in with `acq auth`"),
-        Fault::UnknownAccount { .. } => format!("{fault} (see `acq accounts`)"),
-        Fault::AmbiguousAccount { .. } => {
-            format!("{fault}; name one with --account")
+        // the verbs' refusal and the daemon's of the same kind, one tail
+        Fault::UnknownAccount { .. } | Fault::AmbiguousAccount { .. } | Fault::Daemon(_) => {
+            format!("{fault}{}", account_way(fault.kind()))
         }
         Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
         Fault::NoSyncPolicy { username } => format!(
@@ -148,6 +148,18 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
     }
 }
 
+/// The way on after an account refusal, by its kind, in the CLI's
+/// words: one place for the verbs' fault and the daemon's refusal of the
+/// same kind, so the two cannot drift (C143: the daemon's sentence names
+/// no frontend's flag, and each frontend adds its own way on; #178).
+fn account_way(kind: &str) -> &'static str {
+    match kind {
+        "unknown_account" => " (see `acq accounts`)",
+        "ambiguous_account" => "; name one with --account",
+        _ => "",
+    }
+}
+
 /// The failure's words: its chain as anyhow prints it, a layer fault in
 /// the CLI's words where the chain holds one.
 pub(crate) fn failure_words(e: &anyhow::Error) -> String {
@@ -161,6 +173,11 @@ pub(crate) fn failure_words_by(e: &anyhow::Error, words: impl Fn(&Fault) -> Stri
     for link in e.chain() {
         if let Some(fault) = link.downcast_ref::<Fault>() {
             parts.push(words(fault));
+            return parts.join(": ");
+        }
+        // a daemon's refusal no verb wrapped (a login, the dashboard)
+        if let Some(refused) = link.downcast_ref::<DaemonError>() {
+            parts.push(words(&Fault::Daemon(refused.clone())));
             return parts.join(": ");
         }
         parts.push(link.to_string());

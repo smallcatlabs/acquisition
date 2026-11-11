@@ -41,7 +41,6 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         | Fault::Policy(_)
         | Fault::Door(_)
         | Fault::Unresponsive(_)
-        | Fault::Daemon(_)
         | Fault::Transport(_)
         | Fault::Other(_)
         | Fault::Spend(_)
@@ -53,10 +52,10 @@ fn fault_words(fault: &Fault, named: &str) -> String {
             "{fault}; ACQ_STORE_DIR sets the root this server looks under, and a store is made \
              by a login, which is a human's, from a terminal"
         ),
-        Fault::UnknownAccount { .. } => format!(
-            "{fault}: `{named}` takes a username, with or without its #discriminator, or a uuid"
-        ),
-        Fault::AmbiguousAccount { .. } => format!("{fault}; `{named}` selects one"),
+        // the verbs' refusal and the daemon's of the same kind, one tail
+        Fault::UnknownAccount { .. } | Fault::AmbiguousAccount { .. } | Fault::Daemon(_) => {
+            format!("{fault}{}", account_way(fault.kind(), named))
+        }
         Fault::NoUuid { .. } => format!("{fault}; a human can fix it with one `acq auth` login"),
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
@@ -110,6 +109,21 @@ fn fault_words(fault: &Fault, named: &str) -> String {
                 ", or point ACQ_STORE_DIR at its world"
             }
         ),
+    }
+}
+
+/// The way on after an account refusal, by its kind, in this server's
+/// words (`named`, the argument that selects an account): one place for
+/// the verbs' fault and the daemon's refusal of the same kind, so the
+/// two cannot drift (C143: the daemon's sentence names no frontend's
+/// flag, and each frontend adds its own way on; #178).
+fn account_way(kind: &str, named: &str) -> String {
+    match kind {
+        "unknown_account" => {
+            format!(": `{named}` takes a username, with or without its #discriminator, or a uuid")
+        }
+        "ambiguous_account" => format!("; `{named}` selects one"),
+        _ => String::new(),
     }
 }
 

@@ -247,6 +247,18 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         );
         assert_eq!(error["data"]["kind"], kind, "{account}: {error}");
     }
+    // the daemon's sentence in the request's words, then this server's
+    // way on by the kind, as for the verbs' own refusal (#178)
+    let error = mcp.expect_rpc_error(
+        "submit_job",
+        json!({ "kind": "profile", "account": "GERWARIK" }),
+    );
+    assert_eq!(
+        error["message"],
+        "no account matches \"GERWARIK\": `account` takes a username, with or without its \
+         #discriminator, or a uuid",
+        "{error}"
+    );
 }
 
 /// C127 (one list of the kinds a client may submit): `submit_job`'s
