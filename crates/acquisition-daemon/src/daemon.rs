@@ -554,7 +554,7 @@ impl Refusal {
         Refusal::new(
             ErrorKind::QueueFailed,
             format!(
-                "job {id} is on disk, but its stored state {word:?} is not one this daemon knows, so it cannot be read here"
+                "job {id} is on disk, but its stored state {word:?} is not one this daemon knows, so it cannot be read here; the build that wrote it can read it"
             ),
         )
     }
@@ -564,7 +564,9 @@ impl Refusal {
     fn unreadable_outcome(id: JobId) -> Self {
         Refusal::new(
             ErrorKind::QueueFailed,
-            format!("job {id} ended, but its stored outcome cannot be read by this daemon"),
+            format!(
+                "job {id} ended, but its stored outcome cannot be read by this daemon; the build that wrote it can read it"
+            ),
         )
     }
 

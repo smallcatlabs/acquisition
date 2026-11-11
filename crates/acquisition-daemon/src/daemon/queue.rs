@@ -29,8 +29,9 @@
 //!   requeue (memory waiting with its retry counted, disk running with
 //!   none), a halt's park (memory waiting, disk running) and a parent's
 //!   deferred result (held in memory, not on disk). Each write's failure
-//!   trips the flag, so the divergence stops at that job, and the next
-//!   lifetime replays its row; the park is pinned
+//!   trips the flag, so no new work is taken, though jobs already running
+//!   may also finish or park ahead of disk, and the next lifetime replays
+//!   their rows; the park is pinned
 //!   (`a_job_parked_after_a_failed_queue_write_is_waiting_in_memory_and_running_on_disk`).
 //!   The same teeth apply per transition: a
 //!   `waiting→running` write that fails reverts the job instead of running
@@ -58,6 +59,20 @@
 //!   and a daemon that cannot take it refuses to start naming the holder.
 
 use super::*;
+
+/// C47, #209: a child row this daemon cannot read, as the failed child
+/// its parent counts (C23): the row's own fields, failed, its failure
+/// saying `why` under `Internal` (a row the daemon cannot run). Memory
+/// alone holds it; the row on disk is never written over.
+fn unreadable_child(mut row: JobRow, why: &str) -> Option<Entry> {
+    row.state = "failed".into();
+    row.outcome = serde_json::to_value(Outcome::failure(
+        FailureKind::Internal,
+        format!("not restored: {why}; its row is left on disk as it was written"),
+    ))
+    .ok();
+    Entry::from_row(row)
+}
 
 /// C134: the fault marker's file name, in the provider's directory.
 pub(super) const FAULT_MARKER: &str = "fault.json";
@@ -340,27 +355,47 @@ impl Daemon {
             .as_deref()
             .and_then(|path| self.read_fault_marker(path))
             .flatten();
-        // C47, #209: a row whose state word this daemon does not know is
-        // left on disk and said, each and then their count, never dropped
-        // in silence; a request for it is refused as unreadable.
+        // C47, #209: a row this daemon cannot read is said, each and then
+        // their count, never dropped in silence, and its row is left on
+        // disk for diagnosis: a state word it does not know, or a finished
+        // row whose outcome no longer reads. Loaded only as a child of an
+        // open parent (`load_open`), it is counted in memory as a failed
+        // child, so its parent concludes by the rule it already follows
+        // (C23: a failed child fails it, naming the child, while the
+        // siblings run on), never as a success without it and never held
+        // for a child that cannot end. A request for its row, once its
+        // tree has left memory, is refused as unreadable.
         let mut entries: Vec<Entry> = Vec::with_capacity(rows.len());
         let mut unread = 0;
         for row in rows {
-            let (id, word) = (row.id, row.state.clone());
-            match Entry::from_row(row) {
-                Some(entry) => entries.push(entry),
-                None => {
-                    unread += 1;
-                    self.log(&format!(
-                        "JOBS: job {id} not restored: its stored state {word:?} is not one this daemon knows; its row is left on disk"
-                    ));
+            let (id, word, parent) = (row.id, row.state.clone(), row.parent);
+            let written = row.outcome.is_some();
+            let why = match Entry::from_row(row.clone()) {
+                Some(entry)
+                    if written && entry.info.state.is_terminal() && entry.outcome.is_none() =>
+                {
+                    "its stored outcome cannot be read by this daemon".to_string()
                 }
+                Some(entry) => {
+                    entries.push(entry);
+                    continue;
+                }
+                None => format!("its stored state {word:?} is not one this daemon knows"),
+            };
+            unread += 1;
+            self.log(&format!(
+                "JOBS: job {id} not restored as stored: {why}; its row is left on disk"
+            ));
+            if parent.is_some()
+                && let Some(entry) = unreadable_child(row, &why)
+            {
+                entries.push(entry);
             }
         }
         if unread > 0 {
             let rows = if unread == 1 { "row" } else { "rows" };
             self.log(&format!(
-                "JOBS: {unread} {rows} not restored: the stored state is not one this daemon knows"
+                "JOBS: {unread} {rows} not restored as stored: this daemon cannot read them"
             ));
         }
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
@@ -1036,13 +1071,20 @@ resubmit if still wanted",
         let now = self.choke.now();
         let info = {
             let mut s = self.shared.lock().unwrap();
-            // C133, #209: a client's submit is refused once the exit has
-            // begun, here under the insert's lock and not only at the
-            // server's door, so a stop that begins between the two cannot
-            // admit a job this lifetime never picks; in the server's words,
-            // from the one place they are made. The daemon's own submits
-            // are not: a login landing in the drain queues its profile job
-            // for the next daemon, and a child's fan-out is the drain's.
+            // C133, #209: a client's submit that sees the exit begun is
+            // refused, here under the insert's lock as well as at the
+            // server's door, in the server's words from the one place they
+            // are made. What the window keeps, a check passed before the
+            // exit began and an insert landing after, is a submit-then-stop
+            // ordering, not a lost job: the row is persisted waiting, not
+            // picked this lifetime (the drain is for what is past
+            // admission), replayed by the next daemon (C6) and reattached
+            // by its id (C27), as a submit a moment earlier would be, so the
+            // client's `Submitted` is true. Closing it would put a lock on
+            // the exit every cause reaches. The daemon's own submits are
+            // not refused here: a login landing in the drain queues its
+            // profile job for the next daemon, and a child's fan-out is the
+            // drain's.
             if client {
                 self.refuse_while_stopping()?;
             }

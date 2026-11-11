@@ -2302,20 +2302,20 @@ async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     finish_harness(None, &log);
 }
 
-/// Make every later write of a row already on the daemon's queue fail,
-/// the rows left readable: a trigger through a second connection to the
-/// same file aborts each write over an existing id (the store writes a
-/// row as `INSERT OR REPLACE`), so a state change the daemon persists
-/// after it fails as [`break_queue`]'s do, and an observer still reads
+/// Make every later write of job `id`'s row fail, the row left readable
+/// and every other row writable: a trigger through a second connection to
+/// the same file aborts a write over that id (the store writes a row as
+/// `INSERT OR REPLACE`), so a state change the daemon persists for it
+/// after this fails as [`break_queue`]'s do, and an observer still reads
 /// the row as the last write that landed left it.
-fn freeze_queue_rows(db: &std::path::Path) {
+fn freeze_queue_row(db: &std::path::Path, id: JobId) {
     rusqlite::Connection::open(db)
         .unwrap()
-        .execute_batch(
+        .execute_batch(&format!(
             "CREATE TRIGGER frozen BEFORE INSERT ON jobs \
-             WHEN EXISTS (SELECT 1 FROM jobs WHERE id = NEW.id) \
-             BEGIN SELECT RAISE(ABORT, 'frozen by the test'); END",
-        )
+             WHEN NEW.id = {id} \
+             BEGIN SELECT RAISE(ABORT, 'frozen by the test'); END"
+        ))
         .unwrap();
 }
 
@@ -2326,8 +2326,8 @@ fn freeze_queue_rows(db: &std::path::Path) {
 /// until the next lifetime, which restores the row as `restore_jobs`
 /// says. Two accounts' `whoami` under a ceiling of one send: the first
 /// refresh is held at the server while the other job waits behind it at
-/// the gate; the rows are frozen; the release lands the first, the
-/// ceiling halts, and the halt turns the other away.
+/// the gate; the waiting job's row alone is frozen; the release lands the
+/// first, the ceiling halts, and the halt turns the other away.
 #[test]
 fn a_job_parked_after_a_failed_queue_write_is_waiting_in_memory_and_running_on_disk() {
     let dir = TestPath::dir();
@@ -2361,7 +2361,9 @@ fn a_job_parked_after_a_failed_queue_write_is_waiting_in_memory_and_running_on_d
         } else {
             (jobs[1].1, jobs[0].1)
         };
-        freeze_queue_rows(&path);
+        // the turned-away job's row alone: the landed job's completion
+        // writes, so the flag is the park's write's to trip
+        freeze_queue_row(&path, turned_away);
         release.send(()).unwrap();
         door.await_terminal(landed).await;
         door.settle().await;
@@ -2598,26 +2600,49 @@ fn c6_the_queue_file_failing_through_the_door() {
 
 /// C47, #209: a row whose state word this daemon does not know is not
 /// "no job". `Status` and `result` for it are refused under
-/// `queue_failed`, saying its stored state is not one this daemon knows,
-/// and a restore that loads such a row (a child of an open parent; the
-/// restore loads the open rows and their children) logs it, by id and
-/// word, and their count, leaving the row on disk.
+/// `queue_failed`, saying its stored state is not one this daemon knows
+/// and that the build that wrote it can read it, and a restore that
+/// loads such a row (a child of an open parent; the restore loads the
+/// open rows and their children) logs it and their count, leaving the
+/// row on disk. The child counts as a failed child in memory, so its
+/// parent, holding a success, concludes failed by the tally rule (C23)
+/// naming it, never success without it. The same holds for a finished
+/// child whose stored outcome no longer reads (the review of 44139af6,
+/// its third finding): beside a waiting sibling, its `result` is its
+/// failure, never "still done", the sibling runs, and the parent then
+/// concludes failed naming it.
 #[test]
-fn c47_a_row_in_a_state_this_daemon_does_not_know_is_refused_never_no_job() {
+fn c47_a_row_this_daemon_cannot_read_is_refused_and_fails_its_parent_never_no_job() {
     let dir = TestPath::dir();
     {
         let other = JobDb::open(&daemon_db_path(&dir)).unwrap();
         other.upsert(&disk_row(7, "sleep", "paused", None)).unwrap();
-        let mut parent = disk_row(11, "apply", "running", None);
-        parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
-        other.upsert(&parent).unwrap();
+        let held = |id| {
+            let mut parent = disk_row(id, "apply", "running", None);
+            parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
+            parent
+        };
+        other.upsert(&held(11)).unwrap();
         other
             .upsert(&disk_row(12, "sleep", "paused", Some(11)))
+            .unwrap();
+        other.upsert(&held(21)).unwrap();
+        let mut exploded = disk_row(22, "sleep", "done", Some(21));
+        exploded.outcome = Some(json!({ "outcome": "exploded" }));
+        other.upsert(&exploded).unwrap();
+        other
+            .upsert(&disk_row(23, "sleep", "waiting", Some(21)))
             .unwrap();
     }
     queue_door(&dir)
         .restore_jobs(Retention::default())
         .run(|mut door| async move {
+            let unknown = |id| {
+                format!(
+                    "job {id} is on disk, but its stored state \"paused\" is not one this daemon \
+                     knows, so it cannot be read here; the build that wrote it can read it"
+                )
+            };
             for id in [7, 12] {
                 for (request, what) in [
                     (Request::Status { id }, "status"),
@@ -2625,32 +2650,53 @@ fn c47_a_row_in_a_state_this_daemon_does_not_know_is_refused_never_no_job() {
                 ] {
                     let (kind, message) = refusal_of(door.request(request).await, what);
                     assert_eq!(kind, ErrorKind::QueueFailed, "{what} {id}: {message}");
-                    assert_eq!(
-                        message,
-                        format!(
-                            "job {id} is on disk, but its stored state \"paused\" is not one this \
-                             daemon knows, so it cannot be read here"
-                        ),
-                        "{what} {id}"
-                    );
+                    assert_eq!(message, unknown(id), "{what} {id}");
                 }
             }
+            let failed_naming = |outcome: &Outcome, child: JobId| match outcome {
+                Outcome::Failure {
+                    kind: Some(FailureKind::Children),
+                    children: Some(children),
+                    ..
+                } => children.failed_ids == [child],
+                _ => false,
+            };
+            let (parent, outcome) = door.await_terminal(11).await;
+            assert_eq!(parent.state, JobState::Failed, "{outcome:?}");
+            assert!(failed_naming(&outcome, 12), "{outcome:?}");
+
+            let Response::Result { outcome, .. } = door.request(Request::Result { id: 22 }).await
+            else {
+                panic!("the unreadable child's result is its failure, never wrong_state")
+            };
+            assert!(
+                matches!(&outcome, Outcome::Failure { error, kind: Some(FailureKind::Internal), .. }
+                    if error.contains("its stored outcome cannot be read by this daemon")),
+                "{outcome:?}"
+            );
+            let (sibling, _) = door.await_terminal(23).await;
+            assert_eq!(sibling.state, JobState::Done, "the sibling runs on");
+            let (parent, outcome) = door.await_terminal(21).await;
+            assert_eq!(parent.state, JobState::Failed, "{outcome:?}");
+            assert!(failed_naming(&outcome, 22), "{outcome:?}");
+
             let log = door.log_text();
-            assert!(
-                log.contains(
-                    "job 12 not restored: its stored state \"paused\" is not one this daemon \
-                     knows; its row is left on disk"
-                ),
-                "{log}"
-            );
-            assert!(
-                log.contains("1 row not restored: the stored state is not one this daemon knows"),
-                "{log}"
-            );
+            for line in [
+                "job 12 not restored as stored: its stored state \"paused\" is not one this daemon \
+                 knows; its row is left on disk",
+                "job 22 not restored as stored: its stored outcome cannot be read by this daemon; \
+                 its row is left on disk",
+                "2 rows not restored as stored: this daemon cannot read them",
+            ] {
+                assert!(log.contains(line), "{line}\n{log}");
+            }
             door.finish().await;
         });
-    let row = on_disk(&dir, 12).expect("the row is left on disk");
-    assert_eq!(row.job.state, "paused");
+    assert_eq!(
+        on_disk(&dir, 12).expect("the row stays").job.state,
+        "paused"
+    );
+    assert_eq!(on_disk(&dir, 22).expect("the row stays").job.state, "done");
 }
 
 /// C47, #209: a finished row whose stored outcome no longer reads as
@@ -2679,7 +2725,8 @@ fn c47_a_finished_row_whose_outcome_no_longer_reads_is_refused_by_result_and_lis
         assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
         assert_eq!(
             message,
-            "job 100 ended, but its stored outcome cannot be read by this daemon"
+            "job 100 ended, but its stored outcome cannot be read by this daemon; the build that \
+             wrote it can read it"
         );
         let listed: Vec<JobId> = door.every_job().await.iter().map(|job| job.id).collect();
         assert!(listed.contains(&100), "the list keeps it: {listed:?}");
