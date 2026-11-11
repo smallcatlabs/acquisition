@@ -56,8 +56,8 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // in a `not`, which the site's captures let through
     // (`tests/trade_oracle.rs`); since step 7e the damage at 20 % quality,
     // within one of the site's (`tests/trade_dps.rs`), a stat a form of
-    // which no sum holds and a refused form (the park "A named stat
-    // value"), and a map whose base names no tier (u065); since 7e's
+    // which no sum holds and a refused form (until a named stat value,
+    // #46), and a map whose base names no tier (u065); since 7e's
     // outside review, another wording the game data gives, never vouched for
     for key in [
         "stat.text.eldritch",

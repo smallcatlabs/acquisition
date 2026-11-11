@@ -11,8 +11,8 @@
 //!   and the forms knowledge is data, once — a forms table beside the
 //!   catalogue — which texts have an opposite word, which elide to a
 //!   numberless display, the exceptions — reference data read by the
-//!   translation alone, so the park lifts it rather than finds it again.
-//!   The park is "A named stat value" (`decisions/trade.md`).
+//!   translation alone, so a named stat value, the language naming a
+//!   stat however displayed (#46), lifts it rather than finds it again.
 //! - **The game's forms first, the brief's rules beside**: the brief's
 //!   blanket rules named forms the game never shows — `#% chance to X`
 //!   elides at 100 % for 212 of the 372 texts the PoE1 export joins and
