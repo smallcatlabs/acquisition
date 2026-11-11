@@ -708,7 +708,7 @@ fn a_writer_held_past_the_busy_timeout_is_busy_not_db() {
         .put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
         .unwrap_err();
     assert!(matches!(err, AnnotationError::Busy { .. }), "{err}");
-    assert!(err.to_string().contains("retry later"), "{err}");
+    assert!(err.to_string().contains("run the command again"), "{err}");
     b.conn.execute_batch("ROLLBACK").unwrap();
     // The row is untouched: the same create succeeds once the lock is free.
     assert_eq!(
@@ -771,10 +771,8 @@ fn c137_the_annotation_wait_at_zero_refuses_a_held_writer_at_once() {
         ),
         "the wait the connection enforced, not the default: {err:?}"
     );
-    assert_eq!(
-        err.to_string(),
-        "annotation file is busy: another writer held it past 0 s (retry later)"
-    );
+    // its words, as a user reads them, are the CLI's golden
+    // `price_json/a_busy_intent_file` (#234; C153)
     b.conn.execute_batch("ROLLBACK").unwrap();
 }
 

@@ -1,0 +1,17 @@
+# golden price_json/a_busy_intent_file: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price set item/i-map exact 2 divine
+# holds "the file that keeps what you set by hand"
+# holds "is busy: another process held it past 0 s, and nothing was written"
+# holds "run the command again"
+--- stderr
+Error: the file that keeps what you set by hand (prices, the sync policy, saved searches) is busy: another process held it past 0 s, and nothing was written — run the command again
+--- exit 1
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}'
+# holds "the file that keeps what you set by hand"
+# holds "is busy: another process held it past 0 s, and nothing was written"
+# holds "run the command again"
+--- stderr
+Error: the file that keeps what you set by hand (prices, the sync policy, saved searches) is busy: another process held it past 0 s, and nothing was written — run the command again
+--- exit 1

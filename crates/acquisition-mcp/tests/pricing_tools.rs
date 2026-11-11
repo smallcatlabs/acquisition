@@ -1452,3 +1452,49 @@ fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     assert_eq!((&back["revision"], &back["value"]), (&json!(3), &pc));
     assert_eq!(back["prior"].clone(), merged["written"].clone());
 }
+
+/// #234: a price write and a policy write over an annotation file another
+/// process holds past the wait (`ACQ_ANNOTATION_WAIT=0`) are refused, kind
+/// `store`, in the same sentence `acq` prints for each, held by its
+/// golden (`acquisition-cli/tests/goldens/price_json/a_busy_intent_file.txt`):
+/// no store name, nothing written, run it again.
+#[test]
+fn a_busy_intent_file_is_refused_in_the_clis_sentence() {
+    let dir = scratch("mcp-price-busy");
+    let base = &dir.0;
+    seed(base);
+    let mock = base.join("store").join("mock");
+    let holder =
+        rusqlite::Connection::open(acquisition_store::annotations_path(&mock, UUID)).unwrap();
+    holder.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let mut mcp = Mcp::start(base, &[("ACQ_ANNOTATION_WAIT", "0")]);
+    let policy = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+        { "tabs": "all", "max_age_seconds": 3600 } } } } });
+    let policy_text = policy.to_string();
+    for (name, args, cli_args) in [
+        (
+            "price_set",
+            json!({ "target": "item/i-map", "type": "exact", "amount": "2", "currency": "divine" }),
+            vec!["price", "set", "item/i-map", "exact", "2", "divine"],
+        ),
+        (
+            "set_sync_policy",
+            json!({ "value": policy }),
+            vec!["policy", "set", policy_text.as_str()],
+        ),
+    ] {
+        let (ok, doc) = tool(&mut mcp, name, args);
+        assert!(!ok, "{name} landed: {doc}");
+        assert_eq!(doc["kind"], "store", "{doc}");
+        let said = doc["error"].as_str().unwrap_or_default();
+        assert!(!said.contains("annotation"), "{said}");
+        let out = harness::acq_with(
+            base,
+            &[cli_args.as_slice(), &["--json"]].concat(),
+            &[("ACQ_ANNOTATION_WAIT", "0")],
+        );
+        let by_cli: Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(doc["error"], by_cli["error"], "{name}: {doc}\n{by_cli}");
+    }
+    holder.execute_batch("ROLLBACK").unwrap();
+}

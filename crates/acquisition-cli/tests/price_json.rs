@@ -2785,3 +2785,50 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         "{over}"
     );
 }
+
+/// #234: another process holding the account's annotation file past the
+/// wait (`ACQ_ANNOTATION_WAIT=0`, the expiry forced) reaches a user of
+/// `price set` and of `policy set` in the store's one rule (C116, C143):
+/// the file named by what it keeps, never by the store's name, that
+/// nothing was written, and what to do next. The words are the golden's;
+/// `--json` carries them under the kind `store`.
+#[test]
+fn a_busy_intent_file_is_said_as_the_user_knows_it_and_says_run_again() {
+    let scratch = harness::scratch("price-busy");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    let holder =
+        rusqlite::Connection::open(acquisition_store::annotations_path(&mock, UUID)).unwrap();
+    holder.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let mut t = Transcript::offline(&base).knob("ACQ_ANNOTATION_WAIT", Some("0"));
+    let facts = [
+        "the file that keeps what you set by hand",
+        "is busy: another process held it past 0 s, and nothing was written",
+        "run the command again",
+    ];
+    for args in [
+        &["price", "set", "item/i-map", "exact", "2", "divine"][..],
+        &["policy", "set", policy],
+    ] {
+        let out = t.run(args, &facts);
+        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        let said = stderr(&out);
+        assert!(!said.contains("annotation"), "{said}");
+        let json = [args, &["--json"]].concat();
+        let doc = sole_json(
+            &harness::offline_command(&base, &json)
+                .env("ACQ_ANNOTATION_WAIT", "0")
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(doc["kind"], "store", "{doc}");
+        assert_eq!(
+            format!("Error: {}\n", doc["error"].as_str().unwrap_or_default()),
+            said,
+            "the text and the JSON say one sentence"
+        );
+    }
+    golden(file!(), "a_busy_intent_file", &t);
+    holder.execute_batch("ROLLBACK").unwrap();
+}

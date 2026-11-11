@@ -593,6 +593,15 @@ pub enum AnnotationError {
     Json(serde_json::Error),
 }
 
+/// #234, the one rule for the store's words that reach a user with no
+/// arm above the store to word them (C116: no store name stands in a
+/// refusal; C143: the request's words): the file named as a user knows
+/// it, by what it keeps, and every sentence ending with what to do
+/// next. A conflict, an unreadable row and an exhausted revision are
+/// worded above the store by the verbs that meet them.
+const HELD: &str = "the file that keeps what you set by hand (prices, the sync policy, saved \
+                    searches)";
+
 impl std::fmt::Display for AnnotationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -606,37 +615,45 @@ impl std::fmt::Display for AnnotationError {
             }
             AnnotationError::SchemaTooNew { found, supported } => write!(
                 f,
-                "annotation file uses schema v{found}, newer than this build's v{supported}"
+                "{HELD} was written by a newer build (its schema v{found}, this build's \
+                 v{supported}): nothing was read or written — use the build that wrote it"
             ),
             AnnotationError::SchemaTooOld { found: 0, path, .. } => write!(
                 f,
-                "annotation file {} exists with content but no schema stamp; not opened — \
-                 move it aside if it holds nothing you need, then retry",
+                "{HELD}, {}, has content but no schema stamp, so it was not opened — move \
+                 it aside if it holds nothing you need, then run the command again",
                 path.display()
             ),
             AnnotationError::SchemaTooOld { found, floor, path } => write!(
                 f,
-                "annotation file {} uses schema v{found}, below this build's floor v{floor} \
-                 (a development build wrote it); delete it and set the policy again",
+                "{HELD}, {}, is at schema v{found}, below this build's floor v{floor}: \
+                 {BELOW_FLOOR_REMEDY}",
                 path.display()
             ),
             AnnotationError::NotCurrent(e) => write!(f, "{e}"),
             AnnotationError::WrongAccount { stored, requested } => write!(
                 f,
-                "annotation file belongs to account uuid {stored}, not {requested}"
+                "{HELD} belongs to another account (uuid {stored}, not {requested}), so it was \
+                 not opened — it was copied or renamed: put the account's own file back"
             ),
             AnnotationError::Invalid(e) => write!(f, "{e}"),
-            AnnotationError::Provenance { detail } => write!(f, "annotation write: {detail}"),
+            AnnotationError::Provenance { detail } => write!(
+                f,
+                "a write to {HELD} named no channel ({detail}), so nothing was written — a \
+                 fault of this build: report it"
+            ),
             AnnotationError::Busy {
                 waited: Some(waited),
             } => write!(
                 f,
-                "annotation file is busy: another writer held it past {} s (retry later)",
+                "{HELD} is busy: another process held it past {} s, and nothing was written \
+                 — run the command again",
                 waited.as_secs()
             ),
             AnnotationError::Busy { waited: None } => write!(
                 f,
-                "annotation file is busy: another writer held it (retry later)"
+                "{HELD} is busy: another process held it, and nothing was written — run the \
+                 command again"
             ),
             AnnotationError::RevisionExhausted {
                 scope,
@@ -655,9 +672,9 @@ impl std::fmt::Display for AnnotationError {
                 row.scope, row.key, row.kind, row.revision, row.fault
             ),
             AnnotationError::HoldsAccountFacts(e) => write!(f, "{e}"),
-            AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
-            AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
-            AnnotationError::Json(e) => write!(f, "annotation store: {e}"),
+            AnnotationError::Db(e) => write!(f, "{HELD} could not be read or written: {e}"),
+            AnnotationError::Io(e) => write!(f, "{HELD} could not be read or written: {e}"),
+            AnnotationError::Json(e) => write!(f, "{HELD} could not be read or written: {e}"),
         }
     }
 }

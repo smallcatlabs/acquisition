@@ -54,6 +54,12 @@ getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 rustix = { version = "1", features = ["fs"] }
 # ---- end of the feature pins ---------------------------------------------
 
+[dev-dependencies]
+# #234: a test holds an annotation file's write lock, as another writer
+# would, to read what a user meets when it is busy; the store's own
+# rusqlite, its features already unified (C84)
+rusqlite = "0.41"
+
 [[test]]
 name = "main"
 path = "tests/main.rs"

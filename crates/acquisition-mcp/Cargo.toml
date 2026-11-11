@@ -28,6 +28,12 @@ rmcp = { version = "3.1", features = ["transport-io"] }
 # The feature pins this binary relies on (num-traits, getrandom) stand with
 # the workspace's others in acquisition-cli's manifest.
 
+[dev-dependencies]
+# #234: a test holds an annotation file's write lock, as another writer
+# would, to read what a user meets when it is busy; the store's own
+# rusqlite, its features already unified (C84)
+rusqlite = "0.41"
+
 [[test]]
 name = "main"
 path = "tests/main.rs"

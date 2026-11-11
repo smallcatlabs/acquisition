@@ -99,9 +99,16 @@ pub fn finish_job(mcp: &mut Mcp, id: &Value) -> Value {
 /// both) under the same isolation, never spawning a daemon: what a
 /// tool's JSON is held equal to.
 pub fn acq(base: &Path, args: &[&str]) -> std::process::Output {
+    acq_with(base, args, &[])
+}
+
+/// [`acq`] with `env` set over the isolation, as [`Mcp::start`] sets a
+/// server's: the two run under one knob.
+pub fn acq_with(base: &Path, args: &[&str], env: &[(&str, &str)]) -> std::process::Output {
     let mut cmd = Command::new(sibling(exe(), "acq"));
     cmd.args(args);
     offline(&mut cmd, base);
+    cmd.envs(env.iter().copied());
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     cmd.output().expect("running acq")
 }
