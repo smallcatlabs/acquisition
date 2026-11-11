@@ -15,7 +15,7 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - A, the tracker: #232, #231 (no build).
+  - A, the tracker: #231 (no build).
   - B, a quiet tree for agents: #203, #236, #230.
   - C, what the table and the place pages stand on: #205, #211, #200,
     #214's items that touch no schema, and #150 (the site answers an
