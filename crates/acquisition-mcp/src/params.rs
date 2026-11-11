@@ -106,7 +106,8 @@ pub(crate) struct CharactersParams {
 /// The arguments of `search`: the request, read by the search crate's
 /// own reader and by nothing here (H1), but `saved`, which this adapter
 /// takes out and resolves before the reader, setting the saved search's
-/// text and scope into the arguments as sent ([`AcqMcp::saved_into`]).
+/// text and scope into the arguments as sent
+/// ([`AcqMcp::saved_into`](crate::server::AcqMcp::saved_into)).
 /// The schema says what a request holds; the reader refuses what is
 /// none.
 #[derive(Deserialize)]
