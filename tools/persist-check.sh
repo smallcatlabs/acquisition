@@ -152,9 +152,13 @@ if [ "$MODE" = live ]; then
     "$ACQ" accounts || true
     # every account known (`--expand`), under `accounts` (C53, C149): the
     # refresh refuses among several unless one is named (C51), so this
-    # refuses first, before a daemon is started and left running
-    known=$("$ACQ" accounts --expand --json 2>/dev/null |
-        jq '.accounts | length' || echo 0)
+    # refuses first, before a daemon is started and left running; an
+    # index it cannot read refuses too, never counted as none known
+    if ! listing=$("$ACQ" accounts --expand --json) ||
+        ! known=$(printf '%s' "$listing" | jq -e '.accounts | length'); then
+        echo "refusing: the accounts on this machine could not be read: $listing" >&2
+        exit 2
+    fi
     if [ "$known" -gt 1 ] && [ -z "$ACCOUNT" ]; then
         echo "refusing: $known accounts known — every job needs a selector." >&2
         echo "rerun with --account <username>, the account whose tabs these are." >&2
