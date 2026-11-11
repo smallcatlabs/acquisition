@@ -977,7 +977,8 @@ fn conflicted(
 /// `all`; several are refused as `realm_needed`, each offered as the
 /// same create over it and over `all`. Only which realms exist is read,
 /// through the store's coverage (the corpus's own realm read), so a
-/// create among several accounts is never `ambiguous_account`.
+/// create naming no account is never `ambiguous_account`; a name that
+/// matches several accounts is, as it is everywhere (C121).
 fn resolved_realm(
     frontend: &Frontend,
     account: Option<&str>,
@@ -990,7 +991,7 @@ fn resolved_realm(
             (vec![one], whose)
         }
         Err(Fault::NoAccounts { .. }) => return Ok(corpus::Realm::All.as_str().to_string()),
-        Err(Fault::AmbiguousAccount { .. }) => {
+        Err(Fault::AmbiguousAccount { .. }) if account.is_none() => {
             let every = frontend.every_account()?;
             let whose = format!("the facts of the {} accounts known", every.len());
             (every, whose)

@@ -4491,8 +4491,8 @@ fn c167_a_creates_realm_is_named_or_resolved_as_a_search_resolves_one() {
 /// realm and no account among several known accounts settles its realm
 /// over every account's: none held is `all`, one held lands, several are
 /// `realm_needed` with each realm and `all` as the same create, naming
-/// no account; an account named narrows to its own realms. Never
-/// `ambiguous_account`.
+/// no account; an account named narrows to its own realms, and a name
+/// matching two accounts is `ambiguous_account`, as everywhere.
 #[test]
 fn c167_a_create_among_several_accounts_settles_its_realm_over_the_world() {
     let create = Set {
@@ -4558,6 +4558,10 @@ fn c167_a_create_among_several_accounts_settles_its_realm_over_the_world() {
     );
     let e = saved::set(&world, Some("Bob#9"), &create, &mut no_mint).unwrap_err();
     assert_eq!(document(&e, &Plain)["kind"], "realm_needed");
+    // a name that matches two accounts is ambiguous, never every account
+    login(&s.mock, "Bob#7", "u-bob7");
+    let e = saved::set(&world, Some("Bob"), &create, &mut no_mint).unwrap_err();
+    assert_eq!(document(&e, &Plain)["kind"], "ambiguous_account");
 }
 
 /// C78, C167: a clear's receipt names the prior and the revision its
