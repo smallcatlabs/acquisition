@@ -864,18 +864,27 @@ impl Translator<'_> {
         Ok(self.row(key)?.says.iter().cloned().collect())
     }
 
-    /// A clause whose pair runs backwards (`query.inverted`): `false()`,
-    /// exact, beside `rows` — the clause's own — with the row's sentence
-    /// and the pair. Its other reading, if it had one, is gone: nothing
-    /// is at stake where nothing matches.
+    /// A clause whose pair runs backwards (`query.inverted`): `false()`
+    /// beside what the clause still reads — `kept`, its status, rows and
+    /// notes, which under `if` are its presence's, so a text two ids share
+    /// stays ambiguous (the cold review of b1bdc4dc) — with the row's
+    /// sentence and the pair. Its other reading, if it had one, is gone:
+    /// nothing is at stake where nothing matches.
     fn nothing(
         &self,
-        mut rows: Vec<String>,
+        kept: Landed,
         min: Option<Number>,
         max: Option<Number>,
     ) -> Result<Landed, LanguageError> {
+        let Landed {
+            status,
+            mut rows,
+            notes: mut kept_notes,
+            ..
+        } = kept;
         let n = |b: Option<Number>| b.map(print::number_text).unwrap_or_default();
-        let mut notes = self.note_of("query.inverted")?;
+        kept_notes.extend(self.note_of("query.inverted")?);
+        let mut notes = kept_notes;
         notes.push(format!(
             "its minimum {} is above its maximum {}",
             n(min),
@@ -883,12 +892,24 @@ impl Translator<'_> {
         ));
         rows.push("query.inverted".to_string());
         Ok(Landed {
-            status: Status::Exact,
+            status,
             rows,
             notes,
             node: Some(Node::Const(false)),
             reading: None,
         })
+    }
+
+    /// What a clause that matches nothing keeps of `rows` alone: exact,
+    /// none of their sentences, since nothing they read is in play.
+    fn bare(rows: Vec<String>) -> Landed {
+        Landed {
+            status: Status::Exact,
+            rows,
+            notes: Vec::new(),
+            node: None,
+            reading: None,
+        }
     }
 
     /// A clause, recorded: its index.
@@ -1230,7 +1251,7 @@ impl Translator<'_> {
                 .and_then(|(_, v)| *v)
         };
         if inverted(n("min"), n("max")) {
-            let landed = self.nothing(vec![key.to_string()], n("min"), n("max"))?;
+            let landed = self.nothing(Self::bare(vec![key.to_string()]), n("min"), n("max"))?;
             self.conjunct(key, value, landed);
             return Ok(());
         }
@@ -1415,7 +1436,7 @@ impl Translator<'_> {
         // group reads the stat's presence beside it (`if`; a weighted sum
         // refuses any stat's own bound whatever it is)
         if backwards && !presence_too(kind) {
-            read.landed = self.nothing(Vec::new(), min, max)?;
+            read.landed = self.nothing(Self::bare(Vec::new()), min, max)?;
             return Ok(read);
         }
         let Some((category, rest)) = id.split_once('.') else {
@@ -1456,7 +1477,8 @@ impl Translator<'_> {
                 read.presence = self.land("stat.pseudo", &with(Fill::Presence))?.node;
             }
             if backwards && read.landed.status.runs() {
-                read.landed = self.nothing(vec!["stat.pseudo".to_string()], min, max)?;
+                let kept = std::mem::replace(&mut read.landed, Self::bare(Vec::new()));
+                read.landed = self.nothing(kept, min, max)?;
             }
             return Ok(read);
         }
@@ -1652,7 +1674,14 @@ impl Translator<'_> {
         read.presence = presence.node.clone();
         read.summed = summed.clone();
         if backwards {
-            read.landed = self.nothing(vec![key], min, max)?;
+            let kept = Landed {
+                status,
+                rows,
+                notes,
+                node: None,
+                reading: None,
+            };
+            read.landed = self.nothing(kept, min, max)?;
             return Ok(read);
         }
         let node = match (&read.slot, bounds_of(min, max), summed) {
@@ -1888,7 +1917,7 @@ impl Translator<'_> {
             && let (Ok(min), Ok(max)) = (number(group_value, "min"), number(group_value, "max"))
             && inverted(min, max)
         {
-            let landed = self.nothing(vec![group_key.clone()], min, max)?;
+            let landed = self.nothing(Self::bare(vec![group_key.clone()]), min, max)?;
             return self.emptied(&at, &site, landed, reads);
         }
         if why.is_none() {

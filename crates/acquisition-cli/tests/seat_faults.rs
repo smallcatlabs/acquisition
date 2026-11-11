@@ -3449,6 +3449,22 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
         .find(|l| l.trim_start().starts_with("over "))
         .unwrap_or_else(|| panic!("{shown}"));
     assert!(!over.contains("every place"), "{over}");
+    // a range that runs backwards matches nothing, as the site answers it,
+    // and the text says which clause and why (#150, its cold review)
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--trade",
+            r#"{"query": {"filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}}"#,
+        ],
+        &[
+            "misc_filters.ilvl",
+            "its minimum 85 is above its maximum 80",
+            "0 matches",
+        ],
+    );
     golden(file!(), "trade_over_line", &t);
 }
 

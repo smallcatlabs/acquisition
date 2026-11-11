@@ -1324,11 +1324,18 @@ statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
 fails = ['{"explicitMods": ["No Physical Damage", "+70 to maximum Life"]}', '{"explicitMods": ["30% increased Physical Damage"]}', '{}']
 
 [[case]]
-name = "under `if` and `not`, a stat whose bounds run backwards is a clause that matches nothing: if, the stat absent; not, every item (#150)"
+name = "under `if`, a stat whose bounds run backwards keeps what its presence still reads: its text two ids share is ambiguous (#150, its cold review)"
+query = '{"stats": [{"type": "if", "filters": [{"id": "explicit.stat_889691035", "value": {"min": 5, "max": 0}}]}]}'
+text = '-line(("#% increased Attack Speed per # Dexterity" or "#% reduced Attack Speed per # Dexterity") source=explicit) or false()'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "under `if` and `not`, a stat whose bounds run backwards is a clause that matches nothing: if, the stat absent, its presence as ambiguous as its forms make it; not, every item (#150)"
 query = '{"stats": [{"type": "if", "filters": [{"id": "explicit.stat_1509134228", "value": {"min": 50, "max": 10}}]}, {"type": "not", "filters": [{"id": "explicit.stat_3372524247", "value": {"min": 30, "max": 20}}]}]}'
 text = '(-line(("#% increased Physical Damage" or "No Physical Damage" or "#% reduced Physical Damage") source=explicit) or false()) -false()'
-fidelity = "exact"
-statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.1" = "exact", "stats.1.0" = "exact" }
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.1" = "exact", "stats.1.0" = "exact" }
 matches = ['{"explicitMods": ["+25% to Fire Resistance"]}', '{}']
 fails = ['{"explicitMods": ["No Physical Damage"]}', '{"explicitMods": ["30% increased Physical Damage"]}']
 

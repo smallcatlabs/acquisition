@@ -857,12 +857,13 @@ proptest! {
 }
 
 /// A report clause is one of two shapes (C100): an exact clause with a
-/// term of its own is `at`, `status`, `term` and `path` exactly; any other
-/// keeps the site's filter and its catalogue rows.
+/// term of its own that states it is `at`, `status`, `term` and `path`
+/// exactly; any other — `false()` says nothing matches, never why (#150)
+/// — keeps the site's filter and its catalogue rows.
 fn slim_or_whole(c: &Value) {
     let mut keys: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
     keys.sort();
-    if c["status"] == "exact" && c.get("term").is_some() {
+    if c["status"] == "exact" && c.get("term").is_some_and(|t| t != "false()") {
         assert_eq!(keys, ["at", "path", "status", "term"], "{c}");
     } else {
         assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
@@ -928,6 +929,28 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         assert_eq!(c["rows"], json!(["stat.implicit"]), "{c}");
         assert!(c["site"]["id"].is_string(), "{c}");
     }
+    // a clause that matches nothing is exact and its term `false()`,
+    // which says nothing of why: it keeps its row, the pair named (#150)
+    let inverted = asked(
+        json!({ "query": { "filters": { "misc_filters": { "filters": { "ilvl": { "min": 85, "max": 80 } } } } } }),
+    );
+    let c = &inverted["query"]["trade"]["clauses"][0];
+    assert_eq!(
+        (&c["status"], &c["term"]),
+        (&json!("exact"), &json!("false()")),
+        "{c}"
+    );
+    slim_or_whole(c);
+    assert_eq!(
+        c["rows"],
+        json!(["misc_filters.ilvl", "query.inverted"]),
+        "{c}"
+    );
+    assert_eq!(
+        c["notes"].as_array().unwrap().last().unwrap(),
+        "its minimum 85 is above its maximum 80",
+        "{c}"
+    );
     // the check refuses a row that says neither its term nor its filter
     let bare = json!({ "at": "stats.0.0", "status": "exact" });
     assert!(std::panic::catch_unwind(|| slim_or_whole(&bare)).is_err());
