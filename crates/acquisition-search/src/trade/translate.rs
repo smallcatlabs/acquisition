@@ -69,7 +69,7 @@
 //!   presence stands beside it, so `if` is the stat absent and `not`
 //!   every item, each as the clause matching nothing makes it; a group
 //!   matching nothing is `false()` whatever its filters, which it names
-//!   and which write no node ([`Own::Emptied`]). [`inverted`] is the one
+//!   and which write no node (`Own::Emptied`). `inverted` is the one
 //!   test of a pair.
 //! - **A group is composed here from its filters' texts**, whole or not at
 //!   all, `and` excepted (K6): an unsupported filter of any other group
