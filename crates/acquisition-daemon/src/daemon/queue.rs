@@ -60,20 +60,6 @@
 
 use super::*;
 
-/// C47, #209: a child row this daemon cannot read, as the failed child
-/// its parent counts (C23): the row's own fields, failed, its failure
-/// saying `why` under `Internal` (a row the daemon cannot run). Memory
-/// alone holds it; the row on disk is never written over.
-fn unreadable_child(mut row: JobRow, why: &str) -> Option<Entry> {
-    row.state = "failed".into();
-    row.outcome = serde_json::to_value(Outcome::failure(
-        FailureKind::Internal,
-        format!("not restored: {why}; its row is left on disk as it was written"),
-    ))
-    .ok();
-    Entry::from_row(row)
-}
-
 /// C134: the fault marker's file name, in the provider's directory.
 pub(super) const FAULT_MARKER: &str = "fault.json";
 
@@ -355,22 +341,34 @@ impl Daemon {
             .as_deref()
             .and_then(|path| self.read_fault_marker(path))
             .flatten();
-        // C47, #209: a row this daemon cannot read is said, each and then
-        // their count, never dropped in silence, and its row is left on
-        // disk for diagnosis: a state word it does not know, or a finished
-        // row whose outcome no longer reads. Loaded only as a child of an
-        // open parent (`load_open`), it is counted in memory as a failed
-        // child, so its parent concludes by the rule it already follows
-        // (C23: a failed child fails it, naming the child, while the
-        // siblings run on), never as a success without it and never held
-        // for a child that cannot end. A request for its row, once its
-        // tree has left memory, is refused as unreadable.
+        // C47, #209: a row this daemon cannot read (a state word it does
+        // not know, or a finished row whose outcome no longer reads) is
+        // said, each and then their count, never dropped in silence. It is
+        // never an entry: its row stays on disk as written, and a request
+        // for it is refused as unreadable. Loaded only as a child of an
+        // open parent (`load_open`), it taints its tree, found by the raw
+        // `parent` fields, which still read: every readable open row of
+        // that tree fails below, as the fault marker's and a lost login's
+        // jobs fail where they stand, and nothing of the tree is sent.
+        let parent_of: HashMap<JobId, Option<JobId>> =
+            rows.iter().map(|row| (row.id, row.parent)).collect();
+        let root_of = |mut id: JobId| {
+            while let Some(Some(parent)) = parent_of.get(&id) {
+                if !parent_of.contains_key(parent) {
+                    break;
+                }
+                id = *parent;
+            }
+            id
+        };
         let mut entries: Vec<Entry> = Vec::with_capacity(rows.len());
         let mut unread = 0;
+        // each tainted tree's root, with the first unreadable row in it
+        let mut tainted: HashMap<JobId, JobId> = HashMap::new();
         for row in rows {
-            let (id, word, parent) = (row.id, row.state.clone(), row.parent);
+            let (id, word) = (row.id, row.state.clone());
             let written = row.outcome.is_some();
-            let why = match Entry::from_row(row.clone()) {
+            let why = match Entry::from_row(row) {
                 Some(entry)
                     if written && entry.info.state.is_terminal() && entry.outcome.is_none() =>
                 {
@@ -384,18 +382,14 @@ impl Daemon {
             };
             unread += 1;
             self.log(&format!(
-                "JOBS: job {id} not restored as stored: {why}; its row is left on disk"
+                "JOBS: job {id} not restored: {why}; its row is left on disk"
             ));
-            if parent.is_some()
-                && let Some(entry) = unreadable_child(row, &why)
-            {
-                entries.push(entry);
-            }
+            tainted.entry(root_of(id)).or_insert(id);
         }
         if unread > 0 {
             let rows = if unread == 1 { "row" } else { "rows" };
             self.log(&format!(
-                "JOBS: {unread} {rows} not restored as stored: this daemon cannot read them"
+                "JOBS: {unread} {rows} not restored: this daemon cannot read them, and the open jobs of their trees fail"
             ));
         }
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
@@ -416,6 +410,7 @@ impl Daemon {
         }
         let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault, mut lost_login) =
             (0, 0, 0, 0, 0, 0);
+        let mut unreadable_tree = 0;
         let mut fault_on_disk = true;
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
@@ -437,6 +432,26 @@ impl Daemon {
                             &e,
                         );
                     }
+                    continue;
+                }
+                // C47, #209: an open job of a tree holding a row this
+                // daemon cannot read fails where it stands, parent or not,
+                // its held result dropped, and nothing of the tree is sent.
+                if let Some(unreadable) = tainted.get(&root_of(entry.info.id))
+                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
+                {
+                    unreadable_tree += 1;
+                    entry.info.state = JobState::Failed;
+                    entry.deferred = None;
+                    entry.outcome = Some(Outcome::failure(
+                        FailureKind::Internal,
+                        format!(
+                            "not run: its tree holds job {unreadable}, whose stored row this daemon cannot read; the build that wrote it can read it"
+                        ),
+                    ));
+                    self.persist(&mut entry);
+                    restored.push(entry.info.clone());
+                    s.jobs.insert(entry.info.id, entry);
                     continue;
                 }
                 // C134: the marker's job, or a job on its probe's closed
@@ -574,7 +589,7 @@ resubmit if still wanted",
         }
         if !restored.is_empty() || dropped > 0 {
             self.log(&format!(
-                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {fault} failed by a fault, {lost_login} lost logins' profile fetches failed, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
+                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {fault} failed by a fault, {lost_login} lost logins' profile fetches failed, {unreadable_tree} failed in trees holding an unreadable row, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
                 restored.len(),
                 db.lock().unwrap().path().display()
             ));

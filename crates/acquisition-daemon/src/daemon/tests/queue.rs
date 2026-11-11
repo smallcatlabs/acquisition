@@ -2598,105 +2598,167 @@ fn c6_the_queue_file_failing_through_the_door() {
     }
 }
 
-/// C47, #209: a row whose state word this daemon does not know is not
-/// "no job". `Status` and `result` for it are refused under
-/// `queue_failed`, saying its stored state is not one this daemon knows
-/// and that the build that wrote it can read it, and a restore that
-/// loads such a row (a child of an open parent; the restore loads the
-/// open rows and their children) logs it and their count, leaving the
-/// row on disk. The child counts as a failed child in memory, so its
-/// parent, holding a success, concludes failed by the tally rule (C23)
-/// naming it, never success without it. The same holds for a finished
-/// child whose stored outcome no longer reads (the review of 44139af6,
-/// its third finding): beside a waiting sibling, its `result` is its
-/// failure, never "still done", the sibling runs, and the parent then
-/// concludes failed naming it.
+/// C47, #209: a row this daemon cannot read is never "no job" and never
+/// an entry. `Status` and `result` for it are refused under
+/// `queue_failed`, saying the build that wrote it can read it, and a
+/// tree that holds one (the restore loads the open rows and their
+/// children) is failed at the restore, whole: every readable open job
+/// of it, the root included, fails naming the unreadable row, and none
+/// of it is run. The unreadable rows stay on disk as written, through
+/// the tree's end and a second restart, and the list's rows agree with
+/// its counts. Three trees, as the reviews of 44139af6 and dd5d3937 drew
+/// them: a parent holding a success over a child in "paused" and a
+/// waiting sibling; the same nested, the "paused" child itself a parent
+/// holding a success over a waiting grandchild; and a parent over a done
+/// child whose outcome no longer reads and a waiting sibling. And one
+/// standalone row in "paused", which no restore loads.
 #[test]
-fn c47_a_row_this_daemon_cannot_read_is_refused_and_fails_its_parent_never_no_job() {
+fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole() {
     let dir = TestPath::dir();
+    let held = |id, parent| {
+        let mut row = disk_row(id, "apply", "running", parent);
+        row.deferred = Some(json!({ "outcome": "success", "payload": {} }));
+        row
+    };
+    // recent, so retention's prune at the second restart keeps it
+    let mut exploded = JobRow {
+        updated_at: MANUAL_WALL_ORIGIN.as_secs() as i64,
+        ..disk_row(22, "sleep", "done", Some(21))
+    };
+    exploded.outcome = Some(json!({ "outcome": "exploded" }));
+    let unreadable = [
+        disk_row(7, "sleep", "paused", None),
+        disk_row(12, "sleep", "paused", Some(11)),
+        exploded,
+        JobRow {
+            state: "paused".into(),
+            ..held(32, Some(31))
+        },
+    ];
     {
         let other = JobDb::open(&daemon_db_path(&dir)).unwrap();
-        other.upsert(&disk_row(7, "sleep", "paused", None)).unwrap();
-        let held = |id| {
-            let mut parent = disk_row(id, "apply", "running", None);
-            parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
-            parent
-        };
-        other.upsert(&held(11)).unwrap();
-        other
-            .upsert(&disk_row(12, "sleep", "paused", Some(11)))
-            .unwrap();
-        other.upsert(&held(21)).unwrap();
-        let mut exploded = disk_row(22, "sleep", "done", Some(21));
-        exploded.outcome = Some(json!({ "outcome": "exploded" }));
-        other.upsert(&exploded).unwrap();
-        other
-            .upsert(&disk_row(23, "sleep", "waiting", Some(21)))
-            .unwrap();
+        for row in [
+            held(11, None),
+            disk_row(14, "sleep", "waiting", Some(11)),
+            held(21, None),
+            disk_row(23, "sleep", "waiting", Some(21)),
+            held(31, None),
+            disk_row(33, "sleep", "waiting", Some(32)),
+            disk_row(34, "sleep", "waiting", Some(31)),
+        ]
+        .iter()
+        .chain(&unreadable)
+        {
+            other.upsert(row).unwrap();
+        }
     }
+    let as_written = |id: JobId| {
+        JobDb::open(&daemon_db_path(&dir))
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .expect("the unreadable row stays")
+    };
+    let before: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
     queue_door(&dir)
         .restore_jobs(Retention::default())
         .run(|mut door| async move {
-            let unknown = |id| {
-                format!(
-                    "job {id} is on disk, but its stored state \"paused\" is not one this daemon \
-                     knows, so it cannot be read here; the build that wrote it can read it"
-                )
-            };
-            for id in [7, 12] {
+            for id in [7, 12, 32] {
                 for (request, what) in [
                     (Request::Status { id }, "status"),
                     (Request::Result { id }, "result"),
                 ] {
                     let (kind, message) = refusal_of(door.request(request).await, what);
                     assert_eq!(kind, ErrorKind::QueueFailed, "{what} {id}: {message}");
-                    assert_eq!(message, unknown(id), "{what} {id}");
+                    assert_eq!(
+                        message,
+                        format!(
+                            "job {id} is on disk, but its stored state \"paused\" is not one \
+                             this daemon knows, so it cannot be read here; the build that wrote \
+                             it can read it"
+                        ),
+                        "{what} {id}"
+                    );
                 }
             }
-            let failed_naming = |outcome: &Outcome, child: JobId| match outcome {
-                Outcome::Failure {
-                    kind: Some(FailureKind::Children),
-                    children: Some(children),
-                    ..
-                } => children.failed_ids == [child],
-                _ => false,
-            };
-            let (parent, outcome) = door.await_terminal(11).await;
-            assert_eq!(parent.state, JobState::Failed, "{outcome:?}");
-            assert!(failed_naming(&outcome, 12), "{outcome:?}");
+            let (kind, message) =
+                refusal_of(door.request(Request::Result { id: 22 }).await, "result 22");
+            assert_eq!(kind, ErrorKind::QueueFailed, "{message}");
+            assert!(message.starts_with("job 22 ended, but its stored outcome"), "{message}");
 
-            let Response::Result { outcome, .. } = door.request(Request::Result { id: 22 }).await
-            else {
-                panic!("the unreadable child's result is its failure, never wrong_state")
-            };
-            assert!(
-                matches!(&outcome, Outcome::Failure { error, kind: Some(FailureKind::Internal), .. }
-                    if error.contains("its stored outcome cannot be read by this daemon")),
-                "{outcome:?}"
-            );
-            let (sibling, _) = door.await_terminal(23).await;
-            assert_eq!(sibling.state, JobState::Done, "the sibling runs on");
-            let (parent, outcome) = door.await_terminal(21).await;
-            assert_eq!(parent.state, JobState::Failed, "{outcome:?}");
-            assert!(failed_naming(&outcome, 22), "{outcome:?}");
-
+            for (job, row) in [
+                (11, 12),
+                (14, 12),
+                (21, 22),
+                (23, 22),
+                (31, 32),
+                (33, 32),
+                (34, 32),
+            ] {
+                let (info, outcome) = door.await_terminal(job).await;
+                assert_eq!(info.state, JobState::Failed, "job {job}: {outcome:?}");
+                assert_eq!(info.times.started_at, None, "job {job} never ran");
+                assert!(
+                    matches!(&outcome, Outcome::Failure { error, kind: Some(FailureKind::Internal), .. }
+                        if error == &format!(
+                            "not run: its tree holds job {row}, whose stored row this daemon \
+                             cannot read; the build that wrote it can read it"
+                        )),
+                    "job {job}: {outcome:?}"
+                );
+            }
             let log = door.log_text();
+            for id in [11, 14, 21, 23, 31, 33, 34] {
+                assert!(!log.contains(&format!("job {id} -> running")), "{log}");
+            }
+            assert!(door.journal().is_empty(), "nothing is sent");
             for line in [
-                "job 12 not restored as stored: its stored state \"paused\" is not one this daemon \
-                 knows; its row is left on disk",
-                "job 22 not restored as stored: its stored outcome cannot be read by this daemon; \
+                "job 12 not restored: its stored state \"paused\" is not one this daemon knows; \
                  its row is left on disk",
-                "2 rows not restored as stored: this daemon cannot read them",
+                "job 22 not restored: its stored outcome cannot be read by this daemon; its row is \
+                 left on disk",
+                "3 rows not restored: this daemon cannot read them, and the open jobs of their \
+                 trees fail",
             ] {
                 assert!(log.contains(line), "{line}\n{log}");
             }
+
+            // the list's rows and its counts agree, the unreadable rows in
+            // neither
+            let Response::Jobs { jobs, counts, .. } = door
+                .request(Request::List {
+                    state: ListState::All,
+                    limit: LIST_LIMIT_MAX,
+                    after: None,
+                })
+                .await
+            else {
+                panic!("the list did not answer")
+            };
+            let mut ids: Vec<JobId> = jobs.iter().map(|job| job.id).collect();
+            ids.sort_unstable();
+            assert_eq!(ids, [11, 14, 21, 23, 31, 33, 34], "{jobs:?}");
+            assert_eq!(counts.total, 7, "{counts:?}");
+            assert_eq!(counts.failed, 7, "{counts:?}");
             door.finish().await;
         });
-    assert_eq!(
-        on_disk(&dir, 12).expect("the row stays").job.state,
-        "paused"
-    );
-    assert_eq!(on_disk(&dir, 22).expect("the row stays").job.state, "done");
+    let after_the_tree: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
+    assert_eq!(after_the_tree, before, "the unreadable rows, as written");
+
+    // A second restart loads none of these trees (none is open) and
+    // writes nothing over the unreadable rows.
+    queue_door(&dir)
+        .restore_jobs(Retention::default())
+        .run(|door| async move {
+            assert!(
+                !door.log_text().contains("not restored"),
+                "{}",
+                door.log_text()
+            );
+            door.finish().await;
+        });
+    let after_a_restart: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
+    assert_eq!(after_a_restart, before, "the unreadable rows, as written");
 }
 
 /// C47, #209: a finished row whose stored outcome no longer reads as
