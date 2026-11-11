@@ -255,11 +255,13 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
     }
 }
 
-/// The picker's listing (`trade/vocabulary.rs`; step 4b, Do 3): the
-/// table's entries whose texts hold every word asked, case aside, in the
-/// table's order, the first `limit` with what the translation makes of
-/// each alone and with a bound, the rest counted; an empty ask is every
-/// entry of the table, and a stat of two texts is listed under both and
+/// The picker's listing (`trade/vocabulary.rs`; step 4b, Do 3; #243):
+/// the entries that hold every word asked, case aside, in a text or in
+/// their group's name, the totals table's pseudo group first and the
+/// stat table's after it in its order, the first `limit` with what the
+/// translation makes of each alone and with a bound, the rest counted;
+/// a `~` before the ask changes nothing; an empty ask is every entry of
+/// both tables, and a stat of two texts is listed under both and
 /// unsupported, as the translation reports it.
 #[test]
 fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
@@ -276,28 +278,67 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
         listed,
         [
             (
+                "pseudo.pseudo_total_life",
+                "pseudo",
+                Status::Exact,
+                Status::Exact
+            ),
+            (
                 "explicit.stat_3299347043",
                 "explicit",
                 Status::Exact,
                 Status::Exact
             ),
-            (
-                "explicit.stat_983749596",
-                "explicit",
-                Status::Exact,
-                Status::Ambiguous
-            ),
         ]
     );
-    assert_eq!(life.entries[0].texts, ["+# to maximum Life"]);
+    assert_eq!(life.entries[0].texts, ["+# total maximum Life"]);
+    assert_eq!(life.entries[1].texts, ["+# to maximum Life"]);
     assert_eq!(
-        life.left_out, 132,
+        life.left_out, 133,
         "every category's maximum Life past the two"
     );
-    // an empty ask is the whole table, the limit capped
+    // an empty ask is both tables whole, the limit capped: the stat
+    // table's 14,068 and the totals table's 82 totals and 4 readings
     let every = vocabulary("", usize::MAX).unwrap();
     assert_eq!(every.entries.len(), MAX_LISTED);
-    assert_eq!(every.entries.len() + every.left_out, 14_068);
+    assert_eq!(every.entries.len() + every.left_out, 14_068 + 86);
+    assert_eq!(
+        every.totals,
+        acquisition_search::totals::table().unwrap().version()
+    );
+    // the site's mark and a kind's word (#243, the owner's sitting of
+    // 2026-11-10): a `~` before the ask changes nothing, and a word that
+    // stands in a group's name holds for that group's entries
+    let ids = |ask: &str| -> Vec<String> {
+        let listed = vocabulary(ask, 10).unwrap();
+        listed.entries.into_iter().map(|e| e.id).collect()
+    };
+    assert_eq!(ids("~Maximum LIFE"), ids("Maximum LIFE"));
+    let pseudo_life = ids("pseudo life");
+    assert_eq!(
+        pseudo_life,
+        [
+            "pseudo.pseudo_total_life",
+            "pseudo.pseudo_total_life_regen",
+            "pseudo.pseudo_percent_life_regen",
+            "pseudo.pseudo_physical_attack_damage_leeched_as_life",
+        ]
+    );
+    assert_eq!(ids("~pseudo life"), pseudo_life);
+    // a piece of a word is a piece of any text: `pse` stands in
+    // "pseudo" and in "corpses", so the four come first and the
+    // explicit lines of corpses and Life after them
+    let pieces = ids("~lif pse");
+    assert_eq!(pieces[..4], pseudo_life[..]);
+    assert!(pieces[4..].iter().all(|id| id.starts_with("explicit.")));
+    assert_eq!(pieces, ids("lif pse"));
+    // a bare word lists the pseudo group before the explicit lines
+    let bare = vocabulary("life", 5).unwrap();
+    let groups: Vec<&str> = bare.entries.iter().map(|e| e.group).collect();
+    assert_eq!(groups, ["pseudo", "pseudo", "pseudo", "pseudo", "explicit"]);
+    let fractured = vocabulary("frac life", 10).unwrap();
+    assert_eq!(fractured.entries.len(), 10);
+    assert!(fractured.entries.iter().all(|e| e.group == "fractured"));
     // a stat of two texts: either text finds it, and its fate is the report's
     let grove = vocabulary("Sacred Grove", 10).unwrap();
     let two = grove
