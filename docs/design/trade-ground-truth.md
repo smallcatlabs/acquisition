@@ -202,6 +202,19 @@ Beasts, Cards, Shaper/Elder maps, Unique maps, Legacy). Vials are not
 on it. The list is `crates/acquisition-plan/reference/exchange-items-2026-09-08.json`
 in the spike, a proposal under its C68. Answers Q10 for those groups.
 
+**T35. A search bound whose minimum is above its maximum returns no
+results.** [OWNER — Provisional; November 10, 2026, the owner at the
+site, no capture]
+The owner, verbatim: "when max < min, the trade site returns no
+results, confirmed." His word names no clause kind: which filter he
+inverted is not recorded, so a stat filter, a property filter and a
+group's own value are each the same claim until a capture shows it.
+The translation lands such a pair as matching nothing (#150; the trade
+catalogue's `query.inverted`). The sheet's round y composes the
+evidence, unsat: y01 a stat filter, y03 a property filter, y05 a
+`count`'s value, each beside its pair in order (y02, y04, y06); #33
+asks the next sitting to run them.
+
 ### The API
 
 **T5. `Item` carries both `note` and `forum_note`, each "user-generated

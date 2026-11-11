@@ -313,7 +313,7 @@ categories — the trade site's ids, as spelled
   currency.heistobjective       Heist Target
   currency.omen                 Omen
   currency.tattoo               Tattoo
-trade — what `--trade` makes of each clause a site search can carry, 149 rows: `--describe trade`
+trade — what `--trade` makes of each clause a site search can carry, 150 rows: `--describe trade`
 not built, refused by name
   rebind (--rebind)          waits for a consumer that asks  run another account's request deliberately
   show basis (show --basis)  waits for a consumer that asks  one item as a named basis held it

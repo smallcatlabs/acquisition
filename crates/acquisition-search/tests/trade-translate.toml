@@ -1022,20 +1022,28 @@ matches = ['{"explicitMods": ["+30 to maximum Life", "+20% to Fire Resistance"]}
 fails = ['{"explicitMods": ["+30 to maximum Life"]}', '{"explicitMods": ["+30 to maximum Life", "+20% to Lightning Resistance"]}']
 
 [[case]]
-name = "a weighted sum whose bounds run backwards is unsupported in the binder's words, the rest kept"
+name = "a weighted sum whose bounds run backwards matches nothing, as the site answers it (#150), its filter owning no node"
 query = '{"stats": [{"type": "weight", "value": {"min": 1, "max": 0}, "filters": [{"id": "explicit.stat_3299347043", "value": {"weight": 1}}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
-text = 'ilvl>=60'
-fidelity = "partial"
-statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
-matches = ['{"ilvl": 60}']
-fails = ['{"ilvl": 59}']
+text = 'ilvl>=60 false()'
+fidelity = "exact"
+statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "exact", "stats.0.0" = "exact" }
+fails = ['{"ilvl": 60}', '{"ilvl": 60, "explicitMods": ["+1 to maximum Life"]}']
 
 [[case]]
-name = "a count whose bounds run backwards is unsupported in the binder's words, the rest kept"
-query = '{"stats": [{"type": "count", "value": {"min": 2, "max": 1}, "filters": [{"id": "implicit.stat_3299347043"}, {"id": "implicit.stat_3372524247"}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
-text = 'ilvl>=60'
+name = "a count whose bounds run backwards matches nothing, whatever its filters hold, read or not (#150)"
+query = '{"stats": [{"type": "count", "value": {"min": 2, "max": 1}, "filters": [{"id": "implicit.stat_3299347043"}, {"id": "implicit.stat_3372524247"}, {"id": "implicit.stat_0"}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
+text = 'ilvl>=60 false()'
 fidelity = "partial"
-statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
+statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact", "stats.0.2" = "unsupported" }
+fails = ['{"ilvl": 60, "implicitMods": ["+30 to maximum Life"]}', '{"ilvl": 60, "implicitMods": ["+30 to maximum Life", "+20% to Fire Resistance"]}']
+
+[[case]]
+name = "a filter's range that runs backwards matches nothing, as the site answers it (#150)"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 85, "max": 80}}}}}'
+text = 'false()'
+fidelity = "exact"
+statuses = { "misc_filters.ilvl" = "exact" }
+fails = ['{"ilvl": 82}', '{"ilvl": 85}', '{"ilvl": 80}', '{}']
 
 [[case]]
 name = "a disabled group is disabled before its filters are read: filters no list, misspelt, or none"
@@ -1300,11 +1308,29 @@ fidelity = "exact"
 statuses = {}
 
 [[case]]
-name = "a stat's bounds that run backwards: the filter unsupported with the binder's words, never the whole (the outside review of 6fdcc581)"
+name = "a stat's bounds that run backwards match nothing, beside the rest of its group (#150)"
 query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 12, "max": 0}}, {"id": "explicit.stat_3372524247"}]}]}'
-text = 'line("#% to Fire Resistance" source=explicit)'
-fidelity = "partial"
-statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported", "stats.0.1" = "exact" }
+text = 'false() line("#% to Fire Resistance" source=explicit)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+fails = ['{"explicitMods": ["+5 to maximum Life", "+20% to Fire Resistance"]}', '{"explicitMods": ["+20% to Fire Resistance"]}']
+
+[[case]]
+name = "a stat whose number is hidden, under bounds that run backwards: nothing matches and nothing is undecided (#150)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_1509134228", "value": {"min": 50, "max": 10}}, {"id": "pseudo.pseudo_total_life", "value": {"min": 100, "max": 50}}]}]}'
+text = 'false() false()'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+fails = ['{"explicitMods": ["No Physical Damage", "+70 to maximum Life"]}', '{"explicitMods": ["30% increased Physical Damage"]}', '{}']
+
+[[case]]
+name = "under `if` and `not`, a stat whose bounds run backwards is a clause that matches nothing: if, the stat absent; not, every item (#150)"
+query = '{"stats": [{"type": "if", "filters": [{"id": "explicit.stat_1509134228", "value": {"min": 50, "max": 10}}]}, {"type": "not", "filters": [{"id": "explicit.stat_3372524247", "value": {"min": 30, "max": 20}}]}]}'
+text = '(-line(("#% increased Physical Damage" or "No Physical Damage" or "#% reduced Physical Damage") source=explicit) or false()) -false()'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.1" = "exact", "stats.1.0" = "exact" }
+matches = ['{"explicitMods": ["+25% to Fire Resistance"]}', '{}']
+fails = ['{"explicitMods": ["No Physical Damage"]}', '{"explicitMods": ["30% increased Physical Damage"]}']
 
 # ---- the trade seat's tasks, read the other way (C119) -----------------------------------------
 # The URLs of the seat's T4, T5 and T6 (audits/trade-2026-10/seat/, the

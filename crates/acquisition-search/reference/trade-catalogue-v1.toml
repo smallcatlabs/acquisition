@@ -88,10 +88,10 @@
 # (`answer.rs`).
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 149 rows — 4 for the URL, 10 for the query object's keys, the JSON and
-# what no row names, 92 filters and 6 option rows, 10 for the stat groups
+# 150 rows — 4 for the URL, 11 for the query object's keys, the JSON,
+# what no row names and a range that runs backwards, 92 filters and 6 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
-# (14 categories and 13 line rules); 87 exact, 18 ambiguous, 35
+# (14 categories and 13 line rules); 88 exact, 18 ambiguous, 35
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and from step 4 to round x `stat.text.numbers`,
 # by the owner's verdict until a sitting asked it; `stat.text.two`,
@@ -212,6 +212,12 @@ key = "query.unknown"
 disposition = "unsupported"
 note = "a key, a filter, a group type, an option or a value no row names or reads: unsupported by its name, never an error (K6)"
 says = "A part of the search this build does not know is reported by name and not run."
+
+[[row]]
+key = "query.inverted"
+disposition = "exact"
+note = "a minimum above its maximum — on a filter, a stat filter, or a count's or a weighted sum's own value — matches nothing: the owner at the site, 2026-11-10, \"when max < min, the trade site returns no results, confirmed\" (docs/design/trade-ground-truth.md, T35, no capture yet); the clause is `false()`, which no item meets and none leaves undecided, a stat filter's presence kept beside it where its group reads one (`if`), and a group so bounded is `false()` whatever its filters"
+says = "A minimum above its maximum matches nothing on the site, so it matches nothing here."
 
 [[row]]
 key = "query.sort"

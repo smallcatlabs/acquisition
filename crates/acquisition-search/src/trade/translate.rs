@@ -60,13 +60,23 @@
 //!   unsupported, by name, the clause it could change: a filter, every
 //!   filter of its group and the group, a stat group whole, the envelope's
 //!   own key. What the translation does not read it never drops unsaid.
+//! - **A minimum above its maximum matches nothing** (`query.inverted`,
+//!   #150): the site answers such a pair with no results (the owner at the
+//!   site, 2026-11-10), so the clause it bounds — a filter, a stat filter,
+//!   a count's or a weighted sum's own value — is `false()`, exact, its
+//!   note naming the pair: text the reader accepts, which no item meets
+//!   and none leaves undecided, a hidden number included. A stat filter's
+//!   presence stands beside it, so `if` is the stat absent and `not`
+//!   every item, each as the clause matching nothing makes it; a group
+//!   matching nothing is `false()` whatever its filters, which it names
+//!   and which write no node ([`Own::Emptied`]). [`inverted`] is the one
+//!   test of a pair.
 //! - **A group is composed here from its filters' texts**, whole or not at
 //!   all, `and` excepted (K6): an unsupported filter of any other group
 //!   puts the group and every filter of it in the remainder. Every node a
 //!   group composes is bound alone, as a clause's text is: one the binder
-//!   refuses — a count's or a sum's bounds that run backwards — is the
-//!   group unsupported with the binder's words, never an error of the
-//!   whole. `and` and
+//!   refuses is the group unsupported with the binder's words, never an
+//!   error of the whole. `and` and
 //!   `if` leave each filter a term of the query; `not` is `-(a or b …)`,
 //!   `-a` for one; `count` is `holds(a, b …)` with the group's bounds, and
 //!   with none `true()` for each filter (t37); a weighted sum is
@@ -429,6 +439,9 @@ enum Own {
     Conjuncts,
     /// A condition inside `sum( … )`, which takes no path.
     InsideSum,
+    /// A filter of a group that matches nothing whatever it holds
+    /// (`query.inverted`): it runs, and writes no node of its own.
+    Emptied,
     /// A clause that does not run.
     Nothing,
 }
@@ -733,6 +746,12 @@ fn bounds_of(min: Option<Number>, max: Option<Number>) -> Option<(Op, Value)> {
     }
 }
 
+/// Whether a pair runs backwards: a minimum above its maximum, which the
+/// site answers with no results (`query.inverted`, #150).
+fn inverted(min: Option<Number>, max: Option<Number>) -> bool {
+    matches!((min, max), (Some(a), Some(b)) if a.as_f64() > b.as_f64())
+}
+
 /// One display of a stat, as a line's group names it: its template, a
 /// number its text writes as a digit a `#` of it like any other (round x:
 /// a written digit is a number of the line), and the slots of the `#`s the
@@ -843,6 +862,33 @@ impl Translator<'_> {
 
     fn note_of(&self, key: &str) -> Result<Vec<String>, LanguageError> {
         Ok(self.row(key)?.says.iter().cloned().collect())
+    }
+
+    /// A clause whose pair runs backwards (`query.inverted`): `false()`,
+    /// exact, beside `rows` — the clause's own — with the row's sentence
+    /// and the pair. Its other reading, if it had one, is gone: nothing
+    /// is at stake where nothing matches.
+    fn nothing(
+        &self,
+        mut rows: Vec<String>,
+        min: Option<Number>,
+        max: Option<Number>,
+    ) -> Result<Landed, LanguageError> {
+        let n = |b: Option<Number>| b.map(print::number_text).unwrap_or_default();
+        let mut notes = self.note_of("query.inverted")?;
+        notes.push(format!(
+            "its minimum {} is above its maximum {}",
+            n(min),
+            n(max)
+        ));
+        rows.push("query.inverted".to_string());
+        Ok(Landed {
+            status: Status::Exact,
+            rows,
+            notes,
+            node: Some(Node::Const(false)),
+            reading: None,
+        })
     }
 
     /// A clause, recorded: its index.
@@ -1183,6 +1229,11 @@ impl Translator<'_> {
                 .find(|(n, _)| *n == name)
                 .and_then(|(_, v)| *v)
         };
+        if inverted(n("min"), n("max")) {
+            let landed = self.nothing(vec![key.to_string()], n("min"), n("max"))?;
+            self.conjunct(key, value, landed);
+            return Ok(());
+        }
         let made = bounds(n("min"), n("max"));
         let mut landed = self.land(key, &|name| match name {
             "bounds" => made.clone().map(Fill::Made),
@@ -1355,7 +1406,18 @@ impl Translator<'_> {
         };
         read.bounded = min.is_some() || max.is_some();
         read.weight = weight;
-        let made = bounds(min, max);
+        let backwards = inverted(min, max);
+        // a pair that runs backwards bounds nothing a text can say: the
+        // stat's presence is landed as with no bound, and the clause is
+        // then `false()` beside it (`nothing`)
+        let made = if backwards { None } else { bounds(min, max) };
+        // matching nothing, the clause needs no line of its id, unless its
+        // group reads the stat's presence beside it (`if`; a weighted sum
+        // refuses any stat's own bound whatever it is)
+        if backwards && !presence_too(kind) {
+            read.landed = self.nothing(Vec::new(), min, max)?;
+            return Ok(read);
+        }
         let Some((category, rest)) = id.split_once('.') else {
             read.landed = self.stat_unknown(id)?;
             return Ok(read);
@@ -1392,6 +1454,9 @@ impl Translator<'_> {
             )?;
             if presence_too(kind) && read.landed.status.runs() {
                 read.presence = self.land("stat.pseudo", &with(Fill::Presence))?.node;
+            }
+            if backwards && read.landed.status.runs() {
+                read.landed = self.nothing(vec!["stat.pseudo".to_string()], min, max)?;
             }
             return Ok(read);
         }
@@ -1586,6 +1651,10 @@ impl Translator<'_> {
         let summed = line(&summed)?.node;
         read.presence = presence.node.clone();
         read.summed = summed.clone();
+        if backwards {
+            read.landed = self.nothing(vec![key], min, max)?;
+            return Ok(read);
+        }
         let node = match (&read.slot, bounds_of(min, max), summed) {
             (Some(slot), Some((op, rhs)), Some(lines)) => {
                 let Some(value) = tree::sum_of_lines(std::slice::from_ref(&lines), slot) else {
@@ -1603,9 +1672,10 @@ impl Translator<'_> {
             _ => presence.node,
         };
         // the node made here is bound alone, as a row's text and a group's
-        // node are: one the binder refuses — a bound that runs backwards —
-        // is this clause unsupported with its words, never the whole
-        // translation's defect (the outside review of 6fdcc581)
+        // node are: one the binder refuses is this clause unsupported with
+        // its words, never the whole translation's defect (the outside
+        // review of 6fdcc581); a bound that runs backwards never reaches it
+        // (`nothing`, #150)
         if let Some(Err(why)) = node.as_ref().map(alone) {
             let mut unknown = self.unknown_landed(&why)?;
             unknown.rows.insert(0, key.clone());
@@ -1811,6 +1881,16 @@ impl Translator<'_> {
             }
             return Ok(());
         }
+        // a count's or a weighted sum's own pair that runs backwards: the
+        // group matches nothing whatever its filters hold, read or not
+        if why.is_none()
+            && matches!(kind, "count" | "weight" | "weight2")
+            && let (Ok(min), Ok(max)) = (number(group_value, "min"), number(group_value, "max"))
+            && inverted(min, max)
+        {
+            let landed = self.nothing(vec![group_key.clone()], min, max)?;
+            return self.emptied(&at, &site, landed, reads);
+        }
         if why.is_none() {
             why = active
                 .iter()
@@ -1995,6 +2075,38 @@ impl Translator<'_> {
             group: Some(group),
             ..p
         }))
+    }
+
+    /// A group that matches nothing (`query.inverted`): its node
+    /// `false()`, its filters each as read, running ones owning no node.
+    fn emptied(
+        &mut self,
+        at: &str,
+        site: &Json,
+        group: Landed,
+        reads: Vec<StatRead>,
+    ) -> Result<(), LanguageError> {
+        let node = group.node.clone().unwrap_or(Node::Const(false));
+        let g = self.push(at, site, &group, Own::Path { parent: None });
+        self.pieces.push(Piece {
+            node,
+            owners: vec![(g, String::new())],
+        });
+        for read in reads {
+            let mut landed = read.landed;
+            landed.node = None;
+            landed.reading = None;
+            let own = if landed.status.runs() {
+                landed.notes.push(format!(
+                    "its group `{at}` matches nothing, whatever this filter holds"
+                ));
+                Own::Emptied
+            } else {
+                Own::Nothing
+            };
+            self.push(&read.at, &read.site, &landed, own);
+        }
+        Ok(())
     }
 
     /// A group in the remainder, every filter of it beside it: a filter
@@ -2414,7 +2526,7 @@ fn guard(root: &Node, clauses: &[Clause], own: &[Own]) -> Result<(), String> {
                     }
                 }
             }
-            (Own::Conjuncts | Own::InsideSum, None) if runs => {}
+            (Own::Conjuncts | Own::InsideSum | Own::Emptied, None) if runs => {}
             (Own::Nothing, None) if !runs => {}
             _ => {
                 return Err(format!(

@@ -204,6 +204,11 @@ fn guard(t: &Translation) -> Result<(), String> {
                         && unbounded
                         && running == 1)
                     || (group_row(&c.at).is_some() && none_runs())
+                    // a filter of a group whose own pair runs backwards:
+                    // the group matches nothing and is the one node (#150)
+                    || by_at
+                        .get(group_of)
+                        .is_some_and(|g| g.rows.iter().any(|r| r == "query.inverted"))
                     || (matches!(group_row(group_of), Some("stats.weight" | "stats.weight2"))
                         && !by_at.get(group_of).is_some_and(|g| {
                             ["min", "max"]
@@ -799,6 +804,21 @@ proptest! {
         let decoded = decode(&query.to_string()).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         let t = translate(&decoded).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         holds(&t).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
+        // a pair that runs backwards matches nothing, as the site answers
+        // it (#150), and never reaches the binder: no clause is refused for
+        // a range or a count that runs from high to low, on a filter, a stat
+        // filter or a group's value, which the generator draws alike
+        for clause in &t.clauses {
+            for note in &clause.notes {
+                prop_assert!(
+                    !note.contains("runs from low to high") && !note.contains("is an empty range"),
+                    "{}: {} is refused for its pair: {}",
+                    clause.at,
+                    clause.site,
+                    note
+                );
+            }
+        }
         // the report's words cite no record, whatever the query
         for clause in &t.clauses {
             for note in &clause.notes {
