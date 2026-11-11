@@ -436,14 +436,31 @@ impl Daemon {
                     payload: None,
                 },
                 // A held failure (the interrupted fan-out a restart
-                // installs, or the parent's own): its message and its
-                // kind stand.
-                Outcome::Failure { error, kind, .. } => Outcome::Failure {
+                // installs, the parent's own, or one the restore installs
+                // over a child it cannot read): its message and its kind
+                // stand, and a tally of its own (the restore's unreadable
+                // children, never entries, #209) is added to memory's.
+                Outcome::Failure {
                     error,
                     kind,
-                    children: Some(tally),
-                    payload: None,
-                },
+                    children: held,
+                    ..
+                } => {
+                    let mut tally = tally;
+                    if let Some(held) = held {
+                        tally.done += held.done;
+                        tally.failed += held.failed;
+                        tally.cancelled += held.cancelled;
+                        tally.failed_ids.extend(held.failed_ids);
+                        tally.failed_ids.sort_unstable();
+                    }
+                    Outcome::Failure {
+                        error,
+                        kind,
+                        children: Some(tally),
+                        payload: None,
+                    }
+                }
                 Outcome::Cancelled => Outcome::Cancelled,
             }
         };

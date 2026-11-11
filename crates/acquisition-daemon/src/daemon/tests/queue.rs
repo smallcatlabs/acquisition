@@ -2602,16 +2602,22 @@ fn c6_the_queue_file_failing_through_the_door() {
 /// an entry. `Status` and `result` for it are refused under
 /// `queue_failed`, saying the build that wrote it can read it, and a
 /// tree that holds one (the restore loads the open rows and their
-/// children) is failed at the restore, whole: every readable open job
-/// of it, the root included, fails naming the unreadable row, and none
-/// of it is run. The unreadable rows stay on disk as written, through
-/// the tree's end and a second restart, and the list's rows agree with
-/// its counts. Three trees, as the reviews of 44139af6 and dd5d3937 drew
-/// them: a parent holding a success over a child in "paused" and a
-/// waiting sibling; the same nested, the "paused" child itself a parent
-/// holding a success over a waiting grandchild; and a parent over a done
-/// child whose outcome no longer reads and a waiting sibling. And one
-/// standalone row in "paused", which no restore loads.
+/// children) fails, whole, and none of it is run: every readable open
+/// leaf ends at the restore naming the unreadable row, and every open
+/// parent holds that failure and is ended by `maybe_finish_parent`,
+/// its result tallying its children (C23): the readable ones as they
+/// ended, the unreadable ones, never entries, counted failed (#209's
+/// fourth round). The unreadable rows stay on disk as written, through
+/// the trees' end and a second restart, and the list's rows agree with
+/// its counts. The trees, as the reviews drew them: a parent holding a
+/// success over a child in "paused" and a waiting sibling (and a running
+/// one asked to cancel); the same nested, the "paused" child itself a
+/// parent over a waiting grandchild; a parent over a done child whose
+/// outcome no longer reads and a waiting sibling; a parent whose only
+/// child is unreadable; and a readable intermediate parent over a
+/// "paused" child and a waiting one, under a root with a waiting child
+/// of its own. And one standalone row in "paused", which no restore
+/// loads.
 #[test]
 fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole() {
     let dir = TestPath::dir();
@@ -2634,6 +2640,8 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             state: "paused".into(),
             ..held(32, Some(31))
         },
+        disk_row(42, "sleep", "paused", Some(41)),
+        disk_row(53, "sleep", "paused", Some(52)),
     ];
     {
         let other = JobDb::open(&daemon_db_path(&dir)).unwrap();
@@ -2649,6 +2657,11 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             held(31, None),
             disk_row(33, "sleep", "waiting", Some(32)),
             disk_row(34, "sleep", "waiting", Some(31)),
+            held(41, None),
+            held(51, None),
+            held(52, Some(51)),
+            disk_row(54, "sleep", "waiting", Some(52)),
+            disk_row(55, "sleep", "waiting", Some(51)),
         ]
         .iter()
         .chain(&unreadable)
@@ -2663,7 +2676,7 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             .unwrap()
             .expect("the unreadable row stays")
     };
-    let before: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
+    let before: Vec<JobRow> = [7, 12, 22, 32, 42, 53].map(as_written).into();
     queue_door(&dir)
         .restore_jobs(Retention::default())
         .run(|mut door| async move {
@@ -2698,6 +2711,11 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
                 (31, 32),
                 (33, 32),
                 (34, 32),
+                (41, 42),
+                (51, 53),
+                (52, 53),
+                (54, 53),
+                (55, 53),
             ] {
                 let (info, outcome) = door.await_terminal(job).await;
                 assert_eq!(info.state, JobState::Failed, "job {job}: {outcome:?}");
@@ -2717,8 +2735,39 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             let (info, outcome) = door.await_terminal(15).await;
             assert_eq!(info.state, JobState::Cancelled, "{outcome:?}");
             assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+            // #209's fourth round: each parent ends after the restore by
+            // `maybe_finish_parent`, its tally its children's as they
+            // ended and its unreadable children counted failed: a parent
+            // whose only child is unreadable (41), and a readable
+            // intermediate parent (52), counted failed by its own (51)
+            for (parent, failed, cancelled, failed_ids) in [
+                (11, 2, 1, vec![12, 14]),
+                (21, 2, 0, vec![22, 23]),
+                (31, 2, 0, vec![32, 34]),
+                (41, 1, 0, vec![42]),
+                (52, 2, 0, vec![53, 54]),
+                (51, 2, 0, vec![52, 55]),
+            ] {
+                let (_, outcome) = door.await_terminal(parent).await;
+                let Outcome::Failure {
+                    children: Some(tally),
+                    ..
+                } = &outcome
+                else {
+                    panic!("parent {parent} carries its tally: {outcome:?}")
+                };
+                assert_eq!(
+                    (tally.done, tally.failed, tally.cancelled, &tally.failed_ids),
+                    (0, failed, cancelled, &failed_ids),
+                    "parent {parent}: {outcome:?}"
+                );
+            }
+            // A leaf is never picked; a parent holding its failure is
+            // restored running, and its event says so, as every held
+            // parent's does, and is never picked either: none has a
+            // start time (above), and nothing is sent
             let log = door.log_text();
-            for id in [11, 14, 15, 21, 23, 31, 33, 34] {
+            for id in [14, 15, 23, 33, 34, 54, 55] {
                 assert!(!log.contains(&format!("job {id} -> running")), "{log}");
             }
             assert!(door.journal().is_empty(), "nothing is sent");
@@ -2727,7 +2776,7 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
                  its row is left on disk",
                 "job 22 not restored: its stored outcome cannot be read by this daemon; its row is \
                  left on disk",
-                "3 rows not restored: this daemon cannot read them, and the open jobs of their \
+                "5 rows not restored: this daemon cannot read them, and the open jobs of their \
                  trees fail",
             ] {
                 assert!(log.contains(line), "{line}\n{log}");
@@ -2747,13 +2796,17 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             };
             let mut ids: Vec<JobId> = jobs.iter().map(|job| job.id).collect();
             ids.sort_unstable();
-            assert_eq!(ids, [11, 14, 15, 21, 23, 31, 33, 34], "{jobs:?}");
-            assert_eq!(counts.total, 8, "{counts:?}");
-            assert_eq!(counts.failed, 7, "{counts:?}");
+            assert_eq!(
+                ids,
+                [11, 14, 15, 21, 23, 31, 33, 34, 41, 51, 52, 54, 55],
+                "{jobs:?}"
+            );
+            assert_eq!(counts.total, 13, "{counts:?}");
+            assert_eq!(counts.failed, 12, "{counts:?}");
             assert_eq!(counts.cancelled, 1, "{counts:?}");
             door.finish().await;
         });
-    let after_the_tree: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
+    let after_the_tree: Vec<JobRow> = [7, 12, 22, 32, 42, 53].map(as_written).into();
     assert_eq!(after_the_tree, before, "the unreadable rows, as written");
 
     // A second restart loads none of these trees (none is open) and
@@ -2768,7 +2821,7 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
             );
             door.finish().await;
         });
-    let after_a_restart: Vec<JobRow> = [7, 12, 22, 32].map(as_written).into();
+    let after_a_restart: Vec<JobRow> = [7, 12, 22, 32, 42, 53].map(as_written).into();
     assert_eq!(after_a_restart, before, "the unreadable rows, as written");
 }
 

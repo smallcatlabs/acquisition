@@ -365,8 +365,14 @@ impl Daemon {
         let mut unread = 0;
         // each tainted tree's root, with the first unreadable row in it
         let mut tainted: HashMap<JobId, JobId> = HashMap::new();
+        // #209's fourth round: each parent's unreadable direct children,
+        // for the tally the parent holds (C23); and every loaded row's
+        // parent, readable or not, so "has a child" is read as the tree
+        // is found, from the raw `parent` fields.
+        let mut unreadable_children: HashMap<JobId, Vec<JobId>> = HashMap::new();
+        let loaded_parents: HashSet<JobId> = parent_of.values().flatten().copied().collect();
         for row in rows {
-            let (id, word) = (row.id, row.state.clone());
+            let (id, word, parent) = (row.id, row.state.clone(), row.parent);
             let written = row.outcome.is_some();
             let why = match Entry::from_row(row) {
                 Some(entry)
@@ -385,6 +391,9 @@ impl Daemon {
                 "JOBS: job {id} not restored: {why}; its row is left on disk"
             ));
             tainted.entry(root_of(id)).or_insert(id);
+            if let Some(parent) = parent {
+                unreadable_children.entry(parent).or_default().push(id);
+            }
         }
         if unread > 0 {
             let rows = if unread == 1 { "row" } else { "rows" };
@@ -415,9 +424,11 @@ impl Daemon {
         // each ending's, each re-queue's and each probe row's delete, is
         // folded into one fact, and the marker is removed only when all
         // landed. A parent `maybe_finish_parent` ends after the lock is
-        // outside it, as it always was: the marker's job is never a parent
-        // (C134's arm excludes one). #209's fourth round, which ends the
-        // unreadable tree's parent there, will need this said again.
+        // outside it, the unreadable tree's parents among them since
+        // #209's fourth round: the marker's job is never a parent (C134's
+        // arm excludes one), so its failure is in the fact, and a
+        // parent's write refused after the lock trips the sticky queue
+        // failure, the parent finished by the next restore.
         let mut every_write_landed = true;
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
@@ -467,18 +478,40 @@ impl Daemon {
                 let state = entry.info().state;
                 let open = matches!(state, JobState::Running | JobState::Waiting);
                 // C47, #209: an open job of a tree holding a row this
-                // daemon cannot read fails where it stands, parent or not,
-                // its held result dropped, and nothing of the tree is sent.
-                // The one place the restore ends a parent with children.
+                // daemon cannot read fails, and nothing of the tree is
+                // sent. A leaf (no child among the loaded rows) ends where
+                // it stands. A parent (any child among them, readable or
+                // not) is never ended here: it holds the failure in place
+                // of its held result, with a tally of its unreadable
+                // direct children, which are never entries, counted
+                // failed, and `maybe_finish_parent` ends it after the
+                // lock, adding the tally it builds from memory (C23).
                 let ending = if let Some(unreadable) = tainted.get(&root_of(id)).filter(|_| open) {
                     unreadable_tree += 1;
-                    entry.hold(None);
-                    Some(Outcome::failure(
-                        FailureKind::Internal,
-                        format!(
-                            "not run: its tree holds job {unreadable}, whose stored row this daemon cannot read; the build that wrote it can read it"
-                        ),
-                    ))
+                    let error = format!(
+                        "not run: its tree holds job {unreadable}, whose stored row this daemon cannot read; the build that wrote it can read it"
+                    );
+                    if loaded_parents.contains(&id) {
+                        let mut failed_ids =
+                            unreadable_children.get(&id).cloned().unwrap_or_default();
+                        failed_ids.sort_unstable();
+                        entry.hold(Some(Outcome::Failure {
+                            error,
+                            kind: Some(FailureKind::Internal),
+                            children: Some(Children {
+                                done: 0,
+                                failed: failed_ids.len() as u64,
+                                cancelled: 0,
+                                failed_ids,
+                            }),
+                            payload: None,
+                        }));
+                        finish_parents.push(id);
+                        every_write_landed &= self.persist(entry);
+                        None
+                    } else {
+                        Some(Outcome::failure(FailureKind::Internal, error))
+                    }
                 } else {
                     // C134: the marker's job, or a job on its probe's
                     // closed route, open and neither cancelling nor a
