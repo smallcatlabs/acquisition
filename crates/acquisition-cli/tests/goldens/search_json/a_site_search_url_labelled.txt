@@ -31,7 +31,7 @@ basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and p
 
 $ acq search --realm pc --trade-file -
 --- stdin
-{"query":{"stats":[{"filters":[{"id":"explicit.stat_9999999900"},{"id":"explicit.stat_9999999901"},{"id":"explicit.stat_9999999902"},{"id":"explicit.stat_9999999903"},{"id":"explicit.stat_9999999904"},{"id":"explicit.stat_9999999905"},{"id":"explicit.stat_9999999906"},{"id":"explicit.stat_9999999907"},{"id":"explicit.stat_9999999908"},{"id":"explicit.stat_9999999909"},{"id":"explicit.stat_9999999910"}],"type":"and"}]}}
+{"query":{"stats":[{"type":"and","filters":[{"id":"explicit.stat_9999999900"},{"id":"explicit.stat_9999999901"},{"id":"explicit.stat_9999999902"},{"id":"explicit.stat_9999999903"},{"id":"explicit.stat_9999999904"},{"id":"explicit.stat_9999999905"},{"id":"explicit.stat_9999999906"},{"id":"explicit.stat_9999999907"},{"id":"explicit.stat_9999999908"},{"id":"explicit.stat_9999999909"},{"id":"explicit.stat_9999999910"}]}]}}
 # holds "… and 1 more: the JSON's query.trade.clauses"
 --- stdout
 trade   from the query JSON: PARTIAL — 11 clauses not run, so this is not the site's search

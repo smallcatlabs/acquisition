@@ -249,16 +249,16 @@ impl Daemon {
         kind: &str,
         params: &Value,
         body: &Value,
-    ) -> Result<(), Outcome> {
+    ) -> Result<(), Box<Outcome>> {
         let Some(dir) = &self.store_dir else {
             return Ok(());
         };
         let not_recorded = |fault: String| {
             self.note_error(&format!("store: {kind} not recorded: {fault}"));
-            Outcome::failure_keeping(
+            Box::new(Outcome::failure_keeping(
                 format!("the response was fetched, but the store could not record it: {fault}"),
                 json!({ "params": params, "body": body }),
-            )
+            ))
         };
         // Judged before the account and the open: a kind nothing can be
         // recorded under creates no account file.
@@ -302,10 +302,10 @@ impl Daemon {
             }
             Err(e) => match e.downcast_ref::<acquisition_store::MalformedBody>() {
                 // GGG's answer, which the store would not take
-                Some(malformed) => Err(Outcome::failure(
+                Some(malformed) => Err(Box::new(Outcome::failure(
                     FailureKind::Upstream,
                     malformed.to_string(),
-                )),
+                ))),
                 None => Err(not_recorded(format!("recording failed: {e:#}"))),
             },
         }
@@ -418,12 +418,12 @@ impl Daemon {
         kind: &str,
         params: &Value,
         account: Option<&str>,
-    ) -> Result<(String, Auth, String), Result<Outcome, ApiError>> {
+    ) -> Result<(String, Auth, String), Box<Result<Outcome, ApiError>>> {
         let Some((_, url)) = self.route_for(kind, params) else {
-            return Err(Ok(Outcome::failure(
+            return Err(Box::new(Ok(Outcome::failure(
                 FailureKind::Internal,
                 why_no_url(kind, params),
-            )));
+            ))));
         };
         let staged = (kind == "profile")
             .then(|| self.staged_profile_token(id, account))
@@ -434,7 +434,7 @@ impl Daemon {
                 let (token, username) = self
                     .valid_access_token(account, false, Some(id))
                     .await
-                    .map_err(refused)?;
+                    .map_err(|e| Box::new(refused(e)))?;
                 (
                     Auth::Session {
                         token,
@@ -468,7 +468,7 @@ impl Daemon {
                     .await
                 {
                     Ok(rendered) => rendered,
-                    Err(stop) => return stop,
+                    Err(stop) => return *stop,
                 };
                 let route = route.as_deref().expect("characters is a network kind");
                 let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
@@ -484,7 +484,7 @@ impl Daemon {
                 };
                 let characters = json!(characters);
                 if let Err(failure) = self.record(account, kind, &params, &v) {
-                    return Ok(failure);
+                    return Ok(*failure);
                 }
                 Outcome::Success {
                     payload: json!({
@@ -501,12 +501,12 @@ impl Daemon {
                     .await
                 {
                     Ok(rendered) => rendered,
-                    Err(stop) => return stop,
+                    Err(stop) => return *stop,
                 };
                 let route = route.as_deref().expect("network kind");
                 let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
-                    return Ok(failure);
+                    return Ok(*failure);
                 }
                 // The profile's uuid is the stable account identity,
                 // required at login (`complete_login` writes the index
@@ -545,7 +545,7 @@ impl Daemon {
                     .await
                 {
                     Ok(rendered) => rendered,
-                    Err(stop) => return stop,
+                    Err(stop) => return *stop,
                 };
                 let league = params
                     .get("league")
@@ -566,7 +566,7 @@ impl Daemon {
                 };
                 let stashes = json!(stashes);
                 if let Err(failure) = self.record(account, kind, &params, &v) {
-                    return Ok(failure);
+                    return Ok(*failure);
                 }
                 Outcome::Success {
                     payload: json!({
@@ -584,12 +584,12 @@ impl Daemon {
                     .await
                 {
                     Ok(rendered) => rendered,
-                    Err(stop) => return stop,
+                    Err(stop) => return *stop,
                 };
                 let route = route.as_deref().expect("stash is a network kind");
                 let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
-                    return Ok(failure);
+                    return Ok(*failure);
                 }
                 let stash = v.get("stash").cloned().unwrap_or(v);
                 // Map/unique tabs carry their substashes as stubs; following

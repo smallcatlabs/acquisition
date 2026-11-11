@@ -1285,7 +1285,7 @@ fn a_response_is_filed_under_the_job_account_not_the_session() {
         .unwrap_err();
     assert!(
         matches!(
-            &failed,
+            &*failed,
             Outcome::Failure {
                 payload: Some(_),
                 ..

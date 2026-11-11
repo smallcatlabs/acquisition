@@ -575,7 +575,7 @@ fn drop_empty_stat_groups(query: &mut Value) {
     if groups.is_empty()
         && let Some(q) = query.as_object_mut()
     {
-        q.remove("stats");
+        q.shift_remove("stats");
     }
 }
 

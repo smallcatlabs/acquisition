@@ -68,7 +68,7 @@ use crate::price::{self, Priced};
 fn without_lines<S: serde::Serializer>(item: &Item, to: S) -> Result<S::Ok, S::Error> {
     let mut item = serde_json::to_value(item).map_err(serde::ser::Error::custom)?;
     if let Some(fields) = item.as_object_mut() {
-        fields.remove("lines");
+        fields.shift_remove("lines");
     }
     item.serialize(to)
 }

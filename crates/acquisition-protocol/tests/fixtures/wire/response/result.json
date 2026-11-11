@@ -1,19 +1,19 @@
 {
-  "finished_at": 1800000003,
+  "resp": "result",
   "id": 42,
   "outcome": {
     "outcome": "success",
     "payload": {
+      "status": 200,
       "body": {
         "stash": {
           "id": "t1",
           "items": []
         }
-      },
-      "status": 200
+      }
     }
   },
-  "resp": "result",
+  "submitted_at": 1800000000,
   "started_at": 1800000002,
-  "submitted_at": 1800000000
+  "finished_at": 1800000003
 }

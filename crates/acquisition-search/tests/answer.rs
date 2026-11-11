@@ -401,7 +401,7 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
     let request = serde_json::from_value(json!({ "view": { "rows": { "limit": 2 } } })).unwrap();
     let a = as_json(&answer(&corpus, &request).unwrap());
     let mut rows = a["view"]["rows"].clone();
-    let next = rows.as_object_mut().unwrap().remove("next").unwrap();
+    let next = rows.as_object_mut().unwrap().shift_remove("next").unwrap();
     assert_eq!(rows, json!({ "limit": 2, "returned": 2, "left_out": 5 }));
     assert_eq!(next["request"]["view"]["rows"]["after"], 2);
     assert_eq!(a["total"]["matched"], 7);

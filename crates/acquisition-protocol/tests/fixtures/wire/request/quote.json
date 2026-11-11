@@ -1,13 +1,13 @@
 {
-  "account": "Alice#1234",
+  "req": "quote",
   "jobs": [
     {
       "kind": "stash",
       "params": {
-        "id": "t1",
-        "league": "Standard"
+        "league": "Standard",
+        "id": "t1"
       }
     }
   ],
-  "req": "quote"
+  "account": "Alice#1234"
 }

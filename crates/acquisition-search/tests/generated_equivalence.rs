@@ -61,20 +61,20 @@ fn normalized(
     let mut cache = HashMap::new();
     let mut out = answer.clone();
     let fields = out.as_object_mut().ok_or("an answer that is no object")?;
-    fields.remove("query");
+    fields.shift_remove("query");
     if let Some(rows) = fields
         .get_mut("view")
         .and_then(|v| v.get_mut("rows"))
         .and_then(Value::as_object_mut)
     {
-        rows.remove("sort");
+        rows.shift_remove("sort");
     }
     // what a zero answer offers is explain of a path and the query's own
     // text: the paths and the text are what a rewrite may change, and a
     // nested and flattened has other parts at its root. What explain
     // answers at a node in every spelling is `tests/generated_explain.rs`'s.
     if let Some(zero) = fields.get_mut("zero").and_then(Value::as_object_mut) {
-        zero.remove("offers");
+        zero.shift_remove("offers");
     }
     walk(&mut out, corpus, scope, &by_path, &mut cache)?;
     Ok(out)
@@ -94,11 +94,11 @@ fn walk(
                     .get(path)
                     .ok_or_else(|| format!("a path no term has: {path}"))?;
                 fields.insert("path".into(), json!(key));
-                fields.remove("term");
+                fields.shift_remove("term");
             }
             if fields.contains_key("count") {
                 let ids = members(corpus, &Value::Object(fields.clone()), scope, cache)?;
-                fields.remove("request");
+                fields.shift_remove("request");
                 fields.insert("ids".into(), json!(ids));
             }
             // a value's evidence is named by its authored text: a sum by

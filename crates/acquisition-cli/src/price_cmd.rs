@@ -2172,7 +2172,7 @@ mod tests {
         let text = render_write(&unreadable, None, None, None, "a");
         assert!(
             text.starts_with(
-                "item/i1: cleared, was an unreadable value {\"type\":\"auction\",\"version\":9} (revision 3)\n"
+                "item/i1: cleared, was an unreadable value {\"version\":9,\"type\":\"auction\"} (revision 3)\n"
             ),
             "{text}"
         );

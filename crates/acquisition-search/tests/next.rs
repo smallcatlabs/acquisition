@@ -158,7 +158,7 @@ fn a_continuation_is_refused_across_a_changed_basis_and_names_both() {
     again["view"]["rows"]
         .as_object_mut()
         .unwrap()
-        .remove("after");
+        .shift_remove("after");
     assert_eq!(asked(&later, &again).unwrap()["total"]["matched"], 7);
 }
 
@@ -251,7 +251,7 @@ fn a_next_and_an_offer_are_read_whole_as_an_answer_holds_them() {
     }
     // a route with a basis and no count: the request, nothing before
     let mut rest = zero["terms"][0]["matched"].clone();
-    rest.as_object_mut().unwrap().remove("count");
+    rest.as_object_mut().unwrap().shift_remove("count");
     assert!(Asked::read(&rest).unwrap().before.is_none());
 }
 

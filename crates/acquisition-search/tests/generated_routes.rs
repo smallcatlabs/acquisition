@@ -411,7 +411,7 @@ fn the_route_checker_rejects_refusal_miscounts_missing_routes_and_overlap() {
     bad["terms"][0]["matched"]
         .as_object_mut()
         .unwrap()
-        .remove("request");
+        .shift_remove("request");
     assert!(check(&bad).unwrap_err().contains("no route"));
     let mut bad = document.clone();
     bad["terms"][0]["failed"]["request"] = document["terms"][0]["matched"]["request"].clone();

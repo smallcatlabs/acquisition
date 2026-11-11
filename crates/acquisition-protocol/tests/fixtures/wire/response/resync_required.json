@@ -1,4 +1,4 @@
 {
-  "missed": 300,
-  "resp": "resync_required"
+  "resp": "resync_required",
+  "missed": 300
 }

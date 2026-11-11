@@ -1,34 +1,34 @@
 {
-  "counts": {
-    "cancelled": 0,
-    "done": 1,
-    "failed": 0,
-    "latest_eta_seconds": 17,
-    "running": 1,
-    "soonest_eta_seconds": 17,
-    "total": 3,
-    "waiting": 1
-  },
+  "resp": "jobs",
   "jobs": [
     {
-      "account": "Alice#1234",
-      "eta_seconds": 17,
       "id": 42,
       "kind": "stash",
-      "params": {
-        "deep": false,
-        "id": "t1",
-        "league": "Standard"
-      },
-      "parent": 41,
-      "priority": 0,
-      "retries": 1,
-      "started_at": 1800000002,
       "state": "waiting",
+      "priority": 0,
+      "submitted_by": "cli:1234",
+      "eta_seconds": 17,
+      "parent": 41,
+      "retries": 1,
+      "account": "Alice#1234",
+      "params": {
+        "league": "Standard",
+        "id": "t1",
+        "deep": false
+      },
       "submitted_at": 1800000000,
-      "submitted_by": "cli:1234"
+      "started_at": 1800000002
     }
   ],
   "next": 42,
-  "resp": "jobs"
+  "counts": {
+    "total": 3,
+    "running": 1,
+    "waiting": 1,
+    "done": 1,
+    "failed": 0,
+    "cancelled": 0,
+    "soonest_eta_seconds": 17,
+    "latest_eta_seconds": 17
+  }
 }

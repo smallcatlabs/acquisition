@@ -634,7 +634,24 @@ fn volatile_fields_are_not_changes() {
         .unwrap();
     a["veiledMods"] = json!(["Prefix01"]);
     let ing = s
-        .record(&stash_ep("a"), &p, 200, &stash("a", vec![a]), 2)
+        .record(&stash_ep("a"), &p, 200, &stash("a", vec![a.clone()]), 2)
+        .unwrap();
+    assert_eq!(ing.changed, 0);
+    // #200: a body read in another key order is the same item. Under
+    // serde_json's preserve_order a row keeps the order it was read in,
+    // so a refetch that orders the keys otherwise, or a row stored
+    // sorted before the feature, compares as values, never as text.
+    let reversed: serde_json::Map<String, Value> = a
+        .as_object()
+        .unwrap()
+        .iter()
+        .rev()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    let reversed = Value::Object(reversed);
+    assert_ne!(reversed.to_string(), a.to_string(), "the order differs");
+    let ing = s
+        .record(&stash_ep("a"), &p, 200, &stash("a", vec![reversed]), 3)
         .unwrap();
     assert_eq!(ing.changed, 0);
 }

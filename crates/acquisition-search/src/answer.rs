@@ -562,7 +562,7 @@ impl<'de> Deserialize<'de> for View {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<View, D::Error> {
         use serde::de::Error as _;
         let mut map = serde_json::Map::<String, Json>::deserialize(deserializer)?;
-        let routes = match map.remove("routes") {
+        let routes = match map.shift_remove("routes") {
             None => false,
             Some(Json::Bool(routes)) => routes,
             Some(other) => {

@@ -1,16 +1,16 @@
 {
-  "artifact": {
-    "dev": 16777233,
-    "ino": 4242424,
-    "len": 22605208,
-    "mtime_ns": 1800000000000000000,
-    "path": "/opt/acquisition/acqd",
-    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-  },
-  "contract": "0123456789ab",
-  "pid": 4242,
-  "provider": "mock",
   "resp": "hello",
   "version": "0.0.1",
+  "contract": "0123456789ab",
+  "artifact": {
+    "path": "/opt/acquisition/acqd",
+    "len": 22605208,
+    "mtime_ns": 1800000000000000000,
+    "dev": 16777233,
+    "ino": 4242424,
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "pid": 4242,
+  "provider": "mock",
   "world": "/home/alice/.local/share/acq/store"
 }

@@ -1,6 +1,6 @@
 {
-  "contract": "0123456789ab",
   "req": "hello",
   "version": "0.0.1",
+  "contract": "0123456789ab",
   "world": "/home/alice/.local/share/acq/store"
 }

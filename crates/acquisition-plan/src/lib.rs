@@ -1826,7 +1826,7 @@ impl RefreshPlan {
         // though the type accepted it.
         let mut given = value.clone();
         if let Some(o) = given.as_object_mut() {
-            o.remove("quote");
+            o.shift_remove("quote");
         }
         let expected = serde_json::to_value(RefreshPlan {
             quote: None,

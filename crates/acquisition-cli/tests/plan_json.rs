@@ -163,7 +163,7 @@ fn json_stdout_is_the_contract_surface() {
     assert!(out.status.success(), "{out:?}");
     let mut row = sole_json(&out);
     assert_eq!(
-        row.as_object_mut().unwrap().remove("league_notes"),
+        row.as_object_mut().unwrap().shift_remove("league_notes"),
         Some(
             json!([{ "realm": "pc", "league": "Standard", "list_fetched_at": null,
                        "list_fetched_at_age": "never" }])
@@ -177,9 +177,9 @@ fn json_stdout_is_the_contract_surface() {
     // The receipt every write answers (round 5 of the 2g build) stands
     // beside the row: a first write's prior null, its undo none and why.
     let receipt = row.as_object_mut().unwrap();
-    let written = receipt.remove("written");
-    assert_eq!(receipt.remove("prior"), Some(Value::Null));
-    assert!(receipt.remove("target").is_some() && receipt.remove("no_undo").is_some());
+    let written = receipt.shift_remove("written");
+    assert_eq!(receipt.shift_remove("prior"), Some(Value::Null));
+    assert!(receipt.shift_remove("target").is_some() && receipt.shift_remove("no_undo").is_some());
     assert_eq!(written.as_ref(), Some(&row));
     let out = acq(&base, &["policy", "show", "--json"]);
     assert_eq!(sole_json(&out)["policy"].clone(), row);

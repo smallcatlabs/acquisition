@@ -380,11 +380,14 @@ pub enum ValueError {
     /// (`/realms/pc/leagues/Standard/tabs`), `read` what the value said
     /// there, `canonical` what the kind writes there — `None` on either
     /// side is "absent" (`null` and absent are not the same value).
+    /// Boxed: a `Value` is the size of an insertion-ordered map
+    /// (serde_json's `preserve_order`, #200), and every annotation
+    /// error carries this one.
     NotCanonical {
         kind: &'static str,
         path: String,
-        read: Option<Value>,
-        canonical: Option<Value>,
+        read: Option<Box<Value>>,
+        canonical: Option<Box<Value>>,
     },
     /// Parses, but the kind's writer's rule refuses it as a new write
     /// ([`IntentValue::check_write`]); a stored row saying the same still
@@ -414,7 +417,7 @@ impl std::fmt::Display for ValueError {
                 read,
                 canonical,
             } => {
-                let side = |v: &Option<Value>| match v {
+                let side = |v: &Option<Box<Value>>| match v {
                     Some(v) => v.to_string(),
                     None => "absent".into(),
                 };
@@ -459,8 +462,8 @@ pub fn check_value<K: IntentValue>(value: &Value) -> Result<K, ValueError> {
             return Err(ValueError::NotCanonical {
                 kind: K::KIND,
                 path,
-                read,
-                canonical,
+                read: read.map(Box::new),
+                canonical: canonical.map(Box::new),
             });
         }
     }

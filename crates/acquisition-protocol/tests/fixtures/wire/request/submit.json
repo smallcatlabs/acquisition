@@ -1,12 +1,12 @@
 {
-  "account": "Alice#1234",
+  "req": "submit",
   "kind": "stash",
   "params": {
-    "deep": false,
+    "league": "Standard",
     "id": "t1",
-    "league": "Standard"
+    "deep": false
   },
   "priority": 0,
-  "req": "submit",
-  "submitted_by": "cli:1234"
+  "submitted_by": "cli:1234",
+  "account": "Alice#1234"
 }

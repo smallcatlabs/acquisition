@@ -210,13 +210,13 @@ pub fn again(envelope: &Value, account: &str) -> Option<(Value, bool)> {
         .or_insert_with(|| json!({}))
         .as_object_mut()?;
     scope.insert("account".into(), json!(account));
-    let mut restarted = request.remove("basis").is_some();
+    let mut restarted = request.shift_remove("basis").is_some();
     if let Some(rows) = request
         .get_mut("view")
         .and_then(|view| view.get_mut("rows"))
         .and_then(Value::as_object_mut)
     {
-        restarted |= rows.remove("after").is_some();
+        restarted |= rows.shift_remove("after").is_some();
     }
     Some((envelope, restarted))
 }

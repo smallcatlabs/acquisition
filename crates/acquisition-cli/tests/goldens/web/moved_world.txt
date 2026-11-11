@@ -4,7 +4,7 @@ GET item/new
 # holds "class undecided"
 # holds "Wombgift Chalice"
 # holds "+40 to maximum Life"
-<meta name="basis" content="{&quot;item&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;item&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Item</h1>
 <div class="card">
@@ -39,7 +39,7 @@ GET item/mech
 # holds "flags unknown"
 # holds "echoing"
 # holds "Grants 3 Echoes of the Brood"
-<meta name="basis" content="{&quot;item&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;item&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Item</h1>
 <div class="card">
@@ -74,7 +74,7 @@ GET search?<a stat the table lacks>
 # holds "not the site&#39;s search"
 # holds "PARTIAL"
 # holds "stats.0.0"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="count">5 matches</p>
@@ -173,7 +173,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 GET search?<every ring>
 # holds "undecided"
 # holds "Wombgift Chalice"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="count">3 matches</p>

@@ -1,12 +1,12 @@
 {
   "outcome": "success",
   "payload": {
+    "tabs_listed": 3,
     "children": {
-      "cancelled": 0,
       "done": 3,
       "failed": 0,
+      "cancelled": 0,
       "failed_ids": []
-    },
-    "tabs_listed": 3
+    }
   }
 }

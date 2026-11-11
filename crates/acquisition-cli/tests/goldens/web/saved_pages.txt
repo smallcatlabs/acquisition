@@ -37,7 +37,7 @@ GET search?<the ring search>
 # holds "/saved\"><input type=\"hidden\" name=\"text\" value=\"league=Standard"
 # holds "name=\"membership\" value=\"live\""
 # holds ">Save this search</button>"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="count">2 matches</p>
@@ -194,7 +194,7 @@ GET search?<rings, opened>
 # holds "name=\"if_revision\" value=\"1\""
 # holds ">Save over &quot;rings&quot;</button>"
 # holds ">Save as a new search</button>"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6},&quot;saved_search&quot;:1}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;saved_search&quot;:1}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search &quot;rings&quot;, opened at revision 1 · <a href="/<token>/saved">the saved searches</a></p>
@@ -279,7 +279,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 GET search?<rings, opened, after the row moved>
 # holds "Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;rings&quot; at revision 2, last written"
 # holds "via cli. Saving over it here is refused as stale and offers the write over revision 2."
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6},&quot;saved_search&quot;:2}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;saved_search&quot;:2}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;rings&quot; at revision 2, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 2. · <a href="/<token>/saved">the saved searches</a></p>
@@ -363,7 +363,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 
 GET search?<rings, opened, after its text changed>
 # holds "This answer&#39;s query is not the saved one&#39;s: the saved query is rarity=unique over pc · live."
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6},&quot;saved_search&quot;:3}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;saved_search&quot;:3}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;rings&quot; at revision 3, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 3. · <a href="/<token>/saved">the saved searches</a></p>
@@ -448,7 +448,7 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 
 GET search?<rings, opened, after it was renamed>
 # holds "it is now &quot;unique rings&quot; at revision 4"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6},&quot;saved_search&quot;:4}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;saved_search&quot;:4}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2, opened at revision 1, has been written since: it is now &quot;unique rings&quot; at revision 4, last written <age> ago via cli. Saving over it here is refused as stale and offers the write over revision 4. · <a href="/<token>/saved">the saved searches</a></p>
@@ -549,7 +549,7 @@ saved search 0000000000a2 stands at revision 4, not the revision the write named
 <tr><td>unique rings</td><td>pc · live</td><td>rarity=unique</td><td>4</td><td><age> ago via cli</td><td>0000000000a2</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="membership" value="live"><input type="hidden" name="name" value="rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 4, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="name" value="rings"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><button type="submit">the same write over revision 4, the row as it stands</button></form></li>
 </ul>
 </div>
 
@@ -558,7 +558,7 @@ saved search 0000000000a2 stands at revision 4, not the revision the write named
 GET search?<rings, opened, after it was cleared>
 # holds "Saved search 0000000000a2 is gone: no saved search has that id now. Saving here makes a new one."
 # holds ">Save this search</button>"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a2 is gone: no saved search has that id now. Saving here makes a new one.</p>
@@ -689,7 +689,7 @@ saved search 0000000000a1 stands at revision 2, not the revision the write named
 <tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>2</td><td></td><td>0000000000a1</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="membership" value="live"><input type="hidden" name="name" value="amulets"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="amulets"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
 </ul>
 </div>
 
@@ -719,7 +719,7 @@ GET saved/open?id=<everything>
 GET search?<everything, opened>
 # holds "Saved search &quot;everything&quot;, opened at revision 1"
 # holds "<textarea id=\"query-text\" name=\"text\" rows=\"3\"></textarea>"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6},&quot;saved_search&quot;:1}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;saved_search&quot;:1}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search &quot;everything&quot;, opened at revision 1 · <a href="/<token>/saved">the saved searches</a></p>
@@ -842,7 +842,7 @@ GET saved <its offer followed>
 GET search?<belts, opened, reloaded>
 # holds "Saved search 0000000000a4 holds a value this build cannot read; clear it from"
 # holds ">Save this search</button>"
-<meta name="basis" content="{&quot;answer&quot;:{&quot;account&quot;:&quot;u-web&quot;,&quot;beast_colours&quot;:1,&quot;build&quot;:&quot;<build>&quot;,&quot;categories&quot;:1,&quot;classes&quot;:1,&quot;currency&quot;:1,&quot;defences&quot;:1,&quot;derivation&quot;:12,&quot;intent&quot;:0,&quot;notes&quot;:2,&quot;properties&quot;:1,&quot;snapshot&quot;:{&quot;at&quot;:50,&quot;facts_version&quot;:9,&quot;response&quot;:7},&quot;store&quot;:&quot;<store>&quot;,&quot;totals&quot;:6}}">
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="saved">Saved search 0000000000a4 holds a value this build cannot read; clear it from <a href="/<token>/saved">the saved searches</a>.</p>

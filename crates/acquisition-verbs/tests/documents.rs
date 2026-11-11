@@ -2086,7 +2086,7 @@ fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
         let age = league
             .as_object_mut()
             .unwrap()
-            .remove("started_at_age")
+            .shift_remove("started_at_age")
             .unwrap();
         let said = age.as_str().unwrap();
         match league["started_at"].as_i64() {
@@ -2604,7 +2604,7 @@ fn a_policy_write_refused_for_its_revision_is_a_conflict_with_the_row() {
     // the row as it stands, its times in words at the refusal's (C163)
     let mut current = doc["current"].clone();
     for key in ["created_at_age", "updated_at_age"] {
-        let words = current.as_object_mut().unwrap().remove(key);
+        let words = current.as_object_mut().unwrap().shift_remove(key);
         assert!(words.as_ref().is_some_and(said), "{key}: {doc}");
     }
     assert_eq!(current, json!(account.policy().unwrap().unwrap()), "{doc}");
@@ -4013,7 +4013,7 @@ async fn c163_no_document_carries_a_time_without_its_words() {
     .unwrap();
     assert_eq!(
         bare_times("stamped", &stamped, INVENTORY),
-        ["nested.0.seen_at", "stamped_at"],
+        ["stamped_at", "nested.0.seen_at"],
         "the walk fails on a bare time and never on a null one"
     );
 }

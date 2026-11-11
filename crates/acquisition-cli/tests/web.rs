@@ -399,7 +399,7 @@ fn trade_answers_as_the_cli(world: &Path, web: &WebUi, fields: &[(&str, &str)], 
     }
     for answer in [&mut page, &mut cli] {
         if let Some(request) = answer.pointer_mut("/zero/offers/context/request") {
-            request.as_object_mut().unwrap().remove("view");
+            request.as_object_mut().unwrap().shift_remove("view");
         }
     }
     assert_eq!(page, cli);

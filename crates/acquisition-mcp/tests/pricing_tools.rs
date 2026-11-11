@@ -147,7 +147,7 @@ pub(crate) fn steady(mut doc: Value, keys: &[&str]) -> Value {
         match v {
             Value::Object(map) => {
                 for key in keys {
-                    map.remove(*key);
+                    map.shift_remove(*key);
                 }
                 for child in map.values_mut() {
                     strip(child, keys);
@@ -182,7 +182,7 @@ pub(crate) fn offers_alike(mut by_tool: Value, mut by_cli: Value) -> (Value, Val
     assert_eq!(says(&by_tool), says(&by_cli), "{by_tool}\n{by_cli}");
     for doc in [&mut by_tool, &mut by_cli] {
         if let Some(map) = doc.as_object_mut() {
-            map.remove("offers");
+            map.shift_remove("offers");
         }
     }
     if let (Some(tool), Some(cli)) = (by_tool["error"].as_str(), by_cli["error"].as_str()) {

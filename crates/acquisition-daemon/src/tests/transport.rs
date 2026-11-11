@@ -1108,7 +1108,7 @@ mod tests {
         let answer = transport.send(get("Bearer at-alice")).await.unwrap();
         assert_eq!(
             answer.body.await.unwrap(),
-            r#"{"name":"alice","uuid":"uuid-alice"}"#
+            r#"{"uuid":"uuid-alice","name":"alice"}"#
         );
         let mut held = transport.send(get("Bearer at-bob"));
         assert!(poll_once(&mut held).is_pending());
@@ -1123,7 +1123,7 @@ mod tests {
         let answer = held.await.unwrap();
         assert_eq!(
             answer.body.await.unwrap(),
-            r#"{"name":"bob","uuid":"uuid-bob"}"#
+            r#"{"uuid":"uuid-bob","name":"bob"}"#
         );
         assert_eq!(hold.count(), 0);
         let mut grant = prepared(http::Method::POST, "/token");

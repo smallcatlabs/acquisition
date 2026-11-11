@@ -982,7 +982,7 @@ fn c66_the_write_door_is_typed_and_a_value_that_fails_never_lands<D: Door>() {
         ValueError::NotCanonical {
             kind: "strict",
             path: "/m".into(),
-            read: Some(Value::Null),
+            read: Some(Box::new(Value::Null)),
             canonical: None,
         }
     );

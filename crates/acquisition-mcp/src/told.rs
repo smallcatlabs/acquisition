@@ -506,16 +506,20 @@ pub(crate) fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
 
 /// A pricing tool's `realm`, read as the CLI's `--realm` is; a word that
 /// is no realm is refused as any argument the tool does not take.
-pub(crate) fn price_realm(
-    realm: Option<&str>,
-) -> std::result::Result<Option<Realm>, CallToolResult> {
+pub(crate) fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Realm>, Refused> {
     realm
         .map(|s| {
             acquisition_verbs::realm(s)
-                .map_err(|why| refusing(refusal(&Arguments(why).into(), "account")))
+                .map_err(|why| Box::new(refusing(refusal(&Arguments(why).into(), "account"))))
         })
         .transpose()
 }
+
+/// A refusal a tool's helper hands back for the tool to return as its
+/// result ([`refusing`]), boxed: `CallToolResult` carries JSON values,
+/// which `preserve_order` makes the size of an insertion-ordered map
+/// (#200), too large to pass by value in every helper's `Err`.
+pub(crate) type Refused = Box<CallToolResult>;
 
 #[cfg(test)]
 mod tests {

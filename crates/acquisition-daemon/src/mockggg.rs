@@ -1442,7 +1442,7 @@ mod tests {
                 f["dump"][1]["socketedItems"][2]
                     .as_object_mut()
                     .unwrap()
-                    .remove("id");
+                    .shift_remove("id");
             },
             "dump 1 socketed 2: an item without an id",
         );

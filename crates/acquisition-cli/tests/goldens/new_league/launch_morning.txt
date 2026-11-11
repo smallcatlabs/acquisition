@@ -22,18 +22,18 @@ $ acq policy
 # holds "revision 1"
 --- stdout
 {
+  "version": 3,
   "realms": {
     "pc": {
       "leagues": {
         "Standard": {
+          "tabs": "all",
           "characters": "all",
-          "max_age_seconds": 3600,
-          "tabs": "all"
+          "max_age_seconds": 3600
         }
       }
     }
-  },
-  "version": 3
+  }
 }
 revision 1, updated <age> ago
 held: pc Standard (named)

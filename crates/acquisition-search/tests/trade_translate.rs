@@ -274,7 +274,7 @@ fn store_of(case: &Case) -> acquisition_store::Store {
             let league = more
                 .as_object_mut()
                 .unwrap()
-                .remove("_league")
+                .shift_remove("_league")
                 .and_then(|l| l.as_str().map(str::to_string))
                 .unwrap_or_else(|| "Standard".to_string());
             let id = format!("{prefix}{n}");

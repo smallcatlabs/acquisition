@@ -2726,7 +2726,10 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     let refused = sole_json(&out);
     assert_eq!(refused["kind"], "trade", "{refused}");
     assert_eq!(refused["readings"], json!([TRADE_TEXT]), "{refused}");
-    edited["query"].as_object_mut().unwrap().remove("trade");
+    edited["query"]
+        .as_object_mut()
+        .unwrap()
+        .shift_remove("trade");
     std::fs::write(&file, edited.to_string()).unwrap();
     let own = sole_json(&acq(
         &base,

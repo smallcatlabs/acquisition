@@ -1827,7 +1827,7 @@ impl Store {
                         if !character.contains_key(*key) {
                             arrays.push((key, Vec::new()));
                         }
-                        if let Some(Value::Array(items)) = character.remove(*key) {
+                        if let Some(Value::Array(items)) = character.shift_remove(*key) {
                             let n = count_granted(Some(&Value::Array(items.clone())));
                             if n > 0 {
                                 granted.insert((*key).into(), json!(n));
@@ -2007,7 +2007,7 @@ impl Store {
                     withheld = Some(count_item_facts(stash.get("items")));
                 } else if let Some(stash) = envelope.get_mut("stash").and_then(Value::as_object_mut)
                 {
-                    let items = match stash.remove("items") {
+                    let items = match stash.shift_remove("items") {
                         Some(Value::Array(items)) => items,
                         _ => Vec::new(),
                     };
@@ -2015,7 +2015,7 @@ impl Store {
                     // Substash stubs of a map/unique tab: each becomes a tab
                     // row whose parent is this tab. The fetched tab's own
                     // row too.
-                    let children = match stash.remove("children") {
+                    let children = match stash.shift_remove("children") {
                         Some(Value::Array(c)) => c,
                         _ => Vec::new(),
                     };
@@ -3011,7 +3011,7 @@ fn upsert_listed_tab(
     };
     let mut entry = tab.clone();
     if let Some(o) = entry.as_object_mut() {
-        o.remove("children");
+        o.shift_remove("children");
     }
     let position = tab.get("index").and_then(Value::as_i64).unwrap_or(*idx);
     *idx += 1;
@@ -3071,7 +3071,7 @@ pub fn same_item(a: &Value, b: &Value) -> bool {
         let mut v = v.clone();
         if let Some(o) = v.as_object_mut() {
             for f in VOLATILE_ITEM_FIELDS {
-                o.remove(*f);
+                o.shift_remove(*f);
             }
         }
         v
@@ -3106,7 +3106,10 @@ fn ingest_item(
     // granted skill is not (`is_granted_skill`): it stays in the host's
     // json, subtree and all, so a support swapped inside it is a `changed`
     // event on the host — the only row that records it.
-    let gems = match item.as_object_mut().and_then(|o| o.remove("socketedItems")) {
+    let gems = match item
+        .as_object_mut()
+        .and_then(|o| o.shift_remove("socketedItems"))
+    {
         Some(Value::Array(g)) => {
             let (kept, lifted): (Vec<Value>, Vec<Value>) =
                 g.into_iter().partition(is_granted_skill);

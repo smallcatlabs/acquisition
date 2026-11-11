@@ -7,12 +7,11 @@
 use acquisition_protocol::realm::Realm;
 use acquisition_verbs::refusal::Arguments;
 use anyhow::Result;
-use rmcp::model::CallToolResult;
 use rmcp::schemars;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::told::{refusal, refusing};
+use crate::told::{Refused, refusal, refusing};
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
 /// arguments it cannot read is a line of text and no document: what
@@ -44,8 +43,9 @@ impl<T: serde::de::DeserializeOwned> Args<T> {
     }
 
     /// The arguments, or their refusal document.
-    pub(crate) fn read(self) -> std::result::Result<T, CallToolResult> {
-        self.parse().map_err(|e| refusing(refusal(&e, "account")))
+    pub(crate) fn read(self) -> std::result::Result<T, Refused> {
+        self.parse()
+            .map_err(|e| Box::new(refusing(refusal(&e, "account"))))
     }
 }
 

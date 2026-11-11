@@ -54,23 +54,23 @@ $ acq policy show
 # holds "held: pc Allflame (not named), Rehearsal (named), Standard (named), characters with no league; xbox Standard (no policy for xbox)"
 --- stdout
 {
+  "version": 3,
   "realms": {
     "pc": {
       "leagues": {
+        "Standard": {
+          "tabs": "all",
+          "max_age_seconds": 3600
+        },
         "Rehearsal": {
-          "max_age_seconds": 3600,
           "tabs": [
             "r1"
-          ]
-        },
-        "Standard": {
-          "max_age_seconds": 3600,
-          "tabs": "all"
+          ],
+          "max_age_seconds": 3600
         }
       }
     }
-  },
-  "version": 3
+  }
 }
 revision 1, updated <age> ago
 held: pc Allflame (not named), Rehearsal (named), Standard (named), characters with no league; xbox Standard (no policy for xbox)

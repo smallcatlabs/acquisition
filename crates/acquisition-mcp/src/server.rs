@@ -18,7 +18,7 @@ use acquisition_verbs::saved::{self, Set};
 use acquisition_verbs::{Account, Fault, Frontend, Held};
 use anyhow::Result;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{CallToolResult, ServerCapabilities, ServerConfig};
+use rmcp::model::{ServerCapabilities, ServerConfig};
 use rmcp::{ErrorData, ServerHandler, tool, tool_handler, tool_router};
 use serde_json::{Value, json};
 
@@ -26,8 +26,8 @@ use crate::describe::{Described, Entry, OWN_SECTIONS, own_listed, own_sections};
 use crate::params::*;
 use crate::prose::Prose;
 use crate::told::{
-    CALLED, Called, Spoken, Told, answer, failed, price_realm, priced, refusal, refused, refusing,
-    settled, told, told_as,
+    CALLED, Called, Refused, Spoken, Told, answer, failed, price_realm, priced, refusal, refused,
+    refusing, settled, told, told_as,
 };
 
 /// The server: one frontend for its lifetime (C46), an agent's door
@@ -56,11 +56,11 @@ impl AcqMcp {
         &self,
         selector: Option<&str>,
         named: &str,
-    ) -> std::result::Result<(Store, Annotations), CallToolResult> {
+    ) -> std::result::Result<(Store, Annotations), Refused> {
         self.account(selector)
             .and_then(|account| account.open())
             .map(|opened| (opened.facts, opened.intent))
-            .map_err(|e| refusing(refusal(&e.into(), named)))
+            .map_err(|e| Box::new(refusing(refusal(&e.into(), named))))
     }
 
     /// [`Self::open_search`] with the account's name, for a refusal that
@@ -70,11 +70,11 @@ impl AcqMcp {
         &self,
         selector: Option<&str>,
         named: &str,
-    ) -> std::result::Result<(Store, Annotations, String), CallToolResult> {
+    ) -> std::result::Result<(Store, Annotations, String), Refused> {
         self.account(selector)
             .and_then(|account| account.open())
             .map(|opened| (opened.facts, opened.intent, opened.account.entry.username))
-            .map_err(|e| refusing(refusal(&e.into(), named)))
+            .map_err(|e| Box::new(refusing(refusal(&e.into(), named))))
     }
 
     /// The selected account's intent file alone, for a verb that reads
@@ -86,10 +86,10 @@ impl AcqMcp {
         &self,
         selector: Option<&str>,
         named: &str,
-    ) -> std::result::Result<(Annotations, String), CallToolResult> {
+    ) -> std::result::Result<(Annotations, String), Refused> {
         self.account(selector)
             .and_then(|account| Ok((account.intent()?, account.entry.username)))
-            .map_err(|e| refusing(refusal(&e.into(), named)))
+            .map_err(|e| Box::new(refusing(refusal(&e.into(), named))))
     }
 
     /// `search`'s `saved`: taken out of the arguments, resolved by the
@@ -104,17 +104,17 @@ impl AcqMcp {
     fn saved_into(
         &self,
         args: &mut serde_json::Map<String, Value>,
-    ) -> std::result::Result<(), CallToolResult> {
-        let Some(saved) = args.remove("saved") else {
+    ) -> std::result::Result<(), Refused> {
+        let Some(saved) = args.shift_remove("saved") else {
             return Ok(());
         };
         let Some(saved) = saved.as_str() else {
-            return Err(refused(acquisition_search::LanguageError {
+            return Err(Box::new(refused(acquisition_search::LanguageError {
                 kind: acquisition_search::ErrorKind::Tree,
                 message: "`saved` is a saved search's id or its name, as a string".to_string(),
                 span: None,
                 readings: Vec::new(),
-            }));
+            })));
         };
         let scope = args.get("scope").and_then(Value::as_object);
         let in_scope = |key: &str| scope.is_some_and(|scope| scope.contains_key(key));
@@ -128,13 +128,13 @@ impl AcqMcp {
             ("counted_at", args.contains_key("counted_at")),
         ];
         if let Some((word, _)) = beside.iter().find(|(_, sent)| *sent) {
-            return Err(refused(SearchError::Scope {
+            return Err(Box::new(refused(SearchError::Scope {
                 kind: "view",
                 message: format!(
                     "`saved` runs a saved search whole, its scope and its query: `{word}` has nowhere to stand beside it"
                 ),
                 offers: Vec::new(),
-            }));
+            })));
         }
         let account = scope
             .and_then(|scope| scope.get("account"))
@@ -233,7 +233,7 @@ impl AcqMcp {
     )]
     fn search(&self, Parameters(RequestParams(mut args)): Parameters<RequestParams>) -> Told {
         if let Err(refusal) = self.saved_into(&mut args) {
-            return Ok(refusal);
+            return Ok(*refusal);
         }
         let asked = match Asked::read(&Value::Object(args)) {
             Ok(asked) => asked,
@@ -246,7 +246,7 @@ impl AcqMcp {
         let (store, intent) =
             match self.open_search(asked.request.scope.account.as_deref(), "scope.account") {
                 Ok(opened) => opened,
-                Err(refusal) => return Ok(refusal),
+                Err(refusal) => return Ok(*refusal),
             };
         match self
             .held
@@ -264,7 +264,7 @@ impl AcqMcp {
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let names = p.names.unwrap_or_default();
         let sections = own_sections();
@@ -349,7 +349,7 @@ impl AcqMcp {
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let against = match p.against.map(serde_json::from_value::<QueryInput>) {
             None => None,
@@ -372,7 +372,7 @@ impl AcqMcp {
         }
         let (store, intent) = match self.open_search(p.account.as_deref(), "account") {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let body = p.body.unwrap_or(false);
         match match &against {
@@ -545,15 +545,15 @@ impl AcqMcp {
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let realm = match price_realm(p.realm.as_deref()) {
             Ok(realm) => realm.unwrap_or(Realm::DEFAULT),
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (store, intent) = match self.open_search(p.account.as_deref(), "account") {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let league = p
             .league
@@ -580,15 +580,15 @@ impl AcqMcp {
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let realm = match price_realm(p.realm.as_deref()) {
             Ok(realm) => realm,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (store, intent, account) = match self.open_priced(p.account.as_deref(), "account") {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         priced(acquisition_plan::pricing::list(
             &store,
@@ -614,15 +614,15 @@ impl AcqMcp {
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let realm = match price_realm(p.realm.as_deref()) {
             Ok(realm) => realm,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (store, intent, account) = match self.open_priced(p.account.as_deref(), "account") {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         priced(acquisition_plan::pricing::show(
             &store,
@@ -644,15 +644,15 @@ impl AcqMcp {
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let realm = match price_realm(p.realm.as_deref()) {
             Ok(realm) => realm.unwrap_or(Realm::DEFAULT),
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (store, intent) = match self.open_search(p.account.as_deref(), "account") {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let league = p
             .league
@@ -689,7 +689,7 @@ impl AcqMcp {
     fn reference_currency(&self, Parameters(p): Parameters<Args<ReferenceCurrencyParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         priced(acquisition_plan::pricing::currency_document(
             p.word.as_deref(),
@@ -702,12 +702,12 @@ impl AcqMcp {
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (store, mut intent, username) = match self.open_priced(p.account.as_deref(), "account")
         {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let written = acquisition_plan::pricing::set(
             &store,
@@ -739,12 +739,12 @@ impl AcqMcp {
     fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let (mut intent, username) = match self.open_account_intent(p.account.as_deref(), "account")
         {
             Ok(opened) => opened,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         // the facts where they can be read, never made: what a container's
         // row covered is counted from them (#171); a clear needs none
@@ -781,7 +781,7 @@ impl AcqMcp {
     fn saved_searches(&self, Parameters(p): Parameters<Args<SavedSearchesParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         let Some(id_or_name) = p.saved else {
             return settled(saved::list(
@@ -813,7 +813,7 @@ impl AcqMcp {
     fn saved_search_set(&self, Parameters(p): Parameters<Args<SavedSearchSetParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         // C52: naming no revision creates, never replaces
         let set = Set {
@@ -836,7 +836,7 @@ impl AcqMcp {
     fn saved_search_clear(&self, Parameters(p): Parameters<Args<SavedSearchClearParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         // a clear is no create: the revision named, exactly
         match saved::clear(&self.frontend, &p.id, Expect::Exactly(p.if_revision)) {
@@ -853,7 +853,7 @@ impl AcqMcp {
     async fn submit_job(&self, Parameters(p): Parameters<Args<SubmitParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         settled(
             async {
@@ -897,7 +897,7 @@ impl AcqMcp {
     async fn job_status(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         settled(async { Ok(self.frontend.job(p.id).await?) }.await)
     }
@@ -908,7 +908,7 @@ impl AcqMcp {
     async fn job_result(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         // C165 and C143: a failure's way on as this server's tool calls
         let spoken = Spoken { named: "account" };
@@ -919,7 +919,7 @@ impl AcqMcp {
     async fn cancel_job(&self, Parameters(p): Parameters<Args<JobParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
-            Err(refusal) => return Ok(refusal),
+            Err(refusal) => return Ok(*refusal),
         };
         settled(async { Ok(self.frontend.cancel(p.id).await?) }.await)
     }
@@ -929,7 +929,7 @@ impl AcqMcp {
     )]
     async fn daemon_status(&self, Parameters(p): Parameters<Args<NoParams>>) -> Told {
         if let Err(refusal) = p.read() {
-            return Ok(refusal);
+            return Ok(*refusal);
         }
         settled(async { Ok(self.frontend.daemon().await?) }.await)
     }

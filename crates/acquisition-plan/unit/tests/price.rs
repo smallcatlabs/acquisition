@@ -241,8 +241,8 @@ fn c67_the_buyout_value_has_four_shapes_and_round_trips_exactly() {
         ValueError::NotCanonical {
             kind: "buyout",
             path: "/amount".into(),
-            read: Some(json!("12.50")),
-            canonical: Some(json!("12.5")),
+            read: Some(Box::new(json!("12.50"))),
+            canonical: Some(Box::new(json!("12.5"))),
         }
     );
     // A JSON number is not an amount: text only, so 2.50 cannot

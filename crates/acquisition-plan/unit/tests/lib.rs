@@ -1535,7 +1535,7 @@ fn c44_a_selection_plan_is_authorized_by_its_selection() {
     neither["basis"]
         .as_object_mut()
         .unwrap()
-        .remove("selection");
+        .shift_remove("selection");
     assert!(RefreshPlan::from_value(&neither).is_err());
     // a policy plan whose row moved is still refused
     let mut a = a;
@@ -2499,7 +2499,7 @@ fn character_freshness_reads_experience_forward_from_a_newer_listing() {
     // A body without `experience` (an older build's fetch, a field GGG
     // dropped): no comparison, no proof.
     let mut no_exp = body("c1", "Hero", "Standard", 0);
-    no_exp.as_object_mut().unwrap().remove("experience");
+    no_exp.as_object_mut().unwrap().shift_remove("experience");
     fetch_character(&mut s, "pc", no_exp, 1800);
     list_characters(
         &mut s,

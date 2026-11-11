@@ -387,7 +387,7 @@ fn describe_is_the_clis_and_reads_no_store() {
         let mut long = 0;
         for own in ["pricing", "daemon", "store"] {
             let entries = fields
-                .remove(own)
+                .shift_remove(own)
                 .unwrap_or_else(|| panic!("{own}: {answer}"));
             let entries = entries.as_array().unwrap();
             assert!(!entries.is_empty(), "{own}");

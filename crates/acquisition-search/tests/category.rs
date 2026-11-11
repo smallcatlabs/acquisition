@@ -398,11 +398,11 @@ fn plain(id: &str, base: &str, frame: &str, more: Value) -> Value {
     let mut body = json!({ "id": id, "name": "", "typeLine": base, "baseType": base,
         "frameTypeId": frame, "identified": true, "ilvl": 0, "x": 0, "y": 0 });
     if base.is_empty() {
-        body.as_object_mut().unwrap().remove("typeLine");
-        body.as_object_mut().unwrap().remove("baseType");
+        body.as_object_mut().unwrap().shift_remove("typeLine");
+        body.as_object_mut().unwrap().shift_remove("baseType");
     }
     if frame.is_empty() {
-        body.as_object_mut().unwrap().remove("frameTypeId");
+        body.as_object_mut().unwrap().shift_remove("frameTypeId");
     }
     for (key, value) in more.as_object().unwrap() {
         body[key] = value.clone();

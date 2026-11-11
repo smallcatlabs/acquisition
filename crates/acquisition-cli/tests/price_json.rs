@@ -627,7 +627,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         shown["listing"]["manual"].clone(),
         "{doc}"
     );
-    doc.as_object_mut().unwrap().remove("current");
+    doc.as_object_mut().unwrap().shift_remove("current");
     assert_eq!(
         doc,
         json!({

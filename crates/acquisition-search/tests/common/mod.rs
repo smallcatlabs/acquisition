@@ -213,8 +213,8 @@ pub fn as_json(answer: &Answer) -> Value {
 pub fn scalar(sort: &Value) -> Value {
     let mut scalar = sort.clone();
     if let Some(fields) = scalar.as_object_mut() {
-        fields.remove("shows");
-        fields.remove("left_out");
+        fields.shift_remove("shows");
+        fields.shift_remove("left_out");
     }
     scalar
 }

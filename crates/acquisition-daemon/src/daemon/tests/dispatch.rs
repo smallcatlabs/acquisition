@@ -987,7 +987,7 @@ fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
         .record(Some("B#2"), "stashes", &params, &json!({ "stashes": {} }))
         .unwrap_err();
     assert!(
-        matches!(&refused, Outcome::Failure { payload: None, error, .. } if error.contains("malformed")),
+        matches!(&*refused, Outcome::Failure { payload: None, error, .. } if error.contains("malformed")),
         "{refused:?}"
     );
     drop(daemon);

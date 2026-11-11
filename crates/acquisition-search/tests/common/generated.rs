@@ -2546,7 +2546,7 @@ pub fn run(corpus: &Corpus, request: &Value) -> Result<Value, Value> {
         Err(e) => {
             let mut error = e.to_json();
             if let Some(fields) = error.as_object_mut() {
-                fields.remove("span");
+                fields.shift_remove("span");
             }
             Err(error)
         }

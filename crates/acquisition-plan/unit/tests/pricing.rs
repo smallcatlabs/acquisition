@@ -655,7 +655,10 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
         let fields = r.fields();
         assert_eq!(fields["revision"], json!(1), "{e:#}");
         let mut current = fields["current"].clone();
-        let words = current.as_object_mut().unwrap().remove("updated_at_age");
+        let words = current
+            .as_object_mut()
+            .unwrap()
+            .shift_remove("updated_at_age");
         assert!(words.is_some_and(|w| w.is_string()), "{e:#}");
         assert_eq!(current, json!(shown), "{e:#}");
     }

@@ -1,0 +1,20 @@
+# Clippy's configuration for every member of the workspace: clippy reads
+# the nearest clippy.toml walking up from a crate's manifest, so this file
+# binds each crate that has none of its own. A crate's own clippy.toml
+# would replace this one, not add to it: it carries these entries too.
+#
+# C115 and #200: serde_json's `preserve_order` keeps an object's keys in
+# the order it was built or read, and a removal that swaps the last key
+# into the removed key's place breaks that order. Under the feature,
+# `remove` and `remove_entry` are such swaps. The removal that keeps the
+# order is `shift_remove` (`shift_remove_entry`).
+disallowed-methods = [
+  { path = "serde_json::map::Map::remove", reason = "a JSON object keeps its keys' order: remove a key with shift_remove" },
+  { path = "serde_json::map::Map::remove_entry", reason = "a JSON object keeps its keys' order: remove a key with shift_remove_entry" },
+  { path = "serde_json::map::Map::swap_remove", reason = "a JSON object keeps its keys' order: remove a key with shift_remove" },
+  { path = "serde_json::map::Map::swap_remove_entry", reason = "a JSON object keeps its keys' order: remove a key with shift_remove_entry" },
+  { path = "serde_json::map::OccupiedEntry::remove", reason = "a JSON object keeps its keys' order: remove the entry with shift_remove" },
+  { path = "serde_json::map::OccupiedEntry::remove_entry", reason = "a JSON object keeps its keys' order: remove the entry with shift_remove_entry" },
+  { path = "serde_json::map::OccupiedEntry::swap_remove", reason = "a JSON object keeps its keys' order: remove the entry with shift_remove" },
+  { path = "serde_json::map::OccupiedEntry::swap_remove_entry", reason = "a JSON object keeps its keys' order: remove the entry with shift_remove_entry" },
+]

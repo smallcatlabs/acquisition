@@ -6,21 +6,21 @@ $ acq profile
 # holds ", finished "
 --- stdout
 {
+  "provider": "mock",
+  "username": "alice",
+  "params": {},
   "body": {
+    "uuid": "00000000-0000-4000-8000-000005899680",
+    "name": "alice",
+    "realm": "pc",
     "guild": {
       "name": "Playground"
     },
-    "name": "alice",
-    "realm": "pc",
     "twitch": {
       "name": "exiletester"
-    },
-    "uuid": "00000000-0000-4000-8000-000005899680"
+    }
   },
-  "params": {},
-  "provider": "mock",
-  "rate_limit": {},
-  "username": "alice"
+  "rate_limit": {}
 }
 --- stderr
 job <j1> (alice): done; submitted <age> ago, started <age> ago, finished <age> ago

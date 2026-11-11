@@ -514,7 +514,7 @@ fn c165_a_failed_fetch_offers_the_listing_that_names_its_target() {
             "submit",
             "stashes",
             "--params",
-            r#"{"league":"Standard","realm":"pc"}"#
+            r#"{"realm":"pc","league":"Standard"}"#
         ]),
         "{doc}"
     );
@@ -4183,7 +4183,7 @@ fn a_saved_plans_next_step_names_the_account_as_the_index_spells_it_now() {
     // compiled under the old name, with no daemon to quote it (a quote
     // projects the account it was asked for)
     plan["account_name"] = json!("Old#1");
-    plan.as_object_mut().unwrap().remove("quote");
+    plan.as_object_mut().unwrap().shift_remove("quote");
     let file = base.join("renamed-plan.json");
     std::fs::write(&file, plan.to_string()).unwrap();
     let source = format!("--plan={}", file.display());

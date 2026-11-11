@@ -6,7 +6,7 @@ GET plan?realm=pc&league=Standard
 # holds "list characters"
 # holds "quote"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1,&quot;snapshot_response&quot;:1,&quot;snapshot_taken_at&quot;:<epoch>,&quot;stash_listing&quot;:null}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:1,&quot;stash_listing&quot;:null,&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1}}">
 <main>
 <h1>Plan</h1>
 <pre>
@@ -150,7 +150,7 @@ GET plan?<two tabs selected>
 # holds "a selection"
 # holds "fetch 2 tabs"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;character_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:<response>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;dump&quot;,&quot;cur1&quot;]},&quot;snapshot_response&quot;:15,&quot;snapshot_taken_at&quot;:<epoch>,&quot;stash_listing&quot;:{&quot;fetched_at&quot;:<epoch>,&quot;response_id&quot;:<response>}}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:15,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;dump&quot;,&quot;cur1&quot;]}}}">
 <main>
 <h1>Plan</h1>
 <pre>

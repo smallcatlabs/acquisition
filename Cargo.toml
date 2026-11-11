@@ -23,7 +23,7 @@ repository = "https://github.com/smallcatlabs/acquisition"
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
 toml = "1"

@@ -200,7 +200,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     // The quote names each job it priced, and a plan whose actions no
     // longer match it is refused as malformed: it goes with the edit.
     plan["actions"][0]["id"] = json!("no-such-tab");
-    plan.as_object_mut().unwrap().remove("quote");
+    plan.as_object_mut().unwrap().shift_remove("quote");
     let file = base.join("plan.json");
     std::fs::write(&file, plan.to_string()).unwrap();
 
