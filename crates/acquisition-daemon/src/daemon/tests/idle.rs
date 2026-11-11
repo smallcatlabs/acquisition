@@ -168,9 +168,12 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
 
 /// C3 as amended: the default idle exit is an hour, and a live job holds
 /// the daemon past it however long the job waits. A job running under a
-/// manual clock advanced two hours keeps the daemon up; the hour counts
-/// from the last connection or submit, so once the job concludes with
-/// both two hours gone, nothing holds the daemon.
+/// manual clock advanced two hours keeps the daemon up, its submit two
+/// hours gone and no connection since. Since #208 the hour runs from the
+/// last connection, submit or job's end: the job's end starts it again,
+/// so the daemon is still there an hour less a second after the job and
+/// leaves at the hour, never at the job's end (before #208 it left at
+/// once, and the next command's fresh daemon probed every route again).
 #[test]
 fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     let clock = Arc::new(ParkingClock::new());
@@ -199,8 +202,18 @@ fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     );
     daemon.finish(id, Outcome::Success { payload: json!({}) });
     assert!(
+        !daemon.is_idle(IDLE_SHUTDOWN),
+        "the job's end is activity: the daemon stays"
+    );
+    clock.advance(IDLE_SHUTDOWN - Duration::from_secs(1));
+    assert!(
+        !daemon.is_idle(IDLE_SHUTDOWN),
+        "a second short of an hour after the job's end"
+    );
+    clock.advance(Duration::from_secs(1));
+    assert!(
         daemon.is_idle(IDLE_SHUTDOWN),
-        "the job concluded and the hour is gone: the daemon idles out"
+        "an hour after the job's end, nothing holds the daemon"
     );
     finish_harness(None, &log);
 }

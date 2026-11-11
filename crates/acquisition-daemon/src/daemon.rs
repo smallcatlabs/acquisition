@@ -5,7 +5,8 @@
 //! (C4).
 //!
 //! Lifecycle follows the gpg-agent model: clients spawn it on demand, it exits
-//! on its own after a stretch with no connections and no live jobs.
+//! on its own an hour after its last connection, submit or job's end, with
+//! no live jobs (C3).
 //!
 //! This file holds the daemon's state and what every part of it calls:
 //! the knobs, `Entry`, `Refusal`, the session layer, `Shared`, the
@@ -1732,7 +1733,16 @@ impl Daemon {
         write_log_line(&f, Some(uptime), msg);
     }
 
+    /// One job's change, logged and sent to subscribers. C3 as amended
+    /// (#208): a job's end is activity, so the idle hour runs from the
+    /// last of a connection, a submit or a job's end. Every ending passes
+    /// here (`finish`, which `start_and_finish` and `maybe_finish_parent`
+    /// land in; `cancel`; the restore's), so the stamp is made once, and
+    /// lock-free ([`Self::mark_activity`]).
     fn emit(&self, info: JobInfo) {
+        if info.state.is_terminal() {
+            self.mark_activity(self.choke.now());
+        }
         self.log(&format!("job {} -> {}", info.id, info.state));
         let _ = self.events.send(info);
     }

@@ -700,8 +700,9 @@ pub enum Response {
         provider: String,
         uptime_seconds: u64,
         /// The idle exit this daemon was started with (`ACQ_IDLE_SHUTDOWN`,
-        /// default 3600, one hour (C3)): with no connection, no live job
-        /// and no live limiter history for this long, it exits. Reported
+        /// default 3600, one hour (C3)): this long after the last
+        /// connection, submit or job's end, with no live job and no live
+        /// limiter history, it exits. Reported
         /// so the README's recipe for a longer-lived daemon can be
         /// checked.
         #[serde(default)]

@@ -137,8 +137,8 @@ price items and render the shop (`price_status`, `price_list`,
 
 The store, saved-search and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one (under `ACQ_PROVIDER=mock`
-it does, for the stand-in): it uses the daemon you started, which exits an hour after its last connection or job
-submitted, or as long as the idle knob under "Knobs" sets (`acq daemon
+it does, for the stand-in): it uses the daemon you started, which exits an hour after its last connection, job
+submitted or job's end, or as long as the idle knob under "Knobs" sets (`acq daemon
 status` says which), once no login is under way, no job is sending or
 waiting to send, and the limiter's recent history is gone; a rails halt
 or a failed queue write parks the queue on disk, and nothing waiting
@@ -280,7 +280,7 @@ the named account's or else every known account's.
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_SHELL=<shell>` | detected | the shell the commands acq prints are quoted for: `posix`, `pwsh` (PowerShell 7.3 or newer), `powershell5` (Windows PowerShell 5.1) or `cmd` (cmd.exe); unset, PowerShell 7.3 on Windows outside Git Bash and a POSIX shell elsewhere | [answer.rs][answer] |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
-| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, this many seconds after the last connection or job submitted once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
+| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, this many seconds after the last connection, job submitted or job's end, once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
 | `ACQ_LOGIN_WITHIN=<s>` | 300 | how long `acq auth` waits for the browser before the login fails; the CLI waits on the daemon's flow and has no bound of its own | [start.rs][daemon] |
 | `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake, and every read request after it, before it is reported unresponsive; the one exception is a quote, which the plan bounds on its own at 5 s and notes | [client.rs][client] |
 | `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
