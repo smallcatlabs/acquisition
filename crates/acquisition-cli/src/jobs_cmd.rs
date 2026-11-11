@@ -91,15 +91,21 @@ pub(crate) async fn submit(
     params: serde_json::Value,
     priority: u8,
 ) -> Result<u64> {
-    Ok(acquisition_verbs::jobs::submit(
+    // C187: the main account is noted once the job is in; a refusal for
+    // it says so itself, `main_account` and all
+    let (selector, main) = cx.frontend.daemon_selector(cx.account.as_deref());
+    let id = acquisition_verbs::jobs::submit_as(
         &cx.frontend,
         client,
         &kind,
         params,
         priority,
-        cx.account.as_deref(),
+        selector,
+        main.as_ref(),
     )
-    .await?)
+    .await?;
+    cx.note_main(main.as_ref());
+    Ok(id)
 }
 
 /// `jobs --watch`: the subscriber's sequence under C85, as the reference

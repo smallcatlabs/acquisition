@@ -1143,6 +1143,26 @@ fn the_form_renders_the_realm_it_is_asked_for() {
     }
     panes_golden(file!(), "search_form", &mut pages);
     page_golden(file!(), "console_realm", &pages);
+    drop(web);
+    // C187: a second account known, none named, the main account set: the
+    // server starts and serves it, its nav bar saying it was the default
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, 1, &[])
+        .unwrap();
+    let refused = offline_acq(&scratch.0, &["web", "--no-browser", "--json"]);
+    assert_eq!(sole_json(&refused)["kind"], "ambiguous_account");
+    let set = offline_acq(&scratch.0, &["accounts", "main", USER]);
+    assert!(set.status.success(), "{set:?}");
+    let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));
+    let page = web.get("");
+    assert!(
+        page.body.contains(&format!(
+            "<span class=\"account\">account {USER} (the main account)</span>"
+        )),
+        "{}",
+        page.body
+    );
 }
 
 /// The moved-world review (Do 9): what a new league brings first renders

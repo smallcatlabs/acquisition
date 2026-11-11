@@ -87,8 +87,15 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
         | Fault::Other(_) => fault.to_string(),
         Fault::NoAccounts { .. } => format!("{fault} — log in with `acq auth`"),
         Fault::UnknownAccount { .. } => format!("{fault} (see `acq accounts`)"),
+        // C187: why this account, and the two ways on
+        Fault::MainNotLoggedIn(_) => {
+            format!("{fault}: log it in with `acq auth`, or name another with --account")
+        }
         Fault::AmbiguousAccount { .. } => {
-            format!("{fault}; pick one with --account or ACQ_ACCOUNT")
+            format!(
+                "{fault}; pick one with --account or ACQ_ACCOUNT, or make one the main account, \
+                 taken where none is named: `acq accounts main <name>`"
+            )
         }
         Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
         Fault::NoSyncPolicy { username } => format!(
@@ -562,6 +569,25 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 "saved",
                 "clear",
                 id,
+                "--if-revision",
+                &if_revision.to_string(),
+            ]),
+            Way::MainAccountSet {
+                account,
+                if_revision,
+            } => words(&[
+                "acq",
+                "accounts",
+                "main",
+                account,
+                "--if-revision",
+                &if_revision.to_string(),
+            ]),
+            Way::MainAccountClear { if_revision } => words(&[
+                "acq",
+                "accounts",
+                "main",
+                "--clear",
                 "--if-revision",
                 &if_revision.to_string(),
             ]),

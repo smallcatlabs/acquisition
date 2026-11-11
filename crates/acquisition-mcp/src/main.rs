@@ -135,6 +135,18 @@
 //! CLI's default replaces whatever is stored. The shop template is the
 //! page's text here, a file there. Pinned by `tests/pricing_tools.rs`.
 //!
+//! # As built: the main account (C187, #246)
+//!
+//! `main_account_set` adapts `acquisition_verbs::main_account`, the
+//! functions `acq accounts main` calls (C46): `main` an account, set
+//! under `Expect::or(if_revision, Create)` (C52: naming no revision
+//! creates, never replaces); `main` null, a clear at exactly the
+//! revision named, which is required. One tool, not a set and a clear,
+//! held to the first turn's bound. `accounts` answers the row as `main`.
+//! Every tool's account door takes it where several are known and none
+//! is named (`Frontend::account`), and `search`'s answer says so on its
+//! `scope.account`, `main: true`.
+//!
 //! # As built: the saved search (4-full part 1, step 2)
 //!
 //! `saved_searches`, `saved_search_set` and `saved_search_clear` are

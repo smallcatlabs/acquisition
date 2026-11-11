@@ -42,8 +42,13 @@ pub enum Fault {
         known: Vec<String>,
     },
     /// No selector among several accounts, or one naming several. Kind
-    /// `ambiguous_account`, `accounts` the names to pick from (C121).
-    AmbiguousAccount { candidates: Vec<String> },
+    /// `ambiguous_account`, `accounts` the names to pick from (C121);
+    /// `main_unknown` where none was named and a main account is set that
+    /// the index no longer holds (C187), `main_account_unknown: true`.
+    AmbiguousAccount {
+        candidates: Vec<String>,
+        main_unknown: bool,
+    },
     /// The index entry predates uuid-at-login, so no intent file can be
     /// bound to it (C50). Kind `refused`.
     NoUuid { username: String },
@@ -123,12 +128,30 @@ pub enum Fault {
     Unresponsive(Unresponsive),
     /// The daemon's own refusal, its closed kind (C85).
     Daemon(DaemonError),
+    /// C187: a job naming no account took the main account, which has no
+    /// live session: the daemon's `not_logged_in`, said as the main
+    /// account's, with `main_account` ([`crate::main_account::taken`])
+    /// and `accounts`, the others known, each a way to name another. Kind
+    /// `not_logged_in`.
+    MainNotLoggedIn(Box<MainNotLoggedIn>),
     /// The conversation with the daemon failed: a closed socket, an
     /// answer of the wrong shape. Kind `transport`.
     Transport(anyhow::Error),
     /// What the layer does not name yet: a store read that failed, the
     /// rest. Kind `refused`.
     Other(anyhow::Error),
+}
+
+/// [`Fault::MainNotLoggedIn`]'s facts, boxed so the fault stays small.
+#[derive(Debug)]
+pub struct MainNotLoggedIn {
+    pub refusal: DaemonError,
+    /// The main account, as the index names it.
+    pub username: String,
+    /// What [`crate::main_account::taken`] made of it.
+    pub taken: Value,
+    /// The other accounts known: each a way to name another.
+    pub others: Vec<String>,
 }
 
 impl Fault {
@@ -161,6 +184,7 @@ impl Fault {
             Fault::AnotherDaemon(_) => "incompatible",
             Fault::Unresponsive(_) => "unresponsive",
             Fault::Daemon(refused) => refused.kind.as_str(),
+            Fault::MainNotLoggedIn(_) => "not_logged_in",
             Fault::Transport(_) => "transport",
         }
     }
@@ -177,8 +201,18 @@ impl Fault {
             Fault::UnknownAccount { known, .. } => {
                 out.insert("accounts".into(), json!(known));
             }
-            Fault::AmbiguousAccount { candidates } => {
+            Fault::AmbiguousAccount {
+                candidates,
+                main_unknown,
+            } => {
                 out.insert("accounts".into(), json!(candidates));
+                if *main_unknown {
+                    out.insert("main_account_unknown".into(), json!(true));
+                }
+            }
+            Fault::MainNotLoggedIn(main) => {
+                out.insert("accounts".into(), json!(main.others));
+                out.insert("main_account".into(), main.taken.clone());
             }
             Fault::NoDaemon { next, .. }
             | Fault::NoJobOnDisk { next, .. }
@@ -244,12 +278,23 @@ impl fmt::Display for Fault {
                     false => named(known),
                 }
             ),
-            Fault::AmbiguousAccount { candidates } => write!(
-                f,
-                "{} accounts are known and one is to be picked: {}",
-                candidates.len(),
-                named(candidates)
-            ),
+            Fault::AmbiguousAccount {
+                candidates,
+                main_unknown,
+            } => {
+                write!(
+                    f,
+                    "{} accounts are known and one is to be picked: {}",
+                    candidates.len(),
+                    named(candidates)
+                )?;
+                if *main_unknown {
+                    f.write_str(
+                        "; the main account set earlier is none of them now, so it was not taken",
+                    )?;
+                }
+                Ok(())
+            }
             Fault::NoUuid { username } => write!(
                 f,
                 "account {username} has no recorded uuid (a login predating uuid-at-login)"
@@ -299,6 +344,11 @@ impl fmt::Display for Fault {
             Fault::AnotherDaemon(found) => write!(f, "{found}"),
             Fault::Unresponsive(found) => write!(f, "{found}"),
             Fault::Daemon(refused) => write!(f, "{refused}"),
+            Fault::MainNotLoggedIn(main) => write!(
+                f,
+                "{}; {} was taken as the main account, since none was named",
+                main.refusal.message, main.username
+            ),
         }
     }
 }

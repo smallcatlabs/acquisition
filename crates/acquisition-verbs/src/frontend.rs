@@ -30,8 +30,9 @@ use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::intended_root;
 use acquisition_store::{
-    AccountEntry, AnnotationError, AnnotationRow, Annotations, Index, Provenance, Resolve,
-    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, User, account_path,
+    AccountEntry, AnnotationError, AnnotationRow, Annotations, DEFAULT_SCOPE, Index, IntentValue,
+    MAIN_ACCOUNT_KEY, MainAccount, Provenance, Resolve, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
+    SYNC_POLICY_SCOPE, Store, User, account_path,
 };
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -114,6 +115,13 @@ pub struct Accounts {
     /// What lists them all: the request's `expand`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
+    /// C187: the main account as stored, beside whether the index still
+    /// holds it; null where none is set.
+    pub main: Option<crate::main_account::MainRow>,
+    /// Why the main account could not be read, where it could not: the
+    /// read's failure in words, `main` then null for want of a read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub main_unavailable: Option<String>,
 }
 
 impl Accounts {
@@ -144,6 +152,10 @@ pub struct AccountRow {
     pub uuid: Option<String>,
     /// The account's facts file, whether or not it exists yet.
     pub store: PathBuf,
+    /// C187: the main account, taken where several are known and none
+    /// is named; absent on every other row.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub main: bool,
 }
 
 impl AccountRow {
@@ -158,6 +170,7 @@ impl AccountRow {
             persisted: entry.persisted,
             uuid: entry.uuid.clone(),
             store: account_path(dir, &entry.username),
+            main: false,
         }
     }
 }
@@ -241,10 +254,18 @@ impl Frontend {
     pub fn accounts(&self) -> Result<Accounts, Fault> {
         let index = self.index()?;
         let now = acquisition_store::now();
+        let (main, main_unavailable) = match crate::main_account::shown(self) {
+            Ok(main) => (main, None),
+            Err(fault) => (None, Some(fault.to_string())),
+        };
+        let main_uuid = main.as_ref().and_then(|m| m.uuid.clone());
         let accounts: Vec<AccountRow> = index
             .entries()
             .iter()
-            .map(|e| AccountRow::of(e, &self.dir(), now))
+            .map(|e| AccountRow {
+                main: main_uuid.is_some() && e.uuid == main_uuid,
+                ..AccountRow::of(e, &self.dir(), now)
+            })
             .collect();
         Ok(Accounts {
             provider: self.provider.to_string(),
@@ -252,24 +273,55 @@ impl Frontend {
             accounts,
             left_out: 0,
             left_out_needs: None,
+            main,
+            main_unavailable,
         })
     }
 
-    /// C121 (an account that cannot be picked): the one account a
-    /// selector names — an exact username, a name without its
-    /// discriminator, or a uuid, else a name the account holds for its
-    /// keyring, whole ([`Index::resolve`]) — or the sole one known.
-    /// Refused as `not_logged_in` (none known), `unknown_account` (a
-    /// name the index never held) or `ambiguous_account`, each with the
-    /// accounts.
+    /// C121 (an account that cannot be picked) and C187 (the main
+    /// account): the one account a selector names — an exact username, a
+    /// name without its discriminator, or a uuid, else a name the account
+    /// holds for its keyring, whole ([`Index::resolve`]) — else, with
+    /// several known and none named, the main account where the index
+    /// still holds it ([`Account::main`] then true), else the sole one
+    /// known. Refused as `not_logged_in` (none known), `unknown_account`
+    /// (a name the index never held) or `ambiguous_account`, each with
+    /// the accounts; an `ambiguous_account` with no selector says where a
+    /// main account is set that the index no longer holds.
+    ///
+    /// The user file is read only where its answer is needed: several
+    /// accounts known and none named. A selector, or a world of one
+    /// account, never opens it, so a user file this build cannot read
+    /// stops no verb that does not need it.
     pub fn account(&self, selector: Option<&str>) -> Result<Account, Fault> {
         let index = self.index()?;
         let known =
             || -> Vec<String> { index.entries().iter().map(|e| e.username.clone()).collect() };
+        let mut main_unknown = false;
+        if selector.is_none()
+            && index.entries().len() > 1
+            && let Some(uuid) = self.main_uuid()?
+        {
+            match index
+                .entries()
+                .iter()
+                .find(|e| e.uuid.as_deref() == Some(uuid.as_str()))
+            {
+                Some(entry) => {
+                    return Ok(Account {
+                        frontend: self.clone(),
+                        entry: entry.clone(),
+                        main: true,
+                    });
+                }
+                None => main_unknown = true,
+            }
+        }
         match index.resolve(selector) {
             Ok(entry) => Ok(Account {
                 frontend: self.clone(),
                 entry: entry.clone(),
+                main: false,
             }),
             Err(Resolve::Empty) => Err(Fault::NoAccounts {
                 dir: self.dir(),
@@ -279,8 +331,53 @@ impl Frontend {
                 selector,
                 known: known(),
             }),
-            Err(Resolve::Ambiguous(candidates)) => Err(Fault::AmbiguousAccount { candidates }),
+            Err(Resolve::Ambiguous(candidates)) => Err(Fault::AmbiguousAccount {
+                candidates,
+                main_unknown,
+            }),
         }
+    }
+
+    /// C187: what a job verb names to the daemon, which never reads the
+    /// user file (C34, the daemon blind to intent): the selector as given;
+    /// else, with several accounts known, the main account's uuid where
+    /// the index still holds it, and that account beside it, so the
+    /// answer can say it was taken; else none, and the daemon picks among
+    /// its live sessions as it always has. Nothing here refuses: an index
+    /// or a user file that will not open leaves the selector as given,
+    /// for the daemon to answer.
+    pub fn daemon_selector(&self, selector: Option<&str>) -> (Option<String>, Option<Account>) {
+        if let Some(named) = selector {
+            return (Some(named.to_string()), None);
+        }
+        match self.account(None) {
+            Ok(account) if account.main => (account.entry.uuid.clone(), Some(account)),
+            _ => (None, None),
+        }
+    }
+
+    /// C187: the uuid the stored main account names, or none where none
+    /// is set or no user file exists (a read never creates one, C124). A
+    /// row this build cannot read is refused in its words.
+    fn main_uuid(&self) -> Result<Option<String>, Fault> {
+        if !acquisition_store::user_path(&self.dir()).is_file() {
+            return Ok(None);
+        }
+        let user = User::open_read_only_for(&self.dir()).map_err(|e| Fault::Unopened(e.into()))?;
+        let Some(row) = user
+            .get(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, MainAccount::KIND)
+            .map_err(|e| Fault::Unopened(e.into()))?
+        else {
+            return Ok(None);
+        };
+        MainAccount::parse(&row.value)
+            .map(|main| Some(main.uuid))
+            .map_err(|why| {
+                Fault::Other(anyhow::anyhow!(
+                    "the main account stored at revision {} cannot be read by this build: {why}",
+                    row.revision
+                ))
+            })
     }
 
     /// C10 and C13: the use door under this frontend's [`Door`]. A human
@@ -393,6 +490,9 @@ pub fn list_state(word: &str) -> Result<ListState, String> {
 pub struct Account {
     pub frontend: Frontend,
     pub entry: AccountEntry,
+    /// C187: taken as the main account, several being known and none
+    /// named; false where it was named or is the sole one known.
+    pub main: bool,
 }
 
 impl Account {

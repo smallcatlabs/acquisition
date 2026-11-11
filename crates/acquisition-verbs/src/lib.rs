@@ -40,6 +40,8 @@
 //! - [`saved`]: the saved search in the world's user file (C167): its
 //!   list, its show, its one write shape and its clear, and the request
 //!   a `--saved` runs.
+//! - [`main_account`]: the main account in the same file (C187): its
+//!   read, its set and its clear; [`Frontend::account`] takes it.
 //!
 //! Every field of a value a verb takes is public, so a test builds one
 //! over a fixture store with no environment.
@@ -57,6 +59,7 @@ pub mod fault;
 pub mod frontend;
 pub mod jobs;
 pub mod leagues;
+pub mod main_account;
 pub mod receipt;
 pub mod refresh;
 pub mod refusal;

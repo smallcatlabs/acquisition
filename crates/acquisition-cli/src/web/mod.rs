@@ -53,7 +53,9 @@
 //!   before the bind whatever the refusal — `not_logged_in` over an
 //!   empty index too, since a login later could make another account
 //!   than the one named (the review at 49a74010, its first finding) —
-//!   as is any refusal with none named but none (several accounts).
+//!   as is any refusal with none named but none (several accounts). With
+//!   several known and none named, the main account is taken where one is
+//!   set (C187), and the nav bar says it was.
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
 //!   loaded for the account it serves in the search crate's `Holder`,
@@ -447,15 +449,26 @@ impl Web {
     }
 
     /// The name of the account this server serves, none before one is
-    /// found: what every page's nav bar names.
-    fn account_name(&self) -> Option<&str> {
-        self.account.get().map(|a| a.entry.username.as_str())
+    /// found: what every page's nav bar names, and where it was taken as
+    /// the main account, several being known and none named, that too
+    /// (C187).
+    fn account_name(&self) -> Option<String> {
+        self.account.get().map(|a| match a.main {
+            true => format!("{} (the main account)", a.entry.username),
+            false => a.entry.username.clone(),
+        })
     }
 
     fn page(&self, title: &str, head: Head, body: &str) -> Response {
         html(
             StatusCode::OK,
-            page::page(&self.token, title, self.account_name(), head, body),
+            page::page(
+                &self.token,
+                title,
+                self.account_name().as_deref(),
+                head,
+                body,
+            ),
         )
     }
 
@@ -492,7 +505,7 @@ impl Web {
             page::page(
                 &self.token,
                 title,
-                self.account_name(),
+                self.account_name().as_deref(),
                 head,
                 &page::refused(&doc),
             ),
@@ -640,9 +653,13 @@ impl Web {
     /// then the holder's corpus, current and of the request's scope.
     fn answer(&self, request: &Request) -> Result<acquisition_search::Answer, Failure> {
         request.check()?;
-        let opened = self.served()?.open()?;
+        let served = self.served()?;
+        let opened = served.open()?;
         let corpus = self.held.corpus(request, &opened.facts, &opened.intent)?;
-        Ok(acquisition_search::answer(&corpus, request)?)
+        let mut answer = acquisition_search::answer(&corpus, request)?;
+        // C187: the scope says the account was taken as the main one
+        answer.scope.account.main = served.main;
+        Ok(answer)
     }
 
     /// The store's league list (the `leagues` job's latest answer), whole,

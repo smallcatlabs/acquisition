@@ -17,7 +17,8 @@ use serde_json::json;
 
 use crate::auth_cmd::{login, print_auth};
 use crate::cli::{
-    AuthCmd, Cli, Cmd, DaemonCmd, PolicyCmd, PriceCmd, ReferenceCmd, SavedCmd, ShopCmd, StoreCmd,
+    AccountsCmd, AuthCmd, Cli, Cmd, DaemonCmd, PolicyCmd, PriceCmd, ReferenceCmd, SavedCmd,
+    ShopCmd, StoreCmd,
 };
 use crate::daemon_cmd::daemon_text;
 use crate::jobs_cmd::{
@@ -43,9 +44,37 @@ pub(crate) struct Ctx {
 }
 
 impl Ctx {
-    /// C121: the account the flags select, resolved against the index.
+    /// C121: the account the flags select, resolved against the index;
+    /// C187: where it was taken as the main account, several being known
+    /// and none named, a note on stderr says which ([`Ctx::note_main`]) —
+    /// the search's answer says it itself, so the search resolves through
+    /// the frontend.
     pub fn account(&self) -> Result<Account, Fault> {
-        self.frontend.account(self.account.as_deref())
+        let account = self.frontend.account(self.account.as_deref())?;
+        self.note_main(Some(&account));
+        Ok(account)
+    }
+
+    /// The selector a job verb names to the daemon (C187): the flags',
+    /// else the main account's uuid where it is taken, noted as
+    /// [`Ctx::account`] notes it.
+    pub fn daemon_selector(&self) -> Option<String> {
+        let (selector, main) = self.frontend.daemon_selector(self.account.as_deref());
+        self.note_main(main.as_ref());
+        selector
+    }
+
+    /// C187's one line, in text mode and under `--json` alike, where the
+    /// answer's JSON does not carry `main_account` (the CLI prints a
+    /// verb's JSON at many sites, so the field rides only the search's):
+    /// on stderr, where the CLI's notes go.
+    pub(crate) fn note_main(&self, account: Option<&Account>) {
+        if let Some(account) = account.filter(|a| a.main) {
+            eprintln!(
+                "account {}: the main account, taken since none was named",
+                account.entry.username
+            );
+        }
     }
 }
 
@@ -98,7 +127,8 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
             }
             Some(AuthCmd::Check) => {
                 let mut client = connect(cx).await?;
-                let account = cx.account.clone();
+                // C187: naming none among several, the main account
+                let account = cx.daemon_selector();
                 match client.request(&Request::AuthCheck { account }).await? {
                     Response::Error { kind, message } => {
                         Err(anyhow::Error::from(DaemonError { kind, message })
@@ -208,7 +238,14 @@ pub(crate) async fn run(cli: Cli) -> Result<()> {
                 _ => print_outcome(&result, false, true),
             }
         }
-        Cmd::Accounts { expand } => store_cmd::accounts(cx, expand, cli.json),
+        Cmd::Accounts { expand, cmd } => match cmd {
+            None => store_cmd::accounts(cx, expand, cli.json),
+            Some(AccountsCmd::Main {
+                account,
+                clear,
+                if_revision,
+            }) => store_cmd::main_account(cx, account.as_deref(), clear, if_revision, cli.json),
+        },
         Cmd::Tabs {
             league,
             realm,

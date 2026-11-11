@@ -358,10 +358,18 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
     let all = sole_json(&acq(&base, &["accounts", "--expand", "--json"]));
     assert_eq!(all["accounts"].as_array().map(Vec::len), Some(12), "{all}");
     let text = String::from_utf8_lossy(&acq(&base, &["accounts"]).stdout).to_string();
+    // C187: the count line, then the main account's line, its next action
     assert!(
-        text.ends_with("10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
+        text.contains("\n10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
         "{text}"
     );
+    assert!(
+        text.ends_with(
+            "main account: none, so a command naming no account is refused; `acq accounts main 'Alice#1234'` sets one\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(listed["main"], serde_json::Value::Null, "{listed}");
     // C146: the time is written by a sign-in and by a token refresh's
     // persist alike, so an account whose last write was a refresh says
     // both writers

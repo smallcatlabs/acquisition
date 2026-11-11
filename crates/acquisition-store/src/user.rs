@@ -19,7 +19,13 @@
 //! store reads the shape alone; the language is the search crate's, which
 //! this crate links none of (C1).
 //!
-//! Rulings: `decisions/store.md` (C167, C35, C151); C66's kind trait is
+//! Its second is [`MainAccount`] (C187), under [`DEFAULT_SCOPE`] and the
+//! key [`MAIN_ACCOUNT_KEY`]: the uuid of the account a verb takes where
+//! several are known and none is named. The store holds the uuid alone;
+//! which accounts the index holds, and so whether it is still known, is
+//! the verbs' door's to read.
+//!
+//! Rulings: `decisions/store.md` (C167, C35, C151), `decisions/frontends.md` (C187); C66's kind trait is
 //! [`IntentValue`].
 
 use std::path::{Path, PathBuf};
@@ -42,6 +48,14 @@ pub fn user_path(dir: &Path) -> PathBuf {
 
 /// The scope word every saved search is written under; its key is the id.
 pub const SAVED_SEARCH_SCOPE: &str = "search";
+
+/// C187: the scope word every default of the world is written under, a
+/// kind each: the main account first, a default realm or league (#19)
+/// later, each its own kind under its own key.
+pub const DEFAULT_SCOPE: &str = "default";
+
+/// The key the main account is written under, in [`DEFAULT_SCOPE`].
+pub const MAIN_ACCOUNT_KEY: &str = "account";
 
 /// The realm words a saved search's scope may name: each realm, or every
 /// one, as a search's scope may (the search crate's `Realm::parse`).
@@ -279,5 +293,35 @@ impl IntentValue for SavedSearch {
             ));
         }
         Ok(saved)
+    }
+}
+
+/// The main account (C187): the uuid of the account a verb, a tool or a
+/// page takes where several are known and none is named. A uuid, never a
+/// name: a name can be shared across the discriminator and a uuid is the
+/// identity the index and the intent files key on (C35).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MainAccount {
+    pub version: i64,
+    pub uuid: String,
+}
+
+impl IntentValue for MainAccount {
+    const KIND: &'static str = "main-account";
+    const VERSION: i64 = 1;
+
+    fn parse(value: &Value) -> Result<Self, String> {
+        let main: MainAccount = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+        if main.version != Self::VERSION {
+            return Err(format!(
+                "version {} is no version of this kind",
+                main.version
+            ));
+        }
+        if main.uuid.trim().is_empty() || main.uuid.trim() != main.uuid {
+            return Err("a uuid is one word at least, with no space around it".into());
+        }
+        Ok(main)
     }
 }

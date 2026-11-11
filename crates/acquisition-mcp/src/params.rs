@@ -550,3 +550,14 @@ pub(crate) struct SavedSearchClearParams {
     /// names.
     pub(crate) if_revision: i64,
 }
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MainAccountSetParams {
+    /// The account made the main one, as `accounts` lists it; null clears
+    /// the main account, at `if_revision`.
+    pub(crate) main: Option<String>,
+    /// The revision of the main account replaced or cleared: `accounts`'
+    /// `main.revision`. Omitted, or 0, a set landing only where none is.
+    pub(crate) if_revision: Option<i64>,
+}

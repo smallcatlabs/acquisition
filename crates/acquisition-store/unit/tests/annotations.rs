@@ -1768,6 +1768,94 @@ fn c167_a_saved_search_is_under_the_scope_search() {
     assert_eq!(listed.revision, 1);
 }
 
+/// C187, C167 — the main account is the user file's second kind: under
+/// the scope `default` and the key `account`, the kind `main-account`,
+/// its value a version and a uuid read strictly; a write returns its
+/// prior's revision to name, and a clear is a tombstone as every kind's.
+#[test]
+fn c187_the_main_account_is_a_uuid_under_the_scope_default() {
+    use crate::user::{DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, MainAccount};
+    assert_eq!(
+        (
+            DEFAULT_SCOPE,
+            MAIN_ACCOUNT_KEY,
+            <MainAccount as IntentValue>::KIND
+        ),
+        ("default", "account", "main-account")
+    );
+    let mut user = User::open_memory().unwrap();
+    let main = |uuid: &str| json!({ "version": 1, "uuid": uuid });
+    for (value, said) in [
+        (json!({ "version": 1 }), "uuid"),
+        (
+            json!({ "version": 1, "uuid": "u-1", "name": "Alice" }),
+            "name",
+        ),
+        (main(""), "one word"),
+        (main(" u-1"), "no space"),
+    ] {
+        match user.put::<MainAccount>(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, &value, None, &via_test()) {
+            Err(AnnotationError::Invalid(ValueError::Malformed { kind, detail })) => {
+                assert_eq!(kind, "main-account");
+                assert!(detail.contains(said), "{value}: {detail}");
+            }
+            other => panic!("{value}: expected a malformed value, got {other:?}"),
+        }
+    }
+    let row = user
+        .put::<MainAccount>(
+            DEFAULT_SCOPE,
+            MAIN_ACCOUNT_KEY,
+            &main("u-1"),
+            None,
+            &via_test(),
+        )
+        .unwrap();
+    assert_eq!(
+        (
+            row.scope.as_str(),
+            row.key.as_str(),
+            row.kind.as_str(),
+            row.revision
+        ),
+        ("default", "account", "main-account", 1)
+    );
+    assert!(
+        user.put::<MainAccount>(
+            DEFAULT_SCOPE,
+            MAIN_ACCOUNT_KEY,
+            &main("u-2"),
+            None,
+            &via_test()
+        )
+        .is_err(),
+        "a create over a standing main account landed"
+    );
+    let row = user
+        .put::<MainAccount>(
+            DEFAULT_SCOPE,
+            MAIN_ACCOUNT_KEY,
+            &main("u-2"),
+            Some(1),
+            &via_test(),
+        )
+        .unwrap();
+    assert_eq!((row.value["uuid"].as_str(), row.revision), (Some("u-2"), 2));
+    user.delete(
+        DEFAULT_SCOPE,
+        MAIN_ACCOUNT_KEY,
+        "main-account",
+        2,
+        &via_test(),
+    )
+    .unwrap();
+    assert_eq!(
+        user.get(DEFAULT_SCOPE, MAIN_ACCOUNT_KEY, "main-account")
+            .unwrap(),
+        None
+    );
+}
+
 /// C167 — the list answers the rows and the file's revision from one
 /// transaction: a writer landing between the list's read of the rows and
 /// its read of the revision (staged by an authorizer that fires when the

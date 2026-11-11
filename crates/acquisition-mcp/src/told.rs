@@ -56,7 +56,15 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::UnknownAccount { .. } => format!(
             "{fault}: `{named}` takes a username, with or without its #discriminator, or a uuid"
         ),
-        Fault::AmbiguousAccount { .. } => format!("{fault}; `{named}` selects one"),
+        // C187: why this account, and the two ways on; a login is a
+        // person's, from a terminal
+        Fault::MainNotLoggedIn(_) => {
+            format!("{fault}: a person logs it in with `acq auth`, or `{named}` names another")
+        }
+        Fault::AmbiguousAccount { .. } => format!(
+            "{fault}; `{named}` selects one, or main_account_set makes one the main account, \
+             taken where none is named"
+        ),
         Fault::NoUuid { .. } => format!("{fault}; a human can fix it with one `acq auth` login"),
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
@@ -161,16 +169,47 @@ pub(crate) fn refusal(e: &anyhow::Error, named: &str) -> Value {
 
 tokio::task_local! {
     /// The call being served, as sent: what a refusal's offer to send it
-    /// again as another account is made from ([`Spoken`]). Set around
-    /// every call by `call_tool`, read by nothing else.
+    /// again as another account is made from ([`Spoken`]), and where the
+    /// call took the main account, what its answer adds ([`took_main`]).
+    /// Set around every call by `call_tool`.
     pub(crate) static CALLED: Called;
 }
 
-/// A tool's name and its arguments, as the call sent them.
+/// A tool's name and its arguments, as the call sent them; and the
+/// account the call took as the main one, where it took it (C187).
 #[derive(Clone)]
 pub(crate) struct Called {
     pub(crate) tool: String,
     pub(crate) arguments: serde_json::Map<String, Value>,
+    /// Set by the server's account door ([`took_main`]) when this call
+    /// named no account and the main account was taken: what the answer
+    /// adds as `main_account`.
+    pub(crate) main: std::sync::Arc<std::sync::Mutex<Option<Value>>>,
+}
+
+/// C187: note that the call being served took `account` as the main
+/// account, several being known and none named; its answer says so
+/// ([`told_as`]). Outside a call, nothing.
+pub(crate) fn took_main(account: &acquisition_verbs::Account) {
+    let Some(taken) = acquisition_verbs::main_account::taken(account) else {
+        return;
+    };
+    let _ = CALLED.try_with(|c| {
+        if let Ok(mut main) = c.main.lock() {
+            *main = Some(taken);
+        }
+    });
+}
+
+/// C187: `document` with the call's `main_account`, where the call took
+/// the main account, added by the verbs' one function: every answer and
+/// every refusal this server serves passes here.
+fn marked(document: &mut Value) {
+    let main = CALLED
+        .try_with(|c| c.main.lock().ok().and_then(|m| m.clone()))
+        .ok()
+        .flatten();
+    acquisition_verbs::main_account::mark(document, main.as_ref());
 }
 
 /// This server's side of the one refusal shape: its words
@@ -388,6 +427,17 @@ impl refusal::Surface for Spoken<'_> {
                 json!({ "id": id, "if_revision": if_revision }),
                 other("saved_search_clear"),
             )),
+            Way::MainAccountSet {
+                account,
+                if_revision,
+            } => Some((
+                json!({ "main": account, "if_revision": if_revision }),
+                other("main_account_set"),
+            )),
+            Way::MainAccountClear { if_revision } => Some((
+                json!({ "main": null, "if_revision": if_revision }),
+                other("main_account_set"),
+            )),
         }
     }
 }
@@ -460,8 +510,12 @@ pub(crate) fn told<T: serde::Serialize>(document: &T) -> Told {
 /// answer leads with what bears on the question (C115), and on the MCP
 /// the JSON is the text, with no second rendering (C53).
 pub(crate) fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
+    let mut value = serde_json::to_value(document).map_err(|e| err(e.into()))?;
+    // C187: an answer whose call took the main account says which, and
+    // that it was the default, under one additive key
+    marked(&mut value);
     let text = spoken(
-        &serde_json::to_string(document).map_err(|e| err(e.into()))?,
+        &serde_json::to_string(&value).map_err(|e| err(e.into()))?,
         prose,
     );
     // C149: every answer is one JSON object; a bare array, a bare null or
@@ -489,7 +543,9 @@ pub(crate) fn refused(e: impl Into<SearchError>) -> CallToolResult {
 /// A refusal's document as a tool's result, marked an error: its prose
 /// [`spoken`] for this server, its readings and offers payload; the text
 /// block alone, as an answer's is ([`told_as`]).
-pub(crate) fn refusing(doc: Value) -> CallToolResult {
+pub(crate) fn refusing(mut doc: Value) -> CallToolResult {
+    // C187: a refusal whose call took the main account says so too
+    marked(&mut doc);
     let text = spoken(&doc.to_string(), Prose { all: true });
     CallToolResult::error(vec![rmcp::model::ContentBlock::text(text)])
 }

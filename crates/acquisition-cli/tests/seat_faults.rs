@@ -279,7 +279,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let out = t.run(
         &["tabs", "--league", "Allflame"],
         &[
-            "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT\n",
+            "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT, or make one the main account, taken where none is named: `acq accounts main <name>`\n",
             "  `acq --account 'Alice#1234' tabs --league=Allflame`\n",
             "  `acq --account 'Bob#5678' tabs --league=Allflame`\n",
         ],
@@ -338,6 +338,37 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     assert_eq!(ready, 10, "{}", stderr(&out));
     let every = run_as_printed(&base, "acq accounts --expand");
     assert!(every.status.success(), "{}", text(&every));
+    // C187: the refusal offers the main account; set, it is taken where
+    // none is named, the listing marks it, and the receipt's undo runs
+    // as printed
+    t.run(
+        &["accounts", "main", "Bob#5678"],
+        &[
+            "main account: Bob#5678 (revision 1), was none",
+            "`acq accounts main --clear --if-revision 1` undoes it",
+        ],
+    );
+    t.run(
+        &["accounts"],
+        &["Bob#5678 · main", "main account: Bob#5678 (revision 1)"],
+    );
+    t.run(
+        &["tabs", "--league", "Allflame"],
+        &["account Bob#5678: the main account, taken since none was named\n"],
+    );
+    t.run(
+        &["accounts", "main", "Alice#1234", "--if-revision", "1"],
+        &["main account: Alice#1234 (revision 2), was Bob#5678 (revision 1)"],
+    );
+    t.run(
+        &["search", "--realm", "pc", "rarity=rare"],
+        &["scope   account Alice#1234 (the main account) · pc"],
+    );
+    let taken = acq(&base, &["tabs", "--json"]);
+    assert!(taken.status.success(), "{}", text(&taken));
+    let undo = run_as_printed(&base, "acq accounts main --clear --if-revision 2");
+    assert!(undo.status.success(), "{}", text(&undo));
+    assert_eq!(acq(&base, &["tabs", "--json"]).status.code(), Some(1));
     golden(file!(), "account_to_pick", &t);
 
     // every text refusal whose JSON offers accounts prints them as ready

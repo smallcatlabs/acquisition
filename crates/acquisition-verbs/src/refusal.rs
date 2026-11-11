@@ -150,6 +150,12 @@ pub enum Way {
     SavedSearchSet(Box<crate::saved::Set>),
     /// One saved search cleared at `if_revision`. A receipt's undo.
     SavedSearchClear { id: String, if_revision: i64 },
+    /// The main account set to `account` over `if_revision`, 0 a create
+    /// that lands only where none is set (C187). A receipt's undo, and a
+    /// conflict's write again.
+    MainAccountSet { account: String, if_revision: i64 },
+    /// The main account cleared at `if_revision`. A receipt's undo.
+    MainAccountClear { if_revision: i64 },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its
@@ -463,7 +469,8 @@ fn faulted(
     }
     let names = match fault {
         Fault::UnknownAccount { known, .. } => known.as_slice(),
-        Fault::AmbiguousAccount { candidates } => candidates.as_slice(),
+        Fault::AmbiguousAccount { candidates, .. } => candidates.as_slice(),
+        Fault::MainNotLoggedIn(main) => main.others.as_slice(),
         _ => &[],
     };
     offers.extend(names.iter().map(|name| {
