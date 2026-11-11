@@ -48,7 +48,7 @@
 //! one body in full. A location is its full coordinate (realm, league for
 //! a stash, kind, id), and events carry it whole. `accounts.json` next
 //! to the files is the non-secret account index: written at login/logout,
-//! read by frontends to resolve `ACQ_ACCOUNT` without a daemon, and read by
+//! read by frontends to resolve `--account` without a daemon, and read by
 //! the daemon at start to know which keyring entries (one per account) to
 //! load. Every entry carries the account **uuid**, required at login: after
 //! token exchange the daemon submits a profile job (visible in `acq jobs`),

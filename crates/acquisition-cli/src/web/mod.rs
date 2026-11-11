@@ -49,7 +49,7 @@
 //!   who ran `acq web` to look at the tool meets the page and signs in;
 //!   from then on the account found is held for the server's life. Only
 //!   a server started with no account named waits so: one named
-//!   (`--account`, `ACQ_ACCOUNT`) is the command's choice, refused
+//!   (`--account`) is the command's choice, refused
 //!   before the bind whatever the refusal — `not_logged_in` over an
 //!   empty index too, since a login later could make another account
 //!   than the one named (the review at 49a74010, its first finding) —

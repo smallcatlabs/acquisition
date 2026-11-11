@@ -13,8 +13,6 @@ use crate::harness;
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../CLI-REFERENCE.md");
 
 fn help(path: &[String]) -> String {
-    // The isolation removes `ACQ_ACCOUNT`, which the account arg renders
-    // as `[env: ACQ_ACCOUNT=<value>]` when set.
     let scratch = harness::scratch("help");
     let path: Vec<&str> = path.iter().map(String::as_str).collect();
     let out = harness::offline_command(&scratch.0, &path)
@@ -135,14 +133,9 @@ fn the_reference_matches_the_binary() {
         actual.contains("## `acq shop render`"),
         "the walk stopped early"
     );
-    // A global option's description and its `[env: …]` line go with its
-    // heading: once, under the root, never stranded under a subcommand's
-    // previous option.
-    for said in [
-        "Which account to act as",
-        "[env: ACQ_ACCOUNT=]",
-        "one document on stdout",
-    ] {
+    // A global option's description goes with its heading: once, under
+    // the root, never stranded under a subcommand's previous option.
+    for said in ["Which account to act as", "one document on stdout"] {
         assert_eq!(
             actual.matches(said).count(),
             1,

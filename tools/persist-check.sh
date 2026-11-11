@@ -9,8 +9,8 @@
 #   tools/persist-check.sh --mock <tab1,...,tab6>              # same flow, mock
 #
 # With more than one persisted account, every job needs a selector: pass
-# --account (or have ACQ_ACCOUNT exported) naming the account whose tabs
-# these are.
+# --account naming the account whose tabs these are; it is passed to every
+# `acq` call that acts as an account (the refresh and the logout).
 #
 # Live mode sends ~13 real requests across two daemon lifetimes (a
 # lifetime's token POST only when its restored access token has lapsed,
@@ -144,19 +144,21 @@ confirm() {
 
 echo "persistence check ($MODE) — binary $ver, HEAD $tip"
 echo "journal $JOURNAL | evidence -> $RUN_DIR"
-if [ -n "$ACCOUNT" ]; then export ACQ_ACCOUNT="$ACCOUNT"; fi
+# `--account` on each call that acts as an account; nothing remembers it
+ACCT=()
+if [ -n "$ACCOUNT" ]; then ACCT=(--account "$ACCOUNT"); fi
 if [ "$MODE" = live ]; then
     echo "accounts on this machine (the fresh daemon restores the persisted ones):"
     "$ACQ" accounts || true
     # every account (`--expand`), under `accounts` (C53, C149)
     persisted=$("$ACQ" accounts --expand --json 2>/dev/null |
         jq '[.accounts[] | select(.persisted)] | length' || echo 0)
-    if [ "$persisted" -gt 1 ] && [ -z "${ACQ_ACCOUNT:-}" ]; then
+    if [ "$persisted" -gt 1 ] && [ -z "$ACCOUNT" ]; then
         echo "refusing: $persisted persisted accounts — every job needs a selector." >&2
         echo "rerun with --account <username>, the account whose tabs these are." >&2
         exit 2
     fi
-    if [ -n "${ACQ_ACCOUNT:-}" ]; then echo "acting as: $ACQ_ACCOUNT"; fi
+    if [ -n "$ACCOUNT" ]; then echo "acting as: $ACCOUNT"; fi
 fi
 # The journal is this run's own file, so every lifetime is read from byte 0.
 OFFSET=0
@@ -183,7 +185,7 @@ if [ "$MODE" = mock ]; then
     wait "$AUTH_PID"
 fi
 
-"$ACQ" refresh --tabs "$TABS" >"$RUN_DIR/refresh.out" 2>&1 &
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --tabs "$TABS" >"$RUN_DIR/refresh.out" 2>&1 &
 REFRESH_PID=$!
 
 PARENT=
@@ -272,7 +274,7 @@ unknown=$(jq -r '.payload.unknown_tab_ids // [] | join(",")' "$RUN_DIR/parent-re
 if [ -n "$unknown" ]; then
     echo "note: requested id(s) not in the account's tab list, never fetched: $unknown"
 fi
-if [ "$MODE" = mock ]; then "$ACQ" auth logout >/dev/null 2>&1 || true; fi
+if [ "$MODE" = mock ]; then "$ACQ" ${ACCT[@]+"${ACCT[@]}"} auth logout >/dev/null 2>&1 || true; fi
 "$ACQ" daemon stop >/dev/null
 # The wire phases are over and no daemon is left; what remains is analysis,
 # so the trap's "a daemon may still hold the queue" warning no longer applies.

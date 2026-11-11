@@ -64,7 +64,7 @@ def daemon():
 FIELDS = ["n", "task", "args", "exit", "stdout_bytes", "stderr_bytes", "wall_ms", "shown", "note"]
 SHOWN = 60_000
 HEAD = 3_000
-DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_ACCOUNT", "ACQ_JOURNAL", "ACQ_NO_SPAWN")
+DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_JOURNAL", "ACQ_NO_SPAWN")
 
 
 ALLOWED_ENV = ("ACQ_IDLE_SHUTDOWN",)

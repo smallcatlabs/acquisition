@@ -32,7 +32,7 @@ WORLD = EXE = CSV = OUT = None
 FIELDS = ["n", "task", "tool", "args", "is_error", "text_bytes", "result_bytes", "wall_ms", "shown", "note"]
 SHOWN = 60_000
 HEAD = 3_000
-DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_IDLE_SHUTDOWN", "ACQ_ACCOUNT", "ACQ_JOURNAL")
+DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_IDLE_SHUTDOWN", "ACQ_JOURNAL")
 
 
 def place(world, bin_):

@@ -69,6 +69,8 @@ His queue is the open issues labelled `trigger:ruling`:
   `docs/design/network-ground-truth.md`.
 - At the next live run, `tools/persist-check.sh`, not run since it was
   last edited.
+- At the next live run, `tools/tracer-rung.sh`, edited (#246: it passes
+  `--account` where it exported `ACQ_ACCOUNT`) and not run.
 - The site sitting #37 waits on.
 - After 2026-11-30, re-measure what the governance rebuild changed
   (#220).

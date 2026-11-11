@@ -37,7 +37,7 @@ use crate::{
 /// `run`, after the environment is checked, and handed to every verb.
 pub(crate) struct Ctx {
     pub frontend: Frontend,
-    /// `--account` / `ACQ_ACCOUNT` as typed: a job verb passes it to the
+    /// `--account` as typed: a job verb passes it to the
     /// daemon unresolved (C3), a verb that opens a store resolves it.
     pub account: Option<String>,
 }

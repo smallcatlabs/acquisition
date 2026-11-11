@@ -688,7 +688,7 @@ fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotati
 }
 
 /// [`open_store_and_intent`] for a request read whole (`--request`,
-/// `--next`): with no `--account` and no `ACQ_ACCOUNT`, the account its
+/// `--next`): with no `--account`, the account its
 /// scope names selects the store, as the MCP's `scope.account` does —
 /// a request is whole, its scope its own, so one an answer or a refusal
 /// holds runs as printed with a second account known (round 4 of the 2g

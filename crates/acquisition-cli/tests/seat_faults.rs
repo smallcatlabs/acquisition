@@ -268,6 +268,18 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         "{report}"
     );
     assert!(report["error"].is_string(), "{report}");
+    // the owner's ruling on #246: nothing remembers an account, the
+    // environment included, so a set `ACQ_ACCOUNT` is ignored, silently
+    let set = harness::command(&base, &["tabs", "--json"])
+        .env("ACQ_ACCOUNT", "Bob#5678")
+        .output()
+        .unwrap();
+    assert_eq!(sole_json(&set), report, "the variable chose an account");
+    assert!(
+        set.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&set.stderr)
+    );
 
     // #168's text half (the answer-facts seat, CLI run 1 call 11): the
     // text named the accounts and no command to run. It prints one ready
@@ -279,7 +291,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let out = t.run(
         &["tabs", "--league", "Allflame"],
         &[
-            "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; pick one with --account or ACQ_ACCOUNT\n",
+            "2 accounts are known and one is to be picked: Alice#1234, Bob#5678; name one with --account\n",
             "  `acq --account 'Alice#1234' tabs --league=Allflame`\n",
             "  `acq --account 'Bob#5678' tabs --league=Allflame`\n",
         ],
@@ -321,7 +333,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let out = t.run(
         &["tabs"],
         &[
-            "12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; pick one",
+            "12 accounts are known and one is to be picked: Alice#1234, Bob#5678, Extra00#1, Extra01#1, Extra02#1, Extra03#1, Extra04#1, Extra05#1, Extra06#1, Extra07#1, and 2 more; name one",
             "\n  and 2 more: `acq accounts --expand` lists every account\n",
         ],
     );

@@ -132,7 +132,7 @@ def main():
     subprocess.run(["sqlite3", source, f".backup '{copy}'"], check=True)
     subprocess.run([os.path.join(ROOT, "target/debug/examples/copy-as-store"), copy, os.path.join(work, "store")],
                    check=True, stdout=subprocess.DEVNULL)
-    env = {k: v for k, v in os.environ.items() if k not in ("ACQ_ACCOUNT", "ACQ_GGG")}
+    env = {k: v for k, v in os.environ.items() if k not in ("ACQ_GGG",)}
     env.update(ACQ_PROVIDER="mock", ACQ_NO_KEYRING="1", ACQ_NO_SPAWN="1", ACQ_STORE_DIR=os.path.join(work, "store"))
 
     def command(profile, args):

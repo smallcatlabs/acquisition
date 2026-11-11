@@ -214,7 +214,8 @@ Every command takes `--json`, and it is total: a failure is
 that would get past it, a refused command line the same with
 `"kind":"usage"` and exit 2; a job that fails is its outcome record,
 `outcome: "failure"` with `error`, not a refusal. Every command takes
-`--account <username|name|uuid>` (or `ACQ_ACCOUNT`) too. Without it, a
+`--account <username|name|uuid>` too, named each time: nothing
+remembers it, neither the store nor the environment. Without it, a
 verb that reads the store takes the one account known on disk and a job
 verb the one logged in; where there are several, it refuses and names
 them. The saved searches are the world's: `acq saved` needs no login,
@@ -274,7 +275,6 @@ names none.
 | Knob | Default | Effect | Read in |
 | --- | --- | --- | --- |
 | `ACQ_PROVIDER=mock` | `ggg` | the built-in stand-in for GGG; a real daemon starts only from a terminal; the retired `ACQ_GGG` is refused | [provider.rs][provider] |
-| `ACQ_ACCOUNT=<sel>` | the sole account | the environment's `--account`, matched exactly | [cli.rs][cli] |
 | `ACQ_STORE_DIR=<dir>` | `store` under the platform data dir | the store root (its `mock/` or `ggg/` holds the databases), and the daemon that serves it: one daemon per directory | [world.rs][world] |
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
@@ -295,7 +295,6 @@ names none.
 | `ACQ_NOW=<secs>` | the system clock | now, fixed at this many whole seconds since 1970, for every age said and every time the store stamps; a test seam, so every process of one test reads one instant; the daemon's rate limiting, deadlines and waits keep the real clock; anything but whole seconds stops the process at start | [lib.rs][store] |
 
 [provider]: crates/acquisition-protocol/src/provider.rs
-[cli]: crates/acquisition-cli/src/cli.rs
 [world]: crates/acquisition-store/src/world.rs
 [annotations]: crates/acquisition-store/src/annotations.rs
 [store]: crates/acquisition-store/src/lib.rs

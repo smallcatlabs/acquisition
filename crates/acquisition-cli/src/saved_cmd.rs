@@ -140,8 +140,8 @@ fn scope_words(row: &saved::ReadRow) -> String {
 }
 
 /// The run of the saved search `id` as this terminal prints it, as the
-/// account the command ran under where one was named (`--account`,
-/// `ACQ_ACCOUNT`), so it runs as printed with a second account known.
+/// account the command ran under where one was named (`--account`), so
+/// it runs as printed with a second account known.
 fn run_line(id: &str, account: Option<&str>) -> String {
     printed_line(&way_words(&Way::SavedSearchRun {
         id: id.to_string(),

@@ -88,7 +88,7 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
         Fault::NoAccounts { .. } => format!("{fault} — log in with `acq auth`"),
         Fault::UnknownAccount { .. } => format!("{fault} (see `acq accounts`)"),
         Fault::AmbiguousAccount { .. } => {
-            format!("{fault}; pick one with --account or ACQ_ACCOUNT")
+            format!("{fault}; name one with --account")
         }
         Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
         Fault::NoSyncPolicy { username } => format!(

@@ -368,8 +368,12 @@ hits = [e["username"] for e in json.load(sys.stdin)["accounts"]
         or e.get("uuid") == sel]
 print(hits[0] if len(hits) == 1 else f"AMBIGUOUS_OR_NONE:{len(hits)}")' "$1"
 }
-account_uuid() { "$ACQ" accounts --expand --json | jq -r --arg u "$ACQ_ACCOUNT" '.accounts[] | select(.username == $u) | .uuid // empty'; }
+account_uuid() { "$ACQ" accounts --expand --json | jq -r --arg u "$ACTING" '.accounts[] | select(.username == $u) | .uuid // empty'; }
 
+# the account a live run acts as, and the `--account` that names it to each
+# call that reads one (empty in mock: the run's one mock account is taken)
+ACTING=
+ACCT=()
 NEED_LOGIN=0
 if [ "$MODE" = live ]; then
     echo "accounts on this machine:"
@@ -384,20 +388,21 @@ if [ "$MODE" = live ]; then
             echo "the exact username, the username without #discriminator, or the uuid)" >&2
             exit 2 ;;
         esac
-        export ACQ_ACCOUNT="$resolved"
+        ACTING="$resolved"
     elif [ "$persisted" -gt 1 ]; then
         echo "refusing: $persisted persisted accounts — every job and store read needs a selector." >&2
         echo "rerun with --account <selector>, the account whose tabs these are." >&2
         exit 2
     else
-        ACQ_ACCOUNT=$("$ACQ" accounts --expand --json | jq -r '[.accounts[] | select(.persisted)][0].username // empty')
-        export ACQ_ACCOUNT
+        ACTING=$("$ACQ" accounts --expand --json | jq -r '[.accounts[] | select(.persisted)][0].username // empty')
     fi
-    [ -n "${ACQ_ACCOUNT:-}" ] || { echo "no persisted account; log in first (acq auth, from a terminal)" >&2; exit 2; }
-    echo "acting as: $ACQ_ACCOUNT"
+    [ -n "${ACTING:-}" ] || { echo "no persisted account; log in first (acq auth, from a terminal)" >&2; exit 2; }
+    echo "acting as: $ACTING"
+    # `--account` on each call that acts as an account; nothing remembers it
+    ACCT=(--account "$ACTING")
     uuid=$(account_uuid)
     if [ -z "$uuid" ]; then
-        echo "the index has no uuid for $ACQ_ACCOUNT (a login predating uuid-at-login);"
+        echo "the index has no uuid for $ACTING (a login predating uuid-at-login);"
         echo "intent binds to the uuid, so phase 1 logs in again as this account."
         NEED_LOGIN=1
     else
@@ -425,7 +430,7 @@ LOGIN_LIFETIME=0
 
 if [ "$NEED_LOGIN" = 1 ]; then
     if [ "$MODE" = live ]; then
-        confirm "phase 1: fresh daemon (ceiling 2), browser login as $ACQ_ACCOUNT — a code-exchange POST and the login's own GET /profile, exactly"
+        confirm "phase 1: fresh daemon (ceiling 2), browser login as $ACTING — a code-exchange POST and the login's own GET /profile, exactly"
     fi
     login_offset=$(journal_size)
     PID=$(spawn_daemon 2 daemon-login.out)
@@ -433,12 +438,12 @@ if [ "$NEED_LOGIN" = 1 ]; then
     if [ "$MODE" = live ]; then
         "$ACQ" auth 2>&1 | tee "$RUN_DIR/auth.out"
         logged=$(grep -o 'logged in as .*' "$RUN_DIR/auth.out" | sed 's/logged in as //' || true)
-        if [ "$logged" != "$ACQ_ACCOUNT" ]; then
-            echo "*** the login came back as '${logged:-nobody}', not $ACQ_ACCOUNT — stop; the policy would bind to the wrong identity" >&2
+        if [ "$logged" != "$ACTING" ]; then
+            echo "*** the login came back as '${logged:-nobody}', not $ACTING — stop; the policy would bind to the wrong identity" >&2
             exit 1
         fi
         uuid=$(account_uuid)
-        [ -n "$uuid" ] || { echo "*** login succeeded but the index still has no uuid for $ACQ_ACCOUNT" >&2; exit 1; }
+        [ -n "$uuid" ] || { echo "*** login succeeded but the index still has no uuid for $ACTING" >&2; exit 1; }
         echo "uuid recorded: $uuid"
     else
         # Scripted mock login (AGENTS.md): auth --no-browser, then approve.
@@ -480,7 +485,7 @@ chars_json='[]'
 # new league keeps Standard (the Allflame run dropped it, RUN-LEDGER.md).
 # With no policy stored, the realm holds this league alone, as before.
 # One document (C149): the stored row under `policy`, null when none.
-STORED=$("$ACQ" policy show --json)
+STORED=$("$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy show --json)
 POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson t "$tabs_json" --argjson c "$chars_json" --argjson a "$MAX_AGE" \
     --argjson s "$STORED" \
     '(($s.policy // {}).value // {}) as $v
@@ -496,22 +501,22 @@ echo "  $POLICY"
 # none stood (revision 0: write only where no policy stands), is a
 # conflict that stops the run, never an overwrite of its edit.
 STORED_REVISION=$(jq -r 'if .policy == null then 0 else .policy.revision end' <<<"$STORED")
-if ! "$ACQ" policy set "$POLICY" --if-revision "$STORED_REVISION" --json >"$RUN_DIR/policy.json"; then
+if ! "$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy set "$POLICY" --if-revision "$STORED_REVISION" --json >"$RUN_DIR/policy.json"; then
     echo "*** the sync policy is no longer as read (revision $STORED_REVISION, 0 for none stored): another client wrote it since; nothing written — stop, read \`acq policy show\`, and run again" >&2
     cat "$RUN_DIR/policy.json" >&2
     exit 1
 fi
 REVISION=$(jq -r '.revision' "$RUN_DIR/policy.json")
 echo "  revision $REVISION"
-"$ACQ" policy show | tee "$RUN_DIR/policy-show.txt"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy show | tee "$RUN_DIR/policy-show.txt"
 
 # The offline plan, human and JSON, with the socket dead: whatever the
 # note says, it must be "no quote" — a plan compiled with no daemon.
 offline_plan() { # <tag>
     daemon_up && { echo "a daemon is up before the offline plan — not offline" >&2; return 1; }
-    "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$1-offline.txt" 2>&1 || {
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$1-offline.txt" 2>&1 || {
         cat "$RUN_DIR/plan-$1-offline.txt" >&2; return 1; }
-    "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
         >"$RUN_DIR/plan-$1-offline.json" 2>"$RUN_DIR/plan-$1-offline.note" || {
         cat "$RUN_DIR/plan-$1-offline.note" >&2; return 1; }
     daemon_up && { echo "*** a daemon appeared during the offline plan — the quote path spawned one" >&2; return 1; }
@@ -538,7 +543,7 @@ plan_identity() {
 # line before the quote.
 render_actions() {
     local rendered
-    rendered=$("$ACQ" refresh --plan="$1" |
+    rendered=$("$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan="$1" |
         awk '/^[0-9]+ requests?:$/ { on = 1 } on && /^$/ { exit } on { print }')
     if [ -z "$rendered" ]; then
         echo "*** could not extract the action block from the rendered plan; refusing an empty approval prompt" >&2
@@ -594,7 +599,7 @@ token_seconds() {
         [ "$(echo "$st" | jq -r '.keyring // empty')" = restoring ] || break
         sleep 0.1
     done
-    echo "$st" | jq -r --arg u "${ACQ_ACCOUNT:-}" '
+    echo "$st" | jq -r --arg u "${ACTING:-}" '
         [.accounts[]? | select($u == "" or .username == $u)]
         | if length == 1 then (.[0].access_expires_in_seconds // empty) else empty end'
 }
@@ -624,7 +629,7 @@ for c in $(seq 1 "$CYCLES"); do
         # nothing. No daemon is up, and none may appear.
         echo ""
         echo "cycle $c: the plan is empty — applying it with no daemon (must contact nothing):"
-        "$ACQ" refresh --apply --realm "$REALM" --league "$LEAGUE" --json | tee "$RUN_DIR/apply-$tag-noop.json"
+        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --apply --realm "$REALM" --league "$LEAGUE" --json | tee "$RUN_DIR/apply-$tag-noop.json"
         [ "$(jq -r '.requests' "$RUN_DIR/apply-$tag-noop.json")" = 0 ] || { echo "no-op apply reported requests != 0" >&2; exit 1; }
         daemon_up && { echo "*** the no-op apply spawned a daemon" >&2; exit 1; }
         CLOSED=$c
@@ -714,9 +719,9 @@ for c in $(seq 1 "$CYCLES"); do
 
     echo ""
     echo "the same plan, now with the daemon up (quote attempt; nothing is sent) — its quote:"
-    "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$tag.txt" 2>&1
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$tag.txt" 2>&1
     quote_block "$RUN_DIR/plan-$tag.txt"
-    "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
         >"$RUN_DIR/plan-$tag.json" 2>"$RUN_DIR/plan-$tag.note" || {
         cat "$RUN_DIR/plan-$tag.note" >&2; exit 1; }
     if [ "$(jq -r '.quote != null' "$RUN_DIR/plan-$tag.json")" = true ]; then
@@ -740,7 +745,7 @@ for c in $(seq 1 "$CYCLES"); do
     echo "the envelope about to be applied ($RUN_DIR/plan-$tag.json), rendered from that file:"
     render_actions "$RUN_DIR/plan-$tag.json"
     confirm "apply exactly these $logical request(s) as one apply parent (--max-requests $logical); long waits are the limiter"
-    "$ACQ" refresh --apply="$RUN_DIR/plan-$tag.json" --max-requests "$logical" --json \
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --apply="$RUN_DIR/plan-$tag.json" --max-requests "$logical" --json \
         >"$RUN_DIR/apply-$tag.json" 2>"$RUN_DIR/apply-$tag.err" &
     CLIENT_PID=$!
     if wait "$CLIENT_PID"; then :; else
@@ -779,8 +784,8 @@ fi
 echo ""
 echo "phase 4: the facts, read back from the store (no daemon):"
 if [ "$SELECTION" != none ]; then
-"$ACQ" tabs --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/tabs.txt"
-"$ACQ" tabs --realm "$REALM" --league "$LEAGUE" --json --expand >"$RUN_DIR/tabs.json"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} tabs --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/tabs.txt"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} tabs --realm "$REALM" --league "$LEAGUE" --json --expand >"$RUN_DIR/tabs.json"
 fi
 if [ "$SELECTION" = none ]; then
     echo "(no tab coverage in this run)"
@@ -815,7 +820,7 @@ else
     n_unfetched=$(echo "$children" | jq '[.[] | select(.fetched_at == null)] | length')
     echo "children of selected tabs on record: $n_children (substashes and folder children), $n_unfetched never fetched"
     if [ "$CLOSED" != 0 ] && [ "$n_unfetched" -gt 0 ]; then
-        "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
+        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
         n_empty=$(jq '[.skipped_tabs[]? | select(.reason.kind == "empty_stub")] | length' "$RUN_DIR/plan-final.json" 2>/dev/null || echo 0)
         if [ "$n_unfetched" != "$n_empty" ]; then
             echo "*** $n_unfetched covered child(ren) never fetched but only $n_empty skipped as empty stubs — the loop closed with covered work undone" >&2
@@ -832,8 +837,8 @@ if [ -n "$CHARACTERS" ]; then
     # the readback asks every character (`--expand`): the default lists
     # ten beside the counts (C53), one document whose rows are `rows`
     # (C149).
-    "$ACQ" store characters --realm "$REALM" >"$RUN_DIR/characters.txt"
-    "$ACQ" store characters --realm "$REALM" --expand --json >"$RUN_DIR/characters.json"
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} store characters --realm "$REALM" >"$RUN_DIR/characters.txt"
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} store characters --realm "$REALM" --expand --json >"$RUN_DIR/characters.json"
     head -20 "$RUN_DIR/characters.txt"
     if [ "$CHARACTERS" = all ]; then
         covered=$(jq -c --arg l "$LEAGUE" '[.rows[] | select(.league == $l)]' "$RUN_DIR/characters.json")
@@ -852,7 +857,7 @@ if [ -n "$CHARACTERS" ]; then
     n_unfetched=$(echo "$covered" | jq '[.[] | select(.fetched_at == null)] | length')
     echo "covered characters on record: $n_covered, $n_unfetched never fetched"
     if [ "$CLOSED" != 0 ] && [ "$n_unfetched" -gt 0 ]; then
-        "$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
+        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
         n_never=$(jq '[.skipped_characters[]? | select(.reason.kind == "deleted" or .reason.kind == "expired" or .reason.kind == "no_league")] | length' "$RUN_DIR/plan-final.json" 2>/dev/null || echo 0)
         if [ "$n_unfetched" != "$n_never" ]; then
             echo "*** $n_unfetched covered character(s) never fetched but only $n_never skipped as deleted/expired/no-league — the loop closed with covered work undone" >&2
@@ -861,7 +866,7 @@ if [ -n "$CHARACTERS" ]; then
         echo "(all $n_unfetched are skips the final plan never fetches — deleted, expired, or no league)"
     fi
 fi
-"$ACQ" store status 2>&1 | tee "$RUN_DIR/store-status.txt"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store status 2>&1 | tee "$RUN_DIR/store-status.txt"
 # Everything since the run started (plus an hour of margin), not a fixed
 # hour: an `all` cycle alone is longer than that. The CLI's default
 # limit (ten, the newest) would silently drop a big run's events, so the
@@ -871,15 +876,15 @@ fi
 # them and `limit_reached` saying the window may hold more.
 hours=$(python3 -c "import time; print((time.time() - $RUN_START) / 3600 + 1)")
 EVENT_LIMIT=1000000
-"$ACQ" store events --hours "$hours" --limit "$EVENT_LIMIT" --summary --expand >"$RUN_DIR/store-events.txt"
-"$ACQ" store events --hours "$hours" --limit "$EVENT_LIMIT" --json >"$RUN_DIR/store-events.json"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store events --hours "$hours" --limit "$EVENT_LIMIT" --summary --expand >"$RUN_DIR/store-events.txt"
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store events --hours "$hours" --limit "$EVENT_LIMIT" --json >"$RUN_DIR/store-events.json"
 events_n=$(jq '.returned' "$RUN_DIR/store-events.json")
 if [ "$(jq '.limit_reached' "$RUN_DIR/store-events.json")" != false ]; then
     echo "*** the item-event readback hit its limit ($EVENT_LIMIT): evidence would be truncated" >&2
     exit 1
 fi
 echo "item events since the run started: $events_n, in $RUN_DIR/store-events.txt"
-"$ACQ" refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-final.txt" 2>&1
+"$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-final.txt" 2>&1
 if [ "$CLOSED" != 0 ] && ! grep -q "nothing to do" "$RUN_DIR/plan-final.txt"; then
     echo "*** the loop was recorded as closed but the final plan is not empty:" >&2
     cat "$RUN_DIR/plan-final.txt" >&2
@@ -888,7 +893,7 @@ fi
 note "reading the facts back"
 if [ "$MODE" = mock ]; then
     PID=$(spawn_daemon 2 daemon-logout.out)
-    "$ACQ" auth logout >/dev/null 2>&1 || true
+    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} auth logout >/dev/null 2>&1 || true
     stop_daemon
 fi
 # The wire phases are over and no daemon is left; what remains is analysis,

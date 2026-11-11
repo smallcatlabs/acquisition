@@ -35,8 +35,8 @@ pub(crate) struct Cli {
     /// flag it prints the payload alone.
     #[arg(long, global = true)]
     pub(crate) json: bool,
-    /// Which account to act as: a username (with or without `#…`) or uuid.
-    /// Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the
+    /// Which account to act as: a username (with or without `#…`) or uuid,
+    /// named each time: nothing remembers it. With none, a verb that reads the
     /// store takes the sole account known on disk (`acq accounts`) and a
     /// job verb the sole account logged in (`acq auth status`); with more
     /// than one, the verb refuses and lists them (`ambiguous_account`).
@@ -47,7 +47,7 @@ pub(crate) struct Cli {
     /// progress line and its JSON name the account it ran as. The saved
     /// searches are the world's, not an account's: `acq saved` needs no
     /// login and uses an account only to resolve a new search's realm.
-    #[arg(long, global = true, env = "ACQ_ACCOUNT")]
+    #[arg(long, global = true)]
     pub(crate) account: Option<String>,
     #[command(subcommand)]
     pub(crate) cmd: Cmd,
@@ -83,8 +83,8 @@ pub(crate) enum Cmd {
     /// prints carries a key no other page knows, and the server answers
     /// nothing without it. Runs until Ctrl-C. The item art is fetched by
     /// your browser from GGG's image host; a page reads whole without it.
-    /// With no account on disk and none named (neither --account nor
-    /// ACQ_ACCOUNT) it starts all the same, every page saying to log in
+    /// With no account on disk and none named (no --account) it starts
+    /// all the same, every page saying to log in
     /// with `acq auth`; the first account found after is the one it
     /// serves until it stops. An account named that cannot be picked
     /// refuses before it starts.

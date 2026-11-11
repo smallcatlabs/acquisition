@@ -1,7 +1,7 @@
 //! The account index: `store/<provider>/accounts.json`, a small non-secret
 //! list of the accounts this machine has logged into (GGG username,
 //! `name#discriminator`), maintained by the daemon at login/logout and
-//! read by frontends to resolve `--account`/`ACQ_ACCOUNT` without a
+//! read by frontends to resolve `--account` without a
 //! daemon. It is also how the daemon knows which keyring entries to load
 //! at start (the keyring crate cannot enumerate). Secrets never live here.
 
@@ -136,7 +136,7 @@ impl std::fmt::Display for Resolve {
             Resolve::NotFound(s) => write!(f, "no account matches {s:?}"),
             Resolve::Ambiguous(names) => write!(
                 f,
-                "several accounts are known; `account` or ACQ_ACCOUNT picks one: {}",
+                "several accounts are known; `account` names one: {}",
                 names.join(", ")
             ),
         }

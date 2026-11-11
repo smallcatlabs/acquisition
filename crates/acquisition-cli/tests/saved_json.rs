@@ -415,7 +415,7 @@ fn printed_commands(text: &str) -> Vec<String> {
 }
 
 /// The review of the build (39f3b7dc), finding 4: with two accounts
-/// known and `ACQ_ACCOUNT` unset, the text of `acq --account <name> saved
+/// known, the text of `acq --account <name> saved
 /// show` and of a write prints its run as that account, and the run and
 /// the clear it prints run as printed. Finding 2 at the terminal: a
 /// conflict over a row a later build wrote, at revision 3 under
