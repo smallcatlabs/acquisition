@@ -208,6 +208,7 @@ impl Daemon {
             LOGIN_PRIORITY,
             DAEMON_SUBMITTER.into(),
             Some(username.to_string()),
+            false,
             |s, id| {
                 if let Some(staging) = s
                     .auth

@@ -891,6 +891,7 @@ resubmit if still wanted",
         Ok(rows)
     }
 
+    /// The daemon's own submit of a root job (a probe, a test's).
     pub(super) fn submit(
         &self,
         kind: String,
@@ -899,11 +900,41 @@ resubmit if still wanted",
         submitted_by: String,
         account: Option<String>,
     ) -> Result<JobId, Refusal> {
-        self.submit_and_mark(kind, params, priority, submitted_by, account, |_, _| {})
+        self.submit_and_mark(
+            kind,
+            params,
+            priority,
+            submitted_by,
+            account,
+            false,
+            |_, _| {},
+        )
+    }
+
+    /// A client's submit: [`Self::submit`], refused under the insert's
+    /// lock once the exit has begun (C133, #209; [`Self::submit_marked`]).
+    pub(super) fn submit_client(
+        &self,
+        kind: String,
+        params: Value,
+        priority: Priority,
+        submitted_by: String,
+        account: Option<String>,
+    ) -> Result<JobId, Refusal> {
+        self.submit_and_mark(
+            kind,
+            params,
+            priority,
+            submitted_by,
+            account,
+            true,
+            |_, _| {},
+        )
     }
 
     /// [`Self::submit`], with `mark` run on the new id where the job is
-    /// inserted ([`Self::submit_marked`]).
+    /// inserted ([`Self::submit_marked`]); `client` a client's submit.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn submit_and_mark(
         &self,
         kind: String,
@@ -911,6 +942,7 @@ resubmit if still wanted",
         priority: Priority,
         submitted_by: String,
         account: Option<String>,
+        client: bool,
         mark: impl FnOnce(&mut Shared, JobId),
     ) -> Result<JobId, Refusal> {
         // An `apply` is admitted or refused whole, before a job id exists
@@ -923,7 +955,16 @@ resubmit if still wanted",
         admit_realm(&kind, &params)?;
         admit_params_size(&params)?;
         admit_submitter(&submitted_by)?;
-        self.submit_marked(kind, params, priority, submitted_by, account, None, mark)
+        self.submit_marked(
+            kind,
+            params,
+            priority,
+            submitted_by,
+            account,
+            None,
+            client,
+            mark,
+        )
     }
 
     /// A child inherits its parent's priority, submitter, and account.
@@ -966,6 +1007,7 @@ resubmit if still wanted",
             submitted_by,
             account,
             parent,
+            false,
             |_, _| {},
         )
     }
@@ -974,6 +1016,8 @@ resubmit if still wanted",
     /// the critical section that inserts the job: no worker can pick the
     /// job before the mark is made. The login's profile job is the one
     /// caller with a mark (C144: its staged token serves that job alone).
+    /// `client` is a client's submit, refused here once the exit has
+    /// begun (C133, #209).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn submit_marked(
         &self,
@@ -983,6 +1027,7 @@ resubmit if still wanted",
         submitted_by: String,
         account: Option<String>,
         parent: Option<JobId>,
+        client: bool,
         mark: impl FnOnce(&mut Shared, JobId),
     ) -> Result<JobId, Refusal> {
         if let Some(e) = self.queue_failed() {
@@ -991,6 +1036,16 @@ resubmit if still wanted",
         let now = self.choke.now();
         let info = {
             let mut s = self.shared.lock().unwrap();
+            // C133, #209: a client's submit is refused once the exit has
+            // begun, here under the insert's lock and not only at the
+            // server's door, so a stop that begins between the two cannot
+            // admit a job this lifetime never picks; in the server's words,
+            // from the one place they are made. The daemon's own submits
+            // are not: a login landing in the drain queues its profile job
+            // for the next daemon, and a child's fan-out is the drain's.
+            if client {
+                self.refuse_while_stopping()?;
+            }
             // The parent guard sits here, inside the same critical section
             // as the insert: `cancel` takes this lock to enumerate
             // children, so a child can never be inserted after a

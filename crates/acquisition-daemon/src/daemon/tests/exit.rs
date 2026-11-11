@@ -506,6 +506,40 @@ fn the_idle_verdict_holds_while_a_login_is_pending() {
     finish_harness(None, &log_path);
 }
 
+/// C133, #209: the race a client's submit could win against `daemon
+/// stop`. The server refuses a submit once the exit has begun, but a stop
+/// beginning between that check and the insert used to admit a job this
+/// lifetime would never pick. The check stands under the insert's lock
+/// too: with the exit begun, a client's submit reaching the insert is
+/// refused in the server's words, while the daemon's own submits are not
+/// (a login landing in the drain queues its profile job, a child's
+/// fan-out is the drain's). A component test (C158): the window between
+/// the door's check and the insert has no boundary to hold it open, so
+/// the function is driven with the exit begun.
+#[tokio::test]
+async fn a_submit_that_reaches_the_insert_after_the_exit_began_is_refused() {
+    let (daemon, log_path, _db) = exit_daemon(Boundary::Function, refused(), BOUND);
+    let root = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    assert!(daemon.begin_exit("test: the stop"));
+    let refusal = daemon
+        .submit_client("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Refused);
+    assert_eq!(
+        refusal.message,
+        "the daemon is stopping; try again in a moment"
+    );
+    daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .expect("the daemon's own submit is still inserted");
+    daemon
+        .submit_child(root, "sleep", json!({}))
+        .expect("a child of an admitted tree is still inserted");
+    finish_harness(None, &log_path);
+}
+
 /// C133: the exit begins once. A second cause returns at once and leaves
 /// the first's bound where it was. A component test (C158): it reads the
 /// exit's private deadline, an instant on the daemon's clock.

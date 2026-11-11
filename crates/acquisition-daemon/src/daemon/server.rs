@@ -287,8 +287,9 @@ impl Daemon {
                         self.admit_listed(&kind, &params, account.as_deref())
                             .map(|()| account)
                     })
-                    .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
-                {
+                    .and_then(|account| {
+                        self.submit_client(kind, params, priority, submitted_by, account)
+                    }) {
                     Ok(id) => Response::Submitted { id },
                     Err(refusal) => {
                         let refusal = self.judged(refusal).await;
