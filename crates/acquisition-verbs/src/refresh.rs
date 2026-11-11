@@ -121,26 +121,60 @@ pub struct PlanAges {
     pub quote_observed_at_age: Option<String>,
 }
 
+/// The spans a plan's ages are said from, in seconds (C53): the plan's
+/// own age at `now`, the answer's time, and each listing's age before
+/// the plan's `generated_at`. One derivation of the plan's epochs, which
+/// [`PlanAges`]' words and every frontend's text read (#211: the CLI
+/// once derived them a second time); each frontend keeps its own words.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PlanSpans {
+    /// `now` less `generated_at`, saturating.
+    pub plan: i64,
+    /// `generated_at` less the stash listing's `fetched_at`; none where
+    /// the stashes were never listed.
+    pub stash_listing: Option<i64>,
+    /// The same for the character listing.
+    pub character_listing: Option<i64>,
+}
+
+impl PlanSpans {
+    /// `plan`'s spans at `now`.
+    pub fn of(plan: &RefreshPlan, now: i64) -> PlanSpans {
+        let before = |l: Option<&acquisition_store::ListingBasis>| {
+            l.map(|l| plan.generated_at.saturating_sub(l.fetched_at))
+        };
+        PlanSpans {
+            plan: now.saturating_sub(plan.generated_at),
+            stash_listing: before(plan.basis.stash_listing.as_ref()),
+            character_listing: before(plan.basis.character_listing.as_ref()),
+        }
+    }
+}
+
 impl Planned {
     /// The plan's ages said at `now`, the answer's time; the snapshot's
     /// and the listings' from the plan's own `generated_at`, as its text
-    /// measures the listings'.
+    /// measures the listings' ([`PlanSpans`]).
     /// The envelope is untouched.
     pub fn aged(mut self, now: i64) -> Planned {
-        use acquisition_store::age::{ago, before};
+        use acquisition_store::age::{ago, before, span, span_ago};
         let plan = &self.plan;
-        let basis = |l: Option<&acquisition_store::ListingBasis>| {
-            before("generated_at", plan.generated_at, l.map(|l| l.fetched_at))
+        let spans = PlanSpans::of(plan, now);
+        let listing = |s: Option<i64>| {
+            s.map_or_else(
+                || "never".into(),
+                |s| format!("{} before generated_at", span(s)),
+            )
         };
         self.ages = PlanAges {
-            generated_at_age: Some(ago(now, Some(plan.generated_at))),
+            generated_at_age: Some(span_ago(spans.plan)),
             snapshot_taken_at_age: Some(before(
                 "generated_at",
                 plan.generated_at,
                 Some(plan.basis.snapshot_taken_at),
             )),
-            stash_listing_fetched_at_age: Some(basis(plan.basis.stash_listing.as_ref())),
-            character_listing_fetched_at_age: Some(basis(plan.basis.character_listing.as_ref())),
+            stash_listing_fetched_at_age: Some(listing(spans.stash_listing)),
+            character_listing_fetched_at_age: Some(listing(spans.character_listing)),
             quote_observed_at_age: plan.quote.as_ref().map(|q| ago(now, Some(q.observed_at))),
         };
         self
@@ -514,14 +548,17 @@ impl Opened {
     /// compile's notes (C126) from the same snapshot.
     pub async fn plan(&mut self, realm: Realm, league: &str) -> Result<Planned, Fault> {
         let snapshot = self.snapshot(realm, league)?;
+        // One read of the clock: the plan's `generated_at`, its notes and
+        // its ages all say one instant (#211: a fresh plan read twice
+        // could say `1s ago`).
+        let now = acquisition_store::now();
         let plan = compile(
             self.account.frontend.provider,
             &snapshot,
             &self.account.entry.username,
-            acquisition_store::now(),
+            now,
         )?;
         let mut planned = quote(&self.account.frontend.root, plan).await;
-        let now = acquisition_store::now();
         planned.notes = plan_notes(&snapshot, now, planned.plan.generated_at);
         planned.uncovered_tabs = UncoveredTabs::of(&snapshot);
         Ok(planned.aged(now))
@@ -550,10 +587,9 @@ impl Opened {
         league: &str,
         selection: &PlanSelection,
     ) -> Result<Planned, Fault> {
-        let plan = self.compile_selection(realm, league, selection, acquisition_store::now())?;
-        Ok(quote(&self.account.frontend.root, plan)
-            .await
-            .aged(acquisition_store::now()))
+        let now = acquisition_store::now();
+        let plan = self.compile_selection(realm, league, selection, now)?;
+        Ok(quote(&self.account.frontend.root, plan).await.aged(now))
     }
 
     /// What a plan compiled now over the facts would fetch: `None` when

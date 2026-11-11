@@ -75,7 +75,7 @@ use acquisition_plan::{
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteScope};
 use acquisition_protocol::realm::Realm;
-use acquisition_verbs::refresh::{holding_jobs, spent_phrase};
+use acquisition_verbs::refresh::{PlanSpans, holding_jobs, spent_phrase};
 use acquisition_verbs::refusal::Way;
 use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges, UncoveredTabs};
 use anyhow::{Context, Result, bail};
@@ -807,25 +807,26 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     // each listing's age before the plan and the plan's own at `now`, as
     // the facts line says them (C53; the review of the seat's third
     // round, finding 1: `stash listing 53s old` named no clock)
-    let stash = match &plan.basis.stash_listing {
-        Some(l) => format!(
+    let spans = PlanSpans::of(plan, now);
+    let stash = match (&plan.basis.stash_listing, spans.stash_listing) {
+        (Some(l), Some(age)) => format!(
             "stash listed {} before the plan (response {})",
-            dur(plan.generated_at - l.fetched_at),
+            dur(age),
             l.response_id
         ),
-        None => "stashes never listed".into(),
+        _ => "stashes never listed".into(),
     };
-    let characters = match &plan.basis.character_listing {
-        Some(l) => format!(
+    let characters = match (&plan.basis.character_listing, spans.character_listing) {
+        (Some(l), Some(age)) => format!(
             "characters listed {} before the plan (response {})",
-            dur(plan.generated_at - l.fetched_at),
+            dur(age),
             l.response_id
         ),
-        None => "characters never listed".into(),
+        _ => "characters never listed".into(),
     };
     out.push_str(&format!(
         "basis: {stash}, {characters}; plan made {}\n\n",
-        acquisition_store::age::ago(now, Some(plan.generated_at))
+        acquisition_store::age::span_ago(spans.plan)
     ));
     out
 }
@@ -855,16 +856,9 @@ fn facts_line(plan: &RefreshPlan, now: i64) -> String {
         )
     }) || !plan.skipped_characters.is_empty()
         || !plan.unknown_characters.is_empty();
-    let stash_age = plan
-        .basis
-        .stash_listing
-        .as_ref()
-        .map(|l| dur(plan.generated_at - l.fetched_at));
-    let character_age = plan
-        .basis
-        .character_listing
-        .as_ref()
-        .map(|l| dur(plan.generated_at - l.fetched_at));
+    let spans = PlanSpans::of(plan, now);
+    let stash_age = spans.stash_listing.map(dur);
+    let character_age = spans.character_listing.map(dur);
     // Each listing keeps its own age, even when the two agree: a fold
     // on equal ages printed one shape or the other by which second
     // each listing landed in (issue #76), and the store holds no fact
@@ -883,7 +877,7 @@ fn facts_line(plan: &RefreshPlan, now: i64) -> String {
     };
     format!(
         "facts: {facts}; plan made {}\n",
-        acquisition_store::age::ago(now, Some(plan.generated_at))
+        acquisition_store::age::span_ago(spans.plan)
     )
 }
 
@@ -1148,7 +1142,7 @@ fn nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
         && plan.unknown_tabs.is_empty()
         && plan.unknown_characters.is_empty();
     if !fresh.is_empty() && only_fresh {
-        let plan_age = (now - plan.generated_at).max(0);
+        let plan_age = PlanSpans::of(plan, now).plan;
         if plan_age >= 90 {
             return format!(
                 "{head}: this {}-old plan found {} fresh (under {})\n",
@@ -1168,7 +1162,7 @@ fn nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
             policy_window(plan.max_age_seconds)
         );
     }
-    let plan_age = (now - plan.generated_at).max(0);
+    let plan_age = PlanSpans::of(plan, now).plan;
     let has_covered_entries = !plan.skipped_tabs.is_empty() || !plan.skipped_characters.is_empty();
     let mut out = if has_covered_entries && plan_age < 90 {
         if fresh.is_empty() {

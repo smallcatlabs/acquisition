@@ -480,6 +480,79 @@ fn c53_the_plan_note_and_its_wrapper_measure_the_character_listing_alike() {
     );
 }
 
+/// #211: a plan's ages are derived once ([`PlanSpans`]), and every word
+/// a frontend says of them equals what the CLI derived for itself
+/// before: `span(generated_at - fetched_at)` for a listing, `ago(now,
+/// generated_at)` for the plan, and the verbs' [`PlanAges`] from the same
+/// spans. Over each unit's edges, a listing after the plan, a clock set
+/// back, and a listing never made.
+#[test]
+fn a_plans_spans_say_what_each_derivation_said_over_every_edge() {
+    use acquisition_plan::PlanNotes;
+    use acquisition_store::age::{ago, span, span_ago};
+    use acquisition_verbs::refresh::{PlanAges, PlanSpans, Planned};
+    let s = scratch();
+    let mut opened = opened(&s.mock);
+    listing(
+        &mut opened.facts,
+        1_000,
+        json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
+    );
+    let compiled = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
+    // (generated_at, the stash listing's fetched_at, now)
+    let table: &[(i64, Option<i64>, i64)] = &[
+        (10_000, Some(10_000), 10_000),
+        (10_000, Some(9_911), 10_089),
+        (10_000, Some(9_910), 10_090),
+        (10_000, Some(4_601), 15_399),
+        (10_000, Some(4_600), 15_400),
+        (200_000, Some(27_201), 372_799),
+        (200_000, Some(27_200), 372_800),
+        (10_000, Some(10_500), 9_000),
+        (10_000, None, 10_000 + 3 * 86_400),
+    ];
+    for &(generated_at, fetched_at, now) in table {
+        let mut plan = compiled.clone();
+        plan.generated_at = generated_at;
+        plan.basis.stash_listing = match (plan.basis.stash_listing.take(), fetched_at) {
+            (Some(mut l), Some(at)) => {
+                l.fetched_at = at;
+                Some(l)
+            }
+            _ => None,
+        };
+        plan.basis.character_listing = None;
+        let spans = PlanSpans::of(&plan, now);
+        let row = format!("({generated_at}, {fetched_at:?}, {now})");
+        // what the CLI derived for itself before #211
+        let cli_listing = fetched_at.map(|at| span(generated_at - at));
+        let cli_plan = ago(now, Some(generated_at));
+        assert_eq!(spans.stash_listing.map(span), cli_listing, "{row}");
+        assert_eq!(span_ago(spans.plan), cli_plan, "{row}");
+        assert_eq!(spans.character_listing, None, "{row}");
+        // and the verbs' words, from the same spans
+        let ages = Planned {
+            plan,
+            ages: PlanAges::default(),
+            quote_note: None,
+            notes: PlanNotes::default(),
+            uncovered_tabs: None,
+        }
+        .aged(now)
+        .ages;
+        assert_eq!(
+            ages.generated_at_age.as_deref(),
+            Some(cli_plan.as_str()),
+            "{row}"
+        );
+        assert_eq!(
+            ages.stash_listing_fetched_at_age,
+            Some(cli_listing.map_or("never".into(), |s| format!("{s} before generated_at"))),
+            "{row}"
+        );
+    }
+}
+
 /// C53 (an age the text prints stands in words beside its epoch, made
 /// at the answer's own time) and the envelope's schema contract (round 6
 /// of step 2g, the second cold review's finding 7): a plan's ages stand
