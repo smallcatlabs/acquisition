@@ -10,13 +10,23 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
+- **The re-triage's queue, before step 6**, at the owner's word of
+  2026-11-10 after his morning at `acq web`
+  (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
+  series, each issue its own step (C173); a group leaves this list
+  when its issues close:
+  - A, the tracker: #232, #231 (no build).
+  - B, a quiet tree for agents: #203, #236, #230.
+  - C, what the table and the place pages stand on: #205, #211, #200,
+    #214's items that touch no schema, and #150 (the site answers an
+    inverted range with no results, his word).
+  - D, one voice for refusals: the main account (#246, ruled yes),
+    then #247, #178, #234, #239 and #191's wording.
+  - E, the daemon held by the compiler and tests: #198, #242, #209,
+    and #208 (the idle hour from a job's end, his "take it").
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
-  milestone "4-full, the GUI"). Steps 1 to 5 are closed, and the owner
-  has sat at `acq web` in his own store
-  (`audits/web-2026-11/sitting/README.md`). Step 6, the dense table,
-  is next: its view is designed first from #244 (grouped by place, its
-  columns the search's values, any value a click to sort), then its
-  spike (the design's §7, step 6).
+  milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6 waits
+  on the queue above.
 
 ## Next
 
@@ -24,8 +34,12 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, step 6: the dense table, its view designed from #244
-   and ruled by the owner before the spike.
+1. 4-full part 1, step 6: the dense table. Its view is designed first,
+   as one view of values and places: #244 with the place pages (#248,
+   #194, #189, #182), the live match count (#245, ruled yes), and
+   #186 and #190 riding. The owner rules it before the spike (the
+   design's §7, step 6). The search form's reshaping (#184, #181,
+   #180, #185, #188, #183, #193) is the step after, one design.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
