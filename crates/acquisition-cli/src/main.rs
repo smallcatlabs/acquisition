@@ -241,8 +241,8 @@ enum Cmd {
     /// The web UI: a page over loopback that renders the documents these
     /// verbs answer — the search as a form shaped like the trade site's, or a
     /// trade site search's URL, id or query JSON run as `search --trade`
-    /// runs it, its answer as a table with each item's art, one item, and
-    /// the refresh
+    /// runs it, its answer as cards with each item's art or a table on
+    /// asking, one item, and the refresh
     /// loop (a league's tabs and characters to tick, the plan with its
     /// quote, apply, the jobs) — and the saved searches, the world's,
     /// whoever saved them: kept from any answer under its query, listed,
