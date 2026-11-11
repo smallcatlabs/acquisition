@@ -15,8 +15,9 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - E, the daemon held by the compiler and tests: #209, stopped at
-    its third review for the owner's word.
+  - E, the daemon held by the compiler and tests: #261 (the one
+    ending: a job becomes terminal in one place), then #209's fourth
+    round on its shape, at the owner's word.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6 waits
   on the queue above.

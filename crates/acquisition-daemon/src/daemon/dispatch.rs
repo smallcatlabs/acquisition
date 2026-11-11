@@ -447,45 +447,58 @@ impl Daemon {
         self.finish(pid, final_outcome);
     }
 
-    /// The one place a job becomes terminal (`start_and_finish` and
-    /// `maybe_finish_parent` both land here). A pending cancellation is
-    /// arbitrated under this final lock: if `cancel` set the flag at any
-    /// point before terminalization — including between a caller
-    /// computing this outcome and the lock below — the job finishes
-    /// `Cancelled`, never with the stale outcome. Cancellation wins the
-    /// job's terminal surface; work already done may have sent regardless
-    /// (sends are committed once dispatched), and storable API responses
-    /// were recorded as they landed — though not every outcome is stored
-    /// separately (probes, mock fetches, and failures are not).
+    /// A job's end, as a caller of [`Self::end`] finishes it once the lock
+    /// is released: `start_and_finish` and `maybe_finish_parent` land here.
+    /// Emits the job's terminal info and tells its parent, after the lock.
     pub(super) fn finish(&self, id: JobId, outcome: Outcome) {
-        let info = {
+        let ended = {
             let mut s = self.shared.lock().unwrap();
-            let Some(entry) = s.jobs.get_mut(&id) else {
-                return;
-            };
-            // C3 as amended (#208): a job's end is activity, stamped
-            // under the lock that makes it terminal, so the idle verdict,
-            // which reads the stamp under this lock, never sees the job
-            // ended and the hour already spent.
-            self.mark_activity(self.choke.now());
-            let outcome = if entry.cancel_requested {
-                Outcome::Cancelled
-            } else {
-                outcome
-            };
-            entry.info.state = match &outcome {
-                Outcome::Success { .. } => JobState::Done,
-                Outcome::Failure { .. } => JobState::Failed,
-                Outcome::Cancelled => JobState::Cancelled,
-            };
-            entry.outcome = Some(outcome);
-            self.persist(entry);
-            let info = entry.info.clone();
-            self.evict_tree(&mut s, id);
-            info
+            self.end(&mut s, id, outcome)
         };
-        let parent = info.parent;
-        self.emit(info);
+        if let Some(ended) = ended {
+            self.after_end(ended);
+        }
+    }
+
+    /// #261: the one ending, the only code that makes a job terminal.
+    /// Under `shared`, in order: a pending cancel is arbitrated (if
+    /// `cancel` set the flag at any point before this, including between a
+    /// caller computing `outcome` and the lock, the job ends `Cancelled`,
+    /// never with the stale outcome; work already sent may have landed
+    /// regardless, since sends are committed once dispatched); the state
+    /// and the outcome are set; activity is stamped (C3 as amended, #208:
+    /// under the lock the idle verdict reads it under, by the signature,
+    /// so no verdict sees the job ended with the hour spent); the row is
+    /// written (C6); the concluded tree
+    /// leaves memory (`evict_tree`). What must happen after the lock, the
+    /// event and the parent's tally (C23), is returned for the caller
+    /// ([`Self::after_end`]). `None` for a job memory does not hold.
+    pub(super) fn end(&self, s: &mut Shared, id: JobId, outcome: Outcome) -> Option<Ended> {
+        let entry = s.jobs.get_mut(&id)?;
+        self.mark_activity(self.choke.now());
+        let outcome = if entry.cancel_requested {
+            Outcome::Cancelled
+        } else {
+            outcome
+        };
+        entry.info.state = match &outcome {
+            Outcome::Success { .. } => JobState::Done,
+            Outcome::Failure { .. } => JobState::Failed,
+            Outcome::Cancelled => JobState::Cancelled,
+        };
+        entry.outcome = Some(outcome);
+        self.persist(entry);
+        let info = entry.info.clone();
+        self.evict_tree(s, id);
+        Some(Ended { info })
+    }
+
+    /// What follows an [`Self::end`] once `shared` is released: the job's
+    /// terminal event, then its parent told, so the parent's tally is
+    /// built where it always is (`maybe_finish_parent`, C23).
+    pub(super) fn after_end(&self, ended: Ended) {
+        let parent = ended.info.parent;
+        self.emit(ended.info);
         if let Some(pid) = parent {
             self.maybe_finish_parent(pid);
         }

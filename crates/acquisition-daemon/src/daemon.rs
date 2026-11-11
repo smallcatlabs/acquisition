@@ -326,6 +326,12 @@ const LOGIN_WITHIN: Duration = Duration::from_secs(300);
 
 /// One job in memory. Its params are `info.params`, the one copy (C7,
 /// they travel on `JobInfo` as submitted).
+/// A job [`Daemon::end`] made terminal: its info, for the event sent
+/// after the lock.
+pub(super) struct Ended {
+    pub(super) info: JobInfo,
+}
+
 struct Entry {
     info: JobInfo,
     outcome: Option<Outcome>,
