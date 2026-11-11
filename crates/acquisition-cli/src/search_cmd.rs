@@ -435,13 +435,16 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
             None => sent = run,
         }
         let (store, intent, taken) = open_as_asked(cx, &asked.request, &sent, json)?;
+        let said = crate::run::SaidUnlessAnswered::new(taken.as_ref());
         let corpus = asked
             .request
             .corpus(&store, &intent)
             .map_err(|e| fail(e, json))?;
         let mut answered = asked.answer(&corpus).map_err(|e| fail(e, json))?;
         answered.scope.account.main = taken.is_some();
-        return emit_answer(&answered, taken.as_ref(), json, answer_text);
+        emit_answer(&answered, taken.as_ref(), json, answer_text)?;
+        said.answered();
+        return Ok(());
     }
     if let Some(token) = &args.next {
         whole(
@@ -456,10 +459,13 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         request.check().map_err(|e| fail(e.into(), json))?;
         let sent = serde_json::to_value(&request)?;
         let (store, intent, taken) = open_as_asked(cx, &request, &sent, json)?;
+        let said = crate::run::SaidUnlessAnswered::new(taken.as_ref());
         let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
         let mut answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
         answered.scope.account.main = taken.is_some();
-        return emit_answer(&answered, taken.as_ref(), json, answer_text);
+        emit_answer(&answered, taken.as_ref(), json, answer_text)?;
+        said.answered();
+        return Ok(());
     }
     if let Some(names) = &args.describe {
         if args.print_request {
@@ -630,6 +636,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
     // the scope line says the main account was taken, not a note
     let account = cx.frontend.account(cx.account.as_deref())?;
     let taken = acquisition_verbs::main_account::taken(&account);
+    let said = crate::run::SaidUnlessAnswered::new(taken.as_ref());
     let opened = account.open()?;
     let (store, intent) = (opened.facts, opened.intent);
     // the request's own corpus, so that a refusal offers this request
@@ -652,6 +659,8 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
             request.query.text = Some(query.text());
         }
         println!("{}", serde_json::to_string_pretty(&request)?);
+        // the printed request names the account it was bound to, but not
+        // that it was the default: the line says so
         return Ok(());
     }
     let mut answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
@@ -660,7 +669,9 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
     let limit_beside_count = args.limit.filter(|_| counted);
     emit_answer(&answered, taken.as_ref(), json, |a| {
         answer_text_of(a, limit_beside_count)
-    })
+    })?;
+    said.answered();
+    Ok(())
 }
 
 /// `--print-request` prints the request the words typed make, and
@@ -732,10 +743,13 @@ fn open_as_asked(
         .frontend
         .account(selector)
         .and_then(|account| {
-            Ok((
-                acquisition_verbs::main_account::taken(&account),
-                account.open()?,
-            ))
+            let taken = acquisition_verbs::main_account::taken(&account);
+            // a store that will not open after the main account was taken
+            // is said with it (C187)
+            let said = crate::run::SaidUnlessAnswered::new(taken.as_ref());
+            let opened = account.open()?;
+            said.answered();
+            Ok((taken, opened))
         })
         .map_err(|fault| {
             let e = anyhow::Error::from(fault);

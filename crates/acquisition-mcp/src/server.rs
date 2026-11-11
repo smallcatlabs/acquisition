@@ -170,7 +170,10 @@ impl AcqMcp {
         answer(|| {
             let p = p.parse()?;
             let realm = realm_param(p.realm.as_deref())?;
-            let store = self.facts(p.account.as_deref())?;
+            // one account for the facts, the policy and the answer's
+            // `main_account` (the second cold review of #246, finding 1)
+            let account = self.account(p.account.as_deref())?;
+            let store = account.facts()?;
             let league = p
                 .league
                 .as_deref()
@@ -188,7 +191,7 @@ impl AcqMcp {
                 expand,
                 acquisition_store::now(),
             )?;
-            let policy = PolicyRead::of_account(&self.account(p.account.as_deref())?);
+            let policy = PolicyRead::of_account(&account);
             Ok(Held::of(listed, holdings, &policy, realm, league, expand))
         })
     }
@@ -815,6 +818,12 @@ impl AcqMcp {
             realm: p.realm,
             membership: p.membership,
         };
+        // C187: a create resolving its realm over the main account says so
+        // in its refusal as in its receipt (the second cold review of
+        // #246, finding 3): the account noted before the write is tried
+        if set.id.is_none() && set.realm.is_none() && p.account.is_none() {
+            let _ = self.account(None);
+        }
         match saved::set(&self.frontend, p.account.as_deref(), &set, &mut saved::mint) {
             Ok(written) => told(&receipt::saved(&written, &Spoken { named: "account" })),
             Err(e) => failed(e),

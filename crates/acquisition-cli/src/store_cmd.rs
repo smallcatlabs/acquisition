@@ -215,7 +215,14 @@ pub fn main_account(
             }
             let accounts = cx.frontend.accounts()?;
             if json {
-                println!("{}", serde_json::json!({ "main": accounts.main }));
+                // a main account that could not be read is said, never
+                // shown as none set (the second cold review of #246,
+                // finding 4)
+                let mut shown = serde_json::json!({ "main": accounts.main });
+                if let Some(why) = &accounts.main_unavailable {
+                    shown["main_unavailable"] = serde_json::json!(why);
+                }
+                println!("{shown}");
             } else {
                 print!(
                     "{}",

@@ -61,6 +61,13 @@ leagues: Allflame (this); none other
 --- stderr
 account Bob#5678: the main account, taken since none was named
 
+$ acq search --realm pc rarity=rare
+# holds "account Bob#5678: the main account, taken since none was named\n"
+--- stderr
+Error: facts file <scratch>/store/mock/Bob_5678.db records no account identity (no profile response has landed); a snapshot cannot pair your prices and policy with it — one login fixes this
+account Bob#5678: the main account, taken since none was named
+--- exit 1
+
 $ acq accounts main 'Alice#1234' --if-revision 1
 # holds "main account: Alice#1234 (revision 2), was Bob#5678 (revision 1)"
 --- stdout

@@ -356,6 +356,12 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         &["tabs", "--league", "Allflame"],
         &["account Bob#5678: the main account, taken since none was named\n"],
     );
+    // a search that fails after taking the main account says it took it
+    // (Bob's store holds no profile, so the search cannot read it)
+    t.run(
+        &["search", "--realm", "pc", "rarity=rare"],
+        &["account Bob#5678: the main account, taken since none was named\n"],
+    );
     t.run(
         &["accounts", "main", "Alice#1234", "--if-revision", "1"],
         &["main account: Alice#1234 (revision 2), was Bob#5678 (revision 1)"],
@@ -366,6 +372,10 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     );
     let taken = acq(&base, &["tabs", "--json"]);
     assert!(taken.status.success(), "{}", text(&taken));
+    // the search's `--json` carries `main_account`, so no line is written
+    let searched = acq(&base, &["search", "--json", "--realm", "pc", "rarity=rare"]);
+    assert_eq!(sole_json(&searched)["main_account"]["name"], "Alice#1234");
+    assert!(stderr(&searched).is_empty(), "{}", stderr(&searched));
     let undo = run_as_printed(&base, "acq accounts main --clear --if-revision 2");
     assert!(undo.status.success(), "{}", text(&undo));
     assert_eq!(acq(&base, &["tabs", "--json"]).status.code(), Some(1));
