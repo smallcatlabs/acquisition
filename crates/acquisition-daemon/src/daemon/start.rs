@@ -392,7 +392,7 @@ pub async fn run() -> Result<()> {
 fn take_locks(world: &World) -> Result<(Lock, Option<Lock>)> {
     let world_lock = Lock::acquire(&world.lock_path()).map_err(|e| {
         anyhow::anyhow!(
-            "another daemon holds this world: {e} — one daemon per world, so this one does not start"
+            "another daemon holds this world: {e} — one daemon per world, so this one does not start: use the one running, or stop it first"
         )
     })?;
     // Per OS user, whatever the root: two live-test roots cannot make

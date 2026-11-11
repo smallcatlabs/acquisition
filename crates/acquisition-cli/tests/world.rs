@@ -184,7 +184,9 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
         stderr.contains("another daemon holds this world")
             && stderr.contains(&format!("pid {pid}"))
             && stderr.contains("daemon.lock")
-            && stderr.contains("one daemon per world"),
+            && stderr.contains("one daemon per world")
+            // a way on, in no frontend's words (#178's review, P2)
+            && stderr.contains("use the one running, or stop it first"),
         "{stderr}"
     );
     // The refusal is at the end of a file that is mostly a hole: read
