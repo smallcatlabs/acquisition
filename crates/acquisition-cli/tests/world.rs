@@ -615,7 +615,7 @@ fn the_offline_reset_holds_the_world_lock() {
     let refused = t.run(
         &["daemon", "reset-tripwire"],
         &[
-            "/store/daemon.lock is held by another process",
+            "daemon.lock is held by another process",
             "is held by another process (pid ",
         ],
     );
