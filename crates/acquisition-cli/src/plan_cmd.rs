@@ -732,8 +732,11 @@ fn authority(plan: &RefreshPlan) -> String {
 }
 
 /// Under a deep selection, the map and unique tabs with no page to fetch
-/// on record: pages not known yet arrive with the tab's fetch, so the plan
-/// says to apply and select again for them.
+/// on record. The plan cannot tell a tab never fetched from one fetched
+/// that has none (#191: that needs a fact the plan does not carry, a
+/// ruling's), so the line says only what is true of both: its fetch lists
+/// any pages it has, and a fetch that lists none means none. It never
+/// says to apply and select again, which looped over a tab with none.
 fn pages_awaiting(plan: &RefreshPlan) -> String {
     let mut out = String::new();
     // C76: the selection's listing is refreshed beside its fetches, and a
@@ -766,7 +769,7 @@ fn pages_awaiting(plan: &RefreshPlan) -> String {
                 .any(|a| matches!(a, RefreshAction::FetchSubstash { parent, .. } if parent == id))
         {
             out.push_str(&format!(
-                "pages of {}: none to fetch on record — pages not known yet arrive with its fetch; apply, then select it again for them\n",
+                "pages of {}: none to fetch on record — its fetch lists any it has, and one that lists none means it has none\n",
                 label(name)
             ));
         }

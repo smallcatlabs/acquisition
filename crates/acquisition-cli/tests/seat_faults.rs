@@ -742,6 +742,31 @@ fn auth_status_with_no_daemon_says_what_a_daemon_would_restore() {
     assert_eq!(status["running"], false, "{status}");
 }
 
+/// #191 (the blind page seat, T6 step 11, fault 3): a deep selection of a
+/// map tab with no pages on record said its pages "arrive with its
+/// fetch; apply, then select it again for them", and after a fetch that
+/// listed none said it again, word for word: followed, it loops. The
+/// plan cannot tell never fetched from fetched with none, so the line
+/// says what is true of both and asks for no second round; the mock's
+/// "Maps (empty)" lists no pages, and both runs print the one line.
+#[test]
+fn a_deep_selection_of_a_tab_with_no_pages_on_record_promises_none() {
+    let scratch = harness::scratch("seat-no-pages");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let _login = login(&base, "alice");
+    assert!(acq(&base, &["stashes"]).status.success());
+    let line = "pages of \"Maps (empty)\": none to fetch on record — its fetch lists any it has, \
+                and one that lists none means it has none";
+    let mut t = Transcript::new(&base);
+    for _ in 0..2 {
+        let out = t.run(&["refresh", "--tabs", "mape", "--deep"], &[line]);
+        assert!(out.status.success(), "{}", text(&out));
+        assert!(!stdout(&out).contains("select it again"), "{}", text(&out));
+    }
+    golden(file!(), "a_tab_with_no_pages_on_record", &t);
+}
+
 /// "Everything in one league" took two rounds and nothing said so: a map
 /// or unique tab's substashes can be planned only once the tab has been
 /// fetched, and the first apply ended on its tally. An apply now ends by

@@ -1,0 +1,47 @@
+# golden seat_faults/a_tab_with_no_pages_on_record: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq refresh --tabs mape --deep
+# holds "pages of \"Maps (empty)\": none to fetch on record — its fetch lists any it has, and one that lists none means it has none"
+--- stdout
+refresh Standard on mock as alice — a selection, with its map and unique tabs' pages
+facts: stash listed <age> before the plan; plan made <age> ago
+
+the listing is fetched beside the selection: what it newly lists takes the next plan
+pages of "Maps (empty)": none to fetch on record — its fetch lists any it has, and one that lists none means it has none
+2 requests:
+  list stashes          the selection is read from it
+  fetch 1 tab           1 selected
+    mape  Maps (empty)  selected
+
+quote (<age> ago):
+  stash-list-request-limit  1 request — ready
+  stash                     1 request — ETA unavailable (unlearned)
+wire: 2–6 sends; plus first-contact probes and token refresh if needed
+applying 2 requests as job <j1>
+job <j1> done: 2 requests, 2 done (jobs <j2>–<j3>)
+changed: no items — 2 responses recorded, nothing added, changed, moved, or removed
+--- stderr
+job <j1> (alice): 2/2 done; submitted <age> ago, started <age> ago, finished <age> ago
+
+$ acq refresh --tabs mape --deep
+# holds "pages of \"Maps (empty)\": none to fetch on record — its fetch lists any it has, and one that lists none means it has none"
+--- stdout
+refresh Standard on mock as alice — a selection, with its map and unique tabs' pages
+facts: stash listed <age> before the plan; plan made <age> ago
+
+the listing is fetched beside the selection: what it newly lists takes the next plan
+pages of "Maps (empty)": none to fetch on record — its fetch lists any it has, and one that lists none means it has none
+2 requests:
+  list stashes          the selection is read from it
+  fetch 1 tab           1 selected
+    mape  Maps (empty)  selected
+
+quote (<age> ago):
+  stash-list-request-limit  1 request — ready
+  stash-request-limit       1 request — ready
+wire: 2–6 sends; plus first-contact probes and token refresh if needed
+applying 2 requests as job <j4>
+job <j4> done: 2 requests, 2 done (jobs <j5>–<j6>)
+changed: no items — 2 responses recorded, nothing added, changed, moved, or removed
+--- stderr
+job <j4> (alice): 2/2 done; submitted <age> ago, started <age> ago, finished <age> ago
