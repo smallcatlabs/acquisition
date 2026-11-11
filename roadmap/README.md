@@ -12,7 +12,8 @@ better Acquisition that is agent-friendly and agent-forward.
 
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
-  is designed next, for the owner's ruling before the spike.
+  is designed (`briefs/4-full-1-step6-design.md`, values over places)
+  and waits on the owner's ruling of its §7 before the spike.
 
 ## Next
 
@@ -54,7 +55,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
-- His word on step 6's view, once it is designed (#244).
+- His word on step 6's view: the drafts in
+  `briefs/4-full-1-step6-design.md`, §7 (#244).
 - The league run under the rails, at his word: count the undecided
   classes and the untranslated mods.
 - At the next live login, deny once: whether GGG's authorize page
