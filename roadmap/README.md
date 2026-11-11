@@ -15,8 +15,7 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/sitting/README.md`). One worker at a time, in
   series, each issue its own step (C173); a group leaves this list
   when its issues close:
-  - D, one voice for refusals: the main account (#246, ruled yes),
-    then #247, #178 and #191's wording.
+  - D, one voice for refusals: #247, then #178 and #191's wording.
   - E, the daemon held by the compiler and tests: #198, #242, #209,
     and #208 (the idle hour from a job's end, his "take it").
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
