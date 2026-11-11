@@ -4487,6 +4487,79 @@ fn c167_a_creates_realm_is_named_or_resolved_as_a_search_resolves_one() {
     assert_eq!(landed["written"]["scope"]["realm"], "xbox");
 }
 
+/// C167, #247: a saved search is the world's, so a create naming no
+/// realm and no account among several known accounts settles its realm
+/// over every account's: none held is `all`, one held lands, several are
+/// `realm_needed` with each realm and `all` as the same create, naming
+/// no account; an account named narrows to its own realms. Never
+/// `ambiguous_account`.
+#[test]
+fn c167_a_create_among_several_accounts_settles_its_realm_over_the_world() {
+    let create = Set {
+        id: None,
+        expect: Expect::Create,
+        name: Some("rings".into()),
+        text: Some("rarity=rare".into()),
+        realm: None,
+        membership: None,
+    };
+    let realm_of = |written: &saved::SavedWritten| {
+        read_row(written.written.as_ref().unwrap())
+            .scope
+            .realm
+            .clone()
+    };
+    let tab = |id: &str| json!([{ "id": id, "name": id, "type": "PremiumStash", "index": 0 }]);
+    let held = |dir: &Path, username: &str, realm: &str, id: &str| {
+        Store::open(&account_path(dir, username))
+            .unwrap()
+            .record(
+                &Endpoint::Stashes {
+                    realm: realm.into(),
+                    league: "Standard".into(),
+                },
+                &json!({ "league": "Standard" }),
+                200,
+                &json!({ "stashes": tab(id) }),
+                1_000,
+            )
+            .unwrap();
+    };
+    let s = scratch();
+    let world = frontend(&s.mock);
+    login(&s.mock, USER, UUID);
+    login(&s.mock, "Bob#9", "u-bob");
+    let none = saved::set(&world, None, &create, &mut saved::mint).unwrap();
+    assert_eq!(realm_of(&none), "all", "accounts known, no realm held");
+    held(&s.mock, USER, "pc", "a1");
+    held(&s.mock, "Bob#9", "pc", "b1");
+    let one = saved::set(&world, None, &create, &mut saved::mint).unwrap();
+    assert_eq!(realm_of(&one), "pc", "one realm across the accounts");
+    held(&s.mock, "Bob#9", "xbox", "b2");
+    let e = saved::set(&world, None, &create, &mut no_mint).unwrap_err();
+    let refused = document(&e, &Plain);
+    assert_eq!(refused["kind"], "realm_needed", "{refused}");
+    let offered = ways(&e);
+    let realms: Vec<String> = offered
+        .iter()
+        .map(|way| match way {
+            Way::SavedSearchSet(set) => set.realm.clone().unwrap(),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(realms, ["pc", "xbox", "all"]);
+    let landed = dispatch(&world, &offered[1]).unwrap();
+    assert_eq!(landed["written"]["scope"]["realm"], "xbox");
+    let narrowed = saved::set(&world, Some(USER), &create, &mut saved::mint).unwrap();
+    assert_eq!(
+        realm_of(&narrowed),
+        "pc",
+        "the account named holds pc alone"
+    );
+    let e = saved::set(&world, Some("Bob#9"), &create, &mut no_mint).unwrap_err();
+    assert_eq!(document(&e, &Plain)["kind"], "realm_needed");
+}
+
 /// C78, C167: a clear's receipt names the prior and the revision its
 /// tombstone took, and its undo — the prior whole, created again at the
 /// id — sent back through the verbs, lands over the tombstone, the

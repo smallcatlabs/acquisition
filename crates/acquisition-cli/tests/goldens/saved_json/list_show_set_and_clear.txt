@@ -97,6 +97,16 @@ $ acq saved clear <id>
 saved search <id>: cleared at revision 4, was unique rings over pc live: rarity=unique (revision 3)
 next: `acq saved set --id <id> --if-revision 0 --name 'unique rings' --realm pc --membership live rarity=unique` puts it back (a create, which lands only where no saved search stands at its id; the row's count continues past the clear)
 
+$ acq saved set --name x rarity=rare
+# holds "names no realm"
+# holds "pc | xbox"
+--- stderr
+Error: this saved search names no realm, and the facts of the 2 accounts known hold 2 realms: pc | xbox; a saved search runs over one realm, or all
+    the same search saved over pc: acq saved set --name x --realm pc rarity=rare
+    the same search saved over xbox: acq saved set --name x --realm xbox rarity=rare
+    the same search saved over all: acq saved set --name x --realm all rarity=rare
+--- exit 1
+
 $ acq saved
 # holds "holds the facts of an account named user"
 # holds "delete it and its -wal and -shm files"

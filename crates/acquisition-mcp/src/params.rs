@@ -61,8 +61,9 @@ pub(crate) fn realm_param(realm: Option<&str>) -> Result<Realm> {
 
 /// Every tool's `account`, one sentence (#83: undescribed on seven).
 /// True of every tool that carries it (4-full part 1, step 2):
-/// `saved_search_set` reads it only for a create naming no realm, and in
-/// a world with no account known saves that create over every realm, so
+/// `saved_search_set` reads it only to narrow the realms a create naming
+/// none settles over (#247: unnamed, every known account's), and in a
+/// world with no account known saves that create over every realm, so
 /// the refusals are said of a name read and of a tool that needs one,
 /// within the bound every parameter's text is held to.
 pub(crate) const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known. A name read that no account known holds is unknown_account (none known: not_logged_in if needed). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.";
@@ -531,9 +532,9 @@ pub(crate) struct SavedSearchSetParams {
     pub(crate) name: Option<String>,
     /// The query, in the language `describe` prints; stored canonical.
     pub(crate) text: Option<String>,
-    /// pc, xbox, sony, poe2 or all. A create naming none takes the
-    /// account's one realm, and is refused offering each where it holds
-    /// several.
+    /// pc, xbox, sony, poe2 or all. A create naming none takes the one
+    /// realm the facts hold, the named account's or else every known
+    /// account's, and is refused offering each where several are held.
     pub(crate) realm: Option<String>,
     /// live (a create's default), all or removed.
     pub(crate) membership: Option<String>,

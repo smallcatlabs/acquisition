@@ -36,7 +36,7 @@ Commands:
   cancel        Cancel a waiting or running job; cascades to every descendant still waiting. Needs the running daemon and never starts one
   set-priority  Change a waiting job's priority; higher runs sooner and the queue reorders live. Needs the running daemon and never starts one
   price         The listing state (no daemon): what every item, tab and character is priced as — by hand, in game, and how the two stand
-  saved         The saved searches (no daemon, no login): a name, a query's text and its scope, kept in the world's own file, not an account's, so any account runs one (`acq search --saved`). Each has an id, the identity, printed last; the name is a label two may share. An account is used only to resolve the realm a new search names none of. `--json` is the document whole; a write's is its receipt, the row before it and the command that puts it back
+  saved         The saved searches (no daemon, no login): a name, a query's text and its scope, kept in the world's own file, not an account's, so any account runs one (`acq search --saved`). Each has an id, the identity, printed last; the name is a label two may share. A new search naming no realm takes the one realm the facts hold: the account's named with `--account`, else every known account's. `--json` is the document whole; a write's is its receipt, the row before it and the command that puts it back
   reference     Reference data the binary ships (no store, no daemon): the currency table, by version
   shop          The forum shop (no daemon, sends nothing): render the page set a hand price would post, every omission counted with its reason
   daemon        Inspect, stop or reset the daemon. A job command or `acq auth` starts one on demand; `stop` is for a login not in the keyring, which ends with the daemon, and for the README's longer-lived daemon recipe, which starts a new one while none runs
@@ -726,14 +726,14 @@ Options:
 ## `acq saved`
 
 ```text
-The saved searches (no daemon, no login): a name, a query's text and its scope, kept in the world's own file, not an account's, so any account runs one (`acq search --saved`). Each has an id, the identity, printed last; the name is a label two may share. An account is used only to resolve the realm a new search names none of. `--json` is the document whole; a write's is its receipt, the row before it and the command that puts it back
+The saved searches (no daemon, no login): a name, a query's text and its scope, kept in the world's own file, not an account's, so any account runs one (`acq search --saved`). Each has an id, the identity, printed last; the name is a label two may share. A new search naming no realm takes the one realm the facts hold: the account's named with `--account`, else every known account's. `--json` is the document whole; a write's is its receipt, the row before it and the command that puts it back
 
 Usage: acq saved [OPTIONS] [COMMAND]
 
 Commands:
   list   List the saved searches (the default): ten by name, each with its scope, its query, its revision and its id, the count of all beside; --limit lists N, --expand every one. A row this build cannot read is listed by its id and why
   show   One saved search, by its id or its name: its scope, its query, its revision and who wrote it. A name several share is refused, each offered by its id
-  set    Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the account's store holds (`all` where it holds none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
+  set    Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
   clear  Remove one saved search. Prints what it removed and the command that puts it back
   help   Print this message or the help of the given subcommand(s)
 
@@ -771,7 +771,7 @@ Options:
 ## `acq saved set`
 
 ```text
-Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the account's store holds (`all` where it holds none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
+Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
 
 Usage: acq saved set [OPTIONS] [QUERY]
 

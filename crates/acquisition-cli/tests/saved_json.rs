@@ -193,6 +193,30 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         &["saved", "clear", &id],
         &["cleared at revision 4", "--if-revision 0", "puts it back"],
     );
+    // #247: a second account holding xbox, and a create naming no realm
+    // and no account is refused for the realm, each held offered
+    acquisition_store::Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, harness::now(), &[])
+        .unwrap();
+    acquisition_store::Store::open(&acquisition_store::account_path(&mock, "Bob#9"))
+        .unwrap()
+        .record(
+            &acquisition_store::Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [{ "id": "b1", "name": "b1", "type": "PremiumStash", "index": 0 }] }),
+            1_000,
+        )
+        .unwrap();
+    let out = t.run(
+        &["saved", "set", "--name", "x", "rarity=rare"],
+        &["names no realm", "pc | xbox"],
+    );
+    assert_eq!(out.status.code(), Some(1));
     // --json is the verbs' document whole
     let frontend = acquisition_verbs::Frontend {
         via: "cli",

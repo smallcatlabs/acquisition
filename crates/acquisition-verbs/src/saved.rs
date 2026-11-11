@@ -31,8 +31,9 @@
 //!   undo). Every other pair is refused as `arguments`. The text is read
 //!   with the language's reader in the row's realm and stored canonical;
 //!   an authoring error refuses before any file is opened. A create's
-//!   realm, where none is named, is resolved as `acq search` resolves
-//!   one (C96), over the account the caller names.
+//!   realm, where none is named, is settled as `acq search` settles one
+//!   (C96), over the realms held by the account the caller names, or,
+//!   naming none, by every account known (`resolved_realm`, #247).
 //! - **The receipt** ([`SavedWritten`], spelled by
 //!   [`crate::receipt::saved`]): `target`, `written`, `prior`, `revision`,
 //!   and the `undo` that puts the prior back — a replace's a [`Set`] of
@@ -397,7 +398,7 @@ pub fn set(
     let Some(id) = &set.id else {
         let realm = match realm {
             Some(realm) => realm,
-            None => resolved_realm(frontend, account, membership.as_deref(), set)?,
+            None => resolved_realm(frontend, account, set, now)?,
         };
         let value = SavedSearch {
             version: SavedSearch::VERSION,
@@ -967,46 +968,56 @@ fn conflicted(
     .into()
 }
 
-/// The realm a create names none of, resolved as a search resolves one
-/// over the account's store (C96): the one realm it holds, `all` where it
-/// holds none or no account is known, and refused naming the realms where
-/// it holds several, each offered as the same create in that realm.
+/// The realm a create names none of, settled as a search settles one
+/// (C96) over the realms the facts hold, tabs or characters, live or
+/// retired: the realms of the account named, or of the one account
+/// known, or, among several known with none named, of every account
+/// known, since a saved search is the world's and no account's (C167,
+/// #247). One realm held is taken; none held, or no account known, is
+/// `all`; several are refused as `realm_needed`, each offered as the
+/// same create over it and over `all`. Only which realms exist is read,
+/// through the store's coverage (the corpus's own realm read), so a
+/// create among several accounts is never `ambiguous_account`.
 fn resolved_realm(
     frontend: &Frontend,
     account: Option<&str>,
-    membership: Option<&str>,
     set: &Set,
+    now: i64,
 ) -> anyhow::Result<String> {
-    let account = match frontend.account(account) {
-        Ok(account) => account,
+    let (accounts, whose) = match frontend.account(account) {
+        Ok(one) => {
+            let whose = format!("the facts of {}", one.entry.username);
+            (vec![one], whose)
+        }
         Err(Fault::NoAccounts { .. }) => return Ok(corpus::Realm::All.as_str().to_string()),
+        Err(Fault::AmbiguousAccount { .. }) => {
+            let every = frontend.every_account()?;
+            let whose = format!("the facts of the {} accounts known", every.len());
+            (every, whose)
+        }
         Err(fault) => return Err(fault.into()),
     };
-    let opened = account.open()?;
-    let request = Request {
-        scope: Scope {
-            membership: membership.and_then(Membership::parse).unwrap_or_default(),
-            ..Scope::default()
-        },
-        ..Request::default()
-    };
-    match request.corpus(&opened.facts, &opened.intent) {
-        Ok(corpus) => Ok(corpus.realm.as_str().to_string()),
-        Err(SearchError::Scope {
-            kind: "realm_needed",
-            message,
-            offers,
-        }) => {
-            let realms: Vec<String> = offers
+    let mut held = std::collections::BTreeSet::new();
+    for account in &accounts {
+        held.extend(
+            account
+                .facts()?
+                .coverage(None, None, false, now)?
+                .realms_held,
+        );
+    }
+    let held: Vec<String> = held.into_iter().collect();
+    match held.as_slice() {
+        [] => Ok(corpus::Realm::All.as_str().to_string()),
+        [one] => Ok(one.clone()),
+        several => {
+            let ways = several
                 .iter()
-                .filter_map(|o| o.request.as_ref()?.scope.realm.as_ref())
-                .map(|r| r.as_str().to_string())
-                .collect();
-            let ways = realms
-                .iter()
+                .map(String::as_str)
+                .chain([corpus::Realm::All.as_str()])
                 .map(|realm| {
                     let mut set = set.clone();
-                    set.realm = Some(realm.clone());
+                    set.realm = Some(realm.to_string());
                     (
                         Way::SavedSearchSet(Box::new(set)),
                         format!("the same search saved over {realm}"),
@@ -1015,13 +1026,17 @@ fn resolved_realm(
                 .collect();
             Err(Pointed {
                 kind: "realm_needed",
-                message,
+                message: format!(
+                    "this saved search names no realm, and {whose} hold {} realms: {}; a saved \
+                     search runs over one realm, or all",
+                    several.len(),
+                    several.join(" | ")
+                ),
                 ways,
                 fields: Map::new(),
             }
             .into())
         }
-        Err(e) => Err(e.into()),
     }
 }
 

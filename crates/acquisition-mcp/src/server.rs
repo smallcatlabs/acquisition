@@ -799,7 +799,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; `account` is read only to resolve the realm a create names none of. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none)."
+        description = "Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; a create naming no realm takes the one the facts hold, the named `account`'s or every known account's. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none)."
     )]
     fn saved_search_set(&self, Parameters(p): Parameters<Args<SavedSearchSetParams>>) -> Told {
         let p = match p.read() {

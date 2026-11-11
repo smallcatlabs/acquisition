@@ -236,6 +236,21 @@ impl Frontend {
         Index::load(&self.dir()).map_err(Fault::Unopened)
     }
 
+    /// Every account the index knows, each as [`Frontend::account`] would
+    /// resolve it by name: for a verb that asks something of the world
+    /// over every account, never of one (a saved search's realm, C167).
+    pub fn every_account(&self) -> Result<Vec<Account>, Fault> {
+        Ok(self
+            .index()?
+            .entries()
+            .iter()
+            .map(|entry| Account {
+                frontend: self.clone(),
+                entry: entry.clone(),
+            })
+            .collect())
+    }
+
     /// C12: every account the index knows, each with its store path; an
     /// empty listing is an answer, never a fault.
     pub fn accounts(&self) -> Result<Accounts, Fault> {

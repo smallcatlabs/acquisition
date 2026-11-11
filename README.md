@@ -219,8 +219,8 @@ remembers it, neither the store nor the environment. Without it, a
 verb that needs an account takes the one account known on disk; where
 there are several, it refuses and names them, a job before any daemon
 is reached (a logout ends the one session logged in). The saved searches are the world's: `acq saved` needs no login,
-and uses an account only to resolve the realm of a new search that
-names none.
+and a new search naming no realm takes the one realm the facts hold,
+the named account's or else every known account's.
 
 ## Before the first command
 

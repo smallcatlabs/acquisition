@@ -1,8 +1,8 @@
 //! `acq saved`: the clap adapter of the verbs' saved search
 //! (`acquisition_verbs::saved`; C167, user-scoped intent in the world's
 //! `user.db`). No daemon; the file is the world's, so no login is needed,
-//! and an account is used only to resolve the realm a new search names
-//! none of (C96). `--json` prints the verbs' document whole (C11); the
+//! and an account named only narrows the realms a new search naming none
+//! settles over (C96, #247). `--json` prints the verbs' document whole (C11); the
 //! text is a function of it (C53): a listing of ten or fewer, more
 //! counted, the ids in the last column, and a receipt as `price set`
 //! prints one, the next action and the undo last.

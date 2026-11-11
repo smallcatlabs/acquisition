@@ -165,14 +165,14 @@ Clear one saved search at the revision named; local, it sends nothing (no daemon
 
 ### `saved_search_set`
 
-Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; `account` is read only to resolve the realm a create names none of. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none).
+Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; a create naming no realm takes the one the facts hold, the named `account`'s or every known account's. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name read that no account known holds is unknown_account (none known: not_logged_in if needed). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.
 - `id` (string | null) — The saved search written, by its id as listed; omitted, a new one under an id minted for it.
 - `if_revision` (integer | null) — The revision of the row at `id` this write replaces, from saved_searches or a refusal: the fields not named keep the row's values. Omitted, or 0, a create: at `id`, the whole search, landing only where none stands.
 - `membership` (string | null) — live (a create's default), all or removed.
 - `name` (string | null) — A label, one to sixty-four characters; two searches may share one.
-- `realm` (string | null) — pc, xbox, sony, poe2 or all. A create naming none takes the account's one realm, and is refused offering each where it holds several.
+- `realm` (string | null) — pc, xbox, sony, poe2 or all. A create naming none takes the one realm the facts hold, the named account's or else every known account's, and is refused offering each where several are held.
 - `text` (string | null) — The query, in the language `describe` prints; stored canonical.
 
 ### `saved_searches`
