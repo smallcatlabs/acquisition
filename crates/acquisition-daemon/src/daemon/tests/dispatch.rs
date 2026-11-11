@@ -288,6 +288,53 @@ fn malformed_listings_fail_the_job_not_just_the_store() {
     });
 }
 
+/// A later profile keeps the account index's uuid fresh: the entry it
+/// was asked as, written before uuids were required and so holding none
+/// (as the file holds such an entry), is backfilled with the uuid the
+/// profile reports, and the session learns it too. Killed mutants
+/// (#242): `Daemon::with_index` replaced with `()`, or `kind ==
+/// "profile"` turned to `!=`, and the entry stays without one.
+#[test]
+fn a_later_profile_backfills_the_index_entrys_uuid() {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = live_sessions(&clock);
+    let store_dir = TestPath::dir();
+    let dir = store_dir.to_path_buf();
+    std::fs::write(
+        acquisition_store::index_path(&dir),
+        r#"{"accounts":[{"username":"Alice#1234","last_login":1,"persisted":false}]}"#,
+    )
+    .unwrap();
+    assert_eq!(Index::load(&dir).unwrap().entries()[0].uuid, None);
+    Door::open(
+        Server::Mock,
+        clock,
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(sessions)
+    .store_dir(dir.clone())
+    .run(|mut door| async move {
+        let id = door.submit("profile", Some("Alice#1234")).await;
+        let (info, outcome) = door.await_terminal(id).await;
+        assert_eq!(info.state, JobState::Done, "{outcome:?}");
+        let Outcome::Success { payload } = outcome else {
+            panic!("the profile succeeded")
+        };
+        let reported = payload["body"]["uuid"]
+            .as_str()
+            .expect("the profile reports a uuid")
+            .to_string();
+        let index = Index::load(&dir).unwrap();
+        let entry = index
+            .entries()
+            .iter()
+            .find(|e| e.username == "Alice#1234")
+            .expect("the entry stays");
+        assert_eq!(entry.uuid.as_deref(), Some(reported.as_str()));
+        door.finish().await;
+    });
+}
+
 /// The route knowledge declared for `/profile` and `/account/leagues`
 /// (first contact 2026-08-30), held against the mock that mirrors GGG
 /// (C32): neither is probed; `/profile`'s headerless 200 is accepted and

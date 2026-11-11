@@ -403,8 +403,8 @@ fn rejected_bearer_under_the_gate(
 /// rejected bearer arrives after a 401 has been answered; the two
 /// held GETs carried it; the refresh reached the wire; a send under
 /// the refreshed bearer followed; the two held jobs failed on their
-/// 401 (one of them saying the token was cleared) and the third job
-/// never met one.
+/// 401 (one of them, and only one, saying the token was cleared) and
+/// the third job never met one.
 fn assert_rejected_bearer_not_dispatched(
     arrivals: &[Arrival],
     sends: &[Value],
@@ -455,9 +455,17 @@ fn assert_rejected_bearer_not_dispatched(
         "the waiting job never met a 401: {}",
         errors[2]
     );
-    assert!(
-        errors.iter().any(|e| e.contains("the next send refreshes")),
-        "the job whose 401 cleared the token says so: {errors:?}"
+    // One 401 cleared the token; the other met it cleared already, and
+    // only the first says so. Killed mutant (#242):
+    // `SessionBearer::cleared_at` answering `Some` for every send, and
+    // both held jobs say their 401 cleared it.
+    assert_eq!(
+        errors
+            .iter()
+            .filter(|e| e.contains("the next send refreshes"))
+            .count(),
+        1,
+        "only the job whose 401 cleared the token says so: {errors:?}"
     );
 }
 
@@ -507,6 +515,252 @@ fn rejected_access_token_is_not_dispatched_by_a_waiting_probe_after_its_401() {
             probe > refresh,
             "the waiting probe went out after the refresh, not before: {sends:?}"
         );
+    });
+}
+
+/// What a scenario holds of [`twice_stale_server`]: the switch into its
+/// held phase, a message per held GET as it arrives, carrying the bearer
+/// it carried, and a release per bearer it holds.
+struct TwiceStale {
+    holding: Arc<AtomicBool>,
+    held: mpsc::UnboundedReceiver<String>,
+    release_old: watch::Sender<bool>,
+    release_new: watch::Sender<bool>,
+}
+
+/// A server for C87's one retry: HEAD always 204, one policy per path.
+/// Until `holding` is set it holds nothing and answers every GET. Once
+/// set, a GET carrying `at-old` or `at-new` is announced on `held` with
+/// its bearer and held until that bearer's release, then answered 401;
+/// a GET carrying any other bearer is answered. The token endpoint
+/// rotates to `at-new` first and `at-newer` after, so a second refresh
+/// hands out a bearer this server takes.
+fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
+    let holding = Arc::new(AtomicBool::new(false));
+    let (held_tx, held) = mpsc::unbounded_channel();
+    let (release_old, old_released) = watch::channel(false);
+    let (release_new, new_released) = watch::channel(false);
+    let refreshes = Arc::new(Mutex::new(0));
+    let _ = recording.send(TwiceStale {
+        holding: holding.clone(),
+        held,
+        release_old,
+        release_new,
+    });
+    Server::own(move |request: mockggg::HttpRequest| {
+        let bearer = bearer_of(&request);
+        let api = api_headers(&format!("scenario{}", request.path.replace('/', "-")));
+        let release = match bearer.as_str() {
+            "at-old" => Some(old_released.clone()),
+            "at-new" => Some(new_released.clone()),
+            _ => None,
+        };
+        let held = request.path != "/token"
+            && request.method != "HEAD"
+            && holding.load(Ordering::SeqCst)
+            && release.is_some();
+        if held {
+            let _ = held_tx.send(bearer.clone());
+        }
+        let fresh = (request.path == "/token").then(|| {
+            let mut n = refreshes.lock().unwrap();
+            *n += 1;
+            if *n == 1 { "at-new" } else { "at-newer" }
+        });
+        let method = request.method.clone();
+        async move {
+            let (status, headers, body) = if let Some(fresh) = fresh {
+                rotated(fresh)
+            } else if method == "HEAD" {
+                ("204 No Content", api, String::new())
+            } else if held {
+                let mut released = release.expect("a held GET has its release");
+                while !*released.borrow_and_update() {
+                    if released.changed().await.is_err() {
+                        return Reply::Failed("the held request's release was dropped".into());
+                    }
+                }
+                (
+                    "401 Unauthorized",
+                    api,
+                    r#"{"error":"expired"}"#.to_string(),
+                )
+            } else {
+                (
+                    "200 OK",
+                    api,
+                    r#"{"characters":[],"stashes":[]}"#.to_string(),
+                )
+            };
+            reply(status, &headers, &body)
+        }
+    })
+}
+
+/// C87's one retry, at the door: a bearer cleared twice under one send.
+/// Two jobs hold `at-old` at the server while three more wait at the
+/// gate with it; the held two land 401 and clear it, the waiters read
+/// the cleared session after admission, refresh once (`at-new`) and wait
+/// again; two of them are sent and held, land 401 and clear `at-new` in
+/// turn, and the last waiter reads the cleared session a second time.
+/// The routes are learned by jobs of their own first, `stashes`'s too
+/// when `learn_stashes`; left unlearned, its wait is a HEAD probe's for
+/// the exclusive permit. Returns the held phase's jobs, in order of id,
+/// and its sends.
+fn bearer_stale_twice(
+    learn_stashes: bool,
+    assert: impl FnOnce(&[(JobInfo, Outcome)], &[Value]) + 'static,
+) {
+    let clock = Arc::new(ParkingClock::new());
+    let sessions = stale_session(&clock);
+    let (recording, recorded) = oneshot::channel();
+    Door::open(
+        twice_stale_server(recording),
+        clock,
+        Arc::new(NoopCredentialStore),
+    )
+    .sessions(sessions)
+    .run(|mut door| async move {
+        let TwiceStale {
+            holding,
+            mut held,
+            release_old,
+            release_new,
+        } = recorded
+            .await
+            .expect("the door built the scenario's server");
+        let holders = [
+            ("characters", json!({})),
+            ("character", json!({"name": "x"})),
+        ];
+        let waiters = [
+            ("profile", json!({})),
+            ("leagues", json!({})),
+            ("stashes", json!({})),
+        ];
+        let learned = if learn_stashes { 3 } else { 2 };
+        for (kind, params) in holders.iter().chain(&waiters[..learned]) {
+            let id = submit_with(&mut door, kind, params.clone()).await;
+            let (job, outcome) = door.await_terminal(id).await;
+            assert_eq!(
+                job.state,
+                JobState::Done,
+                "{kind} learns its route: {outcome:?}"
+            );
+        }
+        let first = door.every_job().await.len();
+        let before = door.journal().len();
+        holding.store(true, Ordering::SeqCst);
+        let mut ids = Vec::new();
+        for (kind, params) in holders {
+            ids.push(submit_with(&mut door, kind, params).await);
+        }
+        // Phase one: the holders' two GETs held under `at-old`, then the
+        // three waiters queued behind them; their release clears it.
+        await_two_held(&mut door, &mut held, "at-old").await;
+        for (kind, params) in &waiters {
+            ids.push(submit_with(&mut door, kind, params.clone()).await);
+        }
+        door.quiet().await;
+        release_old.send(true).unwrap();
+        // Phase two: two waiters sent under the first refresh's `at-new`
+        // and held; their release clears it while the last one waits.
+        await_two_held(&mut door, &mut held, "at-new").await;
+        door.quiet().await;
+        release_new.send(true).unwrap();
+        for id in ids {
+            door.await_terminal(id).await;
+        }
+        let mut jobs = Vec::new();
+        for job in door.every_job().await.into_iter().skip(first) {
+            let outcome = match door.request(Request::Result { id: job.id }).await {
+                Response::Result { outcome, .. } => outcome,
+                other => panic!("job {} answered {other:?}", job.id),
+            };
+            jobs.push((job, outcome));
+        }
+        let sends = door.journal().split_off(before);
+        assert(&jobs, &sends);
+        door.finish().await;
+    });
+}
+
+/// The arrival barrier of [`bearer_stale_twice`]: two GETs held at the
+/// server, each carrying `bearer`.
+async fn await_two_held(door: &mut Door, held: &mut mpsc::UnboundedReceiver<String>, bearer: &str) {
+    for _ in 0..2 {
+        let carried = door
+            .await_behind_own_holds("awaiting two GETs held at the server", held.recv())
+            .await
+            .expect("the server announces each held GET");
+        assert_eq!(carried, bearer, "the held GETs carry {bearer}");
+    }
+}
+
+/// A job's failure words, or none.
+fn error_of(outcome: &Outcome) -> &str {
+    match outcome {
+        Outcome::Failure { error, .. } => error,
+        _ => "",
+    }
+}
+
+/// C87 on the GET: a send whose bearer is cleared twice while it waits
+/// retries once and then gives up, "twice; giving up", with one refresh
+/// on the wire. Killed mutant (#242): `!retried` in `api_get` replaced
+/// with `true`, the send refreshes a second time and lands under the
+/// third bearer.
+#[test]
+fn a_get_whose_bearer_is_cleared_twice_retries_once_and_gives_up() {
+    bearer_stale_twice(true, |jobs, sends| {
+        let gave_up: Vec<&str> = jobs
+            .iter()
+            .map(|(_, outcome)| error_of(outcome))
+            .filter(|error| error.contains("twice; giving up"))
+            .collect();
+        assert_eq!(gave_up.len(), 1, "one send gave up: {jobs:#?}");
+        assert!(gave_up[0].starts_with("GET "), "{}", gave_up[0]);
+        let refreshes = sends
+            .iter()
+            .filter(|l| l["method"] == "POST" && l["route"] == "oauth-token")
+            .count();
+        assert_eq!(refreshes, 1, "one refresh, never a second: {sends:?}");
+        assert!(
+            jobs.iter().all(|(job, _)| job.state == JobState::Failed),
+            "no job got past two cleared bearers: {jobs:#?}"
+        );
+    });
+}
+
+/// C87 on the probe: a HEAD probe whose bearer is cleared while it
+/// waits for the exclusive permit retries once; cleared again, it gives
+/// up and fails, and its route's job is served by the probe queued after
+/// it. Killed mutants (#242): the probe's `!retried` replaced with
+/// `true`, the one probe retries a second time and no probe fails; with
+/// `false`, or its `!` deleted, the probe never retries, fails at the
+/// first clear, and the job it served fails too.
+#[test]
+fn a_probe_whose_bearer_is_cleared_twice_retries_once_and_gives_up() {
+    bearer_stale_twice(false, |jobs, sends| {
+        let probes: Vec<&(JobInfo, Outcome)> =
+            jobs.iter().filter(|(job, _)| job.kind == "probe").collect();
+        assert_eq!(
+            probes.len(),
+            2,
+            "the probe that gave up, and its successor: {jobs:#?}"
+        );
+        assert_eq!(probes[0].0.state, JobState::Failed, "{jobs:#?}");
+        assert!(
+            error_of(&probes[0].1).contains("rejected before it left the gate"),
+            "{:?}",
+            probes[0].1
+        );
+        assert_eq!(probes[1].0.state, JobState::Done, "{jobs:#?}");
+        let (stashes, outcome) = jobs
+            .iter()
+            .find(|(job, _)| job.kind == "stashes")
+            .expect("the stashes job");
+        assert_eq!(stashes.state, JobState::Done, "{outcome:?}\n{sends:?}");
     });
 }
 

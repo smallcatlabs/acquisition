@@ -80,13 +80,4 @@ exclude_re = [
     # the comparison decides only whether a log line says so, and the log
     # is diagnostic, read by no frontend.
     'kinds\.rs:148:20: replace != with == in <impl Bearer for SessionBearer<._>>::token$',
-    # The session code beside the no-retry rule (#218 widened the run to
-    # kinds.rs for invariant 3, whose own code is caught): a later
-    # profile's uuid refresh, C87's one retry after a stale bearer, and
-    # a rejection's landing. Each wants a door scenario of its own: #242.
-    'kinds\.rs:211:9: replace Daemon::with_index with \(\)$',
-    'kinds\.rs:516:25: replace == with != in Daemon::execute_inner$',
-    'kinds\.rs:825:57: (delete ! in|replace match guard !retried with (true|false) in) Daemon::execute_inner$',
-    'kinds\.rs:968:48: replace match guard !retried with true in Daemon::api_get$',
-    'kinds\.rs:139:9: replace SessionBearer<.a>::cleared_at -> Option<AuthGenerations> with Some\(Default::default\(\)\)$',
 ]
