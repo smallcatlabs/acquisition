@@ -340,7 +340,29 @@ impl Daemon {
             .as_deref()
             .and_then(|path| self.read_fault_marker(path))
             .flatten();
-        let entries: Vec<Entry> = rows.into_iter().filter_map(Entry::from_row).collect();
+        // C47, #209: a row whose state word this daemon does not know is
+        // left on disk and said, each and then their count, never dropped
+        // in silence; a request for it is refused as unreadable.
+        let mut entries: Vec<Entry> = Vec::with_capacity(rows.len());
+        let mut unread = 0;
+        for row in rows {
+            let (id, word) = (row.id, row.state.clone());
+            match Entry::from_row(row) {
+                Some(entry) => entries.push(entry),
+                None => {
+                    unread += 1;
+                    self.log(&format!(
+                        "JOBS: job {id} not restored: its stored state {word:?} is not one this daemon knows; its row is left on disk"
+                    ));
+                }
+            }
+        }
+        if unread > 0 {
+            let rows = if unread == 1 { "row" } else { "rows" };
+            self.log(&format!(
+                "JOBS: {unread} {rows} not restored: the stored state is not one this daemon knows"
+            ));
+        }
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
         // C134: a marker naming a probe closes the probe's route. The jobs
         // open on it now fail below, whenever they would have dispatched
@@ -543,16 +565,20 @@ resubmit if still wanted",
 
     /// [`Self::stored_outcome`] with the job's times beside it (C165), as
     /// the row records them.
+    /// A row this daemon cannot read is refused, never "no job" (C47,
+    /// #209): a state word it does not know.
     pub(super) fn stored_result(&self, id: JobId) -> Result<Option<(Outcome, JobTimes)>, Refusal> {
-        match self.jobs_db.lock().unwrap().get(id) {
-            Ok(row) => Ok(row
-                .and_then(Entry::from_row)
-                .and_then(|e| Some((e.outcome?, e.info.times)))),
-            Err(e) => Err(Refusal::new(
-                ErrorKind::QueueFailed,
-                format!("could not read the persisted queue: {e:#}"),
-            )),
-        }
+        let row = match self.jobs_db.lock().unwrap().get(id) {
+            Ok(Some(row)) => row,
+            Ok(None) => return Ok(None),
+            Err(e) => {
+                return Err(Refusal::new(
+                    ErrorKind::QueueFailed,
+                    format!("could not read the persisted queue: {e:#}"),
+                ));
+            }
+        };
+        Ok(Entry::from_row_read(row)?.and_then(|e| Some((e.outcome?, e.info.times))))
     }
 
     /// C6: a job this daemon does not hold in memory, as the table
@@ -562,7 +588,11 @@ resubmit if still wanted",
     pub(super) fn stored_job(&self, id: JobId) -> Result<Option<JobInfo>, Refusal> {
         let read = self.jobs_db.lock().unwrap().listed(id);
         match read {
-            Ok(row) => Ok(row.and_then(listed_info)),
+            Ok(None) => Ok(None),
+            Ok(Some(row)) => match job_state(&row.state) {
+                Some(_) => Ok(listed_info(row)),
+                None => Err(Refusal::unknown_state(id, &row.state)),
+            },
             Err(e) => Err(Refusal::new(
                 ErrorKind::QueueFailed,
                 format!("could not read the persisted queue: {e:#}"),

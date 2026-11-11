@@ -2596,6 +2596,63 @@ fn c6_the_queue_file_failing_through_the_door() {
     }
 }
 
+/// C47, #209: a row whose state word this daemon does not know is not
+/// "no job". `Status` and `result` for it are refused under
+/// `queue_failed`, saying its stored state is not one this daemon knows,
+/// and a restore that loads such a row (a child of an open parent; the
+/// restore loads the open rows and their children) logs it, by id and
+/// word, and their count, leaving the row on disk.
+#[test]
+fn c47_a_row_in_a_state_this_daemon_does_not_know_is_refused_never_no_job() {
+    let dir = TestPath::dir();
+    {
+        let other = JobDb::open(&daemon_db_path(&dir)).unwrap();
+        other.upsert(&disk_row(7, "sleep", "paused", None)).unwrap();
+        let mut parent = disk_row(11, "apply", "running", None);
+        parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
+        other.upsert(&parent).unwrap();
+        other
+            .upsert(&disk_row(12, "sleep", "paused", Some(11)))
+            .unwrap();
+    }
+    queue_door(&dir)
+        .restore_jobs(Retention::default())
+        .run(|mut door| async move {
+            for id in [7, 12] {
+                for (request, what) in [
+                    (Request::Status { id }, "status"),
+                    (Request::Result { id }, "result"),
+                ] {
+                    let (kind, message) = refusal_of(door.request(request).await, what);
+                    assert_eq!(kind, ErrorKind::QueueFailed, "{what} {id}: {message}");
+                    assert_eq!(
+                        message,
+                        format!(
+                            "job {id} is on disk, but its stored state \"paused\" is not one this \
+                             daemon knows, so it cannot be read here"
+                        ),
+                        "{what} {id}"
+                    );
+                }
+            }
+            let log = door.log_text();
+            assert!(
+                log.contains(
+                    "job 12 not restored: its stored state \"paused\" is not one this daemon \
+                     knows; its row is left on disk"
+                ),
+                "{log}"
+            );
+            assert!(
+                log.contains("1 row not restored: the stored state is not one this daemon knows"),
+                "{log}"
+            );
+            door.finish().await;
+        });
+    let row = on_disk(&dir, 12).expect("the row is left on disk");
+    assert_eq!(row.job.state, "paused");
+}
+
 /// C6: a cancel and a reprioritisation whose queue write fails say so,
 /// `QueueFailed`, instead of claiming success: the priority is unchanged
 /// and the cancellation holds for this lifetime only, as `Status` reads

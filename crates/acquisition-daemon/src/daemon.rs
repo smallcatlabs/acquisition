@@ -380,6 +380,15 @@ impl Entry {
         }
     }
 
+    /// [`Entry::from_row`], a state word this daemon does not know
+    /// refused rather than read as no row.
+    fn from_row_read(row: JobRow) -> Result<Option<Entry>, Refusal> {
+        match job_state(&row.state) {
+            Some(_) => Ok(Entry::from_row(row)),
+            None => Err(Refusal::unknown_state(row.id, &row.state)),
+        }
+    }
+
     /// A restored row. What a restart does with `running` (re-queue) or
     /// `probe` (drop) is decided by the caller; this is the plain mapping.
     fn from_row(row: JobRow) -> Option<Entry> {
@@ -536,6 +545,18 @@ impl Refusal {
 
     fn no_job(id: JobId) -> Self {
         Refusal::new(ErrorKind::UnknownJob, format!("no job {id}"))
+    }
+
+    /// C47, #209: a row the table holds whose state word this daemon does
+    /// not know. The job exists, so never `unknown_job`; the queue's read
+    /// of it failed, so `queue_failed`, as an unreadable table is.
+    fn unknown_state(id: JobId, word: &str) -> Self {
+        Refusal::new(
+            ErrorKind::QueueFailed,
+            format!(
+                "job {id} is on disk, but its stored state {word:?} is not one this daemon knows, so it cannot be read here"
+            ),
+        )
     }
 
     fn queue_failed(cause: &str) -> Self {
