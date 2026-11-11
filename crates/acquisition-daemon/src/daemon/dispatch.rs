@@ -469,7 +469,7 @@ impl Daemon {
     /// and the outcome are set; activity is stamped (C3 as amended, #208:
     /// under the lock the idle verdict reads it under, by the signature,
     /// so no verdict sees the job ended with the hour spent); the row is
-    /// written (C6); the concluded tree
+    /// written, and whether it landed is returned (C6); the concluded tree
     /// leaves memory (`evict_tree`). What must happen after the lock, the
     /// event and the parent's tally (C23), is returned for the caller
     /// ([`Self::after_end`]). `None` for a job memory does not hold.
@@ -487,10 +487,10 @@ impl Daemon {
             Outcome::Cancelled => JobState::Cancelled,
         };
         entry.outcome = Some(outcome);
-        self.persist(entry);
+        let landed = self.persist(entry);
         let info = entry.info.clone();
         self.evict_tree(s, id);
-        Some(Ended { info })
+        Some(Ended { info, landed })
     }
 
     /// What follows an [`Self::end`] once `shared` is released: the job's

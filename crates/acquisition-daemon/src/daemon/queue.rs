@@ -1177,33 +1177,33 @@ resubmit if still wanted",
                     format!("job {id} already {state}"),
                 ));
             }
-            // C3 as amended (#208): the jobs this cancel ends are
-            // activity, stamped under the lock that ends them (`finish`).
-            self.mark_activity(self.choke.now());
+            // Each job this cancel ends, ends through the one ending
+            // (#261), which stamps it as activity (C3 as amended, #208),
+            // writes it and evicts the tree once all of it is terminal; so
+            // a job of the tree collected here may have left with its
+            // tree's last, and is passed over.
             for t in s.tree(id) {
-                let entry = s.jobs.get_mut(&t).unwrap();
+                let Some(entry) = s.jobs.get_mut(&t) else {
+                    continue;
+                };
                 match entry.info.state {
-                    JobState::Waiting => {
-                        entry.info.state = JobState::Cancelled;
-                        entry.outcome = Some(Outcome::Cancelled);
-                    }
+                    JobState::Waiting => {}
                     // A parent waiting on children isn't on any worker;
                     // cancel it outright.
-                    JobState::Running if entry.deferred.is_some() => {
-                        entry.deferred = None;
-                        entry.info.state = JobState::Cancelled;
-                        entry.outcome = Some(Outcome::Cancelled);
+                    JobState::Running if entry.deferred.is_some() => entry.deferred = None,
+                    JobState::Running => {
+                        entry.cancel_requested = true;
+                        persist_failed |= !self.persist(entry);
+                        continue;
                     }
-                    JobState::Running => entry.cancel_requested = true,
                     _ => continue,
                 }
-                persist_failed |= !self.persist(entry);
-                // emitted once stamped, its finish with it (C165)
-                if entry.info.state == JobState::Cancelled {
-                    emits.push(entry.info.clone());
+                if let Some(ended) = self.end(&mut s, t, Outcome::Cancelled) {
+                    persist_failed |= !ended.landed;
+                    // emitted once stamped, its finish with it (C165)
+                    emits.push(ended.info);
                 }
             }
-            self.evict_tree(&mut s, id);
         }
         // A cancelled child may have been the last thing its parent was
         // holding for; without this the parent would wait forever.
