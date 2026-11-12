@@ -712,6 +712,15 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         json!({ "requestId": paused["params"]["requestId"], "errorReason": "ConnectionReset" }),
     );
     page.cdp.call("Fetch.disable", json!({}));
+    // the failure seen before the scroll that retries it: the failed
+    // block's element gone, its place empty (the review at 57713465: a
+    // scroll read while the block still waited would ask nothing, and the
+    // failure, coming after it, would queue no fill of its own)
+    let failed_top = format!("{}px", block as f64 * start["h"].as_f64().unwrap());
+    page.cdp.until(&format!(
+        "!Array.from(document.querySelectorAll('.window .seg .block')).some((b) => b.style.top === {})",
+        json!(failed_top)
+    ));
     let asks = |page: &Page| {
         windows(page)
             .iter()
