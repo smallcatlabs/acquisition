@@ -10,9 +10,9 @@ unasked. The page inherits the order with no code. Closes #38.
 ## Inputs
 - `4-full-1-step6-design.md` §2 (this step), §5 item 1, §7 (ruled
   2026-11-11, "Approved as designed.", the default order included).
-- Issues #38 (the ask, the re-sit's evidence) and #244 (the ruling).
-- C92 (one occurrence; a sort takes the largest), C100 (one answer
-  shape; a continuation names its order), C98 (a basis names the build),
+- Issues #38 (the ask) and #244 (the ruling).
+- C92 (a sort takes the largest occurrence), C100 (a continuation
+  names its order), C98 (a basis names the build),
   C101 (a missing reach is a field to add), C46 (semantics in Rust).
 - `answer.rs`: `Rows`, `Shape::of`, `BoundView::Rows`, `RowsOut`,
   `Row`, `Sorted`, the order and the continuation in `answer`.
@@ -85,10 +85,11 @@ unasked. The page inherits the order with no code. Closes #38.
 8. **Other views.** `values` beside a count, a crossed table or
    explain is refused as `sort` is (`Shape::of`); a default fills a
    rows view only. `fields: [item]` is orthogonal. A continuation
-   carries the resolved list and the resolved sort explicitly (C100),
-   so its answer says them as asked, not from the query; accepted
-   over re-deriving them. A pre-build token is refused by its basis's
-   build (C98).
+   carries only what its request named (values, a sort, `none`); what
+   the query filled it fills again, a pure function of the canonical
+   query and the build, which the basis names (C98). C100's "names
+   the order it continues" is met by the query it carries; every page
+   says "from the query" (amended at the build).
 9. **What changes.** Every rows answer whose query compares a value
    gains `values`; one that compares one value with a direction
    reorders; every row loses `sort` to `values`. The page's answers
@@ -105,7 +106,7 @@ unasked. The page inherits the order with no code. Closes #38.
 - `git grep -n "fn selector\|fn sorted_by\|const SHOWN" -- crates/acquisition-search/src`:
   the makers reused.
 - `git grep -n "bytes" -- crates/acquisition-mcp/tests/surface_size.rs`:
-  the size bounds values grow toward.
+  size bounds.
 - `git grep -n "Op::Eq\|is_numeric\|fn known_field" -- crates/acquisition-search/src/bind.rs`:
   which fields bind as numbers, and that none is `none`.
 
