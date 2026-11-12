@@ -24,7 +24,11 @@
 //!   refuses in the search's words), `league` and
 //!   `defences` beside the query (C141, the league beside the trade JSON;
 //!   C142, the defences' reading beside it), and `view.limit`,
-//!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
+//!   `view.sort`, `view.desc` and `view.value` to the rows view — the
+//!   last one value each, in order, given again for the next as the CLI's
+//!   `--value` is, since a value's text may hold a comma; no control of
+//!   the form writes the three, which the URL names and a page's links and
+//!   the query box carry (4-full part 1, step 6.4c) — or `view.count`, a key,
 //!   to the counts view in its place (the review of 4b, its sixth
 //!   finding), whose tables the answer page prints as the CLI does; and
 //!   `view.fields`, the row's fields as the CLI's `--fields` names them
@@ -209,8 +213,13 @@ pub(crate) fn filter_path(group: &str, filter: &str) -> String {
     }
 }
 
+/// The view's names no control of a form writes: the URL names them, and a
+/// page's links and the query box carry them (4-full part 1, step 6.4c;
+/// nothing is typed to sort).
+pub(crate) const UNTYPED: [&str; 3] = ["view.sort", "view.desc", "view.value"];
+
 /// Every name the form emits: the scope and the view's, each filter's
-/// by its kind, and the stat rows'.
+/// by its kind, and the stat rows'; and the view's [`UNTYPED`] names.
 fn emitted(groups: &[Group]) -> BTreeSet<String> {
     let mut names: BTreeSet<String> = [
         "realm",
@@ -218,8 +227,6 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "league",
         "query.term",
         "view.limit",
-        "view.sort",
-        "view.desc",
         "view.count",
         "view.fields",
         "text",
@@ -227,6 +234,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "defences",
     ]
     .iter()
+    .chain(UNTYPED.iter())
     .map(|n| n.to_string())
     .collect();
     for group in groups.iter().filter(|g| g.id != "status_filters") {
@@ -271,6 +279,10 @@ pub(crate) struct Folded {
     pub envelope: Value,
     pub limit: Option<usize>,
     pub sort: Option<String>,
+    /// The values each row carries, one `view.value` each, in the order
+    /// sent: the CLI's `--value`, given again for the next (a value's text
+    /// may hold a comma, so no list).
+    pub values: Vec<String>,
     pub desc: bool,
     /// A count by these keys in place of the rows: the counts view, the
     /// keys read as the CLI's `--count` reads its list (`count_keys`).
@@ -321,7 +333,7 @@ impl Folded {
             Rows {
                 limit: self.limit,
                 sort: self.sort.clone(),
-                values: Vec::new(),
+                values: self.values.clone(),
                 desc: self.desc,
                 after: None,
                 // the fields sent, which a count refuses; else none for a
@@ -383,6 +395,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         envelope: Value::Null,
         limit: None,
         sort: None,
+        values: Vec::new(),
         desc: false,
         count: None,
         fields: None,
@@ -424,6 +437,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 )
             }
             "view.sort" => folded.sort = Some(value.to_string()),
+            "view.value" => folded.values.push(value.to_string()),
             "defences" => defences = Some(value.to_string()),
             "view.desc" => folded.desc = true,
             "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),
@@ -656,6 +670,32 @@ mod tests {
         );
     }
 
+    /// Step 6.4c: `view.value` is one value each, in the order sent, into
+    /// the rows view's `values`, as the CLI's `--value` given again; an
+    /// empty one is dropped as every empty field is.
+    #[test]
+    fn the_fold_reads_each_value_in_its_order() {
+        let form = Form::load().unwrap();
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("text", "class:rings"),
+                ("view.value", "sum(line(\"# to #\").avg)"),
+                ("view.value", ""),
+                ("view.value", "ilvl"),
+                ("view.sort", "ilvl"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(folded.values, ["sum(line(\"# to #\").avg)", "ilvl"]);
+        let request = folded.request().unwrap();
+        assert_eq!(
+            request["view"]["rows"]["values"],
+            json!(["sum(line(\"# to #\").avg)", "ilvl"]),
+            "{request}"
+        );
+    }
+
     #[test]
     fn a_stat_group_with_no_filter_is_dropped_and_a_bad_name_refused() {
         let form = Form::load().unwrap();
@@ -792,7 +832,9 @@ mod tests {
     }
 
     /// The names the fold accepts are exactly the names the rendered form
-    /// carries: the two are written apart, and this holds them together.
+    /// carries and the view's untyped names, which no control of it writes
+    /// (step 6.4c: nothing is typed to sort): the two are written apart,
+    /// and this holds them together.
     #[test]
     fn the_fold_accepts_exactly_the_names_the_rendered_form_carries() {
         let form = Form::load().unwrap();
@@ -801,6 +843,13 @@ mod tests {
         let mut rendered = BTreeSet::new();
         for part in page.split("name=\"").skip(1) {
             rendered.insert(part[..part.find('"').unwrap()].to_string());
+        }
+        for untyped in UNTYPED {
+            assert!(
+                !rendered.contains(untyped),
+                "{untyped} is a control of the form"
+            );
+            rendered.insert(untyped.to_string());
         }
         assert_eq!(rendered, form.names);
     }

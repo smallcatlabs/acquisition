@@ -664,7 +664,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
-    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ");
+    out.push_str("</select></label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ");
     out.push_str(COUNT);
     out.push_str("</div>\n</div>\n</form>\n");
     out.push_str(&query_box(realm, None, "", None, None));
@@ -688,10 +688,14 @@ const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched
 /// trade input, as the request's own rule has it. On an answer it carries
 /// the answer's membership, and the saved search the page was opened from
 /// with the revision its URL names, so the loop survives an edit. Its
-/// rows' order and number are the big form's three controls, "Show",
-/// "Sort by" and "highest first" (the page seat's fault 6), set on an
-/// answer to the rows view it showed; "Show" offers the search's own
-/// default first, sent empty, so a box left as it is asks no limit. Its
+/// rows' number is the big form's "Show" (the page seat's fault 6), set
+/// on an answer to the rows view it showed; "Show" offers the search's
+/// own default first, sent empty, so a box left as it is asks no limit.
+/// Nothing is typed to sort (4-full part 1, step 6.4c): on an answer it
+/// carries, hidden as it carries the realm, the sort, its direction and
+/// the values the URL named, so an edited query keeps the order and the
+/// columns its reader chose by a head or a card; what the query gave
+/// unasked is never carried (#38), so the edited query gives its own. Its
 /// "Results as" is the big form's (the page seat of 2026-11-08, its T2):
 /// cards, sent empty, or the table, set on an answer to the way it
 /// showed, so an edited query keeps it.
@@ -733,10 +737,22 @@ pub(crate) fn query_box(
             )
         })
         .collect();
-    // the box holds the sort asked, never the order the query gave
-    // unasked (#38), so sending the form again asks what was asked
-    let asked = rows.filter(|r| !r.sort_from_query);
-    let sort = asked.and_then(|r| r.sort.as_deref()).unwrap_or_default();
+    // the sort named, never the order the query gave unasked (#38), and
+    // the values named, never the query's: what the URL named, so sending
+    // the box again asks what was asked of the edited query
+    if let Some(rows) = rows {
+        if let Some(sort) = rows.sort.as_deref().filter(|_| !rows.sort_from_query) {
+            carried.push_str(&hidden("view.sort", sort));
+            if rows.desc {
+                carried.push_str(&hidden("view.desc", "true"));
+            }
+        }
+        if !rows.values_from_query {
+            for value in &rows.values {
+                carried.push_str(&hidden("view.value", value));
+            }
+        }
+    }
     // the presentation, as the big form's "Results as": cards, the default
     // sent empty, or the table, selected where the answer was one
     let tabled = rows.is_some_and(|r| r.fields == [RowField::Icon]);
@@ -745,15 +761,9 @@ pub(crate) fn query_box(
         if tabled { "" } else { " selected" },
         if tabled { " selected" } else { "" }
     );
-    let desc = if asked.is_some_and(|r| r.desc) {
-        " checked"
-    } else {
-        ""
-    };
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count>{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form>\n",
-        esc(text),
-        esc(sort)
+        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count>{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form>\n",
+        esc(text)
     )
 }
 
@@ -900,13 +910,15 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// ([`rows_table`]), every row in one page, its first block the
 /// `window` the handler made over the page's corpus; and
 /// `rows_links`, which the handler makes, are the plain links to the same
-/// answer the other way and, on a continuation's page, to its first rows.
+/// answer the other way and, on a continuation's page, to its first rows;
+/// `view` makes the link a value's head is ([`ViewLink`]).
 pub(crate) fn answer(
     a: &Answer,
     opened: Option<&Opened>,
     links: &SavedLinks,
     spell: Spell,
     rows_links: &RowsLinks,
+    view: ViewLinks,
     window: Option<&Window>,
 ) -> String {
     let now = acquisition_store::now();
@@ -945,7 +957,7 @@ pub(crate) fn answer(
             // The table holds every row and says so in its own line.
             if !rows.fields.contains(&RowField::Item) {
                 if let Some(window) = window {
-                    out.push_str(&rows_table(a, rows, window, now));
+                    out.push_str(&rows_table(a, rows, window, view, now));
                 }
             } else {
                 out.push_str(&cards(a, now));
@@ -1157,6 +1169,38 @@ pub(crate) struct Presentation {
     pub words: &'static str,
 }
 
+/// A change to the view, made by the handler's one maker (`mod.rs`,
+/// `view_link`; 4-full part 1, step 6.4c): the same page ordered by one
+/// value, largest first or, where the rows are ordered by it, the other
+/// way, the value added to the list where the view lacks it. `ordered`
+/// says the rows are ordered by it, and which way (`true` largest first). A page writes a head or a number
+/// as this link and composes no request.
+pub(crate) struct ViewLink {
+    pub href: String,
+    pub ordered: Option<bool>,
+}
+
+/// The maker of a change to the view, by one value's text: none where no
+/// link stands (a value outside a full list, a search the form cannot ask).
+pub(crate) type ViewLinks<'a> = &'a dyn Fn(&str) -> Option<ViewLink>;
+
+/// `text`, already HTML, marked where the rows are ordered by its value
+/// (`Some(true)` largest first): an arrow before it the eye reads, hidden
+/// from a screen reader, and words after it that only a screen reader
+/// gets.
+fn ordered(text: &str, order: Option<bool>) -> String {
+    let Some(desc) = order else {
+        return text.to_string();
+    };
+    let (arrow, words) = match desc {
+        true => ("\u{25bc}", "ordered largest first"),
+        false => ("\u{25b2}", "ordered smallest first"),
+    };
+    format!(
+        "<span class=\"mark\" aria-hidden=\"true\">{arrow}</span>{text}<span class=\"sr\">, {words}</span>"
+    )
+}
+
 /// The plain links beside a rows answer's rows, which the handler makes
 /// (the page builds no request): the same answer the other way, and on a
 /// continuation's page the same search from its first rows.
@@ -1321,19 +1365,29 @@ pub(crate) struct Window {
 
 /// The table (4-full part 1, step 6.4b): every row of the answer in one
 /// scrolling page, at one row height. Its heads are the item, its base,
-/// its price, its location and when that was fetched, then each value
-/// the answer carries by its own text; its rows are one segment of the
+/// its price, its location and when that was fetched, as text, then each
+/// value the answer carries by its own text, a link that orders the rows
+/// by it and flips where they are (step 6.4c, [`ViewLink`]), the ordered
+/// one marked ([`ordered`]); its rows are one segment of the
 /// answer's whole count, of which the server renders the first block and
 /// the window script asks the rest by the segment's route. Its line says
 /// how many items it holds, in what order and which values it left out;
 /// a page without its script says that it shows the first rows alone.
-fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, now: i64) -> String {
-    let heads: String = ["Item", "Base", "Price", "Location", "Fetched"]
+fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, view: ViewLinks, now: i64) -> String {
+    // the five fixed heads are text, none a value the sort takes; each
+    // value's head is the link that orders by it, the ordered one marked
+    let fixed = ["Item", "Base", "Price", "Location", "Fetched"]
         .iter()
-        .map(|h| h.to_string())
-        .chain(rows.values.iter().cloned())
-        .map(|h| format!("<span>{}</span>", esc(&h)))
-        .collect();
+        .map(|h| format!("<span>{}</span>", esc(h)));
+    let valued = rows.values.iter().map(|value| match view(value) {
+        Some(link) => format!(
+            "<a class=\"head\" href=\"{}\">{}</a>",
+            esc(&link.href),
+            ordered(&esc(value), link.ordered)
+        ),
+        None => format!("<span>{}</span>", esc(value)),
+    });
+    let heads: String = fixed.chain(valued).collect();
     let matched = a.total.matched;
     let first = window.first.rows.len();
     // the order, said once for every row: a sort named is said here, as

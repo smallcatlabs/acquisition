@@ -640,21 +640,19 @@ fn a_save_from_a_trade_answer_stores_its_translated_text() {
 }
 
 /// The query box sorts and pages as the big form does (the page seat's
-/// fault 6): its three controls are on the form page, a typed query with
-/// a sort answers as `acq search --sort --desc` does, and the answer's
-/// box comes back set to the rows view it showed.
+/// fault 6): its "Show" is on the form page, a typed query with a sort
+/// answers as `acq search --sort --desc` does, and the answer's box comes
+/// back set to the rows view it showed, the sort and its direction carried
+/// hidden (step 6.4c: nothing is typed to sort).
 #[test]
 fn the_query_box_sorts_and_pages_a_typed_query() {
     let (scratch, web) = offline_web("webquerysort");
     let form = web.get("");
     let boxed = &form.body[form.body.find("class=\"query-box\"").unwrap()..];
-    for control in [
-        "<select name=\"view.limit\"><option value=\"\" selected>10</option>",
-        "name=\"view.sort\" value=\"\"",
-        "name=\"view.desc\" value=\"true\">",
-    ] {
-        assert!(boxed.contains(control), "{control}: {boxed}");
-    }
+    assert!(
+        boxed.contains("<select name=\"view.limit\"><option value=\"\" selected>10</option>"),
+        "{boxed}"
+    );
     let fields = [
         ("realm", "pc"),
         ("membership", "live"),
@@ -691,8 +689,8 @@ fn the_query_box_sorts_and_pages_a_typed_query() {
     let boxed = &answer.body[answer.body.find("class=\"query-box\"").unwrap()..];
     for control in [
         "<option value=\"20\" selected>20</option>",
-        "name=\"view.sort\" value=\"ilvl\"",
-        "name=\"view.desc\" value=\"true\" checked>",
+        "<input type=\"hidden\" name=\"view.sort\" value=\"ilvl\">",
+        "<input type=\"hidden\" name=\"view.desc\" value=\"true\">",
     ] {
         assert!(boxed.contains(control), "{control}: {boxed}");
     }
@@ -702,6 +700,177 @@ fn the_query_box_sorts_and_pages_a_typed_query() {
 /// form with each control's fate and the listing-only filters' sentence,
 /// the answer with its clause statuses, its total and its rows with their
 /// art, one item, and a refusal in the search's own words.
+/// A link a page prints, absolute or relative to the token, followed as
+/// a browser follows it; with `json`, its document.
+fn go(web: &WebUi, href: &str, json: bool) -> Value {
+    let href = unescaped(href);
+    let path = match href.strip_prefix(&format!("/{}/", web.token)) {
+        Some(rest) => rest.to_string(),
+        None => href,
+    };
+    match json {
+        true => web.get_json(&path),
+        false => json!(web.get(&path).body),
+    }
+}
+
+/// Each value head of a table page: its text, and its link.
+fn heads(body: &str) -> Vec<(String, String)> {
+    body.split("<a class=\"head\" href=\"")
+        .skip(1)
+        .map(|rest| {
+            let href = rest[..rest.find('"').unwrap()].to_string();
+            let inner = &rest[rest.find('>').unwrap() + 1..rest.find("</a>").unwrap()];
+            // the head's own text, the mark and its words taken out
+            let text = inner
+                .split("<span")
+                .map(|part| part.rsplit_once("</span>").map_or(part, |(_, t)| t))
+                .collect::<String>();
+            (unescaped(&text), href)
+        })
+        .collect()
+}
+
+/// The ids of an answer's rows, in its order.
+fn ids(answer: &Value) -> Vec<&str> {
+    answer["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect()
+}
+
+/// The fields the query box on a page sends: its hidden ones, in order.
+fn box_fields(body: &str) -> Vec<(String, String)> {
+    let at = body.find("class=\"query-box\"").unwrap();
+    let form = &body[at..at + body[at..].find("</form>").unwrap()];
+    form.split("<input ")
+        .skip(1)
+        .filter_map(|input| {
+            let tag = format!(" {}", &input[..input.find('>')?]);
+            Some((attribute(&tag, "name")?, attribute(&tag, "value")?))
+        })
+        .collect()
+}
+
+/// 4-full part 1, step 6.4c (Decisions 1 to 4): the values the URL names
+/// fold into the rows view and are written back as fields that fold to
+/// the same request; a value's head is a link that orders the rows by it,
+/// largest first, and followed again the other way, the list unchanged,
+/// the ordered head marked in a mark and in words; the query box carries
+/// the sort, its direction and the values named, hidden, so an edited
+/// query keeps them; and no page holds a control to type a sort.
+#[test]
+fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
+    let (_scratch, web) = offline_web("webheads");
+    let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
+    let named = [
+        ("realm", "pc"),
+        ("text", "line(\"# to maximum Life\")"),
+        ("view.fields", "icon"),
+        ("view.value", "ilvl"),
+        ("view.value", life),
+    ];
+    let first = web.get_json(&format!("search?{}", query_string(&named)));
+    assert_eq!(first["view"]["rows"]["values"], json!(["ilvl", life]));
+    let page = web.get(&format!("search?{}", query_string(&named))).body;
+    let found = heads(&page);
+    assert_eq!(
+        found.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(),
+        ["ilvl", life],
+        "{page}"
+    );
+    assert!(
+        !page.contains("class=\"mark\""),
+        "no order, no mark: {page}"
+    );
+    // the head's link: ordered by it, largest first, the list as named
+    let largest = go(&web, &found[1].1, true);
+    assert_eq!(largest["view"]["rows"]["sort"], life);
+    assert_eq!(largest["view"]["rows"]["desc"], true);
+    assert_eq!(largest["view"]["rows"]["values"], json!(["ilvl", life]));
+    assert_eq!(ids(&largest), ["kaom", "r1", "r2", "new"]);
+    let page = go(&web, &found[1].1, false);
+    let page = page.as_str().unwrap();
+    assert!(
+        page.contains(&format!(
+            "<span class=\"mark\" aria-hidden=\"true\">▼</span>{}<span class=\"sr\">, ordered largest first</span>",
+            life.replace('"', "&quot;")
+        )),
+        "{page}"
+    );
+    // the same head again: the other way, the list unchanged
+    let again = heads(page);
+    let smallest = go(&web, &again[1].1, true);
+    assert_eq!(smallest["view"]["rows"]["sort"], life);
+    assert!(
+        smallest["view"]["rows"]["desc"].is_null(),
+        "{}",
+        smallest["view"]
+    );
+    assert_eq!(smallest["view"]["rows"]["values"], json!(["ilvl", life]));
+    assert_eq!(ids(&smallest), ["new", "r2", "r1", "kaom"]);
+    // the box carries what the URL named, hidden; an edited query run
+    // from it keeps the sort and the values
+    let carried = box_fields(page);
+    for field in [
+        ("view.sort", life),
+        ("view.desc", "true"),
+        ("view.value", "ilvl"),
+        ("view.value", life),
+    ] {
+        assert!(
+            carried.contains(&(field.0.to_string(), field.1.to_string())),
+            "{field:?}: {carried:?}"
+        );
+    }
+    let mut edited: Vec<(&str, &str)> = carried
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    edited.push(("text", "line(\"# to maximum Life\") ilvl>=1"));
+    let kept = web.get_json(&format!("search?{}", query_string(&edited)));
+    assert_eq!(kept["query"]["text"], "line(\"# to maximum Life\") ilvl>=1");
+    assert_eq!(kept["view"]["rows"]["sort"], life);
+    assert_eq!(kept["view"]["rows"]["desc"], true);
+    assert_eq!(kept["view"]["rows"]["values"], json!(["ilvl", life]));
+    // what the query gave is never carried: the query's own order and
+    // values, named nowhere, leave the box empty of them
+    let ring = web
+        .get(&format!("search?{}", query_string(&ring_search())))
+        .body;
+    let carried = box_fields(&ring);
+    assert!(
+        carried.iter().all(|(k, _)| !k.starts_with("view.")),
+        "{carried:?}"
+    );
+    // named values written back by the form's own fields: a continuation's
+    // first rows link folds to the request the URL named
+    let mut paged = named.to_vec();
+    paged.retain(|(k, _)| *k != "view.fields");
+    paged.push(("view.limit", "1"));
+    let cards = web.get_json(&format!("search?{}", query_string(&paged)));
+    let token = serde_json::from_value::<acquisition_search::answer::Request>(
+        cards["view"]["rows"]["next"]["request"].clone(),
+    )
+    .unwrap()
+    .token();
+    let next = web.get(&format!("search?next={token}")).body;
+    let first_rows = link_saying(&next, "first rows");
+    assert_eq!(go(&web, &first_rows, true)["view"], cards["view"]);
+    // no page holds a control that types a sort: the form, an answer
+    for body in [web.get("").body, page.to_string()] {
+        for name in ["view.sort", "view.desc"] {
+            let typed = body.split("<input ").skip(1).any(|tag| {
+                tag.contains(&format!("name=\"{name}\"")) && !tag.starts_with("type=\"hidden\"")
+            });
+            assert!(!typed, "a control types {name}");
+        }
+        assert!(!body.contains("Sort by") && !body.contains("highest first"));
+    }
+}
+
 #[test]
 fn every_search_page_is_a_wording_golden() {
     let (scratch, web) = offline_web("webpages");
@@ -787,7 +956,9 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "<p class=\"rows-shown\">2 matching items in the table, by sum(",
             "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
-            "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><span>sum(line(",
+            "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;",
+            "<span class=\"mark\" aria-hidden=\"true\">▼</span>sum(line(",
+            "<span class=\"sr\">, ordered largest first</span></a>",
             "/rows?next=acq1.",
             "data-count=\"2\"",
             "<div class=\"block\" data-block=\"0\">",
@@ -1770,7 +1941,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ])
         ),
         &[
-            "<span>sum(line(template:spirit).arg1)</span></div>",
+            "<span class=\"mark\" aria-hidden=\"true\">▲</span>sum(line(template:spirit).arg1)<span class=\"sr\">, ordered smallest first</span></a></div>",
             "<a class=\"name rarity-rare\" href=\"item/many\">Many Loop Iron Ring</a>",
             "<span>36</span></div>",
         ],
@@ -1836,7 +2007,8 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ])
         ),
         &[
-            "<span>Fetched</span><span>ilvl</span><span>",
+            "<span>Fetched</span><a class=\"head\" href=\"search?",
+            "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?",
             "href=\"item/lp\">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos",
             "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read",
             "<span>incomplete at 70</span>",

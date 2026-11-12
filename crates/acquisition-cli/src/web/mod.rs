@@ -177,6 +177,18 @@
 //!   loads the page again. A table reached by a continuation and loaded
 //!   again after its basis moved meets the continuation's own refusal of
 //!   a moved basis, as a cards page does.
+//! - **The view's links** (4-full part 1, step 6.4c,
+//!   `roadmap/briefs/4-full-1-step6-sort.md`): nothing is typed to sort.
+//!   The URL names the rows' values by `view.value`, one each in order as
+//!   the CLI's `--value`, beside `view.sort` and `view.desc`; no control
+//!   of a form writes the three ([`form::UNTYPED`]), and the query box
+//!   carries what the URL named of them, hidden, so an edited query keeps
+//!   them. One maker gives a change to the view ([`view_link`]): the same
+//!   page ordered by one value, largest first or the other way where the
+//!   rows are ordered by it, the value joining the answer's list where the
+//!   list lacks it and no link where the list is full. Each value's head
+//!   of the table is that link, the ordered one marked by an arrow and by
+//!   words a screen reader gets.
 
 mod form;
 mod page;
@@ -600,8 +612,8 @@ impl Web {
     }
 
     /// A search request as the search form's own fields — its realm, its
-    /// text, and every view field the form asks: its rows' limit and order,
-    /// or its count's keys and limit — kept only where the form folds them
+    /// text, and every view field the form asks: its rows' limit, order and
+    /// values named, or its count's keys and limit — kept only where the form folds them
     /// back to that request, as the account this server serves: what a
     /// page can ask. Its rows' fields are `view.fields=icon` where they are
     /// the art alone, the table, and no field where they are the art and
@@ -639,6 +651,11 @@ impl Web {
                 }
                 if rows.desc {
                     fields.push(("view.desc", "true".to_string()));
+                }
+                // the values named, one field each in their order; the
+                // query's own are the request's to fill again, so unnamed
+                for value in &rows.values {
+                    fields.push(("view.value", value.clone()));
                 }
                 // the row's fields: the table is `view.fields=icon`; the
                 // cards, and none (a route carries none), the page's
@@ -1102,6 +1119,12 @@ async fn search(
                 })
                 .unwrap_or_default();
             let rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
+            let view_links = |value: &str| match &answer.view {
+                acquisition_search::answer::ViewOut::Rows(rows) => {
+                    view_link(&web, &sent, continued.as_ref(), rows, value)
+                }
+                _ => None,
+            };
             web.page(
                 "Answer",
                 head,
@@ -1118,6 +1141,7 @@ async fn search(
                                 .and_then(|(link, _)| link.as_str().map(str::to_string))
                         },
                         &rows_links,
+                        &view_links,
                         window.as_ref(),
                     )
                 ),
@@ -1208,6 +1232,87 @@ fn rows_links(
         other: spelt(swapped).map(|href| page::Presentation { href, words }),
         first: spelt(first),
     }
+}
+
+/// The one maker of a change to the view (4-full part 1, step 6.4c,
+/// Decision 2): the same page ordered by `value`, largest first, or the
+/// other way where its rows are already ordered by it. A value among the
+/// answer's values leaves the list as the page's URL names it; another
+/// names the answer's list with it added at its end, which the sort then
+/// orders by. A value outside a full list ([`VALUES`]) gets no link, since
+/// the search refuses a list past it. Spelt as [`rows_links`] spells the
+/// other presentation: reached by the form's fields, the page's own URL,
+/// its fields as sent with the view's order and list replaced; reached by
+/// a continuation, the continued search from its start as the form would
+/// ask it, the saved search the page was opened from carried; none where
+/// the form cannot ask it. Heads and a card's numbers both call it.
+///
+/// [`VALUES`]: acquisition_search::answer::VALUES
+fn view_link(
+    web: &Web,
+    sent: &Fields,
+    continued: Option<&Request>,
+    rows: &acquisition_search::answer::RowsOut,
+    value: &str,
+) -> Option<page::ViewLink> {
+    use acquisition_search::answer::{Shape, VALUES};
+    let held = rows.values.iter().any(|v| v == value);
+    if !held && rows.values.len() >= VALUES {
+        return None;
+    }
+    let ordered = (rows.sort.as_deref() == Some(value)).then_some(rows.desc);
+    // largest first, or the other way where the rows are ordered by it so
+    let desc = ordered.is_none_or(|desc| !desc);
+    let listed = |list: &mut Vec<String>| {
+        if !held {
+            *list = rows.values.clone();
+            list.push(value.to_string());
+        }
+    };
+    let href = match continued {
+        None => {
+            let mut fields: Vec<(&str, String)> = sent
+                .iter()
+                .filter(|(k, _)| {
+                    !matches!(k.as_str(), "view.sort" | "view.desc") && (held || k != "view.value")
+                })
+                .map(|(k, v)| (k.as_str(), v.clone()))
+                .collect();
+            fields.push(("view.sort", value.to_string()));
+            if desc {
+                fields.push(("view.desc", "true".to_string()));
+            }
+            let mut values = Vec::new();
+            listed(&mut values);
+            fields.extend(values.into_iter().map(|v| ("view.value", v)));
+            let query: Vec<String> = fields
+                .iter()
+                .map(|(k, v)| format!("{}={}", page::enc(k), page::enc(v)))
+                .collect();
+            format!("search?{}", query.join("&"))
+        }
+        Some(continued) => {
+            let mut request = continued.clone();
+            request.basis = None;
+            let Shape::Rows(view) = &mut request.view.shape else {
+                return None;
+            };
+            view.after = None;
+            view.sort = Some(value.to_string());
+            view.desc = desc;
+            listed(&mut view.values);
+            let saved: String = sent
+                .iter()
+                .filter(|(k, _)| k == "saved" || k == "saved_revision")
+                .map(|(k, v)| format!("&{}={}", page::enc(k), page::enc(v)))
+                .collect();
+            format!(
+                "{}{saved}",
+                web.link("search", &web.asked_by_the_form(&request)?)
+            )
+        }
+    };
+    Some(page::ViewLink { href, ordered })
 }
 
 /// `saved` and `saved_revision` taken out of a search's fields, which the

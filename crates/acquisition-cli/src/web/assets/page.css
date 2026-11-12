@@ -108,3 +108,6 @@ input.col-filter { width: 100%; box-sizing: border-box; }
 .window[data-windowed] .r { height: var(--row); line-height: var(--row); }
 .window .r > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 0.4rem; }
 .window .r.head { font-weight: bold; position: sticky; top: 0; background: var(--page); z-index: 1; }
+.window .r.head a { color: inherit; }
+.mark { margin-right: 0.25rem; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
