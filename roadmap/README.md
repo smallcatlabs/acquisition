@@ -14,9 +14,11 @@ better Acquisition that is agent-friendly and agent-forward.
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
   is designed and ruled (`briefs/4-full-1-step6-design.md`, values
   over places; "Approved as designed.", 2026-11-11). Its build is that
-  file's §5, in series. The first, values on rows (#38), is closed
-  (`briefs/4-full-1-step6-values.md`); next the count (#245), then the
-  spike, the flat table, and the places and the grouped table.
+  file's §5, in series. Values on rows (#38) and the count (#245) are
+  closed (`briefs/4-full-1-step6-values.md`,
+  `briefs/4-full-1-step6-count.md`); next the spike, the owner's at a
+  browser (the design's §5 item 3), then the flat table, and the places
+  and the grouped table.
 
 ## Next
 
@@ -27,8 +29,8 @@ when its step closes or the owner strikes it.
 1. 4-full part 1, step 6: the dense table. Its view is designed first,
    as one view of values and places: #244 with the place pages (#248,
    #194, #189, #182) and whether a plan carries that a tab was ever
-   fetched (#191, taken up in this design at his word), the live match
-   count (#245, ruled yes), and #186 and #190 riding. The owner rules
+   fetched (#191, taken up in this design at his word), and #186 and
+   #190 riding. The owner rules
    it before the spike (the design's §7, step 6). The search form's
    reshaping (#184, #181, #180, #185, #188, #183, #193) is the step
    after, one design.
