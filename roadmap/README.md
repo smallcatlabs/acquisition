@@ -14,8 +14,9 @@ better Acquisition that is agent-friendly and agent-forward.
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
   is designed and ruled (`briefs/4-full-1-step6-design.md`, values
   over places; "Approved as designed.", 2026-11-11). Its build is that
-  file's §5, in series: values on rows (#38), the count (#245), the
-  spike, the flat table, then the places and the grouped table.
+  file's §5, in series. The first, values on rows (#38), is closed
+  (`briefs/4-full-1-step6-values.md`); next the count (#245), then the
+  spike, the flat table, and the places and the grouped table.
 
 ## Next
 
@@ -37,7 +38,7 @@ when its step closes or the owner strikes it.
 3. The test-shape group's t6, one canonical mock world and the door's
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
-4. The queued search and trade issues: #38, #46, #47, and #37 once the
+4. The queued search and trade issues: #46, #47, and #37 once the
    owner has sat the site.
 5. `alpha.2` (milestone "League 3.30 and alpha.2"): regenerate the
    tables when their inputs exist (a post-launch `poe1` pin, the
