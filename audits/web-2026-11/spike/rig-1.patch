@@ -1,9 +1,9 @@
 diff --git a/crates/acquisition-cli/src/web/assets/measure.js b/crates/acquisition-cli/src/web/assets/measure.js
 new file mode 100644
-index 00000000..bc74bcac
+index 00000000..1c3df1fd
 --- /dev/null
 +++ b/crates/acquisition-cli/src/web/assets/measure.js
-@@ -0,0 +1,293 @@
+@@ -0,0 +1,310 @@
 +// The rig's measure (step 6.3's spike), loaded only with `measure` in
 +// the page's URL and never part of the window: it drives the page's
 +// scroll in each animation frame, looks at what that frame shows, and
@@ -36,8 +36,9 @@ index 00000000..bc74bcac
 +  const docTop = (s) => s.el.getBoundingClientRect().top + window.scrollY;
 +
 +  // what this frame shows: each segment's slots in the viewport, filled
-+  // by the row of that index at its place, or missing; a row in view
-+  // away from its index's place is off
++  // by the row of that index at its place, or missing. Every row that
++  // is in the viewport is judged by where it is, whatever index it
++  // declares: one away from its index's place is off.
 +  const seen = new Map();
 +  let changed = 0;
 +  let lookMs = 0;
@@ -48,18 +49,20 @@ index 00000000..bc74bcac
 +    const height = vh();
 +    segs.forEach((s, n) => {
 +      const top = s.el.getBoundingClientRect().top;
++      if (top >= height || top + s.count * h <= 0) return;
 +      const lo = Math.max(0, Math.floor(-top / h));
 +      const hi = Math.min(s.count, Math.ceil((height - top) / h));
-+      if (lo >= hi) return;
 +      const filled = new Set();
 +      for (const row of s.el.querySelectorAll('.r')) {
++        // where the row is in its segment: its block's place and its own
++        const at = row.offsetTop + row.offsetParent.offsetTop;
++        if (at + h <= -top || at >= height - top) continue;
 +        const i = Number(row.dataset.i) - s.base;
-+        if (i < lo || i >= hi) continue;
-+        const at = row.getBoundingClientRect().top - top;
 +        if (Math.abs(at - i * h) > 0.5) {
 +          off++;
 +          continue;
 +        }
++        if (i < lo || i >= hi) continue;
 +        filled.add(i);
 +        const key = n + ':' + i;
 +        const was = seen.get(key);
@@ -169,7 +172,7 @@ index 00000000..bc74bcac
 +      }
 +      const timedOut = jump.ms === null && t - jump.t0 >= TIMEOUT;
 +      if (timedOut || (jump.ms !== null && t - jump.whole >= HOLD)) {
-+        jumped.push({ name: jump.name, y: jump.y, ms: jump.ms });
++        jumped.push({ name: jump.name, y: jump.y, at: Math.round(jump.t0), ms: jump.ms });
 +        jump = null;
 +        at++;
 +      }
@@ -211,8 +214,10 @@ index 00000000..bc74bcac
 +    return s.length ? s[Math.floor(s.length / 2)] : null;
 +  };
 +
-+  // each window asked during the run: its time to the response's end,
-+  // and the server's part of it (the routes' Server-Timing)
++  // each window asked during the run, kept whole: its route, offset and
++  // count, when it was asked, its time to the response's end, and each
++  // step of the server's part (the routes' Server-Timing); then their
++  // spread
 +  const windows = () => {
 +    const asked = performance
 +      .getEntriesByType('resource')
@@ -222,7 +227,19 @@ index 00000000..bc74bcac
 +      const at = (q) => (s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null);
 +      return { median: at(0.5), p95: at(0.95), max: at(1) };
 +    };
++    const each = asked.map((e) => {
++      const q = new URL(e.name).searchParams;
++      return {
++        route: /\/heads\?/.test(e.name) ? 'heads' : 'window',
++        offset: Number(q.get('offset')),
++        count: Number(q.get('count')),
++        at: Math.round(e.startTime),
++        ms: Math.round((e.responseEnd - e.startTime) * 10) / 10,
++        server: Object.fromEntries(e.serverTiming.map((t) => [t.name, t.duration])),
++      };
++    });
 +    return {
++      each: each,
 +      asked: asked.length,
 +      fetchMs: pick(asked.map((e) => e.responseEnd - e.startTime)),
 +      serverMs: pick(asked.map((e) => e.serverTiming.reduce((sum, t) => sum + t.duration, 0))),
@@ -471,10 +488,10 @@ index a4087018..0a5ad6fd 100644
      .filter(|(wanted, _)| *wanted)
 diff --git a/crates/acquisition-cli/src/web/rig.rs b/crates/acquisition-cli/src/web/rig.rs
 new file mode 100644
-index 00000000..e5b3bafe
+index 00000000..60951479
 --- /dev/null
 +++ b/crates/acquisition-cli/src/web/rig.rs
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,429 @@
 +//! The window rig (4-full part 1, step 6.3's spike,
 +//! `roadmap/briefs/4-full-1-step6-spike.md`): never committed as code;
 +//! its record and patch are `audits/web-2026-11/spike/`.
@@ -620,7 +637,9 @@ index 00000000..e5b3bafe
 +            .as_deref()
 +            .and_then(|id| listed.rows.iter().position(|row| row.id == id));
 +        let mut segments = String::new();
-+        let mut said = format!("{all} tabs of {league}, none open");
++        // the league is the URL's word: escaped where the page writes it
++        let named = esc(&league);
++        let mut said = format!("{all} tabs of {named}, none open");
 +        match opened {
 +            None => segments.push_str(&segment("heads", &heads_route, all, 0)),
 +            Some(at) => {
@@ -635,7 +654,7 @@ index 00000000..e5b3bafe
 +                let route = web.link("window", &[("next", at_basis(request, &answer))]);
 +                let m = answer.total.matched;
 +                said = format!(
-+                    "{all} tabs of {league}, {} open with its {m} rows: <code>{}</code>",
++                    "{all} tabs of {named}, {} open with its {m} rows: <code>{}</code>",
 +                    esc(&tab.name),
 +                    esc(&scoped)
 +                );
@@ -904,20 +923,22 @@ index 00000000..e5b3bafe
 +}
 diff --git a/rig-run.py b/rig-run.py
 new file mode 100644
-index 00000000..8a598c96
+index 00000000..d4323db8
 --- /dev/null
 +++ b/rig-run.py
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,187 @@
 +"""The window rig's headless runs (step 6.3's spike, never committed as
 +code; its record is `audits/web-2026-11/spike/README.md`).
 +
-+    python3 -I rig-run.py <acq web URL> <profile dir> <runs> <out.jsonl>
++    python3 -I rig-run.py <acq web URL> <profile dir> <runs> <out.jsonl> [case,…]
 +
 +Starts headless Chrome on the profile directory given (never a person's
 +own), at a 1440 x 900 viewport and a device pixel ratio of 2, loads each
 +case's page with `measure` in its URL, waits for the measure's result
 +(`window.rigResult`) and appends it, one JSON line per run. Talks to
 +Chrome over its debugging protocol with the standard library alone.
++Every socket operation has a deadline (`ANSWER`): a browser that stops
++answering is a run recorded as failed, and the runner stops there.
 +"""
 +
 +import base64
@@ -931,6 +952,8 @@ index 00000000..8a598c96
 +import urllib.request
 +
 +CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
++ANSWER = 30  # seconds a debugging call may wait for its answer
++RUN = 180  # seconds a run may take
 +CASES = {
 +    "F": "table?realm=pc&text=",
 +    "F1k": "table?realm=pc&text=" + urllib.request.quote('category="accessory.ring" ilvl>=1'),
@@ -946,7 +969,7 @@ index 00000000..8a598c96
 +        rest = url.split("://", 1)[1]
 +        hostport, path = rest.split("/", 1)
 +        host, port = hostport.split(":")
-+        self.s = socket.create_connection((host, int(port)))
++        self.s = socket.create_connection((host, int(port)), timeout=ANSWER)
 +        key = base64.b64encode(os.urandom(16)).decode()
 +        self.s.sendall(
 +            (
@@ -1014,6 +1037,7 @@ index 00000000..8a598c96
 +
 +def main():
 +    url, profile, runs, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
++    wanted = sys.argv[5].split(",") if len(sys.argv) > 5 else list(CASES)
 +    chrome = subprocess.Popen(
 +        [
 +            CHROME,
@@ -1043,25 +1067,34 @@ index 00000000..8a598c96
 +        print("browser:", version["result"]["value"], flush=True)
 +        with open(out, "a") as sink:
 +            for run in range(1, runs + 1):
-+                for case, path in CASES.items():
-+                    ws.call("Page.navigate", url=url + path + "&measure=1")
-+                    began = time.time()
++                for case in wanted:
++                    path = CASES[case]
 +                    result = None
-+                    while time.time() - began < 180:
-+                        time.sleep(1)
-+                        got = ws.call(
-+                            "Runtime.evaluate",
-+                            expression="window.rigResult ? JSON.stringify(window.rigResult) : ''",
-+                            returnByValue=True,
-+                        )
-+                        if got["result"].get("value"):
-+                            result = json.loads(got["result"]["value"])
-+                            break
-+                    line = {"case": case, "run": run, "result": result}
++                    failed = None
++                    try:
++                        ws.call("Page.navigate", url=url + path + "&measure=1")
++                        began = time.monotonic()
++                        while time.monotonic() - began < RUN:
++                            time.sleep(1)
++                            got = ws.call(
++                                "Runtime.evaluate",
++                                expression="window.rigResult ? JSON.stringify(window.rigResult) : ''",
++                                returnByValue=True,
++                            )
++                            if got["result"].get("value"):
++                                result = json.loads(got["result"]["value"])
++                                break
++                        else:
++                            failed = f"no result in {RUN} s"
++                    except (OSError, RuntimeError) as e:
++                        failed = f"the browser stopped answering: {e}"
++                    line = {"case": case, "run": run, "result": result, "failed": failed}
 +                    sink.write(json.dumps(line) + "\n")
 +                    sink.flush()
-+                    if result is None:
-+                        print(f"{case} run {run}: no result in 180 s", flush=True)
++                    if failed:
++                        print(f"{case} run {run}: FAILED, {failed}", flush=True)
++                        if result is None and "stopped" in failed:
++                            return
 +                        continue
 +                    jumps = sorted(j["ms"] if j["ms"] is not None else float("inf") for j in result["jumps"])
 +                    print(

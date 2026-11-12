@@ -23,13 +23,15 @@ diff from that commit, new files and assets included: three routes and
 a stylesheet block in `acq web`, the window script, the measure, and
 the headless runner. A blank context line in it has lost its space, so
 that the patch passes the gate's whitespace check; `git apply` reads
-it so. It applies to its base, and the tree it makes is the copy:
+it so. It applies to its base, and the tree it makes is the copy, from
+the repository's root:
 
 ```sh
+patch="$PWD/audits/web-2026-11/spike/rig-1.patch"
 git worktree add --detach <dir> f3e663db
-git -C <dir> apply --check audits/web-2026-11/spike/rig-1.patch   # exit 0
-git -C <dir> apply audits/web-2026-11/spike/rig-1.patch
-diff -r -q -x target -x .git <dir> <the copy>                     # no output
+git -C <dir> apply --check "$patch"            # exit 0
+git -C <dir> apply "$patch"
+diff -r -q -x target -x .git <dir> <the copy>  # no output
 ```
 
 Everything below was read off the working page.
@@ -112,18 +114,22 @@ shows:
    basis, asked in chunks of 128, never the script's 50.
 
 What a frame shows: each segment's slots in the viewport. A slot is
-whole when the row of its index is there, at its index × 24 px. A row
-in view more than half a pixel from its place is off. A slot seen
-holding two items during the run has changed. Each window the page
-asked is reported with its time to the response's end and the
-server's part of it, by step (the store's opening, the held corpus's
-check, the answer or the listing, the rendering), so a miss shows
-whose time it was.
+whole when the row of its index is there, at its index × 24 px. Every
+row in the viewport is judged by where it is, whatever index it
+declares: one more than half a pixel from its index's place is off. A
+slot seen holding two items during the run has changed. Each window
+the page asked is kept in the result: its route, offset and count,
+when it was asked, its time to the response's end and each step of the
+server's part (the store's opening, the held corpus's check, the
+answer or the listing, the rendering); each jump keeps when it began,
+so a miss shows which windows were its and whose time they took.
 
 The headless runs: `rig-run.py`, three runs of the four cases in turn,
 in Chrome headless on a profile directory under the builder's scratch,
 against `acq web` built `--release` from the patch, nothing else
-running on the machine. The owner's: the same pages in Brave, each
+running on the machine. Each call to the browser waits 30 seconds at
+most and each run 180: a browser that stops answering is a run
+recorded as failed, never a wait without end. The owner's: the same pages in Brave, each
 case's link with `measure=1` running itself, and without it for his
 own wheel.
 
