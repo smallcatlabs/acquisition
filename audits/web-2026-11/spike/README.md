@@ -239,3 +239,28 @@ the jump met the open tab's edge. Each window's server time also
 carried the held corpus's check, 22 ms median under a jump's
 concurrency (about 9 alone): up to four windows queue on the held
 corpus's lock, each checking currency in turn.
+
+## Rig-2: the listing held for its basis
+
+One turn of the loop, for the miss above. `rig-2.patch`, beside the
+first, is the copy's whole diff from `f3e663db` again; it applies and
+makes the copy, by the commands above with its name. What changed, and
+only that: the web module holds the league's tab listing for the basis
+it was read at, as the server already holds the corpus. The page reads
+it at its answer's basis; a window of heads checks its token's basis
+against the held corpus's, as before, and is then a slice of the
+listing held at that basis, read again only when the basis has moved.
+The lock is held through a read, so the windows one jump asks read it
+once. The search and store crates are unchanged, and so are the page,
+the window script (93 lines), the measure and the bar.
+
+What it bought, asked one at a time from the server: the listing's
+part of a heads window went from 41 ms (the whole listing of 3,347 tabs
+read for each window) to 0.01 ms; what is left of the window's server
+time is the held corpus's check, about 8 ms.
+
+**For step 6.5.** The places listing as the tree reads it today,
+`Tabs::read` over every tab of a league, costs 41 ms on this machine
+for pc Standard's 3,347 tabs, and 44 ms under a jump's concurrency. A
+places document asked a window at a time cannot read it per window
+and hold the jump line; held for its basis, a window of it is a slice.

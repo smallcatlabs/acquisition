@@ -1,0 +1,1428 @@
+diff --git a/crates/acquisition-cli/src/web/assets/measure.js b/crates/acquisition-cli/src/web/assets/measure.js
+new file mode 100644
+index 00000000..0a83d876
+--- /dev/null
++++ b/crates/acquisition-cli/src/web/assets/measure.js
+@@ -0,0 +1,343 @@
++// The rig's measure (step 6.3's spike), loaded only with `measure` in
++// the page's URL and never part of the window: it drives the page's
++// scroll in each animation frame, looks at what that frame shows, and
++// judges the run by the bar in `audits/web-2026-11/spike/README.md`.
++//
++// A run: 90 still frames (the display's interval, their median); a
++// move to the steady scroll's start, held until its viewport is whole;
++// the steady scroll, SPEED px/s for STEADY ms; then the jumps, each held
++// until its viewport is whole (or TIMEOUT) and HOLD ms more; then each
++// row seen is checked against the window's JSON at the same basis.
++(function () {
++  const table = document.querySelector('.rig[data-h]');
++  if (!table) return;
++  const h = Number(table.dataset.h);
++  const SPEED = 1500;
++  const STEADY = 10000;
++  const STILL = 90;
++  const HOLD = 500;
++  const TIMEOUT = 3000;
++  const SETTLE = 1000;
++  const segs = Array.from(table.querySelectorAll('.seg'), (el) => ({
++    el,
++    count: Number(el.dataset.count),
++    base: Number(el.dataset.base),
++    route: el.dataset.route,
++  }));
++  const scroller = document.scrollingElement;
++  const vh = () => window.innerHeight;
++  const maxY = () => scroller.scrollHeight - vh();
++  const docTop = (s) => s.el.getBoundingClientRect().top + window.scrollY;
++
++  // what this frame shows: each segment's slots in the viewport, filled
++  // by the row of that index at its place, or missing. Every row drawn
++  // in the viewport is judged by where it is drawn (its rendered box,
++  // whatever its layout or its declared index say, in any segment): one
++  // away from its index's place is off.
++  const seen = new Map();
++  let changed = 0;
++  let lookMs = 0;
++  const look = () => {
++    const began = performance.now();
++    let missing = 0;
++    let off = 0;
++    const height = vh();
++    segs.forEach((s, n) => {
++      const top = s.el.getBoundingClientRect().top;
++      const lo = Math.max(0, Math.floor(-top / h));
++      const hi = Math.min(s.count, Math.ceil((height - top) / h));
++      const filled = new Set();
++      for (const row of s.el.querySelectorAll('.r')) {
++        const box = row.getBoundingClientRect();
++        if (box.bottom <= 0 || box.top >= height) continue;
++        const at = box.top - top;
++        const i = Number(row.dataset.i) - s.base;
++        if (Math.abs(at - i * h) > 0.5) {
++          off++;
++          continue;
++        }
++        if (i < lo || i >= hi) continue;
++        filled.add(i);
++        const key = n + ':' + i;
++        const was = seen.get(key);
++        if (was === undefined) seen.set(key, row.dataset.id);
++        else if (was !== row.dataset.id) changed++;
++      }
++      missing += Math.max(0, hi - lo) - filled.size;
++    });
++    lookMs += performance.now() - began;
++    return { missing, off };
++  };
++
++  let maxDom = 0;
++  let maxRows = 0;
++  const sampleDom = () => {
++    maxDom = Math.max(maxDom, document.getElementsByTagName('*').length);
++    maxRows = Math.max(maxRows, table.querySelectorAll('.seg .r').length);
++  };
++
++  // the jumps: fractions of the page in one segment; in a page with an
++  // opened block, its start, middle and end, both its edges half in
++  // view, and the page's middle, end and start
++  const jumps = () => {
++    const m = maxY();
++    const clamp = (y) => Math.round(Math.max(0, Math.min(m, y)));
++    if (segs.length < 3) {
++      return [0.5, 0.1, 0.9, 0.25, 1, 0.75, 0.37, 0.61, 0.83, 0].map((f) => ({
++        name: 'page ' + f,
++        y: clamp(f * m),
++      }));
++    }
++    const top = docTop(segs[1]);
++    const bottom = top + segs[1].count * h;
++    const v = vh();
++    return [
++      ['block start', top],
++      ['block middle', (top + bottom) / 2 - v / 2],
++      ['block end', bottom - v],
++      ['block top edge', top - v / 2],
++      ['block bottom edge', bottom - v / 2],
++      ['page 0.5', 0.5 * m],
++      ['page 1', m],
++      ['page 0', 0],
++      ['block quarter', top + (bottom - top) / 4],
++      ['block three quarters', top + (3 * (bottom - top)) / 4],
++    ].map(([name, y]) => ({ name, y: clamp(y) }));
++  };
++  const steadyFrom = () =>
++    segs.length < 3 ? 0 : Math.max(0, Math.round(docTop(segs[1]) - 1.5 * vh()));
++
++  const frames = [];
++  const still = [];
++  const jumped = [];
++  let last = null;
++  let phase = 'still';
++  let since = 0;
++  let from = 0;
++  let plan = [];
++  let at = 0;
++  let jump = null;
++
++  const step = (t) => {
++    const dt = last === null ? null : t - last;
++    last = t;
++    if (phase === 'still') {
++      if (dt !== null) still.push(dt);
++      if (still.length >= STILL) {
++        phase = 'start';
++        since = t;
++        from = steadyFrom();
++        window.scrollTo(0, from);
++      }
++    } else if (phase === 'start') {
++      // the steady scroll starts from a whole viewport
++      if ((look().missing === 0 && t - since >= HOLD) || t - since >= TIMEOUT) {
++        phase = 'steady';
++        since = t;
++      }
++    } else if (phase === 'steady') {
++      const y = from + (SPEED * (t - since)) / 1000;
++      if (t - since >= STEADY || y >= maxY()) {
++        phase = 'jumps';
++        plan = jumps();
++        at = 0;
++        jump = null;
++      } else {
++        window.scrollTo(0, y);
++      }
++    }
++    if (phase === 'jumps' && jump === null) {
++      if (at >= plan.length) {
++        phase = 'done';
++        finish();
++        return;
++      }
++      jump = { ...plan[at], t0: t, ms: null };
++      window.scrollTo(0, jump.y);
++    }
++    const shown = look();
++    if (frames.length % 30 === 0) sampleDom();
++    frames.push({ phase, dt, missing: shown.missing, off: shown.off });
++    if (phase === 'jumps') {
++      if (jump.ms === null && shown.missing === 0) {
++        jump.ms = t - jump.t0;
++        jump.whole = t;
++        sampleDom();
++      }
++      const timedOut = jump.ms === null && t - jump.t0 >= TIMEOUT;
++      if (timedOut || (jump.ms !== null && t - jump.whole >= HOLD)) {
++        jumped.push({ name: jump.name, y: jump.y, at: Math.round(jump.t0), ms: jump.ms });
++        jump = null;
++        at++;
++      }
++    }
++    requestAnimationFrame(step);
++  };
++
++  // every row seen, against the window's JSON at the same basis, asked
++  // in chunks of another size than the script's blocks
++  const truth = async () => {
++    const CHUNK = 128;
++    let checked = 0;
++    let wrong = 0;
++    for (let n = 0; n < segs.length; n++) {
++      const s = segs[n];
++      const chunks = new Set();
++      for (const key of seen.keys()) {
++        const [k, i] = key.split(':').map(Number);
++        if (k === n) chunks.add(Math.floor(i / CHUNK));
++      }
++      for (const c of chunks) {
++        const res = await pass(s.route + '&offset=' + (s.base + c * CHUNK) + '&count=' + CHUNK, {
++          headers: { Accept: 'application/json' },
++        });
++        const doc = await res.json();
++        doc.ids.forEach((id, j) => {
++          const key = n + ':' + (c * CHUNK + j);
++          if (!seen.has(key)) return;
++          checked++;
++          if (seen.get(key) !== id) wrong++;
++        });
++      }
++    }
++    return { checked, wrong };
++  };
++
++  const median = (xs) => {
++    const s = [...xs].sort((a, b) => a - b);
++    return s.length ? s[Math.floor(s.length / 2)] : null;
++  };
++
++  // every window the page asks from the measure's start, recorded as it
++  // is asked: the measure wraps the page's fetch, which the window
++  // script calls by name, and passes each call through unchanged. Each
++  // keeps its route, offset and count, when it was asked, its state
++  // (pending, done, aborted or failed), its time to its body's end and
++  // each step of the server's part (the routes' Server-Timing).
++  const asked = [];
++  const pass = window.fetch.bind(window);
++  window.fetch = (input, init) => {
++    const url = new URL(String(input), location.href);
++    const route = url.pathname.split('/').pop();
++    if (route !== 'window' && route !== 'heads') return pass(input, init);
++    const entry = {
++      route: route,
++      offset: Number(url.searchParams.get('offset')),
++      count: Number(url.searchParams.get('count')),
++      at: Math.round(performance.now()),
++      state: 'pending',
++    };
++    asked.push(entry);
++    const ended = (e) => (e && e.name === 'AbortError' ? 'aborted' : 'failed');
++    return pass(input, init).then(
++      (res) => {
++        entry.status = res.status;
++        entry.server = Object.fromEntries(
++          (res.headers.get('server-timing') || '')
++            .split(',')
++            .filter((t) => t.includes('dur='))
++            .map((t) => [t.split(';')[0].trim(), Number(t.split('dur=')[1])]),
++        );
++        res
++          .clone()
++          .text()
++          .then(
++            () => {
++              entry.ms = Math.round((performance.now() - entry.at) * 10) / 10;
++              entry.state = 'done';
++            },
++            (e) => {
++              entry.state = ended(e);
++            },
++          );
++        return res;
++      },
++      (e) => {
++        entry.state = ended(e);
++        throw e;
++      },
++    );
++  };
++  const windows = () => {
++    const done = asked.filter((e) => e.state === 'done');
++    const spread = (xs) => {
++      const s = [...xs].sort((a, b) => a - b);
++      const at = (q) => (s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null);
++      return { median: at(0.5), p95: at(0.95), max: at(1) };
++    };
++    const states = {};
++    for (const e of asked) states[e.state] = (states[e.state] || 0) + 1;
++    return {
++      each: asked.map((e) => ({ ...e })),
++      asked: asked.length,
++      states: states,
++      ms: spread(done.map((e) => e.ms)),
++      serverMs: spread(done.map((e) => Object.values(e.server).reduce((sum, d) => sum + d, 0))),
++      answerMs: spread(done.map((e) => (e.server.answer || 0) + (e.server.listing || 0))),
++    };
++  };
++
++  const finish = async () => {
++    const record = windows();
++    const interval = median(still);
++    const late = interval * 1.5;
++    const steady = frames.filter((f) => f.phase === 'steady' && f.dt !== null);
++    const inJumps = frames.filter((f) => f.phase === 'jumps' && f.dt !== null);
++    const lateSteady = steady.filter((f) => f.dt > late).length;
++    const missingSteady = steady.filter((f) => f.missing > 0).length;
++    const offFrames = frames.filter((f) => f.off > 0).length;
++    const longestJumpFrame = Math.max(0, ...inJumps.map((f) => f.dt));
++    const longestSteadyFrame = Math.max(0, ...steady.map((f) => f.dt));
++    const ms = jumped.map((j) => (j.ms === null ? Infinity : j.ms));
++    const sorted = [...ms].sort((a, b) => a - b);
++    const checked = await truth();
++    const pct = (n, d) => (d ? (100 * n) / d : 0);
++    const bar = {
++      'steady: at most 1% of frames late': pct(lateSteady, steady.length) <= 1,
++      'jumps: no frame longer than 100 ms': longestJumpFrame <= 100,
++      'jumps: 9 of 10 whole within 100 ms': sorted.length >= 10 && sorted[8] <= 100,
++      'jumps: every one whole within 250 ms': sorted.length > 0 && sorted[sorted.length - 1] <= 250,
++      'steady: at most 1% of frames with a row missing': pct(missingSteady, steady.length) <= 1,
++      'live DOM: at most 5,000 elements and 250 rows': maxDom <= 5000 && maxRows <= 250,
++    };
++    const voided = offFrames > 0 || changed > 0 || checked.wrong > 0;
++    const result = {
++      url: location.pathname.replace(/^\/[^/]+/, '') + location.search,
++      viewport: [window.innerWidth, window.innerHeight, window.devicePixelRatio],
++      rows: segs.map((s) => s.count),
++      interval: interval,
++      rate: interval ? Math.round(1000 / interval) : null,
++      steady: {
++        speed: SPEED,
++        from: from,
++        frames: steady.length,
++        late: lateSteady,
++        longest: longestSteadyFrame,
++        missing: missingSteady,
++      },
++      jumps: jumped,
++      jumpFrames: { frames: inJumps.length, late: inJumps.filter((f) => f.dt > late).length, longest: longestJumpFrame },
++      dom: { elements: maxDom, rows: maxRows },
++      windows: record,
++      off: { frames: offFrames, changed: changed, checked: checked.checked, wrong: checked.wrong },
++      lookMsPerFrame: frames.length ? lookMs / frames.length : 0,
++      bar: bar,
++      voided: voided,
++      passed: !voided && Object.values(bar).every(Boolean),
++    };
++    window.rigResult = result;
++    const pre = document.createElement('pre');
++    pre.className = 'rig-result';
++    pre.textContent =
++      (result.voided ? 'VOID: a row off its place or not the answer\'s\n' : '') +
++      (result.passed ? 'PASSED' : 'MISSED') +
++      '\n' +
++      JSON.stringify(result, null, 1);
++    table.before(pre);
++    window.scrollTo(0, 0);
++  };
++
++  window.addEventListener('load', () => {
++    setTimeout(() => requestAnimationFrame(step), SETTLE);
++  });
++})();
+diff --git a/crates/acquisition-cli/src/web/assets/page.css b/crates/acquisition-cli/src/web/assets/page.css
+index 0f1fdbfd..60889736 100644
+--- a/crates/acquisition-cli/src/web/assets/page.css
++++ b/crates/acquisition-cli/src/web/assets/page.css
+@@ -96,3 +96,14 @@ table.tabs col.tick { width: 2.5rem; }
+ table.tabs col.type, table.tabs col.items { width: 18%; }
+ table.tabs col.fetched { width: 14%; }
+ input.col-filter { width: 100%; box-sizing: border-box; }
++/* the window rig (step 6.3's spike): rows of one height, placed by the
++   window script in blocks inside segments it sizes */
++.rig { position: relative; overflow-anchor: none; font-size: 0.85rem; }
++.rig .seg { position: relative; }
++.rig .block { position: absolute; left: 0; right: 0; }
++.rig .r { display: grid; grid-template-columns: 24rem 16rem 8rem 22rem; grid-auto-columns: 7rem; grid-auto-flow: column; box-sizing: border-box; height: var(--row, 24px); line-height: var(--row, 24px); border-bottom: 1px solid var(--rule); }
++.rig .r > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 0.4rem; }
++.rig .r.head { font-weight: bold; position: sticky; top: 0; background: var(--page); z-index: 1; }
++.rig .r.tab { background: var(--panel); }
++.rig .r.tab.open { background: var(--head); }
++.rig-result { white-space: pre-wrap; font-size: 0.8rem; }
+diff --git a/crates/acquisition-cli/src/web/assets/window.js b/crates/acquisition-cli/src/web/assets/window.js
+new file mode 100644
+index 00000000..6f9399c9
+--- /dev/null
++++ b/crates/acquisition-cli/src/web/assets/window.js
+@@ -0,0 +1,93 @@
++// The window (step 6.3's rig): a table is segments of rows of one
++// height, each with its route and its count, as the server rendered
++// them. The script sizes each segment, and on each scroll asks the
++// blocks of rows near the viewport by offset and count, those in view
++// first and the ones around them once those have come, places each at
++// its offset, and drops the blocks gone far from it. The rows and their
++// order are the server's; the script keeps the blocks it shows and the
++// asks in flight, nothing a reload must keep. A moved basis (409) loads
++// the page again.
++(function () {
++  const table = document.querySelector('.rig[data-h]');
++  if (!table) return;
++  const h = Number(table.dataset.h);
++  const BLOCK = 50; // rows a block asks
++  table.style.setProperty('--row', h + 'px');
++  const segments = Array.from(table.querySelectorAll('.seg'), (el) => {
++    const count = Number(el.dataset.count);
++    el.style.height = count * h + 'px';
++    return { el, count, base: Number(el.dataset.base), route: el.dataset.route, blocks: new Map() };
++  });
++
++  const ask = (seg, b) => {
++    const el = document.createElement('div');
++    el.className = 'block';
++    el.style.top = b * BLOCK * h + 'px';
++    const abort = new AbortController();
++    const block = { el, abort, done: false };
++    seg.blocks.set(b, block);
++    seg.el.appendChild(el);
++    const offset = seg.base + b * BLOCK;
++    const count = Math.min(BLOCK, seg.count - b * BLOCK);
++    fetch(seg.route + '&offset=' + offset + '&count=' + count, { signal: abort.signal })
++      .then(async (res) => {
++        if (res.status === 409) {
++          location.reload();
++          return;
++        }
++        const text = await res.text();
++        if (abort.signal.aborted) return;
++        el.innerHTML = text;
++        block.done = true;
++        queue();
++      })
++      .catch(() => {
++        // aborted: the block was dropped
++      });
++  };
++
++  // the blocks of a segment's rows from lo to hi
++  const span = (lo, hi) => {
++    const first = Math.floor(lo / BLOCK);
++    return [first, lo < hi ? Math.floor((hi - 1) / BLOCK) : first - 1];
++  };
++  // the blocks a segment wants: those in view, then those within one
++  // viewport of its edges once no block in view is still asked
++  const fill = () => {
++    queued = false;
++    const vh = window.innerHeight;
++    const around = [];
++    let waiting = false;
++    for (const seg of segments) {
++      const top = seg.el.getBoundingClientRect().top;
++      const rows = (from, to) => [Math.max(0, Math.floor(from / h)), Math.min(seg.count, Math.ceil(to / h))];
++      const [first, last] = span(...rows(-top - vh, 2 * vh - top));
++      const [shown, end] = span(...rows(-top, vh - top));
++      for (const [b, block] of seg.blocks) {
++        if (b < first || b > last) {
++          block.abort.abort();
++          block.el.remove();
++          seg.blocks.delete(b);
++        }
++      }
++      for (let b = first; b <= last; b++) {
++        const inView = b >= shown && b <= end;
++        if (!seg.blocks.has(b)) {
++          if (inView) ask(seg, b);
++          else around.push([seg, b]);
++        }
++        if (inView && !seg.blocks.get(b).done) waiting = true;
++      }
++    }
++    if (!waiting) for (const [seg, b] of around) ask(seg, b);
++  };
++  let queued = false;
++  const queue = () => {
++    if (queued) return;
++    queued = true;
++    requestAnimationFrame(fill);
++  };
++  window.addEventListener('scroll', queue, { passive: true });
++  window.addEventListener('resize', queue);
++  fill();
++})();
+diff --git a/crates/acquisition-cli/src/web/mod.rs b/crates/acquisition-cli/src/web/mod.rs
+index 21135390..47661658 100644
+--- a/crates/acquisition-cli/src/web/mod.rs
++++ b/crates/acquisition-cli/src/web/mod.rs
+@@ -156,6 +156,7 @@
+
+ mod form;
+ mod page;
++mod rig;
+
+ use std::sync::{Arc, OnceLock};
+
+@@ -215,6 +216,8 @@ struct Web {
+     origin: String,
+     form: form::Form,
+     held: Holder,
++    /// The rig's tabs listing, held for the basis it was read at.
++    listing: std::sync::Mutex<Option<rig::Listing>>,
+ }
+
+ /// Why a page could not render its document: a search refusal in the
+@@ -275,6 +278,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
+         token: token.clone(),
+         form: form::Form::load()?,
+         held: Holder::new(),
++        listing: std::sync::Mutex::new(None),
+     });
+     if json {
+         println!("{}", json!({ "url": url }));
+@@ -314,6 +318,9 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
+         .route(&at("/saved"), get(saved_list).post(saved_set))
+         .route(&at("/saved/open"), get(saved_open))
+         .route(&at("/saved/clear"), get(saved_ask).post(saved_clear))
++        .route(&at("/table"), get(rig::table))
++        .route(&at("/window"), get(rig::window))
++        .route(&at("/heads"), get(rig::heads))
+         .route_layer(middleware::from_fn_with_state(
+             Arc::clone(&web),
+             with_account,
+@@ -322,6 +329,8 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
+         .route(&at("/assets/picker.js"), get(picker))
+         .route(&at("/assets/filter.js"), get(filter))
+         .route(&at("/assets/count.js"), get(count_script))
++        .route(&at("/assets/window.js"), get(rig::window_script))
++        .route(&at("/assets/measure.js"), get(rig::measure_script))
+         .fallback(no_such_page)
+         .layer(middleware::from_fn_with_state(Arc::clone(&web), guard))
+         .with_state(web);
+diff --git a/crates/acquisition-cli/src/web/page.rs b/crates/acquisition-cli/src/web/page.rs
+index a4087018..0a5ad6fd 100644
+--- a/crates/acquisition-cli/src/web/page.rs
++++ b/crates/acquisition-cli/src/web/page.rs
+@@ -79,6 +79,9 @@ pub(crate) struct Head {
+     /// The count's script: the number beside each form that submits a
+     /// search ([`COUNT`]).
+     pub count: bool,
++    /// The window rig's script, and its measure's (step 6.3's spike).
++    pub window: bool,
++    pub measure: bool,
+     /// The versions of the documents the page renders (C16, every
+     /// document carries its basis): each keyed by its document — `answer`,
+     /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
+@@ -128,6 +131,8 @@ pub(crate) fn page(
+         (head.picker, "picker"),
+         (head.filter, "filter"),
+         (head.count, "count"),
++        (head.window, "window"),
++        (head.measure, "measure"),
+     ]
+     .into_iter()
+     .filter(|(wanted, _)| *wanted)
+diff --git a/crates/acquisition-cli/src/web/rig.rs b/crates/acquisition-cli/src/web/rig.rs
+new file mode 100644
+index 00000000..87d34c35
+--- /dev/null
++++ b/crates/acquisition-cli/src/web/rig.rs
+@@ -0,0 +1,463 @@
++//! The window rig (4-full part 1, step 6.3's spike,
++//! `roadmap/briefs/4-full-1-step6-spike.md`): never committed as code;
++//! its record and patch are `audits/web-2026-11/spike/`.
++//!
++//! A table is a page of segments, each a run of rows of one height
++//! asked by an offset and a count: flat, one segment of the answer's
++//! rows; grouped, the league's tabs as head rows, and an opened tab's
++//! rows a segment between the heads before it and the heads after it.
++//! The server renders every row and says each segment's route and count;
++//! `window.js` turns the scroll into blocks asked of those routes and
++//! keeps the blocks near the viewport. `measure.js`, loaded only with
++//! `measure` in the URL, drives and measures it.
++//!
++//! - `table?realm&text[&group=tabs&league[&open=<tab id>]][&measure]`
++//! - `window?next=<token>&offset&count`: rows of a request at its basis,
++//!   `after` the offset and `limit` the count, the answer's bounds
++//!   applying (`ITEM_ROWS` under `item`); a moved basis is a 409.
++//! - `heads?realm&league&next=<token>&offset&count[&open][&text]`: the
++//!   tabs listing's rows from the offset, the token's basis checked
++//!   first. The listing is held for the basis it was read at, as the
++//!   corpus is held (rig-2): a window of heads is a slice of it, and a
++//!   moved basis reads it again.
++//!
++//! Either window answers the JSON a truth check reads where JSON is
++//! asked.
++
++use super::*;
++use acquisition_search::answer::{Shape, ViewOut};
++
++/// The row height, in CSS pixels: the one source the script and the
++/// stylesheet read (`data-h`, the script's `--row`).
++const ROW: u32 = 24;
++
++pub(super) const WINDOW: &str = include_str!("assets/window.js");
++pub(super) const MEASURE: &str = include_str!("assets/measure.js");
++
++/// The tabs listing of a realm's league, held for the basis it was read
++/// at (rig-2): the rows in the listing's order.
++pub(super) struct Listing {
++    realm: String,
++    league: String,
++    basis: acquisition_search::Basis,
++    rows: Arc<Vec<acquisition_store::TabRow>>,
++}
++
++/// The league's listing at `basis`: the one held where it was read at
++/// that basis, else read now (`Tabs::read`, every tab) and held in its
++/// place. The lock is held through a read, so the windows a jump asks
++/// together read it once.
++fn listing(
++    web: &Web,
++    realm: &str,
++    league: &str,
++    basis: &acquisition_search::Basis,
++) -> Result<Arc<Vec<acquisition_store::TabRow>>, Failure> {
++    let mut slot = web
++        .listing
++        .lock()
++        .unwrap_or_else(std::sync::PoisonError::into_inner);
++    if let Some(held) = slot.as_ref()
++        && held.realm == realm
++        && held.league == league
++        && &held.basis == basis
++    {
++        return Ok(Arc::clone(&held.rows));
++    }
++    let facts = web.served()?.facts()?;
++    let rows = Arc::new(
++        acquisition_search::tabs::Tabs::read(
++            &facts,
++            realm,
++            league,
++            &acquisition_search::tabs::Selection::default(),
++            None,
++            true,
++            acquisition_store::now(),
++        )?
++        .0
++        .rows,
++    );
++    *slot = Some(Listing {
++        realm: realm.to_string(),
++        league: league.to_string(),
++        basis: basis.clone(),
++        rows: Arc::clone(&rows),
++    });
++    Ok(rows)
++}
++
++/// A rows request as the rig asks it: the query over the realm, a row's
++/// item asked for its price.
++fn rows_request(realm: &str, text: &str) -> Result<Request, Failure> {
++    let mut query = serde_json::Map::new();
++    if !text.trim().is_empty() {
++        query.insert("text".into(), json!(text));
++    }
++    serde_json::from_value(json!({
++        "scope": { "realm": realm },
++        "query": query,
++        "view": { "rows": { "limit": 1, "fields": ["item"] } },
++    }))
++    .map_err(|e| Failure::Usage(e.to_string()))
++}
++
++/// The request continued at the answer's basis, from its first row: the
++/// token a segment's route carries.
++fn at_basis(mut request: Request, answer: &acquisition_search::Answer) -> String {
++    request.basis = Some(answer.basis.clone());
++    if let Shape::Rows(rows) = &mut request.view.shape {
++        rows.after = Some(0);
++    }
++    request.token()
++}
++
++fn field<'a>(fields: &'a [(String, String)], name: &str) -> &'a str {
++    pick(fields, name).unwrap_or("")
++}
++
++fn number(fields: &[(String, String)], name: &str) -> Result<usize, Failure> {
++    field(fields, name)
++        .parse()
++        .map_err(|_| Failure::Usage(format!("`{name}` is a number of rows")))
++}
++
++/// One segment: its route (to which the script adds the offset and the
++/// count), its rows, and the offset of its first row in that route's
++/// order.
++fn segment(class: &str, route: &str, count: usize, base: usize) -> String {
++    format!(
++        "<div class=\"seg {class}\" data-route=\"{}\" data-count=\"{count}\" data-base=\"{base}\"></div>\n",
++        esc(route)
++    )
++}
++
++/// The rig's page.
++pub(super) async fn table(
++    State(web): State<Arc<Web>>,
++    headers: HeaderMap,
++    Query(fields): Query<Fields>,
++) -> Response {
++    let measure = pick(&fields, "measure").is_some();
++    let built = blocking(&web, move |web| -> Result<(String, String), Failure> {
++        let realm = pick(&fields, "realm").unwrap_or("pc").to_string();
++        let text = field(&fields, "text").to_string();
++        let mut link = vec![("realm", realm.clone()), ("text", text.clone())];
++        if pick(&fields, "group") != Some("tabs") {
++            let request = rows_request(&realm, &text)?;
++            let answer = web.answer(&request)?;
++            let values = match &answer.view {
++                ViewOut::Rows(rows) => rows.values.clone(),
++                _ => Vec::new(),
++            };
++            let route = web.link("window", &[("next", at_basis(request, &answer))]);
++            let total = answer.total.matched;
++            let heads: String = ["Item", "Base", "Price", "Location"]
++                .iter()
++                .map(|h| h.to_string())
++                .chain(values.iter().cloned())
++                .map(|h| format!("<span>{}</span>", esc(&h)))
++                .collect();
++            let body = format!(
++                "<p>{total} rows, flat: <code>{}</code></p>\n<div class=\"rig items\" data-h=\"{ROW}\" data-values=\"{}\">\n<div class=\"r head\">{heads}</div>\n{}</div>\n",
++                esc(if text.is_empty() { "(every item)" } else { &text }),
++                values.len(),
++                segment("rows", &route, total, 0)
++            );
++            return Ok((format!("Rig · {total} rows"), body));
++        }
++        let league = pick(&fields, "league").unwrap_or("Standard").to_string();
++        link.push(("group", "tabs".into()));
++        link.push(("league", league.clone()));
++        // the basis the heads are read at: the realm's answer, whose
++        // basis moves when a fetch or a listing lands
++        let scope = rows_request(&realm, "")?;
++        let scope_answer = web.answer(&scope)?;
++        let basis = at_basis(scope, &scope_answer);
++        let rows = listing(web, &realm, &league, &scope_answer.basis)?;
++        let all = rows.len();
++        let open = pick(&fields, "open").map(str::to_string);
++        let mut heads_route = link.clone();
++        heads_route.push(("next", basis));
++        if let Some(open) = &open {
++            heads_route.push(("open", open.clone()));
++        }
++        let heads_route = web.link("heads", &heads_route);
++        let opened = open
++            .as_deref()
++            .and_then(|id| rows.iter().position(|row| row.id == id));
++        let mut segments = String::new();
++        // the league is the URL's word: escaped where the page writes it
++        let named = esc(&league);
++        let mut said = format!("{all} tabs of {named}, none open");
++        match opened {
++            None => segments.push_str(&segment("heads", &heads_route, all, 0)),
++            Some(at) => {
++                let tab = &rows[at];
++                let place = format!("id:{} league=\"{}\"", tab.id, league.replace('"', ""));
++                let scoped = match text.trim() {
++                    "" => place,
++                    text => format!("({text}) {place}"),
++                };
++                let request = rows_request(&realm, &scoped)?;
++                let answer = web.answer(&request)?;
++                let route = web.link("window", &[("next", at_basis(request, &answer))]);
++                let m = answer.total.matched;
++                said = format!(
++                    "{all} tabs of {named}, {} open with its {m} rows: <code>{}</code>",
++                    esc(&tab.name),
++                    esc(&scoped)
++                );
++                segments.push_str(&segment("heads", &heads_route, at + 1, 0));
++                segments.push_str(&segment("rows", &route, m, 0));
++                segments.push_str(&segment("heads", &heads_route, all - at - 1, at + 1));
++            }
++        }
++        let body = format!(
++            "<p>{said}</p>\n<div class=\"rig grouped\" data-h=\"{ROW}\">\n<div class=\"r head\"><span>Tab · item</span><span>Type · base</span><span>Items · price</span><span>Fetched · location</span></div>\n{segments}</div>\n"
++        );
++        Ok((format!("Rig · {all} tabs"), body))
++    })
++    .await;
++    match built {
++        Ok((title, body)) => web.page(
++            &title,
++            Head {
++                window: true,
++                measure,
++                ..Head::default()
++            },
++            &body,
++        ),
++        Err(failure) => web.failed("Rig", &failure, &headers),
++    }
++}
++
++/// A refusal of a window: a moved basis a 409, which the script answers
++/// by loading its page again; any other its words, in the block.
++fn window_refused(web: &Web, failure: &Failure, headers: &HeaderMap) -> Response {
++    let doc = web.refusal(failure);
++    let status = match doc["kind"].as_str() {
++        Some("basis_changed") => StatusCode::CONFLICT,
++        _ => StatusCode::BAD_REQUEST,
++    };
++    if wants_json(headers) {
++        return (
++            status,
++            [(header::CONTENT_TYPE, "application/json")],
++            doc.to_string(),
++        )
++            .into_response();
++    }
++    let words = doc["error"].as_str().unwrap_or("refused").to_string();
++    (
++        status,
++        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
++        format!("<p class=\"refused\">{}</p>", esc(&words)),
++    )
++        .into_response()
++}
++
++/// What a window's server time went to, as a `Server-Timing` header the
++/// measure reads from the browser's resource timing.
++#[derive(Default)]
++struct Timing(Vec<(&'static str, f64)>);
++
++impl Timing {
++    fn time<T>(&mut self, name: &'static str, work: impl FnOnce() -> T) -> T {
++        let began = std::time::Instant::now();
++        let out = work();
++        self.took(name, began);
++        out
++    }
++
++    fn took(&mut self, name: &'static str, began: std::time::Instant) {
++        self.0.push((name, began.elapsed().as_secs_f64() * 1000.0));
++    }
++
++    fn header(&self) -> String {
++        self.0
++            .iter()
++            .map(|(name, ms)| format!("{name};dur={ms:.2}"))
++            .collect::<Vec<_>>()
++            .join(", ")
++    }
++}
++
++fn fragment(body: String, timing: &Timing) -> Response {
++    let mut response = ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], body).into_response();
++    if let Ok(value) = HeaderValue::from_str(&timing.header()) {
++        response.headers_mut().insert("server-timing", value);
++    }
++    response
++}
++
++/// The rows of a request at its basis, from `offset`, `count` of them.
++pub(super) async fn window(
++    State(web): State<Arc<Web>>,
++    headers: HeaderMap,
++    Query(fields): Query<Fields>,
++) -> Response {
++    let json = wants_json(&headers);
++    let asked = blocking(&web, move |web| -> Result<_, Failure> {
++        let mut request = Request::from_token(field(&fields, "next"))?;
++        let (offset, count) = (number(&fields, "offset")?, number(&fields, "count")?);
++        if let Shape::Rows(rows) = &mut request.view.shape {
++            rows.after = Some(offset);
++            rows.limit = Some(count);
++        }
++        // `Web::answer`'s three steps, each timed for the measure
++        let mut timing = Timing::default();
++        request.check()?;
++        let opened = timing.time("open", || web.served()?.open().map_err(Failure::from))?;
++        let corpus = timing.time("corpus", || {
++            web.held
++                .corpus(&request, &opened.facts, &opened.intent)
++                .map_err(Failure::from)
++        })?;
++        let answer = timing.time("answer", || {
++            acquisition_search::answer(&corpus, &request).map_err(Failure::from)
++        })?;
++        Ok((offset, answer, timing))
++    })
++    .await;
++    let (offset, answer, mut timing) = match asked {
++        Ok(asked) => asked,
++        Err(failure) => return window_refused(&web, &failure, &headers),
++    };
++    if json {
++        return document(&json!({
++            "offset": offset,
++            "ids": answer.rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
++        }));
++    }
++    let began = std::time::Instant::now();
++    let now = acquisition_store::now();
++    let mut out = String::new();
++    for (n, row) in answer.rows.iter().enumerate() {
++        let name = crate::search_cmd::title(row.name.as_deref(), row.typeline.as_deref());
++        let price = match row.shown.as_ref().map(|s| &s.price) {
++            Some(acquisition_search::Priced::Is(p)) => p.text.clone(),
++            _ => String::new(),
++        };
++        let values: String = row
++            .values
++            .iter()
++            .map(|v| {
++                let text = match &v.value {
++                    Some(Value::String(s)) => s.clone(),
++                    Some(value) => value.to_string(),
++                    None => v.status.unwrap_or("").to_string(),
++                };
++                format!("<span>{}</span>", esc(&text))
++            })
++            .collect();
++        let rarity = row.rarity.as_deref().unwrap_or("").to_lowercase();
++        out.push_str(&format!(
++            "<div class=\"r\" data-i=\"{}\" data-id=\"{}\"><a class=\"rarity-{}\" href=\"item/{}\">{}</a><span>{}</span><span>{}</span><span>{}</span>{values}</div>\n",
++            offset + n,
++            esc(&row.id),
++            esc(&rarity),
++            enc(&row.id),
++            esc(&name),
++            esc(row.base.as_deref().unwrap_or("")),
++            esc(&price),
++            esc(&crate::search_cmd::place_text(&row.place, now)),
++        ));
++    }
++    timing.took("render", began);
++    fragment(out, &timing)
++}
++
++/// The league's tabs from `offset`, `count` of them, as head rows: each a
++/// link that opens it, the opened one's closing it.
++pub(super) async fn heads(
++    State(web): State<Arc<Web>>,
++    headers: HeaderMap,
++    Query(fields): Query<Fields>,
++) -> Response {
++    let json = wants_json(&headers);
++    let read = blocking(&web, move |web| -> Result<_, Failure> {
++        // the basis first: a listing read past a moved one is refused, as
++        // a continuation's rows are, by the held corpus's basis
++        let mut timing = Timing::default();
++        let check = Request::from_token(field(&fields, "next"))?;
++        let opened = timing.time("open", || web.served()?.open().map_err(Failure::from))?;
++        let corpus = timing.time("corpus", || {
++            web.held
++                .corpus(&check, &opened.facts, &opened.intent)
++                .map_err(Failure::from)
++        })?;
++        if check.basis.as_ref() != Some(&corpus.basis) {
++            // the search's own refusal of a place at another basis
++            acquisition_search::answer(&corpus, &check)?;
++        }
++        let began = std::time::Instant::now();
++        let (offset, count) = (number(&fields, "offset")?, number(&fields, "count")?);
++        let realm = pick(&fields, "realm").unwrap_or("pc").to_string();
++        let league = pick(&fields, "league").unwrap_or("Standard").to_string();
++        // a slice of the listing held at the basis just checked
++        let listed = listing(web, &realm, &league, &corpus.basis)?;
++        let count = count.min(acquisition_store::bound::ITEM_ROWS);
++        let rows: Vec<_> = listed.iter().skip(offset).take(count).cloned().collect();
++        timing.took("listing", began);
++        Ok((offset, rows, fields, timing))
++    })
++    .await;
++    let (offset, rows, fields, mut timing) = match read {
++        Ok(read) => read,
++        Err(failure) => return window_refused(&web, &failure, &headers),
++    };
++    if json {
++        return document(&json!({
++            "offset": offset,
++            "ids": rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
++        }));
++    }
++    let began = std::time::Instant::now();
++    let now = acquisition_store::now();
++    let open = pick(&fields, "open");
++    let base: Vec<(&str, String)> = ["realm", "text", "league"]
++        .iter()
++        .map(|k| (*k, field(&fields, k).to_string()))
++        .chain([("group", "tabs".to_string())])
++        .collect();
++    let mut out = String::new();
++    for (n, tab) in rows.iter().enumerate() {
++        let is_open = open == Some(tab.id.as_str());
++        let mut to = base.clone();
++        if !is_open {
++            to.push(("open", tab.id.clone()));
++        }
++        out.push_str(&format!(
++            "<div class=\"r tab{}\" data-i=\"{}\" data-id=\"{}\"><a href=\"{}\">{} {}</a><span>{}</span><span>{}</span><span>{}</span></div>\n",
++            if is_open { " open" } else { "" },
++            offset + n,
++            esc(&tab.id),
++            esc(&web.link("table", &to)),
++            if is_open { "▾" } else { "▸" },
++            esc(&tab.name),
++            esc(&tab.r#type),
++            esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
++            esc(&store_cmd::ago(now, tab.fetched_at)),
++        ));
++    }
++    timing.took("render", began);
++    fragment(out, &timing)
++}
++
++pub(super) async fn window_script() -> Response {
++    (
++        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
++        WINDOW,
++    )
++        .into_response()
++}
++
++pub(super) async fn measure_script() -> Response {
++    (
++        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
++        MEASURE,
++    )
++        .into_response()
++}
+diff --git a/rig-probes.py b/rig-probes.py
+new file mode 100644
+index 00000000..81baba0b
+--- /dev/null
++++ b/rig-probes.py
+@@ -0,0 +1,160 @@
++"""The window rig's fault checks (step 6.3's spike, never committed as
++code; its record is `audits/web-2026-11/spike/README.md`): each fault
++its reviews found, made on purpose, and what the measure and the runner
++must make of it.
++
++    python3 -I -B rig-probes.py                                  # the deadlines
++    python3 -I -B rig-probes.py <acq web URL> <profile dir>      # and the page
++
++Exits 1 when a check does not hold. The deadlines need no browser: a
++fake debugging socket and a fake page list answer a byte every 3 s, so
++each read stays inside any per-read limit, and the call must still end
++at its deadline. The page checks run the flat case headless with a
++fault injected before the measure starts: rows that declare indices
++outside the slots in view (relabel) and a block drawn 24 px from its
++layout place (transform) must void the run; the first block held
++unanswered past the run (stall) must be in the result, pending.
++"""
++
++import importlib.util
++import json
++import os
++import socket
++import subprocess
++import sys
++import threading
++import time
++
++spec = importlib.util.spec_from_file_location("rig", os.path.join(os.path.dirname(__file__), "rig-run.py"))
++rig = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(rig)
++
++DEADLINE = 5.0
++failures = []
++
++
++def check(name, held, said):
++    print(f"{'ok  ' if held else 'FAIL'} {name}: {said}", flush=True)
++    if not held:
++        failures.append(name)
++
++
++def dribbling_server(reply_head, body):
++    """A server that answers one request with `reply_head`, then `body`
++    a byte every 3 s; its port."""
++    server = socket.socket()
++    server.bind(("127.0.0.1", 0))
++    server.listen(1)
++
++    def serve():
++        c, _ = server.accept()
++        head = b""
++        while b"\r\n\r\n" not in head:
++            head += c.recv(1)
++        c.sendall(reply_head)
++        if b"websocket" in reply_head.lower():
++            c.recv(4096)  # the client's call
++        for b in body:
++            time.sleep(3)
++            try:
++                c.sendall(bytes([b]))
++            except OSError:
++                return  # the client gave up: what the check waits for
++
++    threading.Thread(target=serve, daemon=True).start()
++    return server.getsockname()[1]
++
++
++def ends_by_deadline(name, work):
++    out = {}
++
++    def run():
++        began = time.monotonic()
++        try:
++            work()
++            out["said"] = ("answered", 0)
++        except OSError as e:
++            out["said"] = (type(e).__name__, time.monotonic() - began)
++
++    t = threading.Thread(target=run, daemon=True)
++    t.start()
++    t.join(DEADLINE + 10)
++    said = out.get("said")
++    held = said is not None and said[0] == "TimeoutError" and said[1] <= DEADLINE + 1
++    check(name, held, f"raised {said[0]} after {said[1]:.1f} s" if said else "still waiting")
++
++
++def deadlines():
++    rig.ANSWER = DEADLINE
++    body = b'{"id": 1, "result": {}}' + b" " * 77
++    port = dribbling_server(
++        b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
++        + bytes([0x81, len(body)]),
++        body,
++    )
++    ws = rig.Socket(f"ws://127.0.0.1:{port}/devtools/page/x")
++    ends_by_deadline("a debugging call answered a byte at a time ends at its deadline", lambda: ws.call("Runtime.evaluate", expression="1"))
++    listing = b'[{"type": "page", "webSocketDebuggerUrl": "ws://x"}]' + b" " * 50
++    port = dribbling_server(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(listing), listing)
++    ends_by_deadline(
++        "the page list answered a byte at a time ends at its deadline",
++        lambda: rig.page_list(port, time.monotonic() + DEADLINE),
++    )
++
++
++def page(url, profile, fault):
++    """The flat case, headless, with `fault` made before the measure
++    starts; the measure's result."""
++    chrome = subprocess.Popen(
++        [rig.CHROME, "--headless=new", f"--user-data-dir={profile}", "--remote-debugging-port=0",
++         "--window-size=1440,900", "--force-device-scale-factor=2", "--no-first-run", "about:blank"],
++        stdout=subprocess.DEVNULL,
++        stderr=subprocess.DEVNULL,
++    )
++    try:
++        port_file = os.path.join(profile, "DevToolsActivePort")
++        if os.path.exists(port_file):
++            os.remove(port_file)
++        ws = rig.find_page(profile, time.monotonic() + 60)
++        if fault == "stall":
++            # the first block, held unanswered whenever asked: never continued
++            ws.call("Fetch.enable", patterns=[{"urlPattern": "*offset=0&count=50*", "requestStage": "Request"}])
++        ws.call("Page.navigate", url=url + "table?realm=pc&text=&measure=1")
++        time.sleep(0.6)  # loaded, the first block in, the measure not yet started (1 s after load)
++        make = {
++            "relabel": """(() => { document.querySelectorAll('.seg .block')[0].querySelectorAll('.r')
++                .forEach((r, j) => { r.dataset.i = String(5000 + j); }); })()""",
++            "transform": """(() => { document.querySelectorAll('.seg .block')[0]
++                .style.transform = 'translateY(24px)'; })()""",
++            "stall": "0",
++        }[fault]
++        ws.call("Runtime.evaluate", expression=make)
++        ends = time.monotonic() + rig.RUN
++        while time.monotonic() < ends:
++            time.sleep(1)
++            got = ws.call("Runtime.evaluate", until=ends, returnByValue=True,
++                          expression="window.rigResult ? JSON.stringify(window.rigResult) : ''")
++            if got["result"].get("value"):
++                return json.loads(got["result"]["value"])
++        return None
++    finally:
++        chrome.terminate()
++        chrome.wait(timeout=10)
++
++
++def pages(url, profile):
++    for fault in ("relabel", "transform"):
++        r = page(url, profile, fault)
++        check(f"rows drawn off their place ({fault}) void the run", bool(r and r["voided"] and r["off"]["frames"] > 0),
++              f"voided {r and r['voided']}, {r and r['off']['frames']} frames off")
++    r = page(url, profile, "stall")
++    held = [e for e in (r or {}).get("windows", {}).get("each", []) if e["offset"] == 0]
++    check("a window unanswered at the run's end is in the result, pending", any(e["state"] == "pending" for e in held),
++          f"the held block's records: {[e['state'] for e in held] or 'none'}")
++
++
++if __name__ == "__main__":
++    deadlines()
++    if len(sys.argv) > 2:
++        pages(sys.argv[1], sys.argv[2])
++    sys.exit(1 if failures else 0)
+diff --git a/rig-run.py b/rig-run.py
+new file mode 100644
+index 00000000..8ff181a4
+--- /dev/null
++++ b/rig-run.py
+@@ -0,0 +1,249 @@
++"""The window rig's headless runs (step 6.3's spike, never committed as
++code; its record is `audits/web-2026-11/spike/README.md`).
++
++    python3 -I rig-run.py <acq web URL> <profile dir> <runs> <out.jsonl> [case,…]
++
++Starts headless Chrome on the profile directory given (never a person's
++own), at a 1440 x 900 viewport and a device pixel ratio of 2, loads each
++case's page with `measure` in its URL, waits for the measure's result
++(`window.rigResult`) and appends it, one JSON line per run. Talks to
++Chrome over its debugging protocol with the standard library alone.
++Every call has an absolute deadline, `ANSWER` seconds or the run's end
++(`RUN` seconds from its navigation), whichever comes first, and each
++read waits only what is left of it; so does finding the browser's page,
++its port file and its page list: a browser that stops answering, or
++answers a byte at a time, is a run recorded as failed, and the runner
++stops there. `rig-probes.py` beside it checks the deadlines and the
++measure's judgments by fault.
++"""
++
++import base64
++import json
++import os
++import socket
++import struct
++import subprocess
++import sys
++import time
++import urllib.request
++
++CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
++ANSWER = 30  # seconds a debugging call may wait for its answer
++RUN = 180  # seconds a run may take
++CASES = {
++    "F": "table?realm=pc&text=",
++    "F1k": "table?realm=pc&text=" + urllib.request.quote('category="accessory.ring" ilvl>=1'),
++    "G0": "table?realm=pc&text=&group=tabs&league=Standard",
++    "G1": "table?realm=pc&text=&group=tabs&league=Standard&open=d8132eff92",
++}
++
++
++def wait(deadline, what):
++    """Raise once the deadline has passed; else what is left of it."""
++    left = deadline - time.monotonic()
++    if left <= 0:
++        raise TimeoutError(f"{what}: the deadline passed")
++    return left
++
++
++def page_list(port, deadline):
++    """The browser's page list, `GET /json/list`, by its deadline: the
++    connection and each read wait only what is left of it."""
++    s = socket.create_connection(("127.0.0.1", int(port)), timeout=wait(deadline, "page list"))
++    try:
++        s.settimeout(wait(deadline, "page list"))
++        s.sendall(f"GET /json/list HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n".encode())
++        data = b""
++        while True:
++            s.settimeout(wait(deadline, "page list"))
++            chunk = s.recv(65536)
++            if not chunk:
++                break
++            data += chunk
++            head, _, body = data.partition(b"\r\n\r\n")
++            length = [int(line.split(b":")[1]) for line in head.split(b"\r\n") if line.lower().startswith(b"content-length:")]
++            if length and len(body) >= length[0]:
++                break
++        return json.loads(data.partition(b"\r\n\r\n")[2])
++    finally:
++        s.close()
++
++
++def find_page(profile, deadline):
++    """The debugging socket of the browser's page, by the deadline."""
++    port_file = os.path.join(profile, "DevToolsActivePort")
++    while not (os.path.exists(port_file) and open(port_file).read().strip()):
++        wait(deadline, "the browser's port file")
++        time.sleep(0.1)
++    port = open(port_file).read().split()[0]
++    page = next(t for t in page_list(port, deadline) if t["type"] == "page")
++    return Socket(page["webSocketDebuggerUrl"])
++
++
++class Socket:
++    """One websocket to a debugging target: text frames, masked out."""
++
++    def _until(self, deadline):
++        """Let the socket's next operation wait only what is left."""
++        self.s.settimeout(wait(deadline, "the debugging call"))
++
++    def __init__(self, url):
++        rest = url.split("://", 1)[1]
++        hostport, path = rest.split("/", 1)
++        host, port = hostport.split(":")
++        self.s = socket.create_connection((host, int(port)), timeout=ANSWER)
++        key = base64.b64encode(os.urandom(16)).decode()
++        self.s.sendall(
++            (
++                f"GET /{path} HTTP/1.1\r\nHost: {hostport}\r\nUpgrade: websocket\r\n"
++                f"Connection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
++                "Sec-WebSocket-Version: 13\r\n\r\n"
++            ).encode()
++        )
++        deadline = time.monotonic() + ANSWER
++        head = b""
++        while b"\r\n\r\n" not in head:
++            self._until(deadline)
++            head += self.s.recv(1)
++        if b" 101 " not in head.split(b"\r\n")[0]:
++            raise RuntimeError(head.decode(errors="replace"))
++        self.next = 0
++
++    def _exact(self, n, deadline):
++        out = b""
++        while len(out) < n:
++            self._until(deadline)
++            chunk = self.s.recv(n - len(out))
++            if not chunk:
++                raise RuntimeError("the target closed its socket")
++            out += chunk
++        return out
++
++    def send(self, obj, deadline):
++        data = json.dumps(obj).encode()
++        mask = os.urandom(4)
++        n = len(data)
++        if n < 126:
++            head = struct.pack("!BB", 0x81, 0x80 | n)
++        elif n < 65536:
++            head = struct.pack("!BBH", 0x81, 0x80 | 126, n)
++        else:
++            head = struct.pack("!BBQ", 0x81, 0x80 | 127, n)
++        body = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
++        self._until(deadline)
++        self.s.sendall(head + mask + body)
++
++    def receive(self, deadline):
++        message = b""
++        while True:
++            b0, b1 = self._exact(2, deadline)
++            n = b1 & 0x7F
++            if n == 126:
++                (n,) = struct.unpack("!H", self._exact(2, deadline))
++            elif n == 127:
++                (n,) = struct.unpack("!Q", self._exact(8, deadline))
++            payload = self._exact(n, deadline)
++            if b0 & 0x0F in (0x9, 0xA):
++                continue
++            message += payload
++            if b0 & 0x80:
++                return json.loads(message)
++
++    def call(self, method, until=None, **params):
++        """One call, answered by its deadline: `ANSWER` seconds from now,
++        or `until` where that comes first."""
++        deadline = time.monotonic() + ANSWER
++        if until is not None:
++            deadline = min(deadline, until)
++        self.next += 1
++        mine = self.next
++        self.send({"id": mine, "method": method, "params": params}, deadline)
++        while True:
++            reply = self.receive(deadline)
++            if reply.get("id") == mine:
++                if "error" in reply:
++                    raise RuntimeError(reply["error"])
++                return reply.get("result", {})
++
++
++def main():
++    url, profile, runs, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
++    wanted = sys.argv[5].split(",") if len(sys.argv) > 5 else list(CASES)
++    chrome = subprocess.Popen(
++        [
++            CHROME,
++            "--headless=new",
++            f"--user-data-dir={profile}",
++            "--remote-debugging-port=0",
++            "--window-size=1440,900",
++            "--force-device-scale-factor=2",
++            "--no-first-run",
++            "--no-default-browser-check",
++            "about:blank",
++        ],
++        stdout=subprocess.DEVNULL,
++        stderr=subprocess.DEVNULL,
++    )
++    try:
++        try:
++            ws = find_page(profile, time.monotonic() + 2 * ANSWER)
++            version = ws.call("Runtime.evaluate", expression="navigator.userAgent", returnByValue=True)
++        except (OSError, RuntimeError, StopIteration) as e:
++            # no page found by the deadline: the first run fails, and the
++            # runner stops there
++            with open(out, "a") as sink:
++                line = {"case": wanted[0], "run": 1, "result": None, "failed": f"the browser's page was not found: {e}"}
++                sink.write(json.dumps(line) + "\n")
++            print(f"{wanted[0]} run 1: FAILED, {line['failed']}", flush=True)
++            return
++        print("browser:", version["result"]["value"], flush=True)
++        with open(out, "a") as sink:
++            for run in range(1, runs + 1):
++                for case in wanted:
++                    path = CASES[case]
++                    result = None
++                    failed = None
++                    try:
++                        ends = time.monotonic() + RUN
++                        ws.call("Page.navigate", until=ends, url=url + path + "&measure=1")
++                        while time.monotonic() < ends - 1:
++                            time.sleep(1)
++                            got = ws.call(
++                                "Runtime.evaluate",
++                                until=ends,
++                                expression="window.rigResult ? JSON.stringify(window.rigResult) : ''",
++                                returnByValue=True,
++                            )
++                            if got["result"].get("value"):
++                                result = json.loads(got["result"]["value"])
++                                break
++                        else:
++                            failed = f"no result in {RUN} s"
++                    except (OSError, RuntimeError) as e:
++                        failed = f"the browser stopped answering: {e}"
++                    line = {"case": case, "run": run, "result": result, "failed": failed}
++                    sink.write(json.dumps(line) + "\n")
++                    sink.flush()
++                    if failed:
++                        print(f"{case} run {run}: FAILED, {failed}", flush=True)
++                        if result is None and "stopped" in failed:
++                            return
++                        continue
++                    jumps = sorted(j["ms"] if j["ms"] is not None else float("inf") for j in result["jumps"])
++                    print(
++                        f"{case} run {run}: {'PASSED' if result['passed'] else 'MISSED'}"
++                        f"{' VOID' if result['voided'] else ''} · {result['rate']} Hz · steady "
++                        f"{result['steady']['late']}/{result['steady']['frames']} late, "
++                        f"{result['steady']['missing']} missing, longest {result['steady']['longest']:.1f} ms"
++                        f" · jumps ms {[round(j) if j != float('inf') else None for j in jumps]}"
++                        f" · DOM {result['dom']['elements']} elements, {result['dom']['rows']} rows"
++                        f" · checked {result['off']['checked']}, wrong {result['off']['wrong']}",
++                        flush=True,
++                    )
++    finally:
++        chrome.terminate()
++        chrome.wait(timeout=10)
++
++
++if __name__ == "__main__":
++    main()
