@@ -16,9 +16,11 @@ better Acquisition that is agent-friendly and agent-forward.
   over places; "Approved as designed.", 2026-11-11). Its build is that
   file's §5, in series. Values on rows (#38) and the count (#245) are
   closed (`briefs/4-full-1-step6-values.md`,
-  `briefs/4-full-1-step6-count.md`); next the spike, the owner's at a
-  browser (the design's §5 item 3), then the flat table, and the places
-  and the grouped table.
+  `briefs/4-full-1-step6-count.md`); next the spike (the design's §5
+  item 3), briefed in two: the window script, whose verdict is the
+  owner's sitting in Brave (`briefs/4-full-1-step6-spike.md`), and the
+  check's driver (`briefs/4-full-1-step6-driver.md`). Then the flat
+  table, and the places and the grouped table.
 
 ## Next
 
