@@ -178,6 +178,12 @@ As drafted:
 - **The navigation and routes** (C138): "Stash tabs" and "Characters"
   replace "Refresh"; routes `tabs`, `characters` and `count` join, and
   `refresh` retires. Recommended as listed.
+- **The window's route**, ruled after the spike, 2026-11-12 ("Approve
+  all three", of #268, #266 and #267): `rows` joins, answering a
+  window of an answer's rows by the request's token, an offset and a
+  count (#268). The spike's record is
+  `audits/web-2026-11/spike/README.md`. With it, the browser-driven
+  check's driver and its home (C187, the browser-driven check).
 - **#191**: no plan schema change; the place says it. Recommended.
 - **The default order from the query** (#38): it changes the row order
   of a CLI or MCP answer that names no sort and compares one value.

@@ -22,8 +22,9 @@ better Acquisition that is agent-friendly and agent-forward.
   The window script holds the table in the owner's Brave, flat and
   grouped, at 60 Hz (`audits/web-2026-11/spike/README.md`; his words:
   "All passed. Nothing flickered."). Next is the flat table, step 6.4.
-  It waits on its brief and on the route that serves a window of rows
-  (#268), with the driver and the check's home (#266, #267) beside it.
+  Its route (`rows`), the check's driver and the check's home are
+  ruled (the step 6 design's §7; C187, the browser-driven check, built
+  under #267); it waits on its brief alone.
   Then the places and the grouped table, step 6.5, where tabs nest
   under their parent (#269); opening something keeps the reader's
   place in both (#270).
