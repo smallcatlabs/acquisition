@@ -1728,46 +1728,6 @@ fn values_named_are_carried_in_order_and_a_sort_joins_them() {
         json!(["pseudo.total_res", "stack"])
     );
     assert!(b["view"]["rows"].get("sort_from_query").is_none());
-    let thirteen: Vec<String> = ('a'..='m')
-        .map(|word| format!("sum(\"# to maximum {word}\")"))
-        .collect();
-    let refused = asked(json!({ "rows": { "values": thirteen } })).unwrap_err();
-    assert_eq!(refused.to_json()["kind"], "view", "{}", refused.to_json());
-    // the sort is among the twelve: twelve named and a sort outside them
-    // are thirteen, refused (the cold review at 1ab468eb, its first)
-    let twelve = &thirteen[..12];
-    let refused = asked(json!({ "rows": { "values": twelve, "sort": "ilvl" } })).unwrap_err();
-    assert_eq!(refused.to_json()["kind"], "view", "{}", refused.to_json());
-    let fits = asked(json!({ "rows": { "values": twelve, "sort": twelve[0] } })).unwrap();
-    assert_eq!(fits["view"]["rows"]["values"].as_array().unwrap().len(), 12);
-    // the query's own past the bound are counted, and a sort outside them
-    // takes the last place, the one it displaced counted with them
-    let many = thirteen
-        .iter()
-        .map(|v| format!("{v}>=0"))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let by_query = |sort: Option<&str>| {
-        let mut rows = json!({});
-        if let Some(sort) = sort {
-            rows["sort"] = json!(sort);
-        }
-        let request: Request =
-            serde_json::from_value(json!({ "query": { "text": many }, "view": { "rows": rows } }))
-                .unwrap();
-        as_json(&answer(&corpus, &request).unwrap())["view"]["rows"].clone()
-    };
-    let default = by_query(None);
-    assert_eq!(default["values"].as_array().unwrap().len(), 12, "{default}");
-    assert_eq!(default["values_left_out"], 1, "{default}");
-    let sorted = by_query(Some("ilvl"));
-    let values = sorted["values"].as_array().unwrap();
-    assert_eq!(
-        (values.len(), &values[11]),
-        (12, &json!("ilvl")),
-        "{sorted}"
-    );
-    assert_eq!(sorted["values_left_out"], 2, "{sorted}");
     // an adapter's flat arguments: values beside a count or explain are
     // refused, as a sort is
     use acquisition_search::answer::{Rows, Shape};
@@ -1789,4 +1749,175 @@ fn ids_in_order(a: &Value) -> Vec<String> {
         .iter()
         .map(|r| r["id"].as_str().unwrap().to_string())
         .collect()
+}
+
+/// The bound on a row's values, held once on the list a row carries
+/// (the cold reviews at 1ab468eb and 849ccbab, each of which found it
+/// missed on another path): every way a list is filled — named alone,
+/// the query's alone, either with a named sort or the query's — and the
+/// continuation of each, which fills it again the same. Named past
+/// twelve, the sort among them, is refused; the query's is cut from its
+/// end and counted, the sort kept.
+#[test]
+fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
+    let corpus = load(&worked(), Some("pc"));
+    let sums: Vec<String> = ('a'..='m')
+        .map(|word| format!("sum(line(\"# to maximum {word}\").arg1)"))
+        .collect();
+    let compared = |n: usize| {
+        sums[..n]
+            .iter()
+            .map(|sum| format!("{sum}>=0"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    // the query, the rows view, and what is carried: refused, or the
+    // number of values, the last one where it is the sort, and how many of
+    // the query's were left out
+    type Case<'a> = (
+        &'a str,
+        String,
+        Value,
+        Option<(usize, Option<&'a str>, u64)>,
+    );
+    let one = "ilvl>=1".to_string();
+    let none = String::new();
+    let cases: Vec<Case> = vec![
+        (
+            "named alone",
+            none.clone(),
+            json!({ "values": sums[..12] }),
+            Some((12, None, 0)),
+        ),
+        (
+            "named alone, past it",
+            none.clone(),
+            json!({ "values": sums[..13] }),
+            None,
+        ),
+        (
+            "the query's alone",
+            compared(12),
+            json!({}),
+            Some((12, None, 0)),
+        ),
+        (
+            "the query's alone, past it",
+            compared(13),
+            json!({}),
+            Some((12, None, 1)),
+        ),
+        (
+            "the query's one, its own order",
+            one.clone(),
+            json!({}),
+            Some((1, Some("ilvl"), 0)),
+        ),
+        (
+            "named and a named sort among them",
+            none.clone(),
+            json!({ "values": sums[..12], "sort": sums[0] }),
+            Some((12, None, 0)),
+        ),
+        (
+            "named and a named sort outside them",
+            none.clone(),
+            json!({ "values": sums[..11], "sort": "ilvl" }),
+            Some((12, Some("ilvl"), 0)),
+        ),
+        (
+            "named and a named sort outside them, past it",
+            none.clone(),
+            json!({ "values": sums[..12], "sort": "ilvl" }),
+            None,
+        ),
+        (
+            "named and the query's sort",
+            one.clone(),
+            json!({ "values": sums[..11] }),
+            Some((12, Some("ilvl"), 0)),
+        ),
+        (
+            "named and the query's sort, past it",
+            one.clone(),
+            json!({ "values": sums[..12] }),
+            None,
+        ),
+        (
+            "named, the query's sort declined",
+            one.clone(),
+            json!({ "values": sums[..12], "sort": "none" }),
+            Some((12, None, 0)),
+        ),
+        (
+            "the query's and a named sort",
+            compared(12),
+            json!({ "sort": "ilvl" }),
+            Some((12, Some("ilvl"), 1)),
+        ),
+        (
+            "the query's past it and a named sort",
+            compared(13),
+            json!({ "sort": "ilvl" }),
+            Some((12, Some("ilvl"), 2)),
+        ),
+    ];
+    for (case, query, rows, expected) in cases {
+        let ask = |rows: Value| -> Result<Value, Value> {
+            let request: Request = serde_json::from_value(
+                json!({ "query": { "text": query }, "view": { "rows": rows } }),
+            )
+            .unwrap();
+            request
+                .check()
+                .map_err(|e| json!({ "check": e.to_string() }))?;
+            answer(&corpus, &request)
+                .map(|a| as_json(&a))
+                .map_err(|e| e.to_json())
+        };
+        let mut first = rows.clone();
+        first["limit"] = json!(2);
+        let a = ask(first);
+        let Some((len, last, left_out)) = expected else {
+            let refused = a.unwrap_err();
+            assert!(
+                refused.get("check").is_some(),
+                "{case}: refused before a store opens: {refused}"
+            );
+            continue;
+        };
+        let a = a.unwrap_or_else(|e| panic!("{case}: {e}"));
+        let said = &a["view"]["rows"];
+        let values = said["values"].as_array().unwrap();
+        assert_eq!(values.len(), len, "{case}: {said}");
+        if let Some(last) = last {
+            assert_eq!(values[len - 1], last, "{case}: {said}");
+        }
+        assert_eq!(
+            said["values_left_out"].as_u64().unwrap_or(0),
+            left_out,
+            "{case}: {said}"
+        );
+        for row in a["rows"].as_array().unwrap() {
+            assert_eq!(
+                row["values"].as_array().unwrap().len(),
+                len,
+                "{case}: {row}"
+            );
+        }
+        // the continuation fills the list again, the same
+        let next: Request = serde_json::from_value(said["next"]["request"].clone())
+            .unwrap_or_else(|e| panic!("{case}: no continuation: {e} {said}"));
+        let b = as_json(&answer(&corpus, &next).unwrap());
+        for key in [
+            "values",
+            "values_left_out",
+            "sort",
+            "desc",
+            "values_from_query",
+            "sort_from_query",
+        ] {
+            assert_eq!(b["view"]["rows"].get(key), said.get(key), "{case}: {key}");
+        }
+    }
 }
