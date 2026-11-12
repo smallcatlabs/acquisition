@@ -21,11 +21,13 @@ better Acquisition that is agent-friendly and agent-forward.
   (`audits/web-2026-11/driver/README.md`): a hand-written one works.
   The window script holds the table in the owner's Brave, flat and
   grouped, at 60 Hz (`audits/web-2026-11/spike/README.md`; his words:
-  "All passed. Nothing flickered."). Next is the flat table, step 6.4.
-  Its route (`rows`), the check's driver and the check's home are
-  ruled (the step 6 design's §7; C187, the browser-driven check, built
-  under #267); it waits on its brief alone.
-  Then the places and the grouped table, step 6.5, where tabs nest
+  "All passed. Nothing flickered."). The browser-driven check is in
+  the gate (step 6.4a, C187): the count's rule and the picker's are
+  held by `crates/acquisition-cli/tests/browser.rs`, and every gate
+  machine needs a Chromium-family browser. Next is the windowed table,
+  the rest of step 6.4, on the route ruled as `rows`. It waits on its
+  brief and on the price-age column (#271), and its window script
+  joins the check. Then the places and the grouped table, step 6.5, where tabs nest
   under their parent (#269); opening something keeps the reader's
   place in both (#270).
 
@@ -37,7 +39,8 @@ when its step closes or the owner strikes it.
 
 1. 4-full part 1, step 6: the dense table, its view ruled
    (`briefs/4-full-1-step6-design.md`) and built in series: the flat
-   table (6.4), once its brief is written and #268 ruled; then the
+   table (6.4), its check in the gate, once its brief is written and
+   #271 ruled; then the
    places and the grouped table (6.5): #244 with the place pages
    (#248, #194, #189, #182), #191, and #186 and #190 riding, with
    #269 and #270. The search form's reshaping (#184, #181, #180, #185,
