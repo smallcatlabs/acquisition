@@ -1,0 +1,13 @@
+`roadmap/briefs/4-full-1-step6-table.md` at `a4c02669`: needs clarification before a builder can follow it without choosing value-cell behavior.
+
+- **Decisions 10 / Done when — changes what gets built.** The browser check omits the reload and first-block adoption rules required by Decisions 4 and 7, leaving script behavior outside C187’s browser check. **Evidence:** the proposed check observes row identity, position and DOM size on an unchanged world; replacing the server’s first block with an identical fetch, or failing to reload after a 409, can pass those observations and the route tests. **Smallest change:** require browser assertions that the initial block is not requested while retained, and that a basis change followed by a window request causes navigation and an answer at the new basis.
+
+- **Decision 5 — changes what gets built.** `row_shows` does not provide independently addressable value-cell text, so the builder must guess which of its words belong in each column. **Evidence:** `crates/acquisition-cli/src/search_cmd.rs:1393` returns merged `RowPiece`s for the whole row, moves the sort’s contribution first, includes supporting evidence and matched terms, and suppresses some absent values. Its output cannot simply be zipped with `RowsOut.values`. **Smallest change:** specify that cells use a shared formatter extracted from its per-value wording, state whether supporting evidence belongs in cells, and require a golden with multiple values, including a status-bearing value, to hold column alignment. This is the first implementation choice the brief leaves unresolved.
+
+- **Decision 1 / Find first — wording.** “The two things it dropped” carries a numerical claim about the rig without a command that establishes that census, contrary to C174’s rule that tree claims accompany their producing commands. **Evidence:** `git apply --numstat` reports affected files and line counts; it does not establish the omitted rendering behavior. **Smallest change:** remove the redundant census sentence and let Decision 5 state the production rendering requirements directly.
+
+- **What I did not check:** compilation, tests, browser behavior, performance and hosted CI conclusions, because this review was restricted to reading the committed tree. I ran the read-only discovery commands, including the patch dry-run; they found their intended targets, and the patch check passed. I found no invariant or dependency-edge contradiction and no further scope omission requiring a finding.
+
+- **Form:** the whole-row helper is presented as though it already supplies a per-column rendering seam, which obscured the missing choice.
+
+- **Prompt:** nothing else got in the way.
