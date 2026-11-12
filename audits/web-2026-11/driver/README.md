@@ -7,8 +7,9 @@ browser-driven check, and what it adds to the gate, asked of a page
 
 ## Verdict
 
-**A hand-written driver works, and adds nothing this Mac can measure
-to the gate.** Candidate (b) is the test starting a headless
+**A hand-written driver works. It adds no compilation cost this Mac
+resolves under the tolerance named before the timings, and its check
+runs in about 1.4 s.** Candidate (b) is the test starting a headless
 Chromium-family browser through the harness and speaking its debugging
 protocol over a loopback WebSocket client written in the test crate:
 141 code lines in `tests/browser.rs` and 52 in the CLI's harness, no
