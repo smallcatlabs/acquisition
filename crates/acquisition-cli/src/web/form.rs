@@ -348,21 +348,23 @@ impl Folded {
     }
 }
 
-impl Folded {
-    /// The same search asked for its count alone (4-full part 1, step
-    /// 6.2): its view replaced by rows at limit 0 with `sort` `none`, so
-    /// no row is walked and no order derived for a number, and the view
-    /// the form named is never read.
-    pub(crate) fn counted(self) -> Folded {
-        Folded {
-            count: None,
-            limit: Some(0),
-            sort: Some(acquisition_search::answer::STORE_ORDER.to_string()),
-            desc: false,
-            fields: None,
-            ..self
-        }
-    }
+/// A form's fields folded for their count alone (4-full part 1, step
+/// 6.2): the form's view fields set aside before the fold, so the view
+/// the form names is never read, nor refused where its values are no
+/// view's (that is the Search's to say), and a name the form never emits
+/// still refused; the view is rows at limit 0 with `sort` `none`, so no
+/// row is walked and no order derived for a number.
+pub(crate) fn fold_count(form: &Form, fields: &[(String, String)]) -> Result<Folded, String> {
+    let searched: Vec<(String, String)> = fields
+        .iter()
+        .filter(|(name, _)| !(name.starts_with("view.") && form.names.contains(name)))
+        .cloned()
+        .collect();
+    Ok(Folded {
+        limit: Some(0),
+        sort: Some(acquisition_search::answer::STORE_ORDER.to_string()),
+        ..fold(form, &searched)?
+    })
 }
 
 /// A form's fields folded by their names (the module doc). A name the

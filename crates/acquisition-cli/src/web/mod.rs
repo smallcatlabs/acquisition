@@ -1180,17 +1180,15 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
 /// The count beside a search's button (4-full part 1, step 6.2, #245):
 /// a form's fields folded as [`search`] folds them, the saved search an
 /// answer was opened from set aside, and answered with no row and no
-/// order ([`form::Folded::counted`]): the answer document, JSON whatever
+/// order ([`form::fold_count`]): the answer document, JSON whatever
 /// was asked, its `total` the number `count.js` writes. A refusal is the
 /// search's refusal document. Asked with no basis, it is the store's
-/// count now, never compared with the page's answer. The view the form
-/// names is not read: a view the Search would refuse is the Search's to
-/// say.
+/// count now, never compared with the page's answer.
 async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Response {
     let counted = blocking(&web, move |web| -> Result<_, Failure> {
         let (fields, _) = opened_from(fields)?;
-        let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
-        let request = Asked::read(&folded.counted().request()?)?.request;
+        let folded = form::fold_count(&web.form, &fields).map_err(Failure::Usage)?;
+        let request = Asked::read(&folded.request()?)?.request;
         web.answer(&request)
     })
     .await;

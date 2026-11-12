@@ -386,7 +386,7 @@ fn the_fold_answers_as_acq_search_trade_does() {
 /// pinned by equality: a form's `count` is `acq search` of the same
 /// request at `--limit 0` and `--sort none`, JSON whatever was asked, no
 /// row in it. The view the form names, a sort or a count's keys, is not
-/// read; the query box's count, the saved search it carries set aside, is
+/// read, nor refused where its values are no view's; the query box's count, the saved search it carries set aside, is
 /// its search's total.
 #[test]
 fn the_count_answers_as_acq_search_at_limit_zero_does() {
@@ -429,9 +429,13 @@ fn the_count_answers_as_acq_search_at_limit_zero_does() {
     assert_eq!(counted, sole_json(&out));
     assert_eq!(counted["rows"], json!([]));
     assert_eq!(counted["total"]["matched"], 2);
+    // a view the Search would refuse is the Search's to say: an
+    // unfinished key, a limit or fields no view takes
     for view in [
         [("view.sort", "ilvl"), ("view.desc", "true")],
         [("view.count", "rarity"), ("view.limit", "50")],
+        [("view.count", "line:\"life"), ("view.limit", "many")],
+        [("view.fields", "bogus"), ("view.desc", "maybe")],
     ] {
         let mut fields: Vec<_> = ring_search()
             .into_iter()

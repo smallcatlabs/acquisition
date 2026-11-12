@@ -45,6 +45,10 @@
     const changed = (event) => {
       // a control the form never sends (the picker's own box) asks nothing
       if (!event.target.name) return;
+      // a change makes the number shown and the ask in flight the old
+      // form's: both go at once, and the new form is asked after the pause
+      if (asking) asking.abort();
+      dash();
       clearTimeout(timer);
       timer = setTimeout(ask, 300);
     };
