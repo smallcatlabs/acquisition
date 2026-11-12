@@ -247,6 +247,17 @@ pub(crate) fn is_segment(s: &str) -> bool {
         && !is_keyword(s)
 }
 
+/// A field's or a computed value's name as the language spells it: in
+/// lowercase, the one spelling every table gives a name (the property and
+/// totals tables refuse another), where binding reads a name in any case
+/// (B1). Each reader of a query makes it, the parser of its text and the
+/// reader of its tree, never the printer, so a value has one text in a
+/// query's print, its values and each comparison of them, however it was
+/// sent, and parsing that text gives the tree back (#273).
+pub(crate) fn spelled(name: &str) -> String {
+    name.to_ascii_lowercase()
+}
+
 /// A name, possibly dotted (`sockets.red`, `price.amount`).
 pub(crate) fn is_name(s: &str) -> bool {
     !s.is_empty() && s.split('.').all(is_segment)

@@ -653,6 +653,24 @@ fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
         serde_json::from_value(json!({ "query": { "tree": by_text["query"]["tree"] } })).unwrap();
     let by_tree = as_json(&answer(&corpus, &request).unwrap());
     assert_eq!(by_tree, by_text);
+    // a name in any case, sent as a tree, is the name its text spells
+    // (#273): one value, the same order and the same answer
+    let mixed = "(SOCKETS.Red>=1 or sockets.red>=2) PSEUDO.Total_Res>=0";
+    let by_text = as_json(&ask(&corpus, mixed).unwrap());
+    let request = serde_json::from_value(json!({ "query": { "tree": { "all": [
+        { "any": [
+            { "field": "SOCKETS.Red", "op": ">=", "value": 1 },
+            { "field": "sockets.red", "op": ">=", "value": 2 },
+        ] },
+        { "value": { "pseudo": "Total_Res" }, "op": ">=", "number": 0 },
+    ] } } }))
+    .unwrap();
+    let by_tree = as_json(&answer(&corpus, &request).unwrap());
+    assert_eq!(by_tree, by_text);
+    assert_eq!(
+        by_text["view"]["rows"]["values"],
+        json!(["sockets.red", "pseudo.total_res"])
+    );
     let both = serde_json::from_value(
         json!({ "query": { "text": "", "tree": by_text["query"]["tree"] } }),
     )

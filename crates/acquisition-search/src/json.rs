@@ -306,7 +306,7 @@ fn node_from(json: &Json, path: &str) -> Result<Node, LanguageError> {
     if map.contains_key("field") {
         let map = object(json, path, &["field", "op", "value"], &[])?;
         return Ok(Node::Test {
-            field: string(&map["field"], &at("field"))?.to_string(),
+            field: tree::spelled(string(&map["field"], &at("field"))?),
             op: op_from(&map["op"], &at("op"))?,
             value: value_from(&map["value"], &at("value"))?,
         });
@@ -374,12 +374,12 @@ fn value_ref_from(json: &Json, path: &str) -> Result<ValueRef, LanguageError> {
     let at = |key: &str| format!("{path}.{key}");
     if let Some(name) = map.get("field") {
         object(json, path, &["field"], &[])?;
-        return Ok(ValueRef::Field(string(name, &at("field"))?.to_string()));
+        return Ok(ValueRef::Field(tree::spelled(string(name, &at("field"))?)));
     }
     if let Some(name) = map.get("pseudo") {
         object(json, path, &["pseudo"], &["slot"])?;
         return Ok(ValueRef::Pseudo {
-            name: string(name, &at("pseudo"))?.to_string(),
+            name: tree::spelled(string(name, &at("pseudo"))?),
             slot: map
                 .get("slot")
                 .map(|s| string(s, &at("slot")).map(str::to_string))
