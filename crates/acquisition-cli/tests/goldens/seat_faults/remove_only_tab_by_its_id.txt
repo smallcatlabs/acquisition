@@ -10,6 +10,7 @@ scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched
 total   1 match (fetched <age> ago, pc · Standard / a1)
 rows    Chaos Orb · Standard / a1 · x 0, y 0 · fetched <age> ago
             id i-std
+order   rows 1–1 of 1 shown, in the store's order (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard  1 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)

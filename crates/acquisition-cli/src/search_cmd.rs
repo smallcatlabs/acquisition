@@ -128,8 +128,9 @@ pub struct SearchArgs {
     /// sum spans every source the line has — implicit and crafted with
     /// explicit — as the row's `sorts by` shows; one source's is its
     /// form, `'sum(line("T" source=explicit).arg1)'`, the filter's own.
-    /// None named, a query that compares one value is ordered by it, best
-    /// first by its operator (`>=` largest first, `<=` smallest), and the
+    /// None named, a query that compares exactly one value, one way, is
+    /// ordered by it, best first by its operator (`>=` largest first, `<=`
+    /// smallest; never `=`, a range or a value under a not), and the
     /// answer says so; `none` keeps the store's order.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
@@ -1537,12 +1538,17 @@ pub(crate) fn more_of_term_words(n: usize, path: &str) -> String {
 }
 
 /// The rows' continuation as the text says it, where rows are left out;
-/// where none are and the query ordered them unasked, that order, which
-/// a reader who named no sort must find said (#38).
+/// where none are, the rows shown and their order as the page says them,
+/// where there is an order to say or a value left out (#38; the cold
+/// review at 1ab468eb: a complete answer said none of it).
 fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
-        ViewOut::Rows(rows) if rows.left_out == 0 && rows.sort_from_query && rows.returned > 0 => {
-            order_words(rows).map(|words| format!("order   {words}\n"))
+        ViewOut::Rows(rows)
+            if rows.left_out == 0
+                && rows.returned > 0
+                && (order_words(rows).is_some() || rows.values_left_out > 0) =>
+        {
+            Some(format!("order   {}\n", rows_shown_words(a, rows)))
         }
         ViewOut::Rows(rows) if rows.left_out > 0 => Some(format!(
             "more    {}: {}\n",
@@ -1572,7 +1578,13 @@ pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::Ro
         .filter(|_| rows.returned > 0)
         .map(|words| format!(", {words}"))
         .unwrap_or_default();
-    format!("{shown} of {} shown{capped}{order}", a.total.matched)
+    let values = values_left_out_words(rows)
+        .map(|words| format!("; {words}"))
+        .unwrap_or_default();
+    format!(
+        "{shown} of {} shown{capped}{order}{values}",
+        a.total.matched
+    )
 }
 
 /// The order rows stand in where no sort was named: the store's stable
@@ -1595,6 +1607,21 @@ pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<
         ),
         None => Some("in the store's order (no sort asked)".to_string()),
     }
+}
+
+/// The values the query compares past the most a row carries, where
+/// there are any: counted, never dropped unsaid (the cold review at
+/// 1ab468eb).
+pub(crate) fn values_left_out_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
+    let n = rows.values_left_out;
+    (n > 0).then(|| {
+        format!(
+            "{n} more value{} the query compares {} carried: a row carries at most {}, the sort among them",
+            if n == 1 { "" } else { "s" },
+            if n == 1 { "is not" } else { "are not" },
+            acquisition_search::answer::VALUES
+        )
+    })
 }
 
 /// C53 (an answer says the limit it applied): where the limit asked was

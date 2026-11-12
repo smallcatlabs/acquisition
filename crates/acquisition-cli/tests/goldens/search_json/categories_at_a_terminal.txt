@@ -23,6 +23,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
         Iron Greaves · rare · Standard / Never · x 0, y 0 · fetched <age> ago
             reqlevel 20 · category armour.boots · +30 to maximum Life (explicit)
             id boots
+order   rows 1–5 of 5 shown, in the store's order (no sort asked, and the query compares no one value that orders it)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0.0   category=armour            2 matched · 8 failed
   0.1   category=accessory         4 matched · 6 failed

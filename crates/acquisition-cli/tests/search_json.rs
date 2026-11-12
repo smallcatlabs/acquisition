@@ -617,6 +617,19 @@ fn values_on_rows_at_a_terminal() {
         &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1"), "--limit", "1"],
         &["in the store's order (no sort asked, and the query compares no one value that orders it)"],
     );
+    // every row shown: the order said still (the cold review at 1ab468eb)
+    t.run(
+        &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1")],
+        &["order   rows 1–2 of 2 shown, in the store's order (no sort asked, and the query compares no one value that orders it)"],
+    );
+    // the query's values past the twelve a row carries, counted
+    let twelve: Vec<String> = ('a'..='l')
+        .map(|word| format!("sum(\"# to maximum {word}\")>=0"))
+        .collect();
+    t.run(
+        &["search", "--realm", "pc", &format!("ilvl>=1 or ({})", twelve.join(" "))],
+        &["1 more value the query compares is not carried: a row carries at most 12, the sort among them"],
+    );
     t.run(
         &[
             "search",

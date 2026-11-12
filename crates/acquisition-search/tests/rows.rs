@@ -1733,6 +1733,41 @@ fn values_named_are_carried_in_order_and_a_sort_joins_them() {
         .collect();
     let refused = asked(json!({ "rows": { "values": thirteen } })).unwrap_err();
     assert_eq!(refused.to_json()["kind"], "view", "{}", refused.to_json());
+    // the sort is among the twelve: twelve named and a sort outside them
+    // are thirteen, refused (the cold review at 1ab468eb, its first)
+    let twelve = &thirteen[..12];
+    let refused = asked(json!({ "rows": { "values": twelve, "sort": "ilvl" } })).unwrap_err();
+    assert_eq!(refused.to_json()["kind"], "view", "{}", refused.to_json());
+    let fits = asked(json!({ "rows": { "values": twelve, "sort": twelve[0] } })).unwrap();
+    assert_eq!(fits["view"]["rows"]["values"].as_array().unwrap().len(), 12);
+    // the query's own past the bound are counted, and a sort outside them
+    // takes the last place, the one it displaced counted with them
+    let many = thirteen
+        .iter()
+        .map(|v| format!("{v}>=0"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let by_query = |sort: Option<&str>| {
+        let mut rows = json!({});
+        if let Some(sort) = sort {
+            rows["sort"] = json!(sort);
+        }
+        let request: Request =
+            serde_json::from_value(json!({ "query": { "text": many }, "view": { "rows": rows } }))
+                .unwrap();
+        as_json(&answer(&corpus, &request).unwrap())["view"]["rows"].clone()
+    };
+    let default = by_query(None);
+    assert_eq!(default["values"].as_array().unwrap().len(), 12, "{default}");
+    assert_eq!(default["values_left_out"], 1, "{default}");
+    let sorted = by_query(Some("ilvl"));
+    let values = sorted["values"].as_array().unwrap();
+    assert_eq!(
+        (values.len(), &values[11]),
+        (12, &json!("ilvl")),
+        "{sorted}"
+    );
+    assert_eq!(sorted["values_left_out"], 2, "{sorted}");
     // an adapter's flat arguments: values beside a count or explain are
     // refused, as a sort is
     use acquisition_search::answer::{Rows, Shape};

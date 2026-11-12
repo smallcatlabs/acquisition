@@ -12,6 +12,7 @@ total   1 match (fetched <age> ago, pc · Standard / Rings)
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             price 12.5 chaos · price.side manual
             id r1
+order   rows 1–1 of 1 shown, in the store's order (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    has:priced  1 matched · 4 lacked
 routes  each returns exactly the members counted (2 more: --routes)

@@ -11,6 +11,7 @@ total   1 match (fetched <age> ago, pc · Standard / Gear)
             1 location was never fetched: nothing here says what it holds
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
             id i-std
+order   rows 1–1 of 1 shown, in the store's order (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard  1 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)

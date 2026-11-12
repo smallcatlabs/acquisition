@@ -49,6 +49,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id plain
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             id r3
+order   rows 1–5 of 5 shown, in the store's order (no sort asked)
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r2 --against '"+# to maximum Life">=90'

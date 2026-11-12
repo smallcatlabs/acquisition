@@ -51,6 +51,100 @@ routes  each returns exactly the members counted (4 more: --routes)
     acq search --account 'Alice#1234' --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90) sum(line("# to maximum Life").arg1)>=90'
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
+$ acq search --realm pc '"+# to maximum Life">=90 ilvl>=1'
+# holds "order   rows 1–2 of 2 shown, in the store's order (no sort asked, and the query compares no one value that orders it)"
+--- stdout
+query   line("# to maximum Life" arg1>=90) ilvl>=1
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   2 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump) · 1 undecided
+            1 location was never fetched: nothing here says what it holds
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            line("# to maximum Life").arg1 95 · +95 to maximum Life (explicit) · ilvl 84
+            id r1
+        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            line("# to maximum Life").arg1 500 · +500 to maximum Life (explicit) · ilvl 84
+            id kaom
+order   rows 1–2 of 2 shown, in the store's order (no sort asked, and the query compares no one value that orders it)
+undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3
+            `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    line("# to maximum Life" arg1>=90)  2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together
+  1    ilvl>=1                             5 matched
+routes  each returns exactly the members counted (4 more: --routes)
+  undecided at the root (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line("# to maximum Life" arg1>=90) ilvl>=1)'
+  term 0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line("# to maximum Life" arg1>=90))'
+  term 0 only together (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90) sum(line("# to maximum Life").arg1)>=90'
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc 'ilvl>=1 or (sum("# to maximum a")>=0 sum("# to maximum b")>=0 sum("# to maximum c")>=0 sum("# to maximum d")>=0 sum("# to maximum e")>=0 sum("# to maximum f")>=0 sum("# to maximum g")>=0 sum("# to maximum h")>=0 sum("# to maximum i")>=0 sum("# to maximum j")>=0 sum("# to maximum k")>=0 sum("# to maximum l")>=0)'
+# holds "1 more value the query compares is not carried: a row carries at most 12, the sort among them"
+--- stdout
+query   ilvl>=1 or (sum(line("# to maximum a").arg1)>=0 sum(line("# to maximum b").arg1)>=0 sum(line("# to maximum c").arg1)>=0 sum(line("# to maximum d").arg1)>=0 sum(line("# to maximum e").arg1)>=0 sum(line("# to maximum f").arg1)>=0 sum(line("# to maximum g").arg1)>=0 sum(line("# to maximum h").arg1)>=0 sum(line("# to maximum i").arg1)>=0 sum(line("# to maximum j").arg1)>=0 sum(line("# to maximum k").arg1)>=0 sum(line("# to maximum l").arg1)>=0)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   5 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
+            1 location was never fetched: nothing here says what it holds
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            ilvl 84 · sum(line("# to maximum a").arg1) 0 · sum(line("# to maximum b").arg1) 0 · sum(line("# to maximum c").arg1) 0 · sum(line("# to maximum d").arg1) 0 · sum(line("# to maximum e").arg1) 0 · sum(line("# to maximum f").arg1) 0 · sum(line("# to maximum g").arg1) 0 · sum(line("# to maximum h").arg1) 0 · sum(line("# to maximum i").arg1) 0 · sum(line("# to maximum j").arg1) 0 · sum(line("# to maximum k").arg1) 0 · sum(line("# to maximum l").arg1) 0
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            ilvl 84 · sum(line("# to maximum a").arg1) 0 · sum(line("# to maximum b").arg1) 0 · sum(line("# to maximum c").arg1) 0 · sum(line("# to maximum d").arg1) 0 · sum(line("# to maximum e").arg1) 0 · sum(line("# to maximum f").arg1) 0 · sum(line("# to maximum g").arg1) 0 · sum(line("# to maximum h").arg1) 0 · sum(line("# to maximum i").arg1) 0 · sum(line("# to maximum j").arg1) 0 · sum(line("# to maximum k").arg1) 0 · sum(line("# to maximum l").arg1) 0
+            id r2
+        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            ilvl 84 · sum(line("# to maximum a").arg1) 0 · sum(line("# to maximum b").arg1) 0 · sum(line("# to maximum c").arg1) 0 · sum(line("# to maximum d").arg1) 0 · sum(line("# to maximum e").arg1) 0 · sum(line("# to maximum f").arg1) 0 · sum(line("# to maximum g").arg1) 0 · sum(line("# to maximum h").arg1) 0 · sum(line("# to maximum i").arg1) 0 · sum(line("# to maximum j").arg1) 0 · sum(line("# to maximum k").arg1) 0 · sum(line("# to maximum l").arg1) 0
+            id kaom
+        Dull Turn Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            ilvl 84 · sum(line("# to maximum a").arg1) 0 · sum(line("# to maximum b").arg1) 0 · sum(line("# to maximum c").arg1) 0 · sum(line("# to maximum d").arg1) 0 · sum(line("# to maximum e").arg1) 0 · sum(line("# to maximum f").arg1) 0 · sum(line("# to maximum g").arg1) 0 · sum(line("# to maximum h").arg1) 0 · sum(line("# to maximum i").arg1) 0 · sum(line("# to maximum j").arg1) 0 · sum(line("# to maximum k").arg1) 0 · sum(line("# to maximum l").arg1) 0
+            id plain
+        Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            ilvl 84 · sum(line("# to maximum a").arg1): incomplete at 0 · sum(line("# to maximum b").arg1): incomplete at 0 · sum(line("# to maximum c").arg1): incomplete at 0 · sum(line("# to maximum d").arg1): incomplete at 0 · sum(line("# to maximum e").arg1): incomplete at 0 · sum(line("# to maximum f").arg1): incomplete at 0 · sum(line("# to maximum g").arg1): incomplete at 0 · sum(line("# to maximum h").arg1): incomplete at 0 · sum(line("# to maximum i").arg1): incomplete at 0 · sum(line("# to maximum j").arg1): incomplete at 0 · sum(line("# to maximum k").arg1): incomplete at 0
+            id r3
+order   rows 1–5 of 5 shown, in the store's order (no sort asked, and the query compares no one value that orders it); 1 more value the query compares is not carried: a row carries at most 12, the sort among them
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0.0    ilvl>=1                              5 matched
+  0.1.0  sum(line("# to maximum a").arg1)>=0  4 matched · 1 undecided
+  0.1.1  sum(line("# to maximum b").arg1)>=0  4 matched · 1 undecided
+  0.1.2  sum(line("# to maximum c").arg1)>=0  4 matched · 1 undecided
+  0.1.3  sum(line("# to maximum d").arg1)>=0  4 matched · 1 undecided
+  0.1.4  sum(line("# to maximum e").arg1)>=0  4 matched · 1 undecided
+  0.1.5  sum(line("# to maximum f").arg1)>=0  4 matched · 1 undecided
+  0.1.6  sum(line("# to maximum g").arg1)>=0  4 matched · 1 undecided
+  0.1.7  sum(line("# to maximum h").arg1)>=0  4 matched · 1 undecided
+  0.1.8  sum(line("# to maximum i").arg1)>=0  4 matched · 1 undecided
+  0.1.9  sum(line("# to maximum j").arg1)>=0  4 matched · 1 undecided
+  0.1.10 sum(line("# to maximum k").arg1)>=0  4 matched · 1 undecided
+  0.1.11 sum(line("# to maximum l").arg1)>=0  4 matched · 1 undecided
+routes  each returns exactly the members counted (13 more: --routes)
+  term 0.1.0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum a").arg1)>=0)'
+  term 0.1.1 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum b").arg1)>=0)'
+  term 0.1.2 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum c").arg1)>=0)'
+  term 0.1.3 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum d").arg1)>=0)'
+  term 0.1.4 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum e").arg1)>=0)'
+  term 0.1.5 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum f").arg1)>=0)'
+  term 0.1.6 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum g").arg1)>=0)'
+  term 0.1.7 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum h").arg1)>=0)'
+  term 0.1.8 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum i").arg1)>=0)'
+  term 0.1.9 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum j").arg1)>=0)'
+  term 0.1.10 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum k").arg1)>=0)'
+  term 0.1.11 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(sum(line("# to maximum l").arg1)>=0)'
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
 $ acq search --realm pc '"+# to maximum Life">=90' --value ilvl --value 'sum("+# to maximum Life")' --sort stack
 # holds "sorts last: no satisfying occurrence (stack)"
 # holds "ilvl 84"

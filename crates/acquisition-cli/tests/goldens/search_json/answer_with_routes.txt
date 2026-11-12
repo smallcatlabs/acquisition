@@ -14,7 +14,7 @@ rows    Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · 
         Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by line("# to maximum Life").arg1 95 · +95 to maximum Life (explicit)
             id r1
-order   by line("# to maximum Life").arg1, largest first: the one value the query compares (sort `none` keeps the store's order)
+order   rows 1–2 of 2 shown, by line("# to maximum Life").arg1, largest first: the one value the query compares (sort `none` keeps the store's order)
 undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3
             `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
 terms   each term counted alone over all live pc items in all leagues, never over the matches
@@ -51,6 +51,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id plain
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             id r3
+order   rows 1–4 of 4 shown, in the store's order (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    rarity=rare  4 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)

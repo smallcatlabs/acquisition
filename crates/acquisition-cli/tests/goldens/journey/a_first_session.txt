@@ -126,6 +126,7 @@ total   1 match (<fetches>)
 rows    Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             class Rings
             id 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+order   rows 1–1 of 1 shown, in the store's order (no sort asked)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    class=Rings  1 matched · 14 failed · 34 undecided
   1    rarity=rare  3 matched · 3 failed · 43 lacked

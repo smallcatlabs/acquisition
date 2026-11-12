@@ -227,8 +227,9 @@
 //!   private), so a bucket's route is made as a term's is.
 //! - **A row carries values** (4-full part 1, step 6.1): those the view
 //!   names, or with none named those the query compares (`values.rs`),
-//!   at most [`VALUES`], the sort joining them at their end where they
-//!   lack it; each in the shape a sort's number had, said once, so a
+//!   at most [`VALUES`] with the sort among them, the sort joining them
+//!   at their end where they lack it (a full list of the query's gives
+//!   it its last place, the value displaced counted); each in the shape a sort's number had, said once, so a
 //!   row's sort is the entry `view.rows.sort` names. A continuation names
 //!   what its request named — a sort, `none`, values — and names the
 //!   order the query gave by the query it carries (C100): the query's
@@ -633,8 +634,8 @@ pub struct Rows {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     /// The values each row carries, by their texts as `sort` takes one,
-    /// in this order: at most [`VALUES`]. None named: the values the
-    /// query compares.
+    /// in this order: at most [`VALUES`], the sort among them. None
+    /// named: the values the query compares.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub values: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1130,8 +1131,11 @@ fn is_store_order(text: &str) -> bool {
 }
 
 /// The values a request names, each by its canonical text and once, at
-/// most [`VALUES`].
-fn bound_values(texts: &[String]) -> Result<Vec<(String, bind::SortKey)>, LanguageError> {
+/// most [`VALUES`] with a sort named outside them counted among them.
+fn bound_values(
+    texts: &[String],
+    sort: Option<&str>,
+) -> Result<Vec<(String, bind::SortKey)>, LanguageError> {
     let mut out: Vec<(String, bind::SortKey)> = Vec::new();
     for text in texts {
         let value = parse::parse_value(text)?;
@@ -1140,12 +1144,22 @@ fn bound_values(texts: &[String]) -> Result<Vec<(String, bind::SortKey)>, Langua
             out.push((printed, bind::bind_sort(&value)?));
         }
     }
-    if out.len() > VALUES {
+    // the sort is among the bound: named outside the list, it joins it
+    // (the cold review at 1ab468eb)
+    let joins = match sort.filter(|text| !is_store_order(text)) {
+        Some(text) if !out.is_empty() => {
+            let printed = print::print_value(&parse::parse_value(text)?);
+            !out.iter().any(|(seen, _)| *seen == printed)
+        }
+        _ => false,
+    };
+    if out.len() + usize::from(joins) > VALUES {
         return Err(LanguageError::new(
             crate::error::ErrorKind::View,
             format!(
-                "`values` names {} values, and a row carries at most {VALUES}",
-                out.len()
+                "`values` names {} values{}, and a row carries at most {VALUES}, the sort among them",
+                out.len(),
+                if joins { " and `sort` another" } else { "" }
             ),
         ));
     }
@@ -1189,7 +1203,19 @@ impl BoundView {
                 for one in compared.iter().take(VALUES) {
                     values.push((one.text.clone(), bind::bind_sort(&one.value)?));
                 }
-                *values_left_out = compared.len().saturating_sub(VALUES);
+                // the sort is among the bound: one outside a full list
+                // takes its last place (the cold review at 1ab468eb)
+                if let Some((text, _)) = sort.as_ref()
+                    && values.len() == VALUES
+                    && !values.iter().any(|(seen, _)| seen == text)
+                {
+                    values.pop();
+                }
+                let carried = |one: &crate::values::Compared| {
+                    values.iter().any(|(seen, _)| *seen == one.text)
+                        || sort.as_ref().is_some_and(|(text, _)| *text == one.text)
+                };
+                *values_left_out = compared.iter().filter(|one| !carried(one)).count();
                 *values_from_query = !values.is_empty();
             }
             if let Some((text, key)) = sort.as_ref()
@@ -1343,7 +1369,7 @@ impl Shape {
                     false => rows.desc,
                 },
                 store_order: rows.sort.as_deref().is_some_and(is_store_order),
-                values: bound_values(&rows.values)?,
+                values: bound_values(&rows.values, rows.sort.as_deref())?,
                 named: ViewNamed {
                     values: !rows.values.is_empty(),
                     sort: rows.sort.is_some(),
