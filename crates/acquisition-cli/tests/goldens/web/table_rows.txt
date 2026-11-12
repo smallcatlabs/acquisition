@@ -81,6 +81,15 @@ a window lies inside the rows: 1 from row 5 runs past the 5 rows the answer hold
 </div>
 
 
+GET rows?<an offset at the largest number>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+a window lies inside the rows: 1 from row 18446744073709551615 runs past the 5 rows the answer holds
+</pre>
+</div>
+
+
 GET rows?<the first window, its basis moved>
 # holds "another basis"
 --- status 409

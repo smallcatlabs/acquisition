@@ -7,7 +7,8 @@
 // have come, places each at its offset, and drops the blocks gone far
 // from it, the server's among them. The rows and their order are the
 // server's; the script keeps the blocks it shows and the asks in flight,
-// nothing a reload must keep. A moved basis (409) loads the page again.
+// nothing a reload must keep. A moved basis (409) loads the page again;
+// a block whose fetch fails is dropped, to be asked at the next fill.
 (function () {
   const table = document.querySelector('.window[data-row-height]');
   if (!table) return;
@@ -51,7 +52,11 @@
         queue();
       })
       .catch(() => {
-        // aborted: the block was dropped
+        // aborted: the block was dropped. Failed: drop it, so the next
+        // fill asks it again as one never asked; a failure queues none
+        if (abort.signal.aborted) return;
+        el.remove();
+        seg.blocks.delete(b);
       });
   };
 

@@ -487,6 +487,17 @@ const LOOK: &str = "(() => { \
     return { h, block: Number(table.dataset.blockRows), vh, count, route: seg.dataset.route, \
              top: top + window.scrollY, covered, drawn }; })()";
 
+/// Settled: two animation frames running in which no block of the table
+/// waits for its rows, a block being asked in the frame after the last
+/// block in view comes. A count of the script's own frames, no duration.
+const SETTLED: &str = "new Promise((done) => { let quiet = 0; \
+    const look = () => { \
+      const empty = Array.from(document.querySelectorAll('.window .seg .block')) \
+        .some((b) => b.firstElementChild === null); \
+      quiet = empty ? 0 : quiet + 1; \
+      if (quiet >= 2) done(true); else requestAnimationFrame(look); }; \
+    look(); })";
+
 /// The window's rule (`window.js`, the table's design): wherever the page
 /// is scrolled — its start, its middle, its end and its start again — the
 /// rows the viewport covers are, id for id and in order, the rows the
@@ -602,7 +613,12 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
                 i * h
             );
         }
-        let bound = ((3.0 * vh / h / block as f64).ceil() as usize + 2) * block;
+        // three viewports of rows, and the row a part-shown row adds at
+        // each edge, touch at most this many blocks with the one their
+        // first row's place in its block adds (the review at 3675cc7b,
+        // its third finding: one more block passed)
+        let span = (3.0 * vh / h).ceil() as usize + 1;
+        let bound = (span.div_ceil(block) + 1) * block;
         assert!(
             bound * 3 <= ROWS,
             "the table must be several times the bound {bound}"
@@ -612,8 +628,19 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
             "{at}: {} rows in the page, past the bound {bound}",
             drawn.len()
         );
+        // and once the window has settled, every block it asked for this
+        // place held, none still on its way across two frames running
+        page.cdp.eval(SETTLED);
+        let settled = page
+            .cdp
+            .eval("document.querySelectorAll('.window .seg .r[data-i]').length");
+        let settled = settled.as_u64().unwrap() as usize;
+        assert!(
+            settled <= bound,
+            "{at}, settled: {settled} rows in the page, past the bound {bound}"
+        );
         eprintln!(
-            "{at}: rows {first}+{}, {} in the page, bound {bound}",
+            "{at}: rows {first}+{}, {} in the page, {settled} settled, bound {bound}",
             covered.len(),
             drawn.len()
         );
@@ -654,9 +681,55 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         start["top"], ROWS, start["h"]
     );
     whole(&mut page, &middle, "the middle");
+    // on through the middle half a block at a time, as a wheel scrolls:
+    // the blocks behind are dropped as the ones ahead come, so the bound
+    // holds at every step, not only after a jump
+    for step in 1..=6 {
+        whole(
+            &mut page,
+            &format!("{middle} + {step} * {} * {} / 2", block, start["h"]),
+            &format!("the middle, scrolled on {step} half blocks"),
+        );
+    }
     let end = format!("{} + {} * {} - innerHeight", start["top"], ROWS, start["h"]);
     whole(&mut page, &end, "the end");
     whole(&mut page, "0", "the start again");
+
+    // a window whose fetch fails is dropped and asked again at the next
+    // scroll, never left pending (the review at 3675cc7b, its first
+    // finding): the next block's fetch is failed as a reset connection
+    // would fail it, and a scroll of a pixel asks it again
+    let failed = format!("*offset={block}&*");
+    page.cdp.call(
+        "Fetch.enable",
+        json!({ "patterns": [{ "urlPattern": failed }] }),
+    );
+    let near = format!("{} * {}", block / 2, start["h"]);
+    page.cdp.eval(&format!("window.scrollTo(0, {near}); true"));
+    let paused = page.cdp.event("Fetch.requestPaused");
+    page.cdp.call(
+        "Fetch.failRequest",
+        json!({ "requestId": paused["params"]["requestId"], "errorReason": "ConnectionReset" }),
+    );
+    page.cdp.call("Fetch.disable", json!({}));
+    let asks = |page: &Page| {
+        windows(page)
+            .iter()
+            .filter(|url| url.contains(&format!("&offset={block}&")))
+            .count()
+    };
+    let before = asks(&page);
+    page.cdp
+        .eval(&format!("window.scrollTo(0, {near} + 1); true"));
+    page.cdp.until(&format!(
+        "document.querySelector('.r[data-i=\"{block}\"]') !== null"
+    ));
+    assert!(asks(&page) > before, "the failed block was not asked again");
+    whole(
+        &mut page,
+        &format!("{near} + 1"),
+        "the start, the failed block asked again",
+    );
 
     // the basis moves: a later fetch of a tab; the next window asked is
     // refused, and the page loads itself again, at the new basis

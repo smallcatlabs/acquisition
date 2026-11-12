@@ -1314,7 +1314,9 @@ async fn rows(
         let corpus = web.corpus(&request)?;
         let answer = web.window(&corpus, &request, &basis, offset, count)?;
         let matched = answer.total.matched;
-        if offset + count > matched {
+        // the window from its offset, its count beside what is left: no
+        // sum of two numbers a request names, which could pass the largest
+        if offset >= matched || count > matched - offset {
             return Err(Failure::Usage(format!(
                 "a window lies inside the rows: {count} from row {offset} runs past the {} the answer holds",
                 plural(matched, "row", "rows")

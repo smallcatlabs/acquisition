@@ -1923,6 +1923,10 @@ fn the_rows_route_answers_a_window_and_refuses_each_wrong_one() {
             "an offset past the rows",
             format!("{route}&offset=5&count=1"),
         ),
+        (
+            "an offset at the largest number",
+            format!("{route}&offset={}&count=1", usize::MAX),
+        ),
     ] {
         let refused = web.get(&path);
         assert_eq!(refused.status, 400, "{label}: {}", refused.body);
