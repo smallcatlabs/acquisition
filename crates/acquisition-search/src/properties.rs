@@ -983,13 +983,23 @@ fn value_of<'b>(at: Option<usize>, property: &Property) -> Result<&str, Cow<'b, 
 
 /// `a/b`, two whole numbers within the crate's rule.
 fn pair(text: &str) -> Option<(i128, i128)> {
-    let (a, b) = text.split_once('/')?;
+    let (a, b) = split_pair(text)?;
     let whole = |s: &str| {
         (!s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) && exact::reads(s))
             .then(|| s.parse::<i128>().ok())
             .flatten()
     };
     Some((whole(a)?, whole(b)?))
+}
+
+/// A value displayed `a/b`, at its one `/`: the two texts [`pair`]
+/// reads, which `show` displays as two pieces (4-full part 1, step
+/// 6.4c), the one reading of where they are. None where `pair` reads
+/// none.
+pub(crate) fn split_pair(text: &str) -> Option<(&str, &str)> {
+    let (a, b) = text.split_once('/')?;
+    let whole = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    (whole(a) && whole(b)).then_some((a, b))
 }
 
 /// The q20 rule (the table's header, S26): the display stands where the

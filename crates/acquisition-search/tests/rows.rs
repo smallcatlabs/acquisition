@@ -1925,8 +1925,11 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
 /// 6.4c), beside this file's mods of several rows: `armour`, a body armour
 /// of item level 84 displaying quality and armour, requiring level 64 and
 /// 16 Str, two life lines of one source (30 and 40) and a ranged physical
-/// line (10 to 20); `gem`, a gem at level 20 of its maximum, requiring
-/// level 70; `stack`, a currency stack of 3 of 10.
+/// line (10 to 20), and a line the site's text writes a digit of (15%
+/// Phasing for 4 seconds, the review at 4a1e21c3, its first finding);
+/// `gem`, a gem at level 20 of its maximum, requiring level 70; `stack`, a
+/// currency stack of 3 of 10; `blueprint`, 1 of 3 wings revealed (its
+/// second finding).
 fn displayed() -> Store {
     let mut s = stash();
     list_tabs(
@@ -1956,6 +1959,7 @@ fn displayed() -> Store {
                         "+30 to maximum Life",
                         "+40 to maximum Life",
                         "Adds 10 to 20 Physical Damage",
+                        "15% chance to gain Phasing for 4 seconds on Kill",
                     ],
                 }),
             ),
@@ -1975,6 +1979,13 @@ fn displayed() -> Store {
                 "Chaos Orb",
                 "Currency",
                 json!({ "stackSize": 3, "properties": [property("Stack Size", "3/10", 0)] }),
+            ),
+            item(
+                "blueprint",
+                "",
+                "Blueprint: Tunnels",
+                "Normal",
+                json!({ "properties": [property("Wings Revealed", "1/3", 0)] }),
             ),
         ],
         40,
@@ -2144,25 +2155,52 @@ fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
         serde_json::to_value(&stack.number_fields).unwrap(),
         json!({ "ilvl": 84 }),
     );
+    // an `a/b` both of whose sides a field reads: two numbers, each its
+    // own piece and its own field (the review at 4a1e21c3, its second
+    // finding)
+    let blueprint = show(&s, "blueprint", false).unwrap();
+    assert_eq!(
+        serde_json::to_value(&blueprint.number_fields).unwrap(),
+        json!({ "wings_revealed": 1, "wings_revealed.of": 3, "ilvl": 84 }),
+    );
+    assert_eq!(
+        pieces(blueprint.displays().property_row(0)),
+        [
+            ("Wings Revealed".to_string(), None),
+            (": ".to_string(), None),
+            ("1".to_string(), some("wings_revealed")),
+            ("/".to_string(), None),
+            ("3".to_string(), some("wings_revealed.of")),
+        ]
+    );
 }
 
 /// Step 6.4c: a trade filter on a stat and that stat's line on an item
 /// name one value, so a click on a stat the form filtered lands on its
-/// column and adds no twin.
+/// column and adds no twin: life, and a text the site writes a digit of,
+/// whose written number the filter does not compare (the review at
+/// 4a1e21c3, its first finding: the line's two numbers are no mean pair
+/// to the site).
 #[test]
 fn a_trade_filter_on_a_stat_and_its_line_on_an_item_name_one_value() {
     let s = displayed();
-    let request: Request = serde_json::from_value(json!({ "query": { "trade": { "query": {
-        "stats": [{ "type": "and", "filters": [
-            { "id": "explicit.stat_3299347043", "value": { "min": 70 } },
-        ] }] } } } }))
-    .unwrap();
-    let answered = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
-    let values = &answered["view"]["rows"]["values"];
-    let plain = show(&s, "plain", false).unwrap();
-    assert_eq!(
-        values,
-        &json!([plain.lines[0].value.clone().unwrap()]),
-        "{answered}"
-    );
+    for (stat, id, text) in [
+        ("explicit.stat_3299347043", "plain", "+95 to maximum Life"),
+        (
+            "explicit.stat_2918708827",
+            "armour",
+            "15% chance to gain Phasing for 4 seconds on Kill",
+        ),
+    ] {
+        let request: Request = serde_json::from_value(json!({ "query": { "trade": { "query": {
+            "stats": [{ "type": "and", "filters": [
+                { "id": stat, "value": { "min": 10 } },
+            ] }] } } } }))
+        .unwrap();
+        let answered = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
+        let values = &answered["view"]["rows"]["values"];
+        let shown = show(&s, id, false).unwrap();
+        let line = shown.lines.iter().find(|l| l.line.text == text).unwrap();
+        assert_eq!(values, &json!([line.value.clone().unwrap()]), "{answered}");
+    }
 }

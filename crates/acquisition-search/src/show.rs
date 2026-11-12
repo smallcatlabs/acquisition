@@ -31,9 +31,10 @@
 //! `show`'s for the same id at the same basis and no second maker stands.
 //! [`item_aged`] ages both. It also says the values an item's numbers are
 //! read by (4-full part 1, step 6.4c), each a text a sort takes: a line's
-//! `value`, the sum over the item's lines of its group of the slot a trade
-//! filter on its stat compares, by the translation's own rule and writer
-//! (`line_value`); and `number_fields`, each number field the item
+//! `value`, the value a trade filter on the stat it displays as compares,
+//! asked of the translation itself, and for a line that displays as no
+//! site stat the sum over its own group by the translation's rule and
+//! writer (`line_value`); and `number_fields`, each number field the item
 //! displays with its number. Where a field is displayed is a row's pieces
 //! ([`Displays`]), made by the one function that composes the row
 //! (`derive.rs`), so a page links a number without reading a text again.
@@ -148,13 +149,21 @@ pub struct ShownItem {
     displayed: Vec<(Displayed, String)>,
 }
 
-/// Where a number field is displayed: a value of a property, the item
-/// level's row, or a value of a requirement.
+/// Where a number field is displayed: a value of a property, or of its
+/// `a/b` one side; the item level's row; a value of a requirement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Displayed {
-    Property(usize, usize),
+    Property(usize, usize, Side),
     ItemLevel,
     Requirement(usize, usize),
+}
+
+/// Which of a value a field reads: the whole, or a side of its `a/b`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Side {
+    Whole,
+    Numerator,
+    Denominator,
 }
 
 /// An item's displayed rows with the number fields each displays, borrowed
@@ -181,18 +190,48 @@ impl Displays<'_> {
     /// The item's property at `at` (of `item.properties`) in its pieces,
     /// each value the item displays as one of `number_fields` with that
     /// field's text: what a page writes as a link.
+    /// A value displayed `a/b` that a field reads a side of is three
+    /// pieces, each side its own field's (`properties::split_pair`, the
+    /// one reading of where they are).
     pub fn property_row(&self, at: usize) -> Vec<Part> {
-        self.item.properties.get(at).map_or_else(Vec::new, |p| {
-            p.pieces
-                .iter()
-                .map(|piece| Part {
-                    text: piece.text.clone(),
-                    value: piece
-                        .value
-                        .and_then(|v| self.read_at(Displayed::Property(at, v))),
-                })
-                .collect()
-        })
+        let Some(p) = self.item.properties.get(at) else {
+            return Vec::new();
+        };
+        let mut parts = Vec::new();
+        for piece in &p.pieces {
+            let words = || Part {
+                text: piece.text.clone(),
+                value: None,
+            };
+            let Some(v) = piece.value else {
+                parts.push(words());
+                continue;
+            };
+            let side = |side| self.read_at(Displayed::Property(at, v, side));
+            let (a, b) = (side(Side::Numerator), side(Side::Denominator));
+            match crate::properties::split_pair(&piece.text).filter(|_| a.is_some() || b.is_some())
+            {
+                Some((top, bottom)) => {
+                    parts.push(Part {
+                        text: top.to_string(),
+                        value: a,
+                    });
+                    parts.push(Part {
+                        text: "/".to_string(),
+                        value: None,
+                    });
+                    parts.push(Part {
+                        text: bottom.to_string(),
+                        value: b,
+                    });
+                }
+                None => parts.push(Part {
+                    value: side(Side::Whole),
+                    ..words()
+                }),
+            }
+        }
+        parts
     }
 
     /// The item level's row in its pieces, the number with `ilvl`'s text;
@@ -329,29 +368,91 @@ pub struct ShownLine {
 }
 
 /// The value a line's number is read by (4-full part 1, step 6.4c): the
-/// sum, over the item's lines of its template and source, of the slot a
-/// bound on that stat compares (`template::compared_slot`, the
-/// translation's own rule, every number of the line its own), made by
-/// the translation's writer of a stat's sum (`tree::sum_of_lines`) over
-/// the line's group as the catalogue lands it (`stat.explicit`:
-/// `line({text} source=explicit)`) and printed canonical. So a stat the
-/// trade form filtered and the same line on an item name one value. None
-/// where the line's slot reads no number.
+/// value a trade filter on the stat the line displays as compares, asked
+/// of the translation itself (`trade_value`), so a stat the trade form
+/// filtered and the same line on an item name one value — its group, its
+/// forms and which of its numbers the site's text leaves open all the
+/// translation's. A line that displays as no site stat is read by the
+/// same rule over its own group, `sum(line("<template>"
+/// source=<source>).<slot>)`, every number of it open
+/// (`template::compared_slot`, the translation's rule, made by its writer
+/// of a stat's sum, `tree::sum_of_lines`). None where that slot reads no
+/// number of the line.
 fn line_value(line: &Line) -> Option<String> {
-    let count = crate::template::slots(&line.template).count;
-    let open: Vec<usize> = (1..=count).collect();
-    let slot = crate::template::compared_slot(&line.template, &open)?;
+    let (value, slot) = match trade_value(line) {
+        Some(found) => found,
+        None => {
+            let count = crate::template::slots(&line.template).count;
+            let open: Vec<usize> = (1..=count).collect();
+            let slot = crate::template::compared_slot(&line.template, &open)?;
+            let group = format!(
+                "line({} source={})",
+                crate::print::quoted_text(&line.template),
+                crate::print::quoted_text(&line.source)
+            );
+            let query = crate::bind::parse_query(&group).ok()?;
+            let value = crate::tree::sum_of_lines(std::slice::from_ref(query.tree()), &slot)?;
+            (crate::print::print_value(&value), slot)
+        }
+    };
     line.slots()
         .iter()
         .find(|(word, n)| *word == slot && n.is_some())?;
-    let group = format!(
-        "line({} source={})",
-        crate::print::quoted_text(&line.template),
-        crate::print::quoted_text(&line.source)
+    Some(value)
+}
+
+/// The site stat categories a line's source is filed under: an explicit
+/// line, crafted and fractured ones among them, under `explicit` (the
+/// catalogue's `stat.explicit`), and the three others by their own word.
+fn category_of(source: &str) -> Option<&'static str> {
+    match source {
+        "explicit" => Some("explicit"),
+        "implicit" => Some("implicit"),
+        "enchant" => Some("enchant"),
+        "scourge" => Some("scourge"),
+        _ => None,
+    }
+}
+
+/// The value the translation compares for a filter on the first site stat
+/// a line displays as (`StatTable::displayed_as`), with its slot; none
+/// where the line displays as none, or the translation compares no value
+/// of it. Asked once per stat in a process and held: the translation is a
+/// pure function of the build's tables.
+fn trade_value(line: &Line) -> Option<(String, String)> {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    type Held = HashMap<String, Option<(String, String)>>;
+    static ASKED: LazyLock<Mutex<Held>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+    let category = category_of(&line.source)?;
+    let table = crate::trade::stats::table().ok()?;
+    let stat = format!(
+        "{category}.{}",
+        table
+            .displayed_as(category, &line.template, &line.numbers)
+            .first()?
     );
-    let query = crate::bind::parse_query(&group).ok()?;
-    let value = crate::tree::sum_of_lines(std::slice::from_ref(query.tree()), &slot)?;
-    Some(crate::print::print_value(&value))
+    if let Some(held) = ASKED.lock().ok().and_then(|held| held.get(&stat).cloned()) {
+        return held;
+    }
+    let filter = serde_json::json!({ "query": { "stats": [{ "type": "and", "filters": [
+        { "id": stat, "value": { "min": 1 } } ] }] } });
+    let compared = crate::trade::decode(&filter.to_string())
+        .and_then(|decoded| crate::trade::translate::translate(&decoded))
+        .ok()
+        .and_then(|translation| {
+            crate::values::compared(&translation.tree)
+                .into_iter()
+                .next()
+                .and_then(|one| match &one.value {
+                    crate::tree::ValueRef::Sum { slot, .. } => Some((one.text, slot.clone())),
+                    _ => None,
+                })
+        });
+    if let Ok(mut held) = ASKED.lock() {
+        held.insert(stat, compared.clone());
+    }
+    compared
 }
 
 /// Each number field an item displays, where it is displayed, by its
@@ -360,7 +461,7 @@ fn line_value(line: &Line) -> Option<String> {
 /// never a percent, a q20 or a tier, which the item does not display),
 /// each where it read one property, its value the one the row names; the
 /// item level; the level required. A displayed number two rows read is
-/// the first's.
+/// the first's; an `a/b`'s two sides are two numbers.
 fn number_fields(item: &Item) -> Vec<(Displayed, String, f64)> {
     use crate::properties::{FieldRead, Reads};
     use crate::tree::ValueRef;
@@ -388,8 +489,13 @@ fn number_fields(item: &Item) -> Vec<(Displayed, String, f64)> {
             let at = |list: &[crate::derive::Property]| {
                 list.iter().position(|p| std::ptr::eq(p, *property))
             };
+            let side = match field.reads() {
+                Reads::Numerator => Side::Numerator,
+                Reads::Denominator => Side::Denominator,
+                _ => Side::Whole,
+            };
             let place = match (at(&item.properties), at(&item.requirements)) {
-                (Some(i), _) => Displayed::Property(i, field.value_at()),
+                (Some(i), _) => Displayed::Property(i, field.value_at(), side),
                 (None, Some(i)) => Displayed::Requirement(i, field.value_at()),
                 (None, None) => continue,
             };
