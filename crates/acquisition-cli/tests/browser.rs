@@ -227,10 +227,22 @@ impl Page {
         };
         let mut cdp = Cdp::connect(&page_ws);
         cdp.call("Page.enable", json!({}));
-        cdp.call("Page.navigate", json!({ "url": url }));
-        // a load before the navigation's answer is the blank page's
-        cdp.events.clear();
-        cdp.event("Page.loadEventFired");
+        cdp.call("Page.setLifecycleEventsEnabled", json!({ "enabled": true }));
+        let navigated = cdp.call("Page.navigate", json!({ "url": url }));
+        let loader = navigated["loaderId"].clone();
+        assert!(
+            loader.is_string(),
+            "the navigation names no loader: {navigated}"
+        );
+        // the load of this navigation's document, by its loader, whichever
+        // side of the navigation's answer it was read on: a load of the
+        // blank page carries another loader
+        loop {
+            let event = cdp.event("Page.lifecycleEvent");
+            if event["params"]["name"] == "load" && event["params"]["loaderId"] == loader {
+                break;
+            }
+        }
         Page {
             _browser: browser,
             cdp,
