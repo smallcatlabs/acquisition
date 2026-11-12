@@ -1,0 +1,17 @@
+`roadmap/briefs/4-full-1-step6-driver.md` at `360093f8`: a builder needs revisions before starting.
+
+1. **Decisions 2 — changes what gets built.** The five-second pass condition contradicts C137, the ruling that tests assert outcomes without a wall-clock bound a slow machine can miss. **Evidence:** `decisions/daemon.md` states that prohibition; `tests/web.rs` and `start_web` explicitly use only the runner’s hang ceiling. **Smallest change:** wait for the matching result under that ceiling and record elapsed time separately.
+
+2. **Decisions 2 / Done when — changes what gets built.** The unspecified edits allow a stale count to pass every required run. **Evidence:** `web.rs::seed` gives every item `ilvl: 84`, so edits from `class:rings` to `class:rings ilvl>=1` have equal totals; a script that answers the first edit and ignores the second could pass 20/20, satisfying the completion criteria without establishing the named presentation rule. The first thing the builder must guess is which edits make the check discriminating. **Smallest change:** require two valid queries whose route answers have different matched totals, assert that difference, and observe each corresponding output.
+
+3. **Decisions 5, 7 and 9 — changes what gets built.** The measurements establish selected build and test costs, but cannot establish the claimed addition to the gate. **Evidence:** `tools/gate.sh::run_stage` also runs `clippy` and `winclippy` with `--all-targets --all-features`; a new CLI dev-dependency enters those compilations, which neither prescribed timing command measures. **Smallest change:** measure those affected stages against the control too, and distinguish the measured components from any projected total.
+
+4. **Decisions 1 and 3 / Done when — wording.** Requiring an applicable patch for every candidate conflicts with allowing candidate (c) to be rejected entirely on paper. **Evidence:** Decision 3 explicitly permits no implementation of (c), while Decision 1 and the third completion line require its whole diff and proof that it applies; an untouched copy supplies no patch to apply. **Smallest change:** require patches for candidates actually implemented, with a recorded assessment for candidates rejected on paper.
+
+5. **Done when, third line — wording.** Scratch removal and worktree pruning cannot be checked from the resulting commit alone. **Evidence:** both concern local state outside the committed tree, whereas `TEMPLATE.md` requires completion criteria checkable from the commit, its tree or its message. **Smallest change:** move cleanup into Rules and report its completion separately.
+
+6. **Inputs / Find first, third command — wording.** The harness search misses the launcher it claims to locate. **Evidence:** the command returns `SCRIPTS` and `Pages`; `Pages::new` accepts an already running `WebUi` and records responses. The launcher is `pub fn start_web`, and the seeded setup is `web.rs::offline_web`, neither matched. **Smallest change:** include `pub fn start_web` in the harness search and add a search for `fn offline_web` in `web.rs`.
+
+I did not build, run tests, launch a daemon or browser, or execute gate stages, as requested. I ran all five discovery commands against the checkout, whose HEAD equals `360093f8`; the other four found their advertised targets. I did not verify current crate documentation, hosted-image inventories or CI status because those require evidence outside the specified commit.
+
+No additional obstacle in the brief’s form or the review prompt got in the way.
