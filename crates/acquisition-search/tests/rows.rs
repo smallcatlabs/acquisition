@@ -1868,9 +1868,7 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
                 json!({ "query": { "text": query }, "view": { "rows": rows } }),
             )
             .unwrap();
-            request
-                .check()
-                .map_err(|e| json!({ "check": e.to_string() }))?;
+            request.check().map_err(|e| json!({ "check": e.kind }))?;
             answer(&corpus, &request)
                 .map(|a| as_json(&a))
                 .map_err(|e| e.to_json())
@@ -1880,9 +1878,10 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
         let a = ask(first);
         let Some((len, last, left_out)) = expected else {
             let refused = a.unwrap_err();
-            assert!(
-                refused.get("check").is_some(),
-                "{case}: refused before a store opens: {refused}"
+            assert_eq!(
+                refused,
+                json!({ "check": ErrorKind::View }),
+                "{case}: refused as a view before a store opens"
             );
             continue;
         };
