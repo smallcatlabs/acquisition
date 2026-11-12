@@ -5,8 +5,7 @@ An answer shown "as a table" in `acq web` is the dense table the
 spike measured: every matching row in one scrolling page, at one row
 height, its rows asked a block at a time as they come into view. It
 has the columns the owner ruled and one column for each value the
-answer carries. The heads that sort, the card's numbers and the
-opened card are built on it, each a part of its own after this one.
+answer carries.
 
 ## Inputs
 - `4-full-1-step6-design.md` §2 (a column is a value), §4, and §7's
@@ -32,8 +31,8 @@ opened card are built on it, each a part of its own after this one.
    `rig-3.patch` the window script, the window's route, the segment
    and row markup, the stylesheet block. Leave its own page, its
    heads and result routes, the measure, the runner and the probes.
-   The rig rendered the least a row needs; the two things it dropped
-   are Decision 5's. A change to the script is said in the commit
+   The rig rendered the least a row needs; Decision 5 says what the
+   table's cells must. A change to the script is said in the commit
    with its reason: it is the thing that was measured.
 2. **One maker of a window's rows.** A function of the page's
    request, the answer's basis, an offset and a count gives that
@@ -57,11 +56,14 @@ opened card are built on it, each a part of its own after this one.
    a link to the item's page), the base, the price, the location,
    the location's age; then each of `RowsOut.values`, headed by the
    value's own text. A price is `search_cmd::price_words`' words, so
-   one that is open or absent says so. A value is written by the
-   words `search_cmd::row_shows` gives it today, its status with it
-   (C94, an incomplete subtotal is marked): never a bare number
-   where a status stands. Heads are text in this part. A cell is one
-   line, cut where it overflows.
+   one that is open or absent says so. A value's cell is written by
+   one function of one `Valued`, taken out of `row_shows` so both
+   use it: the number and its status's words as `row_shows` writes
+   them (C94, an incomplete subtotal is marked), never a bare number
+   where a status stands, and without the evidence beside it, which
+   stays the card's. A value the row lacks is an empty cell unless a
+   status says why. Heads are text in this part. A cell is one line,
+   cut where it overflows.
 6. **One row height**, written by the server on the table and read
    by the script and the stylesheet from there.
 7. **The first block is the server's, and the script adopts it.**
@@ -69,12 +71,11 @@ opened card are built on it, each a part of its own after this one.
    script takes a block the server rendered as one it holds, done,
    and drops it like any other; it never asks that block again while
    it holds it. This is the one change to the measured script.
-8. **What the table does not use.** `view.limit` chooses how many
-   cards a page shows and is not read for the table; the table's
-   line says how many rows it holds, with no "more" or "first rows"
-   link. The form's controls stay as they are in this part.
-9. **The script is served as the others are**: a `Head` flag, its
-   route, `SCRIPTS`, the no-state scan.
+8. **`view.limit` is the cards'** and is not read for the table,
+   whose line says how many rows it holds, with no "more" or "first
+   rows" link. The form's controls stay as they are in this part.
+9. **The script is served as the others are** (`Head`, `SCRIPTS`,
+   the no-state scan).
 10. **The check joins.** A test in `browser.rs` loads a table several
     times longer than the bound below. At the start, the middle, the
     end and the start again: the rows the viewport covers are, id for
@@ -83,25 +84,25 @@ opened card are built on it, each a part of its own after this one.
     height; and the rows in the page number at most the blocks three
     viewports span and one more, by the viewport's height, the row
     height and the block's size, which the test reads from the page.
-    The seeded world gains the rows; no test waits against a
-    duration.
+    It also holds the script's two other acts: the first block is
+    not asked for while the page holds the server's; and after the
+    world's basis moves, the next window asked loads the page again,
+    at the new basis. The seeded world gains the rows; no test waits
+    against a duration.
 
 ## Find first
-- `git apply --numstat audits/web-2026-11/spike/rig-3.patch` and
-  `git apply --check` of it on `main`: what it touches; it need not
-  apply whole, since `main` moved.
+- `git apply --numstat audits/web-2026-11/spike/rig-3.patch`: what
+  it touches; it need not apply whole, since `main` moved.
 - `git grep -n "fn rows_table\|fn rows_links\|fn answer\|struct Head" -- crates/acquisition-cli/src/web`:
   what renders the table today and what names a script.
 - `git grep -n -E 'class=.{1,2}results|as a table|as cards|first rows|view\.fields' -- crates/acquisition-cli`:
-  every test and golden that holds today's table; trace each golden
-  to the test that writes it.
+  what holds today's table; trace each golden to its test.
 - `git grep -n "ITEM_ROWS\|fn from_token\|fn place" -- crates/acquisition-search/src/answer.rs crates/acquisition-store/src/bound.rs`:
   the bound, the token, a continuation's place.
-- `git grep -n "fn seed\|fn offline_web" -- crates/acquisition-cli/tests/web.rs`:
-  the seeded world the tests share.
+- `git grep -n "fn seed\|fn offline_web\|fn the_moved_world" -- crates/acquisition-cli/tests/web.rs`:
+  the seeded world, and how a test moves its basis.
 - `git grep -n "route(&at(" -- crates/acquisition-cli/src/web/mod.rs`:
-  the routes' registrations. `sed -n 1,190p` of the same file: the
-  module doc, which says each route in prose.
+  the routes; `sed -n 1,190p` of that file is its module doc.
 - `git grep -n "fn row_shows\|fn price_words\|fn place_text" -- crates/acquisition-cli/src/search_cmd.rs`:
   the words a value, a price and a place already have.
 
@@ -115,30 +116,26 @@ opened card are built on it, each a part of its own after this one.
   hand in the test: `after` the offset, `limit` the count, `item`
   among its fields. Its refusals are Decision 4's (tests). The
   module doc says the route.
-- A golden holds a value with a status and a price that is open or
-  absent, each in its own words.
-- The no-state scan reads the window script; `SCRIPTS` lists it.
+- A golden holds a table of several values, one with a status, and
+  a price that is open or absent: each in its own words, under its
+  own head.
 - The browser test of Decision 10 passes here, and the close names
-  the hosted runs of Gate (Linux) and Gate (Windows) on the build's
-  push with that test run.
-- Every golden and test that held the old table is changed or
-  retired with its line (C154, a retirement names what holds the
-  property).
+  the hosted Gate (Linux) and Gate (Windows) runs with it run.
+- Each golden and test that held the old table is changed, or
+  retired with its line (C154, a retirement names its holder).
 - `tools/gate.sh` exits 0 on the step's tree, and `--only doc`.
 
 ## Not in scope
-- Heads that sort, a value added from a card's number, the sort box's
-  removal, a URL field for the values: the next part.
-- An item opened as a card under its row, the reader's place (#270),
-  #186, #190, the look: the part after.
-- The grouped table and the places (step 6.5; #269).
+- Heads that sort, a value added from a card's number, the sort
+  box's removal, a URL field for the values: the next part.
+- An item opened under its row, the reader's place (#270), #186,
+  #190, the look: the part after. The grouped table (6.5, #269).
 - The price's age (#272). An icon column. A framework or a crate.
 - A change to the search or store crates' API or bounds.
 
 ## Rules
 `TEMPLATE.md`. Every `acq` and `acq web` runs in a mock world. The
-round changes behaviour and the shared harness, so it takes a cold
-review (C175).
+round takes a cold review (C175).
 
 ## Report
 `TEMPLATE.md`.
