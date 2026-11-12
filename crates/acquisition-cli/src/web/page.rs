@@ -79,6 +79,9 @@ pub(crate) struct Head {
     /// The count's script: the number beside each form that submits a
     /// search ([`COUNT`]).
     pub count: bool,
+    /// The table's window script: the rows of a table asked a block at a
+    /// time as they come into view (`assets/window.js`).
+    pub window: bool,
     /// The versions of the documents the page renders (C16, every
     /// document carries its basis): each keyed by its document — `answer`,
     /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
@@ -128,6 +131,7 @@ pub(crate) fn page(
         (head.picker, "picker"),
         (head.filter, "filter"),
         (head.count, "count"),
+        (head.window, "window"),
     ]
     .into_iter()
     .filter(|(wanted, _)| *wanted)
@@ -892,7 +896,9 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// printed. Opened from a saved search, it says so above the answer and
 /// carries the search through its query box and its continuation. Rows
 /// that carry the item are cards ([`card`]), each followed by what the
-/// row shows of the query; rows that do not are the compact table; and
+/// row shows of the query; rows that do not are the table
+/// ([`rows_table`]), every row in one page, its first block the
+/// `window` the handler made over the page's corpus; and
 /// `rows_links`, which the handler makes, are the plain links to the same
 /// answer the other way and, on a continuation's page, to its first rows.
 pub(crate) fn answer(
@@ -901,6 +907,7 @@ pub(crate) fn answer(
     links: &SavedLinks,
     spell: Spell,
     rows_links: &RowsLinks,
+    window: Option<&Window>,
 ) -> String {
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
@@ -933,17 +940,20 @@ pub(crate) fn answer(
                     esc(other.words)
                 ));
             }
-            // a card wherever the rows carry the item, the compact table
-            // otherwise: the document's view says which, never the URL
-            out.push_str(&if rows.fields.contains(&RowField::Item) {
-                cards(a, now)
+            // a card wherever the rows carry the item, the table
+            // otherwise: the document's view says which, never the URL.
+            // The table holds every row and says so in its own line.
+            if !rows.fields.contains(&RowField::Item) {
+                if let Some(window) = window {
+                    out.push_str(&rows_table(a, rows, window, now));
+                }
             } else {
-                rows_table(a, now)
-            });
-            // which rows are shown and in what order, wherever there are
+                out.push_str(&cards(a, now));
+            }
+            // which cards are shown and in what order, wherever there are
             // rows or rows left out; then the way on, and on a
             // continuation's page the way back to the first rows
-            if rows.left_out > 0 || !a.rows.is_empty() {
+            if rows.fields.contains(&RowField::Item) && (rows.left_out > 0 || !a.rows.is_empty()) {
                 let mut line = esc(&search_cmd::rows_shown_words(a, rows));
                 if rows.left_out > 0 {
                     line.push_str(&match &rows.next {
@@ -1292,45 +1302,126 @@ pub(crate) fn card(
     out
 }
 
-/// The rows, a row per item with its art, its name a link to the item
-/// page, what it shows of its terms and its sort — what it leaves out a
-/// link to the item whole — and where it lies.
-fn rows_table(a: &Answer, now: i64) -> String {
-    if a.rows.is_empty() {
-        return String::new();
-    }
-    let mut out = String::from(
-        "<table class=\"results\">\n<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>\n",
+/// A table row's height in CSS pixels, written on the table and read
+/// from there by the window script, which sets the stylesheet's `--row`:
+/// the one source of the height.
+pub(crate) const ROW_HEIGHT: u32 = 24;
+
+/// The rows a block of the table holds, the server's first and each the
+/// window script asks: written on the table beside the row height.
+pub(crate) const BLOCK_ROWS: usize = 50;
+
+/// A table's window (the module doc, "The table"): its segment's route,
+/// to which the script adds an offset and a count, and its first block,
+/// the first window's answer made over the page's corpus.
+pub(crate) struct Window {
+    pub route: String,
+    pub first: Answer,
+}
+
+/// The table (4-full part 1, step 6.4b): every row of the answer in one
+/// scrolling page, at one row height. Its heads are the item, its base,
+/// its price, its location and when that was fetched, then each value
+/// the answer carries by its own text; its rows are one segment of the
+/// answer's whole count, of which the server renders the first block and
+/// the window script asks the rest by the segment's route. Its line says
+/// how many items it holds, in what order and which values it left out;
+/// a page without its script says that it shows the first rows alone.
+fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, now: i64) -> String {
+    let heads: String = ["Item", "Base", "Price", "Location", "Fetched"]
+        .iter()
+        .map(|h| h.to_string())
+        .chain(rows.values.iter().cloned())
+        .map(|h| format!("<span>{}</span>", esc(&h)))
+        .collect();
+    let matched = a.total.matched;
+    let first = window.first.rows.len();
+    // the order, said once for every row: a sort named is said here, as
+    // each row of the cards says it sorts by it
+    let order = match (search_cmd::order_words(rows), rows.sort.as_deref()) {
+        (Some(words), _) => format!(", {words}"),
+        (None, Some(sort)) => format!(
+            ", by {sort}, {} first, as asked",
+            if rows.desc { "largest" } else { "smallest" }
+        ),
+        (None, None) => String::new(),
+    };
+    let values = search_cmd::values_left_out_words(rows)
+        .map(|words| format!("; {words}"))
+        .unwrap_or_default();
+    let line = format!(
+        "{} in the table{order}{values}",
+        plural(matched, "matching item", "matching items")
     );
-    for row in &a.rows {
+    let unscripted = (first < matched).then(|| {
+        format!(
+            "<noscript><p class=\"rows-shown\">{}</p></noscript>\n",
+            esc(&format!(
+                "The first {} are shown here: the rest come in as the table scrolls, which needs the page's script.",
+                plural(first, "item", "items")
+            ))
+        )
+    });
+    format!(
+        "<p class=\"rows-shown\">{}</p>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n<div class=\"r head\">{heads}</div>\n<div class=\"seg\" data-route=\"{}\" data-count=\"{matched}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n</div>\n",
+        esc(&line),
+        unscripted.unwrap_or_default(),
+        esc(&window.route),
+        window_rows(&window.first, now)
+    )
+}
+
+/// A window's rows, each a line of the table at its index in the order:
+/// the name in its rarity's colour, a link to the item; its base; its
+/// price in the card's words, so one that is open or absent says so; its
+/// location and, where it left, when; the location's age; then each
+/// value's cell ([`search_cmd::value_cell`]), empty where the item lacks
+/// it. A cell is one line, cut where it overflows.
+pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
+    let after = match &a.view {
+        ViewOut::Rows(rows) => rows.after,
+        _ => 0,
+    };
+    let mut out = String::new();
+    for (n, row) in a.rows.iter().enumerate() {
         let name = search_cmd::title(row.name.as_deref(), row.typeline.as_deref());
-        let icon = match &row.icon {
-            Some(Some(url)) => format!("<img src=\"{}\" alt=\"{}\">", esc(url), esc(&name)),
-            _ => String::new(),
-        };
-        let lines = row_lines(a, row);
-        let mut place = search_cmd::place_text(&row.place, now);
+        let price = row
+            .shown
+            .as_ref()
+            .map(|shown| search_cmd::price_words(&row.id, &shown.price))
+            .unwrap_or_default();
+        let mut place = search_cmd::place_words(&row.place);
         if let Some(removed_at) = row.removed_at {
             place.push_str(&format!(
                 " · removed {}",
                 crate::store_cmd::ago(now, Some(removed_at))
             ));
         }
-        // the card's order: the name in its rarity's colour and the
-        // base under it, then the lines, then where it lies
-        let rarity = row.rarity.as_deref().unwrap_or("");
+        let values: String = row
+            .values
+            .iter()
+            .map(|valued| {
+                let cell = match search_cmd::lacks(valued) {
+                    true => String::new(),
+                    false => search_cmd::value_cell(valued),
+                };
+                format!("<span>{}</span>", esc(&cell))
+            })
+            .collect();
+        let rarity = row.rarity.as_deref().unwrap_or("").to_lowercase();
         out.push_str(&format!(
-            "<tr><td class=\"icon\">{icon}</td><td><a class=\"name rarity-{}\" href=\"item/{}\">{}</a><br><span class=\"base\">{}</span> <span class=\"fate\">{}</span></td><td>{}</td><td>{}</td></tr>\n",
-            esc(&rarity.to_lowercase()),
+            "<div class=\"r\" data-i=\"{}\" data-id=\"{}\"><a class=\"name rarity-{}\" href=\"item/{}\">{}</a><span>{}</span><span>{}</span><span>{}</span><span>{}</span>{values}</div>\n",
+            after + n,
+            esc(&row.id),
+            esc(&rarity),
             enc(&row.id),
             esc(&name),
             esc(row.base.as_deref().unwrap_or("")),
-            esc(&rarity.to_lowercase()),
-            lines.join("<br>"),
-            esc(&place)
+            esc(&price),
+            esc(&place),
+            esc(&crate::store_cmd::ago(now, row.place.fetched_at)),
         ));
     }
-    out.push_str("</table>\n");
     out
 }
 

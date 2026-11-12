@@ -351,9 +351,9 @@ basis   store <store> · build <build> · snapshot 14 · facts v9 · prices and 
 </main>
 
 GET search?<a row that leaves lines out>
-# holds " more sorted</a>"
-# holds " more of term 0</a>"
-# holds "<a href=\"item/many\">"
+# holds "<span>sum(line(template:spirit).arg1)</span></div>"
+# holds "<a class=\"name rarity-rare\" href=\"item/many\">Many Loop Iron Ring</a>"
+# holds "<span>36</span></div>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:16,&quot;at&quot;:101,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
@@ -364,11 +364,13 @@ GET search?<a row that leaves lines out>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Spirit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">as cards</a></p>
-<table class="results">
-<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/many">Many Loop Iron Ring</a><br><span class="base">Iron Ring</span> <span class="fate">rare</span></td><td>sorts by sum(line(template:spirit).arg1) 36<br>+1 to Spirit (explicit)<br>+2 to Spirit (explicit)<br>+3 to Spirit (explicit)<br>+4 to Spirit (explicit)<br>+5 to Spirit (explicit)<br>+6 to Spirit (explicit)<br><a href="item/many">2 more sorted</a><br><a href="item/many">2 more of term 0</a></td><td>Standard / Spirit · x 0, y 0 · fetched <age> ago</td></tr>
-</table>
-<p class="rows-shown">rows 1–1 of 1 shown</p>
+<p class="rows-shown">1 matching item in the table, by sum(line(template:spirit).arg1), smallest first, as asked</p>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><span>sum(line(template:spirit).arg1)</span></div>
+<div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="1" data-base="0"><div class="block" data-block="0">
+<div class="r" data-i="0" data-id="many"><a class="name rarity-rare" href="item/many">Many Loop Iron Ring</a><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Spirit · x 0, y 0</span><span><age> ago</span><span>36</span></div>
+</div></div>
+</div>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -382,6 +384,50 @@ basis   store <store> · build <build> · snapshot 16 · facts v9 · prices and 
 <form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">line(template:spirit)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="sum(line(template:spirit).arg1)" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="line(template:spirit)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<a table of two values, priced three ways>
+# holds "<span>Fetched</span><span>ilvl</span><span>"
+# holds "href=\"item/lp\">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos"
+# holds "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read"
+# holds "<span>incomplete at 70</span>"
+# holds "<span>none ("
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:18,&quot;at&quot;:111,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
+<main>
+<h1>Answer</h1>
+<p class="count">3 matches</p>
+<table class="opening">
+<tr><th>Query</th><td>name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 20 items · 6 locations fetched<br>3 locations never fetched: PremiumStash 3 of 9 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Ledger)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50">as cards</a></p>
+<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked, and the query compares no one value that orders it)</p>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><span>ilvl</span><span>line(&quot;# to maximum Life&quot;).arg1</span></div>
+<div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
+<div class="r" data-i="0" data-id="li"><a class="name rarity-rare" href="item/li">Ledger Unread Iron Ring</a><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
+<div class="r" data-i="1" data-id="lo"><a class="name rarity-rare" href="item/lo">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
+<div class="r" data-i="2" data-id="lp"><a class="name rarity-rare" href="item/lp">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
+</div></div>
+</div>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>name:ledger</td><td>3</td><td>15</td><td>2</td><td>0</td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Ledger Open (1) · Ledger Priced (1) · Ledger Unread (1)</td></tr>
+<tr><td>1</td><td>ilvl&gt;=80</td><td>6</td><td>12</td><td>2</td><td>0</td><td></td></tr>
+<tr><td>2</td><td>line(&quot;# to maximum Life&quot; arg1&gt;=50)</td><td>4</td><td>1</td><td>15</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">9 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 18 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>

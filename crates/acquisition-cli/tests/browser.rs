@@ -3,11 +3,15 @@
 //! the test's scratch (`harness::start_browser`), spoken to over its
 //! debugging protocol by the loopback WebSocket client below, no crate
 //! added. It holds the script rules no other test reaches: the count
-//! beside a form's button follows that form and no other (`count.js`),
-//! and the stat picker fills the first empty stat row and announces the
-//! write (`picker.js`). The tests type and click as a user's keys and
-//! pointer would, and compare what the page shows with what the server
-//! answers for the same form.
+//! beside a form's button follows that form and no other (`count.js`);
+//! the stat picker fills the first empty stat row and announces the
+//! write (`picker.js`); and the table's window shows, wherever the page
+//! is scrolled, the server's rows at their places and holds no more than
+//! a bound the table's length does not move, takes the server's first
+//! block without asking it again, and loads the page again when the
+//! basis moves (`window.js`). The tests type, click and scroll as a
+//! user's keys and pointer would, and compare what the page shows with
+//! what the server answers for the same form or window.
 //!
 //! No wait has a bound of its own: each waits in the page for what it
 //! expects, and a page that never shows it is a test the runner ends at
@@ -21,15 +25,17 @@ use std::path::PathBuf;
 use serde_json::{Value, json};
 
 use crate::harness;
-use crate::web::offline_web;
+use crate::web::{USER, offline_web};
 
 /// One WebSocket to a debugging target: text frames, masked out, as
 /// RFC 6455 has a client send them, and the events read while waiting
-/// for a call's reply kept for a later wait.
+/// for a call's reply kept for a later wait. Every request the page sends
+/// is noted as it is read, by its URL, where `Network` is enabled.
 struct Cdp {
     stream: TcpStream,
     next: u64,
     events: VecDeque<Value>,
+    requests: Vec<String>,
 }
 
 impl Cdp {
@@ -55,6 +61,7 @@ impl Cdp {
             stream,
             next: 0,
             events: VecDeque::new(),
+            requests: Vec::new(),
         }
     }
 
@@ -78,7 +85,18 @@ impl Cdp {
         self.stream.write_all(&frame).expect("sending a frame");
     }
 
+    /// The next message, a request the page sends noted by its URL.
     fn receive(&mut self) -> Value {
+        let message = self.frame();
+        if message["method"] == "Network.requestWillBeSent"
+            && let Some(url) = message["params"]["request"]["url"].as_str()
+        {
+            self.requests.push(url.to_string());
+        }
+        message
+    }
+
+    fn frame(&mut self) -> Value {
         let mut message = Vec::new();
         loop {
             let mut head = [0u8; 2];
@@ -207,10 +225,19 @@ impl Cdp {
 struct Page {
     _browser: harness::Browser,
     cdp: Cdp,
+    /// The loader of the document the page holds.
+    loader: Value,
 }
 
 impl Page {
     fn open(profile: &std::path::Path, url: &str) -> Page {
+        let mut page = Page::blank(profile);
+        page.navigate(url);
+        page
+    }
+
+    /// A blank page, its lifecycle's events enabled, nothing loaded yet.
+    fn blank(profile: &std::path::Path) -> Page {
         let browser = harness::start_browser(profile);
         let page_ws = {
             let mut root = Cdp::connect(&browser.endpoint);
@@ -228,7 +255,16 @@ impl Page {
         let mut cdp = Cdp::connect(&page_ws);
         cdp.call("Page.enable", json!({}));
         cdp.call("Page.setLifecycleEventsEnabled", json!({ "enabled": true }));
-        let navigated = cdp.call("Page.navigate", json!({ "url": url }));
+        Page {
+            _browser: browser,
+            cdp,
+            loader: Value::Null,
+        }
+    }
+
+    /// Load `url` and wait for its document's load.
+    fn navigate(&mut self, url: &str) {
+        let navigated = self.cdp.call("Page.navigate", json!({ "url": url }));
         let loader = navigated["loaderId"].clone();
         assert!(
             loader.is_string(),
@@ -238,14 +274,23 @@ impl Page {
         // side of the navigation's answer it was read on: a load of the
         // blank page carries another loader
         loop {
-            let event = cdp.event("Page.lifecycleEvent");
+            let event = self.cdp.event("Page.lifecycleEvent");
             if event["params"]["name"] == "load" && event["params"]["loaderId"] == loader {
                 break;
             }
         }
-        Page {
-            _browser: browser,
-            cdp,
+        self.loader = loader;
+    }
+
+    /// Wait for the load of a document the page loads itself, by a loader
+    /// other than the one it holds, and hold that one.
+    fn loaded_again(&mut self) {
+        loop {
+            let event = self.cdp.event("Page.lifecycleEvent");
+            if event["params"]["name"] == "load" && event["params"]["loaderId"] != self.loader {
+                self.loader = event["params"]["loaderId"].clone();
+                return;
+            }
         }
     }
 
@@ -418,6 +463,225 @@ fn a_pick_fills_the_first_empty_stat_row_and_the_count_follows() {
         .until("document.getElementById('stat-said').textContent !== ''");
     let now: Vec<Value> = (0..4).map(|n| page.cdp.eval(&row(n))).collect();
     assert_eq!(now, written, "a pick with every row written changed a row");
+}
+
+/// What the table's window shows now, as drawn: the table's row height
+/// and block's rows, the viewport's height, the segment's count and its
+/// route, the rows whose index the viewport covers (each its index, its
+/// id and where it is drawn from the segment's top) or null where one of
+/// them is not drawn yet, and every row in the page by its index and id.
+const LOOK: &str = "(() => { \
+    const table = document.querySelector('.window[data-row-height]'); \
+    const seg = table.querySelector('.seg'); \
+    const h = Number(table.dataset.rowHeight); \
+    const top = seg.getBoundingClientRect().top; \
+    const vh = window.innerHeight; \
+    const count = Number(seg.dataset.count); \
+    const drawn = Array.from(seg.querySelectorAll('.r[data-i]'), (r) => \
+      [Number(r.dataset.i), r.dataset.id, r.getBoundingClientRect().top - top]); \
+    const at = new Map(drawn.map((row) => [row[0], row])); \
+    const first = Math.max(0, Math.floor(-top / h)); \
+    const last = Math.min(count, Math.ceil((vh - top) / h)) - 1; \
+    const covered = []; \
+    for (let i = first; i <= last; i++) { if (!at.has(i)) return null; covered.push(at.get(i)); } \
+    return { h, block: Number(table.dataset.blockRows), vh, count, route: seg.dataset.route, \
+             top: top + window.scrollY, covered, drawn }; })()";
+
+/// The window's rule (`window.js`, the table's design): wherever the page
+/// is scrolled — its start, its middle, its end and its start again — the
+/// rows the viewport covers are, id for id and in order, the rows the
+/// `rows` route answers for those offsets, each id once in the page, each
+/// drawn at its index times the row height; and the page holds at most
+/// the rows of the blocks three viewports span and one more, a bound the
+/// table's length does not move. The table is several times longer than
+/// that bound: a tab of 1,200 items recorded here, beside the seeded
+/// world. The server's first block is never asked while the page holds
+/// it; and once the world's basis moves, the next window asked loads the
+/// page again, at the new basis.
+#[test]
+fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
+    let (scratch, web) = offline_web("browsertable");
+    let mut store = acquisition_store::Store::open(&acquisition_store::account_path(
+        &scratch.0.join("mock"),
+        USER,
+    ))
+    .expect("the seeded store");
+    let mut record = |ep: acquisition_store::Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .expect("a recorded fetch");
+    };
+    let stash = |id: &str| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: id.into(),
+        sub: None,
+    };
+    const ROWS: usize = 1200;
+    let items: Vec<Value> = (0..ROWS)
+        .map(|n| {
+            json!({ "id": format!("b{n:04}"), "name": format!("Bulk {n:04}"), "typeLine": "Iron Ring",
+                    "baseType": "Iron Ring", "rarity": "Rare", "frameTypeId": 2, "identified": true,
+                    "ilvl": 60, "x": n % 24, "y": n / 24 })
+        })
+        .collect();
+    record(
+        acquisition_store::Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Launch", "type": "PremiumStash" },
+            { "id": "b1", "name": "Bulk", "type": "PremiumStash" } ] }),
+        60,
+    );
+    record(
+        stash("b1"),
+        json!({ "stash": { "id": "b1", "name": "Bulk", "type": "PremiumStash", "items": items } }),
+        61,
+    );
+    let path = format!(
+        "search?realm=pc&text={}&view.fields=icon",
+        harness::form_encoded("name:bulk")
+    );
+
+    let mut page = Page::blank(&profile_of(&scratch));
+    page.cdp.call("Network.enable", json!({}));
+    page.cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        json!({ "width": 1000, "height": 600, "deviceScaleFactor": 1, "mobile": false }),
+    );
+    page.navigate(&format!("{}{path}", web.url));
+    let basis_before = page
+        .cdp
+        .eval("document.querySelector('meta[name=\"basis\"]').content");
+
+    let whole = |page: &mut Page, scroll: &str, at: &str| -> Value {
+        page.cdp
+            .eval(&format!("window.scrollTo(0, {scroll}); true"));
+        page.cdp.until(&format!("{LOOK} !== null"));
+        let look = page.cdp.eval(LOOK);
+        let (h, block, vh) = (
+            look["h"].as_f64().unwrap(),
+            look["block"].as_u64().unwrap() as usize,
+            look["vh"].as_f64().unwrap(),
+        );
+        assert_eq!(look["count"], ROWS, "{at}: the segment's count");
+        let covered = look["covered"].as_array().unwrap();
+        assert!(!covered.is_empty(), "{at}: the viewport covers no row");
+        let first = covered[0][0].as_u64().unwrap() as usize;
+        let route = look["route"]
+            .as_str()
+            .unwrap()
+            .trim_start_matches(&format!("/{}/", web.token))
+            .to_string();
+        let answered = web.get_json(&format!("{route}&offset={first}&count={}", covered.len()));
+        let ids: Vec<&Value> = answered["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| &r["id"])
+            .collect();
+        let shown: Vec<&Value> = covered.iter().map(|r| &r[1]).collect();
+        assert_eq!(shown, ids, "{at}: the rows the viewport covers");
+        let drawn = look["drawn"].as_array().unwrap();
+        let mut seen = std::collections::HashSet::new();
+        for row in drawn {
+            assert!(seen.insert(row[1].clone()), "{at}: {} drawn twice", row[1]);
+            let (i, y) = (row[0].as_f64().unwrap(), row[2].as_f64().unwrap());
+            assert!(
+                (y - i * h).abs() <= 0.5,
+                "{at}: row {i} drawn at {y}, not {}",
+                i * h
+            );
+        }
+        let bound = ((3.0 * vh / h / block as f64).ceil() as usize + 2) * block;
+        assert!(
+            bound * 3 <= ROWS,
+            "the table must be several times the bound {bound}"
+        );
+        assert!(
+            drawn.len() <= bound,
+            "{at}: {} rows in the page, past the bound {bound}",
+            drawn.len()
+        );
+        eprintln!(
+            "{at}: rows {first}+{}, {} in the page, bound {bound}",
+            covered.len(),
+            drawn.len()
+        );
+        look
+    };
+
+    // the start: the server's block shown and held; scrolled within it
+    // until the next block is near, the window asks that block, never the
+    // first, whose ask, had the script made one, it would have made first
+    let start = whole(&mut page, "0", "the start");
+    let block = start["block"].as_u64().unwrap();
+    let near = format!("{} * {}", block / 2, start["h"]);
+    whole(&mut page, &near, "the start, the next block near");
+    page.cdp.until(&format!(
+        "document.querySelector('.r[data-i=\"{block}\"]') !== null"
+    ));
+    let windows = |page: &Page| -> Vec<String> {
+        page.cdp
+            .requests
+            .iter()
+            .filter(|url| url.contains("/rows?"))
+            .cloned()
+            .collect()
+    };
+    let asked = windows(&page);
+    assert!(
+        asked
+            .iter()
+            .any(|url| url.contains(&format!("&offset={block}&"))),
+        "the next block was never asked: {asked:?}"
+    );
+    assert!(
+        !asked.iter().any(|url| url.contains("&offset=0&")),
+        "the server's block was asked while the page held it: {asked:?}"
+    );
+    let middle = format!(
+        "{} + {} * {} / 2 - innerHeight / 2",
+        start["top"], ROWS, start["h"]
+    );
+    whole(&mut page, &middle, "the middle");
+    let end = format!("{} + {} * {} - innerHeight", start["top"], ROWS, start["h"]);
+    whole(&mut page, &end, "the end");
+    whole(&mut page, "0", "the start again");
+
+    // the basis moves: a later fetch of a tab; the next window asked is
+    // refused, and the page loads itself again, at the new basis
+    record(
+        stash("t2"),
+        json!({ "stash": { "id": "t2", "name": "Launch", "type": "PremiumStash", "items": [] } }),
+        70,
+    );
+    page.cdp
+        .eval(&format!("window.scrollTo(0, {middle}); true"));
+    page.loaded_again();
+    let basis_after = page
+        .cdp
+        .eval("document.querySelector('meta[name=\"basis\"]').content");
+    assert_ne!(
+        basis_before, basis_after,
+        "the page loaded again at the basis it had"
+    );
+    let now = web.get_json(&path)["basis"].clone();
+    let shown: Value = serde_json::from_str(basis_after.as_str().unwrap()).unwrap();
+    assert_eq!(
+        shown["answer"], now,
+        "the page loaded again, not at the basis now"
+    );
+    whole(&mut page, "0", "the start, at the new basis");
 }
 
 /// The harness refuses a browser that exits before its debugging

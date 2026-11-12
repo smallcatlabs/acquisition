@@ -153,6 +153,30 @@
 //!   document with no row and no order ([`count`]), so its number is the
 //!   one Search would give now. The picker announces its write with a
 //!   bubbling `input`; neither script names the other.
+//! - **The table** (4-full part 1, step 6.4b,
+//!   `roadmap/briefs/4-full-1-step6-table.md`, from the window spike,
+//!   `audits/web-2026-11/spike/`): an answer asked as a table
+//!   (`view.fields=icon`) is every matching row in one scrolling page at
+//!   one row height, the height and the block's rows written on the table
+//!   ([`page::ROW_HEIGHT`], [`page::BLOCK_ROWS`]). Its line says how many
+//!   items it holds and in what order; `view.limit` is the cards' and is
+//!   not read for it. One maker gives a window's rows ([`Web::window`],
+//!   [`window_request`]): the page's request at its answer's basis, its
+//!   place the window's offset into the whole order and its limit the
+//!   window's count, `item` among its fields for the price. The page
+//!   answers its request and its first block over one corpus, so both
+//!   stand at one basis, and renders that block, which `window.js` takes
+//!   as one it holds; the script asks the rest as they near the viewport.
+//!   `GET rows?next=<token>&offset=<n>&count=<n>` answers a window, the
+//!   token the first window's request: the rows alone as HTML, the
+//!   window request's answer document as JSON ([`rows`]). It refuses with
+//!   400, in the one refusal shape, a token no answer printed, an offset
+//!   or a count that is no whole number, a count of none or past the item
+//!   rows' bound, and a window that runs past the rows; a basis moved
+//!   since the page is the search's refusal with 409, and the script
+//!   loads the page again. A table reached by a continuation and loaded
+//!   again after its basis moved meets the continuation's own refusal of
+//!   a moved basis, as a cards page does.
 
 mod form;
 mod page;
@@ -186,12 +210,13 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet, the picker's script, the list filter's and the
-/// count's, served as written.
+/// The stylesheet, the picker's script, the list filter's, the count's
+/// and the table's window, served as written.
 const CSS: &str = include_str!("assets/page.css");
 const PICKER: &str = include_str!("assets/picker.js");
 const FILTER: &str = include_str!("assets/filter.js");
 const COUNT: &str = include_str!("assets/count.js");
+const WINDOW: &str = include_str!("assets/window.js");
 
 /// How many stats the picker lists for one ask; the rest are counted.
 const PICKED: usize = 50;
@@ -306,6 +331,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/item/{id}"), get(item))
         .route(&at("/stats"), get(stats))
         .route(&at("/count"), get(count))
+        .route(&at("/rows"), get(rows))
         .route(&at("/refresh"), get(tabs))
         .route(&at("/plan"), get(plan))
         .route(&at("/apply"), post(apply))
@@ -322,6 +348,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/assets/picker.js"), get(picker))
         .route(&at("/assets/filter.js"), get(filter))
         .route(&at("/assets/count.js"), get(count_script))
+        .route(&at("/assets/window.js"), get(window_script))
         .fallback(no_such_page)
         .layer(middleware::from_fn_with_state(Arc::clone(&web), guard))
         .with_state(web);
@@ -660,10 +687,36 @@ impl Web {
     /// The request answered over the held corpus (C98): checked first,
     /// then the holder's corpus, current and of the request's scope.
     fn answer(&self, request: &Request) -> Result<acquisition_search::Answer, Failure> {
+        let corpus = self.corpus(request)?;
+        Ok(acquisition_search::answer(&corpus, request)?)
+    }
+
+    /// The holder's corpus for `request`, checked first: current, and of
+    /// the request's scope. A page that answers two requests of one scope
+    /// answers both over the one corpus this returns, at one basis.
+    fn corpus(&self, request: &Request) -> Result<Arc<acquisition_search::Corpus>, Failure> {
         request.check()?;
         let opened = self.served()?.open()?;
-        let corpus = self.held.corpus(request, &opened.facts, &opened.intent)?;
-        Ok(acquisition_search::answer(&corpus, request)?)
+        Ok(self.held.corpus(request, &opened.facts, &opened.intent)?)
+    }
+
+    /// A window of a table's rows (the table's design, `rows`): the page's
+    /// request at its answer's `basis`, from row `offset` of its order,
+    /// `count` of them, each carrying its item for its price — the one
+    /// maker the `rows` route and the page's first block call, over the
+    /// corpus each takes ([`window_request`]).
+    fn window(
+        &self,
+        corpus: &acquisition_search::Corpus,
+        page: &Request,
+        basis: &acquisition_search::Basis,
+        offset: usize,
+        count: usize,
+    ) -> Result<acquisition_search::Answer, Failure> {
+        Ok(acquisition_search::answer(
+            corpus,
+            &window_request(page, basis, offset, count),
+        )?)
     }
 
     /// The store's league list (the `leagues` job's latest answer), whole,
@@ -840,6 +893,31 @@ fn continues(request: &Request) -> bool {
         )
 }
 
+/// The request a window of a table's rows asks: the page's request at
+/// `basis`, its place `offset` rows into the order and its limit
+/// `count`, `item` among the row's fields beside the page's own (the
+/// table's `icon`), so each row carries its price. The offset counts from
+/// the order's first row whatever place the page's request held: a table
+/// lists the whole order.
+fn window_request(
+    page: &Request,
+    basis: &acquisition_search::Basis,
+    offset: usize,
+    count: usize,
+) -> Request {
+    use acquisition_search::answer::{RowField, Shape};
+    let mut request = page.clone();
+    request.basis = Some(basis.clone());
+    if let Shape::Rows(rows) = &mut request.view.shape {
+        rows.after = Some(offset);
+        rows.limit = Some(count);
+        if !rows.fields.contains(&RowField::Item) {
+            rows.fields.push(RowField::Item);
+        }
+    }
+    request
+}
+
 /// `request` with each count key as the key's one reader spells it
 /// (`Counts::lists`, through `bind::bind_key`) and the form's list reads it
 /// back (`counts::count_keys`): two spellings of one key compare equal.
@@ -961,7 +1039,27 @@ async fn search(
                 Asked::read(&folded.request()?)?.request
             }
         };
-        let answer = web.answer(&request)?;
+        let corpus = web.corpus(&request)?;
+        let answer = acquisition_search::answer(&corpus, &request)?;
+        // a table's first block, over the same corpus: at the answer's
+        // basis by construction, its route the first window's request
+        let window = match &answer.view {
+            acquisition_search::answer::ViewOut::Rows(rows)
+                if !rows
+                    .fields
+                    .contains(&acquisition_search::answer::RowField::Item)
+                    && answer.total.matched > 0 =>
+            {
+                let count = answer.total.matched.min(page::BLOCK_ROWS);
+                let first = web.window(&corpus, &request, &answer.basis, 0, count)?;
+                let token = window_request(&request, &answer.basis, 0, count).token();
+                Some(page::Window {
+                    route: web.link("rows", &[("next", token)]),
+                    first,
+                })
+            }
+            _ => None,
+        };
         let opened = match from {
             Some((id, at)) if !json => {
                 let row = match web.saved_at(&id)? {
@@ -973,14 +1071,15 @@ async fn search(
             }
             _ => None,
         };
-        Ok((answer, opened, carried, continued))
+        Ok((answer, window, opened, carried, continued))
     })
     .await;
     match asked {
-        Ok((answer, _, _, _)) if json => document(&answer),
-        Ok((answer, opened, carried, continued)) => {
+        Ok((answer, ..)) if json => document(&answer),
+        Ok((answer, window, opened, carried, continued)) => {
             let mut head = Head {
                 count: true,
+                window: window.is_some(),
                 ..Head::default()
             }
             .with("answer", &answer.basis);
@@ -1019,6 +1118,7 @@ async fn search(
                                 .and_then(|(link, _)| link.as_str().map(str::to_string))
                         },
                         &rows_links,
+                        window.as_ref(),
                     )
                 ),
             )
@@ -1174,6 +1274,78 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
             &page::item(&shown),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
+    }
+}
+
+/// A window of a table's rows (the module doc, "The table"): the
+/// request a table's segment names as `next`, its rows from `offset`,
+/// `count` of them, made by [`Web::window`] at the token's basis. HTML is
+/// the rows alone, which the window script places; JSON is the answer
+/// document of the window's request. Refused, in the one refusal shape
+/// and as the pages are, with 400: a token no answer printed; an offset
+/// or a count that is no whole number; a count of none or past the item
+/// rows' bound; a window that does not lie inside the rows, nothing
+/// clipped in silence. A basis moved since the page is the search's own
+/// refusal with 409, which the script answers by loading the page again.
+async fn rows(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Fields>,
+) -> Response {
+    let asked = blocking(&web, move |web| -> Result<_, Failure> {
+        let request = Request::from_token(pick(&fields, "next").unwrap_or(""))?;
+        let number = |name: &str, what: &str| {
+            pick(&fields, name)
+                .and_then(|n| n.parse::<usize>().ok())
+                .ok_or_else(|| Failure::Usage(format!("`{name}` is {what}: a whole number")))
+        };
+        let offset = number("offset", "the row a window starts at, counted from the first as 0")?;
+        let count = number("count", "how many rows a window holds")?;
+        let bound = acquisition_store::bound::ITEM_ROWS;
+        if !(1..=bound).contains(&count) {
+            return Err(Failure::Usage(format!(
+                "a window holds from 1 to {bound} rows, each with its item, and this one asks {count}"
+            )));
+        }
+        let Some(basis) = request.basis.clone() else {
+            // `from_token` reads only a request with its place and basis
+            return Err(Failure::Usage("a window continues an answer at its basis".to_string()));
+        };
+        let corpus = web.corpus(&request)?;
+        let answer = web.window(&corpus, &request, &basis, offset, count)?;
+        let matched = answer.total.matched;
+        if offset + count > matched {
+            return Err(Failure::Usage(format!(
+                "a window lies inside the rows: {count} from row {offset} runs past the {} the answer holds",
+                plural(matched, "row", "rows")
+            )));
+        }
+        Ok(answer)
+    })
+    .await;
+    match asked {
+        Ok(answer) if wants_json(&headers) => document(&answer),
+        Ok(answer) => html(
+            StatusCode::OK,
+            page::window_rows(&answer, acquisition_store::now()),
+        ),
+        Err(failure) => {
+            let doc = web.refusal(&failure);
+            let status = match doc["kind"].as_str() {
+                Some("basis_changed") => StatusCode::CONFLICT,
+                _ => StatusCode::BAD_REQUEST,
+            };
+            if wants_json(&headers) {
+                (
+                    status,
+                    [(header::CONTENT_TYPE, "application/json")],
+                    doc.to_string(),
+                )
+                    .into_response()
+            } else {
+                html(status, page::refused(&doc))
+            }
+        }
     }
 }
 
@@ -1950,6 +2122,14 @@ async fn filter() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
         FILTER,
+    )
+        .into_response()
+}
+
+async fn window_script() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+        WINDOW,
     )
         .into_response()
 }

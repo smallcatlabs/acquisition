@@ -1453,7 +1453,12 @@ pub fn form_encoded(text: &str) -> String {
 /// recorded page to and the no-state scan (C16, `web.rs`) fetches and
 /// reads. A page naming another fails at the seam until the list grows
 /// and the scan reads it.
-pub const SCRIPTS: &[&str] = &["assets/picker.js", "assets/filter.js", "assets/count.js"];
+pub const SCRIPTS: &[&str] = &[
+    "assets/picker.js",
+    "assets/filter.js",
+    "assets/count.js",
+    "assets/window.js",
+];
 
 /// C16 at the recording seam: a reply sets no cookie, and every
 /// `<script src>` its body names is one of [`SCRIPTS`] under `token`.

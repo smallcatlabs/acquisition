@@ -1,0 +1,94 @@
+# golden web/table_rows: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET rows?next=<the first window>&offset=1&count=3
+# holds "data-i=\"1\""
+# holds "data-i=\"3\""
+# holds "<span>none ("
+<div class="r" data-i="1" data-id="r1"><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Rings · x 0, y 0</span><span><age> ago</span></div>
+<div class="r" data-i="2" data-id="r2"><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Rings · x 0, y 0</span><span><age> ago</span></div>
+<div class="r" data-i="3" data-id="mech"><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Launch · x 0, y 0</span><span><age> ago</span></div>
+
+
+GET rows?<no token>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+this is no token an answer printed: a continuation takes one whole, as an answer&#39;s `next` gives it
+</pre>
+</div>
+
+
+GET rows?<a token no answer printed>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+this is no token an answer printed: a continuation takes one whole, as an answer&#39;s `next` gives it
+</pre>
+</div>
+
+
+GET rows?<an offset that is no number>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+`offset` is the row a window starts at, counted from the first as 0: a whole number
+</pre>
+</div>
+
+
+GET rows?<no count>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+`count` is how many rows a window holds: a whole number
+</pre>
+</div>
+
+
+GET rows?<a count of none>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+a window holds from 1 to 200 rows, each with its item, and this one asks 0
+</pre>
+</div>
+
+
+GET rows?<a count past the bound>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+a window holds from 1 to 200 rows, each with its item, and this one asks 201
+</pre>
+</div>
+
+
+GET rows?<a window past the rows>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+a window lies inside the rows: 2 from row 4 runs past the 5 rows the answer holds
+</pre>
+</div>
+
+
+GET rows?<an offset past the rows>
+# holds "<div class=\"refusal\">"
+--- status 400
+<div class="refusal"><pre>
+a window lies inside the rows: 1 from row 5 runs past the 5 rows the answer holds
+</pre>
+</div>
+
+
+GET rows?<the first window, its basis moved>
+# holds "another basis"
+--- status 409
+<div class="refusal"><pre>
+this continues an answer counted at another basis, and its place is no place in this one — snapshot 7 then, snapshot 8 now; recorded 1970-01-01 00:00:50 UTC then, recorded 1970-01-01 00:01:00 UTC now: ask again from the start
+</pre>
+<ul class="offers">
+<li><a href="/<token>/search?realm=pc&amp;text=&amp;view.limit=3">the same request from its start</a></li>
+</ul>
+</div>
+

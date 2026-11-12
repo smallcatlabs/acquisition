@@ -21,7 +21,7 @@ use harness::{
     Pages, WebUi, offline_acq, offline_command, page_golden, panes_golden, sole_json, start_web,
 };
 
-const USER: &str = "Alice#1234";
+pub(crate) const USER: &str = "Alice#1234";
 const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
 
 /// The row fields the answer page asks by default, as `acq search
@@ -763,11 +763,7 @@ fn every_search_page_is_a_wording_golden() {
             "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
         ],
     );
-    assert!(
-        !answer.body.contains("class=\"results\""),
-        "{}",
-        answer.body
-    );
+    assert!(!answer.body.contains("class=\"window\""), "{}", answer.body);
     // an exact translation saves as the site's search: no note
     assert!(
         !answer.body.contains("class=\"save-note\""),
@@ -775,9 +771,10 @@ fn every_search_page_is_a_wording_golden() {
         answer.body
     );
     every_request_an_answer_carries_is_a_way_on_its_page(&web, &ring_path, &answer);
-    // the same search as the table, asked on the form: the compact table,
-    // the query box keeping it, and the way back to the cards, which
-    // answers
+    // the same search as the table, asked on the form: every row in one
+    // table, its heads the fixed columns and the query's one value, its
+    // first block the server's, each row's price in the card's words, the
+    // query box keeping it, and the way back to the cards, which answers
     let mut tabled = ring_search();
     tabled.push(("view.fields", "icon"));
     let table_path = format!("search?{}", query_string(&tabled));
@@ -788,8 +785,16 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<the ring search as a table>",
         &table,
         &[
-            "<table class=\"results\">",
-            "alt=\"Doom Loop Two-Stone Ring\"",
+            "<p class=\"rows-shown\">2 matching items in the table, by sum(",
+            "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
+            "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><span>sum(line(",
+            "/rows?next=acq1.",
+            "data-count=\"2\"",
+            "<div class=\"block\" data-block=\"0\">",
+            "data-i=\"0\" data-id=\"r1\"><a class=\"name rarity-rare\" href=\"item/r1\">Doom Loop Two-Stone Ring</a>",
+            "<span>none (",
+            "<span>Standard / Rings · x 0, y 0</span>",
+            "<span>95</span>",
             "<option value=\"icon\" selected>a table</option>",
             ">as cards</a>",
         ],
@@ -927,7 +932,7 @@ fn every_search_page_is_a_wording_golden() {
     // a count shows no rows: its tables, no rows table, no card and no
     // other presentation
     for none in [
-        "class=\"results\"",
+        "class=\"window\"",
         "class=\"card\"",
         "class=\"presentation\"",
     ] {
@@ -991,13 +996,15 @@ fn every_search_page_is_a_wording_golden() {
     assert!(!back.body.contains("first rows"), "{}", back.body);
     let tabled = web.get(&href(&more.body, "\">as a table</a>"));
     assert_eq!(tabled.status, 200, "{}", tabled.body);
+    // the table holds every row, the one shown by the cards' limit and
+    // the rest alike
     assert!(
-        tabled.body.contains("rows 1–1 of 3 shown"),
+        tabled.body.contains("3 matching items in the table"),
         "{}",
         tabled.body
     );
     assert!(
-        tabled.body.contains("<table class=\"results\">"),
+        tabled.body.contains("<div class=\"window\""),
         "{}",
         tabled.body
     );
@@ -1729,9 +1736,10 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             "read the other way: adds 0, drops <a class=\"way\" data-way=\"/query/trade/clauses/1/other/drops\" href=",
         ],
     );
-    // a row that leaves lines out: eight Spirit lines, its term and its
-    // sort each showing part of them, what each left out a link to the
-    // item whole
+    // a row whose value sums eight Spirit lines: as a table, the sum
+    // stands in its value's column as one number, the lines being the
+    // item's, a link away by the row's name; the row carries no request
+    // of its own, so no way on is lost with the lines (the check below)
     let spirit: Vec<String> = (1..=8).map(|n| format!("+{n} to Spirit")).collect();
     tabs.push(tab("s9", "Spirit"));
     record(
@@ -1762,9 +1770,9 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ])
         ),
         &[
-            " more sorted</a>",
-            " more of term 0</a>",
-            "<a href=\"item/many\">",
+            "<span>sum(line(template:spirit).arg1)</span></div>",
+            "<a class=\"name rarity-rare\" href=\"item/many\">Many Loop Iron Ring</a>",
+            "<span>36</span></div>",
         ],
     );
     // as a card the item stands whole beside what the row shows, so the
@@ -1784,7 +1792,189 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
     );
     assert!(carded.body.contains("+8 to Spirit"), "{}", carded.body);
     assert!(!carded.body.contains(" more "), "{}", carded.body);
+
+    // the table's cells, each in its own words under its own head: two
+    // values the query compares, one of them incomplete where the item's
+    // implicit lines cannot be read (C94, an incomplete subtotal is
+    // marked); a price from a note, a price undecided where the note is
+    // no string, and none where nothing applies
+    let ledger = |id: &str, name: &str, ilvl: u32, more: Value| {
+        let mut v = json!({ "id": id, "name": name, "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                            "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": ilvl,
+                            "x": ilvl % 12, "y": 0 });
+        for (k, value) in more.as_object().unwrap() {
+            v[k] = value.clone();
+        }
+        v
+    };
+    tabs.push(json!({ "id": "p9", "name": "Ledger", "type": "PremiumStash", "metadata": { "public": true } }));
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        110,
+    );
+    record(
+        stash("p9"),
+        "Standard",
+        json!({ "stash": { "id": "p9", "name": "Ledger", "type": "PremiumStash", "items": [
+            ledger("lp", "Ledger Priced", 81, json!({ "note": "~price 5 chaos", "explicitMods": ["+90 to maximum Life"] })),
+            ledger("lo", "Ledger Open", 82, json!({ "note": 5, "explicitMods": ["+60 to maximum Life"] })),
+            ledger("li", "Ledger Unread", 83, json!({ "implicitMods": "unread", "explicitMods": ["+70 to maximum Life"] })),
+        ] } }),
+        111,
+    );
+    check(
+        &mut pages,
+        "GET search?<a table of two values, priced three ways>",
+        &format!(
+            "search?{}",
+            query_string(&[
+                ("realm", "pc"),
+                ("text", "name:ledger ilvl>=80 \"# to maximum Life\">=50"),
+                ("view.fields", "icon"),
+            ])
+        ),
+        &[
+            "<span>Fetched</span><span>ilvl</span><span>",
+            "href=\"item/lp\">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos",
+            "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read",
+            "<span>incomplete at 70</span>",
+            "<span>none (",
+        ],
+    );
     page_golden(file!(), "answer_ways", &pages);
+}
+
+/// The table's route (`rows`, the module doc's "The table"): a window of
+/// the page's rows answers as the rows alone and, where JSON is asked, as
+/// the answer `search?next=` gives for the same window's request made
+/// here by hand — the page's request at its basis, `after` the offset,
+/// `limit` the count, `item` among its fields. Each wrong window is
+/// refused in the one refusal shape with 400, as the pages' refusals are,
+/// nothing clipped; a basis moved since the page is the search's own
+/// refusal with 409, as HTML and as JSON.
+#[test]
+fn the_rows_route_answers_a_window_and_refuses_each_wrong_one() {
+    use acquisition_search::answer::{Request, RowField, Shape};
+    let (scratch, web) = offline_web("webrows");
+    let mut pages = Pages::new(&scratch.0, &web);
+    let page = web.get("search?realm=pc&text=&view.fields=icon");
+    assert_eq!(page.status, 200, "{}", page.body);
+    assert!(page.body.contains("data-count=\"5\""), "{}", page.body);
+    let route = attribute(
+        &page.body[page.body.find("<div class=\"seg\"").unwrap()..],
+        "data-route",
+    )
+    .unwrap()
+    .trim_start_matches(&format!("/{}/", web.token))
+    .to_string();
+    let window = format!("{route}&offset=1&count=3");
+    let rows = web.get(&window);
+    assert_eq!(rows.status, 200, "{}", rows.body);
+    assert!(!rows.body.contains("<html"), "{}", rows.body);
+    pages.page(
+        "GET rows?next=<the first window>&offset=1&count=3",
+        &rows,
+        &["data-i=\"1\"", "data-i=\"3\"", "<span>none ("],
+    );
+    assert!(!rows.body.contains("data-i=\"0\""), "{}", rows.body);
+    assert!(!rows.body.contains("data-i=\"4\""), "{}", rows.body);
+
+    // the JSON is `search?next=`'s for the window's request, made by hand
+    let token = route.split_once("next=").unwrap().1;
+    let mut by_hand = Request::from_token(token).unwrap();
+    let Shape::Rows(view) = &mut by_hand.view.shape else {
+        panic!("a table's token is a rows request");
+    };
+    view.after = Some(1);
+    view.limit = Some(3);
+    if !view.fields.contains(&RowField::Item) {
+        view.fields.push(RowField::Item);
+    }
+    let asked = web.get_json(&window);
+    let searched = web.get_json(&format!("search?next={}", by_hand.token()));
+    assert_eq!(asked, searched);
+    assert_eq!(asked["view"]["rows"]["returned"], 3, "{asked}");
+    assert!(asked["rows"][0].get("item").is_some(), "{asked}");
+
+    // each wrong window, refused, nothing clipped
+    for (label, path) in [
+        ("no token", "rows?offset=0&count=1".to_string()),
+        (
+            "a token no answer printed",
+            "rows?next=acq1.nothing&offset=0&count=1".to_string(),
+        ),
+        (
+            "an offset that is no number",
+            format!("{route}&offset=one&count=1"),
+        ),
+        ("no count", format!("{route}&offset=0")),
+        ("a count of none", format!("{route}&offset=0&count=0")),
+        (
+            "a count past the bound",
+            format!("{route}&offset=0&count=201"),
+        ),
+        (
+            "a window past the rows",
+            format!("{route}&offset=4&count=2"),
+        ),
+        (
+            "an offset past the rows",
+            format!("{route}&offset=5&count=1"),
+        ),
+    ] {
+        let refused = web.get(&path);
+        assert_eq!(refused.status, 400, "{label}: {}", refused.body);
+        pages.page(
+            &format!("GET rows?<{label}>"),
+            &refused,
+            &["<div class=\"refusal\">"],
+        );
+        let doc = refused_json(&web, &path, 400);
+        assert!(doc["error"].is_string(), "{label}: {doc}");
+    }
+
+    // a basis moved since the page: the search's refusal, with 409
+    Store::open(&account_path(&scratch.0.join("mock"), USER))
+        .unwrap()
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t2".into(),
+                sub: None,
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stash": { "id": "t2", "name": "Launch", "type": "PremiumStash", "items": [] } }),
+            60,
+        )
+        .unwrap();
+    let moved = web.get(&window);
+    assert_eq!(moved.status, 409, "{}", moved.body);
+    pages.page(
+        "GET rows?<the first window, its basis moved>",
+        &moved,
+        &["another basis"],
+    );
+    let doc = refused_json(&web, &window, 409);
+    assert_eq!(doc["kind"], "basis_changed", "{doc}");
+    page_golden(file!(), "table_rows", &pages);
+}
+
+/// A refusal's document as the server answers a request under the token
+/// that accepts JSON, with its status.
+fn refused_json(web: &WebUi, path: &str, status: u16) -> Value {
+    let reply = web.raw(
+        "GET",
+        &format!("/{}/{path}", web.token),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    assert_eq!(reply.status, status, "{path}: {}", reply.body);
+    serde_json::from_str(&reply.body).unwrap_or_else(|e| panic!("{path}: {e}: {}", reply.body))
 }
 
 /// The links a refusal page offers, in order, as a browser follows them.

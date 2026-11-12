@@ -96,3 +96,15 @@ table.tabs col.tick { width: 2.5rem; }
 table.tabs col.type, table.tabs col.items { width: 18%; }
 table.tabs col.fetched { width: 14%; }
 input.col-filter { width: 100%; box-sizing: border-box; }
+
+/* the table (step 6.4b): rows of one height in one segment, which the
+   window script sizes and fills a block at a time; the height is the
+   server's, set as --row by the script from the table's own attribute.
+   Before the script marks the table, its first block stands in the flow. */
+.window { position: relative; overflow-anchor: none; font-size: 0.85rem; }
+.window .seg { position: relative; }
+.window[data-windowed] .block { position: absolute; left: 0; right: 0; }
+.window .r { display: grid; grid-template-columns: 22rem 14rem 10rem 20rem 7rem; grid-auto-columns: 9rem; grid-auto-flow: column; box-sizing: border-box; border-bottom: 1px solid var(--rule); }
+.window[data-windowed] .r { height: var(--row); line-height: var(--row); }
+.window .r > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 0.4rem; }
+.window .r.head { font-weight: bold; position: sticky; top: 0; background: var(--page); z-index: 1; }
