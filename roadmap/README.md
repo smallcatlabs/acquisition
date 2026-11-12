@@ -20,10 +20,10 @@ better Acquisition that is agent-friendly and agent-forward.
   item 3), briefed in two. The check's driver
   (`briefs/4-full-1-step6-driver.md`) is asked of a page `main`
   serves and waits on nothing. The window script
-  (`briefs/4-full-1-step6-spike.md`), whose verdict is the owner's
-  sitting in Brave, stopped at its brief's third review and is not
-  built from until his word (#264). Then the flat table, and the
-  places and the grouped table.
+  (`briefs/4-full-1-step6-spike.md`) is built as a rig, watched and
+  changed, at his word after its brief stopped at a third review
+  (#264); its verdict is his sitting in Brave. Then the flat table,
+  and the places and the grouped table.
 
 ## Next
 
@@ -65,8 +65,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
-- The window spike's brief, stopped at its third review (#264): his
-  word on its reshaping; then his sitting in Brave.
+- The window spike's sitting in Brave, once its rig and headless runs
+  are committed (`briefs/4-full-1-step6-spike.md`).
 - The league run under the rails, at his word: count the undecided
   classes and the untranslated mods.
 - At the next live login, deny once: whether GGG's authorize page
