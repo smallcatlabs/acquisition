@@ -10,11 +10,12 @@ work").
 
 ## Verdict
 
-Not yet. Headless, the first rig holds the flat table and misses the
-grouped one: F and F1k pass every run; G0 and G1 miss the jump line,
-because each window of tab heads reads the whole listing of 3,347 tabs.
-A turn of the loop follows, and then the owner's sitting in Brave
-decides.
+Not yet: the owner's sitting in Brave decides. Headless, the
+hand-written script holds the table, flat and grouped, at the second
+rig: all four cases pass every run of rig-2. The first rig missed the
+grouped cases because each window of tab heads read the whole listing
+of 3,347 tabs; holding the listing for its basis answered it, with the
+script unchanged.
 
 ## The rig
 
@@ -264,3 +265,32 @@ time is the held corpus's check, about 8 ms.
 for pc Standard's 3,347 tabs, and 44 ms under a jump's concurrency. A
 places document asked a window at a time cannot read it per window
 and hold the jump line; held for its basis, a window of it is a slice.
+
+## The headless runs: rig-2
+
+Judged by the same bar: **all four cases hold, every run.** Three runs
+of each case, 2026-11-11, in turn, with `rig-2.patch` as committed at
+`93e3f59e`; the results whole in `headless-2.jsonl`. A first attempt
+failed before any run, on a stale port file, and is not a run (that
+commit says so). The machine, by `uptime` and `ps` before and after:
+load 2.50 and 3.06 on 10 cores, no compiler running, Spotlight's
+indexer on one core. The same browser, viewport and build profile as
+rig-1's runs; the copy's diff equal to the patch (`cmp`). The
+measurement copy's SHA-256 is the brief's after these runs too.
+
+| Case | Runs passed | Jumps, median / 9th of 10 / slowest | Late frames, steady | Steady frames with a row missing | Most elements / rows live | Rows checked a run | Void |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| F, 22,623 rows | 3 of 3 | 67 / 83 / 83 ms | 0 of 1,803 | 0 | 780 / 150 | 965 | 0 |
+| F1k, 1,133 rows | 3 of 3 | 67 / 67 / 83 ms | 0 of 1,803 | 0 | 931 / 150 | 824 | 0 |
+| G0, 3,347 heads | 3 of 3 | 67 / 67 / 67 ms | 0 of 1,803 | 0 | 1,030 / 200 | 930 | 0 |
+| G1, 348 + 499 + 2,999 | 3 of 3 | 67 / 67 / 67 ms | 0 of 1,803 | 0 | 1,033 / 200 | 755 | 0 |
+
+No frame in any jump was longer than 16.8 ms. Every window asked was
+answered (none pending, aborted or failed at a run's end). A heads
+window now took 25 to 27 ms from its ask to its body's end (median),
+against 74 at rig-1, its listing part 0.01 ms; most of a window's
+server time in every case is now the held corpus's check (22 ms median
+under a jump's concurrency, about 8 alone), which each of a jump's
+windows makes in turn behind the corpus's lock. That is the next cost
+a window carries, in the search crate's holder, and none of this
+step's to change.
