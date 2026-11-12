@@ -382,6 +382,106 @@ fn the_fold_answers_as_acq_search_trade_does() {
     assert_eq!(page, cli);
 }
 
+/// The count beside a search's button (4-full part 1, step 6.2, #245),
+/// pinned by equality: a form's `count` is `acq search` of the same
+/// request at `--limit 0` and `--sort none`, JSON whatever was asked, no
+/// row in it. The view the form names, a sort or a count's keys, is not
+/// read; the query box's count, the saved search it carries set aside, is
+/// its search's total.
+#[test]
+fn the_count_answers_as_acq_search_at_limit_zero_does() {
+    let (scratch, web) = offline_web("webcount");
+    let count = |fields: &[(&str, &str)]| -> Value {
+        let reply = web.get(&format!("count?{}", query_string(fields)));
+        assert_eq!(reply.status, 200, "{}", reply.body);
+        assert_eq!(reply.header("content-type"), Some("application/json"));
+        serde_json::from_str(&reply.body).unwrap()
+    };
+    let counted = count(&ring_search());
+    let envelope = json!({
+        "league": "Standard",
+        "query": {
+            "filters": { "type_filters": { "filters": { "category": { "option": "accessory.ring" } } } },
+            "stats": [{ "type": "and", "filters": [
+                { "id": "explicit.stat_3299347043", "value": { "min": 70 } } ] }],
+        },
+    });
+    let file = scratch.0.join("envelope.json");
+    std::fs::write(&file, envelope.to_string()).unwrap();
+    let out = offline_acq(
+        &scratch.0,
+        &[
+            "search",
+            "--trade-file",
+            file.to_str().unwrap(),
+            "--realm",
+            "pc",
+            "--limit",
+            "0",
+            "--sort",
+            "none",
+            "--fields",
+            PAGE_FIELDS,
+            "--json",
+        ],
+    );
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(counted, sole_json(&out));
+    assert_eq!(counted["rows"], json!([]));
+    assert_eq!(counted["total"]["matched"], 2);
+    for view in [
+        [("view.sort", "ilvl"), ("view.desc", "true")],
+        [("view.count", "rarity"), ("view.limit", "50")],
+    ] {
+        let mut fields: Vec<_> = ring_search()
+            .into_iter()
+            .filter(|(k, _)| !k.starts_with("view."))
+            .collect();
+        fields.extend(view);
+        assert_eq!(count(&fields), counted, "{view:?}");
+    }
+    let boxed = [
+        ("realm", "pc"),
+        ("text", "class:rings"),
+        ("view.limit", ""),
+        ("view.sort", ""),
+        ("view.fields", ""),
+    ];
+    let mut opened = boxed.to_vec();
+    opened.extend([("saved", "0123456789ab"), ("saved_revision", "1")]);
+    let total = web.get_json(&format!("search?{}", query_string(&boxed)))["total"].clone();
+    assert!(total["matched"].as_u64().unwrap() > 0, "{total}");
+    assert_eq!(count(&opened)["total"], total);
+}
+
+/// A refused form's count is its search's refusal as JSON: the same
+/// status and kind, the words the server's, for a field no form has, a
+/// query the language refuses and a site search that is none.
+#[test]
+fn a_refused_form_s_count_is_its_search_s_refusal() {
+    let (_scratch, web) = offline_web("webcountrefused");
+    for fields in [
+        vec![("realm", "pc"), ("view.colour", "red")],
+        vec![("realm", "pc"), ("text", "ilvl >")],
+        vec![("realm", "pc"), ("trade", "not a search")],
+    ] {
+        let path = |route: &str| format!("/{}/{route}?{}", web.token, query_string(&fields));
+        let search = web.raw(
+            "GET",
+            &path("search"),
+            None,
+            &[("Accept", "application/json")],
+            "",
+        );
+        let count = web.get(&path("count")[web.token.len() + 2..]);
+        assert_eq!(count.status, search.status, "{fields:?}: {}", count.body);
+        assert_eq!(count.status, 400, "{fields:?}");
+        let said = |body: &str| -> Value { serde_json::from_str(body).unwrap() };
+        assert_eq!(said(&count.body), said(&search.body), "{fields:?}");
+        assert!(said(&count.body)["kind"].is_string(), "{}", count.body);
+    }
+}
+
 /// The page's answer to a site search beside `acq search` with `args`
 /// and the page's own row fields in the same world: the two must be one
 /// answer. The view a zero's offer of context carries is each asker's
@@ -2503,6 +2603,17 @@ fn c16_no_served_script_names_a_storage_cookie_or_history_api() {
     let form = web.get("");
     assert_eq!(harness::no_state(&form, &token), Ok(()));
     assert!(form.body.contains("/assets/picker.js\""), "{}", form.body);
+    // the count's script is on every page with a form that submits a
+    // search: the form and an answer
+    assert!(form.body.contains("/assets/count.js\""), "{}", form.body);
+    let answer = web.get("search?realm=pc&text=class%3Arings");
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    assert!(
+        answer.body.contains("/assets/count.js\""),
+        "{}",
+        answer.body
+    );
+    assert!(answer.body.contains("data-count>"), "{}", answer.body);
     for path in harness::SCRIPTS {
         let script = web.get(path);
         assert_eq!(script.status, 200, "{path}");

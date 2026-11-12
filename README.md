@@ -200,7 +200,7 @@ acq saved list | show <ID|NAME> | clear <ID> [--if-revision N]   # saved searche
 acq saved set [--id ID [--if-revision N]] [--name NAME] ['<query>'] [--realm R] [--membership M]   # save a search, or change one by its id, with undo
 acq search --saved <ID|NAME> [--limit N]   # run a saved search, its query and scope the row's
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
-acq web [--no-browser]   # the search as a page shaped like the trade site's, or a trade site search's URL run as --trade runs it, its results as cards with item art, a table on asking; the world's saved searches, saved from any answer, opened, renamed and cleared; and the refresh loop to tick, plan and apply; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in
+acq web [--no-browser]   # the search as a page shaped like the trade site's, or a trade site search's URL run as --trade runs it, its results as cards with item art, a table on asking, and the number a form would match beside its button as it changes; the world's saved searches, saved from any answer, opened, renamed and cleared; and the refresh loop to tick, plan and apply; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
 acq store import <snapshot.json> | rebuild   # replay a snapshot from the retired `acq pull`; re-extract columns
 

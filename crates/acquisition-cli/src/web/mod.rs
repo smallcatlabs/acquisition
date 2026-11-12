@@ -88,7 +88,8 @@
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
-//!   asks in flight, the words in a list's filter boxes — is discarded by
+//!   asks in flight, the count beside a search's button and its ask in
+//!   flight, the words in a list's filter boxes — is discarded by
 //!   a reload and labels nothing. A page
 //!   holds no browser storage, no cookie, no history entry of its own and
 //!   no value computed from a document. Every document a page renders
@@ -141,6 +142,17 @@
 //!   from a saved search says so above it, and saves over that row at the
 //!   revision its URL names, so a write between is refused as stale and
 //!   offered again over the row as it stands.
+//! - **The count** (4-full part 1, step 6.2, #245, the design's §4): every
+//!   form that submits to `search` carries `data-count` and, beside its
+//!   button, the words "Matches:" and an `<output>`, then a hidden
+//!   undecided part with its own. `count.js` asks `GET count` with the
+//!   fields the form would send, 300 ms after the last change, a new ask
+//!   aborting the one in flight, and writes the answer's two numbers
+//!   alone, a dash before and between; a refusal's words are the output's
+//!   title. `count` folds as `search` does and answers the answer
+//!   document with no row and no order ([`count`]), so its number is the
+//!   one Search would give now. The picker announces its write with a
+//!   bubbling `input`; neither script names the other.
 
 mod form;
 mod page;
@@ -174,11 +186,12 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet, the picker's script and the list filter's, served as
-/// written.
+/// The stylesheet, the picker's script, the list filter's and the
+/// count's, served as written.
 const CSS: &str = include_str!("assets/page.css");
 const PICKER: &str = include_str!("assets/picker.js");
 const FILTER: &str = include_str!("assets/filter.js");
+const COUNT: &str = include_str!("assets/count.js");
 
 /// How many stats the picker lists for one ask; the rest are counted.
 const PICKED: usize = 50;
@@ -292,6 +305,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/search"), get(search))
         .route(&at("/item/{id}"), get(item))
         .route(&at("/stats"), get(stats))
+        .route(&at("/count"), get(count))
         .route(&at("/refresh"), get(tabs))
         .route(&at("/plan"), get(plan))
         .route(&at("/apply"), post(apply))
@@ -307,6 +321,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/assets/page.css"), get(css))
         .route(&at("/assets/picker.js"), get(picker))
         .route(&at("/assets/filter.js"), get(filter))
+        .route(&at("/assets/count.js"), get(count_script))
         .fallback(no_such_page)
         .layer(middleware::from_fn_with_state(Arc::clone(&web), guard))
         .with_state(web);
@@ -472,15 +487,10 @@ impl Web {
     /// A refusal as a page, or as its document where JSON is asked (C11):
     /// the page renders the document (C16).
     fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap) -> Response {
-        let doc = self.refusal(failure);
         if wants_json(headers) {
-            return (
-                StatusCode::BAD_REQUEST,
-                [(header::CONTENT_TYPE, "application/json")],
-                doc.to_string(),
-            )
-                .into_response();
+            return self.refused_document(failure);
         }
+        let doc = self.refusal(failure);
         // a conflict's page renders the row as it stands: its revision is
         // the page's basis
         let head = match page::saved_current(&doc) {
@@ -497,6 +507,17 @@ impl Web {
                 &page::refused(&doc),
             ),
         )
+    }
+
+    /// A refusal as its document, whatever was asked: what a page's
+    /// refusal answers where JSON is asked, and the count's every refusal.
+    fn refused_document(&self, failure: &Failure) -> Response {
+        (
+            StatusCode::BAD_REQUEST,
+            [(header::CONTENT_TYPE, "application/json")],
+            self.refusal(failure).to_string(),
+        )
+            .into_response()
     }
 
     /// Whether `account` names the account this server serves, by its
@@ -895,6 +916,7 @@ async fn home(
         "Search",
         Head {
             picker: true,
+            count: true,
             ..Head::default()
         },
         &body,
@@ -957,7 +979,11 @@ async fn search(
     match asked {
         Ok((answer, _, _, _)) if json => document(&answer),
         Ok((answer, opened, carried, continued)) => {
-            let mut head = Head::default().with("answer", &answer.basis);
+            let mut head = Head {
+                count: true,
+                ..Head::default()
+            }
+            .with("answer", &answer.basis);
             if let Some(Opened {
                 row: OpenedRow::Read(row),
                 ..
@@ -1148,6 +1174,29 @@ async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<St
             &page::item(&shown),
         ),
         Err(failure) => web.failed("Item", &failure, &headers),
+    }
+}
+
+/// The count beside a search's button (4-full part 1, step 6.2, #245):
+/// a form's fields folded as [`search`] folds them, the saved search an
+/// answer was opened from set aside, and answered with no row and no
+/// order ([`form::Folded::counted`]): the answer document, JSON whatever
+/// was asked, its `total` the number `count.js` writes. A refusal is the
+/// search's refusal document. Asked with no basis, it is the store's
+/// count now, never compared with the page's answer. The view the form
+/// names is not read: a view the Search would refuse is the Search's to
+/// say.
+async fn count(State(web): State<Arc<Web>>, Query(fields): Query<Fields>) -> Response {
+    let counted = blocking(&web, move |web| -> Result<_, Failure> {
+        let (fields, _) = opened_from(fields)?;
+        let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
+        let request = Asked::read(&folded.counted().request()?)?.request;
+        web.answer(&request)
+    })
+    .await;
+    match counted {
+        Ok(answer) => document(&answer),
+        Err(failure) => web.refused_document(&failure),
     }
 }
 
@@ -1903,6 +1952,14 @@ async fn filter() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
         FILTER,
+    )
+        .into_response()
+}
+
+async fn count_script() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+        COUNT,
     )
         .into_response()
 }

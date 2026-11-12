@@ -348,6 +348,23 @@ impl Folded {
     }
 }
 
+impl Folded {
+    /// The same search asked for its count alone (4-full part 1, step
+    /// 6.2): its view replaced by rows at limit 0 with `sort` `none`, so
+    /// no row is walked and no order derived for a number, and the view
+    /// the form named is never read.
+    pub(crate) fn counted(self) -> Folded {
+        Folded {
+            count: None,
+            limit: Some(0),
+            sort: Some(acquisition_search::answer::STORE_ORDER.to_string()),
+            desc: false,
+            fields: None,
+            ..self
+        }
+    }
+}
+
 /// A form's fields folded by their names (the module doc). A name the
 /// form never emits, or a value no field of its kind takes, is a usage
 /// error, said before anything is built.

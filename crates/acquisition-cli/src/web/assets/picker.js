@@ -37,6 +37,8 @@
         return;
       }
       slot.value = e.id;
+      // an assignment fires no event: announce the write, as typing would
+      slot.dispatchEvent(new Event('input', { bubbles: true }));
       const said = document.getElementById(slot.id + '-text');
       if (said) said.textContent = e.texts.join(' / ');
     });

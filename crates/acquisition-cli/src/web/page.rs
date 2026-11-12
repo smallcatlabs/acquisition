@@ -76,6 +76,9 @@ pub(crate) struct Head {
     /// The list filter's script: the refresh page's boxes under its
     /// columns.
     pub filter: bool,
+    /// The count's script: the number beside each form that submits a
+    /// search ([`COUNT`]).
+    pub count: bool,
     /// The versions of the documents the page renders (C16, every
     /// document carries its basis): each keyed by its document — `answer`,
     /// `item`, `plan`, `saved_searches`, `saved_search` — its value the
@@ -121,11 +124,15 @@ pub(crate) fn page(
         .refresh
         .map(|s| format!("<meta http-equiv=\"refresh\" content=\"{s}\">\n"))
         .unwrap_or_default();
-    let script: String = [(head.picker, "picker"), (head.filter, "filter")]
-        .into_iter()
-        .filter(|(wanted, _)| *wanted)
-        .map(|(_, name)| format!("<script src=\"/{token}/assets/{name}.js\"></script>\n"))
-        .collect();
+    let script: String = [
+        (head.picker, "picker"),
+        (head.filter, "filter"),
+        (head.count, "count"),
+    ]
+    .into_iter()
+    .filter(|(wanted, _)| *wanted)
+    .map(|(_, name)| format!("<script src=\"/{token}/assets/{name}.js\"></script>\n"))
+    .collect();
     let basis = match head.basis.is_empty() {
         true => String::new(),
         false => {
@@ -579,7 +586,7 @@ fn fate_span(fate: Option<&Fate>) -> String {
 /// realm shown.
 pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, bool)]>) -> String {
     let mut out = String::from(
-        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search\">\n<div class=\"search-bar\">\n<div class=\"search-left\">",
+        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search\" data-count>\n<div class=\"search-bar\">\n<div class=\"search-left\">",
     );
     out.push_str(&format!(
         "<input class=\"item-search\" name=\"query.term\" placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",
@@ -653,12 +660,21 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
-    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
+    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ");
+    out.push_str(COUNT);
+    out.push_str("</div>\n</div>\n</form>\n");
     out.push_str(&query_box(realm, None, "", None, None));
     out.push_str(&trade_box(realm));
     out.push_str(&fetch_leagues());
     out
 }
+
+/// The count beside each search's button (4-full part 1, step 6.2,
+/// #245), on every form that submits to `search`, which carries
+/// `data-count`: the words are these, the server's; `count.js` writes
+/// the numbers alone, a dash until a change is answered, and shows the
+/// undecided part only where it is not zero.
+const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched\">\u{2013}</output><span hidden> \u{b7} <output data-count=\"undecided\">\u{2013}</output> undecided</span></span>";
 
 /// The query box (the 4b sitting round, Do 6): a query in the language,
 /// run as the user's own — the one place every field the language has is
@@ -731,7 +747,7 @@ pub(crate) fn query_box(
         ""
     };
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\">{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> {results_as} <button type=\"submit\">Run this query</button></form>\n",
+        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count>{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" value=\"{}\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"{desc}> highest first</label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form>\n",
         esc(text),
         esc(sort)
     )
@@ -744,7 +760,7 @@ pub(crate) fn query_box(
 /// id or the query JSON is searched in; a URL names its own, which wins.
 fn trade_box(realm: &str) -> String {
     format!(
-        "<form class=\"query-box\" method=\"get\" action=\"search\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\"></textarea><button type=\"submit\">Run the site's search</button> <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
+        "<form class=\"query-box\" method=\"get\" action=\"search\" data-count><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"trade-text\">A trade site search: its URL, its id or its query JSON</label><textarea id=\"trade-text\" name=\"trade\" rows=\"2\"></textarea><button type=\"submit\">Run the site's search</button> {COUNT} <span class=\"fate\">translated here, sent nowhere; a URL's realm is the search's</span></form>\n",
         esc(realm)
     )
 }

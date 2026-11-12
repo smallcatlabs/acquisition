@@ -21,7 +21,7 @@ GET ?realm=xbox
 <main>
 <h1>Search</h1>
 <form id="realm-form" method="get" action="."></form>
-<form method="get" action="search">
+<form method="get" action="search" data-count>
 <div class="search-bar">
 <div class="search-left"><input class="item-search" name="query.term" placeholder="Search items" aria-label="Search items"> <span class="fate fate-exact" title="The free-text box matches a whole name or a whole base, as the site&#39;s does, never a word of one.">exact</span></div>
 <div class="search-right"><label class="control">Realm <select name="realm" form="realm-form"><option value="pc">pc</option><option value="xbox" selected>xbox</option><option value="sony">sony</option><option value="poe2">poe2</option></select></label> <button type="submit" form="realm-form">Show this realm's leagues</button>
@@ -30,8 +30,8 @@ GET ?realm=xbox
 </div>
 </div>
 <the search form's panes and controls: golden web/search_form>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button></form>
-<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="trade-text">A trade site search: its URL, its id or its query JSON</label><textarea id="trade-text" name="trade" rows="2"></textarea><button type="submit">Run the site's search</button> <span class="fate">translated here, sent nowhere; a URL's realm is the search's</span></form>
+<form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" value="" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
+<form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="xbox"><label class="filter-title" for="trade-text">A trade site search: its URL, its id or its query JSON</label><textarea id="trade-text" name="trade" rows="2"></textarea><button type="submit">Run the site's search</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span> <span class="fate">translated here, sent nowhere; a URL's realm is the search's</span></form>
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 
 </main>
