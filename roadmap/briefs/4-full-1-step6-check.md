@@ -15,12 +15,7 @@ Closes #267.
   never skips), ruled on #266 and #267.
 - `audits/web-2026-11/driver/README.md`: what was measured.
   `audits/web-2026-11/driver/candidate-b.patch`: the candidate that
-  record proposes. It adds `tests/browser.rs`
-  (the client `Cdp`, `launch`, and the test
-  `the_count_beside_the_button_follows_the_query_typed`), the
-  harness's `browser_exe`, `Browser` and `start_browser`, `mod
-  browser;` in `tests/main.rs`, and makes `web.rs`'s `offline_web`
-  visible to the crate.
+  record proposes, read whole before anything is changed.
 - C137 (a deadline's contract is its behaviour at expiry; no test
   asserts a wall-clock bound a slow machine can miss) and
   `.config/nextest.toml`'s `slow-timeout`: the runner's hang ceiling.
@@ -55,18 +50,28 @@ Closes #267.
    that kills it owns the child as soon as it is spawned, not once
    it is ready (the patch takes it after). A browser that exits
    before it is ready fails the test at once, naming how it exited.
-   When the runner ends a test at its ceiling, no destructor runs:
-   the browser must die with the test's process group or job, as
-   the runner ends it. Find out whether it does on each platform
-   the gate runs on, and where it does not, make the harness own it.
+   When the runner ends a test at its ceiling, no destructor runs,
+   and the mechanism is the runner's: nextest runs each test in a
+   process group of its own on Unix and a job of its own on Windows,
+   and ends the whole of it. So the harness starts the browser in
+   the test's own group and job and never detaches it, as
+   `client.rs`'s daemon spawn deliberately does. The close shows it
+   on macOS (after the ceiling of Decision 2's test, no process of
+   that profile is left) and says of Linux and Windows that it is
+   the runner's documented behaviour, cited, not seen. Other
+   children's lifecycles are not this step's.
 5. **Two rules, two tests.** The count's, as the patch has it. The
    picker's, new: a pick fills the first empty stat row and leaves a
    written row as it was, and the count follows the pick. It waits
    for the form's total first, picks a stat whose form the server
    answers with a different total, which the test asserts, and sees
-   the new total with no other input after the pick. Each test types
-   and clicks as a user's keys and pointer would, and compares what
-   the page shows with what the server answers it for the same form.
+   the new total with no other input after the pick. Then it fills
+   every stat row and picks again: every written row is as it was.
+   Each test also reads a second form's count before and after, with
+   a total of its own, and it has not moved: a count is its own
+   form's. Each types and clicks as a user's keys and pointer would,
+   and compares what the page shows with what the server answers it
+   for the same form.
 6. **The checklist row retires** (C154): the commit that adds the
    tests removes the row and carries `retired <the row>; held by
    <the two tests>`. If a clause of the row is held by neither test,
