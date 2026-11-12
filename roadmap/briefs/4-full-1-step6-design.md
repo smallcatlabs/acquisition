@@ -184,6 +184,11 @@ As drafted:
   count (#268). The spike's record is
   `audits/web-2026-11/spike/README.md`. With it, the browser-driven
   check's driver and its home (C187, the browser-driven check).
+- **The price's age is left out for now**, ruled 2026-11-12 ("Yes,
+  leave it out", #271): the price carries no time of its own, so the
+  table's fixed columns are five (name, base, price, location, the
+  location's age) until the store can say when a price was first
+  seen (#272).
 - **#191**: no plan schema change; the place says it. Recommended.
 - **The default order from the query** (#38): it changes the row order
   of a CLI or MCP answer that names no sort and compares one value.
