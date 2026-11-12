@@ -138,7 +138,7 @@ fn seed(world: &Path) {
 }
 
 /// The offline world, seeded, and `acq web` over it.
-fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
+pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
     let scratch = harness::scratch(tag);
     seed(&scratch.0);
     let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));

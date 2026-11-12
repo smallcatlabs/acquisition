@@ -207,4 +207,7 @@ hooks write Claude's trailer as `Assisted-by:`, and refuse a commit from
 an agent's shell that names no assistant; the pre-push hook refuses a
 push to `main` carrying a commit whose committer is Claude; a Claude
 session's start hook in `.claude/settings.json` sets it, a cloud clone
-included) and `cargo install cargo-nextest --locked` (the gate's runner).
+included), `cargo install cargo-nextest --locked` (the gate's runner),
+and a Chromium-family browser (Chrome, Brave, Edge or Chromium), which
+the gate's browser tests drive headless; `ACQ_TEST_BROWSER` names one
+the tests cannot find.

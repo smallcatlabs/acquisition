@@ -7,6 +7,7 @@
 mod harness;
 
 mod apply_loop;
+mod browser;
 mod characters_wire;
 mod cli_reference;
 mod daemon_idle_exit;

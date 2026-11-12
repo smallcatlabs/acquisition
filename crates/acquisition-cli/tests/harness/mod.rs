@@ -14,6 +14,7 @@ mod shared;
 #[path = "../../../acquisition-client/tests/harness/journey.rs"]
 pub mod journey;
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -1791,4 +1792,134 @@ fn pid_words(text: &str) -> String {
         }
         rest = &after[digits..];
     }
+}
+
+// ---- the browser (the browser-driven check, C187) ---------------------
+
+/// The Chromium-family browsers the locator knows, in the order it tries
+/// them: macOS's Chrome and Brave; the Linux paths the hosted Ubuntu
+/// image installs (`/usr/bin/google-chrome`, and `/usr/bin/chromium`
+/// linked to its Chromium); on Windows, Chrome and Edge under `Program
+/// Files` and `Program Files (x86)`, read from the environment's own
+/// names for those folders.
+pub fn known_browsers() -> Vec<PathBuf> {
+    let mut known: Vec<PathBuf> = vec![
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome".into(),
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser".into(),
+    ];
+    if let Some(home) = std::env::var_os("HOME") {
+        known.push(
+            PathBuf::from(home).join("Applications/Brave Browser.app/Contents/MacOS/Brave Browser"),
+        );
+    }
+    known.push("/usr/bin/google-chrome".into());
+    known.push("/usr/bin/chromium".into());
+    for folder in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(dir) = std::env::var_os(folder) {
+            let dir = PathBuf::from(dir);
+            known.push(dir.join(r"Google\Chrome\Application\chrome.exe"));
+            known.push(dir.join(r"Microsoft\Edge\Application\msedge.exe"));
+        }
+    }
+    known
+}
+
+/// The browser the check drives: the executable `named` names (the
+/// tests pass `ACQ_TEST_BROWSER`), or else the first of `known` that
+/// exists. None found is a refusal naming the variable and every path
+/// tried: a gate machine without a browser fails the check, never skips
+/// it (C187).
+pub fn locate_browser(named: Option<OsString>, known: &[PathBuf]) -> Result<PathBuf, String> {
+    if let Some(named) = named {
+        let path = PathBuf::from(named);
+        return if path.is_file() {
+            Ok(path)
+        } else {
+            Err(format!(
+                "ACQ_TEST_BROWSER names {}, which is not a file: name a Chromium-family \
+                 browser's executable (Chrome, Brave, Edge or Chromium)",
+                path.display()
+            ))
+        };
+    }
+    known.iter().find(|p| p.is_file()).cloned().ok_or_else(|| {
+        let tried: Vec<String> = known.iter().map(|p| format!("  {}", p.display())).collect();
+        format!(
+            "no Chromium-family browser found: the gate's browser tests drive one headless. \
+             Install Chrome, Brave, Edge or Chromium, or set ACQ_TEST_BROWSER to one's \
+             executable. Tried:\n{}",
+            tried.join("\n")
+        )
+    })
+}
+
+/// A headless browser the test owns: the process, killed and reaped when
+/// the test ends ([`Proc`]), and the browser's own debugging endpoint
+/// (`ws://127.0.0.1:<port>/devtools/browser/<id>`).
+pub struct Browser {
+    pub proc: Proc,
+    pub endpoint: String,
+}
+
+/// [`start_browser_at`] the browser [`locate_browser`] finds, a failure
+/// to find or start one failing the test.
+pub fn start_browser(profile: &Path) -> Browser {
+    let exe = locate_browser(std::env::var_os("ACQ_TEST_BROWSER"), &known_browsers())
+        .unwrap_or_else(|e| panic!("{e}"));
+    start_browser_at(&exe, profile).unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// `exe` started headless on `profile`, under the one isolation list,
+/// and its endpoint read from the line it writes to its standard error
+/// when its debugging protocol listens: no wait but the hang ceiling
+/// (C137), since the line comes, or the browser exits, or the test is
+/// ended by the runner.
+///
+/// The guard owns the process from the spawn, so a failure before the
+/// line still kills it. A browser that exits before the line is refused
+/// at once, naming how it exited and what it wrote. The process is
+/// started in the test's own process group (Unix) and job (Windows),
+/// never detached as the client detaches a daemon it spawns: when the
+/// runner ends a test at its ceiling, no destructor runs, and nextest
+/// ends the test's whole group or job, the browser in it.
+pub fn start_browser_at(exe: &Path, profile: &Path) -> Result<Browser, String> {
+    use std::io::BufRead as _;
+    let mut cmd = Command::new(exe);
+    cmd.args([
+        "--headless=new",
+        &format!("--user-data-dir={}", profile.display()),
+        "--remote-debugging-port=0",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "about:blank",
+    ])
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::piped());
+    isolate_at(&mut cmd, profile, profile);
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("starting the browser {}: {e}", exe.display()))?;
+    let mut proc = Proc(child, exe.to_path_buf());
+    let mut stderr = std::io::BufReader::new(proc.0.stderr.take().expect("piped stderr"));
+    let mut said = String::new();
+    let endpoint = loop {
+        let mut line = String::new();
+        let read = stderr.read_line(&mut line).unwrap_or(0);
+        if read == 0 {
+            let status = proc.0.wait().map(|s| s.to_string()).unwrap_or_default();
+            return Err(format!(
+                "the browser {} exited before its debugging protocol listened ({status}); it \
+                 wrote:\n{said}",
+                exe.display()
+            ));
+        }
+        if let Some(url) = line.trim().strip_prefix("DevTools listening on ") {
+            break url.to_string();
+        }
+        said.push_str(&line);
+    };
+    // the rest of what it writes is drained, so a full pipe never stalls it
+    std::thread::spawn(move || std::io::copy(&mut stderr, &mut std::io::sink()));
+    Ok(Browser { proc, endpoint })
 }
