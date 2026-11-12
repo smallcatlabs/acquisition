@@ -136,8 +136,15 @@ against `acq web` built `--release` from the patch, nothing else
 running on the machine. Each call to the browser has an absolute
 deadline, 30 seconds or the run's end (180 seconds from its
 navigation), whichever is first, and each read waits only what is left
-of it: a browser that stops answering, or answers a byte at a time, is
-a run recorded as failed, never a wait without end. The owner's: the same pages in Brave, each
+of it; so does finding the browser's page (its port file and its page
+list): a browser that stops answering, or answers a byte at a time, is
+a run recorded as failed, never a wait without end. `rig-probes.py`,
+beside the runner in the patch, makes each fault the reviews found and
+exits 1 unless the measure and the runner judge it as they must: a
+call and the page list answered a byte at a time end at their
+deadline; rows drawn off their place, by a declared index or by a
+transform, void the run; a window unanswered at the run's end is in
+the result, pending. The owner's: the same pages in Brave, each
 case's link with `measure=1` running itself, and without it for his
 own wheel.
 

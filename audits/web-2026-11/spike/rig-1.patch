@@ -954,12 +954,178 @@ index 00000000..60951479
 +    )
 +        .into_response()
 +}
+diff --git a/rig-probes.py b/rig-probes.py
+new file mode 100644
+index 00000000..81baba0b
+--- /dev/null
++++ b/rig-probes.py
+@@ -0,0 +1,160 @@
++"""The window rig's fault checks (step 6.3's spike, never committed as
++code; its record is `audits/web-2026-11/spike/README.md`): each fault
++its reviews found, made on purpose, and what the measure and the runner
++must make of it.
++
++    python3 -I -B rig-probes.py                                  # the deadlines
++    python3 -I -B rig-probes.py <acq web URL> <profile dir>      # and the page
++
++Exits 1 when a check does not hold. The deadlines need no browser: a
++fake debugging socket and a fake page list answer a byte every 3 s, so
++each read stays inside any per-read limit, and the call must still end
++at its deadline. The page checks run the flat case headless with a
++fault injected before the measure starts: rows that declare indices
++outside the slots in view (relabel) and a block drawn 24 px from its
++layout place (transform) must void the run; the first block held
++unanswered past the run (stall) must be in the result, pending.
++"""
++
++import importlib.util
++import json
++import os
++import socket
++import subprocess
++import sys
++import threading
++import time
++
++spec = importlib.util.spec_from_file_location("rig", os.path.join(os.path.dirname(__file__), "rig-run.py"))
++rig = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(rig)
++
++DEADLINE = 5.0
++failures = []
++
++
++def check(name, held, said):
++    print(f"{'ok  ' if held else 'FAIL'} {name}: {said}", flush=True)
++    if not held:
++        failures.append(name)
++
++
++def dribbling_server(reply_head, body):
++    """A server that answers one request with `reply_head`, then `body`
++    a byte every 3 s; its port."""
++    server = socket.socket()
++    server.bind(("127.0.0.1", 0))
++    server.listen(1)
++
++    def serve():
++        c, _ = server.accept()
++        head = b""
++        while b"\r\n\r\n" not in head:
++            head += c.recv(1)
++        c.sendall(reply_head)
++        if b"websocket" in reply_head.lower():
++            c.recv(4096)  # the client's call
++        for b in body:
++            time.sleep(3)
++            try:
++                c.sendall(bytes([b]))
++            except OSError:
++                return  # the client gave up: what the check waits for
++
++    threading.Thread(target=serve, daemon=True).start()
++    return server.getsockname()[1]
++
++
++def ends_by_deadline(name, work):
++    out = {}
++
++    def run():
++        began = time.monotonic()
++        try:
++            work()
++            out["said"] = ("answered", 0)
++        except OSError as e:
++            out["said"] = (type(e).__name__, time.monotonic() - began)
++
++    t = threading.Thread(target=run, daemon=True)
++    t.start()
++    t.join(DEADLINE + 10)
++    said = out.get("said")
++    held = said is not None and said[0] == "TimeoutError" and said[1] <= DEADLINE + 1
++    check(name, held, f"raised {said[0]} after {said[1]:.1f} s" if said else "still waiting")
++
++
++def deadlines():
++    rig.ANSWER = DEADLINE
++    body = b'{"id": 1, "result": {}}' + b" " * 77
++    port = dribbling_server(
++        b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
++        + bytes([0x81, len(body)]),
++        body,
++    )
++    ws = rig.Socket(f"ws://127.0.0.1:{port}/devtools/page/x")
++    ends_by_deadline("a debugging call answered a byte at a time ends at its deadline", lambda: ws.call("Runtime.evaluate", expression="1"))
++    listing = b'[{"type": "page", "webSocketDebuggerUrl": "ws://x"}]' + b" " * 50
++    port = dribbling_server(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(listing), listing)
++    ends_by_deadline(
++        "the page list answered a byte at a time ends at its deadline",
++        lambda: rig.page_list(port, time.monotonic() + DEADLINE),
++    )
++
++
++def page(url, profile, fault):
++    """The flat case, headless, with `fault` made before the measure
++    starts; the measure's result."""
++    chrome = subprocess.Popen(
++        [rig.CHROME, "--headless=new", f"--user-data-dir={profile}", "--remote-debugging-port=0",
++         "--window-size=1440,900", "--force-device-scale-factor=2", "--no-first-run", "about:blank"],
++        stdout=subprocess.DEVNULL,
++        stderr=subprocess.DEVNULL,
++    )
++    try:
++        port_file = os.path.join(profile, "DevToolsActivePort")
++        if os.path.exists(port_file):
++            os.remove(port_file)
++        ws = rig.find_page(profile, time.monotonic() + 60)
++        if fault == "stall":
++            # the first block, held unanswered whenever asked: never continued
++            ws.call("Fetch.enable", patterns=[{"urlPattern": "*offset=0&count=50*", "requestStage": "Request"}])
++        ws.call("Page.navigate", url=url + "table?realm=pc&text=&measure=1")
++        time.sleep(0.6)  # loaded, the first block in, the measure not yet started (1 s after load)
++        make = {
++            "relabel": """(() => { document.querySelectorAll('.seg .block')[0].querySelectorAll('.r')
++                .forEach((r, j) => { r.dataset.i = String(5000 + j); }); })()""",
++            "transform": """(() => { document.querySelectorAll('.seg .block')[0]
++                .style.transform = 'translateY(24px)'; })()""",
++            "stall": "0",
++        }[fault]
++        ws.call("Runtime.evaluate", expression=make)
++        ends = time.monotonic() + rig.RUN
++        while time.monotonic() < ends:
++            time.sleep(1)
++            got = ws.call("Runtime.evaluate", until=ends, returnByValue=True,
++                          expression="window.rigResult ? JSON.stringify(window.rigResult) : ''")
++            if got["result"].get("value"):
++                return json.loads(got["result"]["value"])
++        return None
++    finally:
++        chrome.terminate()
++        chrome.wait(timeout=10)
++
++
++def pages(url, profile):
++    for fault in ("relabel", "transform"):
++        r = page(url, profile, fault)
++        check(f"rows drawn off their place ({fault}) void the run", bool(r and r["voided"] and r["off"]["frames"] > 0),
++              f"voided {r and r['voided']}, {r and r['off']['frames']} frames off")
++    r = page(url, profile, "stall")
++    held = [e for e in (r or {}).get("windows", {}).get("each", []) if e["offset"] == 0]
++    check("a window unanswered at the run's end is in the result, pending", any(e["state"] == "pending" for e in held),
++          f"the held block's records: {[e['state'] for e in held] or 'none'}")
++
++
++if __name__ == "__main__":
++    deadlines()
++    if len(sys.argv) > 2:
++        pages(sys.argv[1], sys.argv[2])
++    sys.exit(1 if failures else 0)
 diff --git a/rig-run.py b/rig-run.py
 new file mode 100644
-index 00000000..0ef678c7
+index 00000000..8ff181a4
 --- /dev/null
 +++ b/rig-run.py
-@@ -0,0 +1,207 @@
+@@ -0,0 +1,249 @@
 +"""The window rig's headless runs (step 6.3's spike, never committed as
 +code; its record is `audits/web-2026-11/spike/README.md`).
 +
@@ -972,9 +1138,11 @@ index 00000000..0ef678c7
 +Chrome over its debugging protocol with the standard library alone.
 +Every call has an absolute deadline, `ANSWER` seconds or the run's end
 +(`RUN` seconds from its navigation), whichever comes first, and each
-+read waits only what is left of it: a browser that stops answering, or
++read waits only what is left of it; so does finding the browser's page,
++its port file and its page list: a browser that stops answering, or
 +answers a byte at a time, is a run recorded as failed, and the runner
-+stops there.
++stops there. `rig-probes.py` beside it checks the deadlines and the
++measure's judgments by fault.
 +"""
 +
 +import base64
@@ -998,15 +1166,54 @@ index 00000000..0ef678c7
 +}
 +
 +
++def wait(deadline, what):
++    """Raise once the deadline has passed; else what is left of it."""
++    left = deadline - time.monotonic()
++    if left <= 0:
++        raise TimeoutError(f"{what}: the deadline passed")
++    return left
++
++
++def page_list(port, deadline):
++    """The browser's page list, `GET /json/list`, by its deadline: the
++    connection and each read wait only what is left of it."""
++    s = socket.create_connection(("127.0.0.1", int(port)), timeout=wait(deadline, "page list"))
++    try:
++        s.settimeout(wait(deadline, "page list"))
++        s.sendall(f"GET /json/list HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n".encode())
++        data = b""
++        while True:
++            s.settimeout(wait(deadline, "page list"))
++            chunk = s.recv(65536)
++            if not chunk:
++                break
++            data += chunk
++            head, _, body = data.partition(b"\r\n\r\n")
++            length = [int(line.split(b":")[1]) for line in head.split(b"\r\n") if line.lower().startswith(b"content-length:")]
++            if length and len(body) >= length[0]:
++                break
++        return json.loads(data.partition(b"\r\n\r\n")[2])
++    finally:
++        s.close()
++
++
++def find_page(profile, deadline):
++    """The debugging socket of the browser's page, by the deadline."""
++    port_file = os.path.join(profile, "DevToolsActivePort")
++    while not (os.path.exists(port_file) and open(port_file).read().strip()):
++        wait(deadline, "the browser's port file")
++        time.sleep(0.1)
++    port = open(port_file).read().split()[0]
++    page = next(t for t in page_list(port, deadline) if t["type"] == "page")
++    return Socket(page["webSocketDebuggerUrl"])
++
++
 +class Socket:
 +    """One websocket to a debugging target: text frames, masked out."""
 +
 +    def _until(self, deadline):
 +        """Let the socket's next operation wait only what is left."""
-+        left = deadline - time.monotonic()
-+        if left <= 0:
-+            raise TimeoutError("the debugging call's deadline passed")
-+        self.s.settimeout(left)
++        self.s.settimeout(wait(deadline, "the debugging call"))
 +
 +    def __init__(self, url):
 +        rest = url.split("://", 1)[1]
@@ -1106,16 +1313,17 @@ index 00000000..0ef678c7
 +        stderr=subprocess.DEVNULL,
 +    )
 +    try:
-+        port_file = os.path.join(profile, "DevToolsActivePort")
-+        for _ in range(600):
-+            if os.path.exists(port_file) and open(port_file).read().strip():
-+                break
-+            time.sleep(0.1)
-+        port = open(port_file).read().split()[0]
-+        targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list"))
-+        page = next(t for t in targets if t["type"] == "page")
-+        ws = Socket(page["webSocketDebuggerUrl"])
-+        version = ws.call("Runtime.evaluate", expression="navigator.userAgent", returnByValue=True)
++        try:
++            ws = find_page(profile, time.monotonic() + 2 * ANSWER)
++            version = ws.call("Runtime.evaluate", expression="navigator.userAgent", returnByValue=True)
++        except (OSError, RuntimeError, StopIteration) as e:
++            # no page found by the deadline: the first run fails, and the
++            # runner stops there
++            with open(out, "a") as sink:
++                line = {"case": wanted[0], "run": 1, "result": None, "failed": f"the browser's page was not found: {e}"}
++                sink.write(json.dumps(line) + "\n")
++            print(f"{wanted[0]} run 1: FAILED, {line['failed']}", flush=True)
++            return
 +        print("browser:", version["result"]["value"], flush=True)
 +        with open(out, "a") as sink:
 +            for run in range(1, runs + 1):
