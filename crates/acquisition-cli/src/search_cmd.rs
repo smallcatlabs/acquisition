@@ -831,6 +831,19 @@ fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
 const NEVER_FETCHED_SPAN: &str = "counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown";
 
 pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
+    // how old the place is, as `tabs` says a tab's age (C118: "where do I
+    // pick it up" asked it of the trade seat, cli-opus-2 call 46)
+    let age = match place.fetched_at {
+        Some(at) => format!("fetched {}", ago(now, Some(at))),
+        None => "never fetched".to_string(),
+    };
+    format!("{} · {age}", place_words(place))
+}
+
+/// Where an item lies, without how old that is: its league, its tab or
+/// character and the tab's page, its cell, what it is socketed in. The
+/// table's location column, and the head of [`place_text`].
+pub(crate) fn place_words(place: &acquisition_search::corpus::Place) -> String {
     let mut out = place
         .league
         .clone()
@@ -863,12 +876,6 @@ pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) ->
             parent.name.as_deref().unwrap_or(&parent.id)
         ));
     }
-    // how old the place is, as `tabs` says a tab's age (C118: "where do I
-    // pick it up" asked it of the trade seat, cli-opus-2 call 46)
-    out.push_str(&match place.fetched_at {
-        Some(at) => format!(" · fetched {}", ago(now, Some(at))),
-        None => " · never fetched".to_string(),
-    });
     out
 }
 
@@ -1373,6 +1380,27 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
     out
 }
 
+/// One value of a row in words, as the table's cell under the value's
+/// head says it and [`row_shows`] says it after the value's name: the
+/// number alone; its status before it where one stands beside it (C94,
+/// an incomplete subtotal is marked: `incomplete at 40`), never a bare
+/// number where a status stands; the status alone where there is no
+/// number. None of the value's evidence, which a card shows.
+pub(crate) fn value_cell(valued: &acquisition_search::answer::Valued) -> String {
+    match (&valued.value, valued.status) {
+        (Some(value), None) => number(value),
+        (Some(value), Some(status)) => format!("{status} at {}", number(value)),
+        (None, status) => status.unwrap_or("no value").to_string(),
+    }
+}
+
+/// The item has nothing the value reads: no number, and no occurrence
+/// that satisfies it. Unsaid where a row shows its values, an empty cell
+/// in the table; a sort's says the row stands last.
+pub(crate) fn lacks(valued: &acquisition_search::answer::Valued) -> bool {
+    valued.value.is_none() && valued.status == Some("no satisfying occurrence")
+}
+
 /// One piece of what a row shows: a line it shows, or a value's count of
 /// what it left out, the sort's or another's, which each surface follows
 /// with its own way to the item whole.
@@ -1419,19 +1447,14 @@ pub(crate) fn row_shows(
         let sorts = sort == Some(key.as_str());
         // a column the item has nothing in is an empty cell, unsaid; the
         // sort's says the row is last, and why
-        if !sorts && valued.value.is_none() && valued.status == Some("no satisfying occurrence") {
+        if !sorts && lacks(valued) {
             continue;
         }
-        let by = match (&valued.value, valued.status) {
-            (Some(value), None) => format!("by {}", number(value)),
-            (Some(value), Some(status)) if sorts => {
-                format!("last: {status} at {} ({key})", number(value))
-            }
-            (None, status) if sorts => {
-                format!("last: {} ({key})", status.unwrap_or("no value"))
-            }
-            (Some(value), Some(status)) => format!("{key}: {status} at {}", number(value)),
-            (None, status) => format!("{key}: {}", status.unwrap_or("no value")),
+        let cell = value_cell(valued);
+        let by = match (valued.value.is_some() && valued.status.is_none(), sorts) {
+            (true, _) => format!("by {cell}"),
+            (false, true) => format!("last: {cell} ({key})"),
+            (false, false) => format!("{key}: {cell}"),
         };
         let mut rest = valued.shows.iter();
         let named = match valued.shows.first() {
