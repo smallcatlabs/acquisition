@@ -17,10 +17,13 @@ better Acquisition that is agent-friendly and agent-forward.
   file's §5, in series. Values on rows (#38) and the count (#245) are
   closed (`briefs/4-full-1-step6-values.md`,
   `briefs/4-full-1-step6-count.md`); next the spike (the design's §5
-  item 3), briefed in two: the window script, whose verdict is the
-  owner's sitting in Brave (`briefs/4-full-1-step6-spike.md`), and the
-  check's driver (`briefs/4-full-1-step6-driver.md`). Then the flat
-  table, and the places and the grouped table.
+  item 3), briefed in two. The check's driver
+  (`briefs/4-full-1-step6-driver.md`) is asked of a page `main`
+  serves and waits on nothing. The window script
+  (`briefs/4-full-1-step6-spike.md`), whose verdict is the owner's
+  sitting in Brave, stopped at its brief's third review and is not
+  built from until his word (#264). Then the flat table, and the
+  places and the grouped table.
 
 ## Next
 
@@ -62,6 +65,8 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
+- The window spike's brief, stopped at its third review (#264): his
+  word on its reshaping; then his sitting in Brave.
 - The league run under the rails, at his word: count the undecided
   classes and the untranslated mods.
 - At the next live login, deny once: whether GGG's authorize page
