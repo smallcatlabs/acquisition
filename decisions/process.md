@@ -23,7 +23,7 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules
 ## Review
 
 - **C175 — A round that changes behaviour, a tool, the gate, a workflow or the shared test harness is reviewed cold before its step closes.** A round that changes only tests gets its retirement lines and the gate. A round that changes only comments and documents gets no review, unless it cuts or moves prose across many files. The reviewer reads the commit against its brief or its issue and is never given the builder's report. *Why:* each reviewed build found a real fault, and the rounds left unreviewed let through none found later. *Pinned:* nothing yet.
-- **C176 — An artifact gets at most three cold reviews on a session's judgment, and a fourth is the owner's word, quoted in the commit that saves it.** A round is followed by another only when it found something that changes what gets built. A clean round ends the reviewing. A third round that still finds such faults stops the step for the owner, because the design is unsettled and another read of the same text will not settle it. *Why:* without a stop, one more round always looks like the safe act, and the later rounds found little. *Pinned:* nothing yet.
+- **C176 — A build gets at most three cold reviews on a session's judgment, a brief two, and a spike's brief one.** A round is followed by another only when it found something that changes what gets built. A brief whose last round still finds such faults is answered and built, with its build's review as the check (C175, what is reviewed). A build's third round that still finds them stops the step for the owner. A review past these counts is the owner's word, quoted in the commit that saves it. *Why:* a brief's later rounds found new faults in each fix's detail and did not converge, and a build's review found what no reading of a brief could. *Pinned:* nothing yet.
 - **C177 — A cold review is run by a model outside the author's family where one is installed, from a standing prompt.** The session that made the commit launches it and adds only the commit and its brief's name or its issue's own text. A review run by a model of the author's family says so in its first line. The answer is saved whole under `roadmap/reviews/` and committed before the round that answers it. *Why:* a reviewer of the author's family shares its blind spots, and a prompt the author writes hands the reviewer the author's reading. *Pinned:* nothing yet.
 
 ## The rules themselves
@@ -35,7 +35,7 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules
 
 What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
-- A gate check that counts the reviews of an artifact: not until a fourth review is saved without the owner's quoted word.
+- A gate check that counts the reviews of an artifact: not until a review past its count is saved without the owner's quoted word.
 - A byte budget on `AGENTS.md` or on a registry entry: refused; the count of cross-cutting rulings and the entry's shape hold what the bytes stood in for.
 - A ledger file of closed steps: refused; the close commits are the ledger, and `roadmap/LEDGER.md` stands as written to 2026-11-09.
 - Deleting or folding `roadmap/reviews/` and `roadmap/briefs/`: not until a reader is slowed by them; they sit on no reading path.

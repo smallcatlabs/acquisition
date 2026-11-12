@@ -19,10 +19,15 @@ saved prompt:
 - a build's, with its fix rounds:
   `ls roadmap/reviews | grep '^<step>-' | grep -v -e '-brief-' -e '-prompt\.md$'`
 
-A fourth review of one artifact (a brief, or a build with its fix
-rounds) is the owner's word, quoted in the commit that saves it.
-After a third round that still finds faults which change what gets
-built, stop and bring him what it found: the design is unsettled.
+The counts (C176): a build with its fix rounds gets at most three
+reviews, a brief two, and a spike's brief one. A review past its
+count is the owner's word, quoted in the commit that saves it.
+
+- A brief whose last review still finds faults that change what gets
+  built: answer them and build. Order no further review of the brief;
+  the build's own review is the check.
+- A build whose third round still finds such faults: stop and bring
+  the owner what it found.
 
 ## 2. Launch
 
