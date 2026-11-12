@@ -1,0 +1,15 @@
+`roadmap/briefs/4-full-1-step6-check.md` at `7cb3f6a7b636ed7dedcf40bd90f8bff1c940f64f` — a builder could start, but the acceptance criteria need changes before it is ready to build as written.
+
+- **Decisions 1, 2, 4 / Done when — changes what gets built.** The cleanup promise has no specified ownership or acceptance case for startup failure and runner termination. In `candidate-b.patch`, `start_browser` spawns a bare `Child`, waits indefinitely for `DevToolsActivePort`, and constructs the `Browser` cleanup guard only afterward; forced termination also bypasses Rust destructors. The first guess is whether the harness or nextest owns cleanup during these paths. Smallest change: require ownership immediately after spawn, identify who cleans up on runner termination, and add startup-failure and forced-termination cleanup to the acceptance criteria.
+
+- **Decision 5 / Done when — changes what gets built.** The picker test can compare equal counts without establishing that the pick caused an update. `count.js` hears the pick through the bubbling `input` dispatched by `picker.js`, but a form already matching zero items can still match zero after the pick. Removing that dispatch could therefore leave both required tests green while breaking the picker-to-count connection. Smallest change: require different server totals before and after the pick, wait for the initial total first, and require the new total without another user input.
+
+- **Find first, control search — wording.** The command misses the stat controls it is meant to locate. Run as written, `class=\"stat` becomes a pattern containing a plain quote, whereas `page.rs` contains escaped quotes inside Rust string literals; the results omit the `stat-id` rows and `stat-find`/`stat-list` markup. Smallest change: use a spelling-independent search such as `git grep -n -E 'data-count|stat-id|stat-find|stat-list|stat-said' -- crates/acquisition-cli/src/web/page.rs`.
+
+- **Inputs, candidate measurement — wording.** “Passed 20 of 20 on Chrome and on Brave” carries measurement output without its producing command, contrary to C174, the brief’s rules-and-commands requirement. The referenced audit records that result, but the brief supplies no command that produces it; its patch commands establish applicability only. Smallest change: remove the numerical result and retain the audit and candidate as fixed inputs.
+
+- **What I did not check and why.** I did not build, run tests, launch browsers, or execute the proposed broken-script experiment, as instructed. I did not verify live CI status, issue discussions, hosted-image inventories, or Windows installation paths because they are outside the committed tree. The patch’s read-only applicability checks passed; the other discovery commands found their stated targets. I found no invariant or dependency-edge contradiction.
+
+- **Form.** The template asks for CI run ids and conclusions while C174 forbids command output in briefs; that leaves the expected treatment of CI evidence ambiguous.
+
+- **Prompt.** Nothing in the prompt obstructed this review.
