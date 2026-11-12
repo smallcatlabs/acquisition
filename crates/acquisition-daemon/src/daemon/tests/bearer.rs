@@ -520,12 +520,15 @@ fn rejected_access_token_is_not_dispatched_by_a_waiting_probe_after_its_401() {
 
 /// What a scenario holds of [`twice_stale_server`]: the switch into its
 /// held phase, a message per held GET as it arrives, carrying the bearer
-/// it carried, and a release per bearer it holds.
+/// it carried, a release per bearer it holds, and the first refresh's
+/// arrival and release.
 struct TwiceStale {
     holding: Arc<AtomicBool>,
     held: mpsc::UnboundedReceiver<String>,
     release_old: watch::Sender<bool>,
     release_new: watch::Sender<bool>,
+    refreshing: mpsc::UnboundedReceiver<()>,
+    release_refresh: watch::Sender<bool>,
 }
 
 /// A server for C87's one retry: HEAD always 204, one policy per path.
@@ -534,18 +537,26 @@ struct TwiceStale {
 /// its bearer and held until that bearer's release, then answered 401;
 /// a GET carrying any other bearer is answered. The token endpoint
 /// rotates to `at-new` first and `at-newer` after, so a second refresh
-/// hands out a bearer this server takes.
+/// hands out a bearer this server takes; in the held phase the first
+/// refresh is announced on `refreshing` and held until its release, so
+/// every waiter has met the cleared bearer and joined it before it lands
+/// (#262: the refresh crosses a real socket, and landing before a slow
+/// waiter's admission let that waiter take `at-new` without going stale).
 fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
     let holding = Arc::new(AtomicBool::new(false));
     let (held_tx, held) = mpsc::unbounded_channel();
     let (release_old, old_released) = watch::channel(false);
     let (release_new, new_released) = watch::channel(false);
+    let (refreshing_tx, refreshing) = mpsc::unbounded_channel();
+    let (release_refresh, refresh_released) = watch::channel(false);
     let refreshes = Arc::new(Mutex::new(0));
     let _ = recording.send(TwiceStale {
         holding: holding.clone(),
         held,
         release_old,
         release_new,
+        refreshing,
+        release_refresh,
     });
     Server::own(move |request: mockggg::HttpRequest| {
         let bearer = bearer_of(&request);
@@ -567,8 +578,20 @@ fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
             *n += 1;
             if *n == 1 { "at-new" } else { "at-newer" }
         });
+        let hold_refresh = fresh == Some("at-new") && holding.load(Ordering::SeqCst);
+        if hold_refresh {
+            let _ = refreshing_tx.send(());
+        }
+        let mut refresh_released = refresh_released.clone();
         let method = request.method.clone();
         async move {
+            if hold_refresh {
+                while !*refresh_released.borrow_and_update() {
+                    if refresh_released.changed().await.is_err() {
+                        return Reply::Failed("the held refresh's release was dropped".into());
+                    }
+                }
+            }
             let (status, headers, body) = if let Some(fresh) = fresh {
                 rotated(fresh)
             } else if method == "HEAD" {
@@ -597,6 +620,40 @@ fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
     })
 }
 
+/// A keyring of the scenario's own for [`bearer_stale_twice`]: it holds
+/// the refresh's save, the first carrying the rotated refresh token,
+/// until the scenario releases it, announcing it on `saving`, and keeps
+/// nothing (#262). The refresh's owner publishes the new bearer to the
+/// waiters that joined it before that save and returns only after it,
+/// both from a blocking thread; held here, the waiters reach the gate
+/// before the owner whatever the machine's load, where a quick save once
+/// let the owner, the probe, go first and never wait behind them.
+struct HeldRefreshSave {
+    held: AtomicBool,
+    saving: mpsc::UnboundedSender<()>,
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl CredentialStore for HeldRefreshSave {
+    fn save(&self, _service: &str, secret: &auth::Secret, _username: &str) -> Result<(), String> {
+        if secret.exposed_for_test().contains("rt-rotated")
+            && !self.held.swap(true, Ordering::SeqCst)
+        {
+            let _ = self.saving.send(());
+            let _ = self.release.lock().unwrap().recv();
+        }
+        Ok(())
+    }
+
+    fn load(&self, _service: &str, _username: &str) -> Result<Option<auth::Secret>, String> {
+        Ok(None)
+    }
+
+    fn clear(&self, _service: &str, _username: &str) -> Result<(), auth::NotCleared> {
+        Ok(())
+    }
+}
+
 /// C87's one retry, at the door: a bearer cleared twice under one send.
 /// Two jobs hold `at-old` at the server while three more wait at the
 /// gate with it; the held two land 401 and clear it, the waiters read
@@ -614,75 +671,119 @@ fn bearer_stale_twice(
     let clock = Arc::new(ParkingClock::new());
     let sessions = stale_session(&clock);
     let (recording, recorded) = oneshot::channel();
-    Door::open(
-        twice_stale_server(recording),
-        clock,
-        Arc::new(NoopCredentialStore),
-    )
-    .sessions(sessions)
-    .run(|mut door| async move {
-        let TwiceStale {
-            holding,
-            mut held,
-            release_old,
-            release_new,
-        } = recorded
+    let (saving_tx, mut saving) = mpsc::unbounded_channel();
+    let (release_save, release_rx) = std::sync::mpsc::channel();
+    let keyring = HeldRefreshSave {
+        held: AtomicBool::new(false),
+        saving: saving_tx,
+        release: Mutex::new(release_rx),
+    };
+    Door::open(twice_stale_server(recording), clock, Arc::new(keyring))
+        .sessions(sessions)
+        .run(|mut door| async move {
+            let TwiceStale {
+                holding,
+                mut held,
+                release_old,
+                release_new,
+                mut refreshing,
+                release_refresh,
+            } = recorded
+                .await
+                .expect("the door built the scenario's server");
+            let holders = [
+                ("characters", json!({})),
+                ("character", json!({"name": "x"})),
+            ];
+            let waiters = [
+                ("profile", json!({})),
+                ("leagues", json!({})),
+                ("stashes", json!({})),
+            ];
+            let learned = if learn_stashes { 3 } else { 2 };
+            for (kind, params) in holders.iter().chain(&waiters[..learned]) {
+                let id = submit_with(&mut door, kind, params.clone()).await;
+                let (job, outcome) = door.await_terminal(id).await;
+                assert_eq!(
+                    job.state,
+                    JobState::Done,
+                    "{kind} learns its route: {outcome:?}"
+                );
+            }
+            let first = door.every_job().await.len();
+            let before = door.journal().len();
+            holding.store(true, Ordering::SeqCst);
+            let mut ids = Vec::new();
+            for (kind, params) in holders {
+                ids.push(submit_with(&mut door, kind, params).await);
+            }
+            // Phase one: the holders' two GETs held under `at-old`, then the
+            // three waiters queued behind them; their release clears it.
+            await_two_held(&mut door, &mut held, "at-old").await;
+            for (kind, params) in &waiters {
+                ids.push(submit_with(&mut door, kind, params.clone()).await);
+            }
+            door.quiet().await;
+            // From the old bearer's release to the two GETs held under
+            // `at-new`, no job ends but the two holders; one that does has
+            // left the script (a retry the code did not make), and the
+            // scenario fails naming it, rather than wait behind a held
+            // refresh or save for arrivals that cannot come.
+            let mut events = door.subscribe().await;
+            let holders = [ids[0], ids[1]];
+            release_old.send(true).unwrap();
+            // The refresh their 401s call for is held until every waiter has
+            // met the cleared bearer and joined it, so whichever waits last
+            // below has been stale once.
+            door.await_behind_own_holds(
+                "awaiting the held refresh",
+                on_script(&mut events, &holders, refreshing.recv()),
+            )
             .await
-            .expect("the door built the scenario's server");
-        let holders = [
-            ("characters", json!({})),
-            ("character", json!({"name": "x"})),
-        ];
-        let waiters = [
-            ("profile", json!({})),
-            ("leagues", json!({})),
-            ("stashes", json!({})),
-        ];
-        let learned = if learn_stashes { 3 } else { 2 };
-        for (kind, params) in holders.iter().chain(&waiters[..learned]) {
-            let id = submit_with(&mut door, kind, params.clone()).await;
-            let (job, outcome) = door.await_terminal(id).await;
-            assert_eq!(
-                job.state,
-                JobState::Done,
-                "{kind} learns its route: {outcome:?}"
-            );
-        }
-        let first = door.every_job().await.len();
-        let before = door.journal().len();
-        holding.store(true, Ordering::SeqCst);
-        let mut ids = Vec::new();
-        for (kind, params) in holders {
-            ids.push(submit_with(&mut door, kind, params).await);
-        }
-        // Phase one: the holders' two GETs held under `at-old`, then the
-        // three waiters queued behind them; their release clears it.
-        await_two_held(&mut door, &mut held, "at-old").await;
-        for (kind, params) in &waiters {
-            ids.push(submit_with(&mut door, kind, params.clone()).await);
-        }
-        door.quiet().await;
-        release_old.send(true).unwrap();
-        // Phase two: two waiters sent under the first refresh's `at-new`
-        // and held; their release clears it while the last one waits.
-        await_two_held(&mut door, &mut held, "at-new").await;
-        door.quiet().await;
-        release_new.send(true).unwrap();
-        for id in ids {
-            door.await_terminal(id).await;
-        }
-        let mut jobs = Vec::new();
-        for job in door.every_job().await.into_iter().skip(first) {
-            let outcome = match door.request(Request::Result { id: job.id }).await {
-                Response::Result { outcome, .. } => outcome,
-                other => panic!("job {} answered {other:?}", job.id),
-            };
-            jobs.push((job, outcome));
-        }
-        let sends = door.journal().split_off(before);
-        assert(&jobs, &sends);
-        door.finish().await;
-    });
+            .expect("the server announces the refresh");
+            door.quiet().await;
+            release_refresh.send(true).unwrap();
+            // Phase two: the refresh's owner (the first to go stale, the
+            // probe where there is one) is held at its save, after the
+            // waiters that joined it have the new bearer; two of them are
+            // sent under `at-new` and held; then the owner goes on, and
+            // queues behind them. Their release clears `at-new` while it
+            // waits. Without the held save, a quick save let the owner reach
+            // the gate first (#262).
+            door.await_behind_own_holds(
+                "awaiting the refresh's held save",
+                on_script(&mut events, &holders, saving.recv()),
+            )
+            .await
+            .expect("the keyring announces the refresh's save");
+            for _ in 0..2 {
+                let carried = door
+                    .await_behind_own_holds(
+                        "awaiting two GETs held at the server",
+                        on_script(&mut events, &holders, held.recv()),
+                    )
+                    .await
+                    .expect("the server announces each held GET");
+                assert_eq!(carried, "at-new", "the held GETs carry at-new");
+            }
+            release_save.send(()).unwrap();
+            door.quiet().await;
+            release_new.send(true).unwrap();
+            for id in ids {
+                door.await_terminal(id).await;
+            }
+            let mut jobs = Vec::new();
+            for job in door.every_job().await.into_iter().skip(first) {
+                let outcome = match door.request(Request::Result { id: job.id }).await {
+                    Response::Result { outcome, .. } => outcome,
+                    other => panic!("job {} answered {other:?}", job.id),
+                };
+                jobs.push((job, outcome));
+            }
+            let sends = door.journal().split_off(before);
+            assert(&jobs, &sends);
+            door.finish().await;
+        });
 }
 
 /// The arrival barrier of [`bearer_stale_twice`]: two GETs held at the
@@ -694,6 +795,34 @@ async fn await_two_held(door: &mut Door, held: &mut mpsc::UnboundedReceiver<Stri
             .await
             .expect("the server announces each held GET");
         assert_eq!(carried, bearer, "the held GETs carry {bearer}");
+    }
+}
+
+/// `arrival`, unless a job ends first that is not one of `holders`: in
+/// [`bearer_stale_twice`] no other does until the second phase's release,
+/// so one that ends has left the script, and the scenario fails naming
+/// it (#262: under a retry the code does not make, the arrivals awaited
+/// never come, and the held refresh or save would hold the wait to its
+/// backstop).
+async fn on_script<T>(
+    events: &mut tokio::sync::broadcast::Receiver<JobInfo>,
+    holders: &[JobId],
+    arrival: impl std::future::Future<Output = T>,
+) -> T {
+    let ended = async {
+        loop {
+            match events.recv().await {
+                Ok(job) if job.state.is_terminal() && !holders.contains(&job.id) => return job,
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    std::future::pending::<()>().await;
+                }
+            }
+        }
+    };
+    tokio::select! {
+        arrived = arrival => arrived,
+        job = ended => panic!("job {} ({}) ended off the script: {:?}", job.id, job.kind, job.state),
     }
 }
 
