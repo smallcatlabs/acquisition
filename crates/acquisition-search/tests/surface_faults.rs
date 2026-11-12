@@ -10,6 +10,7 @@ use crate::common;
 
 use acquisition_search::describe;
 use common::generated::{fixture, request, run};
+use common::sort_value;
 use serde_json::{Value, json};
 
 fn lines(texts: &[&str]) -> Value {
@@ -43,7 +44,7 @@ fn c92_a_sum_of_decimals_is_exact_and_no_order_of_occurrences_changes_it() {
             .map(|r| {
                 (
                     r["id"].as_str().unwrap().to_string(),
-                    r["sort"]["value"].clone(),
+                    sort_value(r)["value"].clone(),
                 )
             })
             .collect();
@@ -288,7 +289,7 @@ fn c93_a_number_beyond_reach_is_unread_where_it_is_read_and_no_order_matters() {
     // the largest number read whole: ten digits and four decimals, exactly
     assert_eq!(answer["rows"].as_array().unwrap().len(), 1);
     assert_eq!(answer["rows"][0]["id"], "i2");
-    assert_eq!(answer["rows"][0]["sort"]["value"], json!(0.0001));
+    assert_eq!(sort_value(&answer["rows"][0])["value"], json!(0.0001));
     let why = &answer["total"]["undecided_reasons"][0];
     assert_eq!(why["unread"], "the numbers of explicit lines");
     assert!(why["problem"].as_str().unwrap().contains("digits"), "{why}");
@@ -430,7 +431,7 @@ fn c92_a_sum_at_the_edge_of_what_is_read_equals_its_typed_bound() {
     )
     .unwrap();
     assert_eq!(a["total"]["matched"], 1);
-    assert_eq!(a["rows"][0]["sort"]["value"], json!(189999999999.9943));
+    assert_eq!(sort_value(&a["rows"][0])["value"], json!(189999999999.9943));
 }
 
 /// Found by the completion property the day its generators learned to

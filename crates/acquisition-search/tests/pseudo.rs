@@ -575,7 +575,7 @@ fn c92_c95_a_computed_value_sorts_and_sums() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
         .collect();
     assert_eq!(rows[0], ("ring_a".to_string(), json!({ "value": 124 })));
     // then what is not a value, as a derived field's: ring_b with what
@@ -599,7 +599,7 @@ fn c92_c95_a_computed_value_sorts_and_sums() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap(), scalar(sort_value(r))))
         .collect();
     assert_eq!(rows[0], ("sword", json!({ "value": 281.875 })));
     assert_eq!(rows[1], ("wand", json!({ "value": 76.3 })));
@@ -1753,7 +1753,11 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
                 format!("holds({of})=1..{n}"),
             ),
         ] {
-            let (count, held) = (asked(&s, "pc", &count), asked(&s, "pc", &held));
+            // the first rows of one order: the count compares one value
+            // and the holds none, so the store's order is asked of both
+            let in_store_order =
+                |text: &str| view(&s, text, json!({ "rows": { "sort": "none" } })).unwrap();
+            let (count, held) = (in_store_order(&count), in_store_order(&held));
             assert_eq!(ids(&count), ids(&held), "{}", count["query"]["text"]);
             let open = |a: &Value| -> Vec<String> {
                 members(&s, &a["total"]["undecided"])
@@ -1783,7 +1787,7 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
             .collect()
     };
     // what a row shows of its sort begins with the reading by its own
@@ -1796,7 +1800,7 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
     )
     .unwrap();
     assert_eq!(
-        a["rows"][0]["sort"]["shows"],
+        sort_value(&a["rows"][0])["shows"],
         json!([
             { "value": { "name": "pseudo.total_all_ele_res", "value": 17 } },
             { "value": { "name": "pseudo.total_fire_res", "value": 17 } },
@@ -1811,7 +1815,7 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
     )
     .unwrap();
     assert_eq!(
-        a["rows"][0]["sort"]["shows"],
+        sort_value(&a["rows"][0])["shows"],
         json!([
             { "value": { "name": "pseudo.count_res", "value": "2..3" } },
             { "value": { "name": "pseudo.total_fire_res", "value": 20 } },
@@ -1825,7 +1829,7 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
     )
     .unwrap();
     assert!(
-        a["rows"][0]["sort"].get("shows").is_none(),
+        sort_value(&a["rows"][0]).get("shows").is_none(),
         "{}",
         a["rows"][0]
     );

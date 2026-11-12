@@ -652,8 +652,9 @@ fn every_search_page_is_a_wording_golden() {
             " ago</p>",
             "<a class=\"presentation\" href=\"search?",
             ">as a table</a>",
-            // the order the rows stand in, where no sort was asked
-            "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)",
+            // the order the rows stand in, where no sort was asked: the
+            // query's one value, the stat filter's explicit sum (#38)
+            "rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares",
             // the query box's presentation, the big form's
             "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
         ],

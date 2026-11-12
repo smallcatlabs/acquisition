@@ -552,7 +552,7 @@ fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
     .unwrap();
     let r = as_json(&answer(&load(&s, Some("pc")), &sorted).unwrap());
     assert_eq!(r["rows"][0]["id"], "named");
-    assert!(r["rows"][1]["sort"]["status"].is_string());
+    assert!(sort_value(&r["rows"][1])["status"].is_string());
     // finding 2: `[Level]` is a Level row, so its loss is said
     assert_eq!(asked(&s, "pc", "-has:reqlevel")["total"]["matched"], 0);
     let shown = serde_json::to_value(common::show(&s, "marked", false).unwrap()).unwrap();

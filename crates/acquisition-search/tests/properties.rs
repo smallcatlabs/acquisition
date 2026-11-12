@@ -764,7 +764,7 @@ fn c114_every_field_is_asked_every_way_a_number_is() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| (r["id"].as_str().unwrap(), scalar(&r["sort"])))
+            .map(|r| (r["id"].as_str().unwrap(), scalar(sort_value(r))))
             .collect();
         assert_eq!(rows[0], ("has", json!({ "value": v })), "{f}");
         assert!(
@@ -856,7 +856,7 @@ fn sort_of(field: &str, more: Value) -> Value {
         20,
     );
     let a = view(&s, "", json!({ "rows": { "sort": field } }));
-    scalar(&a["rows"][0]["sort"])
+    scalar(sort_value(&a["rows"][0]))
 }
 
 /// S26, the q20 rule's arithmetic, worked by hand: the display × 120 ÷
@@ -1016,7 +1016,7 @@ fn c114_the_tier_is_the_bases_and_edps_the_elemental_ranges() {
         json!({ "rows": { "sort": "pseudo.edps", "desc": true } }),
     );
     assert_eq!(
-        scalar(&sorted["rows"][0]["sort"]),
+        scalar(sort_value(&sorted["rows"][0])),
         json!({ "value": 171.25 })
     );
     assert_eq!(ids(&view(&s, "-has:pseudo.edps", json!({}))).len(), 6);
@@ -1240,7 +1240,7 @@ fn against_the_site(fetched: Vec<&Value>) -> (usize, usize, usize, usize) {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+                .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
                 .collect()
         })[id];
         let Some(value) = read["value"].as_i64() else {

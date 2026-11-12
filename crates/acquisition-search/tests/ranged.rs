@@ -235,7 +235,7 @@ fn sorted(corpus: &Corpus, by: &str) -> BTreeMap<String, Value> {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
         .collect()
 }
 

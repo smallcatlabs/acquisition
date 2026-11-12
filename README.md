@@ -192,7 +192,7 @@ acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pag
 acq leagues --stored [--expand]   # the league list last fetched, the newest start first, each league beside when it started, whether the policy names it and its tabs and characters on disk
 acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--limit N] [--expand]   # counts, then the ten tabs with the most items; --limit more, --expand all
 acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts, then ten characters: locations, ages and live items; --expand all
-acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--fields icon,item] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
+acq search [--realm R] ['<query>'] [--sort V [--desc]] [--value V …] [--limit N] [--fields icon,item] [--routes]   # item search, ordered by the one value it compares; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
 acq search --describe[=name,…|=~pattern|=all]   # the query language: an index, a slice by pattern, or entries whole
 acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network

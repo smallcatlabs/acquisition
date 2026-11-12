@@ -34,7 +34,7 @@ fn values(corpus: &acquisition_search::Corpus, field: &str) -> BTreeMap<String, 
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
         .collect()
 }
 

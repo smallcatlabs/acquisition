@@ -87,7 +87,7 @@ fn scalars(corpus: &Corpus, scope: &Ids, value: &str) -> Option<HashMap<String, 
             .as_array()?
             .iter()
             .filter_map(|row| {
-                let sort = &row["sort"];
+                let sort = &sort_of(&answer, row);
                 Some((
                     row["id"].as_str()?.to_string(),
                     json!({ "value": sort["value"], "status": sort["status"] }),
@@ -601,7 +601,7 @@ fn every_item_twice(bodies: &[Value], text: &str, sort: Option<&str>) -> Result<
             .filter_map(|row| {
                 Some((
                     row["id"].as_str()?.to_string(),
-                    json!([row["matched"], row["sort"]]),
+                    json!([row["matched"], sort_of(answer, row)]),
                 ))
             })
             .collect()

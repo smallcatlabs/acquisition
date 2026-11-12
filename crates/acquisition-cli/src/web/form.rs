@@ -321,6 +321,7 @@ impl Folded {
             Rows {
                 limit: self.limit,
                 sort: self.sort.clone(),
+                values: Vec::new(),
                 desc: self.desc,
                 after: None,
                 // the fields sent, which a count refuses; else none for a

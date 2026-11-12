@@ -860,22 +860,22 @@ fn f6_a_row_says_what_it_sorts_by() {
     let row = sorted("ilvl");
     assert_eq!(row["id"], "i0");
     assert_eq!(
-        row["sort"],
+        *sort_value(&row),
         json!({ "value": 78, "shows": [{ "value": { "name": "ilvl", "value": 78 } }] })
     );
     // a line: the occurrence whose slot sorted the row
     let row = sorted("line(\"Adds # to # Cold Damage\").high");
     assert_eq!(row["id"], "i1");
-    assert_eq!(row["sort"]["value"], 9);
+    assert_eq!(sort_value(&row)["value"], 9);
     assert_eq!(
-        row["sort"]["shows"],
+        sort_value(&row)["shows"],
         json!([{ "line": { "source": "explicit", "text": "Adds 3 to 9 Cold Damage" } }])
     );
     // a sum: what it added
     let row = sorted("sum(\"# to maximum Life\")");
     assert_eq!(row["id"], "i1");
-    assert_eq!(row["sort"]["value"], 45);
-    let texts: Vec<&str> = row["sort"]["shows"]
+    assert_eq!(sort_value(&row)["value"], 45);
+    let texts: Vec<&str> = sort_value(&row)["shows"]
         .as_array()
         .unwrap()
         .iter()
@@ -889,7 +889,7 @@ fn f6_a_row_says_what_it_sorts_by() {
     )
     .unwrap();
     assert_eq!(
-        a["rows"][0]["sort"],
+        *sort_value(&a["rows"][0]),
         json!({ "status": "no satisfying occurrence" })
     );
 }
@@ -1751,7 +1751,7 @@ fn a_row_sorted_by_a_total_shows_every_line_that_contributed() {
     );
     let rows = a["rows"].as_array().unwrap();
     let shown = |row: &Value| -> Vec<String> {
-        row["sort"]["shows"]
+        sort_value(row)["shows"]
             .as_array()
             .unwrap()
             .iter()
@@ -1759,7 +1759,7 @@ fn a_row_sorted_by_a_total_shows_every_line_that_contributed() {
             .collect()
     };
     assert_eq!(rows[0]["id"], "three");
-    assert_eq!(rows[0]["sort"]["value"], 105, "{}", rows[0]);
+    assert_eq!(sort_value(&rows[0])["value"], 105, "{}", rows[0]);
     assert_eq!(
         shown(&rows[0]),
         [
@@ -1770,6 +1770,6 @@ fn a_row_sorted_by_a_total_shows_every_line_that_contributed() {
         "{}",
         rows[0]
     );
-    assert_eq!(rows[1]["sort"]["value"], 32, "{}", rows[1]);
+    assert_eq!(sort_value(&rows[1])["value"], 32, "{}", rows[1]);
     assert_eq!(shown(&rows[1]), ["+32% to Fire Resistance"]);
 }

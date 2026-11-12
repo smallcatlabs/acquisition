@@ -115,6 +115,65 @@ fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
     assert_eq!(second["terms"], first["terms"]);
 }
 
+/// A continuation of rows the query ordered unasked goes on in that
+/// order (4-full part 1, step 6.1): it names what its request named and
+/// the query fills the rest again, the same at the basis it names, so
+/// every page says the order came from the query; values named are
+/// carried, and `none` is.
+#[test]
+fn a_continuation_goes_on_in_the_order_the_query_gave() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    for rows in [
+        json!({}),
+        json!({ "values": ["ilvl"] }),
+        json!({ "sort": "none" }),
+    ] {
+        let view = |limit: u64| {
+            let mut rows = rows.clone();
+            rows["limit"] = json!(limit);
+            json!({ "query": { "text": "pseudo.total_res>=0" }, "view": { "rows": rows } })
+        };
+        let whole = asked(&corpus, &view(100)).unwrap();
+        assert!(whole["total"]["matched"].as_u64().unwrap() > 3, "{whole}");
+        let first = asked(&corpus, &view(3)).unwrap();
+        let next = &first["view"]["rows"]["next"]["request"]["view"]["rows"];
+        assert_eq!(next.get("values"), rows.get("values"), "{rows}: {next}");
+        assert_eq!(next.get("sort"), rows.get("sort"), "{rows}: {next}");
+        let second = asked(&corpus, &first["view"]["rows"]["next"]["request"]).unwrap();
+        for page in [&whole, &first, &second] {
+            let said = &page["view"]["rows"];
+            assert_eq!(
+                said["sort"], whole["view"]["rows"]["sort"],
+                "{rows}: {said}"
+            );
+            assert_eq!(
+                said["values"], whole["view"]["rows"]["values"],
+                "{rows}: {said}"
+            );
+            assert_eq!(
+                said.get("sort_from_query"),
+                whole["view"]["rows"].get("sort_from_query")
+            );
+        }
+        let (paged, _) = pages(&corpus, &view(3));
+        assert_eq!(paged, rows_of(&whole), "{rows}");
+        // left to the query, every page says the list and the order are
+        // the query's; named, none does
+        let said = &second["view"]["rows"];
+        assert_eq!(
+            said.get("sort_from_query").is_some(),
+            rows.get("sort").is_none(),
+            "{said}"
+        );
+        assert_eq!(
+            said.get("values_from_query").is_some(),
+            rows.get("values").is_none(),
+            "{said}"
+        );
+    }
+}
+
 /// A continuation is refused across a changed basis, and the refusal
 /// names both (C98, C100): a fetch between two pages.
 #[test]

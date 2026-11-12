@@ -707,7 +707,7 @@ fn aq5_life_at_ninety_or_more_counted_and_sorted_across_every_mod_array() {
         .map(|r| {
             (
                 r["id"].as_str().unwrap(),
-                &r["sort"]["value"],
+                &sort_value(r)["value"],
                 r["matched"][0]["shows"][0]["line"]["source"]
                     .as_str()
                     .unwrap(),

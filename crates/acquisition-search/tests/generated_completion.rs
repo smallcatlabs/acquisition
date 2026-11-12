@@ -298,7 +298,7 @@ fn check(
             .ok_or("no rows")?
             .iter()
             .filter_map(|row| {
-                let sort = &row["sort"];
+                let sort = &sort_of(&answer, row);
                 Some((
                     row["id"].as_str()?,
                     json!({ "value": sort["value"], "status": sort["status"] }),

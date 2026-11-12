@@ -997,6 +997,40 @@ fn template_tests(member: &Member, out: &mut Vec<(Op, String)>) {
     }
 }
 
+/// Each slot a group compares with a number, as a value: `line(S).<slot>`,
+/// S the group's [`selector`], the occurrence the comparison is on (C92);
+/// with the comparison's operator, and whether it stands under an odd
+/// number of the group's nots — what `values.rs` reads a direction from.
+pub(crate) fn slots_compared(whole: &Member) -> Vec<(ValueRef, Op, bool)> {
+    fn walk(at: &Member, selector: &Member, negated: bool, out: &mut Vec<(ValueRef, Op, bool)>) {
+        match at {
+            Member::All(children) | Member::Any(children) => {
+                children
+                    .iter()
+                    .for_each(|c| walk(c, selector, negated, out));
+            }
+            Member::Not(inner) => walk(inner, selector, !negated, out),
+            Member::Test { attr, op, value }
+                if tree::is_slot_word(attr) && crate::values::compares_a_number(*op, value) =>
+            {
+                out.push((
+                    ValueRef::Projection {
+                        lines: Box::new(selector.clone()),
+                        slot: attr.clone(),
+                    },
+                    *op,
+                    negated,
+                ));
+            }
+            Member::Test { .. } | Member::Const(_) | Member::Is(_) => {}
+        }
+    }
+    let selector = selector(whole);
+    let mut out = Vec::new();
+    walk(whole, &selector, false, &mut out);
+    out
+}
+
 /// The group's selector (the module doc): the group with every slot
 /// comparison taken as favourably as it can be — true where it helps the
 /// group hold, false under a not — and the constants folded away. An

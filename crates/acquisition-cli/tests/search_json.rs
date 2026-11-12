@@ -588,6 +588,63 @@ fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole(
 
 const LIFE: &str = r##""+# to maximum Life">=90"##;
 
+/// Values on rows at a terminal (4-full part 1, step 6.1; #38): a query
+/// comparing one value is ordered by it, best first, and says it came
+/// from the query; several give their values on each row and the
+/// store's order, said why; `--value` names the values, in order, a sort
+/// outside them joining them; `--sort none` keeps the store's order, and
+/// `--desc` beside it is refused.
+#[test]
+fn values_on_rows_at_a_terminal() {
+    let scratch = harness::scratch("search-values");
+    let base = scratch.0.clone();
+    seed(&base);
+    let out = acq(&base, &["--json", "search", "--realm", "pc", LIFE]);
+    let a = sole_json(&out);
+    let rows = &a["view"]["rows"];
+    assert_eq!(rows["sort"], "line(\"# to maximum Life\").arg1", "{rows}");
+    assert_eq!(
+        (&rows["desc"], &rows["sort_from_query"]),
+        (&json!(true), &json!(true))
+    );
+    assert_eq!(rows["values"], json!([rows["sort"]]), "{rows}");
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["search", "--realm", "pc", LIFE, "--limit", "1"],
+        &["by line(\"# to maximum Life\").arg1, largest first: the one value the query compares"],
+    );
+    t.run(
+        &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1"), "--limit", "1"],
+        &["in the store's order (no sort asked, and the query compares no one value that orders it)"],
+    );
+    t.run(
+        &[
+            "search",
+            "--realm",
+            "pc",
+            LIFE,
+            "--value",
+            "ilvl",
+            "--value",
+            "sum(\"+# to maximum Life\")",
+            "--sort",
+            "stack",
+        ],
+        &["sorts last: no satisfying occurrence (stack)", "ilvl 84"],
+    );
+    t.run(
+        &[
+            "search", "--realm", "pc", LIFE, "--sort", "none", "--limit", "1",
+        ],
+        &["in the store's order, as asked"],
+    );
+    t.run(
+        &["search", "--realm", "pc", LIFE, "--sort", "none", "--desc"],
+        &["`desc` puts a value's largest first"],
+    );
+    golden(file!(), "values_on_rows", &t);
+}
+
 #[test]
 fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     let scratch = harness::scratch("search-cli");

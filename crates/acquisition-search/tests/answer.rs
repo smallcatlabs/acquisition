@@ -377,7 +377,7 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| (r["id"].as_str().unwrap().to_string(), r["sort"].clone()))
+            .map(|r| (r["id"].as_str().unwrap().to_string(), sort_value(r).clone()))
             .collect();
         rows
     };
@@ -957,7 +957,8 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
     }))
     .unwrap();
     let a = as_json(&acquisition_search::answer(&corpus, &request).unwrap());
-    assert_eq!(a["rows"][0]["id"], "r1", "{a}");
+    // the query's one value orders the rows, best first (#38)
+    assert_eq!(a["rows"][0]["id"], "r3", "{a}");
     let touched = a["rows"][0]["matched"].as_array().unwrap();
     assert!(!touched.is_empty(), "{a}");
     for t in touched {
@@ -971,7 +972,7 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
     let life = touched.iter().find(|t| t["path"] == "0").unwrap();
     assert_eq!(
         life["shows"],
-        json!([{ "line": { "source": "explicit", "text": "+95 to maximum Life" } }])
+        json!([{ "line": { "source": "explicit", "text": "+100 to maximum Life" } }])
     );
     assert_eq!(
         a["terms"][0]["term"],

@@ -146,6 +146,9 @@ fn shape_flags(request: &Request, out: &mut String) {
                     out.push_str(" --desc");
                 }
             }
+            for value in &rows.values {
+                out.push_str(&format!(" --value {}", shell_quoted(value)));
+            }
             if let Some(limit) = rows.limit {
                 out.push_str(&format!(" --limit {limit}"));
             }

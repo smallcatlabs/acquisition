@@ -404,7 +404,7 @@ fn c105_a_socket_count_is_a_key_whose_buckets_sum_to_the_total() {
         .unwrap()
         .iter()
         .skip(6)
-        .map(|row| (row["id"].as_str().unwrap(), &row["sort"]))
+        .map(|row| (row["id"].as_str().unwrap(), sort_value(row)))
         .collect();
     for (id, sort) in last {
         assert!(
@@ -412,7 +412,7 @@ fn c105_a_socket_count_is_a_key_whose_buckets_sum_to_the_total() {
             "{id}: {sort}"
         );
     }
-    assert_eq!(r["rows"][8]["sort"]["status"], "incomplete");
+    assert_eq!(sort_value(&r["rows"][8])["status"], "incomplete");
 }
 
 /// `show` gives the sockets as read — group, colour, what was unread of
@@ -683,7 +683,7 @@ fn review_a_socket_whose_group_is_unread_is_a_socket_still_and_an_open_group_say
     }))
     .unwrap();
     let r = as_json(&answer(&load(&s, Some("pc")), &sorted).unwrap());
-    assert_eq!(scalar(&r["rows"][0]["sort"]), json!({ "value": 1 }));
+    assert_eq!(scalar(sort_value(&r["rows"][0])), json!({ "value": 1 }));
     // 4: the help answers to each colour field
     let d =
         serde_json::to_value(acquisition_search::describe(&["sockets.red".to_string()]).unwrap())

@@ -1027,7 +1027,10 @@ pub fn said_of(corpus: &Corpus, scope: &Ids, a: &Value, together: bool) -> Resul
         .map(|row| {
             json!({
                 "id": row["id"],
-                "sort": { "value": row["sort"]["value"], "status": row["sort"]["status"] },
+                "sort": {
+                    "value": sort_of(a, row)["value"],
+                    "status": sort_of(a, row)["status"],
+                },
             })
         })
         .collect();
@@ -2551,6 +2554,16 @@ pub fn run(corpus: &Corpus, request: &Value) -> Result<Value, Value> {
             Err(error)
         }
     }
+}
+
+/// What a row of an answer sorts by: the entry of its `values` the
+/// view's `sort` names, null where the rows are in the store's order.
+pub fn sort_of(answer: &Value, row: &Value) -> Value {
+    let rows = &answer["view"]["rows"];
+    rows["values"]
+        .as_array()
+        .and_then(|texts| texts.iter().position(|text| *text == rows["sort"]))
+        .map_or(Value::Null, |at| row["values"][at].clone())
 }
 
 pub fn request(query: &str, sort: Option<&str>, desc: bool, limit: usize) -> Value {

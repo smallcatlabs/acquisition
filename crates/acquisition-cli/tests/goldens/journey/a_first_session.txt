@@ -145,10 +145,10 @@ scope   account ExileTester · pc · live · 49 items · 16 locations fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   2 matches (<fetches>)
 rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1, y 0 · fetched <age> ago
-            sorts by pseudo.total_life 89 · +89 to maximum Life (explicit)
+            sorts by pseudo.total_life 89 · +89 to maximum Life (explicit) · line("# to maximum Life").arg1 89
             id 23e1a67b5ab2bae129a4ba005c112daa706795a92b5469a0a2791e845abf26f3
         Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
-            sorts by pseudo.total_life 108 · +16 to Strength (explicit) · +78 to maximum Life (explicit) · +22 to maximum Life (implicit)
+            sorts by pseudo.total_life 108 · +16 to Strength (explicit) · +78 to maximum Life (explicit) · +22 to maximum Life (implicit) · line("# to maximum Life").arg1 78
             id 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    line("# to maximum Life" arg1>=70)  2 matched · 47 lacked

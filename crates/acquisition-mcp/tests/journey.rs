@@ -79,7 +79,19 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
         .as_array()
         .expect("rows")
         .iter()
-        .map(|row| (&row["name"], &row["sort"]["value"]))
+        .map(|row| {
+            // a row's values stand in the order the view names them, the
+            // sort among them
+            let at = life["view"]["rows"]["values"]
+                .as_array()
+                .and_then(|texts| {
+                    texts
+                        .iter()
+                        .position(|t| *t == life["view"]["rows"]["sort"])
+                })
+                .expect("the sort among the values");
+            (&row["name"], &row["values"][at]["value"])
+        })
         .collect();
     assert_eq!(
         sorted,
@@ -89,6 +101,16 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
         ],
         "{life}"
     );
+    // asked with no sort, the query's one value orders the rows, largest
+    // first, and the answer says it came from the query (#38)
+    let unsorted = mcp.expect_ok("search", json!({ "query": { "text": LIFE_QUERY } }));
+    let rows = &unsorted["view"]["rows"];
+    assert_eq!(rows["sort"], "line(\"# to maximum Life\").arg1", "{rows}");
+    assert_eq!(
+        (&rows["desc"], &rows["sort_from_query"]),
+        (&json!(true), &json!(true))
+    );
+    assert_eq!(rows["values_from_query"], true, "{rows}");
 
     // the count view the CLI's `--count base --sum stack` builds
     let currency = mcp.expect_ok(

@@ -291,7 +291,7 @@ fn sorted(corpus: &Corpus) -> BTreeMap<String, Value> {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
         .collect()
 }
 
@@ -673,7 +673,7 @@ fn c101_the_worked_cases_by_comparison_by_has_sorted_and_summed() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
             .collect()
     };
     let value = |id: &str, value: i64| (id.to_string(), json!({ "value": value }));

@@ -395,7 +395,7 @@ fn c95_a_price_sorts_sums_and_counts_with_its_decimals_kept() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap(), r["sort"]["value"].clone()))
+        .map(|r| (r["id"].as_str().unwrap(), sort_value(r)["value"].clone()))
         .collect();
     assert_eq!(
         order,

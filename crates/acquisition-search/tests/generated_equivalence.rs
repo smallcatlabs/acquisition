@@ -68,6 +68,23 @@ fn normalized(
         .and_then(Value::as_object_mut)
     {
         rows.shift_remove("sort");
+        // the values follow the order the query is written in, and their
+        // texts its spelling: what each row sorts by stays, below
+        rows.shift_remove("values");
+    }
+    let sorts: Vec<Value> = answer["rows"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|row| sort_of(answer, row))
+        .collect();
+    if let Some(rows) = fields.get_mut("rows").and_then(Value::as_array_mut) {
+        for (row, sort) in rows.iter_mut().zip(sorts) {
+            if let Some(row) = row.as_object_mut() {
+                row.shift_remove("values");
+                row.insert("sort".into(), sort);
+            }
+        }
     }
     // what a zero answer offers is explain of a path and the query's own
     // text: the paths and the text are what a rewrite may change, and a

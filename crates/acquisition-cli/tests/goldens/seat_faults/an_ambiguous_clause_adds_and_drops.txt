@@ -15,11 +15,12 @@ scope   account Alice#1234 · pc · live · 2 items · 1 location fetched
         0 locations never fetched · location lists seen, the oldest <age> ago
 total   2 matches (fetched <age> ago, pc · Standard / Rings)
 rows    Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago
-            sum(line("#% increased Rarity of Items found" source=explicit).arg1) 30 · 30% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
+            sorts by sum(line("#% increased Rarity of Items found" source=explicit).arg1) 30 · 30% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
             id both
         Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago
-            sum(line("#% increased Rarity of Items found" source=explicit).arg1) 25 · 25% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
+            sorts by sum(line("#% increased Rarity of Items found" source=explicit).arg1) 25 · 25% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
             id plain
+order   by sum(line("#% increased Rarity of Items found" source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store's order)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20  2 matched
   1    line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)  2 matched

@@ -14,15 +14,16 @@ scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Dump)
             1 location was never fetched: nothing here says what it holds
-rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
-            sum(line("# to maximum Life" source=explicit).arg1) 95 · +95 to maximum Life (explicit)
+rows    Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            sorts by sum(line("# to maximum Life" source=explicit).arg1) 500 · +500 to maximum Life (explicit)
+            id kaom
+        Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            sorts by sum(line("# to maximum Life" source=explicit).arg1) 95 · +95 to maximum Life (explicit)
             id r1
         Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
-            sum(line("# to maximum Life" source=explicit).arg1) 75 · +75 to maximum Life (explicit)
+            sorts by sum(line("# to maximum Life" source=explicit).arg1) 75 · +75 to maximum Life (explicit)
             id r2
-        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
-            sum(line("# to maximum Life" source=explicit).arg1) 500 · +500 to maximum Life (explicit)
-            id kaom
+order   by sum(line("# to maximum Life" source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store's order)
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard                                          5 matched
   1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed

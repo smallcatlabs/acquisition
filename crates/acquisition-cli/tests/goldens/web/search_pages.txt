@@ -55,7 +55,7 @@ GET search?<the ring search>
 # holds " ago</p>"
 # holds "<a class=\"presentation\" href=\"search?"
 # holds ">as a table</a>"
-# holds "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)"
+# holds "rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares"
 # holds "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
@@ -84,7 +84,7 @@ GET search?<the ring search>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)<br>category accessory.ring</p>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
@@ -100,9 +100,9 @@ GET search?<the ring search>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</p>
 </div>
-<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -142,10 +142,10 @@ GET search?<the ring search as a table>
 <p><a class="presentation" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=">as cards</a></p>
 <table class="results">
 <tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring<br>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)<br>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
-<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -192,9 +192,9 @@ GET search?<an edited text>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">class Rings<br>+95 to maximum Life (explicit)</p>
+<p class="shows">sorts by line(&quot;# to maximum Life&quot;).arg1 95<br>+95 to maximum Life (explicit)<br>class Rings</p>
 </div>
-<p class="rows-shown">rows 1–1 of 1 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–1 of 1 shown, by line(&quot;# to maximum Life&quot;).arg1, largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -253,7 +253,7 @@ GET search?<a trade site search's URL>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 500<br>+500 to maximum Life (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 500<br>+500 to maximum Life (explicit)</p>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
@@ -266,7 +266,7 @@ GET search?<a trade site search's URL>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</p>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
@@ -282,9 +282,9 @@ GET search?<a trade site search's URL>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–3 of 3 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

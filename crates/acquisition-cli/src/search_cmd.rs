@@ -128,11 +128,19 @@ pub struct SearchArgs {
     /// sum spans every source the line has — implicit and crafted with
     /// explicit — as the row's `sorts by` shows; one source's is its
     /// form, `'sum(line("T" source=explicit).arg1)'`, the filter's own.
+    /// None named, a query that compares one value is ordered by it, best
+    /// first by its operator (`>=` largest first, `<=` smallest), and the
+    /// answer says so; `none` keeps the store's order.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
     /// Largest first.
     #[arg(long, requires = "sort")]
     pub desc: bool,
+    /// A value each row carries, as `--sort` takes one; given again, the
+    /// next. None given, the rows carry the values the query compares, at
+    /// most 12. A sort the list lacks joins it.
+    #[arg(long, value_name = "VALUE")]
+    pub value: Vec<String>,
     /// How many rows to return — or, of a count, how many values a table
     /// lists; the rest are counted.
     /// Ten where none is given.
@@ -356,6 +364,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         ("--realm", args.realm.is_some()),
         ("--membership", args.membership.is_some()),
         ("--sort", args.sort.is_some()),
+        ("--value", !args.value.is_empty()),
         ("--fields", args.fields.is_some()),
         ("--count", !args.count.is_empty()),
         ("--cross", args.cross.is_some()),
@@ -559,6 +568,7 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         Rows {
             limit: Some(args.limit.unwrap_or(acquisition_store::bound::LISTED)),
             sort: args.sort.clone(),
+            values: args.value.clone(),
             desc: args.desc,
             after: None,
             fields,
@@ -1326,6 +1336,9 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
         .map(|piece| match piece {
             RowPiece::Seen(s) => s,
             RowPiece::MoreSorted(n) => format!("{}: {}", more_sorted_words(n), show()),
+            RowPiece::MoreOfValue(n, key) => {
+                format!("{}: {}", more_of_value_words(n, &key), show())
+            }
         })
         .collect();
     if !shows.is_empty() {
@@ -1359,16 +1372,18 @@ fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now:
     out
 }
 
-/// One piece of what a row shows: a line it shows, or the sort's count
-/// of what it left out, which each surface follows with its own way to
-/// the item whole.
+/// One piece of what a row shows: a line it shows, or a value's count of
+/// what it left out, the sort's or another's, which each surface follows
+/// with its own way to the item whole.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) enum RowPiece {
     Seen(String),
     MoreSorted(usize),
+    /// A value's lines past those shown, and the value's text.
+    MoreOfValue(usize, String),
 }
 
-/// What a row shows of its matched terms and its sort, each line once
+/// What a row shows of its values and its matched terms, each line once
 /// for each occurrence the part showing it most shows, and, for each term
 /// that touched more than it shows, how many more and the term's path —
 /// the words a surface follows with its way to the item whole (the text's
@@ -1385,48 +1400,74 @@ pub(crate) fn row_shows(
     // order the terms were written in (the review of 9b, 2026-09-26,
     // twice: a total of 40 showed contributors of 10 and 20 alone)
     let mut parts: Vec<Vec<RowPiece>> = Vec::new();
-    if let Some(sorted) = &row.sort {
-        // what sorted the row (F6): a field's name before its number,
-        // a line or a sum's contributors after — and the sort's own
-        // value before its number where no field names it, since
-        // `sorts by 78` beside a term's sum of 70 was read as the
-        // filter's number (the trade seat: cli-opus call 21, cli-sonnet
-        // call 15)
-        // a row that sorts last says by what (the review of 9b: `sorts
-        // last: incomplete` named no field)
-        let key = match &a.view {
-            ViewOut::Rows(rows) => rows.sort.as_deref().unwrap_or_default(),
-            ViewOut::Counts(_) | ViewOut::Cross(_) | ViewOut::Explain(_) => "",
-        };
-        let by = match (&sorted.value, sorted.status) {
+    // each value as it is said bare, `name number`: a term's own
+    // evidence of the same number is said once, by the value
+    let mut said_values: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let (texts, sort) = match &a.view {
+        ViewOut::Rows(rows) => (rows.values.as_slice(), rows.sort.as_deref()),
+        ViewOut::Counts(_) | ViewOut::Cross(_) | ViewOut::Explain(_) => (&[][..], None),
+    };
+    for (valued, key) in row.values.iter().zip(texts) {
+        // what each value is (F6): a field's name before its number, a
+        // line or a sum's contributors after — and the value's own text
+        // before its number where no field names it, since `sorts by 78`
+        // beside a term's sum of 70 was read as the filter's number (the
+        // trade seat: cli-opus call 21, cli-sonnet call 15); the sort's
+        // says it sorts, and a row that sorts last says by what (the
+        // review of 9b: `sorts last: incomplete` named no field)
+        let sorts = sort == Some(key.as_str());
+        // a column the item has nothing in is an empty cell, unsaid; the
+        // sort's says the row is last, and why
+        if !sorts && valued.value.is_none() && valued.status == Some("no satisfying occurrence") {
+            continue;
+        }
+        let by = match (&valued.value, valued.status) {
             (Some(value), None) => format!("by {}", number(value)),
-            (Some(value), Some(status)) => {
+            (Some(value), Some(status)) if sorts => {
                 format!("last: {status} at {} ({key})", number(value))
             }
-            (None, status) => format!("last: {} ({key})", status.unwrap_or("no value")),
+            (None, status) if sorts => {
+                format!("last: {} ({key})", status.unwrap_or("no value"))
+            }
+            (Some(value), Some(status)) => format!("{key}: {status} at {}", number(value)),
+            (None, status) => format!("{key}: {}", status.unwrap_or("no value")),
         };
-        let mut rest = sorted.shows.iter();
-        let named = match sorted.shows.first() {
+        let mut rest = valued.shows.iter();
+        let named = match valued.shows.first() {
             Some(acquisition_search::answer::Evidence::Value { name, .. }) => {
                 rest.next();
                 by.replacen("by ", &format!("by {name} "), 1)
             }
-            _ if !key.is_empty() => by.replacen("by ", &format!("by {key} "), 1),
-            _ => by,
+            _ => by.replacen("by ", &format!("by {key} "), 1),
         };
-        let mut by_sort = vec![RowPiece::Seen(format!("sorts {named}"))];
-        by_sort.extend(rest.map(|e| RowPiece::Seen(evidence_text(e))));
-        if sorted.left_out > 0 {
-            by_sort.push(RowPiece::MoreSorted(sorted.left_out));
+        let bare = named.strip_prefix("by ").unwrap_or(&named).to_string();
+        let said = match sorts {
+            true => format!("sorts {named}"),
+            false => bare.clone(),
+        };
+        said_values.insert(bare);
+        let mut part = vec![RowPiece::Seen(said)];
+        part.extend(rest.map(|e| RowPiece::Seen(evidence_text(e))));
+        if valued.left_out > 0 {
+            part.push(match sorts {
+                true => RowPiece::MoreSorted(valued.left_out),
+                false => RowPiece::MoreOfValue(valued.left_out, key.clone()),
+            });
         }
-        parts.push(by_sort);
+        // the sort's part first, wherever its value stands in the list
+        match sorts {
+            true => parts.insert(0, part),
+            false => parts.push(part),
+        }
     }
     for touched in &row.matched {
         parts.push(
             touched
                 .shows
                 .iter()
-                .map(|e| RowPiece::Seen(evidence_text(e)))
+                .map(evidence_text)
+                .filter(|seen| !said_values.contains(seen))
+                .map(RowPiece::Seen)
                 .collect(),
         );
     }
@@ -1485,14 +1526,24 @@ pub(crate) fn more_sorted_words(n: usize) -> String {
     format!("{n} more sorted")
 }
 
+/// A value's lines a row leaves out.
+pub(crate) fn more_of_value_words(n: usize, key: &str) -> String {
+    format!("{n} more of {key}")
+}
+
 /// A term's lines a row leaves out.
 pub(crate) fn more_of_term_words(n: usize, path: &str) -> String {
     format!("{n} more of term {path}")
 }
 
-/// The rows' continuation as the text says it, where rows are left out.
+/// The rows' continuation as the text says it, where rows are left out;
+/// where none are and the query ordered them unasked, that order, which
+/// a reader who named no sort must find said (#38).
 fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
+        ViewOut::Rows(rows) if rows.left_out == 0 && rows.sort_from_query && rows.returned > 0 => {
+            order_words(rows).map(|words| format!("order   {words}\n"))
+        }
         ViewOut::Rows(rows) if rows.left_out > 0 => Some(format!(
             "more    {}: {}\n",
             rows_shown_words(a, rows),
@@ -1524,14 +1575,26 @@ pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::Ro
     format!("{shown} of {} shown{capped}{order}", a.total.matched)
 }
 
-/// The order rows stand in where no sort was asked: the store's stable
+/// The order rows stand in where no sort was named: the store's stable
 /// order (`answer.rs`, "Rows"), said so a reader does not look for one
-/// (the page seat of 2026-11-08, its fault 13); none where a sort was
-/// asked, which each row says it sorts by.
-pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<&'static str> {
-    rows.sort
-        .is_none()
-        .then_some("in the store's order (no sort asked)")
+/// (the page seat of 2026-11-08, its fault 13), and why; or the query's
+/// one value, best first, which the reader did not ask for (#38). None
+/// where a sort was named, which each row says it sorts by.
+pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
+    let store = acquisition_search::answer::STORE_ORDER;
+    match rows.sort.as_deref() {
+        Some(sort) if rows.sort_from_query => Some(format!(
+            "by {sort}, {} first: the one value the query compares (sort `{store}` keeps the store's order)",
+            if rows.desc { "largest" } else { "smallest" }
+        )),
+        Some(sort) if sort == store => Some("in the store's order, as asked".to_string()),
+        Some(_) => None,
+        None if rows.values_from_query => Some(
+            "in the store's order (no sort asked, and the query compares no one value that orders it)"
+                .to_string(),
+        ),
+        None => Some("in the store's order (no sort asked)".to_string()),
+    }
 }
 
 /// C53 (an answer says the limit it applied): where the limit asked was
@@ -2892,6 +2955,10 @@ mod tests {
         let rows = |limit_asked| acquisition_search::answer::RowsOut {
             sort: None,
             desc: false,
+            sort_from_query: false,
+            values: Vec::new(),
+            values_from_query: false,
+            values_left_out: 0,
             fields: vec![RowField::Item],
             limit: acquisition_store::bound::ITEM_ROWS,
             limit_asked,

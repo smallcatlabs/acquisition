@@ -463,7 +463,7 @@ fn c92_a_sort_scalar_that_is_not_established_says_so_and_sorts_last() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(&r["sort"])))
+            .map(|r| (r["id"].as_str().unwrap().to_string(), scalar(sort_value(r))))
             .collect();
         rows
     };
@@ -532,7 +532,9 @@ fn c93_an_open_occurrence_without_the_slot_leaves_no_value_open() {
     // `undecided( … )` of a value and the sort's status are one judgement
     let sorted = |id: &str, sort: &str| {
         let request = serde_json::from_value(json!({ "query": { "text": format!("id:{id}") }, "view": { "rows": { "sort": sort } } })).unwrap();
-        scalar(&as_json(&answer(&corpus, &request).unwrap())["rows"][0]["sort"])
+        scalar(sort_value(
+            &as_json(&answer(&corpus, &request).unwrap())["rows"][0],
+        ))
     };
     assert_eq!(
         sorted("frozen", frozen),
@@ -713,7 +715,7 @@ fn c93_sorting_by_an_unread_number_says_unread_not_absent() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|r| (r["id"].as_str().unwrap(), scalar(&r["sort"])))
+        .map(|r| (r["id"].as_str().unwrap(), scalar(sort_value(r))))
         .collect();
     assert_eq!(sorts[0], ("has", json!({ "value": 84 })));
     assert!(sorts.contains(&("odd", json!({ "status": "incomplete" }))));

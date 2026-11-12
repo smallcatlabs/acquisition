@@ -713,7 +713,10 @@ pub(crate) fn query_box(
             )
         })
         .collect();
-    let sort = rows.and_then(|r| r.sort.as_deref()).unwrap_or_default();
+    // the box holds the sort asked, never the order the query gave
+    // unasked (#38), so sending the form again asks what was asked
+    let asked = rows.filter(|r| !r.sort_from_query);
+    let sort = asked.and_then(|r| r.sort.as_deref()).unwrap_or_default();
     // the presentation, as the big form's "Results as": cards, the default
     // sent empty, or the table, selected where the answer was one
     let tabled = rows.is_some_and(|r| r.fields == [RowField::Icon]);
@@ -722,7 +725,7 @@ pub(crate) fn query_box(
         if tabled { "" } else { " selected" },
         if tabled { " selected" } else { "" }
     );
-    let desc = if rows.is_some_and(|r| r.desc) {
+    let desc = if asked.is_some_and(|r| r.desc) {
         " checked"
     } else {
         ""
@@ -1147,6 +1150,7 @@ fn row_lines(a: &Answer, row: &acquisition_search::answer::Row) -> Vec<String> {
         .map(|piece| match piece {
             RowPiece::Seen(s) => esc(&s),
             RowPiece::MoreSorted(n) => whole(search_cmd::more_sorted_words(n)),
+            RowPiece::MoreOfValue(n, key) => whole(search_cmd::more_of_value_words(n, &key)),
         })
         .chain(
             more.iter()

@@ -218,10 +218,23 @@
 //!   eighteen times under eighteen `class:` terms (F9).
 //! - **Rows** are the matching items in the store's stable order, or by
 //!   the sort scalar with items that have none last either way; past the
-//!   limit they are counted, and the way on is the answer's `next`. A
-//!   counts view shows none: the matches are handed to `counts.rs`
-//!   instead, with the one maker of a route (`Router`, private), so a
-//!   bucket's route is made as a term's is.
+//!   limit they are counted, and the way on is the answer's `next`. Where
+//!   no sort is named, a query that compares exactly one value with one
+//!   direction is ordered by it, best first by its operator, and the
+//!   answer says so (`sort_from_query`; #38, `values.rs`); `sort: none`
+//!   declines that. A counts view shows none: the matches are handed to
+//!   `counts.rs` instead, with the one maker of a route (`Router`,
+//!   private), so a bucket's route is made as a term's is.
+//! - **A row carries values** (4-full part 1, step 6.1): those the view
+//!   names, or with none named those the query compares (`values.rs`),
+//!   at most [`VALUES`], the sort joining them at their end where they
+//!   lack it; each in the shape a sort's number had, said once, so a
+//!   row's sort is the entry `view.rows.sort` names. A continuation names
+//!   what its request named — a sort, `none`, values — and names the
+//!   order the query gave by the query it carries (C100): the query's
+//!   values and order are a pure function of the canonical query and the
+//!   build, which its basis names (C98), so it fills them again the same
+//!   and every page says them as from the query.
 //! - **A row is compact unless its view names fields** (C100: the
 //!   caller may name fields; 4-full part 1, step 5): `icon`, the URL of
 //!   the item's art, and `item`, the item as `show` gives it — five keys
@@ -293,7 +306,7 @@
 //!   first, so that one that does not bind is the error it is in any
 //!   context, and counted nowhere: no term, no route and no bucket holds
 //!   it. Nothing typed, nothing set aside.
-//! - **A row says what it sorts by** (F6, the first seat: a sort on a line
+//! - **A row says what each value is** (F6, the first seat: a sort on a line
 //!   the query did not name showed the number alone): the field by its
 //!   name, the occurrence whose slot is the largest, a sum's
 //!   contributors, a computed value's inputs — shown as a matched term's
@@ -615,9 +628,15 @@ pub struct Counts {
 pub struct Rows {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
-    /// A value's text: a number field, `line(P).<slot>`, `sum( … )`.
+    /// A value's text: a number field, `line(P).<slot>`, `sum( … )`; or
+    /// `none`, the store's order where the query would give one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
+    /// The values each row carries, by their texts as `sort` takes one,
+    /// in this order: at most [`VALUES`]. None named: the values the
+    /// query compares.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub values: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub desc: bool,
     /// A continuation's place: how many rows of this order the answers
@@ -1063,6 +1082,21 @@ enum BoundView {
     Rows {
         sort: Option<(String, bind::SortKey)>,
         desc: bool,
+        /// `sort: none`: the store's order, where the query would give one.
+        store_order: bool,
+        /// The values each row carries, by text, in order: as named, or
+        /// the query's once [`BoundView::filled`] has run.
+        values: Vec<(String, bind::SortKey)>,
+        /// What the request named, carried by a continuation: the query
+        /// fills what it did not, again, the same (C98, the basis names
+        /// the build).
+        named: ViewNamed,
+        /// The query's values past [`VALUES`].
+        values_left_out: usize,
+        values_from_query: bool,
+        sort_from_query: bool,
+        /// The sort joined the values, at their end, the list lacking it.
+        sort_joined: bool,
         limit: usize,
         /// The limit the request named, where the item rows' bound
         /// lowered it.
@@ -1074,6 +1108,50 @@ enum BoundView {
     Explain(String),
 }
 
+/// What a rows view named of its values and its order.
+#[derive(Clone, Copy)]
+struct ViewNamed {
+    values: bool,
+    sort: bool,
+}
+
+/// The most values a row carries (4-full part 1, step 6.1): a list
+/// named longer is refused, and the query's own past it are counted. Not
+/// the six of a row's evidence (`eval.rs`): a trade search filters on
+/// more stats than six, and each is a column its table shows.
+pub const VALUES: usize = 12;
+
+/// The sort word for the store's order: a query comparing one value is
+/// ordered by it where no sort is named, and `none` declines that.
+pub const STORE_ORDER: &str = "none";
+
+fn is_store_order(text: &str) -> bool {
+    text.trim().eq_ignore_ascii_case(STORE_ORDER)
+}
+
+/// The values a request names, each by its canonical text and once, at
+/// most [`VALUES`].
+fn bound_values(texts: &[String]) -> Result<Vec<(String, bind::SortKey)>, LanguageError> {
+    let mut out: Vec<(String, bind::SortKey)> = Vec::new();
+    for text in texts {
+        let value = parse::parse_value(text)?;
+        let printed = print::print_value(&value);
+        if !out.iter().any(|(seen, _)| *seen == printed) {
+            out.push((printed, bind::bind_sort(&value)?));
+        }
+    }
+    if out.len() > VALUES {
+        return Err(LanguageError::new(
+            crate::error::ErrorKind::View,
+            format!(
+                "`values` names {} values, and a row carries at most {VALUES}",
+                out.len()
+            ),
+        ));
+    }
+    Ok(out)
+}
+
 /// One node of a query, and the query with it forced each way.
 struct Explained {
     node: crate::tree::Pathed,
@@ -1081,6 +1159,49 @@ struct Explained {
 }
 
 impl BoundView {
+    /// A rows view with what the request left to the query filled from
+    /// it (`values.rs`): the values it compares where none were named,
+    /// its one value's order where no sort was, and the sort among the
+    /// values where the list lacks it.
+    fn filled(mut self, root: &Node) -> Result<BoundView, LanguageError> {
+        if let BoundView::Rows {
+            sort,
+            desc,
+            store_order,
+            values,
+            values_left_out,
+            values_from_query,
+            sort_from_query,
+            sort_joined,
+            ..
+        } = &mut self
+        {
+            let compared = crate::values::compared(root);
+            if sort.is_none()
+                && !*store_order
+                && let Some((one, direction)) = crate::values::default_order(&compared)
+            {
+                *sort = Some((one.text.clone(), bind::bind_sort(&one.value)?));
+                *desc = direction == crate::values::Direction::Largest;
+                *sort_from_query = true;
+            }
+            if values.is_empty() {
+                for one in compared.iter().take(VALUES) {
+                    values.push((one.text.clone(), bind::bind_sort(&one.value)?));
+                }
+                *values_left_out = compared.len().saturating_sub(VALUES);
+                *values_from_query = !values.is_empty();
+            }
+            if let Some((text, key)) = sort.as_ref()
+                && !values.iter().any(|(seen, _)| seen == text)
+            {
+                values.push((text.clone(), key.clone()));
+                *sort_joined = true;
+            }
+        }
+        Ok(self)
+    }
+
     /// The view of one query: for explain, the node its path names and
     /// the two transformed queries, each bound as any query is — a path
     /// the query lacks is an authoring error whose readings list the
@@ -1149,6 +1270,7 @@ impl Shape {
                 ("cross", cross.is_some()),
                 ("sum", sum.is_some()),
                 ("sort", rows.sort.is_some()),
+                ("values", !rows.values.is_empty()),
                 ("fields", !rows.fields.is_empty()),
             ];
             if let Some((flag, _)) = beside.iter().find(|(_, typed)| *typed) {
@@ -1179,6 +1301,11 @@ impl Shape {
                 "`sort` orders rows, and a count shows none: a table is ranked by its counts",
             );
         }
+        if !rows.values.is_empty() {
+            return view_error(
+                "`values` names what each row carries, and a count shows none: a table counts items and lists none",
+            );
+        }
         if !rows.fields.is_empty() {
             return view_error(
                 "`fields` names what each row carries, and a count shows none: a table counts items and lists none",
@@ -1200,13 +1327,31 @@ impl Shape {
         Ok(match self {
             Shape::Rows(rows) => BoundView::Rows {
                 sort: match &rows.sort {
-                    Some(text) => {
+                    Some(text) if !is_store_order(text) => {
                         let value = parse::parse_value(text)?;
                         Some((print::print_value(&value), bind::bind_sort(&value)?))
                     }
-                    None => None,
+                    _ => None,
                 },
-                desc: rows.desc,
+                desc: match rows.sort.as_deref().is_some_and(is_store_order) && rows.desc {
+                    true => {
+                        return Err(LanguageError::new(
+                            crate::error::ErrorKind::View,
+                            "`sort` `none` is the store's order, and `desc` puts a value's largest first: name the value to sort by",
+                        ));
+                    }
+                    false => rows.desc,
+                },
+                store_order: rows.sort.as_deref().is_some_and(is_store_order),
+                values: bound_values(&rows.values)?,
+                named: ViewNamed {
+                    values: !rows.values.is_empty(),
+                    sort: rows.sort.is_some(),
+                },
+                values_left_out: 0,
+                values_from_query: false,
+                sort_from_query: false,
+                sort_joined: false,
                 // under `item` at most the item rows' bound, whatever the
                 // limit names: the limit applied is the view's, said in the
                 // answer, and the continuation goes on at it (C53)
@@ -1590,10 +1735,28 @@ pub struct Next {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RowsOut {
+    /// The value the rows are ordered by, one of `values`; or `none`,
+    /// the store's order asked. Absent: the store's order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub desc: bool,
+    /// The sort is the query's one value, best first by its operator, no
+    /// sort having been named (#38).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub sort_from_query: bool,
+    /// The values each row carries, in this order, by text: as named, or
+    /// the ones the query compares; the sort among them. Absent where
+    /// none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub values: Vec<String>,
+    /// The values are the ones the query compares, none having been
+    /// named.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub values_from_query: bool,
+    /// The query's values past the most a row carries ([`VALUES`]).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub values_left_out: usize,
     /// What each row carries past its compact fields, as the view asked
     /// them: the view as it ran, so a reader sees why `limit` is the item
     /// rows' bound where more was asked, and a page reads its
@@ -1641,8 +1804,10 @@ pub struct Row {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub removed_at_age: Option<String>,
     pub matched: Vec<Touched>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<Sorted>,
+    /// The view's values, in the order `view.rows.values` names them,
+    /// the sort's among them. Absent where the view has none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub values: Vec<Valued>,
     /// The item as `show` gives it, where the view asked `item`: five
     /// keys flat after the row's own — `item`, `class`, `category`,
     /// `price`, `lines` — made by `show`'s one maker; absent where it was
@@ -1670,12 +1835,13 @@ fn is_zero(n: &usize) -> bool {
     *n == 0
 }
 
-/// An item's sort scalar, or why it has none (C92), and what it sorts by
-/// (F6, the first seat): the field with its name, the occurrence whose
-/// slot is the largest, a sum's contributors, a computed value's inputs —
-/// as a matched term's `shows` are, bounded the same way.
+/// An item's number for one value, as the sort reads it, or why it has
+/// none (C92), and what it is (F6, the first seat): the field with its
+/// name, the occurrence whose slot is the largest, a sum's contributors,
+/// a computed value's inputs — as a matched term's `shows` are, bounded
+/// the same way.
 #[derive(Debug, Clone, Serialize)]
-pub struct Sorted {
+pub struct Valued {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Json>,
     /// `no satisfying occurrence`, or `incomplete` beside what was readable.
@@ -1685,6 +1851,23 @@ pub struct Sorted {
     pub shows: Vec<Evidence>,
     #[serde(skip_serializing_if = "is_zero")]
     pub left_out: usize,
+}
+
+impl Valued {
+    fn of(key: &bind::SortKey, held: &crate::corpus::Held) -> Valued {
+        let (shows, left_out) = eval::sorted_by(key, held);
+        let (value, status) = match eval::scalar(key, held) {
+            Scalar::Value(n) => (Some(eval::number_json(n.as_f64())), None),
+            Scalar::None => (None, Some("no satisfying occurrence")),
+            Scalar::Incomplete(n) => (n.map(|n| eval::number_json(n.as_f64())), Some("incomplete")),
+        };
+        Valued {
+            value,
+            status,
+            shows,
+            left_out,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1902,7 +2085,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
         set_aside,
         translation,
     } = request.asked()?;
-    let view = request.view.shape.bound()?;
+    let view = request.view.shape.bound()?.filled(&query.root)?;
     let explained = view.of(&query)?;
     let typed = set_aside.as_ref().unwrap_or(&query).text();
     let resolved = Scope {
@@ -2134,17 +2317,26 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
         at: &at,
         router: &router,
     };
-    let (sort, desc, limit, asked, fields) = match &view {
+    let (sort, desc, limit, asked, fields, values) = match &view {
         BoundView::Rows {
             sort,
             desc,
             limit,
             asked,
             fields,
-        } => (sort.as_ref(), *desc, *limit, *asked, fields.as_slice()),
+            values,
+            ..
+        } => (
+            sort.as_ref(),
+            *desc,
+            *limit,
+            *asked,
+            fields.as_slice(),
+            values.as_slice(),
+        ),
         // a count shows no rows (AQ1), and explain none
         BoundView::Counts(_) | BoundView::Cross(_) | BoundView::Explain(_) => {
-            (None, false, 0, None, &[][..])
+            (None, false, 0, None, &[][..], &[][..])
         }
     };
     let icon = fields.contains(&RowField::Icon);
@@ -2153,7 +2345,9 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
         true => Some(crate::corpus::category_tables()?),
         false => None,
     };
-    let scalars: Option<Vec<Scalar>> = sort.map(|(_, key)| {
+    // an answer that lists no row orders none: explain's forced counts
+    // ask with a limit of nothing
+    let scalars: Option<Vec<Scalar>> = sort.filter(|_| limit > 0).map(|(_, key)| {
         matches
             .iter()
             .map(|(at, _)| eval::scalar(key, &corpus.items[*at]))
@@ -2203,22 +2397,10 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
                     })
                     .filter(|t| !t.shows.is_empty())
                     .collect(),
-                sort: scalars.as_ref().zip(sort).map(|(s, (_, key))| {
-                    let (shows, left_out) = eval::sorted_by(key, held);
-                    let (value, status) = match s[m] {
-                        Scalar::Value(n) => (Some(eval::number_json(n.as_f64())), None),
-                        Scalar::None => (None, Some("no satisfying occurrence")),
-                        Scalar::Incomplete(n) => {
-                            (n.map(|n| eval::number_json(n.as_f64())), Some("incomplete"))
-                        }
-                    };
-                    Sorted {
-                        value,
-                        status,
-                        shows,
-                        left_out,
-                    }
-                }),
+                values: values
+                    .iter()
+                    .map(|(_, key)| Valued::of(key, held))
+                    .collect(),
                 shown: categories.map(|tables| crate::show::ShownItem::of(held.clone(), tables)),
             }
         })
@@ -2252,7 +2434,15 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     });
     let left_out = total.matched.saturating_sub(after + rows.len());
     let view = match &view {
-        BoundView::Rows { .. } => ViewOut::Rows(Box::new(RowsOut {
+        BoundView::Rows {
+            store_order,
+            named,
+            values_left_out,
+            values_from_query,
+            sort_from_query,
+            sort_joined,
+            ..
+        } => ViewOut::Rows(Box::new(RowsOut {
             limit,
             limit_asked: asked,
             returned: rows.len(),
@@ -2269,12 +2459,32 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
                         trade: request.query.trade.clone(),
                     },
                     // a continuation goes on as the answer it continues:
-                    // the routes asked of it too
+                    // the routes asked of it too. It names the order it
+                    // continues (C100) by what its request named — a sort,
+                    // `none`, values — and, for what the request left to
+                    // the query, by the query itself: the query's values
+                    // and its one value's order are a pure function of the
+                    // canonical query and the build (`values.rs`), and the
+                    // basis names the build (C98), so an absent sort here
+                    // is the query's order, never a missing one
                     view: View {
                         shape: Shape::Rows(Rows {
                             limit: Some(limit),
-                            sort: sort.map(|(text, _)| text.clone()),
-                            desc,
+                            sort: match (named.sort, *store_order) {
+                                (true, true) => Some(STORE_ORDER.to_string()),
+                                (true, false) => sort.map(|(text, _)| text.clone()),
+                                (false, _) => None,
+                            },
+                            desc: named.sort && desc,
+                            // the values named, without the sort that joined
+                            // them: it joins them again
+                            values: match named.values {
+                                true => values[..values.len() - usize::from(*sort_joined)]
+                                    .iter()
+                                    .map(|(text, _)| text.clone())
+                                    .collect(),
+                                false => Vec::new(),
+                            },
                             after: Some(after + rows.len()),
                             fields: fields.to_vec(),
                         }),
@@ -2285,8 +2495,15 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
                 };
                 Next { request }
             }),
-            sort: sort.map(|(text, _)| text.clone()),
+            sort: match *store_order {
+                true => Some(STORE_ORDER.to_string()),
+                false => sort.map(|(text, _)| text.clone()),
+            },
             desc,
+            sort_from_query: *sort_from_query,
+            values: values.iter().map(|(text, _)| text.clone()).collect(),
+            values_from_query: *values_from_query,
+            values_left_out: *values_left_out,
             fields: fields.to_vec(),
         })),
         BoundView::Counts(bound) => ViewOut::Counts(counts::tables(bound, &counted)),

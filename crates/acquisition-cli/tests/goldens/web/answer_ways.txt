@@ -317,7 +317,7 @@ GET search?<a site search with an ambiguous clause>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 30<br>30% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 30<br>30% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-" href="item/plain">Iron Ring</a></p>
@@ -329,9 +329,9 @@ GET search?<a site search with an ambiguous clause>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
 </div>
-<p class="shows">sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 25<br>25% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
+<p class="shows">sorts by sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1) 25<br>25% increased Rarity of Items found (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
 </div>
-<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–2 of 2 shown, by sum(line(&quot;#% increased Rarity of Items found&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

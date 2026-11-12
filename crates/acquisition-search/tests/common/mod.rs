@@ -219,6 +219,16 @@ pub fn scalar(sort: &Value) -> Value {
     scalar
 }
 
+/// A row's one value, where the view orders by it and the query compares
+/// none other (4-full part 1, step 6.1: a row's values replaced its
+/// `sort`); a row carrying more than one is a test that must name which.
+pub fn sort_value(row: &Value) -> &Value {
+    match row["values"].as_array().map(Vec::as_slice) {
+        Some([one]) => one,
+        other => panic!("a row carrying one value, not {other:?}: {row}"),
+    }
+}
+
 /// The ids of an answer's rows, sorted.
 pub fn ids(answer: &Value) -> Vec<String> {
     let mut ids: Vec<String> = answer["rows"]

@@ -195,7 +195,7 @@ Item search over the store (no daemon): a query in the language `describe` print
 - `request` (object) — In place of the fields above: a request as an answer holds one — a count's, `view.rows.next`, an offer — sent whole, as printed.
 - `saved` (string) — A saved search's id or name (saved_searches lists them), run whole: its query and its scope's realm and membership. Beside it only `scope.account`, `view` and `context`.
 - `scope` (object) — What is searched: {"account": needed only where several could be meant, "realm": pc, xbox, sony, poe2 or all, needed only where the store holds several, "membership": "live" (the default), "all", the removed items too, each marked with when it left, or "removed"}.
-- `view` (object) — {"rows": {"limit": N, "sort": a value, "desc": true}}, the default (ten rows); {"counts": {"keys": [a key, …], "sum": a value}}; {"cross": {"keys": [two keys]}}; or {"explain": {"path": a node's path}}; "routes": true beside any. `describe` with names ["answer"] says what each gives.
+- `view` (object) — {"rows": {"limit": N, "sort": a value or "none", "desc": true, "values": [a value, …]}}, the default; {"counts": {"keys": [a key, …], "sum": a value}}; {"cross": {"keys": [two keys]}}; or {"explain": {"path": a node's path}}; "routes": true beside any. `describe` ["answer"] says what each gives.
 
 ### `set_sync_policy`
 
