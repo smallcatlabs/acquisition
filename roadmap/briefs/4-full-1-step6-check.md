@@ -15,7 +15,7 @@ Closes #267.
   never skips), ruled on #266 and #267.
 - `audits/web-2026-11/driver/README.md`: what was measured.
   `audits/web-2026-11/driver/candidate-b.patch`: the candidate that
-  passed 20 of 20 on Chrome and on Brave. It adds `tests/browser.rs`
+  record proposes. It adds `tests/browser.rs`
   (the client `Cdp`, `launch`, and the test
   `the_count_beside_the_button_follows_the_query_typed`), the
   harness's `browser_exe`, `Browser` and `start_browser`, `mod
@@ -48,17 +48,25 @@ Closes #267.
    (x86)`; read the paths from the hosted image's published list and
    a Windows machine's own, not from memory. With none found the
    test fails, naming the variable and the paths it tried.
-4. **The browser is the test's own.** Headless, on a profile
-   directory under the test's scratch, started through the harness's
-   isolation as every child is, and killed when the test ends
-   however it ends. Nothing reaches the owner's profile or opens a
-   window.
+4. **The browser is the test's own, from the moment it is spawned.**
+   Headless, on a profile directory under the test's scratch,
+   started through the harness's isolation as every child is.
+   Nothing reaches the owner's profile or opens a window. The guard
+   that kills it owns the child as soon as it is spawned, not once
+   it is ready (the patch takes it after). A browser that exits
+   before it is ready fails the test at once, naming how it exited.
+   When the runner ends a test at its ceiling, no destructor runs:
+   the browser must die with the test's process group or job, as
+   the runner ends it. Find out whether it does on each platform
+   the gate runs on, and where it does not, make the harness own it.
 5. **Two rules, two tests.** The count's, as the patch has it. The
    picker's, new: a pick fills the first empty stat row and leaves a
-   written row as it was, and the count follows the pick. Each types
+   written row as it was, and the count follows the pick. It waits
+   for the form's total first, picks a stat whose form the server
+   answers with a different total, which the test asserts, and sees
+   the new total with no other input after the pick. Each test types
    and clicks as a user's keys and pointer would, and compares what
-   the page shows with what the server answers the test for the same
-   form.
+   the page shows with what the server answers it for the same form.
 6. **The checklist row retires** (C154): the commit that adds the
    tests removes the row and carries `retired <the row>; held by
    <the two tests>`. If a clause of the row is held by neither test,
@@ -82,7 +90,7 @@ Closes #267.
   it still applies.
 - `git grep -n "fn isolate_at\|fn offline_web\|pub const SCRIPTS" -- crates/acquisition-cli/tests crates/acquisition-client/tests`:
   the isolation a child takes, the seeded pages, the scripts served.
-- `git grep -n "data-count\|class=\"stat\|picker" -- crates/acquisition-cli/src/web/page.rs`:
+- `git grep -n -E 'data-count|stat-id|stat-find|stat-list|stat-said' -- crates/acquisition-cli/src/web/page.rs`:
   the controls the two tests drive.
 - `git grep -n "browser-driven" -- REVIEW-CHECKLIST.md decisions`:
   the row that retires and the lines that name the check.
@@ -96,6 +104,11 @@ Closes #267.
   Decision 5 as modules of the crate's one test binary, and no
   `Cargo.toml` or `Cargo.lock` changes.
 - Neither test names a duration it waits against.
+- The picker's test fails with `picker.js`'s `input` dispatch
+  removed, and after the ceiling ends a test no browser of its
+  profile is left running (both proven by hand; the commit message
+  says how each was seen). A browser that exits before it is ready
+  is a test of the harness, which needs no browser.
 - The locator fails, never skips, with the words of Decision 3 (a
   test of the locator's refusal, which needs no browser).
 - The checklist row is gone or cut to what no test holds, and the
