@@ -1,9 +1,9 @@
 diff --git a/crates/acquisition-cli/src/web/assets/measure.js b/crates/acquisition-cli/src/web/assets/measure.js
 new file mode 100644
-index 00000000..1c3df1fd
+index 00000000..0a83d876
 --- /dev/null
 +++ b/crates/acquisition-cli/src/web/assets/measure.js
-@@ -0,0 +1,310 @@
+@@ -0,0 +1,343 @@
 +// The rig's measure (step 6.3's spike), loaded only with `measure` in
 +// the page's URL and never part of the window: it drives the page's
 +// scroll in each animation frame, looks at what that frame shows, and
@@ -36,9 +36,10 @@ index 00000000..1c3df1fd
 +  const docTop = (s) => s.el.getBoundingClientRect().top + window.scrollY;
 +
 +  // what this frame shows: each segment's slots in the viewport, filled
-+  // by the row of that index at its place, or missing. Every row that
-+  // is in the viewport is judged by where it is, whatever index it
-+  // declares: one away from its index's place is off.
++  // by the row of that index at its place, or missing. Every row drawn
++  // in the viewport is judged by where it is drawn (its rendered box,
++  // whatever its layout or its declared index say, in any segment): one
++  // away from its index's place is off.
 +  const seen = new Map();
 +  let changed = 0;
 +  let lookMs = 0;
@@ -49,14 +50,13 @@ index 00000000..1c3df1fd
 +    const height = vh();
 +    segs.forEach((s, n) => {
 +      const top = s.el.getBoundingClientRect().top;
-+      if (top >= height || top + s.count * h <= 0) return;
 +      const lo = Math.max(0, Math.floor(-top / h));
 +      const hi = Math.min(s.count, Math.ceil((height - top) / h));
 +      const filled = new Set();
 +      for (const row of s.el.querySelectorAll('.r')) {
-+        // where the row is in its segment: its block's place and its own
-+        const at = row.offsetTop + row.offsetParent.offsetTop;
-+        if (at + h <= -top || at >= height - top) continue;
++        const box = row.getBoundingClientRect();
++        if (box.bottom <= 0 || box.top >= height) continue;
++        const at = box.top - top;
 +        const i = Number(row.dataset.i) - s.base;
 +        if (Math.abs(at - i * h) > 0.5) {
 +          off++;
@@ -69,7 +69,7 @@ index 00000000..1c3df1fd
 +        if (was === undefined) seen.set(key, row.dataset.id);
 +        else if (was !== row.dataset.id) changed++;
 +      }
-+      missing += hi - lo - filled.size;
++      missing += Math.max(0, hi - lo) - filled.size;
 +    });
 +    lookMs += performance.now() - began;
 +    return { missing, off };
@@ -194,7 +194,7 @@ index 00000000..1c3df1fd
 +        if (k === n) chunks.add(Math.floor(i / CHUNK));
 +      }
 +      for (const c of chunks) {
-+        const res = await fetch(s.route + '&offset=' + (s.base + c * CHUNK) + '&count=' + CHUNK, {
++        const res = await pass(s.route + '&offset=' + (s.base + c * CHUNK) + '&count=' + CHUNK, {
 +          headers: { Accept: 'application/json' },
 +        });
 +        const doc = await res.json();
@@ -214,43 +214,77 @@ index 00000000..1c3df1fd
 +    return s.length ? s[Math.floor(s.length / 2)] : null;
 +  };
 +
-+  // each window asked during the run, kept whole: its route, offset and
-+  // count, when it was asked, its time to the response's end, and each
-+  // step of the server's part (the routes' Server-Timing); then their
-+  // spread
++  // every window the page asks from the measure's start, recorded as it
++  // is asked: the measure wraps the page's fetch, which the window
++  // script calls by name, and passes each call through unchanged. Each
++  // keeps its route, offset and count, when it was asked, its state
++  // (pending, done, aborted or failed), its time to its body's end and
++  // each step of the server's part (the routes' Server-Timing).
++  const asked = [];
++  const pass = window.fetch.bind(window);
++  window.fetch = (input, init) => {
++    const url = new URL(String(input), location.href);
++    const route = url.pathname.split('/').pop();
++    if (route !== 'window' && route !== 'heads') return pass(input, init);
++    const entry = {
++      route: route,
++      offset: Number(url.searchParams.get('offset')),
++      count: Number(url.searchParams.get('count')),
++      at: Math.round(performance.now()),
++      state: 'pending',
++    };
++    asked.push(entry);
++    const ended = (e) => (e && e.name === 'AbortError' ? 'aborted' : 'failed');
++    return pass(input, init).then(
++      (res) => {
++        entry.status = res.status;
++        entry.server = Object.fromEntries(
++          (res.headers.get('server-timing') || '')
++            .split(',')
++            .filter((t) => t.includes('dur='))
++            .map((t) => [t.split(';')[0].trim(), Number(t.split('dur=')[1])]),
++        );
++        res
++          .clone()
++          .text()
++          .then(
++            () => {
++              entry.ms = Math.round((performance.now() - entry.at) * 10) / 10;
++              entry.state = 'done';
++            },
++            (e) => {
++              entry.state = ended(e);
++            },
++          );
++        return res;
++      },
++      (e) => {
++        entry.state = ended(e);
++        throw e;
++      },
++    );
++  };
 +  const windows = () => {
-+    const asked = performance
-+      .getEntriesByType('resource')
-+      .filter((e) => /\/(window|heads)\?/.test(e.name));
-+    const pick = (xs) => {
++    const done = asked.filter((e) => e.state === 'done');
++    const spread = (xs) => {
 +      const s = [...xs].sort((a, b) => a - b);
 +      const at = (q) => (s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null);
 +      return { median: at(0.5), p95: at(0.95), max: at(1) };
 +    };
-+    const each = asked.map((e) => {
-+      const q = new URL(e.name).searchParams;
-+      return {
-+        route: /\/heads\?/.test(e.name) ? 'heads' : 'window',
-+        offset: Number(q.get('offset')),
-+        count: Number(q.get('count')),
-+        at: Math.round(e.startTime),
-+        ms: Math.round((e.responseEnd - e.startTime) * 10) / 10,
-+        server: Object.fromEntries(e.serverTiming.map((t) => [t.name, t.duration])),
-+      };
-+    });
++    const states = {};
++    for (const e of asked) states[e.state] = (states[e.state] || 0) + 1;
 +    return {
-+      each: each,
++      each: asked.map((e) => ({ ...e })),
 +      asked: asked.length,
-+      fetchMs: pick(asked.map((e) => e.responseEnd - e.startTime)),
-+      serverMs: pick(asked.map((e) => e.serverTiming.reduce((sum, t) => sum + t.duration, 0))),
-+      answerMs: pick(
-+        asked.map((e) => e.serverTiming.filter((t) => t.name === 'answer' || t.name === 'listing').reduce((sum, t) => sum + t.duration, 0)),
-+      ),
++      states: states,
++      ms: spread(done.map((e) => e.ms)),
++      serverMs: spread(done.map((e) => Object.values(e.server).reduce((sum, d) => sum + d, 0))),
++      answerMs: spread(done.map((e) => (e.server.answer || 0) + (e.server.listing || 0))),
 +    };
 +  };
 +
 +  const finish = async () => {
-+    const asked = windows();
++    const record = windows();
 +    const interval = median(still);
 +    const late = interval * 1.5;
 +    const steady = frames.filter((f) => f.phase === 'steady' && f.dt !== null);
@@ -290,7 +324,7 @@ index 00000000..1c3df1fd
 +      jumps: jumped,
 +      jumpFrames: { frames: inJumps.length, late: inJumps.filter((f) => f.dt > late).length, longest: longestJumpFrame },
 +      dom: { elements: maxDom, rows: maxRows },
-+      windows: asked,
++      windows: record,
 +      off: { frames: offFrames, changed: changed, checked: checked.checked, wrong: checked.wrong },
 +      lookMsPerFrame: frames.length ? lookMs / frames.length : 0,
 +      bar: bar,
@@ -309,7 +343,6 @@ index 00000000..1c3df1fd
 +    window.scrollTo(0, 0);
 +  };
 +
-+  performance.setResourceTimingBufferSize(100000);
 +  window.addEventListener('load', () => {
 +    setTimeout(() => requestAnimationFrame(step), SETTLE);
 +  });
@@ -923,10 +956,10 @@ index 00000000..60951479
 +}
 diff --git a/rig-run.py b/rig-run.py
 new file mode 100644
-index 00000000..d4323db8
+index 00000000..0ef678c7
 --- /dev/null
 +++ b/rig-run.py
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,207 @@
 +"""The window rig's headless runs (step 6.3's spike, never committed as
 +code; its record is `audits/web-2026-11/spike/README.md`).
 +
@@ -937,8 +970,11 @@ index 00000000..d4323db8
 +case's page with `measure` in its URL, waits for the measure's result
 +(`window.rigResult`) and appends it, one JSON line per run. Talks to
 +Chrome over its debugging protocol with the standard library alone.
-+Every socket operation has a deadline (`ANSWER`): a browser that stops
-+answering is a run recorded as failed, and the runner stops there.
++Every call has an absolute deadline, `ANSWER` seconds or the run's end
++(`RUN` seconds from its navigation), whichever comes first, and each
++read waits only what is left of it: a browser that stops answering, or
++answers a byte at a time, is a run recorded as failed, and the runner
++stops there.
 +"""
 +
 +import base64
@@ -965,6 +1001,13 @@ index 00000000..d4323db8
 +class Socket:
 +    """One websocket to a debugging target: text frames, masked out."""
 +
++    def _until(self, deadline):
++        """Let the socket's next operation wait only what is left."""
++        left = deadline - time.monotonic()
++        if left <= 0:
++            raise TimeoutError("the debugging call's deadline passed")
++        self.s.settimeout(left)
++
 +    def __init__(self, url):
 +        rest = url.split("://", 1)[1]
 +        hostport, path = rest.split("/", 1)
@@ -978,23 +1021,26 @@ index 00000000..d4323db8
 +                "Sec-WebSocket-Version: 13\r\n\r\n"
 +            ).encode()
 +        )
++        deadline = time.monotonic() + ANSWER
 +        head = b""
 +        while b"\r\n\r\n" not in head:
++            self._until(deadline)
 +            head += self.s.recv(1)
 +        if b" 101 " not in head.split(b"\r\n")[0]:
 +            raise RuntimeError(head.decode(errors="replace"))
 +        self.next = 0
 +
-+    def _exact(self, n):
++    def _exact(self, n, deadline):
 +        out = b""
 +        while len(out) < n:
++            self._until(deadline)
 +            chunk = self.s.recv(n - len(out))
 +            if not chunk:
 +                raise RuntimeError("the target closed its socket")
 +            out += chunk
 +        return out
 +
-+    def send(self, obj):
++    def send(self, obj, deadline):
 +        data = json.dumps(obj).encode()
 +        mask = os.urandom(4)
 +        n = len(data)
@@ -1005,30 +1051,36 @@ index 00000000..d4323db8
 +        else:
 +            head = struct.pack("!BBQ", 0x81, 0x80 | 127, n)
 +        body = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
++        self._until(deadline)
 +        self.s.sendall(head + mask + body)
 +
-+    def receive(self):
++    def receive(self, deadline):
 +        message = b""
 +        while True:
-+            b0, b1 = self._exact(2)
++            b0, b1 = self._exact(2, deadline)
 +            n = b1 & 0x7F
 +            if n == 126:
-+                (n,) = struct.unpack("!H", self._exact(2))
++                (n,) = struct.unpack("!H", self._exact(2, deadline))
 +            elif n == 127:
-+                (n,) = struct.unpack("!Q", self._exact(8))
-+            payload = self._exact(n)
++                (n,) = struct.unpack("!Q", self._exact(8, deadline))
++            payload = self._exact(n, deadline)
 +            if b0 & 0x0F in (0x9, 0xA):
 +                continue
 +            message += payload
 +            if b0 & 0x80:
 +                return json.loads(message)
 +
-+    def call(self, method, **params):
++    def call(self, method, until=None, **params):
++        """One call, answered by its deadline: `ANSWER` seconds from now,
++        or `until` where that comes first."""
++        deadline = time.monotonic() + ANSWER
++        if until is not None:
++            deadline = min(deadline, until)
 +        self.next += 1
 +        mine = self.next
-+        self.send({"id": mine, "method": method, "params": params})
++        self.send({"id": mine, "method": method, "params": params}, deadline)
 +        while True:
-+            reply = self.receive()
++            reply = self.receive(deadline)
 +            if reply.get("id") == mine:
 +                if "error" in reply:
 +                    raise RuntimeError(reply["error"])
@@ -1072,12 +1124,13 @@ index 00000000..d4323db8
 +                    result = None
 +                    failed = None
 +                    try:
-+                        ws.call("Page.navigate", url=url + path + "&measure=1")
-+                        began = time.monotonic()
-+                        while time.monotonic() - began < RUN:
++                        ends = time.monotonic() + RUN
++                        ws.call("Page.navigate", until=ends, url=url + path + "&measure=1")
++                        while time.monotonic() < ends - 1:
 +                            time.sleep(1)
 +                            got = ws.call(
 +                                "Runtime.evaluate",
++                                until=ends,
 +                                expression="window.rigResult ? JSON.stringify(window.rigResult) : ''",
 +                                returnByValue=True,
 +                            )

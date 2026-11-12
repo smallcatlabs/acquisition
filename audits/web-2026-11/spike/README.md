@@ -115,21 +115,29 @@ shows:
 
 What a frame shows: each segment's slots in the viewport. A slot is
 whole when the row of its index is there, at its index × 24 px. Every
-row in the viewport is judged by where it is, whatever index it
-declares: one more than half a pixel from its index's place is off. A
-slot seen holding two items during the run has changed. Each window
-the page asked is kept in the result: its route, offset and count,
-when it was asked, its time to the response's end and each step of the
+row drawn in the viewport, in any segment, is judged by where it is
+drawn (its rendered box), whatever its layout or its declared index
+say: one more than half a pixel from its index's place is off. A slot
+seen holding two items during the run has changed. Each window the
+page asks from the measure's start is recorded as it is asked (the
+measure wraps the page's `fetch`, which the window script calls by
+name, and passes each call through unchanged): its route, offset and
+count, when it was asked, its state at the run's end (pending, done,
+aborted or failed), its time to its body's end, and each step of the
 server's part (the store's opening, the held corpus's check, the
-answer or the listing, the rendering); each jump keeps when it began,
-so a miss shows which windows were its and whose time they took.
+answer or the listing, the rendering). Each jump keeps when it began,
+so a miss shows which windows were its and whose time they took. The
+measure observes the page as drawn and the requests as asked, never
+what the page declares or what a browser summary keeps.
 
 The headless runs: `rig-run.py`, three runs of the four cases in turn,
 in Chrome headless on a profile directory under the builder's scratch,
 against `acq web` built `--release` from the patch, nothing else
-running on the machine. Each call to the browser waits 30 seconds at
-most and each run 180: a browser that stops answering is a run
-recorded as failed, never a wait without end. The owner's: the same pages in Brave, each
+running on the machine. Each call to the browser has an absolute
+deadline, 30 seconds or the run's end (180 seconds from its
+navigation), whichever is first, and each read waits only what is left
+of it: a browser that stops answering, or answers a byte at a time, is
+a run recorded as failed, never a wait without end. The owner's: the same pages in Brave, each
 case's link with `measure=1` running itself, and without it for his
 own wheel.
 
