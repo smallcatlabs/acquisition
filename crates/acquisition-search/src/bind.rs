@@ -1594,9 +1594,35 @@ fn negation(before: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{exact_pattern, folded, text_test};
-    use crate::tree::{Op, Value};
+    use super::{exact_pattern, fields, folded, text_test};
+    use crate::tree::{Node, Op, Value, ValueRef};
     use proptest::prelude::*;
+
+    /// Every field and computed value is named in the spelling the parser
+    /// gives a name, so one typed in any case binds to it and has its one
+    /// text (#273): a field the parser reads back as itself, and a computed
+    /// value too.
+    #[test]
+    fn every_name_the_language_knows_is_the_parsers_spelling_of_it() {
+        for f in fields() {
+            let typed = format!("{}>=1", f.name.to_ascii_uppercase());
+            assert!(
+                matches!(crate::parse::parse(&typed), Ok(Node::Test { ref field, .. }) if field == f.name),
+                "{}",
+                f.name
+            );
+        }
+        for name in crate::pseudo::names() {
+            let typed = format!("pseudo.{}>=1", name.to_ascii_uppercase());
+            assert!(
+                matches!(
+                    crate::parse::parse(&typed),
+                    Ok(Node::Compare { value: ValueRef::Pseudo { name: ref n, .. }, .. }) if n == name
+                ),
+                "{name}"
+            );
+        }
+    }
 
     /// Characters by the family a case-blind reader might put them in —
     /// the Kelvin sign with `k`, the long s with `s`, the final sigma, the

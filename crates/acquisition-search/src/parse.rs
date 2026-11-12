@@ -706,7 +706,7 @@ impl<'a> Parser<'a> {
         }
         let value = self.value(op)?;
         Ok(Node::Test {
-            field: name.to_string(),
+            field: spelled(name),
             op,
             value,
         })
@@ -1172,7 +1172,7 @@ impl<'a> Parser<'a> {
         if tree::is_computed(name) {
             return pseudo(name).map_err(|e| e.at(start, self.pos));
         }
-        Ok(ValueRef::Field(name.to_string()))
+        Ok(ValueRef::Field(spelled(name)))
     }
 
     /// `… .slot` after a quoted template or a line's group. With no slot
@@ -1465,9 +1465,19 @@ fn pseudo(dotted: &str) -> Result<ValueRef, LanguageError> {
         return Err(bad());
     }
     Ok(ValueRef::Pseudo {
-        name: name.to_string(),
+        name: spelled(name),
         slot: slot.map(str::to_string),
     })
+}
+
+/// A field's or a computed value's name as the language spells it: in
+/// lowercase, the one spelling every table gives a name (the property and
+/// totals tables refuse another), where binding reads a name in any case
+/// (B1). Made here, never at the printer, so a value has one text in a
+/// query's print, its values and each comparison of them, and parsing
+/// that text gives the tree back (#273).
+fn spelled(name: &str) -> String {
+    name.to_ascii_lowercase()
 }
 
 /// Terms and their connectives into one node; a mix is the error, carried

@@ -1534,6 +1534,17 @@ fn the_values_a_query_compares_and_the_one_that_orders_it() {
             vec!["ilvl"],
             Some(("ilvl", true)),
         ),
+        // a name in any case is one value, in the language's spelling (#273)
+        (
+            "SOCKETS.Red>=1 or sockets.red>=2".into(),
+            vec!["sockets.red"],
+            Some(("sockets.red", true)),
+        ),
+        (
+            "PSEUDO.Total_Res>=80".into(),
+            vec!["pseudo.total_res"],
+            Some(("pseudo.total_res", true)),
+        ),
         // under a not, the column and no direction; two nots cancel
         ("-ilvl>=80".into(), vec!["ilvl"], None),
         ("-(-ilvl>=80)".into(), vec!["ilvl"], Some(("ilvl", true))),

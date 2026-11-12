@@ -415,7 +415,7 @@ impl std::fmt::Display for TotalsTableError {
             TotalsTableError::NoTotal => write!(f, "the totals table has no total"),
             TotalsTableError::BadName(name) => write!(
                 f,
-                "the totals table names a total {name:?}, which is no name the language takes: one word of letters, digits and underscores"
+                "the totals table names a total {name:?}, which is no name the language takes: one word of lowercase letters, digits and underscores"
             ),
             TotalsTableError::DuplicateTotal(name) => {
                 write!(f, "the totals table names the total {name:?} twice")
@@ -538,7 +538,7 @@ impl TotalsTable {
         let mut totals: Vec<Total> = Vec::with_capacity(file.totals.len());
         let mut by_name: HashMap<String, usize> = HashMap::new();
         for total in file.totals {
-            if !tree::is_segment(&total.name) {
+            if !is_name(&total.name) {
                 return Err(TotalsTableError::BadName(total.name));
             }
             if by_name.contains_key(&total.name) {
@@ -656,7 +656,7 @@ impl TotalsTable {
                 reading: reading.name.clone(),
                 problem,
             };
-            if !tree::is_segment(&reading.name) {
+            if !is_name(&reading.name) {
                 return Err(TotalsTableError::BadName(reading.name));
             }
             if by_name.contains_key(&reading.name)
@@ -888,6 +888,12 @@ impl Total {
 
 /// `-category=<id>`, as the language writes it: what a row that reads
 /// the item's category asks, printed by the printer.
+/// A name the language takes, spelled as it spells one: a segment, in
+/// lowercase, since the parser reads every name in lowercase (#273).
+fn is_name(name: &str) -> bool {
+    tree::is_segment(name) && !name.bytes().any(|b| b.is_ascii_uppercase())
+}
+
 fn not_category(id: &str) -> String {
     print::print(&Node::Not(Box::new(Node::Test {
         field: category::FIELD.to_string(),
@@ -1062,6 +1068,10 @@ mod tests {
             (
                 text(ONE).replace("total_res", "total-res"),
                 TotalsTableError::BadName("total-res".to_string()),
+            ),
+            (
+                text(ONE).replace("total_res", "Total_res"),
+                TotalsTableError::BadName("Total_res".to_string()),
             ),
             (
                 text(&format!("{ONE}{ONE}")),
@@ -1262,6 +1272,10 @@ mod tests {
             (
                 READ.replace("\"both\"", "\"bo-th\""),
                 TotalsTableError::BadName("bo-th".to_string()),
+            ),
+            (
+                READ.replace("\"both\"", "\"Both\""),
+                TotalsTableError::BadName("Both".to_string()),
             ),
         ] {
             assert_eq!(
