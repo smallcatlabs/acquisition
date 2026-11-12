@@ -29,7 +29,8 @@ better Acquisition that is agent-friendly and agent-forward.
   scrolling page, its rows asked a block at a time by the `rows`
   route, its window script held by the same check. Next is the
   table's next part: heads that sort, a value added from a card's
-  number, and the sort box's removal; it waits on its brief. Then the
+  number, and the sort box's removal
+  (`briefs/4-full-1-step6-sort.md`). Then the
   places and the grouped table, step 6.5, where tabs nest under their
   parent (#269); opening something keeps the reader's place in both
   (#270).
@@ -43,7 +44,8 @@ when its step closes or the owner strikes it.
 1. 4-full part 1, step 6: the dense table, its view ruled
    (`briefs/4-full-1-step6-design.md`) and built in series: the flat
    table's next part (heads that sort, a value added from a card's
-   number, the sort box's removal), once its brief is written; then the
+   number, the sort box's removal; `briefs/4-full-1-step6-sort.md`);
+   then the
    places and the grouped table (6.5): #244 with the place pages
    (#248, #194, #189, #182), #191, and #186 and #190 riding, with
    #269 and #270. The search form's reshaping (#184, #181, #180, #185,
