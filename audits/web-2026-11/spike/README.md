@@ -10,9 +10,11 @@ work").
 
 ## Verdict
 
-None yet. This commit is the rig and the bar its runs will be judged
-by, written before any judged run. The headless runs are the next
-commit, and the owner's sitting in Brave decides.
+Not yet. Headless, the first rig holds the flat table and misses the
+grouped one: F and F1k pass every run; G0 and G1 miss the jump line,
+because each window of tab heads reads the whole listing of 3,347 tabs.
+A turn of the loop follows, and then the owner's sitting in Brave
+decides.
 
 ## The rig
 
@@ -192,3 +194,48 @@ C++ build was loading, so their times are not measurements:
   for each window (41 ms), since the store's read and the search's
   interface stay as they are in this step. G0's jumps were the slowest
   of the four cases for it.
+
+## The headless runs: rig-1
+
+Judged by the bar above, as named before them: **F and F1k hold, G0
+and G1 miss.** Three runs of each case, 2026-11-11, in turn, with
+`rig-1.patch` as committed at `d7d109c3` (its runner then found the
+browser's page with no deadline; the page, the script and the measure
+were the ones in the patch now). The results, whole, one line a run:
+`headless-1.jsonl`.
+
+The machine, by `uptime` and `ps` before and after: load 2.33 and
+1.98 on 10 cores, no compiler running; Spotlight's indexer
+(`spotlightknowledged`) used one core throughout, and a cold review
+ran alongside. Chrome 157 headless, 1440 × 813 CSS pixels at a pixel
+ratio of 2, 60 Hz. The server: `acq web` built `--release` from the
+patch, the copy's diff equal to the patch (`cmp`). The measurement
+copy's SHA-256 was the brief's before the backup and after the runs.
+
+| Case | Runs passed | Jumps, median / 9th of 10 / slowest | Late frames, steady | Steady frames with a row missing | Most elements / rows live | Rows checked a run | Void |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| F, 22,623 rows | 3 of 3 | 67 / 83 / 83 ms | 0 of 1,803 | 0 | 780 / 150 | 965 | 0 |
+| F1k, 1,133 rows | 3 of 3 | 67 / 67 / 83 ms | 0 of 1,803 | 0 | 931 / 150 | 824 | 0 |
+| G0, 3,347 heads | 0 of 3 | 116 / 117 / 117 ms | 0 of 1,803 | 0 | 1,030 / 200 | 930 | 0 |
+| G1, 348 + 499 + 2,999 | 1 of 3 | 100 / 100 / 100.1 ms | 0 of 1,803 | 0 | 1,033 / 200 | 755 | 0 |
+
+Every miss is on one line, 9 of 10 jumps whole within 100 ms. G0 missed
+it in every run, with jumps of 83 to 117 ms. G1 missed it in two runs
+of three by 0.1 ms: those jumps were whole at the sixth frame after
+the jump, 100.1 ms at 60 Hz, against a line drawn at 100 ms, so a jump
+whole at its sixth frame passes or fails on the frame clock's jitter.
+It is a miss as the bar names it, and the bar stands as written. No
+frame in any jump was longer than 16.8 ms, and every jump was whole
+within 117 ms, under the 250 ms line.
+
+Why, from the windows each missed jump asked (`windows.each` against
+the jump's `at`): every one waited on a window of tab heads. A heads
+window took 74 ms from its ask to its body's end (median), 44 of them
+the listing read: the heads route reads the whole listing of 3,347
+tabs for each window, since the store's read stays as it is in this
+step. A window of rows took 4 to 9 ms to answer. G0's misses each
+waited on two heads windows; G1's on one, beside a rows window where
+the jump met the open tab's edge. Each window's server time also
+carried the held corpus's check, 22 ms median under a jump's
+concurrency (about 9 alone): up to four windows queue on the held
+corpus's lock, each checking currency in turn.
