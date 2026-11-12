@@ -1173,10 +1173,10 @@ index 00000000..81baba0b
 +    sys.exit(1 if failures else 0)
 diff --git a/rig-run.py b/rig-run.py
 new file mode 100644
-index 00000000..8ff181a4
+index 00000000..acdfdab0
 --- /dev/null
 +++ b/rig-run.py
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,254 @@
 +"""The window rig's headless runs (step 6.3's spike, never committed as
 +code; its record is `audits/web-2026-11/spike/README.md`).
 +
@@ -1348,6 +1348,11 @@ index 00000000..8ff181a4
 +def main():
 +    url, profile, runs, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 +    wanted = sys.argv[5].split(",") if len(sys.argv) > 5 else list(CASES)
++    # a port file left by an earlier browser on this profile names a port
++    # nobody listens on now
++    stale = os.path.join(profile, "DevToolsActivePort")
++    if os.path.exists(stale):
++        os.remove(stale)
 +    chrome = subprocess.Popen(
 +        [
 +            CHROME,
