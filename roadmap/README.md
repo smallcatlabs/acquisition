@@ -17,12 +17,13 @@ better Acquisition that is agent-friendly and agent-forward.
   file's §5, in series. Values on rows (#38) and the count (#245) are
   closed (`briefs/4-full-1-step6-values.md`,
   `briefs/4-full-1-step6-count.md`); next the spike (the design's §5
-  item 3), briefed in two. The check's driver
-  (`briefs/4-full-1-step6-driver.md`) is asked of a page `main`
-  serves and waits on nothing. The window script
-  (`briefs/4-full-1-step6-spike.md`) is built as a rig, watched and
-  changed, at his word after its brief stopped at a third review
-  (#264); its verdict is his sitting in Brave. Then the flat table,
+  item 3), briefed in two. The check's driver is measured
+  (`audits/web-2026-11/driver/README.md`): a hand-written one works,
+  and the driver and the check's home wait on the owner (#266, #267).
+  The window script is built as a rig (`briefs/4-full-1-step6-spike.md`,
+  at his word on #264) and holds headless in all four cases at its
+  second rig (`audits/web-2026-11/spike/README.md`); its verdict is
+  his sitting in Brave, which closes the step. Then the flat table,
   and the places and the grouped table.
 
 ## Next
