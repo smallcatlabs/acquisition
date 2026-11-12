@@ -346,7 +346,11 @@ fn trade(message: impl Into<String>) -> LanguageError {
 /// stat table's order. A stat of several texts is none: the translation
 /// lands no line for it (`stat.text.two`). What `show` asks the
 /// translation of, so a line on an item and a filter on its stat name one
-/// value. Made once in a process.
+/// value. Made once in a process from the texts, a fast finder: building
+/// it from every stat's translated group took some 9 s in a release
+/// build, so instead `show.rs`'s
+/// `a_lines_value_is_the_translations_for_every_stat_it_displays_as`
+/// holds it to the translation's own trees over the whole table.
 pub(crate) fn displayed_as(category: &str, template: &str) -> Vec<&'static str> {
     type Index = HashMap<(&'static str, String), Vec<&'static str>>;
     static INDEX: std::sync::LazyLock<Option<Index>> = std::sync::LazyLock::new(|| {

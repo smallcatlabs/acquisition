@@ -869,3 +869,122 @@ fn not_shown(
 pub fn derived(facts: Facts, body: &str) -> Item {
     derive(facts, body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tree::ValueRef;
+    use std::collections::HashMap;
+
+    /// A line of `template` under `source`, every number of it read.
+    fn line_of(template: &str, source: &str) -> Line {
+        let count = crate::template::slots(template).count;
+        Line {
+            source: source.to_string(),
+            flags: Vec::new(),
+            flags_unread: false,
+            flags_unknown: Vec::new(),
+            template: template.to_string(),
+            numbers: vec![Some(1.0); count],
+            text: template.replace('#', "1"),
+            rows: Vec::new(),
+        }
+    }
+
+    /// 4-full part 1, step 6.4c: over every stat the table ships under a
+    /// category a line's source is filed under, the value a bound on it
+    /// compares is the value a line of each template its translated group
+    /// names gets (`line_value`). Nothing here restates how the
+    /// translation matches a line: the templates are read from the tree
+    /// the translation made. Where two stats' groups name one template
+    /// under one category with different values, the first in the table's
+    /// order is the line's; those are counted, so a new one is seen.
+    #[test]
+    fn a_lines_value_is_the_translations_for_every_stat_it_displays_as() {
+        let stats = crate::trade::stats::table().unwrap();
+        let mut first: HashMap<(&str, String), (String, String)> = HashMap::new();
+        let mut checked = 0usize;
+        let mut collisions: Vec<String> = Vec::new();
+        let mut wrong: Vec<String> = Vec::new();
+        for (category, id, _) in stats.entries() {
+            let Some(source) = ["explicit", "implicit", "enchant", "scourge"]
+                .into_iter()
+                .find(|s| category_of(s) == Some(category))
+            else {
+                continue;
+            };
+            let stat = format!("{category}.{id}");
+            let filter = serde_json::json!({ "query": { "stats": [{ "type": "and", "filters": [
+                { "id": stat, "value": { "min": 1 } } ] }] } });
+            let decoded = crate::trade::decode(&filter.to_string()).unwrap();
+            let translation = crate::trade::translate::translate(&decoded).unwrap();
+            let Some(compared) = crate::values::compared(&translation.tree)
+                .into_iter()
+                .next()
+            else {
+                continue;
+            };
+            let ValueRef::Sum { lines, .. } = &compared.value else {
+                continue;
+            };
+            for template in crate::template::named(lines) {
+                let key = (category, crate::bind::folded(&template));
+                let (winner, by) = first
+                    .entry(key)
+                    .or_insert_with(|| (compared.text.clone(), stat.clone()))
+                    .clone();
+                if winner != compared.text {
+                    collisions.push(format!("{stat} loses \"{template}\" to {by}"));
+                    continue;
+                }
+                checked += 1;
+                let got = line_value(&line_of(&template, source));
+                if got.as_deref() != Some(compared.text.as_str()) {
+                    wrong.push(format!(
+                        "{stat} \"{template}\": {} for {}",
+                        got.unwrap_or_else(|| "none".to_string()),
+                        compared.text
+                    ));
+                }
+            }
+        }
+        assert!(checked > 5_000, "{checked}");
+        assert!(
+            wrong.is_empty(),
+            "{} of {checked} lines name another value than their stat's:\n{}",
+            wrong.len(),
+            wrong.join("\n")
+        );
+        // 26 at the capture of 2026-09-12: a support gem's `Socketed Gems
+        // are Supported by Level #` under two ids, `Lose # Mana per
+        // second`, `#% reduced Elemental Damage Taken while stationary` and
+        // a map's Rogue Exiles; each line is the first stat's
+        assert_eq!(collisions.len(), 26, "{}", collisions.join("\n"));
+    }
+
+    /// The lines the reviews of step 6.4c named each pass through the stat
+    /// they display as (`trade_value`), never the rule over a line's own
+    /// group: a `+` the site writes before a `#`, the site's digit where
+    /// an item shows another number, a plural form the bound sums, and a
+    /// number the site writes as a digit.
+    #[test]
+    fn the_reviews_lines_pass_through_their_stat() {
+        for text in [
+            "+95 to maximum Life",
+            "+5 Life per 4 Dexterity",
+            "15% chance to gain Phasing for 4 seconds on Kill",
+            "15% chance to gain Phasing for 6 seconds on Kill",
+            "Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds",
+        ] {
+            let (template, numbers) = crate::template::typed(text);
+            let line = Line {
+                numbers: numbers.into_iter().map(Some).collect(),
+                ..line_of(&template, "explicit")
+            };
+            assert!(
+                trade_value(&line).is_some(),
+                "{text} took the line's own group"
+            );
+        }
+    }
+}

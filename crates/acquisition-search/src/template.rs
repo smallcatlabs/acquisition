@@ -77,6 +77,28 @@ pub(crate) fn selected(where_: &Member) -> Option<&str> {
     }
 }
 
+/// Every template a line group names by `template="…"`, anywhere in it,
+/// in its order: what `show.rs`'s whole-table test reads from each
+/// translated group (4-full part 1, step 6.4c).
+#[cfg(test)]
+pub(crate) fn named(where_: &Member) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut walk = vec![where_];
+    while let Some(member) = walk.pop() {
+        match member {
+            Member::All(all) | Member::Any(all) => walk.extend(all.iter().rev()),
+            Member::Not(inner) => walk.push(inner),
+            Member::Test {
+                attr,
+                op: Op::Eq,
+                value: Value::Text(t),
+            } if attr == "template" => out.push(t.clone()),
+            _ => {}
+        }
+    }
+    out
+}
+
 /// How many numbers the template has, which two are its ranged pair — a
 /// template with exactly one `# to #` is ranged (owner, 2026-09-19) — and
 /// which two `avg` is the mean of: the ranged pair, or the template's two
