@@ -294,3 +294,29 @@ under a jump's concurrency, about 8 alone), which each of a jump's
 windows makes in turn behind the corpus's lock. That is the next cost
 a window carries, in the search crate's holder, and none of this
 step's to change.
+
+## Rig-3: each run's result kept by the server
+
+So that the owner's sitting costs him nothing but opening the links.
+`rig-3.patch`, beside the others, is the copy's whole diff from
+`f3e663db` again, and applies and makes the copy as they do. What
+changed, and only that: when a run ends, the measure sends its result
+to the server, a POST on `result` under the page's token like every
+other route, with the case the link names (`case=`) and the window as
+the page measures it (inner and outer size, screen, pixel ratio). The
+server appends one line to the file `ACQ_RIG_RESULTS` names: the time,
+the case, the browser's user agent as its request says it, the window,
+and the result whole. A server started without that variable keeps
+nothing and says so. The printed result stays, headed "kept by the
+server" or why not. The runner's links name their case. The window
+script (93 lines), the page, the bar and what the measure judges are
+unchanged.
+
+One headless run of each case, 2026-11-12, to show the judged numbers
+are rig-2's, not a judgment of their own (`headless-3.jsonl`): all
+four pass, jumps 33 to 83 ms, no late frame, no row missing, off or
+wrong, the live DOM at most 1,033 elements and 200 rows, as at rig-2.
+Each run's result was kept by the server: four lines, each with its
+case, the headless browser's user agent and its window (1440 × 813
+inside, 1440 × 900 outside, pixel ratio 2). Load 2.54 before and 2.50
+after on 10 cores, no compiler; Spotlight's indexer on one core.
