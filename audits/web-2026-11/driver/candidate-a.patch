@@ -1,0 +1,401 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 178fb957..90f363d4 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -16,6 +16,7 @@ dependencies = [
+  "axum",
+  "clap",
+  "getrandom 0.4.3",
++ "headless_chrome",
+  "num-traits",
+  "ratatui",
+  "rusqlite",
+@@ -431,6 +432,20 @@ version = "1.1.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
++[[package]]
++name = "auto_generate_cdp"
++version = "0.4.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "359220d0b9360b79d17d648d0a3ba1e792ec36bdbc227c8fd0351df3a0415704"
++dependencies = [
++ "convert_case 0.8.0",
++ "proc-macro2",
++ "quote",
++ "serde",
++ "serde_json",
++ "ureq",
++]
++
+ [[package]]
+ name = "autocfg"
+ version = "1.5.1"
+@@ -786,6 +801,15 @@ version = "0.10.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
+
++[[package]]
++name = "convert_case"
++version = "0.8.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
++dependencies = [
++ "unicode-segmentation",
++]
++
+ [[package]]
+ name = "convert_case"
+ version = "0.10.0"
+@@ -922,14 +946,38 @@ dependencies = [
+  "phf",
+ ]
+
++[[package]]
++name = "darling"
++version = "0.20.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
++dependencies = [
++ "darling_core 0.20.11",
++ "darling_macro 0.20.11",
++]
++
+ [[package]]
+ name = "darling"
+ version = "0.24.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "88490bf1b990d87eaaa7ac8aa887f629a08e7359765b4911faf63c3763347d23"
+ dependencies = [
+- "darling_core",
+- "darling_macro",
++ "darling_core 0.24.0",
++ "darling_macro 0.24.0",
++]
++
++[[package]]
++name = "darling_core"
++version = "0.20.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
++dependencies = [
++ "fnv",
++ "ident_case",
++ "proc-macro2",
++ "quote",
++ "strsim",
++ "syn 2.0.119",
+ ]
+
+ [[package]]
+@@ -945,17 +993,34 @@ dependencies = [
+  "syn 3.0.3",
+ ]
+
++[[package]]
++name = "darling_macro"
++version = "0.20.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
++dependencies = [
++ "darling_core 0.20.11",
++ "quote",
++ "syn 2.0.119",
++]
++
+ [[package]]
+ name = "darling_macro"
+ version = "0.24.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "68f5792fa0d41cd2325ce0ffa64f0a340eaebd4971a3a0c5e1ffd2cc488a355e"
+ dependencies = [
+- "darling_core",
++ "darling_core 0.24.0",
+  "quote",
+  "syn 3.0.3",
+ ]
+
++[[package]]
++name = "data-encoding"
++version = "2.11.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
++
+ [[package]]
+ name = "dbus"
+ version = "0.9.12"
+@@ -997,6 +1062,37 @@ version = "0.5.9"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9e9de72ce2ad1f90dc62fa25f0f430ef85eb4b0d8fa0be4f30373bc40a21d28e"
+
++[[package]]
++name = "derive_builder"
++version = "0.20.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "507dfb09ea8b7fa618fcf76e953f4f5e192547945816d5358edffe39f6f94947"
++dependencies = [
++ "derive_builder_macro",
++]
++
++[[package]]
++name = "derive_builder_core"
++version = "0.20.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
++dependencies = [
++ "darling 0.20.11",
++ "proc-macro2",
++ "quote",
++ "syn 2.0.119",
++]
++
++[[package]]
++name = "derive_builder_macro"
++version = "0.20.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
++dependencies = [
++ "derive_builder_core",
++ "syn 2.0.119",
++]
++
+ [[package]]
+ name = "derive_more"
+ version = "2.1.1"
+@@ -1012,7 +1108,7 @@ version = "2.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
+ dependencies = [
+- "convert_case",
++ "convert_case 0.10.0",
+  "proc-macro2",
+  "quote",
+  "rustc_version",
+@@ -1425,6 +1521,29 @@ dependencies = [
+  "hashbrown",
+ ]
+
++[[package]]
++name = "headless_chrome"
++version = "1.0.22"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5754ca220578ad74a5d5174c8ca2ff956fd3b94025f870844de1e910b47dfee5"
++dependencies = [
++ "anyhow",
++ "auto_generate_cdp",
++ "base64 0.22.1",
++ "derive_builder",
++ "log",
++ "rand 0.10.3",
++ "regex",
++ "serde",
++ "serde_json",
++ "tempfile",
++ "thiserror 2.0.20",
++ "tungstenite",
++ "url",
++ "which",
++ "winreg",
++]
++
+ [[package]]
+ name = "heck"
+ version = "0.5.0"
+@@ -1746,7 +1865,7 @@ version = "0.3.13"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "2bf84e73fa6f27f299dec58e13223cf70db80da872eb921d4f6138342a0eabc8"
+ dependencies = [
+- "darling",
++ "darling 0.24.0",
+  "indoc",
+  "proc-macro2",
+  "quote",
+@@ -2554,10 +2673,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
+ dependencies = [
+  "libc",
+- "rand_chacha",
++ "rand_chacha 0.3.1",
+  "rand_core 0.6.4",
+ ]
+
++[[package]]
++name = "rand"
++version = "0.9.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b9ef1d0d795eb7d84685bca4f72f3649f064e6641543d3a8c415898726a57b41"
++dependencies = [
++ "rand_chacha 0.9.0",
++ "rand_core 0.9.5",
++]
++
+ [[package]]
+ name = "rand"
+ version = "0.10.3"
+@@ -2579,6 +2708,16 @@ dependencies = [
+  "rand_core 0.6.4",
+ ]
+
++[[package]]
++name = "rand_chacha"
++version = "0.9.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
++dependencies = [
++ "ppv-lite86",
++ "rand_core 0.9.5",
++]
++
+ [[package]]
+ name = "rand_core"
+ version = "0.6.4"
+@@ -2588,6 +2727,15 @@ dependencies = [
+  "getrandom 0.2.17",
+ ]
+
++[[package]]
++name = "rand_core"
++version = "0.9.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
++dependencies = [
++ "getrandom 0.3.4",
++]
++
+ [[package]]
+ name = "rand_core"
+ version = "0.10.1"
+@@ -2865,7 +3013,7 @@ version = "3.9.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b3140f24a766f80f9ec1607bde85680959a69b83d46fa9ce87dadab7e67ab029"
+ dependencies = [
+- "darling",
++ "darling 0.24.0",
+  "proc-macro2",
+  "quote",
+  "serde_json",
+@@ -2930,6 +3078,7 @@ version = "0.23.46"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
+ dependencies = [
++ "log",
+  "once_cell",
+  "ring",
+  "rustls-pki-types",
+@@ -3760,6 +3909,22 @@ version = "0.2.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
++[[package]]
++name = "tungstenite"
++version = "0.29.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6c01152af293afb9c7c2a57e4b559c5620b421f6d133261c60dd2d0cdb38e6b8"
++dependencies = [
++ "bytes",
++ "data-encoding",
++ "http",
++ "httparse",
++ "log",
++ "rand 0.9.5",
++ "sha1",
++ "thiserror 2.0.20",
++]
++
+ [[package]]
+ name = "typenum"
+ version = "1.20.1"
+@@ -3824,6 +3989,35 @@ version = "0.9.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
+
++[[package]]
++name = "ureq"
++version = "3.5.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e7be76686bdf7198002062423ca0d8cf9b75a27c8e1de804513b97e97b555d9d"
++dependencies = [
++ "base64 0.23.1",
++ "flate2",
++ "log",
++ "percent-encoding",
++ "rustls",
++ "rustls-pki-types",
++ "ureq-proto",
++ "utf8-zero",
++ "webpki-roots",
++]
++
++[[package]]
++name = "ureq-proto"
++version = "0.7.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "622dce33c252115466d83f63e9744a18f12b4406aae51a01c15ad8fcf1185eb3"
++dependencies = [
++ "base64 0.23.1",
++ "http",
++ "httparse",
++ "log",
++]
++
+ [[package]]
+ name = "url"
+ version = "2.5.8"
+@@ -3836,6 +4030,12 @@ dependencies = [
+  "serde",
+ ]
+
++[[package]]
++name = "utf8-zero"
++version = "0.8.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b8c0a043c9540bae7c578c88f91dda8bd82e59ae27c21baca69c8b191aaf5a6e"
++
+ [[package]]
+ name = "utf8_iter"
+ version = "1.0.4"
+@@ -4070,6 +4270,15 @@ dependencies = [
+  "wezterm-dynamic",
+ ]
+
++[[package]]
++name = "which"
++version = "8.0.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "bae2f2b2b816647a1cab1acc91f5bd20812d53cb344382635ec2181940c8034f"
++dependencies = [
++ "libc",
++]
++
+ [[package]]
+ name = "winapi"
+ version = "0.3.9"
+@@ -4325,6 +4534,16 @@ dependencies = [
+  "memchr",
+ ]
+
++[[package]]
++name = "winreg"
++version = "0.56.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
++dependencies = [
++ "cfg-if",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "wit-bindgen"
+ version = "0.57.1"
+diff --git a/crates/acquisition-cli/Cargo.toml b/crates/acquisition-cli/Cargo.toml
+index 24614e11..66754bba 100644
+--- a/crates/acquisition-cli/Cargo.toml
++++ b/crates/acquisition-cli/Cargo.toml
+@@ -55,6 +55,7 @@ rustix = { version = "1", features = ["fs"] }
+ # ---- end of the feature pins ---------------------------------------------
+
+ [dev-dependencies]
++headless_chrome = "1.0.22"
+ # #234: a test holds an annotation file's write lock, as another writer
+ # would, to read what a user meets when it is busy; the store's own
+ # rusqlite, its features already unified (C84)

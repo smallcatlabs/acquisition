@@ -1,0 +1,338 @@
+diff --git a/crates/acquisition-cli/tests/browser.rs b/crates/acquisition-cli/tests/browser.rs
+new file mode 100644
+index 00000000..fce0454f
+--- /dev/null
++++ b/crates/acquisition-cli/tests/browser.rs
+@@ -0,0 +1,234 @@
++//! The browser-driven check, its driver's candidate (b) (step 6.3's
++//! spike, `roadmap/briefs/4-full-1-step6-driver.md`): a headless browser
++//! the harness starts on a profile under the test's scratch
++//! (`harness::start_browser`), spoken to over its debugging protocol by
++//! the hand-written loopback WebSocket client below, no crate added.
++//! No wait but the hang ceiling (C137): each wait is for what it waits
++//! on, and the time it took is printed.
++
++use std::io::{BufRead as _, BufReader, Read as _, Write as _};
++use std::net::TcpStream;
++use std::path::Path;
++use std::time::Instant;
++
++use serde_json::{Value, json};
++
++use crate::harness;
++use crate::web::offline_web;
++
++/// One WebSocket to a debugging target: text frames, masked out, as
++/// RFC 6455 has a client send them.
++struct Cdp {
++    stream: TcpStream,
++    next: u64,
++}
++
++impl Cdp {
++    fn connect(ws_url: &str) -> Cdp {
++        let rest = ws_url.strip_prefix("ws://").expect("a ws:// URL");
++        let (addr, path) = rest.split_once('/').expect("a path");
++        let mut stream = TcpStream::connect(addr).expect("connecting to the browser");
++        write!(
++            stream,
++            "GET /{path} HTTP/1.1\r\nHost: {addr}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
++             Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
++        )
++        .unwrap();
++        let mut head = Vec::new();
++        while !head.ends_with(b"\r\n\r\n") {
++            let mut b = [0u8];
++            stream.read_exact(&mut b).expect("the handshake's answer");
++            head.push(b[0]);
++        }
++        let head = String::from_utf8_lossy(&head);
++        assert!(head.starts_with("HTTP/1.1 101"), "no upgrade: {head}");
++        Cdp { stream, next: 0 }
++    }
++
++    fn send(&mut self, text: &str) {
++        let data = text.as_bytes();
++        let mask = [0x12u8, 0x34, 0x56, 0x78];
++        let mut frame = vec![0x81u8];
++        match data.len() {
++            n if n < 126 => frame.push(0x80 | n as u8),
++            n if n < 65536 => {
++                frame.push(0x80 | 126);
++                frame.extend_from_slice(&(n as u16).to_be_bytes());
++            }
++            n => {
++                frame.push(0x80 | 127);
++                frame.extend_from_slice(&(n as u64).to_be_bytes());
++            }
++        }
++        frame.extend_from_slice(&mask);
++        frame.extend(data.iter().enumerate().map(|(i, b)| b ^ mask[i % 4]));
++        self.stream.write_all(&frame).expect("sending a frame");
++    }
++
++    fn receive(&mut self) -> Value {
++        let mut message = Vec::new();
++        loop {
++            let mut head = [0u8; 2];
++            self.stream.read_exact(&mut head).expect("a frame's head");
++            let mut n = u64::from(head[1] & 0x7f);
++            if n == 126 {
++                let mut len = [0u8; 2];
++                self.stream.read_exact(&mut len).unwrap();
++                n = u64::from(u16::from_be_bytes(len));
++            } else if n == 127 {
++                let mut len = [0u8; 8];
++                self.stream.read_exact(&mut len).unwrap();
++                n = u64::from_be_bytes(len);
++            }
++            let mut payload = vec![0u8; n as usize];
++            self.stream
++                .read_exact(&mut payload)
++                .expect("a frame's body");
++            match head[0] & 0x0f {
++                0x9 | 0xa => continue,
++                0x8 => panic!("the browser closed the socket"),
++                _ => message.extend(payload),
++            }
++            if head[0] & 0x80 != 0 {
++                return serde_json::from_slice(&message).expect("a JSON message");
++            }
++        }
++    }
++
++    /// One call, its result; events between are passed over.
++    fn call(&mut self, method: &str, params: Value) -> Value {
++        self.next += 1;
++        let id = self.next;
++        self.send(&json!({ "id": id, "method": method, "params": params }).to_string());
++        loop {
++            let reply = self.receive();
++            if reply["id"] == id {
++                assert!(reply.get("error").is_none(), "{method}: {reply}");
++                return reply["result"].clone();
++            }
++        }
++    }
++
++    /// An expression's value in the page.
++    fn eval(&mut self, expression: &str) -> Value {
++        let got = self.call(
++            "Runtime.evaluate",
++            json!({ "expression": expression, "returnByValue": true }),
++        );
++        got["result"]["value"].clone()
++    }
++
++    /// Keys as a user's would: each character a key down carrying its
++    /// text and a key up; `\u{8}` the backspace key.
++    fn keys(&mut self, text: &str) {
++        for c in text.chars() {
++            let down = match c {
++                '\u{8}' => {
++                    json!({ "type": "rawKeyDown", "key": "Backspace", "code": "Backspace", "windowsVirtualKeyCode": 8 })
++                }
++                c => json!({ "type": "keyDown", "key": c.to_string(), "text": c.to_string() }),
++            };
++            let key = down["key"].clone();
++            self.call("Input.dispatchKeyEvent", down);
++            self.call(
++                "Input.dispatchKeyEvent",
++                json!({ "type": "keyUp", "key": key }),
++            );
++        }
++    }
++}
++
++/// The browser started headless on `profile` (the harness's
++/// `start_browser`), and its page's socket, its page read from the
++/// browser's list.
++fn launch(profile: &Path) -> (harness::Browser, Cdp) {
++    let browser = harness::start_browser(profile);
++    let port = browser.port.clone();
++    let mut list = TcpStream::connect(("127.0.0.1", port.parse::<u16>().unwrap())).unwrap();
++    write!(
++        list,
++        "GET /json/list HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
++    )
++    .unwrap();
++    // the browser keeps the connection open whatever the request says:
++    // the body is read by its length, never to the stream's end
++    let mut reader = BufReader::new(list);
++    let mut length = 0;
++    loop {
++        let mut line = String::new();
++        reader.read_line(&mut line).expect("the page list's head");
++        if line == "\r\n" {
++            break;
++        }
++        if let Some(n) = line.to_ascii_lowercase().strip_prefix("content-length:") {
++            length = n.trim().parse().expect("a length");
++        }
++    }
++    let mut body = vec![0u8; length];
++    reader.read_exact(&mut body).expect("the page list");
++    let pages: Value = serde_json::from_slice(&body).expect("the page list's JSON");
++    let ws = pages
++        .as_array()
++        .and_then(|ps| ps.iter().find(|p| p["type"] == "page"))
++        .and_then(|p| p["webSocketDebuggerUrl"].as_str())
++        .expect("a page to drive")
++        .to_string();
++    (browser, Cdp::connect(&ws))
++}
++
++/// The count's rule (`count.js`; REVIEW-CHECKLIST.md, "A script rule no
++/// test reaches"): after the query box changes, the number beside its
++/// button comes to be the one the `count` route answers for the form as
++/// it stands. Two queries are typed as a user's keys would, the second in
++/// the first's place; their totals differ, and the number shown follows
++/// each.
++#[test]
++fn the_count_beside_the_button_follows_the_query_typed() {
++    let (scratch, web) = offline_web("webbrowser");
++    let profile = scratch.0.join("browser-profile");
++    std::fs::create_dir_all(&profile).unwrap();
++    let (_browser, mut cdp) = launch(&profile);
++    cdp.call("Page.navigate", json!({ "url": web.url }));
++    let began = Instant::now();
++    while cdp.eval("document.readyState === 'complete' && !!document.getElementById('query-text')")
++        != json!(true)
++    {
++        std::thread::sleep(std::time::Duration::from_millis(10));
++    }
++    eprintln!("wait: the form page loaded in {:?}", began.elapsed());
++    cdp.eval("document.getElementById('query-text').focus()");
++    let form = "document.getElementById('query-text').form";
++    let mut typed = String::new();
++    let mut totals = Vec::new();
++    for query in ["class:rings", "rarity=unique"] {
++        let erase: String = std::iter::repeat_n('\u{8}', typed.chars().count()).collect();
++        cdp.keys(&format!("{erase}{query}"));
++        typed = query.to_string();
++        // the form as it stands, as the script sends it, asked of the
++        // route by the test
++        let fields = cdp.eval(&format!(
++            "new URLSearchParams(new FormData({form})).toString()"
++        ));
++        let fields = fields.as_str().expect("the form's fields");
++        assert!(fields.contains(&harness::form_encoded(query)), "{fields}");
++        let answer = web.get(&format!("count?{fields}"));
++        assert_eq!(answer.status, 200, "{}", answer.body);
++        let expected = serde_json::from_str::<Value>(&answer.body).unwrap()["total"]["matched"]
++            .as_u64()
++            .expect("a matched total")
++            .to_string();
++        let began = Instant::now();
++        while cdp.eval(&format!(
++            "{form}.querySelector('output[data-count=\"matched\"]').value"
++        )) != json!(expected)
++        {
++            std::thread::sleep(std::time::Duration::from_millis(10));
++        }
++        eprintln!(
++            "wait: {query:?} shown as {expected} in {:?}",
++            began.elapsed()
++        );
++        totals.push(expected);
++    }
++    assert_ne!(totals[0], totals[1], "the two queries must count apart");
++}
+diff --git a/crates/acquisition-cli/tests/harness/mod.rs b/crates/acquisition-cli/tests/harness/mod.rs
+index 7f1b1d04..1ac13571 100644
+--- a/crates/acquisition-cli/tests/harness/mod.rs
++++ b/crates/acquisition-cli/tests/harness/mod.rs
+@@ -1792,3 +1792,68 @@ fn pid_words(text: &str) -> String {
+         rest = &after[digits..];
+     }
+ }
++
++// ---- the browser (the browser-driven check's driver, candidate (b)) ----
++
++/// The browser's executable: `ACQ_TEST_BROWSER`, or the first installed
++/// of the Chromium family's usual places; none fails the test.
++fn browser_exe() -> PathBuf {
++    if let Some(path) = std::env::var_os("ACQ_TEST_BROWSER") {
++        return path.into();
++    }
++    let home = std::env::var("HOME").unwrap_or_default();
++    [
++        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome".to_string(),
++        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser".to_string(),
++        format!("{home}/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"),
++        "/usr/bin/google-chrome".to_string(),
++        "/usr/bin/chromium".to_string(),
++    ]
++    .into_iter()
++    .map(PathBuf::from)
++    .find(|p| p.exists())
++    .expect("no browser: set ACQ_TEST_BROWSER to a Chromium-family browser's executable")
++}
++
++/// A headless browser the test owns, killed when it ends, and the port
++/// its debugging protocol listens on.
++pub struct Browser {
++    child: std::process::Child,
++    pub port: String,
++}
++
++impl Drop for Browser {
++    fn drop(&mut self) {
++        let _ = self.child.kill();
++        let _ = self.child.wait();
++    }
++}
++
++/// The browser started headless on `profile`, under the one isolation
++/// list, its debugging port read from the file it writes there: no wait
++/// but the hang ceiling (C137).
++pub fn start_browser(profile: &Path) -> Browser {
++    let mut cmd = Command::new(browser_exe());
++    cmd.args([
++        "--headless=new",
++        &format!("--user-data-dir={}", profile.display()),
++        "--remote-debugging-port=0",
++        "--no-first-run",
++        "--no-default-browser-check",
++        "about:blank",
++    ])
++    .stdout(std::process::Stdio::null())
++    .stderr(std::process::Stdio::null());
++    isolate_at(&mut cmd, profile, profile);
++    let child = cmd.spawn().expect("starting the browser");
++    let port_file = profile.join("DevToolsActivePort");
++    let port = loop {
++        if let Ok(text) = std::fs::read_to_string(&port_file)
++            && let Some(port) = text.lines().next().filter(|p| !p.is_empty())
++        {
++            break port.to_string();
++        }
++        std::thread::sleep(std::time::Duration::from_millis(50));
++    };
++    Browser { child, port }
++}
+diff --git a/crates/acquisition-cli/tests/main.rs b/crates/acquisition-cli/tests/main.rs
+index 4b73132e..ab2dbc56 100644
+--- a/crates/acquisition-cli/tests/main.rs
++++ b/crates/acquisition-cli/tests/main.rs
+@@ -7,6 +7,7 @@
+ mod harness;
+
+ mod apply_loop;
++mod browser;
+ mod characters_wire;
+ mod cli_reference;
+ mod daemon_idle_exit;
+diff --git a/crates/acquisition-cli/tests/web.rs b/crates/acquisition-cli/tests/web.rs
+index cdfe926f..36155a5d 100644
+--- a/crates/acquisition-cli/tests/web.rs
++++ b/crates/acquisition-cli/tests/web.rs
+@@ -138,7 +138,7 @@ fn seed(world: &Path) {
+ }
+
+ /// The offline world, seeded, and `acq web` over it.
+-fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
++pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
+     let scratch = harness::scratch(tag);
+     seed(&scratch.0);
+     let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));
