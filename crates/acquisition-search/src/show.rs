@@ -29,7 +29,14 @@
 //! held item (`corpus::Held`) — the one this read holds, and each one a
 //! rows view asking `item` holds (`answer.rs`), so a row's item is
 //! `show`'s for the same id at the same basis and no second maker stands.
-//! [`item_aged`] ages both.
+//! [`item_aged`] ages both. It also says the values an item's numbers are
+//! read by (4-full part 1, step 6.4c), each a text a sort takes: a line's
+//! `value`, the sum over the item's lines of its group of the slot a trade
+//! filter on its stat compares, by the translation's own rule and writer
+//! (`line_value`); and `number_fields`, each number field the item
+//! displays with its number. Where a field is displayed is a row's pieces
+//! ([`Displays`]), made by the one function that composes the row
+//! (`derive.rs`), so a page links a number without reading a text again.
 //!
 //! **`--against '<query>'`** (C100: the why-not) puts beside the item the query's canonical
 //! text and tree, the root's outcome on this item — match, no match,
@@ -90,6 +97,12 @@ pub struct Shown {
     /// What the listing state prices it at (`price.rs`, C81).
     pub price: Priced,
     pub lines: Vec<ShownLine>,
+    /// Each number field the item displays, with its number (as
+    /// [`ShownItem::number_fields`]).
+    #[serde(skip_serializing_if = "serde_json::Map::is_empty")]
+    pub number_fields: serde_json::Map<String, serde_json::Value>,
+    #[serde(skip)]
+    displayed: Vec<(Displayed, String)>,
     /// Why the item does or does not match a query, when one is given.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub against: Option<Against>,
@@ -122,6 +135,105 @@ pub struct ShownItem {
     /// What the listing state prices it at (`price.rs`, C81).
     pub price: Priced,
     pub lines: Vec<ShownLine>,
+    /// Each number field the item displays, by the field's text, which
+    /// sorts by it, with its number: the item level, the level required,
+    /// and each property the property table reads as the number it
+    /// displays, in the item's order (4-full part 1, step 6.4c). Absent
+    /// where it displays none.
+    #[serde(skip_serializing_if = "serde_json::Map::is_empty")]
+    pub number_fields: serde_json::Map<String, serde_json::Value>,
+    /// Where each of `number_fields` is displayed, for a page's pieces
+    /// ([`ShownItem::property_row`]); not a key of the document.
+    #[serde(skip)]
+    displayed: Vec<(Displayed, String)>,
+}
+
+/// Where a number field is displayed: a value of a property, the item
+/// level's row, or a value of a requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Displayed {
+    Property(usize, usize),
+    ItemLevel,
+    Requirement(usize, usize),
+}
+
+/// An item's displayed rows with the number fields each displays, borrowed
+/// from `show`'s document or a row's item (4-full part 1, step 6.4c):
+/// each row in its pieces, a piece the item displays as one of
+/// `number_fields` carrying that field's text, which a page writes as a
+/// link without reading the row's text again.
+#[derive(Clone, Copy)]
+pub struct Displays<'a> {
+    item: &'a Item,
+    displayed: &'a [(Displayed, String)],
+}
+
+impl Displays<'_> {
+    /// The value text the number displayed at `at` is read by, where one
+    /// of `number_fields` is.
+    fn read_at(&self, at: Displayed) -> Option<String> {
+        self.displayed
+            .iter()
+            .find(|(place, _)| *place == at)
+            .map(|(_, field)| field.clone())
+    }
+
+    /// The item's property at `at` (of `item.properties`) in its pieces,
+    /// each value the item displays as one of `number_fields` with that
+    /// field's text: what a page writes as a link.
+    pub fn property_row(&self, at: usize) -> Vec<Part> {
+        self.item.properties.get(at).map_or_else(Vec::new, |p| {
+            p.pieces
+                .iter()
+                .map(|piece| Part {
+                    text: piece.text.clone(),
+                    value: piece
+                        .value
+                        .and_then(|v| self.read_at(Displayed::Property(at, v))),
+                })
+                .collect()
+        })
+    }
+
+    /// The item level's row in its pieces, the number with `ilvl`'s text;
+    /// none where the item displays no level.
+    pub fn item_level_row(&self) -> Vec<Part> {
+        self.item.ilvl.map_or_else(Vec::new, |ilvl| {
+            crate::derive::item_level_row(ilvl)
+                .into_iter()
+                .map(|piece| Part {
+                    value: piece.value.and_then(|_| self.read_at(Displayed::ItemLevel)),
+                    text: piece.text,
+                })
+                .collect()
+        })
+    }
+
+    /// The requirements' row in its pieces, each requirement's number with
+    /// the text of the field that reads it; none where it requires nothing.
+    pub fn requires_row(&self) -> Vec<Part> {
+        if self.item.requirements.is_empty() {
+            return Vec::new();
+        }
+        crate::derive::requires_row(&self.item.requirements)
+            .into_iter()
+            .map(|(piece, of)| Part {
+                value: of
+                    .zip(piece.value)
+                    .and_then(|(r, v)| self.read_at(Displayed::Requirement(r, v))),
+                text: piece.text,
+            })
+            .collect()
+    }
+}
+
+/// One piece of a displayed row (4-full part 1, step 6.4c): its words,
+/// and the text of the value that reads them where one does. The row's
+/// string is its pieces joined, by construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Part {
+    pub text: String,
+    pub value: Option<String>,
 }
 
 impl ShownItem {
@@ -147,16 +259,34 @@ impl ShownItem {
                     .into_iter()
                     .map(|(w, n)| (w, n.map_or(serde_json::Value::Null, number_json)))
                     .collect(),
+                value: line_value(&line),
                 limit: (line.source == "veiled").then_some(crate::describe::VEILED),
                 line,
             })
             .collect();
+        let displayed = number_fields(&item);
         ShownItem {
             category: categories.shown(&item, &class, &category),
             class,
             price,
+            number_fields: displayed
+                .iter()
+                .map(|(_, field, n)| (field.clone(), number_json(*n)))
+                .collect(),
+            displayed: displayed
+                .into_iter()
+                .map(|(at, field, _)| (at, field))
+                .collect(),
             item,
             lines,
+        }
+    }
+
+    /// Where each number field the item displays is, for a page's pieces.
+    pub fn displays(&self) -> Displays<'_> {
+        Displays {
+            item: &self.item,
+            displayed: &self.displayed,
         }
     }
 
@@ -185,9 +315,106 @@ pub struct ShownLine {
     pub line: Line,
     /// The words that name this occurrence's numbers, each with its number.
     pub slots: Vec<(String, serde_json::Value)>,
+    /// The value a trade filter on this line's stat compares, which sorts
+    /// by it (4-full part 1, step 6.4c): `sum(line("<template>"
+    /// source=<source>).<slot>)`, its slot `avg` where the template's
+    /// numbers are a mean pair and else `arg1`, the sum over every line of
+    /// the item its group selects (`line_value`). Absent where that
+    /// slot reads no number: a line with none, or one unread.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
     /// A limit this line meets, in the register's words (C102).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<&'static str>,
+}
+
+/// The value a line's number is read by (4-full part 1, step 6.4c): the
+/// sum, over the item's lines of its template and source, of the slot a
+/// bound on that stat compares (`template::compared_slot`, the
+/// translation's own rule, every number of the line its own), made by
+/// the translation's writer of a stat's sum (`tree::sum_of_lines`) over
+/// the line's group as the catalogue lands it (`stat.explicit`:
+/// `line({text} source=explicit)`) and printed canonical. So a stat the
+/// trade form filtered and the same line on an item name one value. None
+/// where the line's slot reads no number.
+fn line_value(line: &Line) -> Option<String> {
+    let count = crate::template::slots(&line.template).count;
+    let open: Vec<usize> = (1..=count).collect();
+    let slot = crate::template::compared_slot(&line.template, &open)?;
+    line.slots()
+        .iter()
+        .find(|(word, n)| *word == slot && n.is_some())?;
+    let group = format!(
+        "line({} source={})",
+        crate::print::quoted_text(&line.template),
+        crate::print::quoted_text(&line.source)
+    );
+    let query = crate::bind::parse_query(&group).ok()?;
+    let value = crate::tree::sum_of_lines(std::slice::from_ref(query.tree()), &slot)?;
+    Some(crate::print::print_value(&value))
+}
+
+/// Each number field an item displays, where it is displayed, by its
+/// text, with its number, in the item's order: the property table's rows
+/// that read a displayed number (`number`, `numerator`, `denominator`:
+/// never a percent, a q20 or a tier, which the item does not display),
+/// each where it read one property, its value the one the row names; the
+/// item level; the level required. A displayed number two rows read is
+/// the first's.
+fn number_fields(item: &Item) -> Vec<(Displayed, String, f64)> {
+    use crate::properties::{FieldRead, Reads};
+    use crate::tree::ValueRef;
+    let text = |name: &str| crate::print::print_value(&ValueRef::Field(name.to_string()));
+    let mut found: Vec<(Displayed, String, f64)> = Vec::new();
+    if let Ok(table) = crate::properties::table() {
+        for field in table.fields() {
+            if !matches!(
+                field.reads(),
+                Reads::Number | Reads::Numerator | Reads::Denominator
+            ) {
+                continue;
+            }
+            let FieldRead::Value {
+                value,
+                shown,
+                lines,
+            } = crate::properties::read(field, item)
+            else {
+                continue;
+            };
+            let ([property], []) = (shown.as_slice(), lines.as_slice()) else {
+                continue;
+            };
+            let at = |list: &[crate::derive::Property]| {
+                list.iter().position(|p| std::ptr::eq(p, *property))
+            };
+            let place = match (at(&item.properties), at(&item.requirements)) {
+                (Some(i), _) => Displayed::Property(i, field.value_at()),
+                (None, Some(i)) => Displayed::Requirement(i, field.value_at()),
+                (None, None) => continue,
+            };
+            found.push((place, text(field.name()), value.as_f64()));
+        }
+    }
+    if let Some(ilvl) = item.ilvl {
+        found.push((Displayed::ItemLevel, text("ilvl"), ilvl as f64));
+    }
+    if let Some(level) = item.reqlevel
+        && let Some(at) = item
+            .requirements
+            .iter()
+            .position(|r| r.name.eq_ignore_ascii_case("Level"))
+    {
+        found.push((
+            Displayed::Requirement(at, 0),
+            text("reqlevel"),
+            level as f64,
+        ));
+    }
+    found.sort_by_key(|(at, ..)| *at);
+    let mut seen = std::collections::BTreeSet::new();
+    found.retain(|(at, ..)| seen.insert(*at));
+    found
 }
 
 /// One item against one query (the module doc).
@@ -313,6 +540,15 @@ fn shown(
 }
 
 impl Shown {
+    /// Where each number field the item displays is (as
+    /// [`ShownItem::displays`]).
+    pub fn displays(&self) -> Displays<'_> {
+        Displays {
+            item: &self.item,
+            displayed: &self.displayed,
+        }
+    }
+
     /// C53 (an age the text prints stands in words beside its epoch,
     /// made at the answer's own time) and C163 (every time a document
     /// carries has its words beside it): the place's fetch, the item's
@@ -435,6 +671,8 @@ fn read_one(
         category,
         price,
         lines,
+        number_fields,
+        displayed,
     } = ShownItem::of(held, categories);
     Ok(Some(Shown {
         basis,
@@ -444,6 +682,8 @@ fn read_one(
         category,
         price,
         lines,
+        number_fields,
+        displayed,
         against,
         body: body.then_some(stored),
         snapshot_at_age: None,

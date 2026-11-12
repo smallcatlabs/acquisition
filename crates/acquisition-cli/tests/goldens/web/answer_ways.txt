@@ -20,9 +20,9 @@ GET search?<every ring, tabs never fetched in two leagues>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -33,12 +33,12 @@ GET search?<every ring, tabs never fetched in two leagues>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -49,7 +49,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -176,7 +176,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k01">Kestrel 01 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</p>
@@ -185,7 +185,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k02">Kestrel 02 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 2, y 0 · fetched <age> ago</p>
@@ -194,7 +194,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k03">Kestrel 03 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 3, y 0 · fetched <age> ago</p>
@@ -203,7 +203,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k04">Kestrel 04 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 4, y 0 · fetched <age> ago</p>
@@ -212,7 +212,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k05">Kestrel 05 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 5, y 0 · fetched <age> ago</p>
@@ -221,7 +221,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k06">Kestrel 06 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 6, y 0 · fetched <age> ago</p>
@@ -230,7 +230,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k07">Kestrel 07 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 7, y 0 · fetched <age> ago</p>
@@ -239,7 +239,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k08">Kestrel 08 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 8, y 0 · fetched <age> ago</p>
@@ -248,7 +248,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k09">Kestrel 09 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 9, y 0 · fetched <age> ago</p>
@@ -257,7 +257,7 @@ GET search?<a name eleven items carry>
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
 <p><a class="name rarity-rare" href="item/k10">Kestrel 10 Iron Ring · rare</a></p>
 <p class="base">Iron Ring</p>
-<p class="properties">Item Level: 70</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</p>
@@ -310,9 +310,9 @@ GET search?<a site search with an ambiguous clause>
 <p><a class="name rarity-" href="item/both">Iron Ring</a></p>
 <p class="base">Iron Ring</p>
 <div class="mods">
-<p class="mod">30% increased Rarity of Items found <span class="mod-kind">explicit</span></p>
-<p class="mod">10% reduced Rarity of Items found <span class="mod-kind">explicit</span></p>
-<p class="mod">Recover 2% of Mana on Kill <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>30% increased Rarity of Items found<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22%23%25%20reduced%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22%23%25%20reduced%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29">10% reduced Rarity of Items found</a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
@@ -323,8 +323,8 @@ GET search?<a site search with an ambiguous clause>
 <p><a class="name rarity-" href="item/plain">Iron Ring</a></p>
 <p class="base">Iron Ring</p>
 <div class="mods">
-<p class="mod">25% increased Rarity of Items found <span class="mod-kind">explicit</span></p>
-<p class="mod">Recover 2% of Mana on Kill <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>25% increased Rarity of Items found<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_3917489142%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%25%20increased%20Rarity%20of%20Items%20found%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
 <p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
@@ -429,6 +429,62 @@ basis   store <store> · build <build> · snapshot 18 · facts v9 · prices and 
 <form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="">cards</option><option value="icon" selected>a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
 <div class="save">
 <form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+</div>
+
+</main>
+
+GET search?<a card whose numbers are links>
+# holds "Armour: <a class=\"value\" href=\"search?realm=pc&amp;text="
+# holds "view.sort=armour&amp;view.desc=true&amp;view.value="
+# holds ">553</a>"
+# holds "Requires Level <a class=\"value\" href=\""
+# holds ">64</a>, <a class=\"value\" href=\""
+# holds ">16</a> Str"
+# holds "<a class=\"value valued\" href=\""
+# holds "▼</span>+30 to maximum Life<span class=\"sr\">, ordered largest first</span></a>"
+# holds "view.sort=sum%28line%28%22Adds%20%23%20to%20%23%20Physical%20Damage%22%20source%3Dexplicit%29.avg%29"
+# holds ">Adds 10 to 20 Physical Damage</a>"
+<meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:20,&quot;at&quot;:121,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
+<main>
+<h1>Answer</h1>
+<p class="count">1 match</p>
+<table class="opening">
+<tr><th>Query</th><td>name:kit sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=10</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 21 items · 7 locations fetched<br>3 locations never fetched: PremiumStash 3 of 10 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Kit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
+</table>
+<p><a class="presentation" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.fields=icon">as a table</a></p>
+<div class="cards">
+<div class="card">
+<p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
+<p><a class="name rarity-rare" href="item/kit">Kit Coat Iron Ring · rare</a></p>
+<p class="base">Iron Ring</p>
+<p class="properties">Armour: <a class="value" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=armour&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=armour">553</a><br>Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a><br>Requires Level <a class="value" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=reqlevel&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=reqlevel">64</a>, <a class="value" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=str&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=str">16</a> Str</p>
+<div class="mods">
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+30 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.sort=sum%28line%28%22Adds%20%23%20to%20%23%20Physical%20Damage%22%20source%3Dexplicit%29.avg%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22Adds%20%23%20to%20%23%20Physical%20Damage%22%20source%3Dexplicit%29.avg%29">Adds 10 to 20 Physical Damage</a> <span class="mod-kind">explicit</span></p>
+</div>
+<p class="flags">is identified</p>
+<p class="price">price none (nothing applies)</p>
+<p class="place">pc · Standard / Kit · x 0, y 0 · fetched <age> ago</p>
+</div>
+<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 30<br>+30 to maximum Life (explicit)</p>
+</div>
+<p class="rows-shown">rows 1–1 of 1 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
+<p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
+<table class="terms">
+<tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
+<tr><td>0</td><td>name:kit</td><td>1</td><td>18</td><td>2</td><td>0</td><td></td></tr>
+<tr class="values"><td></td><td colspan="6">→ Kit Coat (1)</td></tr>
+<tr><td>1</td><td>sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=10</td><td>6</td><td>15</td><td>0</td><td>0</td><td></td></tr>
+</table>
+<p class="unrouted">5 counts have no link: a count&#39;s route is listed only when every route is asked for, which a page never does</p>
+<p class="basis">
+basis   store <store> · build <build> · snapshot 20 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</p>
+<form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">name:kit sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=10</textarea><label class="control">Show <select name="view.limit"><option value="" selected>10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
+<div class="save">
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="name:kit sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=10"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>

@@ -871,6 +871,67 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     }
 }
 
+/// Step 6.4c (Decisions 5 and 6): a card's number for a value the view
+/// lacks is a link to the same answer with that value added to its list
+/// and ordered by it, largest first, as cards; where the view's list is
+/// full, a number outside it is words, and one inside it a link.
+#[test]
+fn a_cards_number_adds_its_value_and_a_full_list_adds_none() {
+    let (_scratch, web) = offline_web("webcardnumber");
+    let life = "sum(line(\"# to maximum Life\" source=explicit).arg1)";
+    let asked = [("realm", "pc"), ("text", "class:rings")];
+    let before = web.get_json(&format!("search?{}", query_string(&asked)));
+    assert!(
+        before["view"]["rows"]["values"].is_null(),
+        "{}",
+        before["view"]
+    );
+    let page = web.get(&format!("search?{}", query_string(&asked))).body;
+    let at = page
+        .find(">+95 to maximum Life</a>")
+        .unwrap_or_else(|| panic!("{page}"));
+    let href = &page[page[..at].rfind("href=\"").unwrap() + 6..at - 1];
+    let added = go(&web, href, true);
+    assert_eq!(added["view"]["rows"]["values"], json!([life]));
+    assert_eq!(added["view"]["rows"]["sort"], life);
+    assert_eq!(added["view"]["rows"]["desc"], true);
+    assert_eq!(added["view"]["rows"]["fields"], json!(["icon", "item"]));
+    // the ring with no life line last, as a sort puts an item lacking it
+    assert_eq!(ids(&added), ["r1", "r2", "mech"]);
+    // twelve values named: the life line is outside the list and words;
+    // the item level, inside it, a link
+    let full = [
+        "ilvl",
+        "reqlevel",
+        "stack",
+        "sockets",
+        "links",
+        "sockets.red",
+        "sockets.green",
+        "sockets.blue",
+        "sockets.white",
+        "price.amount",
+        "price.lot",
+        "quality",
+    ];
+    let mut named = asked.to_vec();
+    named.extend(full.iter().map(|v| ("view.value", *v)));
+    let answered = web.get_json(&format!("search?{}", query_string(&named)));
+    assert_eq!(
+        answered["view"]["rows"]["values"].as_array().unwrap().len(),
+        acquisition_search::answer::VALUES
+    );
+    let page = web.get(&format!("search?{}", query_string(&named))).body;
+    assert!(
+        page.contains("<p class=\"mod\">+95 to maximum Life <span class=\"mod-kind\">"),
+        "{page}"
+    );
+    assert!(
+        page.contains("Item Level: <a class=\"value valued\" href=\""),
+        "{page}"
+    );
+}
+
 #[test]
 fn every_search_page_is_a_wording_golden() {
     let (scratch, web) = offline_web("webpages");
@@ -2013,6 +2074,57 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read",
             "<span>incomplete at 70</span>",
             "<span>none (",
+        ],
+    );
+
+    // a card's numbers, each a link that adds its value and orders by it
+    // (step 6.4c): a line whole by its value, `avg` on a ranged pair; a
+    // property's number and each requirement's by the field it displays;
+    // the value the rows are ordered by marked as its head is
+    tabs.push(tab("k9", "Kit"));
+    record(
+        listing("Standard"),
+        "Standard",
+        json!({ "stashes": tabs }),
+        120,
+    );
+    let property = |name: &str, value: &str, mode: i64| json!({ "name": name, "values": [[value, 0]], "displayMode": mode });
+    record(
+        stash("k9"),
+        "Standard",
+        json!({ "stash": { "id": "k9", "name": "Kit", "type": "PremiumStash", "items": [
+            ledger("kit", "Kit Coat", 84, json!({
+                "properties": [property("Armour", "553", 0)],
+                "requirements": [property("Level", "64", 0), property("Str", "16", 1)],
+                "explicitMods": ["+30 to maximum Life", "Adds 10 to 20 Physical Damage"],
+            })),
+        ] } }),
+        121,
+    );
+    check(
+        &mut pages,
+        "GET search?<a card whose numbers are links>",
+        &format!(
+            "search?{}",
+            query_string(&[
+                ("realm", "pc"),
+                (
+                    "text",
+                    "name:kit sum(line(\"# to maximum Life\" source=explicit).arg1)>=10",
+                ),
+            ])
+        ),
+        &[
+            "Armour: <a class=\"value\" href=\"search?realm=pc&amp;text=",
+            "view.sort=armour&amp;view.desc=true&amp;view.value=",
+            ">553</a>",
+            "Requires Level <a class=\"value\" href=\"",
+            ">64</a>, <a class=\"value\" href=\"",
+            ">16</a> Str",
+            "<a class=\"value valued\" href=\"",
+            "▼</span>+30 to maximum Life<span class=\"sr\">, ordered largest first</span></a>",
+            "view.sort=sum%28line%28%22Adds%20%23%20to%20%23%20Physical%20Damage%22%20source%3Dexplicit%29.avg%29",
+            ">Adds 10 to 20 Physical Damage</a>",
         ],
     );
     page_golden(file!(), "answer_ways", &pages);

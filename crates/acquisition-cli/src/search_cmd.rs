@@ -202,7 +202,9 @@ pub struct SearchArgs {
     pub sum: Option<String>,
     /// What each row carries beside its compact fields, by name: `icon`,
     /// the URL of the item's art; `item`, the item as `show` gives it —
-    /// its lines, class, category and price. Under `item` an answer holds
+    /// its lines, class, category and price; each line's `value` and each
+    /// key of its `number_fields` is a value `--value` and `--sort` take.
+    /// Under `item` an answer holds
     /// at most 200 rows; the rest are its continuation.
     #[arg(long, value_name = "NAME,…")]
     pub fields: Option<String>,
@@ -2612,6 +2614,9 @@ pub(crate) struct ItemParts<'a> {
     pub category: &'a acquisition_search::category::Shown,
     pub price: &'a Priced,
     pub lines: &'a [ShownLine],
+    /// Its displayed rows in their pieces, each number field's with its
+    /// text (4-full part 1, step 6.4c): what a card links.
+    pub displays: acquisition_search::show::Displays<'a>,
 }
 
 impl<'a> ItemParts<'a> {
@@ -2622,6 +2627,7 @@ impl<'a> ItemParts<'a> {
             category: &s.category,
             price: &s.price,
             lines: &s.lines,
+            displays: s.displays(),
         }
     }
 
@@ -2632,6 +2638,7 @@ impl<'a> ItemParts<'a> {
             category: &s.category,
             price: &s.price,
             lines: &s.lines,
+            displays: s.displays(),
         }
     }
 }

@@ -1582,19 +1582,12 @@ impl Translator<'_> {
         // the mean of a ranged pair of the site's `#` (S47), or of its two
         // `#`, a template of two numbers: the site compares that line by
         // their average (x14 at 1250 to 1253, x15 none at 1254 to 2400)
-        let shape = template::slots(&own.template);
-        let mean = shape
-            .mean
-            .filter(|(low, high)| own.open.contains(low) && own.open.contains(high));
-        read.slot = match (own.open.as_slice(), mean) {
-            ([], _) => None,
-            (_, Some(_)) => Some("avg".to_string()),
-            ([one], None) => Some(format!("arg{one}")),
-            ([first, ..], None) => {
-                rule(&mut rows, &mut notes, &mut status, "stat.text.many")?;
-                Some(format!("arg{first}"))
-            }
-        };
+        read.slot = template::compared_slot(&own.template, &own.open);
+        // several numbers and no mean of them: the first, which no sitting
+        // has settled
+        if own.open.len() > 1 && read.slot.as_deref() != Some("avg") {
+            rule(&mut rows, &mut notes, &mut status, "stat.text.many")?;
+        }
         if read.slot.is_none() && read.bounded {
             rule(&mut rows, &mut notes, &mut status, "stat.text.bounds")?;
             notes.push("a bound on a text with no `#` is dropped: presence alone".to_string());

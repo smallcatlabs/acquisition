@@ -226,6 +226,11 @@ impl Field {
         self.reads
     }
 
+    /// Which of its property's values the field reads, from 0.
+    pub(crate) fn value_at(&self) -> usize {
+        self.value.unwrap_or(0)
+    }
+
     /// The definition as the table states it.
     pub fn definition(&self) -> &str {
         &self.definition

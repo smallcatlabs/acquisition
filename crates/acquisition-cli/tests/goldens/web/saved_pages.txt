@@ -56,9 +56,9 @@ GET search?<the ring search>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+95 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -69,12 +69,12 @@ GET search?<the ring search>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+75 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -210,9 +210,9 @@ GET search?<rings, opened>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -222,12 +222,12 @@ GET search?<rings, opened>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -237,7 +237,7 @@ GET search?<rings, opened>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -249,9 +249,9 @@ GET search?<rings, opened>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -295,9 +295,9 @@ GET search?<rings, opened, after the row moved>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -307,12 +307,12 @@ GET search?<rings, opened, after the row moved>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -322,7 +322,7 @@ GET search?<rings, opened, after the row moved>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -334,9 +334,9 @@ GET search?<rings, opened, after the row moved>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -380,9 +380,9 @@ GET search?<rings, opened, after its text changed>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -392,12 +392,12 @@ GET search?<rings, opened, after its text changed>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -407,7 +407,7 @@ GET search?<rings, opened, after its text changed>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -419,9 +419,9 @@ GET search?<rings, opened, after its text changed>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -465,9 +465,9 @@ GET search?<rings, opened, after it was renamed>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -477,12 +477,12 @@ GET search?<rings, opened, after it was renamed>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -492,7 +492,7 @@ GET search?<rings, opened, after it was renamed>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -504,9 +504,9 @@ GET search?<rings, opened, after it was renamed>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -574,9 +574,9 @@ GET search?<rings, opened, after it was cleared>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -586,12 +586,12 @@ GET search?<rings, opened, after it was cleared>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -601,7 +601,7 @@ GET search?<rings, opened, after it was cleared>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -613,9 +613,9 @@ GET search?<rings, opened, after it was cleared>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a2&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -735,9 +735,9 @@ GET search?<everything, opened>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate">
 <p><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate · unique · frame unique</a></p>
 <p class="base">Glorious Plate</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+500 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+500 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -747,9 +747,9 @@ GET search?<everything, opened>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -759,12 +759,12 @@ GET search?<everything, opened>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -774,7 +774,7 @@ GET search?<everything, opened>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -786,9 +786,9 @@ GET search?<everything, opened>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=&amp;saved=<everything>&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -858,9 +858,9 @@ GET search?<belts, opened, reloaded>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -870,12 +870,12 @@ GET search?<belts, opened, reloaded>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -885,7 +885,7 @@ GET search?<belts, opened, reloaded>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -897,9 +897,9 @@ GET search?<belts, opened, reloaded>
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
 <p><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice · rare · frame rare</a></p>
 <p class="base">Wombgift Chalice</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+40 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=rarity%3Drare&amp;saved=0000000000a4&amp;saved_revision=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+40 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>

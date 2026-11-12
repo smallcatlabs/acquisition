@@ -1920,3 +1920,249 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
         }
     }
 }
+
+/// Items whose displayed rows carry number fields (4-full part 1, step
+/// 6.4c), beside this file's mods of several rows: `armour`, a body armour
+/// of item level 84 displaying quality and armour, requiring level 64 and
+/// 16 Str, two life lines of one source (30 and 40) and a ranged physical
+/// line (10 to 20); `gem`, a gem at level 20 of its maximum, requiring
+/// level 70; `stack`, a currency stack of 3 of 10.
+fn displayed() -> Store {
+    let mut s = stash();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("w1", "Rows"), tab("w2", "Shown")]),
+        30,
+    );
+    let property = |name: &str, value: &str, mode: i64| json!({ "name": name, "values": [[value, 0]], "displayMode": mode });
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "w2",
+        "Shown",
+        vec![
+            item(
+                "armour",
+                "Shown Coat",
+                "Glorious Plate",
+                "Rare",
+                json!({
+                    "properties": [property("Quality", "+20%", 0), property("Armour", "553", 0)],
+                    "requirements": [property("Level", "64", 0), property("Str", "16", 1)],
+                    "explicitMods": [
+                        "+30 to maximum Life",
+                        "+40 to maximum Life",
+                        "Adds 10 to 20 Physical Damage",
+                    ],
+                }),
+            ),
+            item(
+                "gem",
+                "",
+                "Vaal Grace",
+                "Gem",
+                json!({
+                    "properties": [property("Level", "20 (Max)", 0)],
+                    "requirements": [property("Level", "70", 0)],
+                }),
+            ),
+            item(
+                "stack",
+                "",
+                "Chaos Orb",
+                "Currency",
+                json!({ "stackSize": 3, "properties": [property("Stack Size", "3/10", 0)] }),
+            ),
+        ],
+        40,
+    );
+    s
+}
+
+/// 4-full part 1, step 6.4c (Decision 5): every value a shown item
+/// carries — a line's `value`, each of `number_fields` — binds as a sort
+/// and, asked of that item, is the number it stands beside: a field's,
+/// or the line's slot of that name summed over every occurrence its group
+/// selects, a mod of several rows by the row it names, and `avg` where
+/// the template's numbers are a mean pair. Each displayed row's pieces
+/// join to the row's own text, the number fields' pieces carrying their
+/// fields' texts.
+#[test]
+fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
+    let s = displayed();
+    let corpus = load(&s, Some("pc"));
+    let every = ids(&asked(&s, ""));
+    assert!(every.len() >= 10, "{every:?}");
+    let mut lines_valued = 0;
+    for id in &every {
+        let shown = show(&s, id, false).unwrap();
+        let mut texts: Vec<(String, f64)> = Vec::new();
+        for l in &shown.lines {
+            // none where the slot a bound compares reads no number: a line
+            // with no number, or one whose number is unread
+            let Some(value) = &l.value else {
+                assert!(
+                    l.slots.is_empty() || l.slots.iter().any(|(_, n)| n.is_null()),
+                    "{id}: a line whose numbers are read has no value: {}",
+                    l.line.text
+                );
+                continue;
+            };
+            lines_valued += 1;
+            let slot = value
+                .strip_suffix(')')
+                .and_then(|v| v.rsplit_once('.'))
+                .map(|(_, slot)| slot.to_string())
+                .unwrap();
+            // the slot of that name, summed over the occurrences the
+            // line's group selects: by its whole template, or by a row
+            let number = |slot: acquisition_search::derive::Slot| match slot {
+                acquisition_search::derive::Slot::Is(n) => n,
+                other => panic!("{id}: {value} reads {other:?}"),
+            };
+            let mut sum = 0.0;
+            for other in shown
+                .lines
+                .iter()
+                .filter(|o| o.line.source == l.line.source)
+            {
+                if other.line.template == l.line.template {
+                    sum += number(other.line.whole().slot(&slot));
+                }
+                for row in other
+                    .line
+                    .rows
+                    .iter()
+                    .filter(|r| r.template == l.line.template)
+                {
+                    sum += number(row.read().slot(&slot));
+                }
+            }
+            texts.push((value.clone(), sum));
+        }
+        for (field, number) in &shown.number_fields {
+            texts.push((field.clone(), number.as_f64().unwrap()));
+        }
+        // two lines of one group carry one value, which a list names once
+        let mut seen = BTreeSet::new();
+        texts.retain(|(text, _)| seen.insert(text.clone()));
+        for chunk in texts.chunks(acquisition_search::answer::VALUES) {
+            let values: Vec<&String> = chunk.iter().map(|(text, _)| text).collect();
+            let request: Request = serde_json::from_value(json!({
+                "query": { "text": format!("id:{id}") },
+                "view": { "rows": { "values": values, "sort": values[0] } },
+            }))
+            .unwrap();
+            let answered = as_json(&answer(&corpus, &request).unwrap());
+            let row = &answered["rows"][0];
+            for (n, (text, number)) in chunk.iter().enumerate() {
+                let valued = &row["values"][n];
+                assert!(valued["status"].is_null(), "{id} {text}: {valued}");
+                let got = valued["value"].as_f64().unwrap();
+                assert!(
+                    (got - number).abs() < 1e-9,
+                    "{id} {text}: {got} for {number}"
+                );
+            }
+        }
+        // each displayed row is its pieces joined, a field's piece its text
+        let displays = shown.displays();
+        let joined = |parts: &[acquisition_search::show::Part]| {
+            parts.iter().map(|p| p.text.as_str()).collect::<String>()
+        };
+        for (at, property) in shown.item.properties.iter().enumerate() {
+            assert_eq!(joined(&displays.property_row(at)), property.text);
+        }
+        if let Some(level) = &shown.item.item_level {
+            assert_eq!(&joined(&displays.item_level_row()), level);
+        }
+        if let Some(requires) = &shown.item.requires {
+            assert_eq!(&joined(&displays.requires_row()), requires);
+        }
+    }
+    assert!(lines_valued >= 10, "{lines_valued}");
+    // the coat: its displayed numbers, each its field, in the item's order
+    let coat = show(&s, "armour", false).unwrap();
+    assert_eq!(
+        serde_json::to_value(&coat.number_fields).unwrap(),
+        json!({ "quality": 20, "armour": 553, "ilvl": 84, "reqlevel": 64, "str": 16 })
+    );
+    let pieces = |parts: Vec<acquisition_search::show::Part>| {
+        parts
+            .into_iter()
+            .map(|p| (p.text, p.value))
+            .collect::<Vec<_>>()
+    };
+    let some = |s: &str| Some(s.to_string());
+    assert_eq!(
+        pieces(coat.displays().requires_row()),
+        [
+            ("Requires ".to_string(), None),
+            ("Level".to_string(), None),
+            (" ".to_string(), None),
+            ("64".to_string(), some("reqlevel")),
+            (", ".to_string(), None),
+            ("16".to_string(), some("str")),
+            (" ".to_string(), None),
+            ("Str".to_string(), None),
+        ]
+    );
+    assert_eq!(
+        pieces(coat.displays().property_row(1)),
+        [
+            ("Armour".to_string(), None),
+            (": ".to_string(), None),
+            ("553".to_string(), some("armour")),
+        ]
+    );
+    let value = |id: &str, text: &str| {
+        let shown = show(&s, id, false).unwrap();
+        let line = shown.lines.iter().find(|l| l.line.text == text).unwrap();
+        line.value.clone().unwrap()
+    };
+    assert_eq!(
+        value("armour", "Adds 10 to 20 Physical Damage"),
+        r##"sum(line("Adds # to # Physical Damage" source=explicit).avg)"##
+    );
+    assert_eq!(
+        value("armour", "+30 to maximum Life"),
+        r##"sum(line("# to maximum Life" source=explicit).arg1)"##
+    );
+    // a gem's level is read beside its mark, `20 (Max)`; a stack's
+    // `Stack Size: 3/10` is no property the table reads (`stack` is the
+    // body's own count, displayed nowhere alone), so it links nothing
+    let gem = show(&s, "gem", false).unwrap();
+    assert_eq!(
+        serde_json::to_value(&gem.number_fields).unwrap(),
+        json!({ "level": 20, "ilvl": 84, "reqlevel": 70 }),
+    );
+    let stack = show(&s, "stack", false).unwrap();
+    assert_eq!(
+        serde_json::to_value(&stack.number_fields).unwrap(),
+        json!({ "ilvl": 84 }),
+    );
+}
+
+/// Step 6.4c: a trade filter on a stat and that stat's line on an item
+/// name one value, so a click on a stat the form filtered lands on its
+/// column and adds no twin.
+#[test]
+fn a_trade_filter_on_a_stat_and_its_line_on_an_item_name_one_value() {
+    let s = displayed();
+    let request: Request = serde_json::from_value(json!({ "query": { "trade": { "query": {
+        "stats": [{ "type": "and", "filters": [
+            { "id": "explicit.stat_3299347043", "value": { "min": 70 } },
+        ] }] } } } }))
+    .unwrap();
+    let answered = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
+    let values = &answered["view"]["rows"]["values"];
+    let plain = show(&s, "plain", false).unwrap();
+    assert_eq!(
+        values,
+        &json!([plain.lines[0].value.clone().unwrap()]),
+        "{answered}"
+    );
+}

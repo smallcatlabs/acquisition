@@ -328,7 +328,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names [\"answer\"]). Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. A line's `value` and each `number_fields` key are values to sort by. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names [\"answer\"]). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {

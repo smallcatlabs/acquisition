@@ -76,9 +76,9 @@ GET search?<the ring search>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+95 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -89,12 +89,12 @@ GET search?<the ring search>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+75 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -196,9 +196,9 @@ GET search?<an edited text>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings%20%22%23%20to%20maximum%20Life%22%3E%3D90&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings%20%22%23%20to%20maximum%20Life%22%3E%3D90&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -257,9 +257,9 @@ GET search?<a trade site search's URL>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate">
 <p><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate · unique · frame unique</a></p>
 <p class="base">Glorious Plate</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+500 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+500 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -270,9 +270,9 @@ GET search?<a trade site search's URL>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+95 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -283,12 +283,12 @@ GET search?<a trade site search's URL>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+75 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=https%3A%2F%2Fwww.pathofexile.com%2Ftrade%2Fsearch%2FStandard%2FH4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -394,9 +394,9 @@ GET search?<the site's query JSON with its sort>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -407,12 +407,12 @@ GET search?<the site's query JSON with its sort>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -423,7 +423,7 @@ GET search?<the site's query JSON with its sort>
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
 <p><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%7B%22filters%22%3A%7B%22type_filters%22%3A%7B%22filters%22%3A%7B%22category%22%3A%7B%22option%22%3A%22accessory.ring%22%7D%7D%7D%7D%7D%2C%22sort%22%3A%7B%22price%22%3A%22asc%22%7D%7D&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
 <p class="mod">Grants 3 Echoes of the Brood <span class="mod-kind">wombgift</span></p>
 </div>
@@ -526,9 +526,9 @@ GET search?<every ring, one row shown>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+95 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
@@ -578,12 +578,12 @@ GET search?<every ring, the second row>
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
-<p class="properties">Item Level: 84</p>
+<p class="properties">Item Level: <a class="value" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod">+75 to maximum Life <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
-<p class="mod">+20 to maximum Life <span class="mod-kind">implicit</span></p>
+<p class="mod"><a class="value" href="/<token>/search?realm=pc&amp;text=class%3Arings&amp;view.limit=1&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>

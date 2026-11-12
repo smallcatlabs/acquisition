@@ -310,8 +310,63 @@ pub struct Property {
     pub array: String,
     pub name: String,
     pub values: Vec<String>,
-    /// The string the player sees.
+    /// The string the player sees: its [`Property::pieces`] joined.
     pub text: String,
+    /// The string the player sees in its pieces, in order (4-full part 1,
+    /// step 6.4c): made by the one function that composes it, so the text
+    /// is these joined by construction, and a page writes a value's piece
+    /// as a link without reading the text again. Not a key of the
+    /// document: the text is.
+    #[serde(skip)]
+    pub pieces: Vec<Piece>,
+}
+
+/// One piece of a displayed row's words: its text, and where the text is
+/// one of a property's values, which (from 0).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Piece {
+    pub text: String,
+    pub value: Option<usize>,
+}
+
+impl Piece {
+    fn words(text: impl Into<String>) -> Piece {
+        Piece {
+            text: text.into(),
+            value: None,
+        }
+    }
+}
+
+/// Pieces joined: the row's string.
+pub fn joined(pieces: &[Piece]) -> String {
+    pieces.iter().map(|p| p.text.as_str()).collect()
+}
+
+/// The item level's row, `Item Level: 84`, in its pieces: the words, then
+/// the number as its one value. The one maker of [`Item::item_level`].
+pub fn item_level_row(ilvl: i64) -> Vec<Piece> {
+    vec![
+        Piece::words("Item Level: "),
+        Piece {
+            text: ilvl.to_string(),
+            value: Some(0),
+        },
+    ]
+}
+
+/// The requirements' row, `Requires Level 67, 159 Str`, in its pieces,
+/// each with the requirement it is of (from 0) and that requirement's
+/// own piece: the one maker of [`Item::requires`].
+pub fn requires_row(requirements: &[Property]) -> Vec<(Piece, Option<usize>)> {
+    let mut row = vec![(Piece::words("Requires "), None)];
+    for (at, requirement) in requirements.iter().enumerate() {
+        if at > 0 {
+            row.push((Piece::words(", "), None));
+        }
+        row.extend(requirement.pieces.iter().map(|p| (p.clone(), Some(at))));
+    }
+    row
 }
 
 /// One displayed occurrence of a line (C90, C92).
@@ -570,7 +625,7 @@ pub fn derive(facts: Facts, body: &str) -> Item {
     item.icon = item.text(&body, "icon");
     // GGG's 0 is an item the game shows no level for: known absence
     item.ilvl = item.int(&body, "ilvl").filter(|ilvl| *ilvl != 0);
-    item.item_level = item.ilvl.map(|ilvl| format!("Item Level: {ilvl}"));
+    item.item_level = item.ilvl.map(|ilvl| joined(&item_level_row(ilvl)));
     item.stack = item.int(&body, "stackSize");
     item.cell = match (item.int(&body, "x"), item.int(&body, "y")) {
         (Some(x), Some(y)) => Some(Cell { x, y }),
@@ -583,8 +638,11 @@ pub fn derive(facts: Facts, body: &str) -> Item {
     }
     item.read_properties(&body, "requirements", "requirements");
     if !item.requirements.is_empty() {
-        let each: Vec<&str> = item.requirements.iter().map(|r| r.text.as_str()).collect();
-        item.requires = Some(format!("Requires {}", each.join(", ")));
+        let row: Vec<Piece> = requires_row(&item.requirements)
+            .into_iter()
+            .map(|(piece, _)| piece)
+            .collect();
+        item.requires = Some(joined(&row));
     }
     // one status: the number stands only while nothing under `reqlevel`
     // is unread — an unread element may be a second `Level` row
@@ -1226,30 +1284,50 @@ fn property(array: &str, element: &Value) -> Result<Option<Property>, String> {
         }
         Some(other) => return Err(format!("`values` is {}, not an array", json_kind(other))),
     }
-    let joined = values.join(", ");
-    let text = match p.get("displayMode").and_then(Value::as_i64) {
+    // the values, `, ` between them, each its own piece
+    let listed = || {
+        let mut pieces = Vec::new();
+        for (i, value) in values.iter().enumerate() {
+            if i > 0 {
+                pieces.push(Piece::words(", "));
+            }
+            pieces.push(Piece {
+                text: value.clone(),
+                value: Some(i),
+            });
+        }
+        pieces
+    };
+    let named = |pieces: Vec<Piece>, between: &str, name_first: bool| {
+        let name = [Piece::words(name.clone())];
+        let between = [Piece::words(between)];
+        match name_first {
+            true => [&name[..], &between[..], &pieces[..]].concat(),
+            false => [&pieces[..], &between[..], &name[..]].concat(),
+        }
+    };
+    let pieces = match p.get("displayMode").and_then(Value::as_i64) {
         // name: values — a requirement takes no colon
-        Some(0 | 2) if name.is_empty() || values.is_empty() => format!("{name}{joined}"),
-        Some(0 | 2) if array == "requirements" => format!("{name} {joined}"),
-        Some(0 | 2) => format!("{name}: {joined}"),
-        Some(1) if name.is_empty() => joined,
-        Some(1) => format!("{joined} {name}"),
+        Some(0 | 2) if name.is_empty() || values.is_empty() => named(listed(), "", true),
+        Some(0 | 2) if array == "requirements" => named(listed(), " ", true),
+        Some(0 | 2) => named(listed(), ": ", true),
+        Some(1) if name.is_empty() => listed(),
+        Some(1) => named(listed(), " ", false),
         Some(3) => {
-            let mut text = name.clone();
             for (i, value) in values.iter().enumerate() {
-                let slot = format!("{{{i}}}");
                 // a heist trinket's `Any Heist member can equip this item.`
                 // carries one empty value and no slot: nothing is lost
-                if !text.contains(&slot) && !value.is_empty() {
-                    return Err(format!("`{name}` has no {slot} for its value"));
+                if !name.contains(&format!("{{{i}}}")) && !value.is_empty() {
+                    return Err(format!("`{name}` has no {{{i}}} for its value"));
                 }
-                text = text.replace(&slot, value);
             }
-            text
+            placed(&name, &values)
         }
-        Some(4) => String::new(),
+        Some(4) => Vec::new(),
         _ => return Err("a `displayMode` this deriver does not render".to_string()),
     };
+    let pieces: Vec<Piece> = pieces.into_iter().filter(|p| !p.text.is_empty()).collect();
+    let text = joined(&pieces);
     if text.is_empty() {
         return Ok(None);
     }
@@ -1258,7 +1336,42 @@ fn property(array: &str, element: &Value) -> Result<Option<Property>, String> {
         name,
         values,
         text,
+        pieces,
     }))
+}
+
+/// A name whose `{0}`, `{1}` … stand where its values display
+/// (`displayMode` 3), in its pieces: each `{i}` a value has is that
+/// value's piece, every occurrence of it; any other brace is the name's.
+fn placed(name: &str, values: &[String]) -> Vec<Piece> {
+    let mut pieces = Vec::new();
+    let mut words = String::new();
+    let mut rest = name;
+    while let Some(open) = rest.find('{') {
+        let after = &rest[open + 1..];
+        let slot = after
+            .find('}')
+            .and_then(|close| Some((close, after[..close].parse::<usize>().ok()?)))
+            .filter(|(_, i)| *i < values.len());
+        match slot {
+            Some((close, i)) => {
+                words.push_str(&rest[..open]);
+                pieces.push(Piece::words(std::mem::take(&mut words)));
+                pieces.push(Piece {
+                    text: values[i].clone(),
+                    value: Some(i),
+                });
+                rest = &after[close + 1..];
+            }
+            None => {
+                words.push_str(&rest[..=open]);
+                rest = after;
+            }
+        }
+    }
+    words.push_str(rest);
+    pieces.push(Piece::words(words));
+    pieces
 }
 
 /// A displayed string as the player sees it (C90; the module

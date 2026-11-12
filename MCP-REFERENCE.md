@@ -220,7 +220,7 @@ The forum shop pages for one league, for a person to paste by hand; this server 
 
 ### `show`
 
-One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names ["answer"]). Each age is in words beside its time (`describe` with names ["ages"]).
+One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. A line's `value` and each `number_fields` key are values to sort by. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names ["answer"]). Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known. A name read that no account known holds is unknown_account (none known: not_logged_in if needed). A job tool also needs the account logged in now, else not_logged_in; a store read needs only its store.
 - `against` (object) — Why the item does or does not match a query: `{"text": …}`, `{"tree": …}` or `{"trade": …}`, as a request's `query`.

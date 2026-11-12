@@ -111,3 +111,5 @@ input.col-filter { width: 100%; box-sizing: border-box; }
 .window .r.head a { color: inherit; }
 .mark { margin-right: 0.25rem; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.card a.value { color: inherit; text-decoration: underline dotted; }
+.card a.valued { font-weight: bold; }

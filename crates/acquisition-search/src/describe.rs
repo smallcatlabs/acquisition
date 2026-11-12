@@ -252,7 +252,7 @@ pub fn answer_keys() -> Vec<Named> {
         ),
         key(
             "rows",
-            "id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`; and `values`, the item's number for each of `view.rows.values` in that order, what it is, or why it has none",
+            "id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`, in words `place.fetched_at_age`), and under membership all and removed when the item left (`removed_at`, in words `removed_at_age`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`; and `values`, the item's number for each of `view.rows.values` in that order, what it is, or why it has none; under `item`, a line's `value` and each `number_fields` key are texts `sort` takes",
         ),
         key(
             "view",

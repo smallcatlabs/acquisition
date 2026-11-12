@@ -111,6 +111,24 @@ pub(crate) fn slots(template: &str) -> Slots {
     }
 }
 
+/// The slot a bound on a display compares (the trade catalogue's
+/// `stat.text.bounds`): `avg` where the template's mean pair are both
+/// among `open`, the numbers the display leaves to its bound, counted
+/// from 1; else its one open number, `arg<N>`, or its first of several;
+/// none where it leaves none. The translation reads a site stat's bound
+/// by it, and `show` a line's value (`show.rs`), so a stat the form
+/// filters and the same line on an item name one value.
+pub(crate) fn compared_slot(template: &str, open: &[usize]) -> Option<String> {
+    let mean = slots(template)
+        .mean
+        .filter(|(low, high)| open.contains(low) && open.contains(high));
+    match (open, mean) {
+        ([], _) => None,
+        (_, Some(_)) => Some("avg".to_string()),
+        ([first, ..], None) => Some(format!("arg{first}")),
+    }
+}
+
 /// The slot words this template takes, as an error lists them.
 pub(crate) fn slot_words(template: &str) -> Vec<String> {
     let s = slots(template);

@@ -960,7 +960,7 @@ pub(crate) fn answer(
                     out.push_str(&rows_table(a, rows, window, view, now));
                 }
             } else {
-                out.push_str(&cards(a, now));
+                out.push_str(&cards(a, view, now));
             }
             // which cards are shown and in what order, wherever there are
             // rows or rows left out; then the way on, and on a
@@ -1172,11 +1172,13 @@ pub(crate) struct Presentation {
 /// A change to the view, made by the handler's one maker (`mod.rs`,
 /// `view_link`; 4-full part 1, step 6.4c): the same page ordered by one
 /// value, largest first or, where the rows are ordered by it, the other
-/// way, the value added to the list where the view lacks it. `ordered`
-/// says the rows are ordered by it, and which way (`true` largest first). A page writes a head or a number
+/// way, the value added to the list where the view lacks it. `held` says
+/// the view's values hold it; `ordered` says the rows are ordered by it,
+/// and which way (`true` largest first). A page writes a head or a number
 /// as this link and composes no request.
 pub(crate) struct ViewLink {
     pub href: String,
+    pub held: bool,
     pub ordered: Option<bool>,
 }
 
@@ -1232,7 +1234,7 @@ fn row_lines(a: &Answer, row: &acquisition_search::answer::Row) -> Vec<String> {
 /// The rows as cards, in the answer's order: each row's item as [`card`]
 /// renders it, its name a link to the item page, then what the row shows
 /// of the query.
-fn cards(a: &Answer, now: i64) -> String {
+fn cards(a: &Answer, view: ViewLinks, now: i64) -> String {
     if a.rows.is_empty() {
         return String::new();
     }
@@ -1242,7 +1244,14 @@ fn cards(a: &Answer, now: i64) -> String {
             continue;
         };
         let icon = row.icon.as_ref().and_then(|icon| icon.as_deref());
-        out.push_str(&card(ItemParts::of_row(shown), &row.place, icon, true, now));
+        out.push_str(&card(
+            ItemParts::of_row(shown),
+            &row.place,
+            icon,
+            true,
+            Some(view),
+            now,
+        ));
         let lines = row_lines(a, row);
         if !lines.is_empty() {
             out.push_str(&format!("<p class=\"shows\">{}</p>\n", lines.join("<br>")));
@@ -1262,13 +1271,32 @@ fn cards(a: &Answer, now: i64) -> String {
 /// where the item left. Every fact in the words the CLI's text says it
 /// in, made once in `search_cmd.rs`; the layout and the labels are the
 /// page's. The answer page renders a card per row, the item page one.
+/// With `view` (the answer page's, step 6.4c), each number that a value
+/// reads is that value's [`ViewLink`]: a line whole by its `value`, a
+/// displayed row's piece by the number field it shows; one the view holds
+/// is marked `valued`, the sort's as its head is. The item page has no
+/// view, and its numbers are words.
 pub(crate) fn card(
     parts: ItemParts<'_>,
     place: &acquisition_search::corpus::Place,
     icon: Option<&str>,
     link: bool,
+    view: Option<ViewLinks>,
     now: i64,
 ) -> String {
+    // `html`, already escaped, as the link a value's change to the view is
+    let linked = |html: String, value: Option<&str>| match value
+        .zip(view)
+        .and_then(|(value, view)| view(value))
+    {
+        Some(to) => format!(
+            "<a class=\"value{}\" href=\"{}\">{}</a>",
+            if to.held { " valued" } else { "" },
+            esc(&to.href),
+            ordered(&html, to.ordered)
+        ),
+        None => html,
+    };
     let it = parts.item;
     let name = search_cmd::title(it.name.as_deref(), it.typeline.as_deref());
     let mut out = String::from("<div class=\"card\">\n");
@@ -1293,12 +1321,29 @@ pub(crate) fn card(
     if let Some(base) = &it.base {
         out.push_str(&format!("<p class=\"base\">{}</p>\n", esc(base)));
     }
-    let properties = search_cmd::shown_properties(it);
-    if !properties.is_empty() {
-        let lines: Vec<String> = properties.iter().map(|p| esc(p)).collect();
+    // the properties, the item level and the requirements, as
+    // `shown_properties` says them, each row its pieces, a number field's
+    // piece its link
+    let displays = parts.displays;
+    let rows: Vec<String> = (0..it.properties.len())
+        .map(|at| displays.property_row(at))
+        .chain([displays.item_level_row(), displays.requires_row()])
+        .filter(|row| !row.is_empty())
+        .map(|row| {
+            row.iter()
+                .map(|piece| {
+                    linked(
+                        esc(&piece.text.replace('\n', " / ")),
+                        piece.value.as_deref(),
+                    )
+                })
+                .collect()
+        })
+        .collect();
+    if !rows.is_empty() {
         out.push_str(&format!(
             "<p class=\"properties\">{}</p>\n",
-            lines.join("<br>")
+            rows.join("<br>")
         ));
     }
     // a group per run of one source, in the item's own order
@@ -1314,7 +1359,7 @@ pub(crate) fn card(
         let text: Vec<String> = l.line.text.split('\n').map(esc).collect();
         out.push_str(&format!(
             "<p class=\"mod\">{} <span class=\"mod-kind\">{}</span></p>\n",
-            text.join("<br>"),
+            linked(text.join("<br>"), l.value.as_deref()),
             esc(&search_cmd::line_kind_words(l))
         ));
     }
@@ -1875,6 +1920,7 @@ pub(crate) fn item(shown: &Shown) -> String {
         &shown.place,
         it.icon.as_deref(),
         false,
+        None,
         now,
     );
     out.push_str("<table class=\"shown\">\n");

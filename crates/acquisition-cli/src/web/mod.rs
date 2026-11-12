@@ -188,7 +188,15 @@
 //!   rows are ordered by it, the value joining the answer's list where the
 //!   list lacks it and no link where the list is full. Each value's head
 //!   of the table is that link, the ordered one marked by an arrow and by
-//!   words a screen reader gets.
+//!   words a screen reader gets. So is each number of an answer's card
+//!   that a value reads (`page::card`): a line whole by its `value`, the
+//!   value a trade filter on its stat compares, so a stat the form
+//!   filtered lands on its own column; a displayed row's number by the
+//!   field it shows, the row in the search crate's pieces
+//!   (`acquisition_search::show::Displays`), never read again from its
+//!   text. A number whose value the view holds is marked `valued`, the
+//!   sort's as its head is; the item page has no view, and its numbers are
+//!   words.
 
 mod form;
 mod page;
@@ -1312,7 +1320,11 @@ fn view_link(
             )
         }
     };
-    Some(page::ViewLink { href, ordered })
+    Some(page::ViewLink {
+        href,
+        held,
+        ordered,
+    })
 }
 
 /// `saved` and `saved_revision` taken out of a search's fields, which the
