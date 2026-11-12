@@ -1,0 +1,14 @@
+`roadmap/briefs/4-full-1-step6-check.md` at `d4ef77e3`: not ready to build as written; the browser’s timeout lifecycle remains an unresolved implementation input.
+
+- **Decisions 4; Done when — changes what gets built.** Cleanup after forced termination is deferred to an investigation without choosing a mechanism or requiring evidence for each platform. The patch’s guard and the existing harness’s `Proc` clean up through destructors; `isolate_at` sets environment variables, and the audit establishes browser operation on macOS without establishing timeout containment across platforms. The builder’s first unresolved choice is whether ordinary spawning suffices or additional process ownership is needed under the unchanged-manifest constraint. **Smallest change:** establish the containment mechanism before the build, name its implementation path, and require forced-timeout cleanup evidence for macOS, Linux and Windows in the close; explicitly keep unrelated child-process lifecycles outside scope.
+
+- **Goal; Decision 5; Done when — changes what gets built.** The required tests can pass while changing one form corrupts another form’s count. The candidate observes only the query form’s matched output, and the proposed picker test observes its own form; a count script that writes each successful response into every form’s outputs would satisfy those assertions while breaking the stated form-local rule. `page.rs` renders multiple count-bearing forms together. **Smallest change:** require distinct totals in two forms and assert that updating either preserves the other’s displayed total.
+
+- **Decision 5; Done when — changes what gets built.** The picker’s required scenario omits the case where every stat row is occupied. `picker.js` has a separate `if (!slot)` branch, so a regression that overwrites an occupied row only when no empty row remains could pass the specified test. **Smallest change:** extend the same test to fill every row, pick again, and assert that all written rows remain unchanged.
+
+- **Inputs — wording.** The paragraph enumerating the patch’s functions, test and module edits carries a tree inventory without a command that produces that inventory, contrary to C174. The supplied `git apply --numstat` finds affected files and counts, not those symbols. **Smallest change:** remove the enumeration and direct the builder to read the patch, or provide a command beside it that finds the named additions.
+
+- **What I did not check and why:** I did not build, execute tests, launch browsers, inspect live CI runs or verify installed browser paths, as this was a read-only review of the named tree. All “Find first” read-only commands ran successfully, including the patch applicability check; I found no material discovery misses. No invariant or forbidden dependency-edge contradiction was found.
+
+- **Form:** No additional obstacle.
+- **Prompt:** No obstacle.
