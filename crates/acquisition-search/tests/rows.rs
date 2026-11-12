@@ -1929,7 +1929,9 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
 /// Phasing for 4 seconds, the review at 4a1e21c3, its first finding);
 /// `gem`, a gem at level 20 of its maximum, requiring level 70; `stack`, a
 /// currency stack of 3 of 10; `blueprint`, 1 of 3 wings revealed (its
-/// second finding).
+/// second finding); `kit`, three lines the fix round's review named — a
+/// `+` the site writes before a `#`, a digit its text writes as another
+/// number, a plural form the bound sums with the text.
 fn displayed() -> Store {
     let mut s = stash();
     list_tabs(
@@ -1979,6 +1981,17 @@ fn displayed() -> Store {
                 "Chaos Orb",
                 "Currency",
                 json!({ "stackSize": 3, "properties": [property("Stack Size", "3/10", 0)] }),
+            ),
+            item(
+                "kit",
+                "Kit Belt",
+                "Leather Belt",
+                "Rare",
+                json!({ "explicitMods": [
+                    "+5 Life per 4 Dexterity",
+                    "15% chance to gain Phasing for 6 seconds on Kill",
+                    "Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds",
+                ] }),
             ),
             item(
                 "blueprint",
@@ -2180,7 +2193,10 @@ fn every_value_a_shown_item_carries_is_the_number_it_stands_beside() {
 /// column and adds no twin: life, and a text the site writes a digit of,
 /// whose written number the filter does not compare (the review at
 /// 4a1e21c3, its first finding: the line's two numbers are no mean pair
-/// to the site).
+/// to the site); and the three the fix round's review at 9fe51220 found
+/// the stat's line found too narrowly: a `+` before the site's `#`, the
+/// site's digit where the item shows another number, a plural form the
+/// bound sums with the text — each a line the stat's group selects.
 #[test]
 fn a_trade_filter_on_a_stat_and_its_line_on_an_item_name_one_value() {
     let s = displayed();
@@ -2190,6 +2206,17 @@ fn a_trade_filter_on_a_stat_and_its_line_on_an_item_name_one_value() {
             "explicit.stat_2918708827",
             "armour",
             "15% chance to gain Phasing for 4 seconds on Kill",
+        ),
+        ("explicit.stat_2042405614", "kit", "+5 Life per 4 Dexterity"),
+        (
+            "explicit.stat_2918708827",
+            "kit",
+            "15% chance to gain Phasing for 6 seconds on Kill",
+        ),
+        (
+            "explicit.stat_3595254837",
+            "kit",
+            "Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds",
         ),
     ] {
         let request: Request = serde_json::from_value(json!({ "query": { "trade": { "query": {

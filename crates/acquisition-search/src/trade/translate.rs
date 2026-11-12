@@ -336,6 +336,62 @@ fn trade(message: impl Into<String>) -> LanguageError {
     LanguageError::new(ErrorKind::Trade, message)
 }
 
+/// The site stats an item's line under one hash category displays as
+/// (4-full part 1, step 6.4c): each stat whose group a bound on it sums
+/// selects the line — its one text, its ` (Local)` dropped, or a form of
+/// it the bound sums ([`Kind::summed`]) — each display read as a clause
+/// reads it ([`Shown::of`]: a digit its text writes a number of the line)
+/// and compared as the group compares a template, the sign before a `#`
+/// dropped (`template::unsigned`) and case aside (`bind::folded`); in the
+/// stat table's order. A stat of several texts is none: the translation
+/// lands no line for it (`stat.text.two`). What `show` asks the
+/// translation of, so a line on an item and a filter on its stat name one
+/// value. Made once in a process.
+pub(crate) fn displayed_as(category: &str, template: &str) -> Vec<&'static str> {
+    type Index = HashMap<(&'static str, String), Vec<&'static str>>;
+    static INDEX: std::sync::LazyLock<Option<Index>> = std::sync::LazyLock::new(|| {
+        let stats = stats::table().ok()?;
+        let forms = forms::table().ok()?;
+        let key = |text: &str| -> Option<String> {
+            let fixed = template::unsigned(&Shown::of(text).template).ok()?;
+            Some(crate::bind::folded(&fixed))
+        };
+        let mut index: Index = HashMap::new();
+        for (category, id, texts) in stats.entries() {
+            let [site_text] = texts else {
+                continue;
+            };
+            let own = site_text.strip_suffix(forms::LOCAL).unwrap_or(site_text);
+            let summed = forms
+                .of(site_text)
+                .known
+                .into_iter()
+                .filter(|form| form.kind.summed())
+                .map(|form| form.text);
+            let mut keys: Vec<String> = std::iter::once(own.to_string())
+                .chain(summed)
+                .filter_map(|text| key(&text))
+                .collect();
+            keys.dedup();
+            for k in keys {
+                let ids = index.entry((category, k)).or_default();
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        Some(index)
+    });
+    INDEX
+        .as_ref()
+        .and_then(|index| {
+            let category = stats::HASH_CATEGORIES.iter().find(|c| **c == category)?;
+            index.get(&(*category, crate::bind::folded(template)))
+        })
+        .cloned()
+        .unwrap_or_default()
+}
+
 /// A decoded site search to its translation. An error is a table this
 /// build ships that does not load, or a translation that broke its own
 /// guard — a build defect, said, never a partial answer.
@@ -1635,7 +1691,7 @@ impl Translator<'_> {
         }
         for form in forms.known {
             let shown = Shown::of(&form.text);
-            if form.kind == Kind::Plural {
+            if form.kind.summed() {
                 summed.push(shown.clone());
             } else {
                 opposite = opposite

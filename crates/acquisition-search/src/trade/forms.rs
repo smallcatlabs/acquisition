@@ -102,6 +102,13 @@ impl Kind {
         ("other", Kind::Other),
     ];
 
+    /// Whether a bound on the stat sums a form of this kind with its
+    /// text: a plural alone (the file's header). The translation's group
+    /// and the displays `show` finds a stat by are both this.
+    pub fn summed(self) -> bool {
+        self == Kind::Plural
+    }
+
     /// The word the file spells it with.
     pub fn word(self) -> &'static str {
         Kind::ALL

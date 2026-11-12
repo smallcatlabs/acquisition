@@ -415,7 +415,7 @@ fn category_of(source: &str) -> Option<&'static str> {
 }
 
 /// The value the translation compares for a filter on the first site stat
-/// a line displays as (`StatTable::displayed_as`), with its slot; none
+/// a line displays as (`translate::displayed_as`), with its slot; none
 /// where the line displays as none, or the translation compares no value
 /// of it. Asked once per stat in a process and held: the translation is a
 /// pure function of the build's tables.
@@ -425,12 +425,9 @@ fn trade_value(line: &Line) -> Option<(String, String)> {
     type Held = HashMap<String, Option<(String, String)>>;
     static ASKED: LazyLock<Mutex<Held>> = LazyLock::new(|| Mutex::new(HashMap::new()));
     let category = category_of(&line.source)?;
-    let table = crate::trade::stats::table().ok()?;
     let stat = format!(
         "{category}.{}",
-        table
-            .displayed_as(category, &line.template, &line.numbers)
-            .first()?
+        crate::trade::translate::displayed_as(category, &line.template).first()?
     );
     if let Some(held) = ASKED.lock().ok().and_then(|held| held.get(&stat).cloned()) {
         return held;

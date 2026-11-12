@@ -2,10 +2,9 @@
 //! `search/TRADE-PLAN.md` at `77666ea4`): the trade site's stat ids in its six hash
 //! categories, to the text the site displays for each — the vocabulary
 //! the translation writes a `line("…")` from (step 4), and nothing else
-//! reads (C90: a stat id exists only at the trade boundary) but `show`,
-//! which finds the stat a line displays as (`StatTable::displayed_as`)
-//! to ask the translation the value a filter on it compares (4-full part
-//! 1, step 6.4c), and never says an id.
+//! reads (C90: a stat id exists only at the trade boundary); `show` asks
+//! the translation which stat a line displays as (4-full part 1, step
+//! 6.4c, `translate::displayed_as`), and never says an id.
 //!
 //! # As built
 //!
@@ -40,7 +39,7 @@
 //!   the table (step 4): only an answer that used it cites it.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{LazyLock, OnceLock};
+use std::sync::LazyLock;
 
 use serde::Deserialize;
 
@@ -103,15 +102,7 @@ pub struct StatTable {
     /// template, its written digits `#` as well) to ids, in the file's
     /// order.
     by_text: HashMap<(u8, String), Vec<String>>,
-    /// The ids by how an item displays them (`StatTable::displayed_as`),
-    /// made on first use.
-    displays: OnceLock<Displays>,
 }
-
-/// (category bit, the template an item displays, its ` (Local)` dropped)
-/// to each id with the numbers its text writes as digits, by `#`, in the
-/// file's order.
-type Displays = HashMap<(u8, String), Vec<(String, Vec<Option<f64>>)>>;
 
 /// Why a table text is not a table. Every arm names the offending row so a
 /// reviewer can fix the file, not the loader.
@@ -308,59 +299,7 @@ impl StatTable {
             by_id,
             order,
             by_text,
-            displays: OnceLock::new(),
         })
-    }
-
-    /// The stats an item's line under one hash category displays as
-    /// (4-full part 1, step 6.4c): each id the category carries whose
-    /// text, its ` (Local)` dropped as the translation drops it, is the
-    /// line's template and writes as a digit, where it writes one, the
-    /// line's own number there, in the file's order. What `show` asks the
-    /// translation of, so a line on an item and a filter on its stat name
-    /// one value; an id is never shown.
-    pub(crate) fn displayed_as(
-        &self,
-        category: &str,
-        template: &str,
-        numbers: &[Option<f64>],
-    ) -> Vec<&str> {
-        let Some(at) = HASH_CATEGORIES.iter().position(|c| *c == category) else {
-            return Vec::new();
-        };
-        let displays = self.displays.get_or_init(|| {
-            let mut displays: Displays = HashMap::new();
-            for id in &self.order {
-                let stat = &self.by_id[id];
-                for text in &stat.texts {
-                    let shown = text.strip_suffix(super::forms::LOCAL).unwrap_or(text);
-                    let (template, written) = crate::template::fixed(shown);
-                    for bit in 0..HASH_CATEGORIES.len() as u8 {
-                        if stat.categories & (1 << bit) != 0 {
-                            displays
-                                .entry((bit, template.clone()))
-                                .or_default()
-                                .push((id.clone(), written.clone()));
-                        }
-                    }
-                }
-            }
-            displays
-        });
-        displays
-            .get(&(at as u8, template.to_string()))
-            .map_or_else(Vec::new, |ids| {
-                ids.iter()
-                    .filter(|(_, written)| {
-                        written.len() == numbers.len()
-                            && written
-                                .iter()
-                                .zip(numbers)
-                                .all(|(w, n)| w.is_none_or(|w| *n == Some(w)))
-                    })
-                    .map(|(id, _)| id.as_str())
-                    .collect()
-            })
     }
 
     /// The version every basis that read the table cites.
