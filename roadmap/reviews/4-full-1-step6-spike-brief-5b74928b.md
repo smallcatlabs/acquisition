@@ -1,0 +1,19 @@
+`roadmap/briefs/4-full-1-step6-spike.md` at `5b74928b`: a builder needs the following corrections before starting unambiguously.
+
+- **Decisions 1 and 9 — changes what gets built.** The single record commit comes after the owner’s sitting, contradicting C171’s requirement that a commit land before each owner review. The prototype is “never committed,” while the sole record commit must contain his subsequent words. Smallest change: commit the initial record and scripts before handoff, then commit the measurements and his response afterward.
+
+- **Decision 3 — changes what gets built.** The requested range and fragment placement disagree when the window includes a preceding page. For example, with the viewport at row 100 and a preceding page of 30 rows, a fragment beginning at row 70 placed at `100 × height` shifts its contents by 30 rows; `answer.rs` implements `after` literally with `.skip(after)`. Smallest change: distinguish the visible offset from the requested start, specify rounding and bounds, and place the fragment at the requested start times row height. This is the first mechanism the builder must guess.
+
+- **Decisions 7–8 and Done when — changes what gets built.** The acceptance criteria measure responsiveness without establishing that the correct rows occupy the viewport. A script can insert the wrong fragment promptly, keep a bounded DOM, meet every numerical bar, and produce every required record while failing the goal. Smallest change: make a run invalid when expected rows are missing, misplaced or stale, and define “time to the rows shown” as time until the expected visible range is rendered.
+
+- **Decisions 4–5 and Not in scope — changes what gets built.** The recipe omits how the required price reaches a row and consequently omits an existing window-size constraint. In `answer.rs`, compact `Row` has no price; `RowField::Item` supplies it through `shown`, and `Shape::bound` caps those answers at `ITEM_ROWS`, currently 200. Smallest change: name that existing path, require windows to respect the returned limit, and exclude changes to search/store APIs or their bounds from the spike’s performance repair.
+
+- **Decision 1 and Done when — changes what gets built.** The prototype may disappear while its Rust implementation survives only outside the commit, leaving the next brief dependent on an unverifiable external artifact. The driver brief explicitly reconstructs a removed worktree from that notes-folder diff; this brief also permits the surviving worktree to be named only “in the report,” which reviewers never receive. Smallest change: preserve the Rust patch and its base commit beside the scripts, and put any retained worktree location in the committed record.
+
+- **Decision 9 and Rules — wording.** The handoff launch omits the flag needed to satisfy the prohibition on opening a browser window. `web/mod.rs` calls `open_browser` unless `no_browser` is set. Smallest change: explicitly prescribe `acq web --no-browser` in the isolated mock environment.
+
+- **Find first — wording.** The `after` search finds unrelated prose as well as continuation code. Its hits include general comments at `answer.rs:84`, `:212` and `:244`; the other searches locate their intended definitions, and the `sed` command exposes the complete wrapper example. Smallest change: narrow this search to `pub after`, `fn place` and `basis_changed`, with enough context to read the refusal.
+
+What I did not check and why: I ran no builds, tests, application commands, browsers or gate, as instructed. I did not verify CI through GitHub or reproduce the item/tab counts. The read-only searches ran successfully, and the measurement file’s SHA-256 matches the brief.
+
+The brief’s references to an external notes folder and an uncommitted report obstruct review from the commit alone. Nothing else about the prompt hindered the review.
