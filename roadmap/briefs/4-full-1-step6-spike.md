@@ -26,8 +26,8 @@ work" (#264). `main` gains a record and nothing else.
   `crates/acquisition-search/examples/copy-as-store.rs`. In a mock
   world over it: `acq search --realm pc --limit 0` says 22,623
   matches, and `acq tabs --realm pc --league Standard` 3,347 tabs.
-- The three reviews of this brief's earlier forms
-  (`roadmap/reviews/4-full-1-step6-spike-brief-*.md`): each fault
+- The reviews of this brief's earlier forms (`git ls-files
+  'roadmap/reviews/4-full-1-step6-spike-brief-*.md'`): each fault
   they found in a recipe is one the rig must not have.
 - CI on `main`: `gh run list --branch main --workflow "Gate (Linux)"
   --limit 1`, the same for `Gate (Windows)`.
@@ -56,13 +56,15 @@ work" (#264). `main` gains a record and nothing else.
    scroll and the jumps a run makes. It names the bar the runs will be
    judged by, before any judged run, covering at least: frames that
    come late; the time from a jump to its rows; frames with a row
-   missing; a row off its place, which voids a run; and the page's
-   size not growing with the row count. Two things the reviews
-   settled: the steady scroll is at a wheel's speed, and frames with
-   a row missing are judged. Beside the record: the copy's whole
-   diff from its base commit, assets included, as a patch that
-   passes the gate's `diff` stage (a blank context line may lose its
-   space; `git apply` reads it) and is proven to apply.
+   missing; a row off its place, which voids a run; and the live
+   DOM's size not growing with the row count, the record saying what
+   it counts. Two things the reviews settled: the steady scroll is
+   at a wheel's speed, and frames with a row missing are judged.
+   Beside the record: the copy's whole diff from its base commit,
+   assets included, as a patch that passes the gate's `diff` stage
+   (a blank context line may lose its space; `git apply` reads it).
+   The record names the base commit and the command that proved the
+   patch applies to it.
 5. **That commit is reviewed cold, as a build** (the cold-review
    skill), against this brief; its findings are answered in the rig.
 6. **Then the judged runs, each set its own commit.** Headless
@@ -93,8 +95,9 @@ work" (#264). `main` gains a record and nothing else.
 - A commit holds the headless runs judged by the bar, and a later one
   the owner's runs in Brave, the display's rate, his words and the
   verdict first: whether the hand-written script holds.
-- The last commit gives the window script's size in lines and what
-  it holds, and drafts the window's route for the owner as one
+- The last commit gives the window script's size in lines (`wc -l`
+  of it) and what it holds, and drafts the window's route for the
+  owner as one
   decision, filed by the launching session and named in the commit's
   message; the copy outside the repository is removed and pruned.
 - The measurement copy's hash is the same before and after.
