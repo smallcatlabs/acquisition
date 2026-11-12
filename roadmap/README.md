@@ -16,15 +16,17 @@ better Acquisition that is agent-friendly and agent-forward.
   over places; "Approved as designed.", 2026-11-11). Its build is that
   file's §5, in series. Values on rows (#38) and the count (#245) are
   closed (`briefs/4-full-1-step6-values.md`,
-  `briefs/4-full-1-step6-count.md`); next the spike (the design's §5
-  item 3), briefed in two. The check's driver is measured
-  (`audits/web-2026-11/driver/README.md`): a hand-written one works,
-  and the driver and the check's home wait on the owner (#266, #267).
-  The window script is built as a rig (`briefs/4-full-1-step6-spike.md`,
-  at his word on #264) and holds headless in all four cases at its
-  second rig (`audits/web-2026-11/spike/README.md`); its verdict is
-  his sitting in Brave, which closes the step. Then the flat table,
-  and the places and the grouped table.
+  `briefs/4-full-1-step6-count.md`). The spike (the design's §5 item
+  3) is closed in its two halves. The check's driver is measured
+  (`audits/web-2026-11/driver/README.md`): a hand-written one works.
+  The window script holds the table in the owner's Brave, flat and
+  grouped, at 60 Hz (`audits/web-2026-11/spike/README.md`; his words:
+  "All passed. Nothing flickered."). Next is the flat table, step 6.4.
+  It waits on its brief and on the route that serves a window of rows
+  (#268), with the driver and the check's home (#266, #267) beside it.
+  Then the places and the grouped table, step 6.5, where tabs nest
+  under their parent (#269); opening something keeps the reader's
+  place in both (#270).
 
 ## Next
 
@@ -32,14 +34,13 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, step 6: the dense table. Its view is designed first,
-   as one view of values and places: #244 with the place pages (#248,
-   #194, #189, #182) and whether a plan carries that a tab was ever
-   fetched (#191, taken up in this design at his word), and #186 and
-   #190 riding. The owner rules
-   it before the spike (the design's §7, step 6). The search form's
-   reshaping (#184, #181, #180, #185, #188, #183, #193) is the step
-   after, one design.
+1. 4-full part 1, step 6: the dense table, its view ruled
+   (`briefs/4-full-1-step6-design.md`) and built in series: the flat
+   table (6.4), once its brief is written and #268 ruled; then the
+   places and the grouped table (6.5): #244 with the place pages
+   (#248, #194, #189, #182), #191, and #186 and #190 riding, with
+   #269 and #270. The search form's reshaping (#184, #181, #180, #185,
+   #188, #183, #193) is the step after, one design.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
@@ -66,8 +67,6 @@ label: `gh issue list --label trigger:step`.
 His queue is the open issues labelled `trigger:ruling`:
 `gh issue list --label trigger:ruling`. What only he can do:
 
-- The window spike's sitting in Brave, once its rig and headless runs
-  are committed (`briefs/4-full-1-step6-spike.md`).
 - The league run under the rails, at his word: count the undecided
   classes and the untranslated mods.
 - At the next live login, deny once: whether GGG's authorize page

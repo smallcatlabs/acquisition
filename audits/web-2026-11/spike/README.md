@@ -10,12 +10,23 @@ work").
 
 ## Verdict
 
-Not yet: the owner's sitting in Brave decides. Headless, the
-hand-written script holds the table, flat and grouped, at the second
-rig: all four cases pass every run of rig-2. The first rig missed the
-grouped cases because each window of tab heads read the whole listing
-of 3,347 tabs; holding the listing for its basis answered it, with the
-script unchanged.
+Yes: the hand-written script holds the table in the owner's Brave,
+flat and grouped. At his sitting on 2026-11-12, every case passed
+every part of the bar on its run, with the same numbers headless
+Chrome had given at rig-2 and rig-3. In his words: "All passed.
+Nothing flickered." The script is 93 lines, with no crate and no
+framework. Holding the listing for its basis was the one change the
+grouped cases needed (rig-2). The script itself never changed.
+
+What he asked of the next steps is how the table reads:
+- tabs nested under their folder or parent tab and collapsed, for the
+  grouped table (step 6.5, #269);
+- opening something keeping his place (an item's card in step 6.4, a
+  place in step 6.5, #270);
+- a look nearer the trade site's, the production renderer's (step 6.4).
+
+The route that serves a window of an answer's rows is drafted for him
+as one decision, named `rows` there (#268).
 
 ## The rig
 
@@ -320,3 +331,105 @@ Each run's result was kept by the server: four lines, each with its
 case, the headless browser's user agent and its window (1440 × 813
 inside, 1440 × 900 outside, pixel ratio 2). Load 2.54 before and 2.50
 after on 10 cores, no compiler; Spotlight's indexer on one core.
+
+## The owner's sitting
+
+Four runs, one per case, 06:40 to 06:42 on 2026-11-12, in Brave by
+the owner's word to the builder: their user agent says Chrome 157,
+which Brave and Chrome both say, so the file cannot tell them apart.
+They ran against `rig-3.patch`'s server as committed (the copy's
+diff still equals it, by `cmp`). Each result was kept by the server,
+as rig-3 made it. The lines are whole in `sitting.jsonl` beside this
+file. The window, as
+the page measured it: 1049 × 824 inside, on a 1440 × 900 screen at a
+pixel ratio of 2. **The display's rate, measured by the run's still
+frames: 60 Hz** (16.7 ms a frame). No build of this step's ran during
+the sitting. At 06:36, four minutes before it, load was 1.88 on 10
+cores with no compiler running.
+
+| Case | Passed | Jumps, median / 9th of 10 / slowest | Late frames, steady | Steady frames with a row missing | Most elements / rows live | Rows checked | Void |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| F, 22,623 rows | yes | 75 / 83 / 84 ms | 0 of 600 | 0 | 780 / 150 | 968 | 0 |
+| F1k, 1,133 rows | yes | 67 / 83 / 83 ms | 0 of 600 | 0 | 931 / 150 | 828 | 0 |
+| G0, 3,347 heads | yes | 75 / 83 / 83 ms | 0 of 600 | 0 | 1,030 / 200 | 931 | 0 |
+| G1, 348 + 499 + 2,999 | yes | 83 / 83 / 83 ms | 0 of 600 | 0 | 1,033 / 200 | 755 | 0 |
+
+No frame in any jump was longer than 17.8 ms. Every window asked was
+answered (41, 39, 43 and 47 a run). The median time from ask to body
+was 34 to 41 ms, against about 26 headless. The measure's own look
+cost under 1 ms a frame.
+
+The file has a fifth line: a second run of F from the Claude desktop
+app's own browser pane, not from Brave. Its user agent names the app
+and Chrome 156; its viewport is 568 × 724, on a 1470 × 956 screen. Its
+result came 14 s after the Brave run of F, and a run takes at least
+20 s, so the two ran side by side. It is recorded and not judged: its
+frames came about a second apart (the longest 1,017 ms, its jumps
+whole in about 2,017 ms), whole seconds, which is what a browser does
+to a page that is not in front, so it measured the pane's pacing and
+not the script. The Brave run of F passed every line of the bar with
+that run going on beside it.
+
+What the owner said after the runs, exact as he gave it to the
+builder:
+
+> Done. All passed. Nothing flickered. The styling and format of the
+> pages is still spartan compared to the trade site. Aso, map
+> sub-stashes were not displayed hierarchically, they were listed with
+> the same visual style as top level stashes--this causes visual
+> clutter due to how many sub-stashes every map stash contains. There
+> are pages and pages and pages of map substashes that I have to
+> scroll past. Map stashes should be collapsible. Also, when I clicked
+> on a map substash to expand the maps the page jumps back to the top
+> so I have to scroll back down to find the tab I expended.
+
+What each point is, and whose step:
+
+- The look. The rig renders the least a row needs. The row's look is
+  the production renderer's, step 6.4.
+- The sub-tabs. In pc Standard, 3,086 of the 3,347 heads have a
+  parent: 2,535 map sub-tabs, 474 unique sub-tabs and 77 tabs in
+  folders. Only 261 are top level. The rig lists the heads flat in the
+  listing's order. The store holds each tab's parent, so a tree is a
+  rendering of facts already held. The grouped table is step 6.5's
+  (#269).
+- The jump to the top. A head's link is a plain navigation to the same
+  table with `open=` and no place to land, so the new page loads at
+  its top. Opening something leaves the reader where they were: an
+  item's card in step 6.4, a place in step 6.5 (#270). The measure
+  never clicks a head: G1 opens its tab by its URL and scrolls there
+  itself, so the bar could not see this.
+
+## The window script
+
+`wc -l crates/acquisition-cli/src/web/assets/window.js`: **93 lines**,
+unchanged since rig-1, in `rig-3.patch`. What it holds:
+- It finds the table and its row height, and sizes each segment the
+  server named by its count times that height.
+- `fill` runs once a frame after a scroll or a resize. For each
+  segment it works out:
+  - the blocks of 50 rows in view;
+  - the blocks within one viewport around them.
+
+  It drops the blocks outside that span, aborting any still asked. It
+  asks the blocks in view first, and the ones around them once none in
+  view is still on its way.
+- `ask` makes a block's element at its offset and fetches the
+  segment's route with the offset and the count. It puts in the
+  server's rows as they come. On a 409 (a moved basis) it loads the
+  page again.
+
+It keeps nothing a reload must keep: no order, no count, no row it
+made itself.
+
+The rig's `window` route, which answers a window of an answer's rows,
+is drafted for the owner as one decision, under the name `rows` (#268).
+The rig's second route, `heads`, served the grouped table's head rows;
+those belong to the place pages the owner ruled (`tabs`,
+`characters`), and how they serve a window is step 6.5's brief to say,
+with this spike's finding that the tab listing is held for its basis
+(rig-2).
+
+The copy outside the repository is removed and pruned, and its server
+stopped. The measurement copy's SHA-256 is the brief's after the
+sitting too.
