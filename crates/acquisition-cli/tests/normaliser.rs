@@ -212,6 +212,29 @@ fn the_scratch_rule_writes_a_path_under_the_base_with_forward_slashes() {
     }
 }
 
+/// A base given by one spelling and a text carrying the one the store
+/// reports, the long spelling without Windows's verbatim prefix: the
+/// world lock's refusal on a hosted Windows runner, whose temp directory
+/// is given by its short name (`RUNNER~1`) and reported by its long one.
+/// The base here is given through `..`, which every platform resolves; the
+/// spelling the text carries is made apart from the rule, by `std`'s
+/// canonical form with the prefix taken off by hand.
+#[test]
+fn the_scratch_rule_knows_the_spelling_the_store_reports() {
+    let scratch = crate::harness::scratch("spelling");
+    let dir = scratch.0.join("world");
+    std::fs::create_dir_all(&dir).unwrap();
+    let base = dir.join("..").join("world");
+    let long = std::fs::canonicalize(&dir).unwrap().display().to_string();
+    let reported = long.strip_prefix(r"\\?\").unwrap_or(&long);
+    let sep = std::path::MAIN_SEPARATOR;
+    let text = format!("{reported}{sep}store{sep}daemon.lock is held\n");
+    assert_eq!(
+        normalise(&text, &base),
+        "<scratch>/store/daemon.lock is held\n"
+    );
+}
+
 /// `acq diagnose` prints the store and log directories as `<store>` and
 /// `<logs>`; a path under either is written with forward slashes as one
 /// under the scratch is (the search's basis line, `store <store> ·`, is

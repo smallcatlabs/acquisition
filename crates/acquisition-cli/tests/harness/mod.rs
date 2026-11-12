@@ -932,12 +932,15 @@ pub fn shown_word(word: &str, base: &Path) -> String {
     }
 }
 
-/// The rule `scratch`: the test's base directory, as given, canonicalised
-/// and, on Windows, with its backslashes doubled as JSON writes them, is
-/// `<scratch>`; and a path under it is written with forward slashes to
-/// its end (whitespace, a quote, `)`, `,` or `;`), whatever separator it
-/// was read with (one backslash, or two as JSON writes them), so one
-/// golden reads the same on Windows; so is a path under the placeholders
+/// The rule `scratch`: the test's base directory, as given, canonicalised,
+/// canonicalised as the store spells every path it reports
+/// (`acquisition_store::world::canonical`, which on Windows drops the
+/// verbatim `\\?\` prefix `std` keeps, and resolves a short name such as
+/// `RUNNER~1` to its long one) and, on Windows, with its backslashes
+/// doubled as JSON writes them, is `<scratch>`; and a path under it is
+/// written with forward slashes to its end (whitespace, a quote, `)`, `,`
+/// or `;`), whatever separator it was read with (one backslash, or two as
+/// JSON writes them), so one golden reads the same on Windows; so is a path under the placeholders
 /// `acq diagnose` prints in place of the store and log directories,
 /// `<store>` and `<logs>`.
 fn scratch_rule(text: &str, base: &Path) -> String {
@@ -945,6 +948,10 @@ fn scratch_rule(text: &str, base: &Path) -> String {
     if let Ok(canonical) = std::fs::canonicalize(base) {
         spellings.push(canonical.display().to_string());
     }
+    if let Ok(reported) = acquisition_store::world::canonical(base) {
+        spellings.push(reported.display().to_string());
+    }
+    spellings.dedup();
     if cfg!(windows) {
         let doubled: Vec<String> = spellings.iter().map(|s| s.replace('\\', r"\\")).collect();
         spellings.extend(doubled);
