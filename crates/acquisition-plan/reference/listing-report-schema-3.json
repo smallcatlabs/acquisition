@@ -1,23 +1,26 @@
 {
-  "account_name": "tom",
+  "schema": 3,
   "account_uuid": "u-1",
+  "account_name": "tom",
+  "realm": "pc",
+  "league": "Standard",
+  "taken_at": 200,
+  "taken_at_age": "60m ago",
+  "stash_listing": {
+    "response_id": 2,
+    "fetched_at": 100
+  },
+  "stash_listing_fetched_at_age": "61m ago",
   "character_listing": {
-    "fetched_at": 101,
-    "response_id": 3
+    "response_id": 3,
+    "fetched_at": 101
   },
   "character_listing_fetched_at_age": "61m ago",
+  "note_parser_version": 2,
+  "currency_table_version": 1,
   "counts": {
-    "by_effective": {
-      "game": 5,
-      "manual": 3,
-      "none": 0,
-      "unresolved": 1
-    },
-    "by_game_statement": {
-      "exact": 5,
-      "none": 3,
-      "skip": 1
-    },
+    "items": 9,
+    "containers": 8,
     "by_relation": {
       "agree": 3,
       "conflict": 3,
@@ -25,1404 +28,1401 @@
       "manual_only": 2,
       "none": 1
     },
-    "containers": 8,
-    "game_priced": 5,
-    "inherited": 6,
+    "by_game_statement": {
+      "exact": 5,
+      "none": 3,
+      "skip": 1
+    },
     "invalid_notes": 1,
-    "invalid_tab_name_items": 0,
     "invalid_tab_names": 0,
-    "items": 9,
-    "league_unknown": 0,
+    "invalid_tab_name_items": 0,
+    "game_priced": 5,
     "priced_tabs": 2,
     "priced_tabs_public": 2,
+    "inherited": 6,
+    "league_unknown": 0,
+    "by_effective": {
+      "game": 5,
+      "manual": 3,
+      "none": 0,
+      "unresolved": 1
+    },
     "residue": 1
   },
-  "currency_table_version": 1,
-  "facts": {
-    "characters": 1,
-    "fetched": 7,
-    "list_seen": 100,
-    "list_seen_age": "61m ago",
-    "newest_fetch": 111,
-    "newest_fetch_age": "61m ago",
-    "newest_fetch_location": {
-      "id": "ch1",
-      "kind": "character",
-      "league": "Standard",
-      "name": "Exile",
-      "realm": "pc"
-    },
-    "oldest_fetch": 110,
-    "oldest_fetch_age": "61m ago",
-    "oldest_fetch_location": {
-      "id": "c1",
-      "kind": "stash",
-      "league": "Standard",
-      "name": "~price 3 chaos (A)",
-      "realm": "pc"
-    },
-    "places": 7,
-    "tabs": 6
-  },
-  "league": "Standard",
-  "listings": [
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "skip",
-        "side": "manual",
-        "why": "skip by hand (row on tab/pc/f1); the game states nothing"
-      },
-      "game": {
-        "reading": {
-          "kind": "none"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": false,
-        "revision": 3,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "manual_only",
-      "subject": {
-        "name": "~price 9 chaos",
-        "tab_type": "Folder",
-        "target": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      },
-      "why": "by hand: skip; the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "3",
-          "currency": "chaos"
-        },
-        "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
-      },
-      "game": {
-        "public": true,
-        "reading": {
-          "amount": "3",
-          "currency": "chaos",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 3,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "conflict",
-      "subject": {
-        "name": "~price 3 chaos (A)",
-        "tab_type": "PremiumStash",
-        "target": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      },
-      "why": "by hand: skip; in game: 3 chaos"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "t1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "kind": "none",
-        "why": "nothing applies"
-      },
-      "game": {
-        "public": false,
-        "reading": {
-          "kind": "none"
-        },
-        "tab": "t1",
-        "tab_name": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "Dump"
-        }
-      },
-      "relation": "none",
-      "subject": {
-        "name": "Dump",
-        "tab_type": "PremiumStash",
-        "target": {
-          "id": "t1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      },
-      "why": "no row applies and the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "1",
-          "currency": "divine"
-        },
-        "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab"
-      },
-      "game": {
-        "public": true,
-        "reading": {
-          "amount": "1",
-          "currency": "divine",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "tab": "m1",
-        "tab_name": {
-          "reading": {
-            "amount": "1",
-            "currency": "divine",
-            "kind": "exact"
-          },
-          "text": "~price 1 divine (Remove-only)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": false,
-        "revision": 4,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "1",
-          "currency": "divine",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "agree",
-      "subject": {
-        "name": "~price 1 divine (Remove-only)",
-        "tab_type": "MapStash",
-        "target": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      },
-      "why": "by hand and in game: 1 divine"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "s1",
-          "parent": "m1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "1",
-          "currency": "divine"
-        },
-        "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab"
-      },
-      "game": {
-        "public": true,
-        "reading": {
-          "amount": "1",
-          "currency": "divine",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "substash_name": "1 (Remove-only)",
-        "tab": "m1",
-        "tab_name": {
-          "reading": {
-            "amount": "1",
-            "currency": "divine",
-            "kind": "exact"
-          },
-          "text": "~price 1 divine (Remove-only)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 4,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "1",
-          "currency": "divine",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "agree",
-      "subject": {
-        "name": "1 (Remove-only)",
-        "tab_type": "MapStash",
-        "target": {
-          "id": "s1",
-          "parent": "m1",
-          "realm": "pc",
-          "scope": "substash"
-        }
-      },
-      "why": "by hand and in game: 1 divine"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "u1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "kind": "none",
-        "why": "nothing applies"
-      },
-      "game": {
-        "public": false,
-        "reading": {
-          "kind": "none"
-        },
-        "tab": "u1",
-        "tab_name": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "Uniques"
-        }
-      },
-      "relation": "none",
-      "subject": {
-        "name": "Uniques",
-        "tab_type": "UniqueStash",
-        "target": {
-          "id": "u1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      },
-      "why": "no row applies and the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 100,
-        "at_age": "61m ago",
-        "response": 2
-      },
-      "chain": [
-        {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        {
-          "id": "u1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "kind": "negotiable",
-        "price": {
-          "amount": "7",
-          "currency": "chaos"
-        },
-        "side": "manual",
-        "why": "7 chaos b/o by hand (row on substash/pc/u1/s2); the game states nothing"
-      },
-      "game": {
-        "public": false,
-        "reading": {
-          "kind": "none"
-        },
-        "substash_name": "Belts",
-        "tab": "u1",
-        "tab_name": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "Uniques"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "inherited": false,
-        "revision": 5,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "7",
-          "currency": "chaos",
-          "type": "negotiable",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "manual_only",
-      "subject": {
-        "name": "Belts",
-        "tab_type": "UniqueStash",
-        "target": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        }
-      },
-      "why": "by hand: 7 chaos b/o; the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 101,
-        "at_age": "61m ago",
-        "response": 3
-      },
-      "chain": [
-        {
-          "id": "ch1",
-          "scope": "character"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "ch1",
-          "scope": "character"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "2222",
-          "currency": "jewellers"
-        },
-        "side": "manual",
-        "why": "2222 jewellers by hand (row on character/ch1); the game states nothing"
-      },
-      "game": {
-        "reading": {
-          "kind": "none"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "ch1",
-          "scope": "character"
-        },
-        "inherited": false,
-        "revision": 6,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "2222",
-          "currency": "jewellers",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "manual_only",
-      "subject": {
-        "name": "Exile",
-        "target": {
-          "id": "ch1",
-          "scope": "character"
-        }
-      },
-      "why": "by hand: 2222 jewellers; the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-worn",
-          "scope": "item"
-        },
-        {
-          "id": "ch1",
-          "scope": "character"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "ch1",
-          "scope": "character"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "2222",
-          "currency": "jewellers"
-        },
-        "side": "manual",
-        "why": "2222 jewellers by hand (row on character/ch1); the price text in game is not where the index can see it"
-      },
-      "game": {
-        "note": {
-          "reading": {
-            "amount": "2",
-            "currency": "divine",
-            "kind": "negotiable"
-          },
-          "text": "~b/o 2 divine"
-        },
-        "reading": {
-          "kind": "none"
-        },
-        "residue": true
-      },
-      "manual": {
-        "from": {
-          "id": "ch1",
-          "scope": "character"
-        },
-        "inherited": true,
-        "revision": 6,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "2222",
-          "currency": "jewellers",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "manual_only",
-      "subject": {
-        "container": "equipment",
-        "inventory_id": "BodyArmour",
-        "location": {
-          "id": "ch1",
-          "scope": "character"
-        },
-        "name": "",
-        "target": {
-          "id": "i-worn",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand: 2222 jewellers; the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-exact",
-          "scope": "item"
-        },
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "i-exact",
-          "scope": "item"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "5",
-          "currency": "chaos"
-        },
-        "side": "game",
-        "why": "5 chaos in game: the game wins a tie with the row on the item"
-      },
-      "game": {
-        "note": {
-          "reading": {
-            "amount": "5",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 5 chaos"
-        },
-        "public": true,
-        "reading": {
-          "amount": "5",
-          "currency": "chaos",
-          "kind": "exact"
-        },
-        "source": "note",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "i-exact",
-          "scope": "item"
-        },
-        "inherited": false,
-        "revision": 2,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "conflict",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-exact",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand: skip; in game: 5 chaos"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-plain",
-          "scope": "item"
-        },
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "i-plain",
-          "scope": "item"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "3",
-          "currency": "chaos"
-        },
-        "side": "manual",
-        "why": "3 chaos by hand: the row on the item is more specific than the game's tab name"
-      },
-      "game": {
-        "public": true,
-        "reading": {
-          "amount": "3",
-          "currency": "chaos",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "i-plain",
-          "scope": "item"
-        },
-        "inherited": false,
-        "revision": 1,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "3",
-          "currency": "chaos",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "agree",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-plain",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand and in game: 3 chaos"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-invalid",
-          "scope": "item"
-        },
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "3",
-          "currency": "chaos"
-        },
-        "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
-      },
-      "game": {
-        "note": {
-          "reading": {
-            "kind": "invalid",
-            "why": "the amount is empty — what the dialog leaves after an invalid entry"
-          },
-          "text": "~price  chaos"
-        },
-        "public": true,
-        "reading": {
-          "amount": "3",
-          "currency": "chaos",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 3,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "conflict",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-invalid",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand: skip; in game: 3 chaos"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-fifty",
-          "scope": "item"
-        },
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "3",
-          "currency": "chaos"
-        },
-        "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
-      },
-      "game": {
-        "note": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "50"
-        },
-        "public": true,
-        "reading": {
-          "amount": "3",
-          "currency": "chaos",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 3,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "conflict",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-fifty",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand: skip; in game: 3 chaos"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-skip",
-          "scope": "item"
-        },
-        {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "i-skip",
-          "scope": "item"
-        },
-        "kind": "skip",
-        "side": "game",
-        "why": "skip in game: the note is more specific than the row on the tab"
-      },
-      "game": {
-        "note": {
-          "reading": {
-            "kind": "skip"
-          },
-          "text": "~skip "
-        },
-        "public": true,
-        "reading": {
-          "kind": "skip"
-        },
-        "source": "note",
-        "tab": "c1",
-        "tab_name": {
-          "reading": {
-            "amount": "3",
-            "currency": "chaos",
-            "kind": "exact"
-          },
-          "text": "~price 3 chaos (A)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "f1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 3,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "type": "skip",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "agree",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "c1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-skip",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand and in game: skip"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-dump",
-          "scope": "item"
-        },
-        {
-          "id": "t1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "i-dump",
-          "scope": "item"
-        },
-        "kind": "unresolved",
-        "why": "unresolved: the row on item/i-dump cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide"
-      },
-      "game": {
-        "public": false,
-        "reading": {
-          "kind": "none"
-        },
-        "tab": "t1",
-        "tab_name": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "Dump"
-        }
-      },
-      "manual_problem": "the row on item/i-dump cannot be read: buyout declares version 2, newer than this build's v1 — a newer build wrote it",
-      "relation": "none",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "t1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "name": "",
-        "target": {
-          "id": "i-dump",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "the row on item/i-dump cannot be read and the game states nothing"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-sub",
-          "scope": "item"
-        },
-        {
-          "id": "s1",
-          "parent": "m1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "kind": "exact",
-        "price": {
-          "amount": "1",
-          "currency": "divine"
-        },
-        "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab"
-      },
-      "game": {
-        "public": true,
-        "reading": {
-          "amount": "1",
-          "currency": "divine",
-          "kind": "exact"
-        },
-        "source": "tab_name",
-        "substash_name": "1 (Remove-only)",
-        "tab": "m1",
-        "tab_name": {
-          "reading": {
-            "amount": "1",
-            "currency": "divine",
-            "kind": "exact"
-          },
-          "text": "~price 1 divine (Remove-only)"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "m1",
-          "realm": "pc",
-          "scope": "tab"
-        },
-        "inherited": true,
-        "revision": 4,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "1",
-          "currency": "divine",
-          "type": "exact",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "agree",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "s1",
-          "parent": "m1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "name": "",
-        "target": {
-          "id": "i-sub",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand and in game: 1 divine"
-    },
-    {
-      "basis": {
-        "at": 120,
-        "at_age": "61m ago",
-        "response": 7
-      },
-      "chain": [
-        {
-          "id": "i-sub2",
-          "scope": "item"
-        },
-        {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        {
-          "id": "u1",
-          "realm": "pc",
-          "scope": "tab"
-        }
-      ],
-      "effective": {
-        "from": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "kind": "negotiable",
-        "price": {
-          "amount": "7",
-          "currency": "chaos"
-        },
-        "side": "manual",
-        "why": "7 chaos b/o by hand (row on substash/pc/u1/s2); the game states nothing"
-      },
-      "game": {
-        "public": false,
-        "reading": {
-          "kind": "none"
-        },
-        "substash_name": "Belts",
-        "tab": "u1",
-        "tab_name": {
-          "reading": {
-            "kind": "none"
-          },
-          "text": "Uniques"
-        }
-      },
-      "manual": {
-        "from": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "inherited": true,
-        "revision": 5,
-        "updated_at": 60,
-        "updated_at_age": "62m ago",
-        "value": {
-          "amount": "7",
-          "currency": "chaos",
-          "type": "negotiable",
-          "version": 1
-        },
-        "written_via": "test"
-      },
-      "relation": "manual_only",
-      "subject": {
-        "container": "items",
-        "inventory_id": "Stash1",
-        "location": {
-          "id": "s2",
-          "parent": "u1",
-          "realm": "pc",
-          "scope": "substash"
-        },
-        "name": "",
-        "target": {
-          "id": "i-sub2",
-          "scope": "item"
-        },
-        "type_line": "Imperial Bow",
-        "x": 0,
-        "y": 0
-      },
-      "why": "by hand: 7 chaos b/o; the game states nothing"
-    }
-  ],
-  "note_parser_version": 2,
-  "realm": "pc",
   "rows": {
-    "applied": 6,
-    "other_league": [],
-    "other_league_total": 0,
-    "other_realm": 1,
     "total": 10,
+    "applied": 6,
+    "other_realm": 1,
     "unmatched": [
       {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "1",
+          "currency": "chaos"
+        },
         "from": {
-          "id": "i-elsewhere",
-          "scope": "item"
+          "scope": "item",
+          "id": "i-elsewhere"
         },
         "inherited": false,
         "revision": 8,
         "updated_at": 60,
         "updated_at_age": "62m ago",
-        "value": {
-          "amount": "1",
-          "currency": "chaos",
-          "type": "exact",
-          "version": 1
-        },
         "written_via": "test"
       }
     ],
     "unmatched_total": 1,
     "unreadable": [
       {
+        "scope": "tab",
         "key": "pc",
         "revision": 9,
-        "scope": "tab",
         "why": "\"pc\" is not a tab key"
       },
       {
+        "scope": "item",
         "key": "i-dump",
         "revision": 10,
-        "scope": "item",
         "why": "buyout declares version 2, newer than this build's v1 — a newer build wrote it"
       }
     ],
-    "unreadable_total": 2
+    "unreadable_total": 2,
+    "other_league": [],
+    "other_league_total": 0
   },
-  "schema": 3,
-  "stash_listing": {
-    "fetched_at": 100,
-    "response_id": 2
+  "facts": {
+    "places": 7,
+    "tabs": 6,
+    "characters": 1,
+    "fetched": 7,
+    "oldest_fetch": 110,
+    "oldest_fetch_age": "61m ago",
+    "oldest_fetch_location": {
+      "kind": "stash",
+      "id": "c1",
+      "name": "~price 3 chaos (A)",
+      "realm": "pc",
+      "league": "Standard"
+    },
+    "newest_fetch": 111,
+    "newest_fetch_age": "61m ago",
+    "newest_fetch_location": {
+      "kind": "character",
+      "id": "ch1",
+      "name": "Exile",
+      "realm": "pc",
+      "league": "Standard"
+    },
+    "list_seen": 100,
+    "list_seen_age": "61m ago"
   },
-  "stash_listing_fetched_at_age": "61m ago",
-  "taken_at": 200,
-  "taken_at_age": "60m ago"
+  "listings": [
+    {
+      "subject": {
+        "target": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "name": "~price 9 chaos",
+        "tab_type": "Folder"
+      },
+      "chain": [
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "inherited": false,
+        "revision": 3,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "none"
+        }
+      },
+      "relation": "manual_only",
+      "why": "by hand: skip; the game states nothing",
+      "effective": {
+        "kind": "skip",
+        "side": "manual",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "why": "skip by hand (row on tab/pc/f1); the game states nothing"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "name": "~price 3 chaos (A)",
+        "tab_type": "PremiumStash"
+      },
+      "chain": [
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "inherited": true,
+        "revision": 3,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "source": "tab_name",
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "conflict",
+      "why": "by hand: skip; in game: 3 chaos",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "t1"
+        },
+        "name": "Dump",
+        "tab_type": "PremiumStash"
+      },
+      "chain": [
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "t1"
+        }
+      ],
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "tab": "t1",
+        "tab_name": {
+          "text": "Dump",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "public": false
+      },
+      "relation": "none",
+      "why": "no row applies and the game states nothing",
+      "effective": {
+        "kind": "none",
+        "why": "nothing applies"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "name": "~price 1 divine (Remove-only)",
+        "tab_type": "MapStash"
+      },
+      "chain": [
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "inherited": false,
+        "revision": 4,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "source": "tab_name",
+        "tab": "m1",
+        "tab_name": {
+          "text": "~price 1 divine (Remove-only)",
+          "reading": {
+            "kind": "exact",
+            "amount": "1",
+            "currency": "divine"
+          }
+        },
+        "public": true
+      },
+      "relation": "agree",
+      "why": "by hand and in game: 1 divine",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "1",
+          "currency": "divine"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "m1",
+          "id": "s1"
+        },
+        "name": "1 (Remove-only)",
+        "tab_type": "MapStash"
+      },
+      "chain": [
+        {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "m1",
+          "id": "s1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "inherited": true,
+        "revision": 4,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "source": "tab_name",
+        "tab": "m1",
+        "tab_name": {
+          "text": "~price 1 divine (Remove-only)",
+          "reading": {
+            "kind": "exact",
+            "amount": "1",
+            "currency": "divine"
+          }
+        },
+        "substash_name": "1 (Remove-only)",
+        "public": true
+      },
+      "relation": "agree",
+      "why": "by hand and in game: 1 divine",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "1",
+          "currency": "divine"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "u1"
+        },
+        "name": "Uniques",
+        "tab_type": "UniqueStash"
+      },
+      "chain": [
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "u1"
+        }
+      ],
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "tab": "u1",
+        "tab_name": {
+          "text": "Uniques",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "public": false
+      },
+      "relation": "none",
+      "why": "no row applies and the game states nothing",
+      "effective": {
+        "kind": "none",
+        "why": "nothing applies"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "name": "Belts",
+        "tab_type": "UniqueStash"
+      },
+      "chain": [
+        {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "u1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "negotiable",
+          "amount": "7",
+          "currency": "chaos"
+        },
+        "from": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "inherited": false,
+        "revision": 5,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "tab": "u1",
+        "tab_name": {
+          "text": "Uniques",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "substash_name": "Belts",
+        "public": false
+      },
+      "relation": "manual_only",
+      "why": "by hand: 7 chaos b/o; the game states nothing",
+      "effective": {
+        "kind": "negotiable",
+        "price": {
+          "amount": "7",
+          "currency": "chaos"
+        },
+        "side": "manual",
+        "from": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "why": "7 chaos b/o by hand (row on substash/pc/u1/s2); the game states nothing"
+      },
+      "basis": {
+        "response": 2,
+        "at": 100,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "name": "Exile"
+      },
+      "chain": [
+        {
+          "scope": "character",
+          "id": "ch1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "2222",
+          "currency": "jewellers"
+        },
+        "from": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "inherited": false,
+        "revision": 6,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "none"
+        }
+      },
+      "relation": "manual_only",
+      "why": "by hand: 2222 jewellers; the game states nothing",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "2222",
+          "currency": "jewellers"
+        },
+        "side": "manual",
+        "from": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "why": "2222 jewellers by hand (row on character/ch1); the game states nothing"
+      },
+      "basis": {
+        "response": 3,
+        "at": 101,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-worn"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "container": "equipment",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "BodyArmour"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-worn"
+        },
+        {
+          "scope": "character",
+          "id": "ch1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "2222",
+          "currency": "jewellers"
+        },
+        "from": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "inherited": true,
+        "revision": 6,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "note": {
+          "text": "~b/o 2 divine",
+          "reading": {
+            "kind": "negotiable",
+            "amount": "2",
+            "currency": "divine"
+          }
+        },
+        "residue": true
+      },
+      "relation": "manual_only",
+      "why": "by hand: 2222 jewellers; the game states nothing",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "2222",
+          "currency": "jewellers"
+        },
+        "side": "manual",
+        "from": {
+          "scope": "character",
+          "id": "ch1"
+        },
+        "why": "2222 jewellers by hand (row on character/ch1); the price text in game is not where the index can see it"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-exact"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-exact"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "item",
+          "id": "i-exact"
+        },
+        "inherited": false,
+        "revision": 2,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "5",
+          "currency": "chaos"
+        },
+        "source": "note",
+        "note": {
+          "text": "~price 5 chaos",
+          "reading": {
+            "kind": "exact",
+            "amount": "5",
+            "currency": "chaos"
+          }
+        },
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "conflict",
+      "why": "by hand: skip; in game: 5 chaos",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "5",
+          "currency": "chaos"
+        },
+        "side": "game",
+        "from": {
+          "scope": "item",
+          "id": "i-exact"
+        },
+        "why": "5 chaos in game: the game wins a tie with the row on the item"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-plain"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-plain"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "from": {
+          "scope": "item",
+          "id": "i-plain"
+        },
+        "inherited": false,
+        "revision": 1,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "source": "tab_name",
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "agree",
+      "why": "by hand and in game: 3 chaos",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "side": "manual",
+        "from": {
+          "scope": "item",
+          "id": "i-plain"
+        },
+        "why": "3 chaos by hand: the row on the item is more specific than the game's tab name"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-invalid"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-invalid"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "inherited": true,
+        "revision": 3,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "source": "tab_name",
+        "note": {
+          "text": "~price  chaos",
+          "reading": {
+            "kind": "invalid",
+            "why": "the amount is empty — what the dialog leaves after an invalid entry"
+          }
+        },
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "conflict",
+      "why": "by hand: skip; in game: 3 chaos",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-fifty"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-fifty"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "inherited": true,
+        "revision": 3,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "source": "tab_name",
+        "note": {
+          "text": "50",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "conflict",
+      "why": "by hand: skip; in game: 3 chaos",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "3",
+          "currency": "chaos"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-skip"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-skip"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "c1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "skip"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "f1"
+        },
+        "inherited": true,
+        "revision": 3,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "skip"
+        },
+        "source": "note",
+        "note": {
+          "text": "~skip ",
+          "reading": {
+            "kind": "skip"
+          }
+        },
+        "tab": "c1",
+        "tab_name": {
+          "text": "~price 3 chaos (A)",
+          "reading": {
+            "kind": "exact",
+            "amount": "3",
+            "currency": "chaos"
+          }
+        },
+        "public": true
+      },
+      "relation": "agree",
+      "why": "by hand and in game: skip",
+      "effective": {
+        "kind": "skip",
+        "side": "game",
+        "from": {
+          "scope": "item",
+          "id": "i-skip"
+        },
+        "why": "skip in game: the note is more specific than the row on the tab"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-dump"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "t1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-dump"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "t1"
+        }
+      ],
+      "manual_problem": "the row on item/i-dump cannot be read: buyout declares version 2, newer than this build's v1 — a newer build wrote it",
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "tab": "t1",
+        "tab_name": {
+          "text": "Dump",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "public": false
+      },
+      "relation": "none",
+      "why": "the row on item/i-dump cannot be read and the game states nothing",
+      "effective": {
+        "kind": "unresolved",
+        "from": {
+          "scope": "item",
+          "id": "i-dump"
+        },
+        "why": "unresolved: the row on item/i-dump cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-sub"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "m1",
+          "id": "s1"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-sub"
+        },
+        {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "m1",
+          "id": "s1"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "inherited": true,
+        "revision": 4,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "exact",
+          "amount": "1",
+          "currency": "divine"
+        },
+        "source": "tab_name",
+        "tab": "m1",
+        "tab_name": {
+          "text": "~price 1 divine (Remove-only)",
+          "reading": {
+            "kind": "exact",
+            "amount": "1",
+            "currency": "divine"
+          }
+        },
+        "substash_name": "1 (Remove-only)",
+        "public": true
+      },
+      "relation": "agree",
+      "why": "by hand and in game: 1 divine",
+      "effective": {
+        "kind": "exact",
+        "price": {
+          "amount": "1",
+          "currency": "divine"
+        },
+        "side": "game",
+        "from": {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "m1"
+        },
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    },
+    {
+      "subject": {
+        "target": {
+          "scope": "item",
+          "id": "i-sub2"
+        },
+        "name": "",
+        "type_line": "Imperial Bow",
+        "location": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "container": "items",
+        "x": 0,
+        "y": 0,
+        "inventory_id": "Stash1"
+      },
+      "chain": [
+        {
+          "scope": "item",
+          "id": "i-sub2"
+        },
+        {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        {
+          "scope": "tab",
+          "realm": "pc",
+          "id": "u1"
+        }
+      ],
+      "manual": {
+        "value": {
+          "version": 1,
+          "type": "negotiable",
+          "amount": "7",
+          "currency": "chaos"
+        },
+        "from": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "inherited": true,
+        "revision": 5,
+        "updated_at": 60,
+        "updated_at_age": "62m ago",
+        "written_via": "test"
+      },
+      "game": {
+        "reading": {
+          "kind": "none"
+        },
+        "tab": "u1",
+        "tab_name": {
+          "text": "Uniques",
+          "reading": {
+            "kind": "none"
+          }
+        },
+        "substash_name": "Belts",
+        "public": false
+      },
+      "relation": "manual_only",
+      "why": "by hand: 7 chaos b/o; the game states nothing",
+      "effective": {
+        "kind": "negotiable",
+        "price": {
+          "amount": "7",
+          "currency": "chaos"
+        },
+        "side": "manual",
+        "from": {
+          "scope": "substash",
+          "realm": "pc",
+          "parent": "u1",
+          "id": "s2"
+        },
+        "why": "7 chaos b/o by hand (row on substash/pc/u1/s2); the game states nothing"
+      },
+      "basis": {
+        "response": 7,
+        "at": 120,
+        "at_age": "61m ago"
+      }
+    }
+  ]
 }

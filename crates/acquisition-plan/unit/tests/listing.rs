@@ -713,18 +713,21 @@ fn the_report_json_matches_the_committed_fixture() {
     // words (C163) are the contract's too
     let report = resolve(&snapshot()).unwrap();
     let report = report.clone().aged(report.header.taken_at + 3_600);
-    let actual = serde_json::to_value(&report).unwrap();
+    // Bytes, not parsed values: a `Value` compares its objects in any
+    // key order, so a file in a stale order would pass, and the next
+    // regeneration would move it with nothing it describes changed
+    // (#280: written sorted before serde_json kept the declared order).
+    let actual =
+        serde_json::to_string_pretty(&serde_json::to_value(&report).unwrap()).unwrap() + "\n";
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
-        std::fs::write(path, serde_json::to_string_pretty(&actual).unwrap() + "\n").unwrap();
+        std::fs::write(path, &actual).unwrap();
     }
-    let expected: Value = serde_json::from_str(
-        &std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}")),
-    )
-    .unwrap();
+    let committed = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let expected: Value = serde_json::from_str(&committed).unwrap();
     assert_eq!(expected["schema"], json!(LISTING_SCHEMA));
-    assert_eq!(
-        actual, expected,
-        "the report's JSON changed; additive → ACQ_UPDATE_FIXTURES=1, else bump LISTING_SCHEMA"
+    assert!(
+        actual == committed,
+        "the report's JSON changed, its values or its key order; additive → ACQ_UPDATE_FIXTURES=1, else bump LISTING_SCHEMA"
     );
     let back: ListingReport = serde_json::from_value(expected).unwrap();
     assert_eq!(back, report);
