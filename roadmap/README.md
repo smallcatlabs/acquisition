@@ -58,11 +58,11 @@ when its step closes or the owner strikes it.
    shows the shape pays.
 4. The queued search and trade issues: #46, #47, and #37 once the
    owner has sat the site.
-5. `alpha.2` (milestone "League 3.30 and alpha.2"): regenerate the
-   tables when their inputs exist (a post-launch `poe1` pin, the
-   owner's four site captures), then the release, where the
-   `keyring-macos` job runs for the first time. The prune verb (#43)
-   rides with it.
+5. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, where
+   the `keyring-macos` job runs for the first time; the tables stand at
+   3.30 (the close of `search-276`). The prune verb (#43) rides with
+   it, and #281, the export's lost trade-id joins, waits on the next
+   pin.
 6. PoE2 (milestone "PoE2 launch"): the route flip and the
    first-contact checklist prepared unmerged; a first contact only if
    GGG ships the stash endpoint.
@@ -88,7 +88,11 @@ His queue is the open issues labelled `trigger:ruling`:
 - At the next live run, refresh the two Covens characters: their
   Wickerman's items land at their next fetch, which clears `store
   status`'s drift line (#275; `acq store rebuild` does not).
-- The site sitting #37 waits on.
+- The site sitting #37 waits on; it now also asks #33's carried
+  totals, the rarity total first, and one search per Viscera leaf.
+- Whether to tell the RePoE fork that its 3.30 export joins no trade
+  id for a string with markup (#281): a post on another project's
+  tracker.
 - After 2026-11-30, re-measure what the governance rebuild changed
   (#220).
 
