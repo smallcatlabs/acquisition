@@ -182,7 +182,7 @@ def self_test():
             ("a present path that is no clone passes", [present], []),
             ("an absent path is refused by name", [clones / "gone"], ["gone: absent"]),
             ("a clone at no commit is refused", [clones / "poe1"], ["poe1 is at no commit"]),
-            ("a clone at another commit is refused", [clones / "awakened-poe-trade"], ["not the pinned ce551eb7"]),
+            ("a clone at another commit is refused", [clones / "awakened-poe-trade"], [f"not the pinned {PINS['awakened-poe-trade'][:8]}"]),
             ("a path inside a clone is held to the clone's pin", [clones / "poe1" / ".git"], ["poe1 is at no commit"]),
             ("every absence is named at once", [clones / "gone", clones / "poe1", present],
              ["gone: absent", "poe1 is at no commit"]),
