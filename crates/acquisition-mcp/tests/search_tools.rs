@@ -725,9 +725,11 @@ fn describe_is_as_large_as_its_text_says() {
     // 5,340 bytes when the anatomy left `search`'s text; 7,120 once
     // `list_seen` named the lists it is the oldest of, the answer-facts
     // seat's run 2, cli fault 8; 7,401 with round A's `unmatched_leagues`;
-    // 7,786 with a row's `values` and the order the query gives, step 6.1)
+    // 7,786 with a row's `values` and the order the query gives, step 6.1;
+    // 8,043 once the totals' source names the row a patch's rewording
+    // carried by its stats, #276)
     let answer = size(&mut seat, json!(["answer"]));
-    assert!(answer < 8_000, "answer: {answer} bytes");
+    assert!(answer < 8_100, "answer: {answer} bytes");
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
     // some 8 KB since a show's counts joined it (step 2g, round 2: 4,541
     // bytes of entries then), the shop's substash rule the receipt's

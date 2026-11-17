@@ -41,6 +41,9 @@ Rules, each a reading of the source and never a judgment (C106):
      line's two eldritch forms, `All Resistances`, and at a weight below
      nothing a row's `reduced` spelling (owner, 2026-09-27: "yes, we need to
      be able to find reduced lines and totals").
+     A change `carried row` is a row as `add row` is, and is counted apart:
+     no capture asks for it; a patch reworded the line in place and the row
+     carries the new text by the line's stats (#276), until a sitting asks.
   5. A change `new total` that reads a line's number becomes a total, named
      as the change names it, with the site's id and text and its own rows:
      `total_life`.
@@ -197,7 +200,7 @@ def apply(totals, changes):
                        if c["change"] == "limit" and c["twin_or_reads"] != "ruled"}}
     ranged = set()
     no_sum = {c["total"] for c in changes if c["change"] == "no sum"}
-    added = 0
+    added = carried = 0
     for c in changes:
         if c["change"] == "new total":
             if c["total"] in waits["limit"]:
@@ -221,8 +224,11 @@ def apply(totals, changes):
             continue
         if c["change"] == "remove row":
             sys.exit(f"{c['total']!r}: a row removed — a reviewed change, and rule 6 has no case for it")
-        if c["change"] not in ("add row", "twin"):
+        if c["change"] not in ("add row", "carried row", "twin"):
             continue
+        if c["change"] == "carried row" and (c["total"] in ranged or c["twin_or_reads"] != "any"):
+            sys.exit(f"{c['total']!r}: {c['template']!r} carried as a twin or on a ranged total, "
+                     "which rule 4 does not carry")
         rows = by_name[c["total"]][3]
         if any(r[0] == c["template"] for r in rows):
             sys.exit(f"{c['total']!r}: {c['template']!r} is a row already")
@@ -249,7 +255,10 @@ def apply(totals, changes):
         if c["template"].count("#") != 1:
             sys.exit(f"{c['total']!r}: {c['template']!r} has {c['template'].count('#')} numbers, and rule 4 names arg1")
         rows.append([c["template"], weight_of(c["weight"])])
-        added += 1
+        if c["change"] == "carried row":
+            carried += 1
+        else:
+            added += 1
     for name in ranged:
         if not by_name[name][3]:
             sys.exit(f"{name!r}: a ranged total with no row")
@@ -269,7 +278,7 @@ def apply(totals, changes):
         if len(set(of)) != len(of):
             sys.exit(f"{c['total']!r}: it reads a total twice")
         readings.append((c["total"], c["site_id"].removeprefix("pseudo."), c["site_text"], kind, of))
-    return added, waits, limits, readings, ranged
+    return added, carried, waits, limits, readings, ranged
 
 
 def toml_str(s):
@@ -298,7 +307,7 @@ def main():
         totals.append((name_of(text), site, text, rows))
     listed = sum(len(t[3]) for t in totals)
     changes = read_changes()
-    added, waits, limits, readings, ranged = apply(totals, changes)
+    added, carried, waits, limits, readings, ranged = apply(totals, changes)
     arrays, rule = leaves_out(changes)
     ranged_rows = sum(len(t[3]) for t in totals if t[0] in ranged)
     twins = sum(1 for t in totals if t[0] in ranged for r in t[3] if r[2])
@@ -322,7 +331,8 @@ def main():
         "# search/cpp-search/data/pseudomods.toml), which name the trade site's pseudo",
         "# stats, and from what the site itself answered of each",
         "# (search/pseudo-stats/data/table-changes.csv: a change a row, each with the",
-        "# captures that ask for it). Every total counts what the site's pseudo of",
+        "# captures that ask for it), and the rows a patch's rewording carried by",
+        "# their stats, which no capture asks for (`carried row`). Every total counts what the site's pseudo of",
         "# that name counts, but where the owner ruled the site wrong. Reviewed as a",
         "# diff at each change (the admission test, the crate's doc, C106): a",
         "# convention with a definition — never a judgment. Its rules are the",
@@ -355,7 +365,8 @@ def main():
         "# (C101), said once.",
         "#",
         f"# Measured at generation: {len(totals)} totals, {n_rows} rows — {listed} the C++ tables",
-        f"# list, {added} the site's answers add — {weighted} with a weight above 1, {halves} at a",
+        f"# list, {added} the site's answers add, {carried} carried by its stats across a patch's",
+        f"# rewording with no capture asking — {weighted} with a weight above 1, {halves} at a",
         f"# half and {below} below nothing, a row's `reduced` spelling. Of them the ranged",
         f"# family: {len(ranged)} totals, {ranged_rows} rows, {twins} of which mean one of two stats",
         "# displaying one text and read what the item is.",
@@ -365,7 +376,7 @@ def main():
         "",
         f"version = {VERSION}",
         f"realms = [{', '.join(toml_str(r) for r in REALMS)}]",
-        f"source = {toml_str(f'the trade site’s pseudo stats, by what the site answered of each (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at {PIN}')}",
+        f"source = {toml_str(f'the trade site’s pseudo stats, by what the site answered of each or, for a row a patch reworded, by its stats (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at {PIN}')}",
         'generated_by = "tools/totals-table.py"',
         f"leaves_out = [{', '.join(toml_str(a) for a in arrays)}]",
         f"leaves_out_rule = {toml_str(rule)}",

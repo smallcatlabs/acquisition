@@ -110,7 +110,7 @@ operators
 slots
   arg1 arg2 …     slot        every number of a template by position, counting from 1
   low high avg    slot        on a ranged line — a template with exactly one `# to #`
-computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
+computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each or, for a row a patch reworded, by its stats (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
   pseudo.total_cold_res                     total         the trade site's pseudo_total_cold_resistance (`+#% total to Cold Resistance`)
   pseudo.total_fire_res                     total         the trade site's pseudo_total_fire_resistance (`+#% total to Fire Resistance`)
   pseudo.total_lightning_res                total         the trade site's pseudo_total_lightning_resistance (`+#% total to Lightning Resistance`)
@@ -355,7 +355,7 @@ $ acq search --describe '~resist'
 pattern ~resist — 11 entries, one line each
 fields
   quality         number      the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too; a map's `Quality (Quantity)` and its kin are names of their own and not read (properties v1)
-computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
+computed values — totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats, by what the site answered of each or, for a row a patch reworded, by its stats (search/pseudo-stats/data/table-changes.csv), over the C++ app’s pseudomod tables, src/pseudomods.cpp at acquisition-qt@946a4f51; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array
   pseudo.total_cold_res       total       the trade site's pseudo_total_cold_resistance (`+#% total to Cold Resistance`)
   pseudo.total_fire_res       total       the trade site's pseudo_total_fire_resistance (`+#% total to Fire Resistance`)
   pseudo.total_lightning_res  total       the trade site's pseudo_total_lightning_resistance (`+#% total to Lightning Resistance`)

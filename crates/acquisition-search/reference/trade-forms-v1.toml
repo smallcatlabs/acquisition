@@ -163,6 +163,22 @@ text = "Consumes 1 Frenzy Charge on use"
 form = "Consumes Frenzy Charges on use"
 kind = "numberless"
 
+# The export at 3.30.0.2.2 joins these texts nowhere (its strings carry
+# markup and it gives them no trade id: search/repoe/data/trade-unjoined.toml,
+# #281), so the game's plural is the captures' here: n07's `for 2 seconds`
+# under stat_661376813, u055's under stat_3714207489. A pin whose export
+# joins them again gives the form, and the loader then refuses these rows.
+
+[[form]]
+text = "Gain Onslaught for # second per Frenzy Charge consumed on use"
+form = "Gain Onslaught for # seconds per Frenzy Charge consumed on use"
+kind = "plural"
+
+[[form]]
+text = "You gain Onslaught for # second per Endurance Charge when Hit"
+form = "You gain Onslaught for # seconds per Endurance Charge when Hit"
+kind = "plural"
+
 # ---- refused by name: the forms that are themselves listed texts ----------
 
 [[refused]]

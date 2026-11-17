@@ -10,6 +10,8 @@ naming its captures), search/pseudo-stats/data/captures.json and search/pseudo-s
     tools/trade-changes.py    # write search/pseudo-stats/data/table-changes.csv, print the counts
 
 A row's `change` is one of: `new total` (a pseudo no table ships), `add row`,
+`carried row` (a row a patch's rewording carried by its stats, which no capture
+asks for: tools/trade_rows.py, CARRIED; #276),
 `remove row`, `twin` (a row that means one of two stats displaying its text,
 which the build answers by what the item is), `not mimicked` (an id or a row
 the site leaves out and the search counts, by the owner's ruling, or waiting
@@ -168,7 +170,8 @@ def main():
         for (t, which), w in latest["rows"].items():
             if (t, which) in before and before[(t, which)] == table.plain(w):
                 continue
-            change = "twin" if which != "any" else "add row"
+            carried = {(t, "any") for c in table.CARRIED.get(name, []) for t, _ in c["add"]}
+            change = "twin" if which != "any" else "carried row" if (t, which) in carried else "add row"
             why = why_of[(t, which)] + (ELDRITCH if t.startswith("While a ") else "")
             out.append(head + [change, t, table.plain(w), which, why, status])
         for (t, which) in before:

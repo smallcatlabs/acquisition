@@ -39,7 +39,7 @@ const UNJOINED: &str = include_str!("../../../search/repoe/data/trade-unjoined.t
 /// stat table's date; over the stat table's distinct texts, the game's
 /// forms reach 2,589 of the 6,327 the export joins, and the rules the
 /// texts it joins nowhere — the opposite words 610, `#% chance to` 129,
-/// `have #% chance to` 196, `have a` 24 — and the rows 13 (at the
+/// `have #% chance to` 196, `have a` 24 — and the rows 15 (at the
 /// captures and the export of 3.30, #276: the export joins fewer of the
 /// site's ids, so the rules reach more); and the
 /// refusals are exactly what the walk finds: 6 forms of the game's that
@@ -61,7 +61,7 @@ fn the_choice_before_7e_every_collision_is_refused_by_name() {
             ("have", 196),
             ("have_a", 24),
             ("game", 2589),
-            ("form", 13)
+            ("form", 15)
         ]
     );
     let refused: BTreeSet<(String, String, Option<String>)> = table
@@ -337,9 +337,12 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 /// x03's twenty Blight-ravaged maps among them, met since a written digit
 /// is a number of the line. At 3.30's tables (#276) the captures predate
 /// the game: 703 lines are under the 98 stats whose site text moved
-/// between the captures of 2026-09-12 and 2026-11-17, and 6 under the 2 the
-/// export at 3.30.0.2.2 stopped joining (their plurals the hand rules'), each
-/// counted apart and never held; 21,477 met, 54 unsupported, 5 refused.
+/// between the captures of 2026-09-12 and 2026-11-17, counted apart and
+/// never held; 21,483 met, 54 unsupported, 5 refused. A line under a stat
+/// the export at 3.30.0.2.2 stopped joining (#281) is held like any other:
+/// where the export's form is gone the captures' is a row of the hand
+/// table (n07's and u055's plurals), and a line no form meets is counted
+/// apart by the stat, none today.
 #[test]
 fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
@@ -448,12 +451,12 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     assert_eq!(moved_ids.len(), 98, "the stats 3.30 moved: {moved_ids:?}");
     assert_eq!(
         gap_ids.len(),
-        2,
+        0,
         "the stats the export stopped joining: {gap_ids:?}"
     );
     assert_eq!(
         (lines, moved, gap, met, unsupported, refused),
-        (22_245, 703, 6, 21_477, 54, 5)
+        (22_245, 703, 0, 21_483, 54, 5)
     );
 }
 
