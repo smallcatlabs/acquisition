@@ -41,8 +41,8 @@
 # shows every one. What the reading is from there is `src/pseudo.rs`
 # (C101), said once.
 #
-# Measured at generation: 82 totals, 419 rows — 104 the C++ tables
-# list, 315 the site's answers add — 17 with a weight above 1, 8 at a
+# Measured at generation: 82 totals, 420 rows — 104 the C++ tables
+# list, 316 the site's answers add — 17 with a weight above 1, 8 at a
 # half and 45 below nothing, a row's `reduced` spelling. Of them the ranged
 # family: 21 totals, 135 rows, 26 of which mean one of two stats
 # displaying one text and read what the item is.
@@ -1032,6 +1032,7 @@ text = "#% increased Rarity of Items found"
 rows = [
   { template = "#% increased Rarity of Items found", slot = "arg1", weight = 1 },
   { template = "#% reduced Rarity of Items found", slot = "arg1", weight = -1 },
+  { template = "#% to Item Rarity", slot = "arg1", weight = 1 },
 ]
 
 [[total]]

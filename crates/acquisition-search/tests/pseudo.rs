@@ -1003,7 +1003,8 @@ fn v6_a_total_counts_what_the_sites_pseudo_counts() {
 /// damage; `belt`, 0.4 of each leech, 1.5% of life regenerated, 30 global
 /// critical strike chance and 25 multiplier; `crown`, 20 reduced mana
 /// regeneration; `greaves`, an eldritch implicit's 9 movement speed;
-/// `plate`, 19.2 life regenerated a second and an implicit 3.4 — 22.6.
+/// `plate`, 19.2 life regenerated a second and an implicit 3.4 — 22.6;
+/// `gamble`, 3.30's rarity lines, +31% and an implicit +14% — 45.
 fn other_stash() -> Store {
     let mut s = store();
     list_tabs(&mut s, "pc", "Standard", json!([tab("o1", "Other")]), 10);
@@ -1108,6 +1109,14 @@ fn other_stash() -> Store {
                     "explicitMods": ["Regenerate 19.2 Life per second"],
                 }),
             ),
+            rare(
+                "gamble",
+                "Gold Ring",
+                json!({
+                    "implicitMods": ["+14% to Item Rarity"],
+                    "explicitMods": ["+31% to Item Rarity"],
+                }),
+            ),
         ],
         20,
     );
@@ -1144,7 +1153,7 @@ fn c94_a_reduced_line_counts_below_nothing() {
     let a = asked(&s, "pc", "pseudo.increased_rarity<=0");
     assert_eq!(a["total"]["matched"], 0);
     assert!(follow(&s, "pc", &a["terms"][0]["lacked"]).contains(&"gyre".to_string()));
-    assert!(found("has:pseudo.increased_rarity").is_empty());
+    assert_eq!(found("has:pseudo.increased_rarity"), ["gamble"]);
     // the line that made the total is shown
     let a = asked(&s, "pc", "pseudo.total_attack_speed<0");
     let lines: Vec<&str> = shows(&a, "anvil", "0")
@@ -1211,6 +1220,10 @@ fn v6_the_other_totals_count_what_the_sites_pseudo_counts() {
     assert_eq!(found("pseudo.life_regen=22.6"), ["plate"]);
     assert_eq!(found("has:pseudo.life_regen"), ["plate"]);
     assert_eq!(found("has:pseudo.life_regen_pct"), ["belt"]);
+    // 3.30 reworded the rarity line in place, the same stats: the total
+    // carries the new text by those stats (#276), the old text still
+    // counted, until the next sitting asks the site (#33)
+    assert_eq!(found("pseudo.increased_rarity=45"), ["gamble"]);
 }
 
 /// Sixteen items, eleven of them as the trade site's captures hold them,
