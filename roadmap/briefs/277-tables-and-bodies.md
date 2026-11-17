@@ -3,11 +3,13 @@
 A design brief, written 2026-11-17 against the tree at `5f02102e`, its
 second cut: the first proposed a stored table of version sightings and
 a count of places by fetch time, and was withdrawn before a ruling for
-the reasons under "Ruled out". This cut needs one ruling, C188 below,
-and one Not-doing line, both the owner's before anything is built. The
-JSON names and the sentences are the session's agent-facing design. A
-release is a game version's first two numbers: `3.30.0b` and
-`3.30.0.2.2` are both 3.30.
+the reasons under "Ruled out". Its ruling, C188, and its Not-doing
+line are the owner's and are in the registry (`56b37ff1`). Reviewed
+cold once (`roadmap/reviews/277-tables-and-bodies-brief-56b37ff1.md`);
+its six findings are answered here, listed at the foot. The JSON names
+and the sentences are the session's agent-facing design. A release is
+a game version's first two numbers: `3.30.0b` and `3.30.0.2.2` are
+both 3.30.
 
 ## Goal
 
@@ -33,12 +35,14 @@ lacked and said nothing; this is the sentence that day lacked.
   `ClassTable::game` and called by a test alone:
   `git grep -n '\.game()' -- crates`. The gate's drift line holds the
   other export-fed headers to the same pin.
-- The measurement that shaped this cut, on a copy of the owner's store
-  of 2026-11-17 against the two pinned exports: 2,208 live pc items
-  sat in places not fetched since the patch, and 88 of them showed a
-  wording 3.30 reworded in place (#277 holds the numbers).
-- The last push's CI: `gh run list --branch main --limit 3`; the
-  builder names each run and its conclusion in the report.
+- The measurement that shaped this cut is #277's comment of
+  2026-11-17 (`gh issue view 277 --comments`): the items in places
+  not fetched since the patch against the items that show a reworded
+  line, on a copy of the owner's store.
+- The last push's CI, each gate's own run:
+  `gh run list --branch main --workflow "Gate (Linux)" --limit 1` and
+  the same for `"Gate (Windows)"`. A red run is this step's first
+  concern; the report names each run and its conclusion.
 
 ## Decisions
 
@@ -46,19 +50,24 @@ lacked and said nothing; this is the sentence that day lacked.
    gives, per realm, the newest release a live character states, as
    the version of the most recently fetched character of that release
    with its fetch time. It is read from `characters.json` when the
-   corpus is read. No table, no column, no migration. The drafted
-   entry, for `decisions/store.md`:
-
-   > - **C188 — The store reads the game version its characters state and gives the newest per realm, storing nothing for it.** A release is a version's first two numbers. GGG states its game only on a character response. The read returns, per realm, the newest release a live character states, as its most recently fetched character's version and fetch time. A character stating none is left out, and no item body is read (C108, the store's search read). *Why:* a reworded line read as lacked after a patch, and only a character's response says which game the store's bodies came from. *Pinned:* nothing yet; Unbuilt, #277.
+   corpus is read. No table, no column, no migration. A character with
+   no fetch time on record is left out as one stating none is: a
+   listing that revives a retired character clears its fetch time and
+   keeps its body (`git grep -n 'removed_at IS NOT NULL THEN NULL' -- crates/acquisition-store/src/lib.rs`).
+   The entry is C188 in `decisions/store.md`, taken as written.
 
 2. **Two fields on the answer's scope.** `tables_game`, the class
-   table's game as written, and `store_game`, the read's entry for the
-   scope's realm (`version`, `fetched_at`, `fetched_at_age`), absent
-   where no character of the realm states one or the tables name no
-   such realm. One function in the search crate compares the two by
-   release; every text surface calls it, and none compares for itself.
+   table's game as written, and `store_games`, a list: the read's
+   entry (`realm`, `version`, `fetched_at`, `fetched_at_age`) for each
+   realm of the scope that the tables name and that has one. A scope
+   of one realm holds at most one entry; the all-realms scope holds
+   one per such realm, and a realm the tables do not name (poe2) none.
+   One function in the search crate compares each entry with the
+   tables by release; every text surface calls it, and none compares
+   for itself.
 3. **Two sentences, printed under the total beside the never-fetched
-   sentence, each only when its case holds:**
+   sentence, one for each entry whose release differs, opening `on
+   {realm}: ` where the scope holds more than one realm:**
    - the store is ahead of the tables: `these tables read release {r} and a character here was fetched from {s} ({age}): an item of {s} may read undecided, or lack a line the tables do not know, until a newer acq`
    - the store is behind the tables: `these tables read release {r} and no character here was fetched from it, the newest from {s} ({age}): items may show earlier wording the tables do not read; a fetch cures it`
    The MCP's `describe` entry for the two fields carries the same
@@ -68,18 +77,16 @@ lacked and said nothing; this is the sentence that day lacked.
 5. **Not built: the items that show a wording a release retired.** It
    can be counted exactly (the two exports name each rewording), but
    the generator must treat a translation's lookup slots as wildcards
-   or it miscounts, and the measurement found 88 items in a store of
-   24,000. The drafted Not-doing line, for `decisions/search.md`:
-
-   > - Items that show a wording a release retired, counted or read as undecided: not until `live`, a second league's regeneration that leaves more than a hundred such items in a store; a fetch cures each, and every answer says its places' fetch age.
+   or it miscounts, and the measurement found few such items. The
+   Not-doing line is the last in `decisions/search.md`.
 
 6. **Ruled out.** A stored table of sightings with a count of places
    fetched before each release (the first cut): it counts a proxy,
-   2,208 items flagged for 88 affected; in a store with tabs never
-   fetched again its sentence stands on every answer for good; and it
-   costs a migration. Old wording read as new: 211 of the 831 entries
-   reworded in place changed their number slots, so no text maps to
-   text. A league's start date as the release's: the store holds a
+   many times the items affected; in a store with tabs never fetched
+   again its sentence stands on every answer for good; and it costs a
+   migration. Old wording read as new: a rewording often changes its
+   number slots, so no text maps to text. A league's start date as the
+   release's: the store holds a
    league list only when one was asked for, and an event league would
    read as a release.
 7. **The gaps that stay.** A store with no character fetched says
@@ -88,29 +95,34 @@ lacked and said nothing; this is the sentence that day lacked.
 
 ## Find first
 
-- `git grep -n 'struct ScopeOut' -A8 -- crates/acquisition-search/src`
-  and `git grep -ln 'never_fetched' -- crates`: the scope's document,
-  and each surface and golden the sentences join.
-- `git grep -n 'pub struct Corpus\b' -A12 -- crates/acquisition-store/src/corpus.rs`:
+- `git grep -n -A8 'struct ScopeOut' -- crates/acquisition-search/src`
+  and `git grep -l -i -e 'never_fetched' -e 'never fetched' -- crates`:
+  the scope's document, and each surface and golden the sentences
+  join, the web's among them.
+- `git grep -n -A12 'pub struct CorpusHeader' -- crates/acquisition-store/src/corpus.rs`:
   the read's header, where the new member sits beside the listings.
-- `git grep -n 'struct Shown' -A12 -- crates/acquisition-search/src`:
+- `git grep -n -A34 'pub struct Shown' -- crates/acquisition-search/src/show.rs`:
   whether `acq show` carries a scope. If it does it gains the same; if
   not, it is named in the report and left.
+- `git grep -n 'fn populated' -- crates/acquisition-verbs/tests/documents.rs`:
+  the world the documents walk reads, which states no version today.
 
 ## Done when
 
 - The read returns, per realm, the newest release its live characters
   state, the most recently fetched of that release giving the version
-  and the time; a character stating none, a removed one and a version
-  whose first two numbers do not parse are each left out and fail
-  nothing. Cases in the store's existing corpus tests.
-- `scope.tables_game` and `scope.store_game` are as decision 2 says;
-  the documents walk (C163) passes; each of the two cases prints its
-  sentence, and a store at the tables' release prints neither, held by
-  one golden beside the never-fetched one; the MCP's `describe`
-  carries the fields.
-- C188 and the Not-doing line are in the registry as ruled, and
-  `python3 -I tools/bothy.py check` passes.
+  and the time; a character stating none, a removed one, one fetched,
+  retired and revived by a listing, and a version whose first two
+  numbers do not parse are each left out and fail nothing. Cases in
+  the store's existing corpus tests.
+- `scope.tables_game` and `scope.store_games` are as decision 2 says,
+  with a case of the all-realms scope over two realms at different
+  releases. The documents walk's world states a character's version,
+  so the walk (C163) meets `fetched_at` and its age.
+- Each of the two cases prints its sentence, and a store at the
+  tables' release prints neither, held by one golden beside the
+  never-fetched one; a web test shows the answer page printing the
+  same sentence; the MCP's `describe` carries the fields.
 - No fact-schema version moves: `git grep -n 'FACT_SCHEMA_VERSION: i64'`.
 - The gate exits 0 on the step's tree, and the round is reviewed cold.
 
@@ -126,3 +138,12 @@ to what a term answers.
 ## Report
 
 `TEMPLATE.md`.
+
+## Taken from the review
+
+1, a revived character: left out, with its case. 2, the all-realms
+scope: a list, a sentence per realm. 3, the web and the walk: each in
+the done-when. 4, the find commands: corrected and run. 5, the
+measured figures: left in #277, cited by command. 6, CI: the
+template's commands. Not reviewed a second time: the build's review
+is the check.
