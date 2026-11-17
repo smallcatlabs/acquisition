@@ -85,9 +85,6 @@ His queue is the open issues labelled `trigger:ruling`:
   last edited.
 - At the next live run, `tools/tracer-rung.sh`, edited (#246: it passes
   `--account` where it exported `ACQ_ACCOUNT`) and not run.
-- At the next live run, refresh the two Covens characters: their
-  Wickerman's items land at their next fetch, which clears `store
-  status`'s drift line (#275; `acq store rebuild` does not).
 - The site sitting #37 waits on; it now also asks #33's carried
   totals, the rarity total first, and one search per Viscera leaf.
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
