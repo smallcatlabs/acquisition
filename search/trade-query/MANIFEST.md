@@ -47,3 +47,16 @@ Per query: the request body (`-request`), the search response (`-search`), the f
 | `raw/searches/q6-fetch.json` | 113332 | `6ae5cc69ed015a92ea696f2a04156328f7dbc33cbc58e839986852df638343e3` |
 | `raw/searches/q6-request.json` | 474 | `0c1009e3808f7c8fd8d785b8198f473d8766d2457c3db1d60fd4cbf6a2d0a5dc` |
 | `raw/searches/q6-search.json` | 7973 | `9c1ff9ef774d57b4b360a79b2ac4243de73a71519093b4efe221ff5d9c816607` |
+
+## The 3.30 captures, 2026-11-17
+
+Captured by the owner in a browser on 2026-11-17, the files saved 11:04–11:05 US Central (17:04–17:05 UTC; the files' modification times), in 3.30 (the Covens league); his word: "Captures saved". Access method: `browser` (SURFACES.md, the trade-site row; C79). Which league the page had selected is not recorded. Each file is `{"result": [...]}`, as the September ones are, and is appended beside them: neither capture is edited.
+
+| File | Bin | Bytes | Source | sha256 |
+| --- | --- | --- | --- | --- |
+| `data/stats-2026-11-17.json` | data | 2148932 | `https://www.pathofexile.com/api/trade/data/stats` | `6eb59d1d3181e02dbc9fa7b44e22a8996e686dd3467d2fbe7deb365bfab04334` |
+| `data/items-2026-11-17.json` | data | 353688 | `https://www.pathofexile.com/api/trade/data/items` | `ac55154be2eb78dd0da71f4cac9c7b78ed26ab5472fdcea959349b43d9c4128a` |
+| `raw/static-2026-11-17.json` | raw | 166283 | `https://www.pathofexile.com/api/trade/data/static` | `caecba76264d655b42e5e78d7a6becc1ac9831b2fccaa86aeac081b84320700e` |
+| `data/filters-2026-11-17.json` | data | 17503 | `https://www.pathofexile.com/api/trade/data/filters` | `82c13dd7f7e95483e47f45545f62d95b09b4e55410b4cdb7107b37e6e13e4049` |
+
+`static` is local, as its September counterpart came to be. `data/static-2026-09-12.json` was committed at `e3d4d35f` and deleted at `c756bd38` (step 11f), since no build reads it (`search/README.md`, rule 4: `data/` survives the close only if the build cites it). Nothing reads a `static` capture now, so the new one stays under `raw/`. The other three are committed beside their September counterparts.
