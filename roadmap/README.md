@@ -85,6 +85,9 @@ His queue is the open issues labelled `trigger:ruling`:
   last edited.
 - At the next live run, `tools/tracer-rung.sh`, edited (#246: it passes
   `--account` where it exported `ACQ_ACCOUNT`) and not run.
+- At the next live run, refresh the two Covens characters: their
+  Wickerman's items land at their next fetch, which clears `store
+  status`'s drift line (#275; `acq store rebuild` does not).
 - The site sitting #37 waits on.
 - After 2026-11-30, re-measure what the governance rebuild changed
   (#220).
