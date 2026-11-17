@@ -734,6 +734,15 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
             counted(st.unlifted_items, "item-shaped object", "item-shaped objects"),
         ));
     }
+    if st.next_fetch_items > 0 {
+        // Stored as unread before this build lifted their key (#279):
+        // not drift, and the way on is the character's fetch, not a
+        // newer acq.
+        out.push_str(&format!(
+            "next fetch: {} in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`acq refresh --characters`)\n",
+            counted(st.next_fetch_items, "item-shaped object", "item-shaped objects"),
+        ));
+    }
     if st.granted_skills > 0 {
         out.push_str(&format!(
             "granted: {} that PoE2 characters' items grant ({SKILL_ENTRIES}), kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
@@ -1277,6 +1286,7 @@ mod tests {
             items_removed: 0,
             events: 9,
             unlifted_items: 2,
+            next_fetch_items: 3,
             withheld_responses: 1,
             withheld_items: 4,
             refused_bodies: 1,
@@ -1314,14 +1324,28 @@ mod tests {
         for line in [
             "withheld: 1 fetch of tabs or characters the latest list no longer named, carrying 4 items: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
             "drift: 2 item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",
+            "next fetch: 3 item-shaped objects in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`acq refresh --characters`)\n",
             "granted: 8 skill entries that PoE2 characters' items grant (GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries), kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
             "refused: 1 body the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
         ] {
             assert!(text.contains(line), "{text}");
         }
+        // Only the stored counts this build reads (#279): the new
+        // sentence alone, no drift line.
+        let only_next = status_text(&acquisition_store::Status {
+            unlifted_items: 0,
+            next_fetch_items: 1,
+            ..st.clone()
+        });
+        assert!(
+            only_next.contains("next fetch: 1 item-shaped object in characters' data, stored before this build read their kind of item list,"),
+            "{only_next}"
+        );
+        assert!(!only_next.contains("drift:"), "{only_next}");
         let json = serde_json::to_value(&st).unwrap();
         for field in [
             "unlifted_items",
+            "next_fetch_items",
             "withheld_responses",
             "withheld_items",
             "granted_skills",

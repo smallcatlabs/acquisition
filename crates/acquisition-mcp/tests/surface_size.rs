@@ -165,6 +165,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`withheld_responses` counts fetches",
                 "`unlifted_items` counts item-shaped objects",
+                "`next_fetch_items` counts item-shaped objects",
                 "`granted_skills` counts the skill entries",
             ][..],
         ),

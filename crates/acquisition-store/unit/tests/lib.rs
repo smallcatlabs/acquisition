@@ -2025,6 +2025,38 @@ fn an_unknown_item_array_trips_the_drift_counter_without_failing() {
         )
         .unwrap();
     assert_eq!(s.status().unwrap().unlifted_items, 0);
+    // A count an earlier build stored under a key this build lifts is
+    // not drift: it is read at the character's next fetch (#279). A
+    // stored body counting under both kinds of key splits.
+    s.conn
+        .execute(
+            "UPDATE characters SET json = json_set(json, '$._unlifted', json('{\"wickerman\": 3, \"pets\": 2}')) WHERE id = 'c1'",
+            [],
+        )
+        .unwrap();
+    let st = s.status().unwrap();
+    assert_eq!((st.unlifted_items, st.next_fetch_items), (2, 3));
+    s.conn
+        .execute(
+            "UPDATE characters SET json = json_set(json, '$._unlifted', json('{\"wickerman\": 3}')) WHERE id = 'c1'",
+            [],
+        )
+        .unwrap();
+    let st = s.status().unwrap();
+    assert_eq!((st.unlifted_items, st.next_fetch_items), (0, 3));
+    // The next fetch reads them as items and the count clears.
+    s.record(
+        &ep,
+        &json!({ "name": "Hero" }),
+        200,
+        &json!({ "character": { "id": "c1", "name": "Hero", "equipment": [ item("eq1", "Helm", 0) ],
+                "wickerman": [ item("w1", "Viscera", 0) ] } }),
+        4,
+    )
+    .unwrap();
+    let st = s.status().unwrap();
+    assert_eq!((st.unlifted_items, st.next_fetch_items), (0, 0));
+    assert!(s.item("w1").unwrap().is_some());
 }
 
 /// Membership belongs to the listing: a fetch that lands after a newer

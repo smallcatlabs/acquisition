@@ -959,8 +959,17 @@ pub struct Status {
     /// reads them has fetched); no search counts them. Non-zero means GGG
     /// added an item list the store does not know — a code change, not a
     /// fault. Its words on every surface: C146, a count says what it
-    /// counts.
+    /// counts. A stored count under a key this build does read is
+    /// [`Status::next_fetch_items`], never this (#279).
     pub unlifted_items: i64,
+    /// Item-shaped objects a character's stored data counts as unread
+    /// (`_unlifted`) under a key this build reads as items
+    /// (the store's `CHARACTER_ITEM_ARRAYS`): stored by an earlier build, before
+    /// it read that kind of item list, so no search counts them yet;
+    /// each becomes an item at its character's next fetch. Not drift,
+    /// and nothing migrates them (#279, after #275 lifted `wickerman`).
+    #[serde(default)]
+    pub next_fetch_items: i64,
     /// Fetches withheld — of tabs or characters the latest list no longer
     /// named (C29), their bodies kept on the response row as evidence and
     /// in no search or count — and the items they carried in total
@@ -2370,6 +2379,24 @@ impl Store {
         let now = now();
         let tx = self.conn.unchecked_transaction()?;
         let count = |sql: &str| -> Result<i64> { Ok(tx.query_row(sql, [], |r| r.get(0))?) };
+        // The stored unread counts, split by whether this build lifts
+        // their key (#279): the item arrays' list is the one source.
+        let (mut unlifted_items, mut next_fetch_items) = (0, 0);
+        {
+            let mut stmt = tx.prepare(
+                "SELECT j.key, j.value FROM characters c, json_each(json_extract(c.json, '$._unlifted')) j
+                  WHERE c.removed_at IS NULL",
+            )?;
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let (key, n): (String, i64) = (row.get(0)?, row.get(1)?);
+                if CHARACTER_ITEM_ARRAYS.contains(&key.as_str()) {
+                    next_fetch_items += n;
+                } else {
+                    unlifted_items += n;
+                }
+            }
+        }
         let status = Status {
             path: self.path.display().to_string(),
             bytes: std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0),
@@ -2407,10 +2434,8 @@ impl Store {
                 "SELECT COALESCE(SUM(value), 0) FROM characters c, json_each(json_extract(c.json, '$._granted'))
                   WHERE c.removed_at IS NULL",
             )?,
-            unlifted_items: count(
-                "SELECT COALESCE(SUM(value), 0) FROM characters c, json_each(json_extract(c.json, '$._unlifted'))
-                  WHERE c.removed_at IS NULL",
-            )?,
+            unlifted_items,
+            next_fetch_items,
             last_event: count("SELECT COALESCE(MAX(id), 0) FROM item_events")?,
             facts: corpus::coverage_in(&tx, None, None, false, now)?,
         };
