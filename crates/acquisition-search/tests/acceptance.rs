@@ -486,6 +486,36 @@ fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
         ["furnace", "maw", "skull"]
     );
     assert_eq!(ids(&asked(&s, "frame=CocoonedItem")), ["boots"]);
+    // an item corrupted twice says so beside `corrupted` (N55): The
+    // Oppressor, trimmed to its header and its two flags
+    let oppressor = item(
+        "oppressor",
+        "The Oppressor",
+        "Elegant Round Shield",
+        "Unique",
+        json!({ "corrupted": true, "doubleCorrupted": true }),
+    );
+    let once = item(
+        "once",
+        "",
+        "Onyx Amulet",
+        "Magic",
+        json!({ "corrupted": true }),
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Covens",
+        "c1",
+        "Covens loot",
+        vec![oppressor, once],
+        14,
+    );
+    assert_eq!(ids(&asked(&s, "is:doublecorrupted")), ["oppressor"]);
+    assert_eq!(
+        ids(&asked(&s, "is:corrupted -is:doubleCorrupted")),
+        ["once"]
+    );
 }
 
 /// OQ7: one line across every tab and character, item and place on each row.

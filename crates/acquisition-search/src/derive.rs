@@ -535,13 +535,15 @@ pub enum Shown<'a> {
 /// the keys of `influences`, as GGG spells them, as the census of
 /// 2026-09-13 met them (22,721 items), and `vaal`, the mark GGG gives a
 /// vaal gem as `hybrid.isVaalGem`, lifted as the others are (the 4b
-/// sitting round). The language's `is:` words (`bind`), and the keys
-/// whose value must be a boolean to be read.
+/// sitting round), and `doubleCorrupted`, which 3.30 added (N55). The
+/// language's `is:` words (`bind`), and the keys whose value must be a
+/// boolean to be read.
 pub const ITEM_FLAGS: &[&str] = &[
     "abyssJewel",
     "corrupted",
     "crusader",
     "delve",
+    "doubleCorrupted",
     "duplicated",
     "elder",
     "fractured",
