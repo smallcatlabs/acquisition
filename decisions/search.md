@@ -43,3 +43,4 @@ What someone would propose and the project declines, each until the trigger it n
 - Whole-corpus export of the derived lines: not until a recorded question the language and the JSON answer cannot serve.
 - A realm word inside a term: refused under C96; two searches are the workaround.
 - Mod attribution (affix type, tier): not until a recorded question needs an affix count or a tier; C102 names it out of reach.
+- Items that show a wording a release retired, counted or read as undecided: not until `live`, a second league's regeneration that leaves more than a hundred such items in a store; a fetch cures each, and every answer says its places' fetch age.
