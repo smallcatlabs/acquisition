@@ -739,7 +739,7 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
         // not drift, and the way on is the character's fetch, not a
         // newer acq.
         out.push_str(&format!(
-            "next fetch: {} in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`acq refresh --characters`)\n",
+            "next fetch: {} in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`{NEXT_FETCH}`, the ids as `acq store characters` lists them)\n",
             counted(st.next_fetch_items, "item-shaped object", "item-shaped objects"),
         ));
     }
@@ -761,6 +761,12 @@ pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
     }
     out
 }
+
+/// The way on for the counts stored before this build read their kind
+/// of item list (#279): the command with its argument shown, the ids
+/// the sentence says where to find. Its test parses it with an id in
+/// place of `<ids>`, so the printed step runs once filled in.
+const NEXT_FETCH: &str = "acq refresh --characters <ids>";
 
 /// `store status`'s facts line (#172): every realm and league's
 /// locations, how many were fetched and their extremes, and when the
@@ -1324,7 +1330,7 @@ mod tests {
         for line in [
             "withheld: 1 fetch of tabs or characters the latest list no longer named, carrying 4 items: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
             "drift: 2 item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",
-            "next fetch: 3 item-shaped objects in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`acq refresh --characters`)\n",
+            "next fetch: 3 item-shaped objects in characters' data, stored before this build read their kind of item list, so no search counts them yet: each becomes an item at its character's next fetch (`acq refresh --characters <ids>`, the ids as `acq store characters` lists them)\n",
             "granted: 8 skill entries that PoE2 characters' items grant (GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries), kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
             "refused: 1 body the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
         ] {
@@ -1342,6 +1348,13 @@ mod tests {
             "{only_next}"
         );
         assert!(!only_next.contains("drift:"), "{only_next}");
+        // The printed step parses once an id fills `<ids>` (the cold
+        // review of #279: the bare flag was a usage error).
+        let filled = NEXT_FETCH.replace("<ids>", "c1");
+        assert!(
+            <crate::cli::Cli as clap::Parser>::try_parse_from(filled.split(' ')).is_ok(),
+            "{filled}"
+        );
         let json = serde_json::to_value(&st).unwrap();
         for field in [
             "unlifted_items",
