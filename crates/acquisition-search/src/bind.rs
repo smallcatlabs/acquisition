@@ -197,7 +197,8 @@ fn booleans() -> &'static [&'static str] {
     BOOLEANS
 }
 
-/// GGG's `frameTypeId`, the nine the census met.
+/// GGG's `frameTypeId`, lowercased: the nine the census met (N43) and
+/// the two the owner's 3.30 store showed beyond them (N54).
 pub(crate) const FRAMES: &[&str] = &[
     "normal",
     "magic",
@@ -208,6 +209,8 @@ pub(crate) const FRAMES: &[&str] = &[
     "divinationcard",
     "quest",
     "supporterfoil",
+    "cocooneditem",
+    "viscera",
 ];
 
 pub(crate) use crate::derive::ITEM_FLAGS;

@@ -452,6 +452,40 @@ fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
     let a = asked(&s, "container=wickerman");
     assert_eq!(ids(&a), ["furnace", "maw"]);
     assert_eq!(a["rows"][0]["place"]["container"], "wickerman");
+    // the two frames beyond N43's nine (N54): a Viscera in a tab, and an
+    // Enshrouded Boots, stored since 2026-09-02
+    list_tabs(
+        &mut s,
+        "pc",
+        "Covens",
+        json!([tab("c1", "Covens loot")]),
+        12,
+    );
+    let mut skull = viscera("skull", "Blazing Skull", "Stash1", "Head");
+    skull["implicitMods"] =
+        json!([{ "description": "49% increased Damage with Hits against Rare monsters" }]);
+    let boots = item(
+        "boots",
+        "",
+        "Enshrouded Boots",
+        "Normal",
+        json!({ "frameType": 14, "frameTypeId": "CocoonedItem", "vestigial": true,
+            "properties": [{ "name": "Original Unique", "values": [["Victario's Flight", 10]], "displayMode": 0 }] }),
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Covens",
+        "c1",
+        "Covens loot",
+        vec![skull, boots],
+        13,
+    );
+    assert_eq!(
+        ids(&asked(&s, "frame=viscera")),
+        ["furnace", "maw", "skull"]
+    );
+    assert_eq!(ids(&asked(&s, "frame=CocoonedItem")), ["boots"]);
 }
 
 /// OQ7: one line across every tab and character, item and place on each row.

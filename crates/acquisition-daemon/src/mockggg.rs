@@ -1289,7 +1289,7 @@ mod tests {
     }
 
     /// GGG's `frameTypeId` words, capitalised as every real body spells
-    /// them (N43; the census met these nine).
+    /// them (N43's nine and N54's two).
     const FRAME_WORDS: &[&str] = &[
         "Normal",
         "Magic",
@@ -1300,6 +1300,8 @@ mod tests {
         "DivinationCard",
         "Quest",
         "SupporterFoil",
+        "CocoonedItem",
+        "Viscera",
     ];
 
     /// What is wrong with a fixture, in words; empty when nothing is. Every
