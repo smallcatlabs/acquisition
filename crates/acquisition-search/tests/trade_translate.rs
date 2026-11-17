@@ -465,10 +465,12 @@ fn worked_by_hand(case: &Case) {
 /// and a clause with none carries none (C93: absent, never zero) — and,
 /// asked over the fixture's items as the site's search, the answer counts
 /// the items the reading adds and drops against the text as run, each
-/// count's route returning exactly those items. The trade seat's T4 and
-/// T5 are rows of their own: the `reduced` form under a minimum, the sum
-/// with and without its scourge line; T6's blighted maps carry none since
-/// round x read a Blight-ravaged map as no blighted one.
+/// count's route returning exactly those items. The trade seat's T5 is a
+/// row of its own, the sum with and without its scourge line; T4's rarity,
+/// once the `reduced` form under a minimum, carries none since 3.30 spells
+/// it in one word (#276), t30's `per # Strength` holding that form; T6's
+/// blighted maps carry none since round x read a Blight-ravaged map as no
+/// blighted one.
 #[test]
 fn c119_an_ambiguous_clause_says_what_its_other_reading_adds_and_drops() {
     let mut read = 0;
@@ -610,14 +612,17 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and`
 /// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — alone 12,719 exact, 1,120 ambiguous, 229
-/// unsupported, the two-text ids every one; with a bound 8,571, 5,268 and
-/// 229, 4,461 of them a stat a form of which no sum holds (step 7e) — 49
+/// catalogue header's count — alone 13,661 exact, 819 ambiguous, 220
+/// unsupported, the two-text ids every one; with a bound 9,400, 5,080 and
+/// 220, 4,585 of them a stat a form of which no sum holds (step 7e) — 49
 /// pairs carry a refused form either way, 300 a wording the game data
-/// gives, 1,613 a number written as a digit, exact since round x, and 14
+/// gives, 2,243 a number written as a digit, exact since round x, and 14
 /// a text of three numbers or more with no one `# to #`, 44 before round x
 /// read a text of two by their mean (11,232 and 2,607 alone before it,
-/// 7,357 and 6,482 with a bound). Every pair and the counts where
+/// 7,357 and 6,482 with a bound). The counts are the stat table's of
+/// 2026-11-17 (#276); at 2026-09-12's, 14,068 pairs: alone 12,719, 1,120
+/// and 229, with a bound 8,571, 5,268 and 229, 4,461 by a form, 1,613 by
+/// a digit. Every pair and the counts where
 /// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
 /// since a debug build binds the whole table's text in half a minute.
 #[test]
@@ -628,7 +633,7 @@ fn c113_every_stat_id_of_the_table_translates() {
         .iter()
         .flat_map(|s| s.categories.iter().map(move |c| format!("{c}.{}", s.id)))
         .collect();
-    assert_eq!(ids.len(), 14_068);
+    assert_eq!(ids.len(), 14_700);
     let stride = common::generated::cases(16, 1) as usize;
     let offset = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -637,8 +642,8 @@ fn c113_every_stat_id_of_the_table_translates() {
         % stride;
     let share: Vec<&String> = ids.iter().skip(offset).step_by(stride).collect();
     for (value, statuses, forms) in [
-        (json!({}), [12_719, 1_120, 229], 0),
-        (json!({ "min": 1 }), [8_571, 5_268, 229], 4_461),
+        (json!({}), [13_661, 819, 220], 0),
+        (json!({ "min": 1 }), [9_400, 5_080, 220], 4_585),
     ] {
         let filters: Vec<Value> = share
             .iter()
@@ -673,8 +678,8 @@ fn c113_every_stat_id_of_the_table_translates() {
             statuses,
             "{value}"
         );
-        assert_eq!(read("stat.text.two"), 229);
-        assert_eq!(read("stat.text.numbers"), 1_613);
+        assert_eq!(read("stat.text.two"), 220);
+        assert_eq!(read("stat.text.numbers"), 2_243);
         assert_eq!(read("stat.text.many"), 14);
         assert_eq!(read("stat.text.forms"), forms, "{value}");
         assert_eq!(read("stat.text.refused"), 49);

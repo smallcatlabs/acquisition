@@ -7,12 +7,17 @@ Every input this track reads, and how it was obtained (index rule 4). Nothing he
 | Clone | Remote | Commit | Date | Describe | Role |
 | --- | --- | --- | --- | --- | --- |
 | `repoe/` | `https://github.com/repoe-fork/repoe.git` | `1c72e40a99aa8c8f70e9a3526155f455d5eedd43` | 2026-08-27 | `1c72e40a` | the parser, schemas, and data history to 2025-06-07 |
-| `poe1/` | `https://github.com/repoe-fork/poe1.git` | `e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9` | 2026-09-09 | `e2bd511a` | the PoE1 export with per-patch history |
-| `PathOfBuilding/` | `https://github.com/PathOfBuildingCommunity/PathOfBuilding.git` | `16de4b82d57f1c0de6eb40f37143c32d4da36a02` | 2026-09-08 | `v2.67.2-75-g16de4b82d` | Path of Building Community, dev branch |
+| `poe1/` | `https://github.com/repoe-fork/poe1.git` | `52980e528c34d5c0023db417f46c1e370689cbdf` | 2026-11-17 | `52980e52` | the PoE1 export with per-patch history |
+| `PathOfBuilding/` | `https://github.com/PathOfBuildingCommunity/PathOfBuilding.git` | `a41fec6c20f822a658ae5df1273e8c69d5969bac` | 2026-11-17 | `v2.68.1` | Path of Building Community |
+| `awakened-poe-trade/` | `https://github.com/SnosMe/awakened-poe-trade.git` | `8a058baab5e4fff33c748e979d3bf6406ea95f6c` | 2026-11-17 | `v3.30.101-1-g8a058ba` | Awakened PoE Trade (SURFACES.md, its row), read by `search/category/scripts/` and `search/pseudo-stats/scripts/candidates.py` |
 
-`poe1/version.txt` = `3.29.3.3`; `exported-version.txt` = `3.29.3.3` (the game version last exported, the fork's own lag marker: its workflow exports only when `version.txt` differs from it; the file exists since `poe1@3e1570f5`); `schema.txt` = `634a70498bc75676f9c938a3d590c18ee75cae8d refs/heads/main` (the schema commit the export was generated against). Its history: 590 commits since 2025-06-07, one `Version <v>` commit when the fork's poll sees a new game version and one `Export <v>` when the export runs (README F6 measures the lag from these).
+Moved for 3.30 (#276), by the owner, who pulled each clone on 2026-11-17; the rows before are `poe1@e2bd511a` (2026-09-09, game 3.29.3.3), `PathOfBuilding@16de4b82` (2026-09-08, `v2.67.2-75-g16de4b82d`) and `awakened-poe-trade@ce551eb7` (`search/prior-art/MANIFEST.md` at `40b55e79`), this file at `f01d2ba0`.
+
+`poe1/version.txt` = `3.30.0.2.2`; `exported-version.txt` = `3.30.0.2.2` (the game version last exported, the fork's own lag marker: its workflow exports only when `version.txt` differs from it; the file exists since `poe1@3e1570f5`); `schema.txt` = `9f095ca68ae0c822e4b0d8be3525e0466ddec11d refs/heads/main` (the schema commit the export was generated against). Its history: 590 commits since 2025-06-07, one `Version <v>` commit when the fork's poll sees a new game version and one `Export <v>` when the export runs (README F6 measures the lag from these).
 
 ## The PoE1 export's files read (`poe1/data/`)
+
+The byte counts in this table and the next two are as the first pass read the files (2026-09-13), not at the pin; at `poe1@52980e52` `base_items.json` is 8,315,606 and `stat_translations.json` 12,234,100.
 
 | File | Bytes | Read by |
 | --- | --- | --- |

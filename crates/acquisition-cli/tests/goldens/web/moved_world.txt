@@ -22,7 +22,7 @@ GET item/new
 <table class="shown">
 <tr><th>Id</th><td>new</td></tr>
 <tr><th>Class</th><td>undecided: `Wombgift Chalice` is not in the class table (classes v1)</td></tr>
-<tr><th>Category</th><td>undecided<br>open 79 ids: `Wombgift Chalice` is not in the class table (classes v1)</td></tr>
+<tr><th>Category</th><td>undecided<br>open 84 ids: `Wombgift Chalice` is not in the class table (classes v1)</td></tr>
 <tr><th>Unread</th><td>nothing</td></tr>
 </table>
 <table class="lines">

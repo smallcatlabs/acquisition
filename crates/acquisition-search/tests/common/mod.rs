@@ -324,3 +324,41 @@ fn worked_from(mut s: Store) -> Store {
 
 pub const WORKED: &str =
     r##"league=Standard class=Rings rarity=rare "+# to maximum Life">=90 pseudo.total_res>=60"##;
+
+/// The site's stat vocabulary as the owner captured it before 3.30 and the
+/// capture the shipped stat table is made from (`search/trade-query/MANIFEST.md`).
+pub const STATS_BEFORE_330: &str =
+    include_str!("../../../../search/trade-query/data/stats-2026-09-12.json");
+pub const STATS_NOW: &str =
+    include_str!("../../../../search/trade-query/data/stats-2026-11-17.json");
+
+/// The stat ids, `<category>.<id>` as a capture spells them, whose site
+/// text 3.30 moved: listed in the capture of 2026-09-12 and absent from
+/// the stat table's capture, or listed in both with other texts. A stat
+/// translates to the text of the stats capture the table is made from and
+/// to no earlier text (#276), so a sitting's capture taken before 3.30
+/// shows such a stat's line in a wording no translation gives: the tests
+/// that hold those captures to the translation hold the rest.
+pub fn stats_moved_at_330() -> std::collections::BTreeSet<String> {
+    let texts = |capture: &str| -> BTreeMap<String, Vec<String>> {
+        let doc: Value = serde_json::from_str(capture).unwrap();
+        let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for group in doc["result"].as_array().unwrap() {
+            for entry in group["entries"].as_array().unwrap() {
+                out.entry(entry["id"].as_str().unwrap().to_string())
+                    .or_default()
+                    .push(entry["text"].as_str().unwrap().to_string());
+            }
+        }
+        for t in out.values_mut() {
+            t.sort();
+        }
+        out
+    };
+    let (before, now) = (texts(STATS_BEFORE_330), texts(STATS_NOW));
+    before
+        .into_iter()
+        .filter(|(id, t)| now.get(id) != Some(t))
+        .map(|(id, _)| id)
+        .collect()
+}

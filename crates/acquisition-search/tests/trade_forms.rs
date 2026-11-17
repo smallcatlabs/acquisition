@@ -30,12 +30,18 @@ use common::*;
 use serde_json::{Value, json};
 
 const BODIES: &str = include_str!("../../../search/pseudo-stats/data/bodies.json");
+/// The texts the PoE1 export at its pin leaves unjoined though one of its
+/// strings, markup reduced, is the text (`tools/trade-forms-table.py`,
+/// rule 5; #276).
+const UNJOINED: &str = include_str!("../../../search/repoe/data/trade-unjoined.toml");
 
 /// The choice before 7e: the shipped table loads at its version and the
 /// stat table's date; over the stat table's distinct texts, the game's
-/// forms reach 2,647 of the 6,841 the export joins, and the rules the
-/// texts it joins nowhere — the opposite words 618, `#% chance to` 24,
-/// `have #% chance to` 193, `have a` 22 — and the rows 14; and the
+/// forms reach 2,589 of the 6,327 the export joins, and the rules the
+/// texts it joins nowhere — the opposite words 610, `#% chance to` 129,
+/// `have #% chance to` 196, `have a` 24 — and the rows 13 (at the
+/// captures and the export of 3.30, #276: the export joins fewer of the
+/// site's ids, so the rules reach more); and the
 /// refusals are exactly what the walk finds: 6 forms of the game's that
 /// are listed texts, 1 a row's, 5 by `have #% chance to` and 2 by `have a`,
 /// none by `#% chance to` and no text a rule meets with both words of a
@@ -50,12 +56,12 @@ fn the_choice_before_7e_every_collision_is_refused_by_name() {
     assert_eq!(
         reach,
         [
-            ("opposite", 618),
-            ("chance", 24),
-            ("have", 193),
-            ("have_a", 22),
-            ("game", 2647),
-            ("form", 14)
+            ("opposite", 610),
+            ("chance", 129),
+            ("have", 196),
+            ("have_a", 24),
+            ("game", 2589),
+            ("form", 13)
         ]
     );
     let refused: BTreeSet<(String, String, Option<String>)> = table
@@ -95,10 +101,10 @@ fn the_choice_before_7e_every_collision_is_refused_by_name() {
 #[test]
 fn the_forms_table_loader_refuses_what_a_reviewer_would() {
     let stats = stats::table().unwrap();
-    let head = "version = 1\nstats = \"2026-09-12\"\nsource = \"s\"\n";
+    let head = "version = 1\nstats = \"2026-11-17\"\nsource = \"s\"\n";
     // a game file joining nothing, so a hand row stands alone
     const GAME: &str =
-        "version = 1\nstats = \"2026-09-12\"\nsource = \"s\"\ngenerated_by = \"g\"\n";
+        "version = 1\nstats = \"2026-11-17\"\nsource = \"s\"\ngenerated_by = \"g\"\n";
     let parse = |body: &str| FormsTable::parse(&format!("{head}{body}"), GAME, stats);
     assert!(parse("").is_ok());
     assert!(matches!(
@@ -111,7 +117,7 @@ fn the_forms_table_loader_refuses_what_a_reviewer_would() {
     ));
     assert!(matches!(
         FormsTable::parse(
-            &FORMS_TOML.replacen("stats = \"2026-09-12\"", "stats = \"2026-09-13\"", 1),
+            &FORMS_TOML.replacen("stats = \"2026-11-17\"", "stats = \"2026-09-13\"", 1),
             GAME_FORMS_TOML,
             stats
         ),
@@ -119,7 +125,7 @@ fn the_forms_table_loader_refuses_what_a_reviewer_would() {
     ));
     assert!(matches!(
         FormsTable::parse(
-            "version = 1\nstats = \"2026-09-12\"\nsource = \" \"\n",
+            "version = 1\nstats = \"2026-11-17\"\nsource = \" \"\n",
             GAME,
             stats
         ),
@@ -267,7 +273,7 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
         ]
     );
     // the same text, joined nowhere, takes the rules
-    let bare = "version = 1\nstats = \"2026-09-12\"\nsource = \"s\"\ngenerated_by = \"g\"\n";
+    let bare = "version = 1\nstats = \"2026-11-17\"\nsource = \"s\"\ngenerated_by = \"g\"\n";
     let rules = FormsTable::parse(FORMS_TOML, bare, stats).unwrap();
     let ruled: Vec<String> = rules
         .of("+#% chance to Suppress Spell Damage")
@@ -321,20 +327,42 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 /// The captures hold the table: over every listing the site sent (the
 /// sittings' and the owner's census, each search's items a corpus of
 /// their own), every one of the 22,245 lines under an id of the six hash
-/// categories is met by the id's presence term, translated alone — 22,182
+/// categories is met by the id's presence term, translated alone — at the
+/// tables of 2026-09-12, 22,182
 /// — but 58 under an id the translation leaves unsupported (an id of two
 /// texts) and 5 under an id whose clause is ambiguous by a refusal, its form
 /// left to the site (the Staves, Legacy and Global Critical Strike Chance
 /// suffixes, and two Shocks within `1.5 metres`). Round x's captures
 /// brought 629 lines (21,616 before, 21,555 met, 56 unsupported), x01 and
 /// x03's twenty Blight-ravaged maps among them, met since a written digit
-/// is a number of the line.
+/// is a number of the line. At 3.30's tables (#276) the captures predate
+/// the game: 703 lines are under the 98 stats whose site text moved
+/// between the captures of 2026-09-12 and 2026-11-17, and 6 under the 2 the
+/// export at 3.30.0.2.2 stopped joining (their plurals the hand rules'), each
+/// counted apart and never held; 21,477 met, 54 unsupported, 5 refused.
 #[test]
 fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
     let mut presence: BTreeMap<String, Translation> = BTreeMap::new();
     let (mut lines, mut met, mut unsupported, mut refused) = (0, 0, 0, 0);
     let mut faults: Vec<String> = Vec::new();
+    // the stats 3.30 reworded: their captured lines show a wording no
+    // translation gives (#276), counted apart and never held
+    let moved_at_330 = stats_moved_at_330();
+    let (mut moved, mut moved_ids) = (0, BTreeSet::new());
+    // the texts the export stopped joining at 3.30.0.2.2 (#276): their
+    // forms are the hand rules' until a pin's export joins them again, so
+    // a captured line met by none of them is counted apart, never held
+    let unjoined: Value = toml::from_str(UNJOINED).unwrap();
+    let unjoined: BTreeSet<&str> = unjoined["texts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t.as_str().unwrap())
+        .collect();
+    assert_eq!(unjoined.len(), 318, "the texts the export leaves unjoined");
+    let (mut gap, mut gap_ids) = (0, BTreeSet::new());
+    let table = stats::table().unwrap();
     for group in ["searches", "census"] {
         for (name, items) in bodies[group].as_object().unwrap() {
             let items = items.as_array().unwrap();
@@ -382,6 +410,11 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
                         .map(|&i| lines_of(&items_of(&bodies, group, name)[i], &id))
                         .sum()
                 };
+                if moved_at_330.contains(&id) {
+                    moved += count(&holding);
+                    moved_ids.insert(id);
+                    continue;
+                }
                 if !t.remainder.is_empty() {
                     unsupported += count(&holding);
                     continue;
@@ -398,6 +431,13 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
                     && clause.rows.iter().any(|r| r == "stat.text.refused")
                 {
                     refused += count(&missed);
+                } else if table.texts(&id).is_some_and(|texts| {
+                    texts
+                        .iter()
+                        .any(|t| unjoined.contains(t.trim_end_matches(" (Local)")))
+                }) {
+                    gap += count(&missed);
+                    gap_ids.insert(id.clone());
                 } else {
                     faults.push(format!("{name} {id} items {missed:?}: `{}`", t.text));
                 }
@@ -405,7 +445,16 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
         }
     }
     assert!(faults.is_empty(), "{}", faults.join("\n"));
-    assert_eq!((lines, met, unsupported, refused), (22_245, 22_182, 58, 5));
+    assert_eq!(moved_ids.len(), 98, "the stats 3.30 moved: {moved_ids:?}");
+    assert_eq!(
+        gap_ids.len(),
+        2,
+        "the stats the export stopped joining: {gap_ids:?}"
+    );
+    assert_eq!(
+        (lines, moved, gap, met, unsupported, refused),
+        (22_245, 703, 6, 21_477, 54, 5)
+    );
 }
 
 fn items_of<'a>(bodies: &'a Value, group: &str, name: &str) -> &'a [Value] {

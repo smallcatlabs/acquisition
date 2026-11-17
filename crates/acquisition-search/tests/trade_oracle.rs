@@ -54,7 +54,7 @@ struct Expected {
 #[serde(deny_unknown_fields)]
 struct Finding {
     key: String,
-    /// `site`, `ruling` or `sitting`.
+    /// `site`, `ruling`, `sitting` or `patch`.
     home: String,
     cites: String,
     /// The catalogue row that labels its clause ambiguous.
@@ -257,7 +257,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     assert_eq!(findings.len(), expected.finding.len(), "a finding twice");
     for f in &expected.finding {
         assert!(
-            ["site", "ruling", "sitting"].contains(&f.home.as_str()),
+            ["site", "ruling", "sitting", "patch"].contains(&f.home.as_str()),
             "{}: home {}",
             f.key,
             f.home
@@ -267,8 +267,8 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         // differ from the site
         assert_eq!(
             f.row.is_none(),
-            f.differs,
-            "{}: a finding names its row, or differs by a ruling",
+            f.differs || f.home == "patch",
+            "{}: a finding names its row, or differs by a ruling, or is a patch's",
             f.key
         );
         assert!(
@@ -329,7 +329,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (369, 776, 7295, 6697));
+    assert_eq!((none.len(), ran, items, matched), (369, 776, 7295, 6696));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -357,6 +357,33 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         new.is_empty() && gone.is_empty(),
         "disagreements no row names: {new:#?}\nrows no longer found: {gone:#?}"
     );
+
+    // a patch's: every search a row of it names asks a stat 3.30 moved
+    // (#276), so the item's wording predates the text the table gives
+    let moved_at_330 = stats_moved_at_330();
+    for r in expected
+        .row
+        .iter()
+        .filter(|r| findings[r.finding.as_str()].home == "patch")
+    {
+        let query = &searches()
+            .into_iter()
+            .find(|s| s.name == r.search)
+            .unwrap()
+            .query;
+        let ids: Vec<&str> = query["stats"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|g| g["filters"].as_array().into_iter().flatten())
+            .filter_map(|f| f["id"].as_str())
+            .collect();
+        assert!(
+            ids.iter().any(|id| moved_at_330.contains(*id)),
+            "{}: a patch's row asks no stat 3.30 moved: {ids:?}",
+            r.search
+        );
+    }
 
     // a ruling or a question: the clause that refuses the item, or a filter
     // under it, is ambiguous by the finding's row — no row of the set is a

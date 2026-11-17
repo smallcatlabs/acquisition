@@ -327,6 +327,18 @@ fails = [
 ]
 
 [[case]]
+name = "3.30's Atlas Drops, the map property it names"
+query = '{"filters": {"map_filters": {"filters": {"map_bonus": {"min": 20}}}}}'
+text = 'atlas_drops>=20'
+fidelity = "exact"
+statuses = { "map_filters.map_bonus" = "exact" }
+matches = ['{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Atlas Drops", "values": [["+25%", 1]], "displayMode": 0}]}']
+fails = [
+  '{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Atlas Drops", "values": [["+10%", 1]], "displayMode": 0}]}',
+  '{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Item Quantity", "values": [["+61%", 1]], "displayMode": 0}]}',
+]
+
+[[case]]
 name = "area level"
 query = '{"filters": {"map_filters": {"filters": {"area_level": {"min": 80}}}}}'
 text = 'area_level>=80'
@@ -547,6 +559,15 @@ fails = [
 ]
 
 [[case]]
+name = "3.30's twice corrupted, GGG's mark"
+query = '{"filters": {"misc_filters": {"filters": {"twice_corrupted": {"option": "true"}}}}}'
+text = 'is:doubleCorrupted'
+fidelity = "exact"
+statuses = { "misc_filters.twice_corrupted" = "exact" }
+matches = ['{"corrupted": true, "doubleCorrupted": true}']
+fails = ['{"corrupted": true}']
+
+[[case]]
 name = "an option that is neither true nor false"
 query = '{"filters": {"misc_filters": {"filters": {"corrupted": {"option": "maybe"}}}}}'
 text = ''
@@ -580,10 +601,10 @@ fails = [
 
 [[case]]
 name = "the misc filters no field reads"
-query = '{"filters": {"misc_filters": {"filters": {"gem_transfigured": {"option": "true"}, "gem_imbued": {"option": "true"}, "foreseeing": {"option": "true"}, "intangibility": {"min": 1}, "alternate_art": {"option": "true"}, "foil_variation": {"option": "1"}, "corpse_type": {"option": "beast"}, "scourge_tier": {"min": 1}}}}}'
+query = '{"filters": {"misc_filters": {"filters": {"gem_transfigured": {"option": "true"}, "gem_imbued": {"option": "true"}, "foreseeing": {"option": "true"}, "intangibility": {"min": 1}, "alternate_art": {"option": "true"}, "foil_variation": {"option": "1"}, "corpse_type": {"option": "beast"}, "scourge_tier": {"min": 1}, "fated": {"option": "true"}, "unidentified_tier": {"min": 1}}}}}'
 text = ''
 fidelity = "partial"
-statuses = { "misc_filters.gem_transfigured" = "unsupported", "misc_filters.gem_imbued" = "unsupported", "misc_filters.foreseeing" = "unsupported", "misc_filters.intangibility" = "unsupported", "misc_filters.alternate_art" = "unsupported", "misc_filters.foil_variation" = "unsupported", "misc_filters.corpse_type" = "unsupported", "misc_filters.scourge_tier" = "unsupported" }
+statuses = { "misc_filters.fated" = "unsupported", "misc_filters.unidentified_tier" = "unsupported", "misc_filters.gem_transfigured" = "unsupported", "misc_filters.gem_imbued" = "unsupported", "misc_filters.foreseeing" = "unsupported", "misc_filters.intangibility" = "unsupported", "misc_filters.alternate_art" = "unsupported", "misc_filters.foil_variation" = "unsupported", "misc_filters.corpse_type" = "unsupported", "misc_filters.scourge_tier" = "unsupported" }
 
 [[case]]
 name = "a disabled group of filters, and a filter no row names"
@@ -862,18 +883,18 @@ query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2594215131
 text = 'sum(line("#% increased Physical Weapon Damage per # Strength" source=explicit).arg1)>=15'
 fidelity = "ambiguous"
 statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
-matches = ['{"explicitMods": ["16% increased Physical Weapon Damage per 10 Strength"]}']
+matches = ['{"explicitMods": ["16% increased Physical Weapon Damage per 10 Strength"]}', '{"explicitMods": ["30% increased Physical Weapon Damage per 10 Strength", "10% reduced Physical Weapon Damage per 10 Strength"]}']
 fails = ['{"explicitMods": ["12% increased Physical Weapon Damage per 10 Strength"]}', '{"explicitMods": ["10% increased Physical Weapon Damage per 16 Strength"]}']
-others = { "stats.0.0" = { reading = 'sum(line("#% increased Physical Weapon Damage per # Strength" source=explicit).arg1)>=15 -line("#% reduced Physical Weapon Damage per # Strength" source=explicit)' } }
+others = { "stats.0.0" = { reading = 'sum(line("#% increased Physical Weapon Damage per # Strength" source=explicit).arg1)>=15 -line("#% reduced Physical Weapon Damage per # Strength" source=explicit)', drops = ["m1"] } }
 
 [[case]]
-name = "a written digit is a number of the line: x01 and x03's Blight-ravaged maps show 50% and 9 where the site's text writes 25% and 3"
+name = "a written digit is a number of the line: a Blight-ravaged map shows 9 where the site's text writes 3 (x01 and x03 at round x; the 3.30 wording, #276)"
 query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_299373046"}]}]}'
-text = '''line("Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at #% value\nCan be Anointed up to # times" source=implicit)'''
+text = '''line("Area is infested with Fungal Growths\nCan be Anointed up to # times" source=implicit)'''
 fidelity = "exact"
 statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
-matches = ['''{"implicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 50% value\nCan be Anointed up to 9 times"]}''', '''{"implicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 25% value\nCan be Anointed up to 3 times"]}''']
-fails = ['''{"explicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 50% value\nCan be Anointed up to 9 times"]}''']
+matches = ['''{"implicitMods": ["Area is infested with Fungal Growths\nCan be Anointed up to 9 times"]}''', '''{"implicitMods": ["Area is infested with Fungal Growths\nCan be Anointed up to 3 times"]}''']
+fails = ['''{"explicitMods": ["Area is infested with Fungal Growths\nCan be Anointed up to 9 times"]}''']
 
 [[case]]
 name = "two ids whose texts differ in a written digit alone share the line, the text's other id named: per 10 and per 25 Dexterity"
@@ -1345,15 +1366,14 @@ fails = ['{"explicitMods": ["No Physical Damage"]}', '{"explicitMods": ["30% inc
 # adds and drops over items worked by hand.
 
 [[case]]
-name = "the trade seat's T4: increased Rarity at 20, read the other way the reduced form may put a match below the bound"
+name = "the trade seat's T4: Rarity at 20, one word since 3.30 (#276), so no other reading; the reduced form under a minimum is t30's case"
 url = "https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAEyWMUQqDMBAF7_K-Q1ErtO5VipS0WWEhjaG7SiXk7kX9nWGmQM3boqCCOZvMCQSfNlR3GAU9CmzLfPAAh0mi8fcUEkDgX47yFrvswfM6tLf-PrR9B4fVx4X390cSqGuqQxD1r8gBNPmoXMc61j_RF1xohgAAAA"
 realm = "pc"
-text = 'league=Standard sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20'
-fidelity = "ambiguous"
-statuses = { "url.league" = "exact", "status" = "listing_only", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
-matches = ['{"explicitMods": ["25% increased Rarity of Items found"]}', '{"explicitMods": ["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]}']
-fails = ['{"explicitMods": ["15% increased Rarity of Items found"]}', '{"explicitMods": ["25% reduced Rarity of Items found"]}']
-others = { "stats.0.0" = { reading = 'sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 -line("#% reduced Rarity of Items found" source=explicit)', drops = ["m1"] } }
+text = 'league=Standard sum(line("#% to Item Rarity" source=explicit).arg1)>=20'
+fidelity = "exact"
+statuses = { "url.league" = "exact", "status" = "listing_only", "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"explicitMods": ["+25% to Item Rarity"]}', '{"explicitMods": ["+30% to Item Rarity", "-10% to Item Rarity"]}']
+fails = ['{"explicitMods": ["+15% to Item Rarity"]}', '{"explicitMods": ["-25% to Item Rarity"]}', '{"explicitMods": ["25% increased Rarity of Items found"]}']
 
 [[case]]
 name = "the trade seat's T5: fire resistance summed at 30, read the other way without the scourge line, which adds and drops"

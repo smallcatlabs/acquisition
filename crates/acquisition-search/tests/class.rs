@@ -99,11 +99,11 @@ fn c106_the_shipped_table_is_what_the_generator_measured() {
     let t = class::table().unwrap();
     assert_eq!(t.version(), CLASS_TABLE_VERSION);
     assert_eq!(t.realms(), ["pc", "xbox", "sony"]);
-    assert_eq!(t.names().len(), 82);
-    assert_eq!(t.rows(), 4547);
-    assert_eq!(t.shared().len(), 32);
-    assert!(t.source().contains("e2bd511a"));
-    assert_eq!(t.game(), "3.29.3.3");
+    assert_eq!(t.names().len(), 83);
+    assert_eq!(t.rows(), 4752);
+    assert_eq!(t.shared().len(), 33);
+    assert!(t.source().contains("52980e52"));
+    assert_eq!(t.game(), "3.30.0.2.2");
     // the game's own names, plural, as the clipboard prints them
     for name in [
         "Rings",

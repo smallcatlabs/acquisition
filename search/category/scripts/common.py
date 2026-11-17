@@ -29,6 +29,9 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 from sources import APT, COPY, POE1, require  # noqa: E402  the clones, pinned; the copy, local
 
 TQ = os.path.join(SEARCH, "trade-query", "data")
+# the site's category filter: the 3.30 capture, whose ids the shipped table spells (#276);
+# the coarse categories and the sittings' captures stay the September ones they were read with
+FILTERS = "filters-2026-11-17.json"
 TABLE = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 TAXONOMY = os.path.join(SEARCH, "repoe", "scripts", "base-taxonomy.py")
 
@@ -59,7 +62,7 @@ def write_csv(name, header_line, columns, rows):
 
 def site_filters():
     """[(id, text)] in the filter's order, the empty 'Any' option dropped."""
-    filters = json.load(open(os.path.join(TQ, "filters-2026-09-12.json")))["result"]
+    filters = json.load(open(os.path.join(TQ, FILTERS)))["result"]
     return [(o["id"], o["text"]) for g in filters for f in g["filters"] if f["id"] == "category"
             for o in f["option"]["options"] if o["id"]]
 

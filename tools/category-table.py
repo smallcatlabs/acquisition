@@ -8,8 +8,11 @@ ships.
     python3 tools/category-table.py            # writes crates/acquisition-search/reference/categories-v1.toml
                                                #    and crates/acquisition-search/reference/beast-colours-v1.toml
     python3 tools/category-table.py --check    # exits 1 when a file on disk differs from what the sources give
+    python3 tools/category-table.py --tags     # writes search/category/data/export-tags.toml from the pinned
+                                               #    poe1 clone (the one run that reads a clone)
+    python3 tools/category-table.py --tags --check   # exits 1 when the extract differs from what the clone gives
 
-Inputs (read-only, all committed; nothing is fetched and no clone is read):
+Inputs (read-only, all committed; nothing is fetched and no clone is read but by --tags):
   search/trade-query/data/filters-2026-09-12.json   the site's category filter (`type_filters.category`):
                                                     the ids as spelled, their texts, their order
   crates/acquisition-search/reference/classes-v1.toml   the class table: the class names a leaf is keyed by,
@@ -18,6 +21,10 @@ Inputs (read-only, all committed; nothing is fetched and no clone is read):
                                                     row, each saying what answered it (J4, J12)
   search/category/data/beast-colours.csv            the colour table as the sittings left it: a name, its
                                                     colour, the searches that evidence it (J1; rounds k and l)
+  search/category/data/export-tags.toml             the export's tags of the bases of each class TAG_RULES
+                                                    splits, written by --tags from ../poe1/data/base_items.json
+                                                    at its pin (tools/sources.py), which the drift line holds
+                                                    its header to (tools/game-diff.py)
 
 Rules, each a reading of a source or a ruling and never a judgment (C106).
 The rulings are `search/LEDGER.md`, "Holes ruled", the 9d rows; what each id
@@ -33,7 +40,12 @@ table is `search/category/data/categories.csv`.
      item of the class whose base the rule holds has that id, in place of
      the class's own. A name rule is one clause on a name within one
      class; a case one clause cannot say is an exception row citing its
-     capture, never a second clause (the owner, 2026-10-07). J3: the
+     capture, never a second clause (the owner, 2026-10-07). A clause may
+     be a closed list of names, `among`, where the game's export tags each
+     base of the class with the leaf (TAG_RULES): the leaf holds the bases
+     the export tags so, written from the tag and never typed, and every
+     base of the class carries exactly one of the class's tags or the
+     script stops (#276: the Viscera leaves, the site not asked). J3: the
      Maven's Invitation leaf holds a base named for the Maven, and every
      other invitation takes `map`. J23: a Stackable Currency base whose
      name holds the word Tattoo is `currency.tattoo`. Every base of a
@@ -67,11 +79,13 @@ import tomllib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-FILTERS = os.path.join(ROOT, "search", "trade-query", "data", "filters-2026-09-12.json")
-FILTER_DATE = "2026-09-12"
+FILTER_DATE = "2026-11-17"
+FILTERS_NAME = f"filters-{FILTER_DATE}.json"
+FILTERS = os.path.join(ROOT, "search", "trade-query", "data", FILTERS_NAME)
 CLASS_TABLE = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 GROUPINGS = os.path.join(ROOT, "search", "category", "data", "grouping-members.csv")
 COLOURS = os.path.join(ROOT, "search", "category", "data", "beast-colours.csv")
+EXPORT_TAGS = os.path.join(ROOT, "search", "category", "data", "export-tags.toml")
 OUT_CATEGORIES = os.path.join(ROOT, "crates", "acquisition-search", "reference", "categories-v1.toml")
 OUT_COLOURS = os.path.join(ROOT, "crates", "acquisition-search", "reference", "beast-colours-v1.toml")
 VERSION = 1
@@ -134,6 +148,7 @@ CLASSES = {
     "wombgift": ["Wombgifts"],
     "enshrouded": ["Enshrouded Items"],
     "chart": ["Chart"],
+    "viscera": ["Viscera"],
     "currency": ["Currency", "Gold", "Stackable Currency"],
     "currency.piece": ["Pieces"],
     "currency.resonator": ["Delve Socketable Currency", "Delve Stackable Socketable Currency"],
@@ -157,6 +172,24 @@ NAME_RULES = [
     ("currency.tattoo", "Stackable Currency", "contains", "Tattoo",
      "J23: a base whose name holds the word, not only one beginning `Tattoo of ` — the site lists Honoured and Journey tattoos under the leaf (round m, m01, m03)"),
 ]
+
+# Rule 3's list form: (the leaf, the class, the export's tag, what says so).
+# The leaf holds the bases of the class the export tags so (export-tags.toml).
+VISCERA = ("the leaf's text and the export's tag; not asked (the site's 3.30 filter lists the leaf, "
+           "and no sitting has asked which bases it holds); the two Viscera items on the owner's store "
+           "copy of 2026-11-17 whose base the export lists show the slot their tag names (Head, Lower Limb)")
+TAG_RULES = [
+    ("viscera.arm", "Viscera", "viscera_arm", VISCERA),
+    ("viscera.body", "Viscera", "viscera_body", VISCERA),
+    ("viscera.head", "Viscera", "viscera_head", VISCERA),
+    ("viscera.leg", "Viscera", "viscera_leg", VISCERA),
+]
+
+# Rule 2's citation where categories.csv, written from the September
+# captures, does not hold the id: what placed it.
+CLASS_CITES = {
+    "viscera": "C106: a class's; the class Viscera, new in 3.30, under the id the site's 3.30 filter lists (#276)",
+}
 
 # Rule 3's check: a base of a rule's class that holds the leaf's word and
 # that the rule misses, each named with why the miss is right. The word is
@@ -191,6 +224,59 @@ NO_CLASS = {
 
 def toml_str(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def tags_of():
+    """{(class, base name): [tag, …]} as export-tags.toml records them."""
+    if not os.path.exists(EXPORT_TAGS):
+        sys.exit(f"{EXPORT_TAGS} is absent: write it with --tags at the pin")
+    doc = tomllib.load(open(EXPORT_TAGS, "rb"))
+    return {(b["class"], b["name"]): b["tags"] for b in doc.get("base", [])}
+
+
+def export_tags():
+    """The extract --tags writes: each base of a class TAG_RULES splits, with
+    those of its tags a rule of its class names, read from the pinned export."""
+    sys.path.insert(0, HERE)
+    from sources import PINS, POE1, require  # the clone, at its pin (search/repoe/MANIFEST.md)
+    require(POE1)
+    bases = json.load(open(os.path.join(POE1, "data", "base_items.json")))
+    classes = json.load(open(os.path.join(POE1, "data", "item_classes.json")))
+    game = open(os.path.join(POE1, "version.txt")).read().strip()
+    wanted = collections.defaultdict(set)
+    for _, cls, tag, _ in TAG_RULES:
+        wanted[cls].add(tag)
+    held = collections.defaultdict(set)
+    for base in bases.values():
+        cls = classes[base["item_class"]]["name"]
+        if base["name"] and cls in wanted:
+            held[(cls, base["name"])].update(t for t in base["tags"] if t in wanted[cls])
+    out = [
+        "# The game export's tags of the bases the category table splits by tag",
+        "# (tools/category-table.py, TAG_RULES, rule 3's list form; #276). Generated by",
+        "# tools/category-table.py --tags from the owner's pinned poe1 clone",
+        "# (search/repoe/MANIFEST.md; SURFACES.md, the RePoE row), so that the table",
+        "# itself is made from committed files alone; the drift line holds this header",
+        "# to the pin (tools/game-diff.py). A base the export lists twice under one",
+        "# name is one row, its tags together. Only the tags a rule names are kept.",
+        "#",
+        f"# Measured at generation: {len(held)} bases of {len(wanted)} "
+        f"{'class' if len(wanted) == 1 else 'classes'}; "
+        + ", ".join(f"{sum(1 for k, v in held.items() if t in v)} {t}" for c in sorted(wanted) for t in sorted(wanted[c]))
+        + ".",
+        "",
+        f"source = {toml_str(f'RePoE poe1 export @ {PINS["poe1"][:8]} (game {game}): base_items.json, item_classes.json; each base’s tags that a tag rule names')}",
+        f"game = {toml_str(game)}",
+        'generated_by = "tools/category-table.py --tags"',
+        "",
+    ]
+    for (cls, name) in sorted(held):
+        out.append("[[base]]")
+        out.append(f"class = {toml_str(cls)}")
+        out.append(f"name = {toml_str(name)}")
+        out.append("tags = [" + ", ".join(toml_str(t) for t in sorted(held[(cls, name)])) + "]")
+        out.append("")
+    return "\n".join(out)
 
 
 def rows_of(path):
@@ -250,6 +336,27 @@ def categories():
     stale = sorted(k for k in NEAR_MISSES if k not in near)
     if stale:
         sys.exit(f"named near misses that are none: {stale}")
+    # rule 3's list form: every base of the class one tag of the class's
+    tagged = tags_of()
+    among = collections.defaultdict(list)
+    tag_classes = {cls for _, cls, _, _ in TAG_RULES}
+    for cls in sorted(tag_classes):
+        if cls not in placed or cls in NO_ID:
+            sys.exit(f"a tag rule on a class with no id of its own: {cls}")
+        mine = {tag: leaf for leaf, c, tag, _ in TAG_RULES if c == cls}
+        for base in bases_of[cls]:
+            has = sorted(t for t in tagged.get((cls, base), []) if t in mine)
+            if len(has) != 1:
+                sys.exit(f"`{base}` ({cls}) carries {', '.join(has) or 'none'} of the tags "
+                         f"{', '.join(sorted(mine))}: one base, one leaf")
+            among[mine[has[0]]].append(base)
+        stale = sorted(b for c, b in tagged if c == cls and b not in bases_of[cls])
+        if stale:
+            sys.exit(f"export-tags.toml names bases the class table lacks under {cls}: {', '.join(stale)}"
+                     " — run --tags at the class table's pin")
+    for leaf, cls, tag, _ in TAG_RULES:
+        if leaf not in known or not among[leaf]:
+            sys.exit(f"a tag rule that names no id, or that no base meets: {leaf} ({tag})")
     for leaf in list(CLASSES) + list(NO_CLASS) + [BEAST] + list(COLOUR_LEAVES):
         if leaf not in known:
             sys.exit(f"`{leaf}` is no id of the filter")
@@ -268,7 +375,10 @@ def categories():
                 sys.exit(f"a grouping's member is no class's leaf: {cell['leaf']}")
             members[cell["grouping"]].append((cell["leaf"], cell["said_by"]))
 
-    rules = {leaf: (cls, how, text, says) for leaf, cls, how, text, says in NAME_RULES}
+    rules = {leaf: (cls, how, toml_str(text), says) for leaf, cls, how, text, says in NAME_RULES}
+    for leaf, cls, tag, says in TAG_RULES:
+        names = "[" + ", ".join(toml_str(n) for n in sorted(among[leaf])) + "]"
+        rules[leaf] = (cls, "tagged = " + toml_str(tag) + ", among", names, says)
     out_rows = []
     kinds = collections.Counter()
     for i, text in ids:
@@ -298,10 +408,10 @@ def categories():
             sys.exit(f"`{i}` is an id nothing here explains")
         if i in CLASSES:
             row.append(("classes", "[" + ", ".join(toml_str(c) for c in CLASSES[i]) + "]"))
-            cites.append("C106: a class's; search/category/data/categories.csv")
+            cites.append(CLASS_CITES.get(i, "C106: a class's; search/category/data/categories.csv"))
         if i in rules:
             cls, how, test, says = rules[i]
-            row.append(("rule", "{ class = " + toml_str(cls) + ", " + how + " = " + toml_str(test) + " }"))
+            row.append(("rule", "{ class = " + toml_str(cls) + ", " + how + " = " + test + " }"))
             cites.append("C106: a class's with a rule on the base name; " + says)
         if i in NO_CLASS:
             cites.append(NO_CLASS[i])
@@ -320,8 +430,10 @@ def categories():
         "# enumerable by `acq search --describe category`, cited by version in every",
         "# basis (C98). Generated by tools/category-table.py from the trade site's",
         f"# category filter as the owner captured it {FILTER_DATE}",
-        "# (search/trade-query/data/filters-2026-09-12.json; SURFACES.md), the class",
-        "# table and the category track's reviewed grouping members, and reviewed as",
+        f"# (search/trade-query/data/{FILTERS_NAME}; SURFACES.md), the class",
+        "# table, the game export's tags of the bases a tag rule splits",
+        "# (search/category/data/export-tags.toml) and the category track's",
+        "# reviewed grouping members, and reviewed as",
         "# a diff at each change (the admission test, the crate's doc, C106): a",
         "# convention — the word is the trade site's — never a judgment. Its rules",
         "# are the script's docstring.",
@@ -336,12 +448,12 @@ def categories():
         "#",
         f"# Measured at generation: {len(ids)} ids — {', '.join(f'{kinds[k]} {k}' for k in ('parent', 'grouping', 'leaf', 'beast', 'colour'))};",
         f"# {n_classes} classes of the class table's {len(class_names)} give an id, {len(NO_ID)} give none;",
-        f"# {len(NAME_RULES)} name rules, {len(near)} near {'miss' if len(near) == 1 else 'misses'} named ({', '.join(base for _, base in sorted(near))});",
+        f"# {len(NAME_RULES) + len(TAG_RULES)} name rules, {len(TAG_RULES)} of them a list of the bases the export tags, {len(near)} near {'miss' if len(near) == 1 else 'misses'} named ({', '.join(base for _, base in sorted(near))});",
         f"# {n_in} of {len(cells)} grouping cells in.",
         "",
         f"version = {VERSION}",
         f"realms = [{', '.join(toml_str(r) for r in table['realms'])}]",
-        f"source = {toml_str(f'the trade site’s category filter, captured by the owner {FILTER_DATE} (search/trade-query/data/filters-2026-09-12.json, type_filters.category; SURFACES.md); the class table, classes v' + str(table['version']) + '; the reviewed grouping members, search/category/data/grouping-members.csv')}",
+        f"source = {toml_str(f'the trade site’s category filter, captured by the owner {FILTER_DATE} (search/trade-query/data/' + FILTERS_NAME + ', type_filters.category; SURFACES.md); the class table, classes v' + str(table['version']) + '; the export’s tags, search/category/data/export-tags.toml; the reviewed grouping members, search/category/data/grouping-members.csv')}",
         f"filter = {toml_str(FILTER_DATE)}",
         f"classes = {table['version']}",
         'generated_by = "tools/category-table.py"',
@@ -415,6 +527,17 @@ def colours(table):
 
 def main():
     check = "--check" in sys.argv[1:]
+    if "--tags" in sys.argv[1:]:
+        text = export_tags()
+        if check:
+            if not os.path.exists(EXPORT_TAGS) or open(EXPORT_TAGS, newline="").read() != text:
+                sys.exit(f"{EXPORT_TAGS} differs from what the clone gives: regenerate and review the diff")
+            print(f"ok      {os.path.relpath(EXPORT_TAGS, ROOT)} is what the clone gives")
+            return
+        with open(EXPORT_TAGS, "w", newline="") as f:
+            f.write(text)
+        print(f"wrote   {os.path.relpath(EXPORT_TAGS, ROOT)}")
+        return
     categories_text, table = categories()
     texts = [(OUT_CATEGORIES, categories_text), (OUT_COLOURS, colours(table))]
     if check:

@@ -15,7 +15,7 @@ use acquisition_search::trade::catalogue::{
 use serde_json::Value;
 
 const FILTERS: &str = catalogue::FILTERS_JSON;
-const STATS: &str = include_str!("../../../search/trade-query/data/stats-2026-09-12.json");
+const STATS: &str = include_str!("../../../search/trade-query/data/stats-2026-11-17.json");
 const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.json");
 
 /// #91: the filters capture this build ships, which `acq web`'s form and
@@ -30,7 +30,7 @@ fn the_shipped_filters_capture_is_the_manifests() {
         .collect();
     assert_eq!(
         digest,
-        "5f30047668bb1c9def5972c7160aed4cdefb09a68ba83a8717b07d0246962de1"
+        "82c13dd7f7e95483e47f45545f62d95b09b4e55410b4cdb7107b37e6e13e4049"
     );
 }
 
@@ -40,7 +40,7 @@ fn the_shipped_filters_capture_is_the_manifests() {
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 150);
+    assert_eq!(c.rows().len(), 151);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -49,7 +49,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [88, 18, 35, 9]
+        [90, 18, 34, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
@@ -134,7 +134,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             .unwrap()
             .rows()
             .len(),
-        150
+        151
     );
 }
 
@@ -159,7 +159,7 @@ fn c113_every_clause_the_captures_list_has_a_row() {
             seen += 1;
         }
     }
-    assert_eq!(seen, 93);
+    assert_eq!(seen, 94);
     let stats: Value = serde_json::from_str(STATS).unwrap();
     let categories: Vec<&str> = stats["result"]
         .as_array()
@@ -196,7 +196,7 @@ fn c114_every_field_the_catalogue_names_binds() {
         .iter()
         .flat_map(|r| r.fields.iter().map(String::as_str))
         .collect();
-    assert_eq!(named.len(), 58);
+    assert_eq!(named.len(), 59);
     for field in &named {
         let term = match *field {
             "is" => "is:corrupted".to_string(),
@@ -230,11 +230,12 @@ fn c114_every_field_the_catalogue_names_binds() {
     .into_iter()
     .collect();
     assert!(before.is_subset(&named));
-    // … and the 42 built since: step 3's 40, the property table's 39 and
-    // one computed value, and step 7e's two, the damage at 20 % quality the
-    // dps rows land on in place of `pseudo.dps` and `pseudo.pdps` (t41, t42)
+    // … and the 43 built since: step 3's 40, the property table's 39 and
+    // one computed value, step 7e's two, the damage at 20 % quality the
+    // dps rows land on in place of `pseudo.dps` and `pseudo.pdps` (t41, t42),
+    // and 3.30's `atlas_drops`, which its filters of 2026-11-17 name (#276)
     let built: BTreeSet<&str> = named.difference(&before).copied().collect();
-    assert_eq!(built.len(), 42);
+    assert_eq!(built.len(), 43);
     let mut table: BTreeSet<&str> = acquisition_search::properties::table()
         .unwrap()
         .fields()
@@ -248,13 +249,10 @@ fn c114_every_field_the_catalogue_names_binds() {
     for displayed in ["armour", "evasion_rating", "energy_shield", "ward"] {
         table.remove(displayed);
     }
-    // 3.30's map property (N57), which no row of the catalogue's
-    // filters of 2026-09-12 could name
-    table.remove("atlas_drops");
     assert_eq!(built, table);
 }
 
-const HEAD: &str = "version = 1\nfilters = \"2026-09-12\"\nstats = \"2026-09-12\"\n";
+const HEAD: &str = "version = 1\nfilters = \"2026-11-17\"\nstats = \"2026-11-17\"\n";
 
 fn row(key: &str, body: &str) -> String {
     format!("[[row]]\nkey = \"{key}\"\n{body}\n")
@@ -290,23 +288,23 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     assert_eq!(
         refused(format!(
             "{}{good}",
-            HEAD.replace("filters = \"2026-09-12\"", "filters = \"2026-10-01\"")
+            HEAD.replace("filters = \"2026-11-17\"", "filters = \"2026-10-01\"")
         )),
         CatalogueError::Capture {
             which: "filters",
             found: "2026-10-01".to_string(),
-            expected: "2026-09-12"
+            expected: "2026-11-17"
         }
     );
     assert_eq!(
         refused(format!(
             "{}{good}",
-            HEAD.replace("stats = \"2026-09-12\"", "stats = \"2026-10-01\"")
+            HEAD.replace("stats = \"2026-11-17\"", "stats = \"2026-10-01\"")
         )),
         CatalogueError::Capture {
             which: "stats",
             found: "2026-10-01".to_string(),
-            expected: "2026-09-12"
+            expected: "2026-11-17"
         }
     );
     assert_eq!(refused(HEAD.to_string()), CatalogueError::NoRow);

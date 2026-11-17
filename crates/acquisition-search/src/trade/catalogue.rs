@@ -49,8 +49,8 @@ pub const CATALOGUE_TOML: &str = include_str!("../../reference/trade-catalogue-v
 pub const CATALOGUE_VERSION: u32 = 1;
 
 /// The date of the filters capture the catalogue was written from
-/// (`search/trade-query/data/filters-2026-09-12.json`).
-pub const FILTERS_CAPTURE: &str = "2026-09-12";
+/// (`search/trade-query/data/filters-2026-11-17.json`).
+pub const FILTERS_CAPTURE: &str = "2026-11-17";
 
 /// The filters capture itself, shipped (#91): the trade site's
 /// `api/trade/data/filters` as the owner captured it in a browser on
@@ -60,7 +60,7 @@ pub const FILTERS_CAPTURE: &str = "2026-09-12";
 /// No script generates it: a new capture is the owner's, and the copy
 /// moves with it. Read by `acq web`'s search form (C139), a control per
 /// filter.
-pub const FILTERS_JSON: &str = include_str!("../../reference/trade-filters-2026-09-12.json");
+pub const FILTERS_JSON: &str = include_str!("../../reference/trade-filters-2026-11-17.json");
 
 /// What a row's `lands` may be filled with (the file's header): each a
 /// part of a clause the translation reads (`translate.rs`, which fills

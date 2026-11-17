@@ -9,8 +9,8 @@
 # answer a translation produced, its `query.trade`; the build its basis
 # names digests it (C98). One row per clause the site's
 # query can carry: each top-level key of the query object, each filter of
-# the filters capture of 2026-09-12 (search/trade-query/data/filters-2026-09-12.json,
-# 93 in 12 groups), each stat category of the stats capture (14) and each
+# the filters capture of 2026-11-17 (search/trade-query/data/filters-2026-11-17.json,
+# 94 in 12 groups), each stat category of the stats capture (14) and each
 # stat group type (8). Written by hand from search/trade-query/data/grammar.json,
 # the deleted gap table (search/trade-query/data/gap.csv at 40b55e79) and
 # the private API's property census (search/item-facts/data/properties-census.csv
@@ -88,10 +88,10 @@
 # (`answer.rs`).
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 150 rows — 4 for the URL, 11 for the query object's keys, the JSON,
-# what no row names and a range that runs backwards, 92 filters and 6 option rows, 10 for the stat groups
+# 151 rows — 4 for the URL, 11 for the query object's keys, the JSON,
+# what no row names and a range that runs backwards, 93 filters and 6 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
-# (14 categories and 13 line rules); 88 exact, 18 ambiguous, 35
+# (14 categories and 13 line rules); 90 exact, 18 ambiguous, 34
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and from step 4 to round x `stat.text.numbers`,
 # by the owner's verdict until a sitting asked it; `stat.text.two`,
@@ -111,19 +111,19 @@
 # `map_uberblighted` exact in its shape, and `stat.text.numbers` exact.
 # The 4b sitting round (2026-10-25): `misc_filters.gem_vaal` exact, on
 # GGG's own mark, `is:vaal`, where it read the type line's prefix.
-# Every one of the capture's 93 filters, 14 categories and 8 group types
-# has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
-# stat table's 14,068 category and id pairs translates, alone and with a
-# bound (tests/trade_translate.rs): alone 12,719 exact, 1,120 ambiguous,
-# 229 unsupported — the two-text ids, every one; with a bound 8,571, 5,268
-# and 229, 4,461 of them by `stat.text.forms`; 300 by `stat.text.wording`;
-# 674 by `stat.text.collision`, its texts read as templates since round x;
+# Every one of the capture's 94 filters, 14 categories and 8 group types
+# has a row (tests/trade_catalogue.rs). 59 fields named. Every one of the
+# stat table's 14,700 category and id pairs translates, alone and with a
+# bound (tests/trade_translate.rs): alone 13,661 exact, 819 ambiguous,
+# 220 unsupported — the two-text ids, every one; with a bound 9,400, 5,080
+# and 220, 4,585 of them by `stat.text.forms`; 300 by `stat.text.wording`;
+# 373 by `stat.text.collision`, its texts read as templates since round x;
 # 14 by `stat.text.many`, a text of two `#` compared by their mean since
 # round x.
 
 version = 1
-filters = "2026-09-12"
-stats = "2026-09-12"
+filters = "2026-11-17"
+stats = "2026-11-17"
 
 # ---- the URL and the query object -------------------------------------
 
@@ -506,28 +506,14 @@ lands = "item_rarity{bounds}"
 fields = ["item_rarity"]
 
 [[row]]
-key = "map_filters.map_gold"
-text = "Chart Gold"
+key = "map_filters.map_bonus"
+text = "Atlas Drops"
 shape = "minmax"
-disposition = "unsupported"
-note = "a chart's property; none in the census"
-says = "A chart's gold is not read; not run."
-
-[[row]]
-key = "map_filters.chart_sulphur"
-text = "Chart Sulphur"
-shape = "minmax"
-disposition = "unsupported"
-note = "as `map_filters.map_gold`"
-says = "A chart's sulphur is not read; not run."
-
-[[row]]
-key = "map_filters.chart_shape"
-text = "Chart Shape"
-shape = "option"
-disposition = "unsupported"
-note = "as `map_filters.map_gold`"
-says = "A chart's shape is not read; not run."
+disposition = "exact"
+lands = "atlas_drops{bounds}"
+fields = ["atlas_drops"]
+note = "3.30's filter (the capture of 2026-11-17) over the map property it names, as `map_iiq` lands `item_quantity` (C114: a filter over a displayed property is the field of that name)"
+says = "A map's Atlas Drops, the quantity its modifiers give since 3.30."
 
 [[row]]
 key = "map_filters.area_level"
@@ -941,12 +927,38 @@ lands = "is:identified"
 fields = ["is"]
 
 [[row]]
+key = "misc_filters.unidentified_tier"
+text = "Unidentified Tier"
+shape = "minmax"
+disposition = "unsupported"
+note = "3.30's filter (the capture of 2026-11-17); no displayed property or mark names it, and what tier it counts no sitting has asked"
+says = "An unidentified item's tier is not read; not run."
+
+[[row]]
+key = "misc_filters.fated"
+text = "Fated"
+shape = "option"
+disposition = "unsupported"
+note = "3.30's filter (the capture of 2026-11-17); no mark names it: the owner's 3.30 items show `Fated` only before a type line's base (`Fated Topaz Ring`), and whether the site means that no sitting has asked"
+says = "Whether an item is fated is not read; not run."
+
+[[row]]
 key = "misc_filters.corrupted"
 text = "Corrupted"
 shape = "option"
 disposition = "exact"
 lands = "is:corrupted"
 fields = ["is"]
+
+[[row]]
+key = "misc_filters.twice_corrupted"
+text = "Twice Corrupted"
+shape = "option"
+disposition = "exact"
+lands = "is:doubleCorrupted"
+fields = ["is"]
+note = "3.30's filter (the capture of 2026-11-17); GGG's mark for an item corrupted twice is `doubleCorrupted` (N55), as `mirrored` is `duplicated`"
+says = "An item corrupted twice."
 
 [[row]]
 key = "misc_filters.mirrored"
@@ -1298,7 +1310,7 @@ says = "A bound compares the sum of the stat's lines, as the site sums them."
 [[row]]
 key = "stat.text.numbers"
 disposition = "exact"
-note = "a number the site's text writes as a digit and not a `#` — `per 10 Strength`, `at 25% value`, `1 Added Passive Skill is …` — is a number of the line, not the id's wording: the template has `#` there and its slot is open, so the line is met whatever the item displays there — x01 and x03's twenty Blight-ravaged maps display `at 50% value … Anointed up to 9 times` under `implicit.stat_299373046`, whose text writes 25 and 3 — and a bound compares the site's own `#`, never the digit: t30 (`min` 15) found 16 and t31 (`max` 12) found 10 on `#% increased Physical Weapon Damage per 10 Strength`, the 10 never (1,613 of the capture's 14,068 category and id pairs); two ids whose texts differ only in such a digit share the template, `stat.text.collision` (the owner, 2026-10-18, on round x: \"accepted\")"
+note = "a number the site's text writes as a digit and not a `#` — `per 10 Strength`, `at 25% value`, `1 Added Passive Skill is …` — is a number of the line, not the id's wording: the template has `#` there and its slot is open, so the line is met whatever the item displays there — x01 and x03's twenty Blight-ravaged maps display `at 50% value … Anointed up to 9 times` under `implicit.stat_299373046`, whose text writes 25 and 3 — and a bound compares the site's own `#`, never the digit: t30 (`min` 15) found 16 and t31 (`max` 12) found 10 on `#% increased Physical Weapon Damage per 10 Strength`, the 10 never (1,613 of the 2026-09-12 capture's 14,068 category and id pairs; 2,243 of 2026-11-17's 14,700); two ids whose texts differ only in such a digit share the template, `stat.text.collision` (the owner, 2026-10-18, on round x: \"accepted\")"
 says = "A number written into the stat's wording is a number of the line: the line matches whatever number an item shows there, and a bound compares the stat's own number."
 
 [[row]]

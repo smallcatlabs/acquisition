@@ -51,6 +51,13 @@ Rules, each a reading of the export and never a judgment (C106):
      `other` beside.
   4. Order: the stat table's, a text at its first id; forms by the
      export's order within an entry, entries by the export's.
+  5. The gap, written beside the table and never read by the
+     translation (search/repoe/data/trade-unjoined.toml): every text of the
+     stat table the export joins nowhere though a string of an entry that
+     joins no trade id, its markup reduced, is the text. The export's join
+     is its own and is not redone here (#276: 3.30.0.2.2 gives
+     `trade_stats` null for an entry whose strings carry markup); a pin
+     whose export joins them again empties the file by regeneration.
 """
 
 import json
@@ -66,6 +73,7 @@ from sources import PINS, POE1, require  # noqa: E402  the clone, at its pin (se
 EXPORT = POE1 / "data" / "stat_translations.json"
 STATS = os.path.join(ROOT, "crates", "acquisition-search", "reference", "trade-stats-v1.toml")
 OUT = os.path.join(ROOT, "crates", "acquisition-search", "reference", "trade-game-forms-v1.toml")
+GAP = os.path.join(ROOT, "search", "repoe", "data", "trade-unjoined.toml")
 VERSION = 1
 PAIRS = {"increased": "reduced", "reduced": "increased", "more": "less", "less": "more"}
 
@@ -216,6 +224,21 @@ def main():
         forms_total += len(forms)
         with_forms += bool(forms)
         rows.append((text, forms))
+    # rule 5: the texts an entry joining no trade id displays, unjoined
+    unjoined_by = {}
+    for entry in export:
+        if entry.get("trade_stats"):
+            continue
+        for s in entry.get("English") or []:
+            unjoined_by.setdefault(key(display(s["string"])), True)
+    gap = []
+    for stat in stats["stat"]:
+        if len(stat["texts"]) != 1:
+            continue
+        site = stat["texts"][0]
+        text = site[: -len(" (Local)")] if site.endswith(" (Local)") else site
+        if text not in seen and text not in gap and key(text) in unjoined_by:
+            gap.append(text)
     pin = PINS["poe1"][:8]
     game = (POE1 / "version.txt").read_text().strip()
     head = f"""# The game's forms of each trade stat — v{VERSION} (C113, C106;
@@ -239,7 +262,10 @@ def main():
 #
 # Measured at generation: {joined} texts joined, {with_forms} of them with a
 # form; {forms_total} forms — {kinds['opposite']} opposite, {kinds['numberless']} numberless,
-# {kinds['plural']} plural, {kinds['other']} other.
+# {kinds['plural']} plural, {kinds['other']} other. {len(gap)} texts the export
+# leaves unjoined though one of its strings, markup reduced, is the text
+# (rule 5; search/repoe/data/trade-unjoined.toml): the hand rules stand for
+# them until a pin's export joins them.
 
 version = {VERSION}
 stats = "{stats['version']}"
@@ -258,12 +284,27 @@ generated_by = "tools/trade-forms-table.py"
             out.append(f"    {{ form = {toml_str(form)}, kind = \"{kind}\"{n} }},\n")
         out.append("]\n")
     text = "".join(out)
+    stats_version = stats["version"]
+    gap_text = (
+        "# The stat table's texts the PoE1 export at its pin leaves unjoined though a string of an entry\n"
+        "# joining no trade id, its markup reduced, is the text (tools/trade-forms-table.py, rule 5;\n"
+        "# #276). Never read by the translation: the hand rules stand for these texts. Read by\n"
+        "# tests/trade_forms.rs, which counts the captured lines it leaves unmet; a pin whose export\n"
+        "# joins them again empties this file by regeneration.\n\n"
+        f"source = {toml_str(f'the PoE1 export at poe1 {pin} ({game}), data/stat_translations.json, beside the stat table of {stats_version}')}\n"
+        f"game = {toml_str(game)}\n"
+        'generated_by = "tools/trade-forms-table.py"\n'
+        "texts = [\n" + "".join(f"  {toml_str(t)},\n" for t in gap) + "]\n"
+    )
     if check:
-        on_disk = open(OUT).read() if os.path.exists(OUT) else ""
-        if on_disk != text:
-            sys.exit(f"{OUT} differs from what the sources give: run tools/trade-forms-table.py")
-        print(f"ok {joined} texts joined, {forms_total} forms")
+        for path, want in ((OUT, text), (GAP, gap_text)):
+            on_disk = open(path).read() if os.path.exists(path) else ""
+            if on_disk != want:
+                sys.exit(f"{path} differs from what the sources give: run tools/trade-forms-table.py")
+        print(f"ok {joined} texts joined, {forms_total} forms, {len(gap)} unjoined")
         return
+    with open(GAP, "w") as f:
+        f.write(gap_text)
     with open(OUT, "w") as f:
         f.write(text)
     print(f"wrote {OUT}: {joined} texts joined, {with_forms} with a form, {forms_total} forms {kinds}")

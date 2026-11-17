@@ -2721,7 +2721,7 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     assert_eq!(trade["fidelity"], "partial");
     assert_eq!(trade["remainder"], json!(["stats.1", "stats.1.0"]));
     assert_eq!(trade["catalogue"], 1);
-    assert_eq!(trade["stats"], "2026-09-12");
+    assert_eq!(trade["stats"], "2026-11-17");
     assert_eq!(trade["forms"], 1);
     assert_eq!(
         statuses(trade),
@@ -3116,7 +3116,7 @@ fn describe_trade_is_the_catalogue() {
 
     let shown = text(&acq(&base, &["search", "--describe", "trade"]));
     assert!(
-        shown.starts_with("trade — the catalogue v1, the site's stats of 2026-09-12"),
+        shown.starts_with("trade — the catalogue v1, the site's stats of 2026-11-17"),
         "{shown}"
     );
     assert!(shown.contains("\n  url.league "), "{shown}");

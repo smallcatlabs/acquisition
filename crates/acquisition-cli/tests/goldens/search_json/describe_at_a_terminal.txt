@@ -17,7 +17,7 @@ fields
   note                       text        the item's note as GGG gives it; never part of `text`
   rarity                     closed set  GGG's rarity; a gem, a currency stack, a card has none
   frame                      closed set  GGG's frameTypeId, on every item
-  class                      closed set  the item's class as the game names it, read from its base in the class table — classes v1, 82 classes over pc, xbox, sony
+  class                      closed set  the item's class as the game names it, read from its base in the class table — classes v1, 83 classes over pc, xbox, sony
   category                   closed set  the trade site's category of the item, by the site's own id — a convention, computed from the item's class and reviewed rules
   ilvl                       number      the item level; GGG's 0 is an item with none
   reqlevel                   number      the level the item requires
@@ -306,6 +306,11 @@ categories — the trade site's ids, as spelled
   wombgift                      Any Wombgift
   enshrouded                    Any Enshrouded Item
   chart                         Any Chart
+  viscera                       Any Viscera
+  viscera.head                  Head Viscera
+  viscera.arm                   Arm Viscera
+  viscera.body                  Body Viscera
+  viscera.leg                   Leg Viscera
   currency                      Any Currency
   currency.piece                Unique Fragment
   currency.resonator            Resonator
@@ -314,7 +319,7 @@ categories — the trade site's ids, as spelled
   currency.heistobjective       Heist Target
   currency.omen                 Omen
   currency.tattoo               Tattoo
-trade — what `--trade` makes of each clause a site search can carry, 150 rows: `--describe trade`
+trade — what `--trade` makes of each clause a site search can carry, 151 rows: `--describe trade`
 not built, refused by name
   rebind (--rebind)          waits for a consumer that asks  run another account's request deliberately
   show basis (show --basis)  waits for a consumer that asks  one item as a named basis held it

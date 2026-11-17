@@ -240,8 +240,8 @@ definition = "the displayed `Item Quantity`, in percent: a map's, or an item's t
 
 # 3.30's maps display the quantity their mods give as `Atlas Drops`
 # (`[AtlasDropScaling|Atlas Drops]`, type 112), and `Item Quantity` only
-# from a quantity quality (N57). No catalogue row lands it: the site's
-# filters the catalogue was read from (2026-09-12) predate it.
+# from a quantity quality (N57). The catalogue's `map_filters.map_bonus`,
+# the site's 3.30 `Atlas Drops` filter (the capture of 2026-11-17), lands it.
 [[field]]
 name = "atlas_drops"
 array = "properties"

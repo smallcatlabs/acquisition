@@ -3203,9 +3203,10 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
 /// at three or four calls (the trade seat: cli-opus-2 calls 36–38 for the
 /// scourge line, 42–43 for the Blight-ravaged maps). The clause's line
 /// says what its other reading adds and drops, and the routes block
-/// carries the request for each it changes, unasked: here the seat's
-/// `increased Rarity` at 20, read the other way without its `reduced`
-/// form, beside a text two stats share, which has no other reading. (The
+/// carries the request for each it changes, unasked: here `increased
+/// Movement Speed` at 20, read the other way without its `reduced` form
+/// (the seat asked `increased Rarity`, which 3.30 spells in one word,
+/// #276), beside a text two stats share, which has no other reading. (The
 /// maps the seat asked by carry none since round x read a Blight-ravaged
 /// map as no blighted one.)
 #[test]
@@ -3251,14 +3252,14 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
         },
         json!({}),
         json!({ "stash": { "id": "m1", "name": "Rings", "type": "PremiumStash", "items": [
-            ring("plain", &["25% increased Rarity of Items found"]),
-            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]) ] } }),
+            ring("plain", &["25% increased Movement Speed"]),
+            ring("both", &["30% increased Movement Speed", "10% reduced Movement Speed"]) ] } }),
     );
     let mut t = Transcript::new(&base);
     let out = t.run_fed(
         &["search", "--realm", "pc", "--trade-file", "-"],
         Some(
-            r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#,
+            r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2250533757", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#,
         ),
         &[
             " · read the other way: adds 0, drops 1",

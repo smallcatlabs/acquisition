@@ -49,8 +49,12 @@ sys.path.insert(0, str(HERE))
 from sources import CLONES, PINS  # noqa: E402  the clones and their pins (search/repoe/MANIFEST.md)
 
 REFERENCE = ROOT / "crates" / "acquisition-search" / "reference"
-# The shipped tables whose header names an export of the clone.
-HEADERS = [REFERENCE / "classes-v1.toml", REFERENCE / "defences-v1.toml", REFERENCE / "trade-game-forms-v1.toml"]
+# The shipped tables whose header names an export of the clone, and the one
+# committed extracts written beside a table (the category table's tags, the
+# forms table's gap).
+HEADERS = [REFERENCE / "classes-v1.toml", REFERENCE / "defences-v1.toml", REFERENCE / "trade-game-forms-v1.toml",
+           ROOT / "search" / "category" / "data" / "export-tags.toml",
+           ROOT / "search" / "repoe" / "data" / "trade-unjoined.toml"]
 BOUND = 20
 
 # file, what keys it, the field that names an entry
@@ -72,8 +76,10 @@ TABLES = [
      "so remake that extract first with search/repoe/scripts/base-defences.py, which reads the same "
      "file, and a moved range is a reviewed diff of the extract and the table"),
     ("categories-v1", "tools/category-table.py", ["base_items.json", "gems.json", "item_classes.json"],
-     "after the class table, which it reads, so the class table's inputs are its own; it refuses a "
-     "class it cannot place, which a new class is, and checks its name rules against the bases"),
+     "after the class table, which it reads, so the class table's inputs are its own; first its "
+     "--tags, which writes search/category/data/export-tags.toml from base_items.json (the tags a "
+     "tag rule splits a class by), then the table; it refuses a class it cannot place, which a new "
+     "class is, and checks its name rules against the bases"),
     ("trade-stats-v1", "tools/trade-stats-table.py", [],
      "the site's stat capture, the owner's (a sitting), not the export: no diff here moves it"),
     ("trade-game-forms-v1", "tools/trade-forms-table.py", ["stat_translations.json"],

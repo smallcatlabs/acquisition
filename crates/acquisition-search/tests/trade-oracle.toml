@@ -12,6 +12,9 @@
 # ambiguous by it — no expected disagreement sits under a clause reported
 # exact — but a ruling by which the owner chose to differ from the site,
 # `differs = true`, which names none (the outside review of 8f293ff3);
+# `patch`, an item a game patch reworded after its capture: its clause's
+# stat is one 3.30 moved (#276), so the item, fetched before, shows a
+# wording no translation gives; it names no row and differs by no ruling;
 # `sitting`, a question for step 7, `asks` what the sitting is to settle,
 # each answered by searches with a mutant (the site-sitting skill). Nothing
 # here is a tolerance: each is the site reading a clause otherwise, and the
@@ -49,6 +52,9 @@
 # matched once a text of two `#` is compared by their mean (x14, x16) and
 # `map_uberblighted` is the `Blight-ravaged` prefix (x01, x03): 776
 # searches, 7,295 items, 6,697 matched, 598 missed in 65 rows.
+# 3.30 (#276, the stats capture of 2026-11-17): one item more missed, g034's
+# Torment Gyre, whose rarity lines 3.30 reworded after it was fetched — a
+# `patch` row: 776 searches, 7,295 items, 6,696 matched, 599 missed in 66 rows.
 
 [[finding]]
 key = "eldritch-not"
@@ -105,6 +111,11 @@ row = "query.type.map"
 home = "sitting"
 cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran)"
 asks = "whether the site's Base names a blighted map by its unblighted base alone — `Blighted Map (Tier 13)` under `type` `Map (Tier 13)`, and under `type` `Blighted Map (Tier 13)` — and whether any other prefix (`Blight-ravaged`) is read so"
+
+[[finding]]
+key = "reworded-330"
+home = "patch"
+cites = "#276: 3.30 reworded the stat in place after the sitting's capture, and a stat translates to the text of the stats capture the table is made from and to no earlier text; the item, fetched before the patch, shows the old wording. Its stat is one the test finds moved between the captures of 2026-09-12 and 2026-11-17 (`stats_moved_at_330`)"
 
 [[row]]
 search = "c3"
@@ -560,3 +571,10 @@ items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
 clauses = ["1"]
 finding = "blighted-base"
+
+[[row]]
+search = "g034"
+items = [0]
+outcome = "missed"
+clauses = ["1"]
+finding = "reworded-330"

@@ -14,21 +14,21 @@ use acquisition_search::trade::stats::{
 use serde_json::Value;
 
 /// The capture the table is generated from, committed beside the track.
-const CAPTURE: &str = include_str!("../../../search/trade-query/data/stats-2026-09-12.json");
+const CAPTURE: &str = include_str!("../../../search/trade-query/data/stats-2026-11-17.json");
 
 /// C113: the shipped table loads, is the version a basis will cite, and
 /// holds what the generator measured.
 #[test]
-fn c113_the_shipped_stat_table_is_the_capture_of_2026_09_12() {
+fn c113_the_shipped_stat_table_is_the_capture_of_2026_11_17() {
     let t = stats::table().unwrap();
     assert_eq!(t.version(), STAT_TABLE_VERSION);
-    assert_eq!(STAT_TABLE_VERSION, "2026-09-12");
+    assert_eq!(STAT_TABLE_VERSION, "2026-11-17");
     assert!(
-        t.source().contains("stats-2026-09-12.json"),
+        t.source().contains("stats-2026-11-17.json"),
         "{}",
         t.source()
     );
-    assert_eq!(t.ids(), 10303);
+    assert_eq!(t.ids(), 10886);
     // one id under five categories, one text under all of them
     let life = ["+# to maximum Life".to_string()];
     for category in ["explicit", "implicit", "fractured", "scourge", "crafted"] {
@@ -113,8 +113,8 @@ fn c113_the_stat_table_answers_every_hash_entry_of_the_capture_and_no_other() {
             }
         }
     }
-    assert_eq!(entries, 14297);
-    assert_eq!(other, 18187 - 14297);
+    assert_eq!(entries, 14920);
+    assert_eq!(other, 18647 - 14920);
     assert_eq!(given.len(), t.ids());
     for (id, under) in &given {
         assert_eq!(
@@ -136,7 +136,7 @@ fn c113_the_stat_table_answers_every_hash_entry_of_the_capture_and_no_other() {
     }
 }
 
-const HEAD: &str = "version = \"2026-09-12\"\nsource = \"s\"\ngenerated_by = \"t\"\n";
+const HEAD: &str = "version = \"2026-11-17\"\nsource = \"s\"\ngenerated_by = \"t\"\n";
 
 /// A table of one id under every hash category.
 fn one() -> String {
@@ -154,7 +154,7 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
     let second = |row: &str| format!("{}\n[[stat]]\n{row}\n", one());
     for (bad, expected) in [
         (
-            one().replace("2026-09-12", "2026-10-01"),
+            one().replace("2026-11-17", "2026-10-01"),
             StatTableError::Version {
                 found: "2026-10-01".to_string(),
                 expected: STAT_TABLE_VERSION,
@@ -294,14 +294,14 @@ fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
     assert_eq!(life.entries[0].texts, ["+# total maximum Life"]);
     assert_eq!(life.entries[1].texts, ["+# to maximum Life"]);
     assert_eq!(
-        life.left_out, 133,
+        life.left_out, 141,
         "every category's maximum Life past the two"
     );
     // an empty ask is both tables whole, the limit capped: the stat
-    // table's 14,068 and the totals table's 82 totals and 4 readings
+    // table's 14,700 and the totals table's 82 totals and 4 readings
     let every = vocabulary("", usize::MAX).unwrap();
     assert_eq!(every.entries.len(), MAX_LISTED);
-    assert_eq!(every.entries.len() + every.left_out, 14_068 + 86);
+    assert_eq!(every.entries.len() + every.left_out, 14_700 + 86);
     assert_eq!(
         every.totals,
         acquisition_search::totals::table().unwrap().version()

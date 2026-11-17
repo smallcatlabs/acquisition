@@ -1946,8 +1946,8 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         stash("m1"),
         "Standard",
         json!({ "stash": { "id": "m1", "name": "Rarity", "type": "PremiumStash", "items": [
-            ring("plain", &["25% increased Rarity of Items found"]),
-            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]) ] } }),
+            ring("plain", &["25% increased Movement Speed"]),
+            ring("both", &["30% increased Movement Speed", "10% reduced Movement Speed"]) ] } }),
         91,
     );
     check(
@@ -1959,7 +1959,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
                 ("realm", "pc"),
                 (
                     "trade",
-                    r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#
+                    r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2250533757", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#
                 ),
             ])
         ),

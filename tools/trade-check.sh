@@ -32,7 +32,8 @@
 #      (`tools/totals-table.py --check`, `tools/trade-stats-table.py
 #      --check`), and the site join keeps its reason precedence
 #      (`tools/site-join.py --self-test`). The class, defence and forms
-#      tables' generators are not here: they read the `poe1` clone, which
+#      tables' generators, and the category table's `--tags`, are not here:
+#      they read the `poe1` clone, which
 #      the CI runner lacks and `sources.require` refuses, so they run at a
 #      pin bump in the order `tools/game-diff.py` prints, each then with
 #      `--check`, and between bumps the drift line holds their headers to

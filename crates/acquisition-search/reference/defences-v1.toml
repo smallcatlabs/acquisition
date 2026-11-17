@@ -31,8 +31,8 @@
 
 version = 1
 realms = ["pc", "xbox", "sony"]
-source = "RePoE poe1 export @ e2bd511a (game 3.29.3.3): base_items.json for the ranges; for the lines, the trade site’s stat texts of 2026-09-12 joined to the export’s stats (search/repoe/data/trade-stat-map.csv); the owner’s clone of 2026-09-13, SURFACES.md"
-game = "3.29.3.3"
+source = "RePoE poe1 export @ 52980e52 (game 3.30.0.2.2): base_items.json for the ranges; for the lines, the trade site’s stat texts of 2026-09-12 joined to the export’s stats (search/repoe/data/trade-stat-map.csv); the owner’s clone of 2026-09-13, SURFACES.md"
+game = "3.30.0.2.2"
 generated_by = "tools/defence-table.py"
 
 [[base]]

@@ -6,7 +6,7 @@
 //! # As built
 //!
 //! - **The form is the dump's.** The trade site's filter definitions of
-//!   2026-09-12, shipped by the search crate
+//!   2026-11-17, shipped by the search crate
 //!   (`acquisition_search::trade::catalogue::FILTERS_JSON`), are
 //!   compiled into the binary and read once when the server starts: a
 //!   control per filter, in the dump's groups and order, its label the
@@ -814,7 +814,7 @@ mod tests {
         assert_eq!(form.groups.len(), 12);
         assert_eq!(
             form.groups.iter().map(|g| g.filters.len()).sum::<usize>(),
-            93
+            94
         );
         assert_eq!(form.fate("query.status").unwrap().status, "listing_only");
         assert_eq!(form.stat_types.len(), 8);

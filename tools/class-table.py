@@ -110,7 +110,7 @@ def main():
         "",
         f"version = {VERSION}",
         f"realms = [{', '.join(toml_str(r) for r in REALMS)}]",
-        f"source = {toml_str(f'RePoE poe1 export @ {PINS["poe1"][:8]} (game {game}): base_items.json, item_classes.json, gems.json; the owner’s clone of 2026-09-13, SURFACES.md')}",
+        f"source = {toml_str(f'RePoE poe1 export @ {PINS["poe1"][:8]} (game {game}): base_items.json, item_classes.json, gems.json; the owner’s clone, search/repoe/MANIFEST.md, SURFACES.md')}",
         f"game = {toml_str(game)}",
         'generated_by = "tools/class-table.py"',
         "",

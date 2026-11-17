@@ -45,14 +45,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SEARCH = ROOT / "search"
 CLONES = Path(os.environ.get("ACQ_CLONES") or ROOT.parent)
 
-# Each sibling clone at the commit its manifest pins (search/repoe/MANIFEST.md;
-# awakened-poe-trade: search/prior-art/MANIFEST.md at 40b55e79). A pull is a
+# Each sibling clone at the commit its manifest pins (search/repoe/MANIFEST.md,
+# the clone table; awakened-poe-trade's first row is search/prior-art/MANIFEST.md
+# at 40b55e79). A pull is a
 # new manifest row and a new commit here, then a reviewed regeneration, poe1's
 # in the order tools/game-diff.py prints.
 PINS = {
-    "poe1": "e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9",
-    "PathOfBuilding": "16de4b82d57f1c0de6eb40f37143c32d4da36a02",
-    "awakened-poe-trade": "ce551eb7a9b704fbdcc2478eebb26be8f91786c7",
+    "poe1": "52980e528c34d5c0023db417f46c1e370689cbdf",
+    "PathOfBuilding": "a41fec6c20f822a658ae5df1273e8c69d5969bac",
+    "awakened-poe-trade": "8a058baab5e4fff33c748e979d3bf6406ea95f6c",
 }
 POE1 = CLONES / "poe1"
 POB = CLONES / "PathOfBuilding"

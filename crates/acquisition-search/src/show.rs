@@ -955,11 +955,13 @@ mod tests {
             wrong.len(),
             wrong.join("\n")
         );
-        // 26 at the capture of 2026-09-12: a support gem's `Socketed Gems
-        // are Supported by Level #` under two ids, `Lose # Mana per
-        // second`, `#% reduced Elemental Damage Taken while stationary` and
-        // a map's Rogue Exiles; each line is the first stat's
-        assert_eq!(collisions.len(), 26, "{}", collisions.join("\n"));
+        // 4 at the capture of 2026-11-17 (26 at 2026-09-12's, most of them
+        // a support gem's `Socketed Gems are Supported by Level #`, which
+        // 3.30 renamed to `… Support`): `Grants Level # Affliction`, a
+        // map's Rogue Exiles, `#% reduced Elemental Damage Taken while
+        // stationary` and `Lose # Mana per second`; each line is the first
+        // stat's
+        assert_eq!(collisions.len(), 4, "{}", collisions.join("\n"));
     }
 
     /// The lines the reviews of step 6.4c named each pass through the stat

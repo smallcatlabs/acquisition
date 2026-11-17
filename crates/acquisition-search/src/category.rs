@@ -1,5 +1,5 @@
 //! Category (C106; the build plan, step 9d-B): the trade site's grouping
-//! above class — its 82 category ids, as spelled — computed from the
+//! above class — its 87 category ids, as spelled — computed from the
 //! item's class and reviewed rules in this one place (rule 10 of the
 //! plan), never by a second classifier. One question is asked of an item
 //! here — does this id hold: yes, no, or undecided with its reason — and
@@ -16,7 +16,7 @@
 //! `search/LEDGER.md`, "Holes ruled", the 9d rows (J1–J4, J9–J22).
 //!
 //! - **A term names the trade site's category id as spelled** — the ids
-//!   of the site's filter as the owner captured it 2026-09-12, in the
+//!   of the site's filter as the owner captured it 2026-11-17, in the
 //!   site's order, each with the site's text for it. The word is the trade
 //!   site's and the help says so (V1).
 //! - **A leaf is a class's, or a class's with a rule on the base name.**
@@ -35,7 +35,12 @@
 //!   Honoured and Journey tattoos there and the answer extended to the
 //!   word for the families not asked (J23; round m). A class no id is
 //!   keyed by gives none: a quest-frame invitation, whose class is Quest
-//!   Items, has no id, its class deciding (J19).
+//!   Items, has no id, its class deciding (J19). A clause may be a
+//!   closed list of names, `among`, which the generator writes from a
+//!   tag the game's export gives each base: the four Viscera leaves split
+//!   the one class Viscera by the export's `viscera_head`, `viscera_arm`,
+//!   `viscera_body` and `viscera_leg` (#276), the site not asked. The
+//!   test says of itself its count and its tag, never the list.
 //! - **A parent matches the classes the site puts at it and every id
 //!   under it by the dot** (J2): `map` holds Inscribed Ultimatums of its
 //!   own and its children's scarabs and breachstones alike. The dot is in
@@ -199,6 +204,10 @@ struct RuleRow {
     starts: Option<String>,
     ends: Option<String>,
     contains: Option<String>,
+    /// The export's tag the `among` names carry: what the test says of
+    /// itself, beside its count.
+    tagged: Option<String>,
+    among: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -299,6 +308,11 @@ enum Test {
     Starts(String),
     Ends(String),
     Contains(String),
+    /// One of a closed list of names, each carrying the export's tag.
+    Among {
+        tagged: String,
+        names: Vec<String>,
+    },
 }
 
 impl Test {
@@ -307,6 +321,7 @@ impl Test {
             Test::Starts(text) => base.starts_with(text.as_str()),
             Test::Ends(text) => base.ends_with(text.as_str()),
             Test::Contains(text) => base.contains(text.as_str()),
+            Test::Among { names, .. } => names.iter().any(|name| name == base),
         }
     }
 
@@ -315,6 +330,10 @@ impl Test {
             Test::Starts(text) => format!("starts with `{text}`"),
             Test::Ends(text) => format!("ends with `{text}`"),
             Test::Contains(text) => format!("holds `{text}`"),
+            Test::Among { tagged, names } => format!(
+                "is one of the {} bases the game's export tags `{tagged}`",
+                names.len()
+            ),
         }
     }
 }
@@ -543,11 +562,26 @@ impl Tables {
             let rule = match &row.rule {
                 None => None,
                 Some(rule) => {
-                    let test = match (&rule.starts, &rule.ends, &rule.contains) {
-                        (Some(text), None, None) if !text.is_empty() => Test::Starts(text.clone()),
-                        (None, Some(text), None) if !text.is_empty() => Test::Ends(text.clone()),
-                        (None, None, Some(text)) if !text.is_empty() => {
+                    let texts = (&rule.starts, &rule.ends, &rule.contains);
+                    let test = match (texts, &rule.tagged, &rule.among) {
+                        ((Some(text), None, None), None, None) if !text.is_empty() => {
+                            Test::Starts(text.clone())
+                        }
+                        ((None, Some(text), None), None, None) if !text.is_empty() => {
+                            Test::Ends(text.clone())
+                        }
+                        ((None, None, Some(text)), None, None) if !text.is_empty() => {
                             Test::Contains(text.clone())
+                        }
+                        ((None, None, None), Some(tagged), Some(names))
+                            if !tagged.is_empty()
+                                && !names.is_empty()
+                                && names.iter().all(|name| !name.is_empty()) =>
+                        {
+                            Test::Among {
+                                tagged: tagged.clone(),
+                                names: names.clone(),
+                            }
                         }
                         _ => {
                             return row_error(format!(
@@ -561,6 +595,21 @@ impl Tables {
                             "{:?}: its rule is on {:?}, which is no class of the class table",
                             row.id, rule.class
                         ));
+                    }
+                    // one base, one leaf: two lists of one class naming a
+                    // base would make the table's order decide
+                    if let Test::Among { names, .. } = &test {
+                        for (class, other, leaf) in &rules {
+                            if let Test::Among { names: theirs, .. } = other
+                                && class == &rule.class
+                                && let Some(both) = names.iter().find(|n| theirs.contains(n))
+                            {
+                                return row_error(format!(
+                                    "{:?} and {:?} both list {both:?}",
+                                    ids[*leaf].id, row.id
+                                ));
+                            }
+                        }
                     }
                     rules.push((rule.class.clone(), test.clone(), here));
                     Some((rule.class.clone(), test))
@@ -1272,14 +1321,14 @@ mod tests {
     };
 
     /// The shipped files parse under the loader's checks and are the
-    /// versions this build cites: 82 ids, 361 beasts.
+    /// versions this build cites: 87 ids, 361 beasts.
     #[test]
     fn the_shipped_tables_load_and_are_the_versions_cited() {
         let t = tables().unwrap();
         assert_eq!(t.version(), CATEGORY_TABLE_VERSION);
         assert_eq!(t.colours_version(), COLOUR_TABLE_VERSION);
         assert_eq!(t.realms(), ["pc", "xbox", "sony"]);
-        assert_eq!(t.ids().len(), 82);
+        assert_eq!(t.ids().len(), 87);
         assert_eq!(t.beasts(), 361);
         assert_eq!(t.ids()[0], "weapon");
     }

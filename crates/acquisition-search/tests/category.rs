@@ -1,5 +1,5 @@
 //! Category (C106; `search/LEDGER.md`, "Holes ruled", J1–J4 and J9–J22),
-//! through the crate's boundary: the trade site's 82 category ids asked as
+//! through the crate's boundary: the trade site's 87 category ids asked as
 //! terms, counted, shown and described.
 //!
 //! The first test reads the track's expected answers where they lie
@@ -30,7 +30,7 @@ const BESTIARY: &str = "Right-click to add this to your bestiary.";
 
 // ---- reading the table ------------------------------------------------------------------------
 
-/// The 82 ids, in the site's order: the id column of the copy's table
+/// The 87 ids, in the site's order: the id column of the copy's table
 /// before its two buckets.
 fn the_ids() -> Vec<String> {
     let ids: Vec<String> = table(EXPECTED_COPY)
@@ -38,7 +38,7 @@ fn the_ids() -> Vec<String> {
         .map(|row| row["id"].clone())
         .take_while(|id| !id.starts_with('('))
         .collect();
-    assert_eq!(ids.len(), 82);
+    assert_eq!(ids.len(), 87);
     ids
 }
 
@@ -235,8 +235,8 @@ fn gap_of(cause: &str) -> &'static str {
 // ---- the table ------------------------------------------------------------------------------------
 
 /// C106 (category), J1–J4, J9–J22: every row of the expected answers —
-/// 1,305 items of the facts the row gives, put into a store through its
-/// ingest — is answered as the row says. Each of the 82 ids asked as a
+/// 1,322 items of the facts the row gives, put into a store through its
+/// ingest — is answered as the row says. Each of the 87 ids asked as a
 /// term matches the rows listing it under `ids_yes`, is undecided on the
 /// rows listing it under `ids_undecided` and fails every other; a count
 /// by category lists each row under `listed_under`; the class is the
@@ -245,7 +245,7 @@ fn gap_of(cause: &str) -> &'static str {
 #[test]
 fn c106_every_row_of_the_expected_answers_is_answered_as_the_row_says() {
     let cases = cases();
-    assert_eq!(cases.len(), 1305);
+    assert_eq!(cases.len(), 1322);
     let ids = the_ids();
     let mut s = store();
     let mut faults: Vec<String> = Vec::new();
@@ -270,7 +270,7 @@ fn c106_every_row_of_the_expected_answers_is_answered_as_the_row_says() {
     assert_eq!(
         cases.iter().filter(|c| c.realm == "pc").count()
             + cases.iter().filter(|c| c.realm == "poe2").count(),
-        1305
+        1322
     );
     for realm in ["pc", "poe2"] {
         let corpus = load(&s, Some(realm));
@@ -818,7 +818,7 @@ fn c93_a_category_under_not_and_or_is_undecided_only_where_an_id_is_open() {
 
 // ---- the selector ---------------------------------------------------------------------------------
 
-/// The field is a closed set of the 82 ids: `=` names one, in any case;
+/// The field is a closed set of the 87 ids: `=` names one, in any case;
 /// `:` and `~` pick among them, every pick the matches carry printed; a
 /// word that picks none is an authoring error, never a match made for
 /// the author (S107).
@@ -923,7 +923,7 @@ fn show_gives_the_category_a_count_lists_the_item_under_and_why_an_id_is_open() 
     assert_eq!(lost["open"].as_array().unwrap().len(), 1);
     assert_eq!(lost["open"][0]["part"], "class");
     assert_eq!(lost["open"][0]["of"], "not_in_table");
-    assert_eq!(lost["open"][0]["ids"].as_array().unwrap().len(), 79);
+    assert_eq!(lost["open"][0]["ids"].as_array().unwrap().len(), 84);
     assert!(
         !lost["open"][0]["ids"]
             .as_array()
@@ -1005,7 +1005,7 @@ fn a_bestiary_line_that_is_no_string_leaves_open_only_what_it_decides() {
 
 // ---- the help -------------------------------------------------------------------------------------
 
-/// `--describe category`: the field among the fields, its 82 legal values
+/// `--describe category`: the field among the fields, its 87 legal values
 /// the site's ids in the site's order, every id with the site's text for
 /// it and what makes it hold, and the tables' sources and versions.
 #[test]
@@ -1022,7 +1022,7 @@ fn describe_category_lists_every_id_with_the_sites_text_and_what_makes_it_hold()
     };
     let expected: Vec<(String, String)> = table(EXPECTED_COPY)
         .into_iter()
-        .take(82)
+        .take(87)
         .map(|row| (row["id"].clone(), row["text"].clone()))
         .collect();
     let ids: Vec<Value> = expected.iter().map(|(id, _)| json!(id)).collect();
@@ -1059,7 +1059,7 @@ fn describe_category_lists_every_id_with_the_sites_text_and_what_makes_it_hold()
         "categories v1",
         "beast colours v1",
         "classes v1",
-        "2026-09-12",
+        "2026-11-17",
         "trade site",
     ] {
         assert!(what.contains(needle), "`{needle}` is not in: {what}");
@@ -1411,5 +1411,68 @@ fn j23_a_tattoo_is_known_by_the_word_wherever_it_stands_in_its_name() {
     assert_eq!(
         row["holds"],
         "an item whose class is Stackable Currency and whose base holds `Tattoo`"
+    );
+}
+
+/// #276 (C106): a leaf may hold a closed list of bases, written from the
+/// tag the game's export gives each (`among`; the site not asked). The
+/// four Viscera leaves split the one class Viscera by the export's
+/// `viscera_head`, `viscera_arm`, `viscera_body` and `viscera_leg`, so a
+/// Blazing Skull is `viscera.head` and no other leaf, under `viscera`,
+/// and a Chitinous Leg `viscera.leg`; the test says its count and its
+/// tag, never the list. A base the export lists under no name the class
+/// table holds (a Greater Justicar's Helm, as the owner's 3.30 fetch
+/// carried one) is undecided on the class, and so on every id.
+#[test]
+fn viscera_a_leaf_is_the_bases_the_export_tags_with_it() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Covens", json!([tab("v1", "Viscera")]), 10);
+    let viscera = |id: &str, base: &str, part: &str| {
+        body(
+            id,
+            json!({ "typeLine": base, "baseType": base, "frameType": 15,
+                    "frameTypeId": "Viscera", "w": 2, "h": 2,
+                    "properties": [{ "name": part, "values": [], "displayMode": 0 }] }),
+        )
+    };
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Covens",
+        "v1",
+        "Viscera",
+        vec![
+            viscera("skull", "Blazing Skull", "Head"),
+            viscera("leg", "Chitinous Leg", "Lower Limb"),
+            viscera("greater", "Greater Justicar's Helm", "Head"),
+        ],
+        20,
+    );
+    let corpus = load(&s, Some("pc"));
+    assert_eq!(ids(&asked(&corpus, "category=\"viscera.head\"")), ["skull"]);
+    assert_eq!(ids(&asked(&corpus, "category=\"viscera.leg\"")), ["leg"]);
+    assert_eq!(ids(&asked(&corpus, "category=viscera")), ["leg", "skull"]);
+    assert_eq!(
+        listing(&corpus, "category")["skull"],
+        set(&["viscera.head"])
+    );
+    assert_eq!(ids(&asked(&corpus, "undecided(category)")), ["greater"]);
+    let d = serde_json::to_value(describe(&["category".to_string()]).unwrap()).unwrap();
+    let holds = |id: &str| {
+        d["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == id)
+            .unwrap()["holds"]
+            .clone()
+    };
+    assert_eq!(
+        holds("viscera.head"),
+        "an item whose class is Viscera and whose base is one of the 62 bases the game's export tags `viscera_head`"
+    );
+    assert_eq!(
+        holds("viscera.arm"),
+        "an item whose class is Viscera and whose base is one of the 42 bases the game's export tags `viscera_arm`"
     );
 }
