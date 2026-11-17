@@ -59,6 +59,16 @@
 //! - **The body is text, unparsed**, exactly as `items.json` holds it (the
 //!   item minus its lifted `socketedItems`). One that does not parse is
 //!   the search crate's to report on that item.
+//! - **The game the characters state** (C188): per realm in scope, the
+//!   newest release a live character's stored body names in
+//!   `metadata.version`, GGG's one statement of its game, given as the
+//!   version and fetch time of the most recently fetched character of
+//!   that release ([`CorpusHeader::games`]). Read from `characters.json`
+//!   when the header is read and stored nowhere. A character left out is
+//!   one stating no version as text, one retired, one with no fetch time
+//!   on record (a listing that revives a retired character clears it and
+//!   keeps the body), and one whose version's first two numbers do not
+//!   parse ([`release`]); none fails the read. No item body is read.
 //! - **The realms** are those the file has a tab or a character under,
 //!   live or retired, whatever the scope: what C96's "a search names its
 //!   realm" is asked of. An item lands only beside its location's row, so
@@ -175,6 +185,9 @@ pub struct CorpusHeader {
     /// orders them. Under [`Membership::All`] the retired ones too, each
     /// marked ([`LocationRow::removed_at`]).
     pub locations: Vec<LocationRow>,
+    /// C188: per realm in scope, sorted, the newest release its live
+    /// characters state, where one states one (the module doc).
+    pub games: Vec<GameSeen>,
     /// Under [`Membership::Live`], every id in scope the read leaves out:
     /// what an id that matches nothing live is looked up in. Empty under
     /// `All`, where they are items and locations.
@@ -194,6 +207,26 @@ pub struct ListingSeen {
     pub kind: String,
     pub response_id: i64,
     pub fetched_at: i64,
+}
+
+/// C188: the game a realm's characters state — the newest release among
+/// them, as the version the most recently fetched character of that
+/// release states, and when it was fetched.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GameSeen {
+    pub realm: String,
+    /// GGG's `metadata.version`, verbatim (`3.30.0b`).
+    pub version: String,
+    pub fetched_at: i64,
+}
+
+/// C188: a game version's release, its first two numbers (`3.30.0b` and
+/// `3.30.0.2.2` are both `(3, 30)`); none where either does not parse.
+pub fn release(version: &str) -> Option<(u32, u32)> {
+    let mut numbers = version.split('.');
+    let major = numbers.next()?.parse().ok()?;
+    let minor = numbers.next()?.parse().ok()?;
+    Some((major, minor))
 }
 
 /// One live location: a folder, a tab, a substash or a character, by its
@@ -364,6 +397,42 @@ fn read_listings(tx: &rusqlite::Transaction, realm: Option<&str>) -> Result<Vec<
         })
     })?;
     Ok(rows.collect::<Result<_, _>>()?)
+}
+
+/// C188: per realm, the newest release its live, fetched characters
+/// state as text, the most recently fetched of that release giving the
+/// version and the time; a tie broken by the version's text, so the read
+/// is one answer whatever the row order.
+fn read_games(tx: &rusqlite::Transaction, realm: Option<&str>) -> Result<Vec<GameSeen>> {
+    let mut stmt = tx.prepare(
+        "SELECT realm, json_extract(json, '$.metadata.version'), fetched_at FROM characters
+          WHERE removed_at IS NULL AND fetched_at IS NOT NULL AND json_valid(json)
+            AND json_type(json, '$.metadata.version') = 'text'
+            AND (?1 IS NULL OR realm = ?1)",
+    )?;
+    let rows = stmt.query_map([realm], |r| {
+        Ok(GameSeen {
+            realm: r.get(0)?,
+            version: r.get(1)?,
+            fetched_at: r.get(2)?,
+        })
+    })?;
+    let mut newest: std::collections::BTreeMap<String, ((u32, u32), GameSeen)> =
+        std::collections::BTreeMap::new();
+    for row in rows {
+        let seen = row?;
+        let Some(of) = release(&seen.version) else {
+            continue;
+        };
+        let key = |r: (u32, u32), g: &GameSeen| (r, g.fetched_at, g.version.clone());
+        if newest
+            .get(&seen.realm)
+            .is_none_or(|(r, held)| key(of, &seen) > key(*r, held))
+        {
+            newest.insert(seen.realm.clone(), (of, seen));
+        }
+    }
+    Ok(newest.into_values().map(|(_, seen)| seen).collect())
 }
 
 use crate::TAB_GONE;
@@ -618,6 +687,7 @@ impl Store {
             realms: read_realms(&tx)?,
             listings: read_listings(&tx, realm)?,
             locations: read_locations(&tx, realm, membership)?,
+            games: read_games(&tx, realm)?,
             gone: match membership {
                 Membership::Live => read_gone(&tx, realm)?,
                 Membership::All => Vec::new(),

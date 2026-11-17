@@ -1120,8 +1120,8 @@ pub use annotations::{
     UnreadableRow, ValueError, annotations_path, check_value,
 };
 pub use corpus::{
-    CorpusHeader, CorpusItem, CorpusItems, Gone, ListingSeen, LocationRow, Membership, RealmScope,
-    Revision, StashListing,
+    CorpusHeader, CorpusItem, CorpusItems, GameSeen, Gone, ListingSeen, LocationRow, Membership,
+    RealmScope, Revision, StashListing, release,
 };
 pub use index::{
     AccountEntry, HoldsAccountFacts, Index, Resolve, account_matches, account_path, index_path,

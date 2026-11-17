@@ -563,3 +563,97 @@ fn a_store_with_no_account_on_record_is_refused() {
         .to_string();
     assert!(err.contains("records no account identity"), "{err}");
 }
+
+/// C188 — the header gives, per realm in scope, the newest release a live
+/// character states, as the most recently fetched character of that
+/// release's version and fetch time: a later fetch of an older release
+/// does not displace it, and a character stating none, one stating a
+/// version whose first two numbers do not parse, one retired, and one
+/// fetched, retired and revived by a listing (its fetch time cleared, its
+/// body kept) are each left out and fail nothing. No body, no game.
+#[test]
+fn c188_the_header_gives_each_realms_newest_release_its_live_characters_state() {
+    let mut s = Store::open_memory().unwrap();
+    profile(&mut s);
+    let character = |id: &str, version: Value| json!({ "id": id, "name": id, "league": "Standard", "metadata": { "version": version } });
+    let names = |ids: &[&str]| {
+        Value::Array(
+            ids.iter()
+                .map(|id| json!({ "id": id, "name": id, "league": "Standard" }))
+                .collect(),
+        )
+    };
+    // nothing fetched: no game
+    list_characters(&mut s, "pc", names(&["old", "new", "newer"]), 5);
+    assert_eq!(read_all(&s, RealmScope::All).0.games, vec![]);
+
+    fetch_character(&mut s, "pc", character("new", json!("3.30.0b")), 20);
+    fetch_character(&mut s, "pc", character("newer", json!("3.30.0c")), 25);
+    // an older release fetched later does not displace the newest
+    fetch_character(&mut s, "pc", character("old", json!("3.29.1")), 30);
+    // states none, a number, a version that does not parse
+    list_characters(
+        &mut s,
+        "pc",
+        names(&["old", "new", "newer", "bare", "number", "garbled"]),
+        31,
+    );
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "bare", "name": "bare", "league": "Standard" }),
+        40,
+    );
+    fetch_character(&mut s, "pc", character("number", json!(3.31)), 41);
+    fetch_character(&mut s, "pc", character("garbled", json!("3.x1.0")), 42);
+    // another realm, retired once fetched at a newer release
+    list_characters(&mut s, "sony", names(&["gone", "kept"]), 5);
+    fetch_character(&mut s, "sony", character("kept", json!("3.29.0")), 10);
+    fetch_character(&mut s, "sony", character("gone", json!("3.30.0")), 11);
+    list_characters(&mut s, "sony", names(&["kept"]), 12);
+
+    let pc = GameSeen {
+        realm: "pc".into(),
+        version: "3.30.0c".into(),
+        fetched_at: 25,
+    };
+    let sony = GameSeen {
+        realm: "sony".into(),
+        version: "3.29.0".into(),
+        fetched_at: 10,
+    };
+    assert_eq!(
+        read_all(&s, RealmScope::All).0.games,
+        vec![pc.clone(), sony.clone()]
+    );
+    assert_eq!(read_all(&s, RealmScope::One("sony")).0.games, vec![sony]);
+
+    // retired, then revived by a listing: its fetch time is cleared and
+    // its body kept, so the realm states the 3.30 another character holds
+    list_characters(&mut s, "sony", names(&["kept", "gone"]), 13);
+    let kept: Option<String> = s
+        .conn
+        .query_row(
+            "SELECT json_extract(json, '$.metadata.version') FROM characters WHERE id = 'gone'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(kept.as_deref(), Some("3.30.0"));
+    assert_eq!(
+        read_all(&s, RealmScope::One("sony")).0.games[0].version,
+        "3.29.0"
+    );
+    assert_eq!(read_all(&s, RealmScope::One("pc")).0.games, vec![pc]);
+}
+
+/// C188 — a release is a version's first two numbers.
+#[test]
+fn c188_a_release_is_a_versions_first_two_numbers() {
+    assert_eq!(release("3.30.0b"), Some((3, 30)));
+    assert_eq!(release("3.30.0.2.2"), Some((3, 30)));
+    assert_eq!(release("0.4"), Some((0, 4)));
+    for none in ["3", "", "3.x1.0", "3.30b", "v3.30.0"] {
+        assert_eq!(release(none), None, "{none}");
+    }
+}
