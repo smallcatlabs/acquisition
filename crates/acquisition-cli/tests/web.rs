@@ -2127,6 +2127,37 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ">Adds 10 to 20 Physical Damage</a>",
         ],
     );
+
+    // C188: a character fetched from a release after the tables', which
+    // the total says beside the never-fetched, as the terminal does
+    let tables = acquisition_search::class::table().unwrap().game();
+    let (major, minor) = acquisition_store::release(tables).unwrap();
+    let ahead = format!("{major}.{}", minor + 1);
+    let character = json!({ "id": "ch1", "name": "Ahead", "league": "Standard",
+                            "metadata": { "version": format!("{ahead}.0") } });
+    record(
+        Endpoint::Characters { realm: "pc".into() },
+        "Standard",
+        json!({ "characters": [character.clone()] }),
+        130,
+    );
+    record(
+        Endpoint::Character {
+            realm: "pc".into(),
+            name: "Ahead".into(),
+        },
+        "Standard",
+        json!({ "character": character }),
+        131,
+    );
+    check(
+        &mut pages,
+        "GET search?<a character fetched from a later release>",
+        "search?realm=pc&text=class%3Arings",
+        &[&format!(
+            "<br>these tables read release {major}.{minor} and a character here was fetched from {ahead} ("
+        )],
+    );
     page_golden(file!(), "answer_ways", &pages);
 }
 

@@ -1152,6 +1152,9 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
     if let Some(words) = search_cmd::never_fetched_sentence(a.scope.coverage.never_fetched) {
         total.push_str(&format!("<br>{}", esc(&words)));
     }
+    for words in a.scope.releases_words(now) {
+        total.push_str(&format!("<br>{}", esc(&words)));
+    }
     out.push_str(&fact_row("Total", &total));
     if let Some(words) = search_cmd::before_words(a) {
         out.push_str(&fact_row("Then", &esc(&words)));

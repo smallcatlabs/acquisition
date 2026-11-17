@@ -3042,7 +3042,8 @@ async fn populated() -> Vec<(&'static str, Value)> {
     // the facts: a listing of two tabs, a folder over a third and a map
     // tab, one tab fetched twice (the second without its ring), the
     // folder's tab and the map tab's substash fetched, a character listed
-    // and fetched, a body refused
+    // and fetched stating its game (C188, the scope's `store_games`), a
+    // body refused
     let mut store = account.facts().unwrap();
     listing(
         &mut store,
@@ -3144,7 +3145,8 @@ async fn populated() -> Vec<(&'static str, Value)> {
             &json!({ "name": "Exile" }),
             200,
             &json!({ "character": { "id": "c1", "name": "Exile", "class": "Witch", "level": 1,
-                                    "league": "Standard", "equipment": [], "inventory": [] } }),
+                                    "league": "Standard", "equipment": [], "inventory": [],
+                                    "metadata": { "version": "3.30.0b" } } }),
             t + 180,
         )
         .unwrap();

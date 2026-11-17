@@ -1124,6 +1124,10 @@ fn answer_head(a: &Answer) -> String {
     if let Some(words) = never_fetched_sentence(a.scope.coverage.never_fetched) {
         line(format!("            {words}"));
     }
+    // C188: the tables' release and the store's characters', where apart
+    for words in a.scope.releases_words(now) {
+        line(format!("            {words}"));
+    }
     if let Some(words) = before_words(a) {
         line(format!("then    {words}"));
     }

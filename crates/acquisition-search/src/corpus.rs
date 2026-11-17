@@ -83,7 +83,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use acquisition_store::corpus::{
-    CorpusHeader, CorpusItem, ListingSeen, LocationRow, RealmScope, Revision,
+    CorpusHeader, CorpusItem, GameSeen, ListingSeen, LocationRow, RealmScope, Revision,
 };
 use acquisition_store::{Annotations, Store, age};
 // C162: coverage is the store's one derivation, under the paths it had here
@@ -390,6 +390,9 @@ pub struct Corpus {
     /// The realm's location lists, each with its realm, its league
     /// (`None`: the character list) and when it was last seen.
     pub(crate) listings: Vec<ListingSeen>,
+    /// C188: per realm in scope, the game its live characters state
+    /// ([`acquisition_store::GameSeen`]), as the store read it.
+    pub(crate) games: Vec<GameSeen>,
     /// Each location's place in the store's order of locations, by its
     /// coordinate: an answer's span breaks a tie by it, as the scope's
     /// does, so where both blocks hold the tied locations they name one
@@ -805,6 +808,12 @@ impl Corpus {
                                 .listings
                                 .iter()
                                 .filter(|l| in_realm(&l.realm))
+                                .cloned()
+                                .collect(),
+                            games: header
+                                .games
+                                .iter()
+                                .filter(|g| in_realm(&g.realm))
                                 .cloned()
                                 .collect(),
                             realm,

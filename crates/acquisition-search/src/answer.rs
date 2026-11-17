@@ -1583,6 +1583,98 @@ pub struct ScopeOut {
     /// A named realm this store has nothing under.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub realm_not_held: bool,
+    /// C188: the game the reference tables were exported from, the class
+    /// table's header as written (`3.30.0.2.2`).
+    pub tables_game: String,
+    /// C188: for each realm of the scope that the tables name and whose
+    /// live characters state a game, the newest release they state —
+    /// one entry at most under one realm, one per such realm under all.
+    /// [`ScopeOut::releases_apart`] compares each with the tables.
+    pub store_games: Vec<StoreGame>,
+}
+
+/// C188: the game a realm's characters state, as the store reads it
+/// (`acquisition_store::GameSeen`): the newest release among them, as
+/// the version the most recently fetched character of it states.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct StoreGame {
+    pub realm: String,
+    /// GGG's `metadata.version`, verbatim (`3.30.0b`).
+    pub version: String,
+    pub fetched_at: i64,
+    /// C163: `fetched_at` in words at the answer's time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetched_at_age: Option<String>,
+}
+
+/// C188: which way a realm's game stands from the tables' release.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Apart {
+    /// A character was fetched from a release after the tables'.
+    StoreAhead,
+    /// The newest character was fetched from a release before the
+    /// tables'.
+    StoreBehind,
+}
+
+/// C188: the sentence of a store ahead of its tables, `{r}` the tables'
+/// release, `{s}` the store's and `{age}` its fetch's age. Every text
+/// surface prints it through [`ScopeOut::releases_words`], and the
+/// describe entry `scope.store_games` quotes it.
+pub const STORE_AHEAD: &str = "these tables read release {r} and a character here was fetched from {s} ({age}): an item of {s} may read undecided, or lack a line the tables do not know, until a newer acq";
+
+/// C188: the sentence of a store behind its tables, as [`STORE_AHEAD`].
+pub const STORE_BEHIND: &str = "these tables read release {r} and no character here was fetched from it, the newest from {s} ({age}): items may show earlier wording the tables do not read; a fetch cures it";
+
+/// C188: a version's release as text, its first two numbers as written.
+fn release_text(version: &str) -> String {
+    version.split('.').take(2).collect::<Vec<_>>().join(".")
+}
+
+impl ScopeOut {
+    /// C188: each realm's game whose release is not the tables', with
+    /// which way it stands, in `store_games`' order — the one comparison
+    /// every surface reads. None where the tables' game names no release.
+    pub fn releases_apart(&self) -> Vec<(&StoreGame, Apart)> {
+        let Some(tables) = acquisition_store::release(&self.tables_game) else {
+            return Vec::new();
+        };
+        self.store_games
+            .iter()
+            .filter_map(|game| {
+                let store = acquisition_store::release(&game.version)?;
+                match store.cmp(&tables) {
+                    std::cmp::Ordering::Greater => Some((game, Apart::StoreAhead)),
+                    std::cmp::Ordering::Less => Some((game, Apart::StoreBehind)),
+                    std::cmp::Ordering::Equal => None,
+                }
+            })
+            .collect()
+    }
+
+    /// C188: a sentence for each of [`ScopeOut::releases_apart`], its age
+    /// said at `now`, opening with its realm where the scope holds more
+    /// than one: what every text surface prints under the total.
+    pub fn releases_words(&self, now: i64) -> Vec<String> {
+        let several = self.realm == Realm::All && self.coverage.realms_held.len() > 1;
+        self.releases_apart()
+            .into_iter()
+            .map(|(game, apart)| {
+                let sentence = match apart {
+                    Apart::StoreAhead => STORE_AHEAD,
+                    Apart::StoreBehind => STORE_BEHIND,
+                }
+                .replace("{r}", &release_text(&self.tables_game))
+                .replace("{s}", &release_text(&game.version))
+                .replace("{age}", &age::ago(now, Some(game.fetched_at)));
+                if several {
+                    format!("on {}: {sentence}", game.realm)
+                } else {
+                    sentence
+                }
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1977,7 +2069,8 @@ impl Answer {
     /// made at the answer's own time) and C163 (every time a document
     /// carries has its words beside it): the basis's snapshot and a
     /// `before`'s, each at the path the answer declares, the scope's and
-    /// the matches' fetch and list ages, each row's place and removal and
+    /// the matches' fetch and list ages, each store game's fetch (C188),
+    /// each row's place and removal and
     /// its item's sightings where it carries the item (by `show`'s one
     /// function, [`crate::show::item_aged`]), and each term's removed id,
     /// said at `now`. Said again at another
@@ -1990,6 +2083,9 @@ impl Answer {
             .and_then(|before| before.counted_at.as_ref())
             .map(|basis| snapshot_age(basis, now));
         self.scope.coverage.aged(now);
+        for game in &mut self.scope.store_games {
+            game.fetched_at_age = Some(age::ago(now, Some(game.fetched_at)));
+        }
         if let Some(span) = &mut self.total.span {
             span.aged(now);
         }
@@ -2583,6 +2679,7 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     // the lists the query reads: the league it fixes and the characters',
     // else the realm's — the age the scope line says (C118)
     let tree = json::to_json(&query.root);
+    let tables = crate::corpus::class_table()?;
     let mut coverage = corpus.coverage.clone();
     if let Some(seen) = fixed_league(&tree).and_then(|league| corpus.list_seen_in(league)) {
         coverage.span.list_seen = Some(seen);
@@ -2612,6 +2709,18 @@ fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
                 Realm::One(realm) => !corpus.coverage.realms_held.contains(realm),
                 Realm::All => false,
             },
+            tables_game: tables.game().to_string(),
+            store_games: corpus
+                .games
+                .iter()
+                .filter(|g| tables.realms().contains(&g.realm))
+                .map(|g| StoreGame {
+                    realm: g.realm.clone(),
+                    version: g.version.clone(),
+                    fetched_at: g.fetched_at,
+                    fetched_at_age: None,
+                })
+                .collect(),
             coverage,
         },
         basis: corpus.basis.clone(),

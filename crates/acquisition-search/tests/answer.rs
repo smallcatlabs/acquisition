@@ -407,6 +407,96 @@ fn c92_the_sort_scalar_and_an_item_without_one_last_either_way() {
     assert_eq!(a["total"]["matched"], 7);
 }
 
+/// C188 — the scope says the tables' game as written and, for each realm
+/// of it the tables name, the newest release its characters state: one
+/// entry under one realm, one per such realm under all, none for a realm
+/// the tables do not name (poe2) or whose characters state none. The one
+/// comparison says which way each stands from the tables' release, and
+/// only a sentence under all names its realm.
+#[test]
+fn c188_the_scope_says_the_tables_game_and_each_realms_characters() {
+    use acquisition_search::answer::Apart;
+    let mut s = worked();
+    let tables = acquisition_search::class::table().unwrap().game();
+    let (major, minor) = acquisition_store::release(tables).unwrap();
+    let (ahead, behind) = (
+        format!("{major}.{}.0b", minor + 1),
+        format!("{major}.{}.1", minor - 1),
+    );
+    for (realm, version, at) in [
+        ("pc", json!(ahead), 50),
+        ("xbox", json!(behind), 51),
+        ("poe2", json!("0.4.0"), 52),
+        ("sony", Value::Null, 53),
+    ] {
+        let character = json!({ "id": format!("c-{realm}"), "name": format!("On{realm}"),
+                                "metadata": { "version": version } });
+        list_characters(&mut s, realm, json!([character.clone()]), at);
+        fetch_character(&mut s, realm, character, at);
+    }
+    let game = |realm: &str, version: &str, at: i64| json!({ "realm": realm, "version": version, "fetched_at": at });
+    // the entries without their ages, which the answer makes at its time
+    let games = |a: &Value| {
+        let mut games = a["scope"]["store_games"].clone();
+        for game in games.as_array_mut().unwrap() {
+            game.as_object_mut().unwrap().shift_remove("fetched_at_age");
+        }
+        games
+    };
+    let all = ask(&load(&s, Some("all")), "").unwrap();
+    let a = as_json(&all);
+    assert_eq!(a["scope"]["tables_game"], json!(tables));
+    assert_eq!(
+        games(&a),
+        json!([game("pc", &ahead, 50), game("xbox", &behind, 51)])
+    );
+    let apart: Vec<(&str, Apart)> = all
+        .scope
+        .releases_apart()
+        .into_iter()
+        .map(|(g, apart)| (g.realm.as_str(), apart))
+        .collect();
+    assert_eq!(
+        apart,
+        [("pc", Apart::StoreAhead), ("xbox", Apart::StoreBehind)]
+    );
+    let words = all.scope.releases_words(60);
+    assert!(
+        words[0].starts_with("on pc: these tables read release "),
+        "{words:?}"
+    );
+    assert!(words[1].starts_with("on xbox: "), "{words:?}");
+    // its age in words beside its time, made when the answer is aged
+    // (the helper's answer is aged at the clock; this one at 60)
+    let aged = as_json(&all.clone().aged(60));
+    assert_eq!(aged["scope"]["store_games"][1]["fetched_at_age"], "9s ago");
+
+    let pc = ask(&load(&s, Some("pc")), "").unwrap();
+    assert_eq!(games(&as_json(&pc)), json!([game("pc", &ahead, 50)]));
+    let one = pc.scope.releases_words(60);
+    assert_eq!(one.len(), 1);
+    assert!(one[0].starts_with("these tables read release "), "{one:?}");
+    for (realm, none) in [("poe2", json!([])), ("sony", json!([]))] {
+        let a = as_json(&ask(&load(&s, Some(realm)), "").unwrap());
+        assert_eq!(a["scope"]["store_games"], none, "{realm}");
+    }
+    // a realm at the tables' release is not apart
+    fetch_character(
+        &mut s,
+        "xbox",
+        json!({ "id": "c-xbox", "name": "Onxbox", "metadata": { "version": format!("{major}.{minor}.0") } }),
+        54,
+    );
+    assert_eq!(
+        ask(&load(&s, Some("xbox")), "")
+            .unwrap()
+            .scope
+            .releases_apart()
+            .len(),
+        0
+    );
+}
+
 /// C96 — over a store holding more than one realm a search names one; all
 /// is a scope of its own; a realm the store lacks is a valid scope of
 /// nothing, and says so.

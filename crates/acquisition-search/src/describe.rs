@@ -243,6 +243,18 @@ pub fn answer_keys() -> Vec<Named> {
             "`never_fetched_leagues` names the leagues holding a never-fetched tab, the most first; characters never fetched are counted by type under `never_fetched_by_type`",
         ),
         key(
+            "scope.tables_game",
+            "`tables_game` is the game the reference tables were exported from, as their header writes it (`3.30.0.2.2`); its release is its first two numbers, 3.30",
+        ),
+        key(
+            "scope.store_games",
+            &format!(
+                "`store_games` lists, for each realm of the scope the tables name, the newest release its live characters state, the only place GGG states its game: `realm`, `version` as GGG wrote it, and `fetched_at` with its `_age`, the most recently fetched character of that release; empty where no character was fetched. Where an entry's release is not the tables', the text prints under the total, opening `on <realm>: ` over several realms, with `{{r}}` the tables' release and `{{s}}` the entry's: a store ahead, \"{}\"; a store behind, \"{}\". No count or truth value changes with either",
+                crate::answer::STORE_AHEAD,
+                crate::answer::STORE_BEHIND
+            ),
+        ),
+        key(
             "total",
             "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`; `places` the locations the matches sit in, each once; `oldest_fetch` and `newest_fetch`, each with its `_age` and `_location` as under `scope`, the earliest and the latest of those locations' last fetches — the locations' fetches, not a removed item's last sighting — and `list_seen` when the oldest of the lists that name those locations was last seen; where no matched location was fetched, `oldest_fetch` and `newest_fetch` are null and their `_age` and `_location` absent, while `list_seen` and its `_age` stand, and where nothing matched every one of them is absent and `places` is 0",
         ),

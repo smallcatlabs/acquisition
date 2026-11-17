@@ -1574,6 +1574,90 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
     golden(file!(), "every_total_says_the_never_fetched", &t);
 }
 
+/// C188: on 3.30's launch day the search read a reworded line as lacked
+/// and nothing said its tables were from an older release than the
+/// items (#277). Under the total, beside the never-fetched, an answer
+/// says when the tables' release is not the one its characters were
+/// last fetched from, and what cures it: one realm a release ahead, one
+/// behind, one at the tables' (neither sentence), and every realm, each
+/// sentence opening with its realm. The releases are the tables' own,
+/// one either side.
+#[test]
+fn the_total_says_when_the_tables_and_the_characters_are_from_different_releases() {
+    let scratch = harness::scratch("seat-releases");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let tables = acquisition_search::class::table().unwrap().game();
+    let (major, minor) = acquisition_store::release(tables).unwrap();
+    let (r, ahead, behind) = (
+        format!("{major}.{minor}"),
+        format!("{major}.{}", minor + 1),
+        format!("{major}.{}", minor - 1),
+    );
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    for (realm, version) in [
+        ("pc", format!("{ahead}.0")),
+        ("xbox", format!("{behind}.2")),
+        ("sony", format!("{r}.0b")),
+    ] {
+        let character = json!({ "id": format!("c-{realm}"), "name": format!("On{realm}"),
+                                "league": "Standard", "metadata": { "version": version } });
+        store
+            .record(
+                &Endpoint::Characters {
+                    realm: realm.into(),
+                },
+                &json!({ "realm": realm }),
+                200,
+                &json!({ "characters": [character.clone()] }),
+                harness::now(),
+            )
+            .unwrap();
+        store
+            .record(
+                &Endpoint::Character {
+                    realm: realm.into(),
+                    name: format!("On{realm}"),
+                },
+                &json!({ "realm": realm }),
+                200,
+                &json!({ "character": character }),
+                harness::now(),
+            )
+            .unwrap();
+    }
+    drop(store);
+    // each sentence in two, either side of its age, which the golden
+    // normalises and the facts are read before
+    let ahead_words =
+        format!("these tables read release {r} and a character here was fetched from {ahead} (");
+    let ahead_cure = format!(
+        "ago): an item of {ahead} may read undecided, or lack a line the tables do not know, until a newer acq"
+    );
+    let behind_words = format!(
+        "these tables read release {r} and no character here was fetched from it, the newest from {behind} ("
+    );
+    let behind_cure =
+        "ago): items may show earlier wording the tables do not read; a fetch cures it".to_string();
+    let mut t = Transcript::new(&base);
+    t.run(&["search", "--realm", "pc"], &[&ahead_words, &ahead_cure]);
+    t.run(
+        &["search", "--realm", "xbox"],
+        &[&behind_words, &behind_cure],
+    );
+    let at = t.run(&["search", "--realm", "sony"], &["total   0 matches"]);
+    assert!(!text(&at).contains("these tables read"), "{}", text(&at));
+    t.run(
+        &["search", "--realm", "all"],
+        &[
+            &format!("on pc: {ahead_words}"),
+            &format!("on xbox: {behind_words}"),
+        ],
+    );
+    golden(file!(), "the_tables_and_the_characters_releases", &t);
+}
+
 /// A map search printed the flat "2940 locations never fetched" a ring
 /// search printed, beside a map tab 61 of 2,550 fetched, and pointed at
 /// `--view locations`, which is not built (the trade seat: cli-opus-2

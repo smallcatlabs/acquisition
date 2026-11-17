@@ -1,0 +1,54 @@
+# golden seat_faults/the_tables_and_the_characters_releases: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc
+# holds "these tables read release 3.30 and a character here was fetched from 3.31 ("
+# holds "ago): an item of 3.31 may read undecided, or lack a line the tables do not know, until a newer acq"
+--- stdout
+query   (every item in scope)
+scope   account Alice#1234 · pc · live · 2 items · 3 locations fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   2 matches (fetched <age> ago, pc · Allflame / Gear)
+            these tables read release 3.30 and a character here was fetched from 3.31 (<age> ago): an item of 3.31 may read undecided, or lack a line the tables do not know, until a newer acq
+rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
+            id i-std
+        Chaos Orb · Allflame / Gear · x 0, y 0 · fetched <age> ago
+            id i-all
+order   rows 1–2 of 2 shown, in the store's order (no sort asked)
+basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm xbox
+# holds "these tables read release 3.30 and no character here was fetched from it, the newest from 3.29 ("
+# holds "ago): items may show earlier wording the tables do not read; a fetch cures it"
+--- stdout
+query   (every item in scope)
+scope   account Alice#1234 · xbox · live · 0 items · 1 location fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   0 matches
+            these tables read release 3.30 and no character here was fetched from it, the newest from 3.29 (<age> ago): items may show earlier wording the tables do not read; a fetch cures it
+basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm sony
+# holds "total   0 matches"
+--- stdout
+query   (every item in scope)
+scope   account Alice#1234 · sony · live · 0 items · 1 location fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   0 matches
+basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm all
+# holds "on pc: these tables read release 3.30 and a character here was fetched from 3.31 ("
+# holds "on xbox: these tables read release 3.30 and no character here was fetched from it, the newest from 3.29 ("
+--- stdout
+query   (every item in scope)
+scope   account Alice#1234 · all · live · 2 items · 5 locations fetched
+        0 locations never fetched · location lists seen, the oldest <age> ago
+total   2 matches (fetched <age> ago, pc · Allflame / Gear)
+            on pc: these tables read release 3.30 and a character here was fetched from 3.31 (<age> ago): an item of 3.31 may read undecided, or lack a line the tables do not know, until a newer acq
+            on xbox: these tables read release 3.30 and no character here was fetched from it, the newest from 3.29 (<age> ago): items may show earlier wording the tables do not read; a fetch cures it
+rows    Chaos Orb · pc · Standard / Gear · x 0, y 0 · fetched <age> ago
+            id i-std
+        Chaos Orb · pc · Allflame / Gear · x 0, y 0 · fetched <age> ago
+            id i-all
+order   rows 1–2 of 2 shown, in the store's order (no sort asked)
+basis   store <store> · build <build> · snapshot 11 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
