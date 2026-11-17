@@ -337,7 +337,9 @@ fn two_rows_of_one_template_leave_that_rows_numbers_unread() {
 
 /// C90: markup reduced to what the player sees — S4's brackets, and the
 /// styled braces of a divination card's reward. A property's `{0}` is a
-/// format slot, never markup.
+/// format slot, never markup. 3.30's mod text carries the brackets
+/// throughout, `[Name::N|Display]` among them (N58): the number inside is
+/// no number the line displays.
 #[test]
 fn markup_is_reduced_to_its_display_half() {
     let it = item(json!({
@@ -349,7 +351,8 @@ fn markup_is_reduced_to_its_display_half() {
         "explicitMods": [
             {"description": "Rare Monsters have [ElementalThorns|Elemental Thorns]"},
             {"description": "<size:31>{<uniqueitem>{Ngamahu's Flame}}\r\n<default>{Item Level:} <normal>{100}"},
-            {"description": "<currencyitem>{1,500x Vivid Crystallised Lifeforce}"}
+            {"description": "<currencyitem>{1,500x Vivid Crystallised Lifeforce}"},
+            {"description": "Socketed Gems are Supported by Level 20 [SupportBlasphemy::20|Blasphemy Support]"}
         ]
     }));
     assert_eq!(it.typeline.as_deref(), Some("The Nurse"));
@@ -362,6 +365,11 @@ fn markup_is_reduced_to_its_display_half() {
     // a thousands comma is part of its number
     assert_eq!(it.lines[2].template, "#x Vivid Crystallised Lifeforce");
     assert_eq!(it.lines[2].numbers, [Some(1500.0)]);
+    assert_eq!(
+        it.lines[3].text,
+        "Socketed Gems are Supported by Level 20 Blasphemy Support"
+    );
+    assert_eq!(it.lines[3].numbers, [Some(20.0)]);
 }
 
 /// Properties render by `displayMode` as the game shows them. Each

@@ -1408,7 +1408,8 @@ fn unstyled(text: &str) -> String {
     out
 }
 
-/// `[Tag|Display]` → `Display`; `[Display]` → `Display` (S4).
+/// `[Tag|Display]` → `Display`; `[Name::N|Display]` → `Display`, 3.30's
+/// (N58); `[Display]` → `Display` (S4). The display is after the last `|`.
 fn unbracketed(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
