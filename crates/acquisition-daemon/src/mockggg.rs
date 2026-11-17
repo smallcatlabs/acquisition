@@ -1307,7 +1307,7 @@ mod tests {
     /// What is wrong with a fixture, in words; empty when nothing is. Every
     /// item, socketed ones included, has an id unique across the fixture
     /// (the store refuses an id-less item and rolls back its whole tab), a
-    /// frame word from N43's set, and `explicitMods` and `implicitMods`
+    /// frame word from `FRAME_WORDS`, and `explicitMods` and `implicitMods`
     /// lines that are `{description}` objects (S50); each key is a mock
     /// location whose array has that location's count.
     fn fixture_faults(fixture: &serde_json::Value) -> Vec<String> {
