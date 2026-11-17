@@ -51,6 +51,7 @@ import csv
 import itertools
 import json
 import re
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -784,14 +785,21 @@ def open_locator(loc, row, probes, fetch):
         return False
     clone, commit, path, ranges = m.groups()
     if clone:
-        if not PINS.get(clone, "").startswith(commit):
+        # evidence at the commit it names, read there whatever the clone's
+        # HEAD is (`git show`, as tools/game-diff.py reads the export): a
+        # pull moves the pin, never what a citation said
+        if clone not in PINS:
             return False
-        file = CLONES / clone / path
+        shown = subprocess.run(["git", "-C", str(CLONES / clone), "show", f"{commit}:{path}"],
+                               capture_output=True)
+        if shown.returncode != 0:
+            return False
+        text = shown.stdout.decode().replace("\r\n", "\n").replace("\r", "\n").split("\n")
     else:
         file = REPO / path
-    if not file.exists():
-        return False
-    text = file.read_text(newline="\n" if path.endswith(".csv") else None).split("\n")
+        if not file.exists():
+            return False
+        text = file.read_text(newline="\n" if path.endswith(".csv") else None).split("\n")
     span = []
     for part in ranges.split(","):
         a, _, b = part.lstrip("L").partition("-L")
