@@ -1015,6 +1015,83 @@ C++ app presents under the same registration is not read here. Held
 by C169.
 
 
+### 3.30 response-shape claims (November 17, 2026)
+
+Read offline from a copy of the owner's store (`GERWARIC#7694`, pc),
+made with no daemon running after his launch-day runs of 3.30
+(`RUN-LEDGER.md`, the two rows of 2026-11-17): his two Covens
+characters, fetched at 13:58 UTC and reporting `metadata.version`
+`3.30.0b`, his Covens tabs, and the Standard tabs and characters he
+refreshed the same day. No request was made for these claims; a
+read-only SQLite query over `items`, `characters`, `tabs` and
+`item_events` is the whole method.
+
+**N53. A 3.30 character body carries a new item array, `wickerman`:
+the Viscera attached to the league's Wickerman.** [OBSERVED — High;
+two bodies, 3 items] FirstCharacterName's held 2 (`Flaming Furnace`,
+`inventoryId` `VisceraBody`; `Terrifying Maw`, `VisceraHead`),
+SunglassKnight's 1 (`Bandit Warrior's Head`, `VisceraHead`); each has
+an id, `x`/`y` 0, `w`/`h` 2, `frameTypeId` `Viscera` and one property
+naming its slot with no values (`Torso`, `Head`). The same bases in a
+stash (`inventoryId` `Stash1`) carry an implicit and the `descrText`
+"Take this to the Wickerman in a town or hideout to attach it."; the
+three in Covens tabs show `Head` twice and `Lower Limb`. The build of
+the day counted the array under its drift tripwire and kept it in the
+character's envelope; the store lifts it since (C56).
+
+**N54. Two `frameTypeId` values beyond N43's nine: `Viscera`
+(`frameType` 15) and `CocoonedItem` (`frameType` 14).** [OBSERVED —
+High; 6 and 1 items] `Viscera` is every Viscera item above, in a tab
+or on the Wickerman. `CocoonedItem` is one `Enshrouded Boots` on a
+Standard character, `vestigial`, with an `enshrouded` object and an
+`Original Unique` property; it was first stored 2026-09-02, so the
+value predates 3.30 and the census of 2026-09-13 did not meet it.
+
+**N55. `doubleCorrupted: true` is a top-level boolean on an item
+corrupted twice, beside `corrupted: true`.** [OBSERVED — High; 4 Covens
+uniques] Araku Tiki, The Three Dragons, Plague Ichor and The
+Oppressor; no item carries it `false`, and no item before 3.30 carries
+it.
+
+**N56. `unidentifiedTier`, an integer, is on some unidentified items.**
+[OBSERVED — shape only; 3 Covens items] A rare Fluted Bascinet, a rare
+Fated Ambush Boots and a magic Onyx Amulet, each `identified: false`
+and `unidentifiedTier` 3. Nine other unidentified Covens items carry
+none (8 rare, 1 unique). What the number means is not observed.
+
+**N57. A 3.30 map displays the quantity of its mods as a property
+named `[AtlasDropScaling|Atlas Drops]` (`type` 112, `displayMode` 0,
+a value like `+23%`), and `Item Quantity` (`type` 2) only from a
+quantity quality.** [OBSERVED — High; 169 items: 158 tiered maps and
+11 guardian, Nightmare and Valdo maps and Writhing Invitations] Of 165
+Covens tiered maps,
+75 carry Atlas Drops and none Item Quantity (the rest are normal maps,
+4 rares and a unique displaying neither). Of 363 Standard maps fetched
+the same day, 83 carry Atlas Drops, 40 of them beside an Item Quantity
+equal to their `Quality (Quantity)`, and 11 normal maps an Item
+Quantity equal to that quality alone. Before 3.30 the mods' quantity
+was the Item Quantity (Allflame's 302 maps: 92 display it, none Atlas
+Drops). A map displays no `Area Level`; a top-level `monsterLevel`
+key, met on items since 2026-08-30, holds it.
+
+**N58. PoE1 mod text carries markup throughout: `[Tag|Display]`,
+`[Name::N|Display]` and bare `[Name]`.** [OBSERVED — High] Of the
+21,645 live items fetched on 2026-11-17, 2,384 carry markup in a mod
+line, 286 of them `::N` (`Socketed Gems are Supported by Level 20
+[SupportBlasphemy::20|Blasphemy Support]`, the N the gem's level).
+Of the 2,306 not fetched since 3.30, 95 do and none in the `::N`
+form. The display text is the part after the last `|`, or the whole
+of a bare bracket.
+
+**N59. At a league's end GGG keeps a migrated tab's id in Standard,
+its name gaining ` (Remove-only)`, and each item's id: a fetch of the
+Standard tab lands the item as moved.** [OBSERVED — High; one league,
+Allflame] The first Standard refresh after Allflame ended recorded
+612 `moved` events from `stash/pc/Allflame/<id>` to
+`stash/pc/Standard/<id>`, the same id, across 13 tabs; of the 19
+Allflame tab ids listed in Standard, 18 carry the suffix (`Blight`
+became `Blight (Remove-only)`).
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom
