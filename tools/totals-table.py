@@ -15,7 +15,9 @@ Inputs (read-only, committed):
                                              (`sum` rows whose evidence is pseudomods.toml, plus the one
                                              the site answered itself: q5, total fire resistance)
   search/pseudo-stats/data/table-changes.csv what the site's own answers ask of the table, one change a
-                                             row, each with the captures that ask for it (the build plan,
+                                             row, each with the captures that ask for it — but a
+                                             `carried row`, which a patch's rewording carried by the
+                                             line's stats, no capture asking (rule 4; #276) — (the build plan,
                                              steps 9c to 9d-C: the searches the owner ran, 2026-09-26
                                              to 2026-10-08; the track's README). Every total counts
                                              what the site's pseudo of that

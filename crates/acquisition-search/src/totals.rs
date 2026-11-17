@@ -74,7 +74,9 @@
 //!   extract `search/cpp-search/data/pseudomods.toml`) and from what the
 //!   trade site itself answered of each pseudo
 //!   (`search/pseudo-stats/data/table-changes.csv`: a change a row, each
-//!   with the captures that ask for it), reviewed as a diff at each
+//!   with the captures that ask for it, but a `carried row`, which a
+//!   patch's rewording carried by the line's stats with no capture
+//!   asking, #276), reviewed as a diff at each
 //!   change, pinned by this module's tests (the shipped file loads at
 //!   version 6; the loader refuses what a reviewer would) and at the
 //!   crate's boundary by `tests/pseudo.rs` and `tests/ranged.rs`, the
