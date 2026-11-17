@@ -480,7 +480,7 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         name: "container",
         thing: Thing::Container,
         kind: Kind::Text,
-        what: "the array the item came in: items, equipment, inventory, jewels, skills, rucksack, guardian",
+        what: "the array the item came in: items, equipment, inventory, jewels, skills, rucksack, guardian, wickerman",
     },
     FieldDef {
         name: "id",

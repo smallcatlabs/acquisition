@@ -1763,6 +1763,9 @@ fn the_character_key_is_the_id_and_the_name_is_the_address() {
 /// Every item row records the array it came from: a guardian's helm
 /// and the character's own are distinguishable only by that, and a
 /// move between arrays is a `changed` event even with identical json.
+/// 3.30's `wickerman` (the Viscera attached to the league's Wickerman,
+/// N53) is a lifted array like the rest: its items are rows and the
+/// drift counter stays at nought.
 #[test]
 fn container_is_an_ingest_fact_and_moving_between_arrays_is_a_change() {
     let mut s = Store::open_memory().unwrap();
@@ -1819,6 +1822,31 @@ fn container_is_an_ingest_fact_and_moving_between_arrays_is_a_change() {
         s.item("i1").unwrap().unwrap().container.as_deref(),
         Some("items")
     );
+    // A Covens character's Wickerman, as the owner's FirstCharacterName
+    // carried it at 3.30's launch (2026-11-17), trimmed to its slot and
+    // frame: lifted, its container its array's name, nothing unlifted.
+    let viscera = |id: &str, base: &str, slot: &str| {
+        json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameType": 15,
+            "frameTypeId": "Viscera", "inventoryId": slot, "x": 0, "y": 0, "w": 2, "h": 2 })
+    };
+    let ing = s
+        .record(
+            &ep,
+            &json!({ "name": "Hero" }),
+            200,
+            &json!({ "character": { "id": "c1", "name": "Hero", "metadata": { "version": "3.30.0b" },
+                "equipment": [ helm("own") ],
+                "wickerman": [ viscera("body", "Flaming Furnace", "VisceraBody"),
+                               viscera("head", "Terrifying Maw", "VisceraHead") ] } }),
+            4,
+        )
+        .unwrap();
+    assert_eq!((ing.added, ing.unlifted), (2, 0));
+    assert_eq!(
+        s.item("head").unwrap().unwrap().container.as_deref(),
+        Some("wickerman")
+    );
+    assert_eq!(s.status().unwrap().unlifted_items, 0);
 }
 
 /// The drift tripwire: an item-shaped array the store does not lift

@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS items (
     location_kind  TEXT NOT NULL,      -- stash | character
     location_id    TEXT NOT NULL,      -- tab/substash id, or character id
     container      TEXT,               -- the array the item came from: `items` (stash), or a character's
-                                       -- inventory|equipment|jewels|rucksack|guardian|skills; an ingest fact,
+                                       -- inventory|equipment|jewels|rucksack|guardian|wickerman|skills; an ingest fact,
                                        -- not in the item's json (NULL: recorded before facts v4)
     socketed_in    TEXT,               -- parent item id for socketed gems
     name           TEXT,

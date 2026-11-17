@@ -421,6 +421,39 @@ fn oq4_a_staff_by_what_is_remembered_and_league_is_place_never_origin() {
     );
 }
 
+/// 3.30 (Covens) as the owner's launch-day fetches carried it
+/// (2026-11-17, N53): each new shape is a word that finds its items. A
+/// character's `wickerman` array is a container, its own name.
+#[test]
+fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
+    let mut s = store();
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "w1", "name": "Witch", "league": "Covens" }]),
+        10,
+    );
+    let viscera = |id: &str, base: &str, slot: &str, part: &str| {
+        json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "rarity": "Normal",
+            "frameType": 15, "frameTypeId": "Viscera", "identified": true, "ilvl": 75,
+            "inventoryId": slot, "x": 0, "y": 0, "w": 2, "h": 2,
+            "properties": [{ "name": part, "values": [], "displayMode": 0 }] })
+    };
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "w1", "name": "Witch", "league": "Covens", "metadata": { "version": "3.30.0b" },
+            "equipment": [], "wickerman": [
+                viscera("furnace", "Flaming Furnace", "VisceraBody", "Torso"),
+                viscera("maw", "Terrifying Maw", "VisceraHead", "Head"),
+            ] }),
+        11,
+    );
+    let a = asked(&s, "container=wickerman");
+    assert_eq!(ids(&a), ["furnace", "maw"]);
+    assert_eq!(a["rows"][0]["place"]["container"], "wickerman");
+}
+
 /// OQ7: one line across every tab and character, item and place on each row.
 #[test]
 fn oq7_one_line_across_every_tab_and_character() {

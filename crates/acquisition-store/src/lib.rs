@@ -10,7 +10,8 @@
 //! body. It never looks inside a body. Inside this crate, a body is kept
 //! verbatim except at the item seams — every array of items (a tab's
 //! `items`, a character's `inventory`/`equipment`/`jewels`/`rucksack`/
-//! `guardian`/`skills`, and each item's `socketedItems`) is lifted out into
+//! `guardian`/`wickerman`/`skills`, and each item's `socketedItems`) is
+//! lifted out into
 //! the `items` table, one row per GGG item id. `responses` + `items` is the
 //! response, exactly, split at those seams; `items` is the only place to
 //! look for an item (the one thing left in place is a PoE2 item-granted
@@ -69,7 +70,8 @@
 //! dropped, its items retired) and moves item locations from the name to
 //! the id. Every item row records the **array it came from**
 //! (`container`: `items` for a stash; a character's `inventory`,
-//! `equipment`, `jewels`, `rucksack`, `guardian`, or `skills`) — an
+//! `equipment`, `jewels`, `rucksack`, `guardian`, `wickerman`, or
+//! `skills`) — an
 //! ingest fact, not in the json, so a helm moving from the character to
 //! its animate guardian is a `changed` event even with identical json.
 //! An item-shaped array a character body carries under any other name
@@ -146,7 +148,8 @@
 //!
 //! - **C29** (bodies as received, items lifted): the lifted arrays are tab
 //!   `items`, character `inventory`/`equipment`/`jewels`/`rucksack`/
-//!   `guardian`/`skills`, and each `socketedItems`; events carry the whole
+//!   `guardian`/`wickerman`/`skills`, and each `socketedItems`; events
+//!   carry the whole
 //!   address. The envelope keeps the counts under `_split`, so envelope +
 //!   rows is the response exactly. A withheld fetch's whole body stays
 //!   verbatim on the response row (`responses.withheld`, the daemon log,
@@ -203,7 +206,12 @@
 //!   fetch. Whether a list spans realms is undocumented; a realm-R listing
 //!   retires only realm-R characters it did not stamp.
 //! - **C56** (every item row records its array): `guardian` is the
-//!   inventory of an animate guardian (untradeable, still worth knowing).
+//!   inventory of an animate guardian (untradeable, still worth knowing);
+//!   `wickerman` the Viscera attached to the Wickerman of 3.30 (Covens),
+//!   lifted from the day it was first seen. An array the tripwire counted
+//!   stays verbatim in the character's envelope, and only the character's
+//!   next fetch lifts it: `rebuild` re-extracts the columns of item rows
+//!   and makes none.
 //!   `container` is an ingest fact beside `location_kind`/`location_id`,
 //!   not a derived column: it is not in the item's json, so `rebuild`
 //!   cannot recompute it, exactly like location. Location stays the
@@ -456,6 +464,7 @@ fn array_missing(key: &str) -> &'static str {
         "jewels" => "a `jewels` array",
         "rucksack" => "a `rucksack` array",
         "guardian" => "a `guardian` array",
+        "wickerman" => "a `wickerman` array",
         "skills" => "a `skills` array",
         _ => "an item array",
     }
@@ -503,7 +512,8 @@ pub struct Refused {
 pub const VOLATILE_ITEM_FIELDS: &[&str] = &["veiledMods"];
 
 /// Where the character response keeps its items (documented arrays;
-/// `guardian` is the animate guardian's gear on PoE1, `skills` PoE2's).
+/// `guardian` is the animate guardian's gear on PoE1, `skills` PoE2's,
+/// `wickerman` the Viscera attached to 3.30's Wickerman, observed).
 /// An array of item-shaped objects that is *not* named here is the drift
 /// tripwire's business: counted, surfaced, never lifted.
 const CHARACTER_ITEM_ARRAYS: &[&str] = &[
@@ -512,6 +522,7 @@ const CHARACTER_ITEM_ARRAYS: &[&str] = &[
     "jewels",
     "rucksack",
     "guardian",
+    "wickerman",
     "skills",
 ];
 
@@ -784,8 +795,8 @@ pub struct ItemRow {
     pub location_kind: String,
     pub location_id: String,
     /// The array the item came from (`items` for a stash; a character's
-    /// `inventory`, `equipment`, `jewels`, `rucksack`, `guardian`, or
-    /// `skills`). `None`: recorded before facts v4.
+    /// `inventory`, `equipment`, `jewels`, `rucksack`, `guardian`,
+    /// `wickerman`, or `skills`). `None`: recorded before facts v4.
     pub container: Option<String>,
     pub socketed_in: Option<String>,
     pub name: String,
