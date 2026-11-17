@@ -248,6 +248,9 @@ fn c114_every_field_the_catalogue_names_binds() {
     for displayed in ["armour", "evasion_rating", "energy_shield", "ward"] {
         table.remove(displayed);
     }
+    // 3.30's map property (N57), which no row of the catalogue's
+    // filters of 2026-09-12 could name
+    table.remove("atlas_drops");
     assert_eq!(built, table);
 }
 

@@ -516,6 +516,27 @@ fn the_shapes_of_330_are_each_a_word_that_finds_their_items() {
         ids(&asked(&s, "is:corrupted -is:doubleCorrupted")),
         ["once"]
     );
+    // a 3.30 map: Atlas Drops where it would have displayed Item
+    // Quantity, which it does not display (N57); trimmed to its properties
+    let map = item(
+        "map",
+        "",
+        "Map (Tier 4)",
+        "Magic",
+        json!({
+        "typeLine": "Resistant Map of Blinding (Tier 4)",
+        "properties": [
+            { "name": "[AtlasDropScaling|Atlas Drops]", "values": [["+23%", 1]], "displayMode": 0, "type": 112 },
+            { "name": "Item Rarity", "values": [["+14%", 1]], "displayMode": 0, "type": 3 },
+            { "name": "Monster Pack Size", "values": [["+9%", 1]], "displayMode": 0, "type": 4 }
+        ],
+        "explicitMods": [{ "description": "Monsters [Blind] on Hit" }] }),
+    );
+    fetch_tab(&mut s, "pc", "Covens", "c1", "Covens loot", vec![map], 15);
+    assert_eq!(
+        ids(&asked(&s, "atlas_drops=23 -has:item_quantity")),
+        ["map"]
+    );
 }
 
 /// OQ7: one line across every tab and character, item and place on each row.

@@ -238,6 +238,20 @@ unit = "%"
 whole = true
 definition = "the displayed `Item Quantity`, in percent: a map's, or an item's that displays one"
 
+# 3.30's maps display the quantity their mods give as `Atlas Drops`
+# (`[AtlasDropScaling|Atlas Drops]`, type 112), and `Item Quantity` only
+# from a quantity quality (N57). No catalogue row lands it: the site's
+# filters the catalogue was read from (2026-09-12) predate it.
+[[field]]
+name = "atlas_drops"
+array = "properties"
+property = ["Atlas Drops"]
+reads = "number"
+plus = true
+unit = "%"
+whole = true
+definition = "the displayed `Atlas Drops`, in percent: since 3.30, the quantity a map's mods give, which it displayed as `Item Quantity` before"
+
 [[field]]
 name = "item_rarity"
 array = "properties"

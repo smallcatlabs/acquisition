@@ -55,6 +55,7 @@ fields
   area_level                 number      the displayed `Area Level`
   monster_pack_size          number      a map's displayed `Monster Pack Size`, in percent (properties v1)
   item_quantity              number      the displayed `Item Quantity`, in percent
+  atlas_drops                number      the displayed `Atlas Drops`, in percent
   item_rarity                number      the displayed `Item Rarity`, in percent (properties v1)
   memory_strands             number      the displayed `Memory Strands` (properties v1)
   wings_revealed             number      a blueprint's wings revealed

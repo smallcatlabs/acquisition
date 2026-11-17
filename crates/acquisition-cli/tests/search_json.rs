@@ -1529,6 +1529,7 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
             "area_level",
             "monster_pack_size",
             "item_quantity",
+            "atlas_drops",
             "item_rarity",
             "memory_strands",
             "wings_revealed",

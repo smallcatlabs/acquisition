@@ -19,8 +19,9 @@ use serde_json::{Value, json};
 // ---- the table -------------------------------------------------------------------------------
 
 /// C114: the shipped table loads at the version a basis cites, holds the
-/// 39 fields the catalogue names over a property or the base and the four
-/// displayed defences beside their `.q20` twins — every one
+/// 39 fields the catalogue names over a property or the base, the four
+/// displayed defences beside their `.q20` twins and 3.30's `atlas_drops`
+/// — every one
 /// of them printed by `--describe fields` with its definition and the
 /// table's version — and a basis cites it.
 #[test]
@@ -29,13 +30,13 @@ fn c114_the_shipped_property_table_is_every_field_the_catalogue_names() {
     assert_eq!(t.version(), PROPERTY_TABLE_VERSION);
     assert_eq!(PROPERTY_TABLE_VERSION, 1);
     let names: Vec<&str> = t.fields().iter().map(|f| f.name()).collect();
-    assert_eq!(names.len(), 43);
+    assert_eq!(names.len(), 44);
     assert_eq!(
         PropertyTable::parse(properties::PROPERTY_TABLE_TOML)
             .unwrap()
             .fields()
             .len(),
-        43
+        44
     );
     let d = serde_json::to_value(describe(&["fields".to_string()]).unwrap()).unwrap();
     for name in &names {
@@ -496,6 +497,13 @@ const SPECS: &[Spec] = &[
         value: 61.0,
         opens: || props(vec![prop("Item Quantity", &["++61%"], 0)]),
     },
+    // 3.30's map property, its name markup in the body (N57)
+    Spec {
+        field: "atlas_drops",
+        shows: || props(vec![prop("[AtlasDropScaling|Atlas Drops]", &["+23%"], 0)]),
+        value: 23.0,
+        opens: || props(vec![prop("[AtlasDropScaling|Atlas Drops]", &["++23%"], 0)]),
+    },
     Spec {
         field: "item_rarity",
         shows: || props(vec![prop("Item Rarity", &["+36%"], 0)]),
@@ -715,7 +723,7 @@ fn number(n: f64) -> Value {
 /// `odd` left open with a reason — each count routed where the term's is.
 #[test]
 fn c114_every_field_is_asked_every_way_a_number_is() {
-    assert_eq!(SPECS.len(), 43);
+    assert_eq!(SPECS.len(), 44);
     let table: Vec<&str> = properties::table()
         .unwrap()
         .fields()
