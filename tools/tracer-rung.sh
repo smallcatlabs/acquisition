@@ -142,43 +142,51 @@ stop() { echo "*** $*" >&2; exit 1; }
 # The stored policy, put back as it was: the run's own coverage never
 # outlives the run. One lifecycle. It is owed (1) from before the run's
 # write is attempted, so a run cut between the write and its receipt
-# still owes it. The put-back reads the store, never a receipt: nothing
-# is owed where the stored revision is the one the run found; the run's
-# write is undone only where the store holds exactly it, one revision on,
-# over that revision; anything else is another client's edit and is left
-# alone. It is settled (0) only by one of the first two. A put-back that
-# did not happen (2) is said once, with the command that does it, and
-# fails the run.
+# still owes it. What is undone is the revision the run's write landed
+# at, and only over that revision, so the store decides whose the policy
+# is and the driver never predicts a stored value: the revision is the
+# receipt's, or, for a run cut before its receipt, the store's when that
+# is one on from the revision the run found. A write the store refused,
+# or a store still at the revision the run found, owes nothing. It is
+# settled (0) only by those or by the put-back landing. A put-back that
+# did not happen (2) is said once and fails the run.
 POLICY_OWED=0
 restore_policy() {
     [ "$POLICY_OWED" = 2 ] && return 1
     [ "$POLICY_OWED" = 1 ] || return 0
     POLICY_OWED=2
-    local now rev
-    if ! now=$(acq policy show --json 2>"$RUN_DIR/policy-restored.err"); then
-        echo "*** the stored policy could not be read (policy-restored.err), so it was NOT put back." >&2
-        echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands." >&2
-        return 1
+    local wrote stands
+    wrote=$(jq -r 'if has("error") then empty else .revision end' "$RUN_DIR/policy-run.json" 2>/dev/null || true)
+    if [ -z "$wrote" ]; then
+        if jq -e 'has("error")' "$RUN_DIR/policy-run.json" >/dev/null 2>&1; then
+            POLICY_OWED=0   # the store refused the run's write
+            return 0
+        fi
+        stands=$(acq policy show --json 2>/dev/null | jq '.policy.revision // 0' 2>/dev/null || true)
+        if [ "$stands" = "$BEFORE_REVISION" ]; then
+            POLICY_OWED=0   # the run's write never landed
+            return 0
+        fi
+        if [ "$stands" != $((BEFORE_REVISION + 1)) ]; then
+            echo "*** the stored policy (revision ${stands:-unread}) is not this run's to put back: the run was cut at its write and another client has written since, or the store could not be read." >&2
+            echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands now." >&2
+            return 1
+        fi
+        wrote=$stands
     fi
-    rev=$(jq '.policy.revision // 0' <<<"$now")
-    if [ "$rev" = "$BEFORE_REVISION" ]; then
-        POLICY_OWED=0   # the run's write never landed
-        return 0
-    fi
-    if [ "$rev" != $((BEFORE_REVISION + 1)) ] || [ "$(jq -S '.policy.value' <<<"$now")" != "$(jq -S . <<<"$RUN_POLICY")" ]; then
-        echo "*** the stored policy (revision $rev) is not the one this run wrote: another client wrote it since, and its edit is left as it is." >&2
-        echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands." >&2
-        return 1
-    fi
-    if acq policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$rev" --json \
-        >"$RUN_DIR/policy-restored.json" 2>"$RUN_DIR/policy-restored.err"; then
+    if acq policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$wrote" --json >"$RUN_DIR/policy-restored.json" 2>/dev/null; then
         POLICY_OWED=0
         echo "policy: the stored policy is back as it was before the run"
         return 0
     fi
-    echo "*** the stored policy was NOT put back (policy-restored.err): it is still this run's selection." >&2
-    echo "*** Put it back by hand, over the revision the run wrote:" >&2
-    printf '***   %s\n' "$(printf '%q ' "$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$rev")" >&2
+    if [ "$(jq -r '.kind // empty' "$RUN_DIR/policy-restored.json" 2>/dev/null || true)" = conflict ]; then
+        echo "*** the stored policy is no longer the one this run wrote: another client wrote it since, and its edit is left as it is." >&2
+        echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands now." >&2
+        return 1
+    fi
+    echo "*** the stored policy was NOT put back: the store refused the put-back (policy-restored.json says why)." >&2
+    echo "*** Once that is mended, this puts it back, over the revision the run wrote:" >&2
+    printf '***   %s\n' "$(printf '%q ' "$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$wrote")" >&2
     return 1
 }
 
@@ -339,9 +347,6 @@ if [ -n "$TABS$CHARACTERS" ]; then
     POLICY=$(jq -c --arg r "$REALM" --arg l "$LEAGUE" --argjson e "$entry" \
         '{version: 3, realms: {($r): {leagues: ((.policy.value.realms[$r].leagues // {}) + {($l): $e})}}}' \
         "$RUN_DIR/policy-before.json")
-    # What the store holds once the write lands: the value before, this
-    # realm replaced. The put-back undoes exactly this and nothing else.
-    RUN_POLICY=$(jq -c --arg r "$REALM" --argjson p "$POLICY" '.policy.value | .realms[$r] = $p.realms[$r]' "$RUN_DIR/policy-before.json")
     BEFORE_REVISION=$(jq '.policy.revision' "$RUN_DIR/policy-before.json")
     POLICY_OWED=1
     acq policy set "$POLICY" --if-revision "$BEFORE_REVISION" --json >"$RUN_DIR/policy-run.json" ||

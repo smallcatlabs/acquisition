@@ -51,7 +51,10 @@ run the identical flow the live runs use, exact ceilings included, each
 in a scratch world of its own under `runs/mock/` (unset this session's
 `ACQ_STORE_DIR`, `ACQ_LOG_DIR` and `ACQ_NO_KEYRING` first: the drivers
 refuse them). The tracer driver logs a mock account in and stores a
-policy covering every tab and character of the league itself.
+policy covering every tab and character of the league itself. After
+touching it, run `tools/tracer-rung-breakers.sh` too: it stages what a
+run must leave behind (the stored policy put back, a failed apply's
+words kept), a minute of mock daemons that no gate stage runs.
 
 ## Tear down
 
