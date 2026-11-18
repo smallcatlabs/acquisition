@@ -2274,9 +2274,11 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     };
     body.push_str(&hidden);
     body.push_str(&format!(
-        "<details class=\"list\" open><summary>{} ({})</summary>\n<table class=\"tabs\">{colgroup}\n<tr><th></th>{}</tr>\n{}{rows}</table>\n</details>\n</form>\n",
+        "<details class=\"list\" open><summary>{}</summary>\n<table class=\"tabs\">{colgroup}\n<tr><th></th>{}</tr>\n{}{rows}</table>\n</details>\n</form>\n",
+        // the list named, its counts the counts line's alone: a count of
+        // the rows at the top would stand beside the league's, saying
+        // another thing (the build's review, its first finding)
         view.title,
-        view.places.places.len(),
         columns
             .iter()
             .map(|c| format!("<th>{c}</th>"))

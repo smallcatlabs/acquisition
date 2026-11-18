@@ -2442,7 +2442,14 @@ fn the_refresh_loop_runs_through_the_pages() {
         body.find(words)
             .unwrap_or_else(|| panic!("{words}: {body}"))
     };
-    assert!(at(&tabs.body, "Refresh ticked") < at(&tabs.body, "<summary>Stash tabs ("));
+    // the list's summary names it, and the league's counts stand once, in
+    // the counts line (the build's review, its first finding)
+    assert!(
+        tabs.body.contains("<summary>Stash tabs</summary>"),
+        "{}",
+        tabs.body
+    );
+    assert!(at(&tabs.body, "Refresh ticked") < at(&tabs.body, "<summary>Stash tabs</summary>"));
     assert!(at(&tabs.body, "name=\"deep\"") < at(&tabs.body, "<th>Tab</th>"));
     for filter in tabs.body.split("<input class=\"col-filter\"").skip(1) {
         let tag = &filter[..filter.find('>').unwrap()];
@@ -2744,6 +2751,27 @@ fn the_refresh_loop_runs_through_the_pages() {
         &jobs,
         &["rails:  tripwire", "apply", "done", "web:"],
     );
+    // the characters fetched: a character's name opens a table of the
+    // items it holds (the build's review, its second finding)
+    let fetched = web.get("characters?realm=pc&league=Standard");
+    let row = &fetched.body[at(&fetched.body, "name=\"character\" value=\"")..];
+    let href = attribute(&row[row.find("<a class=\"way\"").unwrap()..], "href").unwrap();
+    assert!(href.contains("view.fields=icon"), "{href}");
+    let table = follow(&web, &href);
+    assert_eq!(table.status, 200, "{href}: {}", table.body);
+    assert!(table.body.contains("class=\"window\""), "{}", table.body);
+    let listed = web.get_json("characters?realm=pc&league=Standard");
+    let held = listed["places"][0]["item_count"].as_u64().unwrap();
+    assert!(held > 0, "{listed}");
+    let answered = web.raw(
+        "GET",
+        &unescaped(&href),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let answered: Value = serde_json::from_str(&answered.body).unwrap();
+    assert_eq!(answered["total"]["matched"], held, "{answered}");
     let replay = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(replay.status, 200, "{}", replay.body);
     pages.page(

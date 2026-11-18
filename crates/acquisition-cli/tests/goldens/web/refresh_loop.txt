@@ -54,7 +54,7 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
-<details class="list" open><summary>Stash tabs (6)</summary>
+<details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
 <tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
@@ -111,7 +111,7 @@ GET characters?realm=pc&league=Standard
 <form method="get" action="characters">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
-<details class="list" open><summary>Characters (2)</summary>
+<details class="list" open><summary>Characters</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
 <tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Character column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Level column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
@@ -139,7 +139,7 @@ GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
-<details class="list" open><summary>Stash tabs (6)</summary>
+<details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
 <tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
@@ -172,7 +172,7 @@ GET tabs?<Maps opened>
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="maps">
 <p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
-<details class="list" open><summary>Stash tabs (6)</summary>
+<details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
 <tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>

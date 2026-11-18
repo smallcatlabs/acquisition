@@ -722,7 +722,11 @@ fn label_of(
 /// of the league folds to this one (`twinned`) the term names this
 /// spelling alone (the review of 9b: one id under `Standard` and
 /// `standard` was two buckets of one whose route returned both). The
-/// twins are the caller's scope's: a bucket's corpus, a place's realm.
+/// twins are the caller's: a bucket reads them from the items its corpus
+/// holds, a place from its realm's listings. Where a spelling is listed
+/// and holds no item, the two texts differ and select the same items,
+/// since the spelling the place sets apart holds none (the build review
+/// of step 6.5a, its third finding; `seat_faults.rs` pins it).
 pub(crate) fn place_terms(id: &str, league: Option<&str>, twinned: bool) -> Vec<Node> {
     let test = |field: &str, op: Op, value: Value| Node::Test {
         field: field.to_string(),

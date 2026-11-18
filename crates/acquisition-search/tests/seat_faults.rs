@@ -1093,6 +1093,26 @@ fn review_a_tabs_route_selects_its_leagues_spelling_where_two_differ_by_case() {
     let table = &view(&s, "pc", "", json!({ "counts": { "keys": ["tab"] } }))["view"]["counts"]["tables"]
         [0];
     assert_eq!(table["buckets"][0]["term"], "id:d1 league=Standard");
+    // a second spelling listed and holding no item (the build's review,
+    // its third finding): the bucket reads twins from the items and the
+    // place from the listings, so the texts differ, and each selects the
+    // same items, since the spelling the place sets apart holds none
+    list_tabs(&mut s, "pc", "standard", json!([tab("d1", "Dump")]), 30);
+    let table = &view(&s, "pc", "", json!({ "counts": { "keys": ["tab"] } }))["view"]["counts"]["tables"]
+        [0];
+    let bucket = &table["buckets"][0];
+    assert_eq!(bucket["term"], "id:d1 league=Standard");
+    let place = common::place_request(&s, "pc", "Standard", "d1");
+    assert!(
+        place["query"]["text"].as_str().unwrap().contains("league~"),
+        "{place}"
+    );
+    let mut asked = place.clone();
+    asked["view"] = json!({ "rows": { "limit": 100 } });
+    let asked: Request = serde_json::from_value(asked).unwrap();
+    let placed = common::as_json(&answer(&load(&s, Some("pc")), &asked).unwrap());
+    assert_eq!(ids(&placed), ["a"]);
+    assert_eq!(members(&s, bucket), BTreeSet::from(["a".to_string()]));
 }
 
 /// Review, a query gap: `has:Pseudo.dpx` offered the bare `pseudo.dps`,
