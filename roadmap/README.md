@@ -13,27 +13,18 @@ better Acquisition that is agent-friendly and agent-forward.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
   is designed and ruled (`briefs/4-full-1-step6-design.md`, values
-  over places; "Approved as designed.", 2026-11-11). Its build is that
-  file's §5, in series. Values on rows (#38) and the count (#245) are
-  closed (`briefs/4-full-1-step6-values.md`,
-  `briefs/4-full-1-step6-count.md`). The spike (the design's §5 item
-  3) is closed in its two halves. The check's driver is measured
-  (`audits/web-2026-11/driver/README.md`): a hand-written one works.
-  The window script holds the table in the owner's Brave, flat and
-  grouped, at 60 Hz (`audits/web-2026-11/spike/README.md`; his words:
-  "All passed. Nothing flickered."). The browser-driven check is in
-  the gate (step 6.4a, C187): the count's rule and the picker's are
-  held by `crates/acquisition-cli/tests/browser.rs`, and every gate
-  machine needs a Chromium-family browser. The windowed table is
-  built (step 6.4b): an answer as a table is every matching row in one
-  scrolling page, its rows asked a block at a time by the `rows`
-  route, its window script held by the same check. Next is the
-  table's next part: heads that sort, a value added from a card's
-  number, and the sort box's removal
-  (`briefs/4-full-1-step6-sort.md`). Then the
-  places and the grouped table, step 6.5, where tabs nest under their
-  parent (#269); opening something keeps the reader's place in both
-  (#270).
+  over places; "Approved as designed.", 2026-11-11), and built in
+  series as its §5 lays out. Values on rows (#38), the count (#245),
+  the spike, the browser-driven check (step 6.4a, C187: every gate
+  machine needs a Chromium-family browser) and the windowed table
+  (step 6.4b) are closed. So is the table's next part (step 6.4c,
+  `briefs/4-full-1-step6-sort.md`): nothing is typed to sort, a value
+  column's head orders the rows by it and flips, a number on a card
+  adds its value as a column, and the URL names the values
+  (`view.value`). Next is step 6.5, the places and the grouped table
+  (the design's §3 and §5 item 5), which has no brief yet: tabs nest
+  under their parent (#269), and opening something keeps the reader's
+  place (#270).
 
 ## Next
 
@@ -41,15 +32,12 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, step 6: the dense table, its view ruled
-   (`briefs/4-full-1-step6-design.md`) and built in series: the flat
-   table's next part (heads that sort, a value added from a card's
-   number, the sort box's removal; `briefs/4-full-1-step6-sort.md`);
-   then the
-   places and the grouped table (6.5): #244 with the place pages
-   (#248, #194, #189, #182), #191, and #186 and #190 riding, with
-   #269 and #270. The search form's reshaping (#184, #181, #180, #185,
-   #188, #183, #193) is the step after, one design.
+1. 4-full part 1, step 6.5: the places and the grouped table, ruled
+   in `briefs/4-full-1-step6-design.md` §3 and built from a brief
+   written first: #244 with the place pages (#248, #194, #189, #182),
+   #191, and #186 and #190 riding, with #269 and #270. The search
+   form's reshaping (#184, #181, #180, #185, #188, #183, #193) is the
+   step after, one design.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
