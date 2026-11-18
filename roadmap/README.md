@@ -22,9 +22,11 @@ better Acquisition that is agent-friendly and agent-forward.
   column's head orders the rows by it and flips, a number on a card
   adds its value as a column, and the URL names the values
   (`view.value`). Next is step 6.5, the places and the grouped table
-  (the design's §3 and §5 item 5), which has no brief yet: tabs nest
-  under their parent (#269), and opening something keeps the reader's
-  place (#270).
+  (the design's §3 and §5 item 5), cut into four parts. Its first,
+  6.5a, is briefed and waits for its build
+  (`briefs/4-full-1-step6-places.md`): "Stash tabs" and "Characters"
+  replace "Refresh", tabs nest under their parent (#269), and opening
+  one keeps the reader's place (#270).
 
 ## Next
 
@@ -32,12 +34,14 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, step 6.5: the places and the grouped table, ruled
-   in `briefs/4-full-1-step6-design.md` §3 and built from a brief
-   written first: #244 with the place pages (#248, #194, #189, #182),
-   #191, and #186 and #190 riding, with #269 and #270. The search
-   form's reshaping (#184, #181, #180, #185, #188, #183, #193) is the
-   step after, one design.
+1. 4-full part 1, step 6.5, ruled in `briefs/4-full-1-step6-design.md`
+   §3, in four parts. 6.5a, the places and their pages, is built from
+   `briefs/4-full-1-step6-places.md` (#248, #191, #189's listing).
+   Then, a brief each, written first: 6.5b, the grouped table (#244,
+   #269); 6.5c, an item under its row and the row's ways (#270, #194,
+   #186, #190); 6.5d, the plan and jobs pages from their documents
+   (#182, #189). The search form's reshaping (#184, #181, #180, #185,
+   #188, #183, #193) is the step after, one design; the look is #285.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
