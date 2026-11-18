@@ -3,6 +3,7 @@ runs/
 pricing-info/
 search/*/raw/
 tools/sitting-recorder/rows.json
+tools/.tracer-rung-case.sh
 .claude/settings.local.json
 .claude/worktrees/
 .DS_Store
