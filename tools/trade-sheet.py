@@ -2509,6 +2509,70 @@ def round_y(earlier):
     return rows
 
 
+# Round z: what 3.30 moved (#33 items 7 and 8, composed 2026-11-17). Its
+# searches are asked in the league the patch opened, where every listed item
+# was made under 3.30: the same query in Standard is g033's and g034's, sat
+# before the patch. Ids are read from the site's stats of 2026-11-17, the
+# capture the tables were regenerated from, never from the one the earlier
+# rounds were composed with.
+COVENS = "Covens"  # the owner, 2026-11-17: "PoE 3.30 Covens league has been released"
+STATS_330 = TRACK.parent / "trade-query" / "data" / "stats-2026-11-17.json"
+VISCERA_LEAVES = {"viscera.head": "viscera_head", "viscera.arm": "viscera_arm",
+                  "viscera.body": "viscera_body", "viscera.leg": "viscera_leg"}
+
+
+def round_z(earlier):
+    """z01–z04 the rarity total across 3.30's rewording (#33 item 7; #276);
+    z05–z09 the Viscera class and its four leaves (#33 item 8). Composed
+    2026-11-17, each search's answers stated in its `decides`."""
+    composed = Composed("z", 2, earlier, COVENS)
+    add = composed.add
+    # increased_rarity v3 (tools/trade_rows.py, CARRIED): the reworded text at weight 1, counted beside the old.
+    # The claim it rests on is checked here: the site kept the ids and changed their text.
+    pseudo, old, new = "pseudo.pseudo_increased_rarity", "#% increased Rarity of Items found", "+#% to Item Rarity"
+    ids = sorted(e["id"] for g in json.loads(STATS_330.read_text())["result"] if g["id"] != "pseudo"
+                 for e in g["entries"] if e["text"] == new)
+    if ids != sorted(ids_of(old)) or len(ids) != 5:
+        raise SystemExit(f"round z: {new!r} is displayed by {len(ids)} ids, not the five that displayed {old!r}")
+    add(f"increased_rarity v3, complete: whether any listed item shows `{old}`, the pseudo, while carrying `{new}` "
+        "under none of its 5 ids. None found, {next} finding items: the reworded line is all the site counts. Any "
+        "found: its lines name a row the total lacks",
+        "{next}, the pseudo beside the line", batch_query([group("and", [pseudo]), group("not", ids)]))
+    add(f"the pseudo beside the line: `{old}` required, with a `count` of one at least of the 5 ids of `{new}`. "
+        "The ten fetched: each item's total is the sum of its `to Item Rarity` lines at weight 1; a total that is "
+        "not changes the row. The control of z01 and {next}: it must find items",
+        "the control: must find items",
+        batch_query([group("and", [pseudo]), group("count", ids, {"min": 1})]))
+    add(f"increased_rarity v3, sound: whether any listed item carries `{new}` — the site's own sum of its 5 ids at "
+        f"weight 1, a half or more — while showing no `{old}`. None found, z02 finding items: the site still sums "
+        "the reworded line under every id. Any found: the site no longer counts it, or not under that id",
+        "z02, and c4 and d02: a pseudo inside a `not` group beside a sum finds what it should",
+        batch_query([{"type": "weight2", "filters": [{"id": i, "value": {"weight": 1.0}, "disabled": False}
+                                                      for i in ids], "value": {"min": 0.5}},
+                     group("not", [pseudo])]))
+    two = ["explicit.stat_3917489142", "implicit.stat_3917489142"]
+    if not set(two) <= set(ids):
+        raise SystemExit("round z: the explicit and the implicit id are not among the five")
+    add(f"two lines on one item: `{old}` required, with `{new}` required as an explicit and as an implicit. The ten "
+        "fetched: each total is the two lines' sum; a total that is one line's alone names the id the site left out",
+        "z02 found items carrying one", batch_query([group("and", [pseudo] + two)]))
+    # The Viscera leaves: the category table places a base by the export's tag (search/category/data/export-tags.toml),
+    # the site not asked. A search fetches ten, so the leaves are also asked as a whole: their totals against the class's.
+    add("the Viscera class: `type_filters.category` `viscera`. Its total is what the four leaves' totals, z06 to z09, "
+        "sum to within the minute's listings: a total well above the sum is a Viscera the site puts under no leaf; "
+        "the control of the four",
+        "the control: must find items", batch_query([], category("viscera")))
+    for leaf, tag in VISCERA_LEAVES.items():
+        add(f"a Viscera leaf: `type_filters.category` `{leaf}`. The ten fetched: each base carries the export's tag "
+            f"`{tag}`; a base tagged otherwise changes the rule. Its total is one of the four z05's is read against",
+            "z05, the class", batch_query([], category(leaf)))
+    rows = composed.done()
+    # every name above is written out: the round is its length
+    if len(rows) != 9:
+        raise SystemExit(f"round z has {len(rows)} searches, its names written for 9")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2549,6 +2613,7 @@ def compose_sheet(method="site"):
         searches += round_w(searches)
         searches += round_x(searches)
         searches += round_y(searches)
+        searches += round_z(searches)
     return searches
 
 
@@ -2694,7 +2759,7 @@ def main():
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("trade" if s.startswith(("t", "u", "w", "x", "y"))
+        kind = ("trade" if s.startswith(("t", "u", "w", "x", "y", "z"))
                 else "park" if s.startswith("v")
                 else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))
