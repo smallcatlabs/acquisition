@@ -326,7 +326,7 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 
 /// The captures hold the table: over every listing the site sent (the
 /// sittings' and the owner's census, each search's items a corpus of
-/// their own), every one of the 22,245 lines under an id of the six hash
+/// their own), every one of the 22,907 lines under an id of the six hash
 /// categories is met by the id's presence term, translated alone — at the
 /// tables of 2026-09-12, 22,182
 /// — but 58 under an id the translation leaves unsupported (an id of two
@@ -342,7 +342,12 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 /// the export at 3.30.0.2.2 stopped joining (#281) is held like any other:
 /// where the export's form is gone the captures' is a row of the hand
 /// table (n07's and u055's plurals), and a line no form meets is counted
-/// apart by the stat, none today.
+/// apart by the stat, none today. The sitting of 2026-11-17 (#282) brought
+/// 662 lines: 611 met, 1 unsupported (y18), 3 refused (y07's Global
+/// Critical Strike Chance), and 47 under 3.30's moved stats, two of them
+/// stats no earlier capture carried; those 47 are on items fetched after
+/// the patch, and each was met when probed at #282, but are counted apart
+/// with the rest: 750 lines under 100 stats.
 #[test]
 fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
@@ -448,7 +453,7 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
         }
     }
     assert!(faults.is_empty(), "{}", faults.join("\n"));
-    assert_eq!(moved_ids.len(), 98, "the stats 3.30 moved: {moved_ids:?}");
+    assert_eq!(moved_ids.len(), 100, "the stats 3.30 moved: {moved_ids:?}");
     assert_eq!(
         gap_ids.len(),
         0,
@@ -456,7 +461,7 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     );
     assert_eq!(
         (lines, moved, gap, met, unsupported, refused),
-        (22_245, 703, 0, 21_483, 54, 5)
+        (22_907, 750, 0, 22_094, 55, 8)
     );
 }
 

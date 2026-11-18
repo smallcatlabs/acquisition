@@ -5,8 +5,10 @@
 # itself is made from committed files alone; the drift line holds this header
 # to the pin (tools/game-diff.py). A base the export lists twice under one
 # name is one row, its tags together. Only the tags a rule names are kept.
+# A base of a class the class table sizes (tools/class-table.py, SIZES, its
+# rule 4) is a row again after each size word, with the plain base's tags.
 #
-# Measured at generation: 164 bases of 1 class; 42 viscera_arm, 32 viscera_body, 62 viscera_head, 28 viscera_leg.
+# Measured at generation: 492 bases (164 the export's, 328 sized) of 1 class; 126 viscera_arm, 96 viscera_body, 186 viscera_head, 84 viscera_leg.
 
 source = "RePoE poe1 export @ 52980e52 (game 3.30.0.2.2): base_items.json, item_classes.json; each base’s tags that a tag rule names"
 game = "3.30.0.2.2"
@@ -379,6 +381,826 @@ tags = ["viscera_body"]
 
 [[base]]
 class = "Viscera"
+name = "Greater Adherent's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Al-Hezmin's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Ancestor's Club"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Arachnid Egg Sac"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Arachnid Fangs"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Arachnid Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Aristocrat's Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Armoured Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Artificial Appendage"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bandit Rogue's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bandit Warrior's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bandit Witch's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Baran's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bat's Wings"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bear Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Blackened Lungs"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Blackguard's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Blazing Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bloodied Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Boar Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Bonestalker's Ribcage"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Broken Bust"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Brute's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Calcified Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Captain's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Carved Haunches"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Champion's Banner"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Chaos Golem's Core"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Charred Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Chimera's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Chimeral Eye"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Chitinous Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Coagulated Essence"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Cobra Tail"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Conjoined Hound Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Constrictor's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Construct's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Corrupted Carapace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Coven Queen's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Crescent Blade"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Crustacean's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Cutthroat's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Defaced Bust"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Desert Queen's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Desert Sword"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Despot's Fist"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Dessicated Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Devourer's Antenna"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Diseased Wing"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Distended Stomach"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Drox's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Eater of Worlds' Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Elder's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Elemental Essence"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Engorged Eye"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Enslaver's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Eradicator's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flaming Furnace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flaming Goat Hoof"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flaming Ribbon"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flayed Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flayed Visage"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Flesh-fused Lantern"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Galvanic Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Gargantuan Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Gelid Fangs"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Gemling Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater General's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Ghostly Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Gladiator's Heart"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Goatman's Horn"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Golden Ankh"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Golemic Stone"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Hag's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Hag's Stomach"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Hallowed Descry"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Heretical Tome"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Hollowed Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Hydra's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Incarnation of Dread's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Incarnation of Fear's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Incarnation of Neglect's Cube"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Infected Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Infested Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Inquisitor's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Inquisitor's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Justicar's Helm"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater King Crab's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Lion's Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Lithic Haunches"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Lunar Bow"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Mariner's Tricorne"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Maven's Orrery"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Minotaur's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Molten Core"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Necromancer's Mask"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Nightmarish Book of Depravity"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Nightmarish Core of the Unbreakable"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Nightmarish Head of Uhtred"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Nightmarish Wings of Catarina"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Nightmarish Wings of Lycia"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Noble's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Ornate Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Osseous Scythe"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Osseous Talon"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Overseer's Whip"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Phoenix's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Pit Fighter's Helm"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Poacher's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Pocked Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Pocked Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Primate Foot"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Prosthetic Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Purifier's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Ravenous Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Resplendent Sceptre"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scarecrow's Pitchfork"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scholar's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scholar's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scorched Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scorpion Stinger"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Scout's Bow"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Sea Witch's Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Searing Exarch's Descry"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Severed Rhoa Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Severed Scythe-hand"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Severed Stinger"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Shaper's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Siren's Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Sirus' Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Skeletal Archer's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Skeletal Beast Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Skeletal Tail"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Skeletal Warrior's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Skeleton Wheel"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Smouldering Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Smuggler's Hand"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Solar Shield"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Soldier's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Spectral Hood"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Spider Queen's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Spiked Carapace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Spined Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Stag Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Statue Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Sun-bleached Breastplate"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Swordmaster's Blade"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Templar Banner"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Templar Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Terrifying Maw"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Thaumaturge's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Totemic Visage"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Ursine Flesh"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Vaal Appendage"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Venarius' Scripture"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Vendigo Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Veritania's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Voidbearer's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Voltaic Apparatus"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Voltaic Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Vulture's Gut"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Warden's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Witch's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Greater Wraith Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
 name = "Hag's Head"
 tags = ["viscera_head"]
 
@@ -450,6 +1272,826 @@ tags = ["viscera_head"]
 [[base]]
 class = "Viscera"
 name = "King Crab's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Adherent's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Al-Hezmin's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Ancestor's Club"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Arachnid Egg Sac"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Arachnid Fangs"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Arachnid Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Aristocrat's Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Armoured Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Artificial Appendage"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bandit Rogue's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bandit Warrior's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bandit Witch's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Baran's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bat's Wings"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bear Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Blackened Lungs"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Blackguard's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Blazing Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bloodied Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Boar Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Bonestalker's Ribcage"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Broken Bust"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Brute's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Calcified Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Captain's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Carved Haunches"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Champion's Banner"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Chaos Golem's Core"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Charred Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Chimera's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Chimeral Eye"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Chitinous Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Coagulated Essence"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Cobra Tail"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Conjoined Hound Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Constrictor's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Construct's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Corrupted Carapace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Coven Queen's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Crescent Blade"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Crustacean's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Cutthroat's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Defaced Bust"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Desert Queen's Crown"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Desert Sword"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Despot's Fist"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Dessicated Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Devourer's Antenna"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Diseased Wing"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Distended Stomach"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Drox's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Eater of Worlds' Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Elder's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Elemental Essence"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Engorged Eye"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Enslaver's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Eradicator's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flaming Furnace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flaming Goat Hoof"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flaming Ribbon"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flayed Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flayed Visage"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Flesh-fused Lantern"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Galvanic Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Gargantuan Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Gelid Fangs"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Gemling Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser General's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Ghostly Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Gladiator's Heart"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Goatman's Horn"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Golden Ankh"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Golemic Stone"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Hag's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Hag's Stomach"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Hallowed Descry"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Heretical Tome"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Hollowed Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Hydra's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Incarnation of Dread's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Incarnation of Fear's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Incarnation of Neglect's Cube"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Infected Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Infested Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Inquisitor's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Inquisitor's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Justicar's Helm"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser King Crab's Claw"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Lion's Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Lithic Haunches"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Lunar Bow"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Mariner's Tricorne"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Maven's Orrery"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Minotaur's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Molten Core"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Necromancer's Mask"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Nightmarish Book of Depravity"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Nightmarish Core of the Unbreakable"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Nightmarish Head of Uhtred"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Nightmarish Wings of Catarina"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Nightmarish Wings of Lycia"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Noble's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Ornate Torso"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Osseous Scythe"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Osseous Talon"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Overseer's Whip"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Phoenix's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Pit Fighter's Helm"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Poacher's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Pocked Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Pocked Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Primate Foot"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Prosthetic Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Purifier's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Ravenous Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Resplendent Sceptre"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scarecrow's Pitchfork"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scholar's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scholar's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scorched Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scorpion Stinger"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Scout's Bow"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Sea Witch's Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Searing Exarch's Descry"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Severed Rhoa Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Severed Scythe-hand"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Severed Stinger"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Shaper's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Siren's Tentacle"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Sirus' Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Skeletal Archer's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Skeletal Beast Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Skeletal Tail"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Skeletal Warrior's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Skeleton Wheel"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Smouldering Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Smuggler's Hand"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Solar Shield"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Soldier's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Spectral Hood"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Spider Queen's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Spiked Carapace"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Spined Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Stag Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Statue Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Sun-bleached Breastplate"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Swordmaster's Blade"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Templar Banner"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Templar Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Terrifying Maw"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Thaumaturge's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Totemic Visage"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Ursine Flesh"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Vaal Appendage"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Venarius' Scripture"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Vendigo Claws"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Veritania's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Voidbearer's Leg"
+tags = ["viscera_leg"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Voltaic Apparatus"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Voltaic Skull"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Vulture's Gut"
+tags = ["viscera_body"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Warden's Arm"
+tags = ["viscera_arm"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Witch's Head"
+tags = ["viscera_head"]
+
+[[base]]
+class = "Viscera"
+name = "Lesser Wraith Claws"
 tags = ["viscera_arm"]
 
 [[base]]

@@ -1137,8 +1137,9 @@ impl Translator<'_> {
     fn top(&mut self, key: &str, value: &Json) -> Result<(), LanguageError> {
         let at = self.clauses.len();
         self.top_read(key, value)?;
-        // a Base naming a map's tier: the site returns its blighted form
-        // under it too (t55, `blighted-base`), which `base=` does not
+        // a Base naming a map's tier: the site returns its blighted and
+        // blight-ravaged forms under it too (t55, y18, `blighted-base`),
+        // which `base=` does not
         let named = match value {
             Json::Object(o) => o.get("option"),
             other => Some(other),
@@ -1624,8 +1625,9 @@ impl Translator<'_> {
         if text.contains('\n') {
             rule(&mut rows, &mut notes, &mut status, "stat.text.rows")?;
         }
-        // a scourge line in a weighted sum: whether the site sums one is
-        // unasked (e043, f005: `scourge-in-sum`)
+        // a scourge line in a weighted sum: the site sums one (y15, y16),
+        // and what lifted e043's ring under a wider sum is unexplained
+        // (`scourge-in-sum`)
         if in_a_sum && category == "scourge" {
             rule(&mut rows, &mut notes, &mut status, "stat.scourge.summed")?;
         }
@@ -1643,8 +1645,8 @@ impl Translator<'_> {
         // `#`, a template of two numbers: the site compares that line by
         // their average (x14 at 1250 to 1253, x15 none at 1254 to 2400)
         read.slot = template::compared_slot(&own.template, &own.open);
-        // several numbers and no mean of them: the first, which no sitting
-        // has settled
+        // several numbers and no mean of them: the first, where the site
+        // compares a pair's mean on a text of two `# to #` (y07, `pair-mean`)
         if own.open.len() > 1 && read.slot.as_deref() != Some("avg") {
             rule(&mut rows, &mut notes, &mut status, "stat.text.many")?;
         }

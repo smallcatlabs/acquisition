@@ -55,6 +55,13 @@
 # 3.30 (#276, the stats capture of 2026-11-17): one item more missed, g034's
 # Torment Gyre, whose rarity lines 3.30 reworded after it was fetched — a
 # `patch` row: 776 searches, 7,295 items, 6,696 matched, 599 missed in 66 rows.
+# The sitting of 2026-11-17 (rounds y, z and za; #282) ran 19 searches and
+# 164 items; y10, of twenty crucible ids, is partial. 36 of the items are
+# Viscera whose base carries a size word, matched once the tables name each
+# base after `Lesser ` and `Greater `. Twenty are missed in two rows, each a
+# question the round asked and answered, which the translation does not yet
+# build: y07's ten under `pair-mean`, y18's ten under `blighted-base`. 795
+# searches, 7,459 items, 6,840 matched, 619 missed in 68 rows.
 
 [[finding]]
 key = "eldritch-not"
@@ -66,7 +73,7 @@ cites = "search/pseudo-stats/README.md, 'Two things the searches could not do': 
 key = "twin-counted"
 differs = true
 home = "ruling"
-cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md"
+cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md. Since 3.30 no listed item carries the twin id (y20, y21, za02 found none, 2026-11-17), and the jewel's line sits under the ordinary id (za01's two that show it); these rows are items fetched before, and whether the site now counts the line in the four totals is #34's"
 
 [[finding]]
 key = "socketed-gems-counted"
@@ -102,15 +109,22 @@ cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (
 key = "scourge-in-sum"
 row = "stat.scourge.summed"
 home = "sitting"
-cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md)"
-asks = "whether a weighted group counts a scourge line — the item under the scourge id alone, and the crafted id alone"
+cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md). The sitting of 2026-11-17 asked the two lines alone: y14 found two items carrying a crafted Fire Resistance of 1 or more and a scourge one below nothing, the same Maelström Finger Unset Ring (+28%, -28%) and a belt (+34%, -17%); the two ids weighted 1 each found the ring at `max` 0 (y15) and the belt alone at `min` 1 (y16). The site counts the scourge line in a weighted sum, as this search does; what lifted the ring to `min` 0.5 under e043's wider group of 21 ids is unexplained"
+asks = "which id of e043's group lifts the ring to `min` 0.5 when its crafted and scourge lines sum to 0: the ring under each of e043's ids alone, weighted 1, at `min` 0.5"
 
 [[finding]]
 key = "blighted-base"
 row = "query.type.map"
 home = "sitting"
-cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran)"
-asks = "whether the site's Base names a blighted map by its unblighted base alone — `Blighted Map (Tier 13)` under `type` `Map (Tier 13)`, and under `type` `Blighted Map (Tier 13)` — and whether any other prefix (`Blight-ravaged`) is read so"
+cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran). The sitting of 2026-11-17 answered it for the other prefix: y18 asked `map_uberblighted` `true` under `Map (Tier 16)` and found 3,427, the ten fetched each a `Blight-ravaged Map (Tier 16)`; the site refused as a search the Base `Blighted Map (Tier 13)` (y17) and `Blight-ravaged Map (Tier 16)` (y19), which no capture holds: the owner, 2026-11-17, \"y17 and y19 returned a ggg error about an invalid search, so nothing was saved\". The Base is the unprefixed name, under both prefixes; the translation is fixed when the build is taken up"
+asks = "the refusal of a prefixed Base, captured: y17's and y19's searches again, the recording kept with the site's error, so that the site never naming a map by its prefixed base rests on a capture and not on a word alone"
+
+[[finding]]
+key = "pair-mean"
+row = "stat.text.many"
+home = "sitting"
+cites = "y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin, one id of four numbers (stat_190652296), at `min` 19 `max` 19: the site found 29, and all ten fetched read `16 to 22` twice, the pair's mean 19 and no number of the line 19; y08, unbounded, showed other pairs (the sitting of 2026-11-17). The translation compares the first number, 16; the site compares the pair's mean, as on a text of exactly two `#` (round x, `stat.text.bounds`); the translation is fixed when the build is taken up"
+asks = "which pair the site compares when an item's two pairs differ, the first's mean or the four numbers' — y07's items carry one pair twice and cannot tell — and which number it compares on a text of three numbers with no `# to #` among them"
 
 [[finding]]
 key = "reworded-330"
@@ -578,3 +592,17 @@ items = [0]
 outcome = "missed"
 clauses = ["1"]
 finding = "reworded-330"
+
+[[row]]
+search = "y07"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "pair-mean"
+
+[[row]]
+search = "y18"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "blighted-base"

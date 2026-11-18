@@ -235,3 +235,22 @@ apart, the first kept.
 | File | Bytes | Captured | sha256 |
 | --- | --- | --- | --- |
 | `raw/searches/x-fragments/` (31 files; as above) | 570784 | 2026-10-18 19:45 – 20:02 UTC | `6b21639158b76f06c4104db31b35a6d6498b6c2815c7616cf0e827d752c58d9a` |
+
+Rounds y, z and za (#33, #34, #150; the step that lands them, #282), the evening of
+2026-11-17 by the owner, 03:59 to 04:28 UTC on 2026-11-18 by the recorder's names, from the links of
+`search/pseudo-stats/data/search-sheet.csv` at `5e536edc` (round y), `c14977b6`
+(round z, in the league `Covens`) and `377b859e` (round za, the repairs composed
+that night from the counts); saved by `tools/sitting-recorder`, one file per
+call, in `~/Downloads/acq-sitting`, copied here a round to a folder. No cookie;
+32 searches answered. The site refused two as searches, y17 and y19, and no
+file holds them: the owner, 2026-11-17, "y17 and y19 returned a ggg error about
+an invalid search, so nothing was saved". `tools/trade-split.py --write` wrote
+31 captures; it refused a second answer to y10, opened twice 21 s apart with
+other results, the first kept. The most the sitting used of the site's search
+limit: 4 of 15 in 60 s, 11 of 60 in 300 s.
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/y-fragments/` (33 files; as above) | 508382 | 2026-11-18 03:59 – 04:12 UTC | `70d7499a8a40c84df54cb0691fdb1159b0fd0486d2255ede4f2ea77b065fb27e` |
+| `raw/searches/z-fragments/` (16 files; as above) | 270079 | 2026-11-18 04:13 – 04:17 UTC | `b7ea6a5cf715f9ac588a22840ac4153509b721092303f1698fa91aecb3bf8a3d` |
+| `raw/searches/za-fragments/` (4 files; as above) | 45063 | 2026-11-18 04:28 UTC | `9018311893d5a2b6364ec08428ac0741ecb8db9c84311243c02da13cd9eb48e1` |

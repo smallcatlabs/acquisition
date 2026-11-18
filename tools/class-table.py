@@ -27,8 +27,14 @@ Rules, each a reading of the source and never a judgment (C106):
      of `base_items.json`.
   3. A name the source lists under more than one class is listed under each,
      and the search says so (`class.rs`): the table never chooses.
-Nothing is renamed, merged or dropped beyond rules 1 and 2; the counts the
-header prints are measured at generation.
+  4. A base of a sized class (SIZES) enters three times, under its class:
+     the export's name, and that name after each of the class's size words
+     (`Justicar's Helm`, `Lesser Justicar's Helm`, `Greater Justicar's Helm`).
+     The export and the trade site's item list name the plain base alone;
+     the API's `baseType` carries the size. A size word SIZES lacks leaves
+     its item's base unknown, as any base the export does not list.
+Nothing is renamed, merged or dropped beyond rules 1, 2 and 4; the counts
+the header prints are measured at generation.
 """
 
 import collections
@@ -42,6 +48,14 @@ sys.path.insert(0, HERE)
 from sources import PINS, POE1, require  # noqa: E402  the clone, at its pin (search/repoe/MANIFEST.md)
 OUT = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 VERSION = 1
+# Rule 4: the size words of a class whose bases the API names with a size the
+# export does not print, each followed by a space and the export's name. The
+# one list: tools/category-table.py writes the tag file's rows from it. The
+# evidence is the sitting of 2026-11-17 (#282; search/pseudo-stats/MANIFEST.md):
+# of the 50 Viscera the searches z05 to z09 fetched, 35 are `Lesser `, 1
+# `Greater ` and 14 plain, each the base of the export once the word is off,
+# under the leaf its tag names.
+SIZES = {"Viscera": ("Lesser", "Greater")}
 REALMS = ["pc", "xbox", "sony"]  # the PoE1 export; poe2 has no table yet
 
 
@@ -78,6 +92,17 @@ def main():
         if name and display and name not in under[display]:
             under[display].add(name)
             gems_added += 1
+    sized = 0
+    for display, words in SIZES.items():  # rule 4
+        if display not in under:
+            sys.exit(f"SIZES names a class the export does not: {display}")
+        plain = sorted(under[display])
+        for name in plain:
+            for word in words:
+                if f"{word} {name}" in under[display]:
+                    sys.exit(f"`{word} {name}` is a base of the export itself: rule 4 would write it twice")
+                under[display].add(f"{word} {name}")
+                sized += 1
     by_name = collections.defaultdict(set)
     for display, names in under.items():
         for name in names:
@@ -105,7 +130,8 @@ def main():
         "# F3); the item-filter documentation names no vocabulary (item-filter S93).",
         "#",
         f"# Measured at generation: {len(under)} classes, {rows} rows, {len(several)} names under",
-        f"# more than one class, {gems_added} names from gems.json (transfigured gems);",
+        f"# more than one class, {gems_added} names from gems.json (transfigured gems),",
+        f"# {sized} names a size word gives ({'; '.join(f'{c}: ' + ', '.join(w) for c, w in SIZES.items())});",
         f"# skipped: {', '.join(f'{v} {k}' for k, v in sorted(skipped.items()))}.",
         "",
         f"version = {VERSION}",

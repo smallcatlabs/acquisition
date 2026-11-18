@@ -100,7 +100,7 @@ fn c106_the_shipped_table_is_what_the_generator_measured() {
     assert_eq!(t.version(), CLASS_TABLE_VERSION);
     assert_eq!(t.realms(), ["pc", "xbox", "sony"]);
     assert_eq!(t.names().len(), 83);
-    assert_eq!(t.rows(), 4752);
+    assert_eq!(t.rows(), 5080);
     assert_eq!(t.shared().len(), 33);
     assert!(t.source().contains("52980e52"));
     assert_eq!(t.game(), "3.30.0.2.2");
@@ -122,6 +122,17 @@ fn c106_the_shipped_table_is_what_the_generator_measured() {
         ["One Hand Swords", "Skill Gems", "Two Hand Swords"]
     );
     assert_eq!(t.of("Blighted Map (Tier 1)"), [] as [&str; 0]);
+    // #282: a Viscera base under each size word the API names it with,
+    // and under no other word (the sitting of 2026-11-17, z05 to z09)
+    for base in [
+        "Justicar's Helm",
+        "Lesser Justicar's Helm",
+        "Greater Justicar's Helm",
+        "Greater Crescent Blade",
+    ] {
+        assert_eq!(t.of(base), ["Viscera"], "{base}");
+    }
+    assert_eq!(t.of("Grand Justicar's Helm"), [] as [&str; 0]);
     // a base the export marks unreleased is one the game no longer drops,
     // and the owner holds one: it is in the table
     assert_eq!(t.of("Blade Trap"), ["Skill Gems"]);

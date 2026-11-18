@@ -155,6 +155,13 @@ arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.
   comparable: t54, a defence line in `crucibleMods` the site reads as the item's own (59, J33's question,
   answered; built at the trade brief's step 7f, the cell now agreeing), and v067, Two-Toned Boots of three range rows, the site 0. The evidence over every capture:
   2,758 readings of an item under a pseudo, none disagreeing.
+- **Read again over the sitting of 2026-11-17** (rounds y to za, #282): 7,715 cells, the same 5 disagreeing
+  (u060) and 1 not comparable (v067). Its percentile searches asked the three groups of lines the copy still
+  held unasked (7 lines), and the reading is the site's value on each of the 30 cells: y09, a crafted
+  `+# to Armour` on an evasion base, a line of a type no roll reads; y10, a `+# to Armour` in `crucibleMods`;
+  y11, a mutated explicit `+# to Armour`. y12, a display a `reduced` local line gives below nothing, found
+  none, so S4 stays unasked. No group of the copy's 75 is unasked now. The evidence over every capture: 2,798
+  readings, none disagreeing.
 - **Not asked**: of the copy's 74 groups of lines 32, holding 91 of 1822 (each with its question in the copy
   file); no shape. An explicit twin the item's own (J8) under a flag — crafted 8 groups, 28 lines; fractured
   6, 13; mutated 1, 2 — or on a synthesised item, 1, 4. A text a local stat alone displays (the join): crafted

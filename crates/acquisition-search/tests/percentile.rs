@@ -356,15 +356,16 @@ fn table_store(cases: &[Case]) -> Store {
 
 /// C101, V5, J5, J6, J8, J33–J35: every row of the expected answers — a
 /// case of the facts the row gives, put into a store through its ingest —
-/// is answered as the row says: 7431 captured (4849 before step 7's
-/// sitting), 45 ruled, 4 worked. The field is asked of each case: lacked,
-/// by `has:` and its not; or its value, by a comparison, by the sort and
-/// by what the row shows; or undecided, by what could not be established.
-/// The plan's closing row is among them: the 1,498 captured cells read to
-/// a value, of the 1,504 where the site showed one — t54's crucible line
-/// the item's own since step 7f of the trade brief, as the site reads it —
-/// the other 6 the sitting's (`search/pseudo-stats/README.md`: 5 lacked, 1
-/// undecided). The
+/// is answered as the row says: 7715 captured (4849 before step 7's
+/// sitting, 7431 before round x; the table written again over round x and
+/// the sitting of 2026-11-17 at #282), 45 ruled, 4 worked. The field is
+/// asked of each case: lacked, by `has:` and its not; or its value, by a
+/// comparison, by the sort and by what the row shows; or undecided, by
+/// what could not be established. The plan's closing row is among them:
+/// the 1,620 captured cells read to a value, of the 1,626 where the site
+/// showed one — t54's crucible line the item's own since step 7f of the
+/// trade brief, as the site reads it — the other 6 step 7's sitting's
+/// (`search/pseudo-stats/README.md`: 5 lacked, 1 undecided). The
 /// table's `site` and `agrees` columns are evidence and assert nothing.
 #[test]
 fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says() {
@@ -372,15 +373,15 @@ fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says
     let of_kind = |kind: &str| cases.iter().filter(|c| c.kind == kind).count();
     assert_eq!(
         (of_kind("captured"), of_kind("ruled"), of_kind("worked")),
-        (7431, 45, 4)
+        (7715, 45, 4)
     );
-    assert_eq!(cases.len(), 7480);
+    assert_eq!(cases.len(), 7764);
     assert_eq!(
         cases
             .iter()
             .filter(|c| c.kind == "captured" && matches!(c.cell, Cell::Value(_)))
             .count(),
-        1498,
+        1620,
         "the captured cells read to a value"
     );
     // the input holds what the test is of: a mod of several rows, a line
@@ -413,7 +414,7 @@ fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says
     }
     assert_eq!(
         cases.iter().map(|c| lines_of(c).1).sum::<usize>(),
-        28847,
+        30020,
         "the lines the table left out as no defence stat's"
     );
 
@@ -527,7 +528,7 @@ fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says
         }
     }
     // every case asked, by the table's own tally of statuses
-    assert_eq!(asked, (5935, 1526, 19));
+    assert_eq!(asked, (6097, 1648, 19));
     assert!(
         faults.is_empty(),
         "{} of {} cases are not answered as the table says:\n{}",

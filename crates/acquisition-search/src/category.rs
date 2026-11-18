@@ -39,8 +39,11 @@
 //!   closed list of names, `among`, which the generator writes from a
 //!   tag the game's export gives each base: the four Viscera leaves split
 //!   the one class Viscera by the export's `viscera_head`, `viscera_arm`,
-//!   `viscera_body` and `viscera_leg` (#276), the site not asked. The
-//!   test says of itself its count and its tag, never the list.
+//!   `viscera_body` and `viscera_leg` (#276), as the site does (z05 to
+//!   z09, 2026-11-17: each listing under a leaf carries its tag). A base
+//!   is listed again after each size word the class table's generator
+//!   names, `Lesser ` and `Greater ` (#282). The test says of itself its
+//!   count and its tag, never the list.
 //! - **A parent matches the classes the site puts at it and every id
 //!   under it by the dot** (J2): `map` holds Inscribed Ultimatums of its
 //!   own and its children's scarabs and breachstones alike. The dot is in

@@ -201,6 +201,7 @@ pseudo.pseudo_increased_physical_damage,#% total increased Physical Damage,"Whil
 pseudo.pseudo_increased_physical_damage,#% total increased Physical Damage,"While a Unique Enemy is in your Presence, #% increased Global Physical Damage",1,10,0,e060[0];e060[1];e060[2];e060[3];e060[4];e060[5];e060[6];e060[7];e060[8];e060[9],
 pseudo.pseudo_increased_rarity,#% increased Rarity of Items found,#% increased Rarity of Items found,1,1,0,g034[0],
 pseudo.pseudo_increased_rarity,#% increased Rarity of Items found,#% reduced Rarity of Items found,-1,1,0,g034[0],
+pseudo.pseudo_increased_rarity,#% increased Rarity of Items found,#% to Item Rarity,1,20,0,z02[0];z02[1];z02[2];z02[3];z02[4];z02[5];z02[6];z02[7];z02[8];z02[9];z04[0];z04[1];z04[2];z04[3];z04[4];z04[5];z04[6];z04[7];z04[8];z04[9],
 pseudo.pseudo_increased_spell_damage,#% increased Spell Damage,#% increased Spell Damage,1,10,0,n19[0];n19[1];n19[2];n19[3];n19[4];n19[5];n19[6];n19[7];n19[8];n19[9],
 pseudo.pseudo_increased_spell_damage,#% increased Spell Damage,"While a Unique Enemy is in your Presence, #% increased Spell Damage",1,10,0,g020[0];g020[1];g020[2];g020[3];g020[4];g020[5];g020[6];g020[7];g020[8];g020[9],
 pseudo.pseudo_percent_life_regen,#% of Life Regenerated per Second,Regenerate #% of Life per second,1,10,0,g038[0];g038[1];g038[2];g038[3];g038[4];g038[5];g038[6];g038[7];g038[8];g038[9],

@@ -45,7 +45,8 @@ Rules, each a reading of the source and never a judgment (C106):
      be able to find reduced lines and totals").
      A change `carried row` is a row as `add row` is, and is counted apart:
      no capture asks for it; a patch reworded the line in place and the row
-     carries the new text by the line's stats (#276), until a sitting asks.
+     carries the new text by the line's stats (#276), until a sitting asks;
+     then it is an `add row` citing that sitting's captures (#282).
   5. A change `new total` that reads a line's number becomes a total, named
      as the change names it, with the site's id and text and its own rows:
      `total_life`.

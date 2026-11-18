@@ -1415,14 +1415,19 @@ fn j23_a_tattoo_is_known_by_the_word_wherever_it_stands_in_its_name() {
 }
 
 /// #276 (C106): a leaf may hold a closed list of bases, written from the
-/// tag the game's export gives each (`among`; the site not asked). The
+/// tag the game's export gives each (`among`; the site asked at z05 to z09,
+/// #282). The
 /// four Viscera leaves split the one class Viscera by the export's
 /// `viscera_head`, `viscera_arm`, `viscera_body` and `viscera_leg`, so a
 /// Blazing Skull is `viscera.head` and no other leaf, under `viscera`,
 /// and a Chitinous Leg `viscera.leg`; the test says its count and its
-/// tag, never the list. A base the export lists under no name the class
-/// table holds (a Greater Justicar's Helm, as the owner's 3.30 fetch
-/// carried one) is undecided on the class, and so on every id.
+/// tag, never the list. #282: the API names a Viscera's base with its
+/// size (`Lesser Justicar's Helm`, `Greater Crescent Blade`) where the
+/// export prints the plain base, so the tables carry each base after
+/// each size word the class table's generator lists, under the plain
+/// base's class and leaf (the sitting of 2026-11-17, z05 to z09). A size
+/// word the list lacks names no base the class table holds, and its item
+/// is undecided on the class, and so on every id.
 #[test]
 fn viscera_a_leaf_is_the_bases_the_export_tags_with_it() {
     let mut s = store();
@@ -1444,19 +1449,34 @@ fn viscera_a_leaf_is_the_bases_the_export_tags_with_it() {
         vec![
             viscera("skull", "Blazing Skull", "Head"),
             viscera("leg", "Chitinous Leg", "Lower Limb"),
-            viscera("greater", "Greater Justicar's Helm", "Head"),
+            viscera("lesser", "Lesser Justicar's Helm", "Head"),
+            viscera("blade", "Greater Crescent Blade", "Upper Limb"),
+            viscera("grand", "Grand Justicar's Helm", "Head"),
         ],
         20,
     );
     let corpus = load(&s, Some("pc"));
-    assert_eq!(ids(&asked(&corpus, "category=\"viscera.head\"")), ["skull"]);
+    assert_eq!(
+        ids(&asked(&corpus, "class=Viscera")),
+        ["blade", "leg", "lesser", "skull"]
+    );
+    assert_eq!(
+        ids(&asked(&corpus, "category=\"viscera.head\"")),
+        ["lesser", "skull"]
+    );
+    assert_eq!(ids(&asked(&corpus, "category=\"viscera.arm\"")), ["blade"]);
     assert_eq!(ids(&asked(&corpus, "category=\"viscera.leg\"")), ["leg"]);
-    assert_eq!(ids(&asked(&corpus, "category=viscera")), ["leg", "skull"]);
+    assert_eq!(
+        ids(&asked(&corpus, "category=viscera")),
+        ["blade", "leg", "lesser", "skull"]
+    );
     assert_eq!(
         listing(&corpus, "category")["skull"],
         set(&["viscera.head"])
     );
-    assert_eq!(ids(&asked(&corpus, "undecided(category)")), ["greater"]);
+    assert_eq!(listing(&corpus, "category")["blade"], set(&["viscera.arm"]));
+    assert_eq!(ids(&asked(&corpus, "undecided(class)")), ["grand"]);
+    assert_eq!(ids(&asked(&corpus, "undecided(category)")), ["grand"]);
     let d = serde_json::to_value(describe(&["category".to_string()]).unwrap()).unwrap();
     let holds = |id: &str| {
         d["categories"]
@@ -1469,10 +1489,10 @@ fn viscera_a_leaf_is_the_bases_the_export_tags_with_it() {
     };
     assert_eq!(
         holds("viscera.head"),
-        "an item whose class is Viscera and whose base is one of the 62 bases the game's export tags `viscera_head`"
+        "an item whose class is Viscera and whose base is one of the 186 bases the game's export tags `viscera_head`"
     );
     assert_eq!(
         holds("viscera.arm"),
-        "an item whose class is Viscera and whose base is one of the 42 bases the game's export tags `viscera_arm`"
+        "an item whose class is Viscera and whose base is one of the 126 bases the game's export tags `viscera_arm`"
     );
 }

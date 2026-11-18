@@ -196,8 +196,8 @@ fields = ["base"]
 [[row]]
 key = "query.type.map"
 disposition = "ambiguous"
-note = "a Base naming a map's tier, ` (Tier N)`: the site returns the map's blighted form under it too, a base the body names `Blighted Map (Tier 13)` under `Map (Tier 13)` (t55), which `base=` does not match; how the site names a blighted map's base is for a sitting (`blighted-base`, tests/trade-oracle.toml)"
-says = "A map base with its tier: the site also returns that tier's blighted maps under it, and this search does not."
+note = "a Base naming a map's tier, ` (Tier N)`: the site returns the map's blighted form under it too, a base the body names `Blighted Map (Tier 13)` under `Map (Tier 13)` (t55), and its blight-ravaged form, `Blight-ravaged Map (Tier 16)` under `Map (Tier 16)` (y18, 2026-11-17), which `base=` does not match: the site's Base is the map's unprefixed name, and it refused a prefixed one as a search (y17, y19, the owner's word, no capture); the translation is not yet built to it (`blighted-base`, tests/trade-oracle.toml)"
+says = "A map base with its tier: the site also returns that tier's blighted and blight-ravaged maps under it, and this search does not."
 
 [[row]]
 key = "query.name.discriminator"
@@ -216,7 +216,7 @@ says = "A part of the search this build does not know is reported by name and no
 [[row]]
 key = "query.inverted"
 disposition = "exact"
-note = "a minimum above its maximum — on a filter, a stat filter, or a count's or a weighted sum's own value — matches nothing: the owner at the site, 2026-11-10, \"when max < min, the trade site returns no results, confirmed\" (docs/design/trade-ground-truth.md, T35, no capture yet); the clause is `false()`, which no item meets and none leaves undecided, a stat filter's presence kept beside it where its group reads one (`if`), and a group so bounded is `false()` whatever its filters"
+note = "a minimum above its maximum — on a filter, a stat filter, or a count's or a weighted sum's own value — matches nothing: the owner at the site, 2026-11-10, \"when max < min, the trade site returns no results, confirmed\" (docs/design/trade-ground-truth.md, T35), and captured 2026-11-17: y01 a stat filter, y03 a property filter and y05 a `count`'s value, each inverted, found none, and each pair in order found items (y02, y04, y06); the clause is `false()`, which no item meets and none leaves undecided, a stat filter's presence kept beside it where its group reads one (`if`), and a group so bounded is `false()` whatever its filters"
 says = "A minimum above its maximum matches nothing on the site, so it matches nothing here."
 
 [[row]]
@@ -1316,8 +1316,8 @@ says = "A number written into the stat's wording is a number of the line: the li
 [[row]]
 key = "stat.text.many"
 disposition = "ambiguous"
-note = "a text with three `#` or more and no single `# to #` among them, or two beside a number its text writes as a digit (a template of three numbers): the first is compared, and which number the site compares no sitting has asked; a text of exactly two is compared by their mean, `stat.text.bounds` (round x)"
-says = "A stat with three numbers or more: the first is compared, and the site may compare another."
+note = "a text with three `#` or more and no single `# to #` among them, or two beside a number its text writes as a digit (a template of three numbers): the first is compared; a text of exactly two is compared by their mean, `stat.text.bounds` (round x). The site compares a pair's mean on a text of two `# to #`: y07 asked the heist weapon's `# to # added Fire Damage` and its minions' twin (one id) at 19 to 19, and all ten fetched read `16 to 22` twice (2026-11-17); this search compares 16 and misses them (`pair-mean`, tests/trade-oracle.toml). Which pair when an item's two differ, and which number on a text of three with no `# to #`, no sitting has asked"
+says = "A stat with three numbers or more: the first is compared, and the site may compare another, such as the mean of a range."
 
 [[row]]
 key = "stat.text.local"
@@ -1347,8 +1347,8 @@ says = "This wording may be either of two stats; the search matches both."
 [[row]]
 key = "stat.scourge.summed"
 disposition = "ambiguous"
-note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here, and what the site does is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
-says = "A scourge modifier in a weighted sum is counted here; the site may leave it out."
+note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here. The site sums it too: the same ring under the two ids alone was found at `max` 0 (y15), and a belt of +34% and -17% at `min` 1 (y16, 2026-11-17); which id of e043's wider group lifted the ring is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
+says = "A scourge modifier in a weighted sum is counted here, as the site counts it; one item the site found in a wider sum is unexplained."
 other = "{without}"
 
 [[row]]

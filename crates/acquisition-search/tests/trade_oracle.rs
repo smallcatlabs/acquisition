@@ -245,7 +245,8 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
 /// weights, outside the brief, 15 crucible-node searches, and step 7's
 /// questions the build leaves unsupported: two ids of two texts and the
 /// damage filter. Step 7f ran five that were partial (t37, t38, t55, t56,
-/// u059).
+/// u059). The sitting of 2026-11-17 (#282) added 31 searches: 11 with no
+/// item, y10 a sixteenth crucible-node search, and 19 run.
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -329,7 +330,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (369, 776, 7295, 6696));
+    assert_eq!((none.len(), ran, items, matched), (380, 795, 7459, 6840));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -337,7 +338,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         [
             "d01", "d02", "f011", "f012", "f017", "f018", "f019", "h004", "n01", "n02", "n03",
             "n04", "n05", "n17", "n20", "n21", "n22", "n23", "t35", "t36", "t43", "v001", "v006",
-            "v013", "v023", "v029", "v036", "v040", "v041", "v049", "v050"
+            "v013", "v023", "v029", "v036", "v040", "v041", "v049", "v050", "y10"
         ]
     );
 

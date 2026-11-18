@@ -385,20 +385,26 @@ def ranged_changes():
 ATTACKS = [f"adds_{kind}_to_attacks" for kind in TYPES + ["elemental", "damage"]]
 
 
-# 3.30 reworded these rows' lines in place: the same stats, new English.
-# Each row is carried to its new text by the stats it displays, in the export
-# and on the site alike, and no capture asks for it (decided on #276; the next
-# sitting asks whether the site still sums it, #33). The old text stays
-# counted: an item fetched before the patch still shows it.
-CARRIED = {
+# A patch's rewording, carried: a row whose line a patch reworded in place
+# (the same stats, new English) is carried to its new text by the stats it
+# displays, in the export and on the site alike, until a sitting asks for it;
+# then it is a row of the round that asked (ASKED_1117). None is carried now.
+CARRIED = {}
+
+# The sitting of 2026-11-17 (#33, #282), rounds y and z: the row 3.30 carried
+# for `increased_rarity` (#276), asked. The old text stays counted: an item
+# fetched before the patch still shows it.
+ASKED_1117 = {
     "increased_rarity": [{
         "add": [("#% to Item Rarity", "1")],
-        "why": "carried across 3.30's rewording by its stats, no capture asking: the export's "
-               "`item_found_rarity_+%` and `base_item_found_rarity_+%` read `#% increased Rarity "
-               "of Items found` at poe1@e2bd511a and `#% to Item Rarity` at poe1@52980e52, and the "
-               "site's stat_3917489142 moved from the one text to the other between its captures "
-               "of 2026-09-12 and 2026-11-17. One spelling, the sign in the number, so no "
-               "`reduced` row follows it. Whether the site still sums it waits for the next sitting",
+        "why": "3.30 reworded the line in place: the export's `item_found_rarity_+%` and "
+               "`base_item_found_rarity_+%` read `#% increased Rarity of Items found` at poe1@e2bd511a "
+               "and `#% to Item Rarity` at poe1@52980e52, and the site's stat_3917489142 moved from the "
+               "one text to the other between its captures of 2026-09-12 and 2026-11-17 (carried by its "
+               "stats under #276). z02: ten items whose total is the line; z04: ten whose total is the "
+               "sum of an implicit and an explicit line; none listed shows the total without the line "
+               "(z01) or the line without the total (z03). One spelling, the sign in the number, so no "
+               "`reduced` row follows it",
     }],
 }
 
@@ -574,7 +580,7 @@ def versions():
             apply(change)
         for change in pair_changes(name, dict(rows)):
             apply(change)
-        for change in CARRIED.get(name, []):
+        for change in CARRIED.get(name, []) + ASKED_1117.get(name, []):
             apply(change)
         out[name] = history
     return out
