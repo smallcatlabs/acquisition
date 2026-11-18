@@ -1458,8 +1458,9 @@ fn the_form_renders_the_realm_it_is_asked_for() {
             "Hardcore (tabs on disk)",
         ],
     );
-    // a league with no tabs: the refresh page's facts line, an empty
-    // listing apart from one never seen (the review of round C, finding 3)
+    // a league with no tabs: the stash tabs page's facts line, an empty
+    // listing apart from one never seen (the review of round C, finding
+    // 3), and the listing where the table would be (#189)
     let mock = scratch.0.join("mock");
     Store::open(&account_path(&mock, USER))
         .unwrap()
@@ -1478,11 +1479,15 @@ fn the_form_renders_the_realm_it_is_asked_for() {
         ("Empty", "facts: no tabs; stash listing "),
         ("Nowhere", "facts: no tabs; stash never listed"),
     ] {
-        let page = web.get(&format!("refresh?realm=pc&league={league}"));
+        let page = web.get(&format!("tabs?realm=pc&league={league}"));
         pages.page(
-            &format!("GET refresh?realm=pc&league={league}"),
+            &format!("GET tabs?realm=pc&league={league}"),
             &page,
-            &["no tabs known for", said],
+            &[
+                &format!("No stash tabs of {league} are on record."),
+                said,
+                "List this league&#39;s stash tabs",
+            ],
         );
     }
     panes_golden(file!(), "search_form", &mut pages);
@@ -1754,12 +1759,15 @@ fn every_request_an_answer_carries_is_a_way_on_its_page(
 /// headed `GET search` or `GET item/` that answered in a golden under
 /// `tests/goldens/web/` holds no `acq ` and no ` --` before a letter —
 /// the ways on are the page's own. Read from the files, as `no_ids.rs`
-/// reads them: the pages served are the goldens'. The refresh and jobs
-/// pages are not read; they print the CLI's command lines still.
+/// reads them: the pages served are the goldens'. A place page (`GET
+/// tabs`, `GET characters`, step 6.5a) is read too, and holds no `pre`
+/// either (#182). The plan and jobs pages are not read; they print the
+/// CLI's command lines still.
 #[test]
-fn an_answer_or_item_page_prints_no_command_line_and_no_flag() {
+fn an_answer_item_or_place_page_prints_no_command_line_and_no_flag() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/web");
     let mut read = 0;
+    let mut places = 0;
     for entry in std::fs::read_dir(&dir).unwrap() {
         let file = entry.unwrap().path();
         let text = std::fs::read_to_string(&file).unwrap();
@@ -1778,10 +1786,14 @@ fn an_answer_or_item_page_prints_no_command_line_and_no_flag() {
         for page in pages {
             let label = page[0];
             let answered = !page.iter().any(|l| l.starts_with("--- status"));
-            if !(label.starts_with("GET search") || label.starts_with("GET item/")) || !answered {
+            let place = label.starts_with("GET tabs") || label.starts_with("GET characters");
+            if !(label.starts_with("GET search") || label.starts_with("GET item/") || place)
+                || !answered
+            {
                 continue;
             }
             read += 1;
+            places += usize::from(place);
             for line in &page[1..] {
                 let flag = line.match_indices(" --").any(|(at, _)| {
                     line[at + 3..]
@@ -1790,7 +1802,7 @@ fn an_answer_or_item_page_prints_no_command_line_and_no_flag() {
                         .is_some_and(|c| c.is_ascii_alphabetic())
                 });
                 assert!(
-                    !line.contains("acq ") && !flag,
+                    !line.contains("acq ") && !flag && !(place && line.contains("<pre")),
                     "{}: {label}: {line}",
                     file.display()
                 );
@@ -1798,6 +1810,7 @@ fn an_answer_or_item_page_prints_no_command_line_and_no_flag() {
         }
     }
     assert!(read > 20, "only {read} answer and item pages read");
+    assert!(places >= 6, "only {places} place pages read");
 }
 
 /// The ways no seeded page reaches are a wording golden (4-full part 1,
@@ -1863,7 +1876,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         "search?realm=pc&text=class%3Arings",
         &[
             "data-way=\"tabs\" href=\"/",
-            "/refresh?realm=pc&amp;league=Standard\">each tab of Standard</a>",
+            "/tabs?realm=pc&amp;league=Standard\">each tab of Standard</a>",
             "1 other league holds never-fetched tabs",
         ],
     );
@@ -1871,7 +1884,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         &mut pages,
         "GET search?<every ring outside Standard>",
         "search?realm=pc&text=class%3Arings+-league%3DStandard",
-        &["/refresh?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"],
+        &["/tabs?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"],
     );
 
     // an id that left: Rune Coil gone from its tab at a later fetch
@@ -2309,250 +2322,141 @@ fn offered_links(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// The refresh loop through the pages, over the mock: the plan page with
-/// its quote, apply posting the envelope whole, the jobs page until every
-/// job is done, the same envelope posted again sending nothing (C111),
-/// `refresh --all` a selection over every tab with its listing (C76), a
-/// ticked selection compiled into the plan `refresh --tabs` applies, and
-/// a plan whose policy moved refused (C44).
+/// The refresh loop through the place pages alone, over the mock (step
+/// 6.5a, #189, #248): from a world with nothing listed and no policy, the
+/// stash tabs and characters pages list the league, each through its own
+/// listing, with no command line and no "Plan under the policy"; a ticked
+/// selection is planned and applied; `refresh --all` (a selection over
+/// every tab with its listing, C76) lands the pages of the map and unique
+/// tabs, which the stash tabs page holds under their closed parents with
+/// their counts; an opener answers `303` to the page with that parent
+/// open, at its head, every tick kept, and again closes it; a tick under
+/// a closed folder travels to the plan; a selection compiles the plan
+/// `refresh --tabs` applies; and once a policy names the league, the
+/// policy's plan with its quote, apply posting the envelope whole, the
+/// same envelope again sending nothing (C111), and a plan whose policy
+/// moved refused (C44).
 #[test]
 fn the_refresh_loop_runs_through_the_pages() {
     let scratch = harness::scratch("webloop");
     let base = scratch.0.clone();
     let _daemon = harness::login_as_mock(&base, &[]);
-    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
-    assert!(
-        harness::acq(&base, &["policy", "set", policy])
-            .status
-            .success()
-    );
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
     let mut pages = Pages::new(&base, &web).fetched_live();
 
-    let plan = web.get("plan?realm=pc&league=Standard");
+    // nothing listed and no policy: each page offers its listing where
+    // the table would be, and no plan under a policy
+    let none = web.get("tabs?realm=pc&league=Standard");
     pages.page(
-        "GET plan?realm=pc&league=Standard",
-        &plan,
+        "GET tabs?realm=pc&league=Standard <nothing listed>",
+        &none,
         &[
-            "2 requests:",
-            "list stashes",
-            "list characters",
-            "quote",
-            ">Apply</button>",
+            "<h1>Stash tabs</h1>",
+            "No stash tabs of Standard are on record.",
+            "facts: no tabs; stash never listed",
+            "List this league&#39;s stash tabs",
+            "Fetch the league list",
         ],
     );
-    // the page's way on is its Apply button, never the command a terminal
-    // prints beside the plan (#97)
-    assert!(!plan.body.contains("next: acq"), "{}", plan.body);
-    // a league the policy does not cover: its way on is the plan of the
-    // one it does, a link to that page (#97)
-    let uncovered = web.get("plan?realm=pc&league=Hardcore");
-    assert_eq!(uncovered.status, 400, "{}", uncovered.body);
+    let no_one = web.get("characters?realm=pc&league=Standard");
     pages.page(
-        "GET plan?realm=pc&league=Hardcore",
-        &uncovered,
+        "GET characters?realm=pc&league=Standard <nothing listed>",
+        &no_one,
         &[
-            "not Hardcore",
-            "plan?realm=pc&amp;league=Standard\">the plan of pc Standard, which the policy covers</a>",
+            "<h1>Characters</h1>",
+            "no characters known in Standard",
+            "List characters",
         ],
     );
-    let asked = web.raw(
-        "GET",
-        &format!("/{}/plan?realm=pc&league=Hardcore", web.token),
-        None,
-        &[("Accept", "application/json")],
-        "",
-    );
-    let refused: Value = serde_json::from_str(&asked.body).unwrap();
-    let link = refused["offers"][0]["request"]
-        .as_str()
-        .unwrap()
-        .to_string();
-    assert_eq!(web.raw("GET", &link, None, &[], "").status, 200, "{link}");
-    let envelope = hidden_plan(&plan.body);
-    // C16: the plan page's basis line is the basis of the envelope it holds
-    let held: Value = serde_json::from_str(&envelope).unwrap();
-    assert_eq!(
-        basis_line(&plan.body).expect("the plan page's basis line")["plan"],
-        held["basis"],
-        "{}",
-        plan.body
-    );
-    let applied = web.post("apply", &[("plan", &envelope)]);
-    assert_eq!(applied.status, 303, "{}", applied.body);
-    assert_eq!(
-        applied.header("location"),
-        Some(format!("/{}/jobs", web.token).as_str())
-    );
-    let jobs = probes_in_order(until_done(&web));
-    pages.page(
-        "GET jobs <every job done>",
-        &jobs,
-        &["rails:  tripwire", "apply", "done", "web:"],
-    );
-    let replay = web.post("apply", &[("plan", &envelope)]);
-    assert_eq!(replay.status, 200, "{}", replay.body);
-    pages.page(
-        "POST apply <the same envelope again>",
-        &replay,
-        &["nothing to do: every request of this plan is spent"],
-    );
-
-    // `refresh --all` is a selection too: every tab, the listing
-    // fetched beside it (C76), applied through the same apply kind; it
-    // lands the map and unique tabs' pages, which the tabs page lists.
-    // It runs before the two selections below so the run's tab fetches
-    // stay inside the mock's stash policy, 15 in 10 s: past it an apply
-    // waits out the window in real time, which nothing here tests
-    let out = harness::acq(&base, &["refresh", "--all"]);
-    assert!(out.status.success(), "{out:?}");
-    let said = String::from_utf8_lossy(&out.stdout);
-    for fact in [
-        "a selection",
-        "the listing is fetched beside the selection",
-        "fetch 7 tabs",
-        "1 folder",
+    for page in [&none, &no_one] {
+        assert!(
+            !page.body.contains("Plan under the policy"),
+            "{}",
+            page.body
+        );
+    }
+    for (page, button) in [
+        (&none, "List this league's stash tabs"),
+        (&no_one, "List characters"),
     ] {
-        assert!(said.contains(fact), "{fact}: {said}");
+        // the form's action is the page's own route, relative as a
+        // browser resolves it
+        let mut form = form_on(&page.body, button, None);
+        form.action = format!("/{}/{}", web.token, form.action);
+        let listed = send(&web, &form, false);
+        assert_eq!(listed.status, 303, "{}", listed.body);
+        assert_eq!(
+            listed.header("location"),
+            Some(format!("/{}/jobs", web.token).as_str())
+        );
+        until_done(&web);
     }
-    let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
-    let all = listed["rows"]
+    let jobs = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
+    let kinds: Vec<(&Value, &Value)> = jobs["rows"]
         .as_array()
         .unwrap()
         .iter()
-        .rfind(|j| j["kind"] == "apply")
-        .unwrap();
-    assert!(
-        all["submitted_by"].as_str().unwrap().starts_with("cli:"),
-        "{all}"
-    );
-    let sent: Vec<(&Value, &Value)> = all["params"]["jobs"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|j| (&j["kind"], &j["params"]["id"]))
+        .map(|j| (&j["kind"], &j["submitted_by"]))
         .collect();
-    assert_eq!(sent[0], (&json!("stashes"), &Value::Null), "{all}");
-    let tabs: Vec<&Value> = sent[1..].iter().map(|(_, id)| *id).collect();
-    for id in ["cur1", "dump", "old1", "old2", "uniq", "maps", "mape"] {
-        assert!(tabs.contains(&&json!(id)), "{id} not fetched: {all}");
+    for kind in ["stashes", "characters"] {
+        assert!(
+            kinds
+                .iter()
+                .any(|(k, by)| *k == kind && by.as_str().unwrap().starts_with("web:")),
+            "{kind}: {kinds:?}"
+        );
     }
-    assert!(!tabs.contains(&&json!("fold")), "a folder fetched: {all}");
-    // the characters the selection left, fetched by name: the tabs page
-    // lists them
-    let out = harness::acq(&base, &["refresh", "--characters", "fake0001,fake0002"]);
-    assert!(out.status.success(), "{out:?}");
-    // no league list on disk yet: no select, the fetch button alone; the
-    // button fetches it, and the select lists it
-    let unlisted = web.get("refresh?realm=pc&league=Standard");
-    assert!(
-        !unlisted.body.contains("<select name=\"league\">"),
-        "{}",
-        unlisted.body
-    );
-    assert!(
-        unlisted.body.contains("Fetch the league list"),
-        "{}",
-        unlisted.body
-    );
-    let fetched = web.post("leagues", &[]);
-    assert_eq!(fetched.status, 303, "{}", fetched.body);
-    until_done(&web);
-    let tabs = web.get("refresh?realm=pc&league=Standard");
+
+    // listed and never fetched: a parent closed, its counts on its head
+    let tabs = web.get("tabs?realm=pc&league=Standard");
     pages.page(
-        "GET refresh?realm=pc&league=Standard",
+        "GET tabs?realm=pc&league=Standard <listed, never fetched>",
         &tabs,
         &[
             "tabs in Standard",
-            "<option value=\"Standard\" selected>Standard (tabs on disk)</option>",
             "name=\"tab\" value=\"dump\"",
-            "name=\"character\"",
-            "name=\"tab\" value=\"old1\"",
-            "<summary>Old leagues · Folder · 2 tabs</summary>",
-            "<summary>Stash tabs (",
-            "aria-label=\"filter the Tab column\"",
-            "aria-label=\"filter the Character column\"",
+            // never fetched reads apart from fetched and empty (#191)
+            ">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td>",
+            "<td>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>",
+            "<td>Folder</td><td></td><td></td></tr>",
+            "2 tabs, 2 never fetched",
+            "name=\"toggle\" value=\"fold\">Open</button>",
+            "Refresh ticked",
             "/assets/filter.js\"",
-            "pages of Uniques</summary>",
-            "<summary>Characters (2)</summary>",
-            "a page of Uniques: tick Uniques with the substashes box",
-            "Refresh selected",
-            "Plan under the policy",
+            "aria-label=\"filter the Tab column\"",
         ],
     );
     assert!(!tabs.body.contains(" checked"), "no default selection");
-    // the folder's tabs in the folder's group, the buttons and the
-    // substashes box above the lists, and no filter box sent (the page
-    // seat's probe)
-    let at = |words: &str| {
+    assert!(
+        !tabs.body.contains("value=\"old1\""),
+        "a closed folder's tab"
+    );
+    assert!(
+        !tabs.body.contains("Plan under the policy"),
+        "{}",
         tabs.body
-            .find(words)
-            .unwrap_or_else(|| panic!("{words}: {}", tabs.body))
+    );
+    // the buttons and the substashes box above the list (the page seat's
+    // probe), and no filter box sent
+    let at = |body: &str, words: &str| {
+        body.find(words)
+            .unwrap_or_else(|| panic!("{words}: {body}"))
     };
-    let folder = at("<details class=\"folder holds\" open><summary>Old leagues");
-    let folder_end = folder + tabs.body[folder..].find("</details>").unwrap();
-    for inside in ["value=\"old1\"", "value=\"old2\""] {
-        assert!(
-            (folder..folder_end).contains(&at(inside)),
-            "{inside} outside the folder"
-        );
-    }
-    // the folder's tabs are its members, indented under it; the tabs
-    // after it are the list's own, at its level (the page seat of
-    // 2026-11-08, its fault 15)
-    for (member, tab) in [
-        (true, "old1"),
-        (true, "old2"),
-        (false, "uniq"),
-        (false, "maps"),
-    ] {
-        let row = format!(
-            "<tr class=\"{}\"><td><input type=\"checkbox\" name=\"tab\" value=\"{tab}\">",
-            if member { "row member" } else { "row" }
-        );
-        assert!(tabs.body.contains(&row), "{row}: {}", tabs.body);
-    }
-    assert!(at("value=\"old2\"") < folder_end && folder_end < at("value=\"uniq\""));
-    assert!(at("value=\"uniq\"") < at("value=\"maps\""));
-    assert!(at("Refresh selected") < at("<summary>Stash tabs ("));
-    assert!(at("Plan under the policy") < at("<summary>Characters ("));
-    // a league with no character beside a realm with two: the page says
-    // the terminal's own sentence, which names where they are (the page
-    // seat's fault 11)
-    let elsewhere = web.get("refresh?realm=pc&league=Hardcore");
-    assert_eq!(elsewhere.status, 200, "{}", elsewhere.body);
-    let said = harness::acq(&base, &["store", "characters", "--league", "Hardcore"]);
-    let said = String::from_utf8(said.stdout).unwrap();
-    assert!(
-        said.starts_with("no characters in Hardcore: the 2 known are in Standard"),
-        "{said}"
-    );
-    assert!(
-        unescaped(main_of(&elsewhere.body)).contains(said.trim_end()),
-        "{said}: {}",
-        elsewhere.body
-    );
-    assert!(at("name=\"deep\"") < at("<th>Tab</th>"));
-    assert!(
-        !tabs.body.contains("a folder holds"),
-        "the folder's note stands"
-    );
+    assert!(at(&tabs.body, "Refresh ticked") < at(&tabs.body, "<summary>Stash tabs ("));
+    assert!(at(&tabs.body, "name=\"deep\"") < at(&tabs.body, "<th>Tab</th>"));
     for filter in tabs.body.split("<input class=\"col-filter\"").skip(1) {
         let tag = &filter[..filter.find('>').unwrap()];
         assert!(!tag.contains("name="), "a filter box is sent: {tag}");
     }
-    for unticked in ["fold", "u001", "m001"] {
-        assert!(
-            !tabs.body.contains(&format!("value=\"{unticked}\"")),
-            "{unticked} carries a checkbox"
-        );
-    }
-    // a ticked selection is a plan (C44 as amended): its page, then the
-    // one apply route; `refresh --tabs` compiles and applies the same
-    let selected = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump&tab=cur1");
+
+    // two tabs ticked, planned and applied: a selection needs no policy
+    let selected = follow(
+        &web,
+        &place_form(&web, &tabs.body, &["dump", "cur1"], "Refresh ticked", None),
+    );
     assert_eq!(selected.status, 200, "{}", selected.body);
     pages.page(
-        "GET plan?<two tabs selected>",
+        "GET plan?<two tabs ticked>",
         &selected,
         &["a selection", "fetch 2 tabs", ">Apply</button>"],
     );
@@ -2568,6 +2472,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
     assert_eq!(applied.status, 303, "{}", applied.body);
     until_done(&web);
+    // `refresh --tabs` compiles and applies the same jobs (C44 as amended)
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
     assert!(out.status.success(), "{out:?}");
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
@@ -2596,7 +2501,257 @@ fn the_refresh_loop_runs_through_the_pages() {
         "no ad-hoc refresh job"
     );
 
-    let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["dump"],"max_age_seconds":3600}}}}}"#;
+    // the characters page plans its own ticks
+    let characters = web.get("characters?realm=pc&league=Standard");
+    pages.page(
+        "GET characters?realm=pc&league=Standard",
+        &characters,
+        &[
+            "characters: 0 fetched",
+            "name=\"character\" value=\"",
+            "aria-label=\"filter the Character column\"",
+        ],
+    );
+    let ticked = first_value(&characters.body, "name=\"character\" value=\"");
+    let planned = follow(
+        &web,
+        &place_form(&web, &characters.body, &[&ticked], "Refresh ticked", None),
+    );
+    assert_eq!(planned.status, 200, "{}", planned.body);
+    assert!(planned.body.contains("a selection"), "{}", planned.body);
+    assert!(!planned.body.contains("fetch 2 tabs"), "{}", planned.body);
+
+    // a league with no character beside a realm with two: the page says
+    // the terminal's own cause, which names where they are (the page
+    // seat's fault 11), with the listing and no command
+    let elsewhere = web.get("characters?realm=pc&league=Hardcore");
+    assert_eq!(elsewhere.status, 200, "{}", elsewhere.body);
+    let said = harness::acq(&base, &["store", "characters", "--league", "Hardcore"]);
+    let said = String::from_utf8(said.stdout).unwrap();
+    let cause = "no characters in Hardcore: the 2 known are in Standard";
+    assert!(said.starts_with(&format!("{cause} (")), "{said}");
+    assert!(
+        unescaped(main_of(&elsewhere.body)).contains(&format!("{cause}</p>")),
+        "{cause}: {}",
+        elsewhere.body
+    );
+    assert!(
+        elsewhere.body.contains(">List characters</button>"),
+        "{}",
+        elsewhere.body
+    );
+
+    // `refresh --all` is a selection too: every tab, the listing fetched
+    // beside it (C76); it lands the map and unique tabs' pages
+    let out = harness::acq(&base, &["refresh", "--all"]);
+    assert!(out.status.success(), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stdout);
+    for fact in [
+        "a selection",
+        "the listing is fetched beside the selection",
+        "fetch 7 tabs",
+        "1 folder",
+    ] {
+        assert!(said.contains(fact), "{fact}: {said}");
+    }
+
+    // a fetched empty tab, a never-fetched page under a closed parent with
+    // its counts; opened, at its head with every tick, its pages listed
+    let tabs = web.get("tabs?realm=pc&league=Standard&tab=dump");
+    pages.page(
+        "GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>",
+        &tabs,
+        &[
+            "Maps (empty)</a></td><td>MapStash</td><td>0</td>",
+            "4 pages, 4 never fetched",
+            "name=\"toggle\" value=\"maps\">Open</button>",
+            "name=\"tab\" value=\"dump\" checked",
+        ],
+    );
+    assert!(!tabs.body.contains("value=\"m001\""), "{}", tabs.body);
+    let toggled = follow(
+        &web,
+        &place_form(&web, &tabs.body, &[], "Open", Some(("toggle", "maps"))),
+    );
+    assert_eq!(toggled.status, 303, "{}", toggled.body);
+    let to = toggled.header("location").unwrap().to_string();
+    assert_eq!(
+        to,
+        format!(
+            "/{}/tabs?realm=pc&league=Standard&open=maps&tab=dump#p-maps",
+            web.token
+        )
+    );
+    let open = follow(&web, &to);
+    pages.page(
+        "GET tabs?<Maps opened>",
+        &open,
+        &[
+            "name=\"toggle\" value=\"maps\">Close</button>",
+            "<tbody class=\"holds\">",
+            "<tr class=\"row member\" id=\"p-m001\">",
+            "<tr class=\"row\" id=\"p-maps\">",
+            "name=\"tab\" value=\"dump\" checked",
+        ],
+    );
+    assert!(at(&open.body, "id=\"p-maps\"") < at(&open.body, "id=\"p-m004\""));
+    let closed = follow(
+        &web,
+        &place_form(&web, &open.body, &[], "Close", Some(("toggle", "maps"))),
+    );
+    assert_eq!(
+        closed.header("location"),
+        Some(
+            format!(
+                "/{}/tabs?realm=pc&league=Standard&tab=dump#p-maps",
+                web.token
+            )
+            .as_str()
+        )
+    );
+
+    // a tick under a folder, opened, ticked and closed again, travels
+    // hidden, is counted on the folder's head, and reaches the plan
+    let folder = follow(
+        &web,
+        &place_form(&web, &tabs.body, &[], "Open", Some(("toggle", "fold"))),
+    );
+    let folder = follow(&web, folder.header("location").unwrap());
+    let shut = follow(
+        &web,
+        &place_form(
+            &web,
+            &folder.body,
+            &["old1"],
+            "Close",
+            Some(("toggle", "fold")),
+        ),
+    );
+    let shut_at = shut.header("location").unwrap().to_string();
+    assert!(shut_at.contains("&tab=dump&tab=old1#p-fold"), "{shut_at}");
+    let shut = follow(&web, &shut_at);
+    assert!(
+        shut.body
+            .contains("<input type=\"hidden\" name=\"tab\" value=\"old1\">"),
+        "{}",
+        shut.body
+    );
+    assert!(shut.body.contains("; 1 ticked inside"), "{}", shut.body);
+    assert!(
+        !shut.body.contains("value=\"old1\" checked"),
+        "{}",
+        shut.body
+    );
+    let plan = place_form(&web, &shut.body, &[], "Refresh ticked", None);
+    let planned = web.raw(
+        "GET",
+        &unescaped(&plan),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    assert_eq!(planned.status, 200, "{}", planned.body);
+    let planned: Value = serde_json::from_str(&planned.body).unwrap();
+    let fetched: std::collections::BTreeSet<&str> = planned["plan"]["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a["id"].as_str())
+        .collect();
+    assert_eq!(
+        fetched,
+        std::collections::BTreeSet::from(["dump", "old1"]),
+        "{planned}"
+    );
+
+    // with every parent open, each place's name is the way to its items as
+    // a table, and a folder's is no link; one page fetched, so its table
+    // holds its items
+    let out = harness::acq(&base, &["stash", "maps", "--sub", "m002"]);
+    assert!(out.status.success(), "{out:?}");
+    let every_open = "tabs?realm=pc&league=Standard&open=fold&open=uniq&open=maps";
+    let whole = web.get(every_open);
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, every_open, &whole);
+    assert!(
+        whole.body.contains("<td>Old leagues <span"),
+        "{}",
+        whole.body
+    );
+    for (place, holds) in [("dump", "Dump"), ("m002", "(unnamed)")] {
+        let row = &whole.body[at(&whole.body, &format!("id=\"p-{place}\""))..];
+        let href = attribute(&row[row.find("<a class=\"way\"").unwrap()..], "href").unwrap();
+        assert!(href.contains("view.fields=icon"), "{href}");
+        let table = follow(&web, &href);
+        assert_eq!(table.status, 200, "{href}: {}", table.body);
+        assert!(
+            table.body.contains("class=\"window\""),
+            "{place}: {}",
+            table.body
+        );
+        assert!(row.contains(holds), "{place}");
+    }
+    let path = "characters?realm=pc&league=Standard";
+    every_request_an_answer_carries_is_a_way_on_its_page(&web, path, &web.get(path));
+
+    // a policy naming the league: its plan, applied once, then spent, and
+    // refused once the policy moves
+    // (its characters, listed and never fetched, are its plan's work)
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["dump"],"characters":"all","max_age_seconds":3600}}}}}"#;
+    assert!(
+        harness::acq(&base, &["policy", "set", policy])
+            .status
+            .success()
+    );
+    let tabs = web.get("tabs?realm=pc&league=Standard");
+    assert!(tabs.body.contains("Plan under the policy"), "{}", tabs.body);
+    let plan = follow(
+        &web,
+        &place_form(&web, &tabs.body, &[], "Plan under the policy", None),
+    );
+    pages.page(
+        "GET plan?realm=pc&league=Standard <the policy's>",
+        &plan,
+        &["quote", ">Apply</button>"],
+    );
+    // the page's way on is its Apply button, never the command a terminal
+    // prints beside the plan (#97)
+    assert!(!plan.body.contains("next: acq"), "{}", plan.body);
+    // a league the policy does not cover: its way on is the plan of the
+    // one it does, a link to that page (#97)
+    let uncovered = web.get("plan?realm=pc&league=Hardcore");
+    assert_eq!(uncovered.status, 400, "{}", uncovered.body);
+    pages.page(
+        "GET plan?realm=pc&league=Hardcore",
+        &uncovered,
+        &[
+            "not Hardcore",
+            "plan?realm=pc&amp;league=Standard\">the plan of pc Standard, which the policy covers</a>",
+        ],
+    );
+    let envelope = hidden_plan(&plan.body);
+    let held: Value = serde_json::from_str(&envelope).unwrap();
+    assert_eq!(
+        basis_line(&plan.body).expect("the plan page's basis line")["plan"],
+        held["basis"],
+        "{}",
+        plan.body
+    );
+    let applied = web.post("apply", &[("plan", &envelope)]);
+    assert_eq!(applied.status, 303, "{}", applied.body);
+    let jobs = probes_in_order(until_done(&web));
+    pages.page(
+        "GET jobs <every job done>",
+        &jobs,
+        &["rails:  tripwire", "apply", "done", "web:"],
+    );
+    let replay = web.post("apply", &[("plan", &envelope)]);
+    assert_eq!(replay.status, 200, "{}", replay.body);
+    pages.page(
+        "POST apply <the same envelope again>",
+        &replay,
+        &["nothing to do: every request of this plan is spent"],
+    );
+    let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["cur1"],"max_age_seconds":3600}}}}}"#;
     assert!(
         harness::acq(&base, &["policy", "set", "--replace", moved])
             .status
@@ -2626,6 +2781,160 @@ fn the_refresh_loop_runs_through_the_pages() {
     page_golden(file!(), "refresh_loop", &pages);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
+
+/// The place pages (step 6.5a): each navigation entry is a page, the
+/// stash tabs and characters among them where "Refresh" stood, and
+/// `refresh` answers none. A tick is one league's: with one id listed in
+/// two leagues and ticked in one, the realm and league selects are a form
+/// of their own carrying no tick and no open parent, so the other
+/// league's page, reached by them, ticks nothing; and a tick or an open
+/// that names no place of the league is dropped from the page.
+#[test]
+fn a_place_page_ticks_one_leagues_places_and_each_navigation_entry_is_a_page() {
+    let (scratch, web) = offline_web("webplaces");
+    let mut store = Store::open(&account_path(&scratch.0.join("mock"), USER)).unwrap();
+    for league in ["Standard", "Hardcore"] {
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.into(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": [{ "id": "same", "name": "Same", "type": "PremiumStash" }] }),
+                70,
+            )
+            .unwrap();
+    }
+    drop(store);
+
+    let nav = web.get("");
+    let nav = &nav.body[nav.body.find("<nav>").unwrap()..nav.body.find("</nav>").unwrap()];
+    let entries: Vec<(String, String)> = nav
+        .split("<a href=\"")
+        .skip(1)
+        .map(|a| {
+            let (href, rest) = a.split_once("\">").unwrap();
+            (
+                href.to_string(),
+                rest[..rest.find("</a>").unwrap()].to_string(),
+            )
+        })
+        .collect();
+    let words: Vec<&str> = entries.iter().map(|(_, w)| w.as_str()).collect();
+    assert_eq!(
+        words,
+        ["Search", "Saved", "Stash tabs", "Characters", "Jobs"]
+    );
+    for (href, words) in &entries {
+        let page = follow(&web, href);
+        assert_eq!(page.status, 200, "{words}: {}", page.body);
+        let heading = match words.as_str() {
+            "Search" => "<h1>Search</h1>",
+            "Saved" => "<h1>Saved searches</h1>",
+            "Jobs" => "<h1>Jobs</h1>",
+            other => &format!("<h1>{other}</h1>"),
+        };
+        assert!(page.body.contains(heading), "{words}: {}", page.body);
+        assert!(!page.body.contains("/refresh"), "{words}: {}", page.body);
+    }
+    assert_eq!(web.get("refresh?realm=pc&league=Standard").status, 404);
+
+    let ticked = web.get("tabs?realm=pc&league=Standard&tab=same&tab=gone&open=nowhere");
+    assert!(
+        ticked.body.contains("name=\"tab\" value=\"same\" checked"),
+        "{}",
+        ticked.body
+    );
+    for dropped in ["gone", "nowhere"] {
+        assert!(!ticked.body.contains(dropped), "{dropped}: {}", ticked.body);
+    }
+    // the selects' form: the realm and league, nothing else sent
+    let start = ticked
+        .body
+        .find("<form method=\"get\" action=\"tabs\"><label")
+        .unwrap();
+    let selects = &ticked.body[start..start + ticked.body[start..].find("</form>").unwrap()];
+    assert!(selects.contains("<select name=\"realm\">"), "{selects}");
+    assert!(selects.contains("<select name=\"league\">"), "{selects}");
+    assert!(!selects.contains("<input"), "{selects}");
+    let other = web.get("tabs?realm=pc&league=Hardcore");
+    assert!(
+        other.body.contains("name=\"tab\" value=\"same\""),
+        "{}",
+        other.body
+    );
+    assert!(!other.body.contains(" checked"), "{}", other.body);
+}
+
+/// The first value a page gives after `key`, unescaped.
+fn first_value(body: &str, key: &str) -> String {
+    let at = body.find(key).unwrap_or_else(|| panic!("{key}: {body}")) + key.len();
+    unescaped(&body[at..at + body[at..].find('"').unwrap()])
+}
+
+/// A place page's table form as a browser sends it, with the boxes
+/// `ticked` ticked besides those it holds ticked, and the button saying
+/// `button` pressed (its `name` and `value` where it carries them): the
+/// path it asks, under the button's `formaction` or the form's action,
+/// its fields in the form's order.
+fn place_form(
+    web: &WebUi,
+    body: &str,
+    ticked: &[&str],
+    button: &str,
+    named: Option<(&str, &str)>,
+) -> String {
+    let start = body
+        .find("<form method=\"get\" action=\"tabs\">\n")
+        .or_else(|| body.find("<form method=\"get\" action=\"characters\">\n"))
+        .unwrap_or_else(|| panic!("no table form: {body}"));
+    let form = &body[start..start + body[start..].find("</form>").unwrap()];
+    let action = attribute(&form[..form.find('>').unwrap()], "action").unwrap();
+    let mut fields: Vec<(String, String)> = Vec::new();
+    for input in form.split("<input ").skip(1) {
+        let tag = format!(" {}", &input[..input.find('>').unwrap()]);
+        let (Some(name), value) = (attribute(&tag, "name"), attribute(&tag, "value")) else {
+            continue;
+        };
+        let value = value.unwrap_or_default();
+        let sent = match attribute(&tag, "type").as_deref() {
+            Some("checkbox") => tag.contains(" checked") || ticked.contains(&value.as_str()),
+            _ => true,
+        };
+        if sent {
+            fields.push((name, value));
+        }
+    }
+    let pressed = form
+        .split("<button ")
+        .skip(1)
+        .map(|b| {
+            (
+                format!(" {}", &b[..b.find('>').unwrap()]),
+                &b[b.find('>').unwrap() + 1..],
+            )
+        })
+        .find(|(tag, rest)| {
+            rest.starts_with(&format!("{button}</button>"))
+                && named.is_none_or(|(n, v)| {
+                    attribute(tag, "name").as_deref() == Some(n)
+                        && attribute(tag, "value").as_deref() == Some(v)
+                })
+        })
+        .unwrap_or_else(|| panic!("no button {button} {named:?}: {form}"));
+    let (tag, _) = pressed;
+    if let (Some(name), Some(value)) = (attribute(&tag, "name"), attribute(&tag, "value")) {
+        fields.push((name, value));
+    }
+    let action = attribute(&tag, "formaction").unwrap_or(action);
+    let query: Vec<String> = fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", harness::form_encoded(k), harness::form_encoded(v)))
+        .collect();
+    format!("/{}/{action}?{}", web.token, query.join("&"))
 }
 
 /// The jobs page under a halt: a trip staged in the mock world's rails, as

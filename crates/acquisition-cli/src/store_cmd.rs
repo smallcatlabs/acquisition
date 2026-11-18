@@ -544,13 +544,42 @@ pub fn characters(
 /// the whole store holds none. Where a league holds none and its realm
 /// holds some, it says how many are known and in which leagues, so a
 /// listing that ran is not read as one that never did (the page seat's
-/// fault 11). The refresh page says the same sentence.
+/// fault 11). Its cause is the characters page's sentence too
+/// ([`no_characters_cause`]); the command in parentheses is the
+/// terminal's alone.
 pub(crate) fn no_characters_text(
     realm: Option<Realm>,
     league: Option<&str>,
     store: &Store,
 ) -> Result<String> {
-    const RUN: &str = "run `acq characters` or cover them in the sync policy";
+    let (cause, elsewhere) = no_characters(realm, league, store)?;
+    Ok(format!(
+        "{cause} ({})",
+        match elsewhere {
+            false => "run `acq characters` or cover them in the sync policy",
+            true => "run `acq characters` again for one made since",
+        }
+    ))
+}
+
+/// [`no_characters_text`]'s cause alone, no command: what the web UI's
+/// characters page says where the league holds none, beside its listing
+/// button.
+pub(crate) fn no_characters_cause(
+    realm: Option<Realm>,
+    league: Option<&str>,
+    store: &Store,
+) -> Result<String> {
+    Ok(no_characters(realm, league, store)?.0)
+}
+
+/// The cause of an empty selection of characters, and whether its realm
+/// holds some elsewhere.
+fn no_characters(
+    realm: Option<Realm>,
+    league: Option<&str>,
+    store: &Store,
+) -> Result<(String, bool)> {
     let place = match (realm, league) {
         (None, None) => store.path().display().to_string(),
         (realm, Some(league)) => {
@@ -563,7 +592,7 @@ pub(crate) fn no_characters_text(
         None => Vec::new(),
     };
     if elsewhere.is_empty() {
-        return Ok(format!("no characters known in {place} ({RUN})"));
+        return Ok((format!("no characters known in {place}"), false));
     }
     // each league they are in, in the order first met, with its count
     let mut leagues: Vec<(String, usize)> = Vec::new();
@@ -590,9 +619,28 @@ pub(crate) fn no_characters_text(
         1 => "the 1 known is".to_string(),
         n => format!("the {n} known are"),
     };
-    Ok(format!(
-        "no characters in {place}: {known} in {in_them} (run `acq characters` again for one made since)"
+    Ok((
+        format!("no characters in {place}: {known} in {in_them}"),
+        true,
     ))
+}
+
+/// `store characters`' footer: the counts, in words (C146), the
+/// characters page's counts line too.
+pub(crate) fn characters_counts_line(
+    counts: &acquisition_search::places::CharacterCounts,
+) -> String {
+    let mut summary = format!("{} fetched", counts.fetched);
+    if counts.empty_bodies > 0 {
+        summary.push_str(&format!(" ({} with empty bodies)", counts.empty_bodies));
+    }
+    if counts.never_fetched > 0 {
+        summary.push_str(&format!(", {} never fetched", counts.never_fetched));
+    }
+    format!(
+        "{} characters: {summary}; {} items\n",
+        counts.characters, counts.items
+    )
 }
 
 /// `store characters`' text, a function of its document (C53, C149): the
@@ -637,20 +685,7 @@ pub(crate) fn characters_text(
             c.id,
         ));
     }
-    let mut summary = format!("{} fetched", listed.counts.fetched);
-    if listed.counts.empty_bodies > 0 {
-        summary.push_str(&format!(
-            " ({} with empty bodies)",
-            listed.counts.empty_bodies
-        ));
-    }
-    if listed.counts.never_fetched > 0 {
-        summary.push_str(&format!(", {} never fetched", listed.counts.never_fetched));
-    }
-    out.push_str(&format!(
-        "{} characters: {summary}; {} items\n",
-        listed.counts.characters, listed.counts.items
-    ));
+    out.push_str(&characters_counts_line(&listed.counts));
     if listed.left_out > 0 {
         let mut every = format!(
             "acq store characters {}",

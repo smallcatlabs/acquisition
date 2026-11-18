@@ -19,9 +19,12 @@
 //!   Here: the token is every route's first path segment, so a request
 //!   without it meets no route; the guard compares the Host header with
 //!   the bound address and an Origin, where one is sent, with the
-//!   server's own, before any route runs; each mutating route — apply,
-//!   the league list's fetch, a saved search's write and its clear — is a
-//!   POST route alone, so a GET on it is refused by its method; no
+//!   server's own, before any route runs; each mutation — apply, the
+//!   league list's fetch, a saved search's write and its clear, the
+//!   listing of a league's stash tabs or characters — is a POST, the
+//!   first four on routes that are POST alone, so a GET on them is refused
+//!   by its method, and the listings on the place pages' own routes, whose
+//!   GET reads and writes nothing (#284); no
 //!   response carries an `Access-Control-*` header. Every response says
 //!   `Referrer-Policy: same-origin`: the browser's fetch of an item's art
 //!   (C140) carries no referrer, so the token never reaches the image
@@ -83,8 +86,30 @@
 //!   one and the count or the words where none does; a continuation, a
 //!   request with its place, is `search?next=` and its token, on an
 //!   answer or a refusal alike. The words are still the CLI's
-//!   (`failure_words`), as are the command lines the refresh and jobs
+//!   (`failure_words`), as are the command lines the plan and jobs
 //!   pages print, which no route takes (#182).
+//! - **The place pages** (`roadmap/briefs/4-full-1-step6-places.md`,
+//!   step 6.5a; #248): "Stash tabs" (`GET tabs`) and "Characters" (`GET
+//!   characters`) render the search crate's places document of the URL's
+//!   realm and league, and "Refresh" is gone. The realm and league selects
+//!   are a form of their own and carry no tick: one id can stand in two
+//!   leagues. The table and its buttons are one GET form: `open` names
+//!   each open parent, `tab` or `character` each ticked place, and the
+//!   server renders both from the URL (C16). A parent's opener sends
+//!   `toggle`, answered `303` to the page with `open` changed, every tick
+//!   kept and no `toggle`, at the parent's head's anchor, so the reader
+//!   stays where they were (#270, #269). A tick under a closed parent
+//!   travels as a hidden field, counted in words on its head. An `open`
+//!   or a tick that names no place of the league is dropped, in the page
+//!   and in every URL it writes. Heads are plain rows, never windowed. A
+//!   place's name is its request as a table, spelled by [`Paged`]; a
+//!   folder's is words. "Refresh ticked" sends the form to `plan` as a
+//!   selection, and "Plan under the policy" shows only where the policy
+//!   names the league (C168: no page writes a policy). "List this
+//!   league's stash tabs" (`POST tabs`) and "List characters" (`POST
+//!   characters`) submit the `stashes` and `characters` jobs as `POST
+//!   leagues` submits `leagues` (#189). A league with nothing listed says
+//!   so in words where the table would be, beside the listing (#189).
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
@@ -99,7 +124,7 @@
 //!   `current` — is copied into one `<meta name="basis">` line in the
 //!   head, a JSON object keyed by the document, its values the documents'
 //!   own fields ([`page::Head`]); a page whose documents carry none (the
-//!   form's league list, the refresh page's tabs and characters, the
+//!   form's league list, the place pages' places, the
 //!   jobs, a refusal without `current`) carries no line. The scan holds
 //!   a list of words at the tests' recording seam: every page a golden
 //!   records sets no cookie and names only scripts on the harness's one
@@ -208,6 +233,7 @@ use acquisition_plan::pricing::Expect;
 use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, Request};
+use acquisition_search::places::{Kind, Places};
 use acquisition_search::{Holder, SearchError};
 use acquisition_verbs::refusal::{Pointed, Way};
 use acquisition_verbs::saved::{self, SavedRow};
@@ -352,7 +378,8 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/stats"), get(stats))
         .route(&at("/count"), get(count))
         .route(&at("/rows"), get(rows))
-        .route(&at("/refresh"), get(tabs))
+        .route(&at("/tabs"), get(tabs).post(list_tabs))
+        .route(&at("/characters"), get(characters).post(list_characters))
         .route(&at("/plan"), get(plan))
         .route(&at("/apply"), post(apply))
         .route(&at("/leagues"), post(fetch_leagues))
@@ -851,7 +878,7 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 account,
                 realm,
                 league: named,
-            } if self.web.serves(account) => self.web.link("refresh", &league(realm, named)),
+            } if self.web.serves(account) => self.web.link("tabs", &league(realm, named)),
             Way::SavedSearches { expand: false } => self.web.link("saved", &[]),
             Way::SavedSearches { expand: true } | Way::SavedSearchShow { .. } => {
                 self.web.link("saved", &[("expand", "true".to_string())])
@@ -1506,19 +1533,73 @@ async fn stats(
     }
 }
 
-// ---- the refresh pages --------------------------------------------------------------------------
+// ---- the place pages ----------------------------------------------------------------------------
 
-/// The tabs and characters of a league with a selection (Do 7): the
-/// `tabs` document whole and the `characters` document whole (C149),
-/// no default ticked.
+/// Which places a place page lists (step 6.5a): a league's stash tabs or
+/// its characters, each page its own route, ticks and listing job.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Listed {
+    Tabs,
+    Characters,
+}
+
+impl Listed {
+    fn route(self) -> &'static str {
+        match self {
+            Listed::Tabs => "tabs",
+            Listed::Characters => "characters",
+        }
+    }
+
+    fn title(self) -> &'static str {
+        match self {
+            Listed::Tabs => "Stash tabs",
+            Listed::Characters => "Characters",
+        }
+    }
+
+    /// The field a ticked place is sent as, the plan's selection field.
+    fn tick(self) -> &'static str {
+        match self {
+            Listed::Tabs => "tab",
+            Listed::Characters => "character",
+        }
+    }
+}
+
 async fn tabs(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
     Query(fields): Query<Vec<(String, String)>>,
 ) -> Response {
+    places(web, headers, fields, Listed::Tabs).await
+}
+
+async fn characters(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    places(web, headers, fields, Listed::Characters).await
+}
+
+/// A place page (step 6.5a; the design's §3, "no query: the place
+/// pages"): the places document of the URL's realm and league, the
+/// parents the URL opens open and the places it ticks ticked. A `toggle`
+/// is the opener of one parent: answered 303 to the page with that parent
+/// opened or closed, at its head, every tick kept. A tick or an open that
+/// names no place of this league is dropped, here and in every URL the
+/// page writes.
+async fn places(
+    web: Arc<Web>,
+    headers: HeaderMap,
+    fields: Vec<(String, String)>,
+    listed: Listed,
+) -> Response {
+    let title = listed.title();
     let realm = match realm_of(&fields) {
         Ok(realm) => realm,
-        Err(failure) => return web.failed("Refresh", &failure, &headers),
+        Err(failure) => return web.failed(title, &failure, &headers),
     };
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
@@ -1526,127 +1607,93 @@ async fn tabs(
     let read = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
         let facts = account.facts()?;
-        let listed = acquisition_search::tabs::Tabs::read(
-            &facts,
-            realm.as_str(),
-            &league,
-            &acquisition_search::tabs::Selection::default(),
-            None,
-            true,
-            acquisition_store::now(),
-        )?
-        .0
-        .grouped();
-        // every character, as every tab: the page is a selection, and a
-        // row it does not list cannot be ticked (C53's audit view)
-        let characters = acquisition_verbs::Characters::of(
-            Some(realm.as_str()),
-            Some(&league),
-            facts.characters(Some(realm.as_str()), Some(&league))?,
-            None,
-            true,
-            acquisition_store::now(),
-        );
-        let empty = (listed.counts.tabs == 0)
-            .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &account.entry.username));
-        // the terminal's sentence, which reads the realm's characters
-        // where the league holds none (the page seat's fault 11)
-        let none = match characters.counts.characters {
-            0 => Some(store_cmd::no_characters_text(
+        let now = acquisition_store::now();
+        let places = match listed {
+            Listed::Tabs => Places::tabs(&facts, realm.as_str(), &league, now)?,
+            Listed::Characters => Places::characters(&facts, realm.as_str(), &league, now)?,
+        };
+        // a league with none: the terminal's cause, never its command
+        let none = match (listed, places.places.is_empty()) {
+            (Listed::Characters, true) => Some(store_cmd::no_characters_cause(
                 Some(realm),
                 Some(&league),
                 &facts,
             )?),
             _ => None,
         };
+        let policy =
+            acquisition_verbs::leagues::PolicyRead::of_account(account).names(realm, &league);
         let leagues = web.leagues(realm.as_str())?;
-        Ok((league, listed, characters, empty, none, leagues))
+        Ok((league, places, none, policy, leagues))
     })
     .await;
-    let (league, listed, characters, empty, none, leagues) = match read {
+    let (league, places, none, policy, leagues) = match read {
         Ok(read) => read,
-        Err(failure) => return web.failed("Refresh", &failure, &headers),
+        Err(failure) => return web.failed(title, &failure, &headers),
     };
     if wants_json(&headers) {
-        return document(&json!({ "tabs": listed, "characters": characters }));
+        return document(&places);
     }
-    let now = acquisition_store::now();
-    let mut body = format!(
-        "<form method=\"get\" action=\"refresh\"><label class=\"control\">Realm <select name=\"realm\">{}</select></label> {}<button type=\"submit\">Show</button></form>\n{}",
-        ["pc", "xbox", "sony", "poe2"]
-            .iter()
-            .map(|r| format!(
-                "<option{}>{r}</option>",
-                if *r == realm.as_str() {
-                    " selected"
-                } else {
-                    ""
-                }
-            ))
-            .collect::<String>(),
-        page::league_select(leagues.as_deref(), Some(&league), false),
-        page::fetch_leagues(),
-    );
-    body.push_str(&format!(
-        "<form method=\"get\" action=\"plan\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">\n",
-        esc(realm.as_str()),
-        esc(&league)
-    ));
-    // the form's two buttons above its lists, so a long list never hides
-    // them (the page seat's probe)
-    let buttons = "<p><button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button></p>\n";
-    match empty {
-        // an empty league's facts line too (the review of round C,
-        // finding 3)
-        Some(said) => {
-            body.push_str(&pre(&format!(
-                "{said}\n{}",
-                store_cmd::tabs_facts_line(&listed.counts, acquisition_store::now()).trim_end()
-            )));
-            body.push_str(buttons);
+    let every = places.every();
+    let parents: Vec<&str> = every
+        .iter()
+        .filter(|p| p.holds.is_some())
+        .map(|p| p.id())
+        .collect();
+    let tickable: Vec<&str> = every
+        .iter()
+        .filter(|p| matches!(p.place, Kind::Tab | Kind::Character))
+        .map(|p| p.id())
+        .collect();
+    let named = |name: &str, among: &[&str]| -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for (k, v) in &fields {
+            if k == name && among.contains(&v.as_str()) && !out.contains(v) {
+                out.push(v.clone());
+            }
         }
-        None => {
-            body.push_str(&pre(&format!(
-                "{}\n{}",
-                store_cmd::tabs_head(&listed.counts, realm, &league, None),
-                store_cmd::tabs_facts_line(&listed.counts, acquisition_store::now()).trim_end()
-            )));
-            body.push_str(buttons);
-            // the stash list one group, open, the substashes box at its
-            // top; each folder a group of its own tabs, open; each map or
-            // unique tab's pages a group under it, closed (the 4b sitting
-            // round, Do 4; the page seat's probe)
-            body.push_str(&format!(
-                "<details class=\"list\" open><summary>Stash tabs ({})</summary>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n",
-                listed.rows.len()
-            ));
-            body.push_str(&tab_groups(&listed.groups, now, true));
-            body.push_str("</details>\n");
+        out
+    };
+    let mut open = named("open", &parents);
+    let ticked = named(listed.tick(), &tickable);
+    let deep = listed == Listed::Tabs && pick(&fields, "deep").is_some();
+    if let Some(toggle) = pick(&fields, "toggle").filter(|t| parents.contains(t)) {
+        match open.iter().position(|o| o == toggle) {
+            Some(at) => {
+                open.remove(at);
+            }
+            None => open.push(toggle.to_string()),
         }
+        let at = web.link(
+            listed.route(),
+            &place_fields(listed, realm, &league, deep, &open, &ticked),
+        );
+        return see_other(&format!("{at}#{}", page::place_anchor(toggle)));
     }
-    if let Some(none) = &none {
-        body.push_str(&pre(none));
-    } else {
-        body.push_str(&format!(
-            "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n{}",
-            characters.counts.characters,
-            filter_row(&["Character", "Level", "Items", "Fetched"])
-        ));
-        for c in &characters.rows {
-            body.push_str(&format!(
-                "<tr class=\"row\"><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                esc(&c.id),
-                esc(&c.name),
-                c.level.map(|l| l.to_string()).unwrap_or_default(),
-                esc(&store_cmd::items_cell(c.fetched_at, c.item_count)),
-                esc(&store_cmd::ago(now, c.fetched_at))
-            ));
-        }
-        body.push_str("</table>\n</details>\n");
-    }
-    body.push_str("</form>\n");
+    let spell = |way: &acquisition_verbs::refusal::Way| {
+        use acquisition_verbs::refusal::Surface as _;
+        Paged { web: &web }
+            .request(way)
+            .and_then(|(link, _)| link.as_str().map(str::to_string))
+    };
+    let body = page::places(&page::PlacesPage {
+        listed: listed.route(),
+        title,
+        tick: listed.tick(),
+        realm,
+        league: &league,
+        leagues: leagues.as_deref(),
+        places: &places,
+        none: none.as_deref(),
+        open: &open,
+        ticked: &ticked,
+        deep,
+        policy,
+        spell: &spell,
+        now: acquisition_store::now(),
+    });
     web.page(
-        "Refresh",
+        title,
         Head {
             filter: true,
             ..Head::default()
@@ -1655,103 +1702,88 @@ async fn tabs(
     )
 }
 
-/// The second header row of a list: a box under each named column, the
-/// tick column's cell empty. A box has no name, so nothing in it is sent;
-/// the list filter's script reads it (the page seat's probe).
-fn filter_row(columns: &[&str]) -> String {
-    let boxes: String = columns
-        .iter()
-        .enumerate()
-        .map(|(n, column)| {
-            format!(
-                "<td><input class=\"col-filter\" data-col=\"{}\" placeholder=\"filter\" aria-label=\"filter the {} column\"></td>",
-                n + 1,
-                esc(column)
-            )
-        })
-        .collect();
-    format!("<tr class=\"filters\"><td></td>{boxes}</tr>\n")
+/// A place page's URL fields, in the one order every link and redirect
+/// writes them: realm, league, the substashes box, each open parent, each
+/// tick.
+fn place_fields(
+    listed: Listed,
+    realm: Realm,
+    league: &str,
+    deep: bool,
+    open: &[String],
+    ticked: &[String],
+) -> Vec<(&'static str, String)> {
+    let mut fields = vec![
+        ("realm", realm.as_str().to_string()),
+        ("league", league.to_string()),
+    ];
+    if deep {
+        fields.push(("deep", "true".to_string()));
+    }
+    fields.extend(open.iter().map(|o| ("open", o.clone())));
+    fields.extend(ticked.iter().map(|t| (listed.tick(), t.clone())));
+    fields
 }
 
-/// The stash list's groups as the document gives them (the sitting
-/// round's review, its fourth finding): a run of tabs one table, a
-/// folder a group of its own holding its tabs' table, each map or unique
-/// tab's pages nested under it. `top` is the list's own level, which
-/// heads the first table with the columns and their filter boxes; every
-/// table shares the columns' widths (`table.tabs`), so a folder's rows
-/// line up under them, each a `member` the stylesheet indents, so a tab
-/// after a folder reads as the list's own and not the folder's (the page
-/// seat of 2026-11-08, its fault 15).
-fn tab_groups(groups: &[acquisition_search::tabs::TabGroup], now: i64, top: bool) -> String {
-    let class = if top { "row" } else { "row member" };
-    let row = |tab: &acquisition_store::TabRow, tick: String| {
-        format!(
-            "<tr class=\"{class}\"><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-            esc(&tab.name),
-            esc(&tab.r#type),
-            esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
-            esc(&store_cmd::ago(now, tab.fetched_at))
-        )
+async fn list_tabs(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Form(fields): Form<Vec<(String, String)>>,
+) -> Response {
+    list(web, headers, fields, Listed::Tabs).await
+}
+
+async fn list_characters(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Form(fields): Form<Vec<(String, String)>>,
+) -> Response {
+    list(web, headers, fields, Listed::Characters).await
+}
+
+/// "List this league's stash tabs" and "List characters" (#189, #284):
+/// the `stashes` job for the form's realm and league, or the `characters`
+/// job for its realm, as `acq stashes` and `acq characters` submit them,
+/// through the human door as the served account, landing on the jobs
+/// page as "Fetch the league list" does.
+async fn list(
+    web: Arc<Web>,
+    headers: HeaderMap,
+    fields: Vec<(String, String)>,
+    listed: Listed,
+) -> Response {
+    let realm = match realm_of(&fields) {
+        Ok(realm) => realm,
+        Err(failure) => return web.failed(listed.title(), &failure, &headers),
     };
-    let said = |words: &str| format!("<span class=\"fate\">{}</span>", esc(words));
-    let open = "<table class=\"tabs\"><colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>\n";
-    let mut out = String::new();
-    let mut table = false;
-    if top {
-        out.push_str(open);
-        out.push_str("<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n");
-        out.push_str(&filter_row(&["Tab", "Type", "Items", "Fetched"]));
-        table = true;
+    let league = pick(&fields, "league")
+        .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
+        .to_string();
+    let (kind, params) = match listed {
+        Listed::Tabs => (
+            "stashes",
+            json!({ "realm": realm.as_str(), "league": league }),
+        ),
+        Listed::Characters => ("characters", json!({ "realm": realm.as_str() })),
+    };
+    let submitted = async {
+        let mut client = crate::run::connect(&web.cx).await?;
+        acquisition_verbs::jobs::submit(
+            &web.cx.frontend,
+            &mut client,
+            kind,
+            params,
+            0,
+            Some(web.served()?.entry.username.as_str()),
+        )
+        .await?;
+        anyhow::Ok(())
     }
-    for group in groups {
-        let tab = &group.tab;
-        // a folder holds tabs and no items: no checkbox, since a selection
-        // names its tabs, each ticked in the folder's own rows
-        if acquisition_store::is_folder_type(&tab.r#type) {
-            if table {
-                out.push_str("</table>\n");
-                table = false;
-            }
-            out.push_str(&format!(
-                "<details class=\"folder holds\" open><summary>{} · {} · {}</summary>\n{}</details>\n",
-                esc(&tab.name),
-                esc(&tab.r#type),
-                plural(group.tabs.len(), "tab", "tabs"),
-                tab_groups(&group.tabs, now, false)
-            ));
-            continue;
-        }
-        if !table {
-            out.push_str(open);
-            table = true;
-        }
-        out.push_str(&row(
-            tab,
-            format!(
-                "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
-                esc(&tab.id)
-            ),
-        ));
-        if !group.pages.is_empty() {
-            out.push_str(&format!(
-                "<tr class=\"holds\"><td></td><td colspan=\"4\"><details class=\"pages\"><summary>{} pages of {}</summary>\n<table>\n",
-                group.pages.len(),
-                esc(&tab.name)
-            ));
-            let page_said = said(&format!(
-                "a page of {}: tick {} with the substashes box",
-                tab.name, tab.name
-            ));
-            for page in &group.pages {
-                out.push_str(&row(page, page_said.clone()));
-            }
-            out.push_str("</table>\n</details></td></tr>\n");
-        }
+    .await;
+    match submitted {
+        Ok(()) => to_jobs(&web),
+        Err(e) => web.failed(listed.title(), &Failure::Other(e), &headers),
     }
-    if table {
-        out.push_str("</table>\n");
-    }
-    out
 }
 
 /// "Fetch the league list" (the 4b sitting round, Do 3): the `leagues`

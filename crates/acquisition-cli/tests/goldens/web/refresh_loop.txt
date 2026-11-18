@@ -1,24 +1,218 @@
 # golden web/refresh_loop: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
-GET plan?realm=pc&league=Standard
-# holds "2 requests:"
-# holds "list stashes"
-# holds "list characters"
+GET tabs?realm=pc&league=Standard <nothing listed>
+# holds "<h1>Stash tabs</h1>"
+# holds "No stash tabs of Standard are on record."
+# holds "facts: no tabs; stash never listed"
+# holds "List this league&#39;s stash tabs"
+# holds "Fetch the league list"
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+</div>
+<p class="counts">facts: no tabs; stash never listed</p>
+<p class="none">No stash tabs of Standard are on record.</p>
+<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+
+</main>
+
+GET characters?realm=pc&league=Standard <nothing listed>
+# holds "<h1>Characters</h1>"
+# holds "no characters known in Standard"
+# holds "List characters"
+<main>
+<h1>Characters</h1>
+<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+</div>
+<p class="counts">0 characters: 0 fetched; 0 items</p>
+<p class="none">no characters known in Standard</p>
+<form method="post" action="characters"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List characters</button></form>
+
+</main>
+
+GET tabs?realm=pc&league=Standard <listed, never fetched>
+# holds "tabs in Standard"
+# holds "name=\"tab\" value=\"dump\""
+# holds ">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td>"
+# holds "<td>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>"
+# holds "<td>Folder</td><td></td><td></td></tr>"
+# holds "2 tabs, 2 never fetched"
+# holds "name=\"toggle\" value=\"fold\">Open</button>"
+# holds "Refresh ticked"
+# holds "/assets/filter.js\""
+# holds "aria-label=\"filter the Tab column\""
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+</div>
+<p class="counts">8 tabs in Standard: 0 fetched, 7 never fetched, 1 folder (never fetched); 0 items in tabs (characters apart); facts: 7 tabs, none fetched; stash listing <age> ago</p>
+<form method="get" action="tabs">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
+<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Stash tabs (6)</summary>
+<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
+<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
+<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>-</td><td>never</td></tr>
+<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td></tr>
+<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs, 2 never fetched</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
+<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
+<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+</table>
+</details>
+</form>
+
+</main>
+
+GET plan?<two tabs ticked>
+# holds "a selection"
+# holds "fetch 2 tabs"
+# holds ">Apply</button>"
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:3,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;cur1&quot;,&quot;dump&quot;]}}}">
+<main>
+<h1>Plan</h1>
+<pre>
+refresh Standard on mock as ExileTester — a selection
+facts: stash listed <age> before the plan; plan made <age> ago
+
+the listing is fetched beside the selection: what it newly lists takes the next plan
+3 requests:
+  list stashes      the selection is read from it
+  fetch 2 tabs      2 selected
+    cur1  Currency  selected
+    dump  Dump      selected
+
+quote (<age> ago):
+  stash-list-request-limit  1 request — ready
+  stash                     2 requests — ETA unavailable (unlearned)
+wire: 3–9 sends; plus first-contact probes and token refresh if needed
+</pre>
+<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+
+</main>
+
+GET characters?realm=pc&league=Standard
+# holds "characters: 0 fetched"
+# holds "name=\"character\" value=\""
+# holds "aria-label=\"filter the Character column\""
+<main>
+<h1>Characters</h1>
+<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="post" action="characters"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List characters</button></form>
+</div>
+<p class="counts">2 characters: 0 fetched, 2 never fetched; 0 items</p>
+<form method="get" action="characters">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
+<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<details class="list" open><summary>Characters (2)</summary>
+<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
+<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
+<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Character column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Level column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="row" id="p-fake0001"><td><input type="checkbox" name="character" value="fake0001"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Afake0001&amp;view.fields=icon">StashHoarder</a></td><td>97</td><td>-</td><td>never</td></tr>
+<tr class="row" id="p-fake0002"><td><input type="checkbox" name="character" value="fake0002"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Afake0002&amp;view.fields=icon">MuleQuadTab</a></td><td>12</td><td>-</td><td>never</td></tr>
+</table>
+</details>
+</form>
+
+</main>
+
+GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
+# holds "Maps (empty)</a></td><td>MapStash</td><td>0</td>"
+# holds "4 pages, 4 never fetched"
+# holds "name=\"toggle\" value=\"maps\">Open</button>"
+# holds "name=\"tab\" value=\"dump\" checked"
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+</div>
+<p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
+<form method="get" action="tabs">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
+<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Stash tabs (6)</summary>
+<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
+<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
+<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
+<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
+<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
+<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
+<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Open</button></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
+<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
+</table>
+</details>
+</form>
+
+</main>
+
+GET tabs?<Maps opened>
+# holds "name=\"toggle\" value=\"maps\">Close</button>"
+# holds "<tbody class=\"holds\">"
+# holds "<tr class=\"row member\" id=\"p-m001\">"
+# holds "<tr class=\"row\" id=\"p-maps\">"
+# holds "name=\"tab\" value=\"dump\" checked"
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+</div>
+<p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
+<form method="get" action="tabs">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="maps">
+<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Stash tabs (6)</summary>
+<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
+<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
+<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
+<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
+<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
+<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
+<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Close</button></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
+<tbody class="holds">
+<tr class="row member" id="p-m001"><td></td><td><a class="way" data-way="/places/4/places/0" href="/<token>/search?realm=pc&amp;text=id%3Am001%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+<tr class="row member" id="p-m002"><td></td><td><a class="way" data-way="/places/4/places/1" href="/<token>/search?realm=pc&amp;text=id%3Am002%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+<tr class="row member" id="p-m003"><td></td><td><a class="way" data-way="/places/4/places/2" href="/<token>/search?realm=pc&amp;text=id%3Am003%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+<tr class="row member" id="p-m004"><td></td><td><a class="way" data-way="/places/4/places/3" href="/<token>/search?realm=pc&amp;text=id%3Am004%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
+</tbody>
+<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
+</table>
+</details>
+</form>
+
+</main>
+
+GET plan?realm=pc&league=Standard <the policy's>
 # holds "quote"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:1,&quot;stash_listing&quot;:null,&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:18,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
 <main>
 <h1>Plan</h1>
 <pre>
 refresh Standard on mock as ExileTester — policy 1
-facts: stash never listed; characters never listed; plan made <age> ago
+facts: stash listed <age> before the plan; characters listed <age> before the plan; plan made <age> ago
 
 2 requests:
-  list stashes
-  list characters
-reason: stash and characters never listed
+  fetch 2 characters
+    fake0001  StashHoarder
+    fake0002  MuleQuadTab
+reason: selected characters never fetched
+skipped 1 tab: 1 fresh
+outside the policy: 13 of 14 tabs (`acq policy set --account ExileTester` names them)
 
-quote: ETA unavailable until 2 rate-limit policies are learned
+quote: ETA unavailable until 1 rate-limit policy is learned
 wire: 2–6 sends; plus first-contact probes and token refresh if needed
 </pre>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
@@ -49,15 +243,20 @@ GET jobs <every job done>
 <main>
 <h1>Jobs</h1>
 <pre>
-rails:  tripwire off · sends 6 since this daemon started · journal off
+rails:  tripwire off · sends 25 since this daemon started · journal off
 id  parent  kind  target  state  prio  account  by  when  eta
-1  profile  done  254  ExileTester  daemon  finished <age> ago
-2  apply  plan (2 requests)  done  0  ExileTester  web:<pid>  finished <age> ago
-3  2  stashes  Standard  done  0  ExileTester  web:<pid>  finished <age> ago
-4  2  characters  done  0  ExileTester  web:<pid>  finished <age> ago
-<n>  probe  character-list@ExileTester  done  255  ExileTester  daemon  finished <age> ago
-<n>  probe  stash-list@ExileTester  done  255  ExileTester  daemon  finished <age> ago
-6 jobs this daemon holds (its own and the restored): 0 running, 0 waiting, 6 done
+19  15  stash  Standard/old1  done  0  ExileTester  cli:<pid>  finished <age> ago
+20  15  stash  Standard/old2  done  0  ExileTester  cli:<pid>  finished <age> ago
+21  15  stash  Standard/uniq  done  0  ExileTester  cli:<pid>  finished <age> ago
+22  15  stash  Standard/maps  done  0  ExileTester  cli:<pid>  finished <age> ago
+23  15  stash  Standard/mape  done  0  ExileTester  cli:<pid>  finished <age> ago
+24  stash  Standard/maps/m002  done  0  ExileTester  cli:<pid>  finished <age> ago
+25  apply  plan (2 requests)  done  0  ExileTester  web:<pid>  finished <age> ago
+26  25  character  StashHoarder  done  0  ExileTester  web:<pid>  finished <age> ago
+27  25  character  MuleQuadTab  done  0  ExileTester  web:<pid>  finished <age> ago
+<n>  probe  character@ExileTester  done  255  ExileTester  daemon  finished <age> ago
+28 jobs this daemon holds (its own and the restored): 0 running, 0 waiting, 28 done
+18 earlier finished jobs not listed (`acq jobs --all`)
 </pre>
 
 </main>
@@ -69,107 +268,6 @@ POST apply <the same envelope again>
 <pre>
 nothing to do: every request of this plan is spent — 2 fetched after it was compiled, the latest <age> ago
 </pre>
-
-</main>
-
-GET refresh?realm=pc&league=Standard
-# holds "tabs in Standard"
-# holds "<option value=\"Standard\" selected>Standard (tabs on disk)</option>"
-# holds "name=\"tab\" value=\"dump\""
-# holds "name=\"character\""
-# holds "name=\"tab\" value=\"old1\""
-# holds "<summary>Old leagues · Folder · 2 tabs</summary>"
-# holds "<summary>Stash tabs ("
-# holds "aria-label=\"filter the Tab column\""
-# holds "aria-label=\"filter the Character column\""
-# holds "/assets/filter.js\""
-# holds "pages of Uniques</summary>"
-# holds "<summary>Characters (2)</summary>"
-# holds "a page of Uniques: tick Uniques with the substashes box"
-# holds "Refresh selected"
-# holds "Plan under the policy"
-<main>
-<h1>Refresh</h1>
-<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
-<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
-<form method="get" action="plan">
-<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<pre>
-15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart)
-facts: 14 tabs, 7 fetched (<fetches>); stash listing <age> ago
-</pre>
-<p><button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button></p>
-<details class="list" open><summary>Stash tabs (15)</summary>
-<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
-<tr class="row"><td><input type="checkbox" name="tab" value="cur1"></td><td>Currency</td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
-<tr class="row"><td><input type="checkbox" name="tab" value="dump"></td><td>Dump</td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
-</table>
-<details class="folder holds" open><summary>Old leagues · Folder · 2 tabs</summary>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr class="row member"><td><input type="checkbox" name="tab" value="old1"></td><td>Old 1</td><td>PremiumStash</td><td>2</td><td><age> ago</td></tr>
-<tr class="row member"><td><input type="checkbox" name="tab" value="old2"></td><td>Old 2</td><td>QuadStash</td><td>2</td><td><age> ago</td></tr>
-</table>
-</details>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr class="row"><td><input type="checkbox" name="tab" value="uniq"></td><td>Uniques</td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
-<tr class="holds"><td></td><td colspan="4"><details class="pages"><summary>3 pages of Uniques</summary>
-<table>
-<tr class="row"><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
-<tr class="row"><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
-<tr class="row"><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
-</table>
-</details></td></tr>
-<tr class="row"><td><input type="checkbox" name="tab" value="maps"></td><td>Maps</td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-<tr class="holds"><td></td><td colspan="4"><details class="pages"><summary>4 pages of Maps</summary>
-<table>
-<tr class="row"><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row"><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row"><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row"><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
-</table>
-</details></td></tr>
-<tr class="row"><td><input type="checkbox" name="tab" value="mape"></td><td>Maps (empty)</td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-</table>
-</details>
-<details class="list" open><summary>Characters (2)</summary>
-<table>
-<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Character column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Level column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
-<tr class="row"><td><input type="checkbox" name="character" value="fake0001"></td><td>StashHoarder</td><td>97</td><td>7</td><td><age> ago</td></tr>
-<tr class="row"><td><input type="checkbox" name="character" value="fake0002"></td><td>MuleQuadTab</td><td>12</td><td>5</td><td><age> ago</td></tr>
-</table>
-</details>
-</form>
-
-</main>
-
-GET plan?<two tabs selected>
-# holds "a selection"
-# holds "fetch 2 tabs"
-# holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:15,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;dump&quot;,&quot;cur1&quot;]}}}">
-<main>
-<h1>Plan</h1>
-<pre>
-refresh Standard on mock as ExileTester — a selection
-facts: stash listed <age> before the plan; plan made <age> ago
-
-the listing is fetched beside the selection: what it newly lists takes the next plan
-3 requests:
-  list stashes      the selection is read from it
-  fetch 2 tabs      2 selected
-    cur1  Currency  selected
-    dump  Dump      selected
-
-quote (<age> ago):
-  stash-list-request-limit  1 request — ready
-  stash-request-limit       2 requests — ready
-wire: 3–9 sends; plus first-contact probes and token refresh if needed
-</pre>
-<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
 

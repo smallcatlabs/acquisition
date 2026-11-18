@@ -93,7 +93,7 @@ impl PolicyRead {
     /// Whether the policy names `league` in `realm`, whatever its entry
     /// covers (tabs, characters or both); false with no policy or one
     /// this build cannot read.
-    fn names(&self, realm: Realm, league: &str) -> bool {
+    pub fn names(&self, realm: Realm, league: &str) -> bool {
         self.policy
             .as_ref()
             .is_some_and(|p| p.league(realm, league).is_some())

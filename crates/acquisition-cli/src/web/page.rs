@@ -8,19 +8,22 @@
 //! in, made once in `search_cmd.rs`, the layout the page's, and every way
 //! on the page's own ([`answer`]), so they print no command line. An item
 //! is one card ([`card`], step 5) on both: a row that carries the item on
-//! the answer page, `show`'s document on the item page. The
-//! plan, refresh and jobs pages still print the CLI's text, in a `pre`
-//! (`mod.rs` renders them through [`pre`]), until they are rendered from
-//! their documents too (#182). A page sorts, filters, groups and composes
+//! the answer page, `show`'s document on the item page. The place pages
+//! render the places document ([`places`], step 6.5a), no `pre` and no
+//! command line. The plan and jobs pages still print the CLI's text, in
+//! a `pre` (`mod.rs` renders them through [`pre`]), until they are
+//! rendered from their documents too (#182). A page sorts, filters, groups and composes
 //! nothing; where it wants what no document carries, the search crate or
 //! the verb grows first. Every version a page renders is copied into its
 //! head's basis line, never composed ([`Head::basis`]).
 
+use acquisition_protocol::realm::Realm;
 use acquisition_search::Classed;
 use acquisition_search::answer::{
     Answer, Count, ExplainOut, Request, RowField, RowsOut, TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
+use acquisition_search::places::{Counted, Kind, Place, Places, Row};
 use acquisition_search::show::Shown;
 use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_verbs::refusal::Way;
@@ -73,7 +76,7 @@ pub(crate) struct Head {
     pub refresh: Option<u32>,
     /// The stat picker's script.
     pub picker: bool,
-    /// The list filter's script: the refresh page's boxes under its
+    /// The list filter's script: the place pages' boxes under their
     /// columns.
     pub filter: bool,
     /// The count's script: the number beside each form that submits a
@@ -2134,4 +2137,327 @@ pub(crate) fn league_select(
 /// request, answered on the jobs page.
 pub(crate) fn fetch_leagues() -> String {
     "<form method=\"post\" action=\"leagues\"><button type=\"submit\">Fetch the league list</button></form>\n".to_string()
+}
+
+// ---- the place pages (step 6.5a) ---------------------------------------------------------------
+
+/// What a place page renders: the places document, and what its URL
+/// opens and ticks.
+pub(crate) struct PlacesPage<'a> {
+    /// Its route: `tabs` or `characters`.
+    pub listed: &'static str,
+    pub title: &'static str,
+    /// The field a tick is sent as: `tab` or `character`.
+    pub tick: &'static str,
+    pub realm: Realm,
+    pub league: &'a str,
+    /// The realm's leagues, where the league list was fetched.
+    pub leagues: Option<&'a [(String, bool)]>,
+    pub places: &'a Places,
+    /// A characters page's sentence where the league holds none.
+    pub none: Option<&'a str>,
+    /// The parents open, and the places ticked, as the URL names them.
+    pub open: &'a [String],
+    pub ticked: &'a [String],
+    /// The substashes box, ticked.
+    pub deep: bool,
+    /// Whether the sync policy names the league: "Plan under the policy"
+    /// shows only then.
+    pub policy: bool,
+    pub spell: Spell<'a>,
+    pub now: i64,
+}
+
+/// A place's head's anchor: where a toggle's answer lands (#270).
+pub(crate) fn place_anchor(id: &str) -> String {
+    format!("p-{}", enc(id))
+}
+
+/// A place page (step 6.5a): the realm and league selects, a form of
+/// their own carrying no tick (one id can stand in two leagues); the
+/// league list's fetch and the listing beside it; the league's counts in
+/// one line; then one GET form holding the table, each place a plain row
+/// (no window: with parents closed a level is short, and a tick in a
+/// dropped block would be lost), its tick, its name a link to its items
+/// as a table, a parent's opener, and the buttons that plan the ticks.
+/// A league with nothing listed says so where the table would be, with
+/// the listing. No `pre` and no command line (#182, #189).
+pub(crate) fn places(view: &PlacesPage) -> String {
+    let realms = ["pc", "xbox", "sony", "poe2"]
+        .iter()
+        .map(|r| {
+            format!(
+                "<option{}>{r}</option>",
+                if *r == view.realm.as_str() {
+                    " selected"
+                } else {
+                    ""
+                }
+            )
+        })
+        .collect::<String>();
+    let listing = format!(
+        "<form method=\"post\" action=\"{route}\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\"><button type=\"submit\">{}</button></form>\n",
+        esc(view.realm.as_str()),
+        esc(view.league),
+        esc(match view.listed {
+            "tabs" => "List this league's stash tabs",
+            _ => "List characters",
+        }),
+        route = view.listed,
+    );
+    // the listing stands beside the league list's fetch, or, where the
+    // league has nothing listed, where the table would be
+    let empty = view.places.places.is_empty();
+    let mut body = format!(
+        "<form method=\"get\" action=\"{}\"><label class=\"control\">Realm <select name=\"realm\">{realms}</select></label> {}<button type=\"submit\">Show</button></form>\n<div class=\"actions\">{}{}</div>\n",
+        view.listed,
+        league_select(view.leagues, Some(view.league), false),
+        fetch_leagues(),
+        if empty { "" } else { listing.as_str() },
+    );
+    body.push_str(&format!(
+        "<p class=\"counts\">{}</p>\n",
+        esc(&counts_line(view))
+    ));
+    if empty {
+        let said = match view.none {
+            Some(said) => said.to_string(),
+            None => format!("No stash tabs of {} are on record.", view.league),
+        };
+        body.push_str(&format!("<p class=\"none\">{}</p>\n{listing}", esc(&said)));
+        return body;
+    }
+    // the table's form: the open parents and the substashes box travel
+    // through every open and close, as the ticks do
+    body.push_str(&format!(
+        "<form method=\"get\" action=\"{}\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">",
+        view.listed,
+        esc(view.realm.as_str()),
+        esc(view.league)
+    ));
+    for open in view.open {
+        body.push_str(&format!(
+            "<input type=\"hidden\" name=\"open\" value=\"{}\">",
+            esc(open)
+        ));
+    }
+    body.push('\n');
+    // the buttons above the list, so a long list never hides them (the
+    // page seat's probe)
+    body.push_str(&format!(
+        "<p><button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
+        if view.policy {
+            " <button type=\"submit\" formaction=\"plan\">Plan under the policy</button>"
+        } else {
+            ""
+        }
+    ));
+    let mut hidden = String::new();
+    let mut rows = String::new();
+    place_rows(view, &view.places.places, "", 0, &mut rows, &mut hidden);
+    let (columns, colgroup): (&[&str], &str) = match view.listed {
+        "tabs" => {
+            body.push_str(&format!(
+                "<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"{}> the substashes box: also fetch a ticked map or unique tab's pages</label>\n",
+                if view.deep { " checked" } else { "" }
+            ));
+            (
+                &["Tab", "Type", "Items", "Fetched"],
+                "<colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>",
+            )
+        }
+        _ => (
+            &["Character", "Level", "Items", "Fetched"],
+            "<colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>",
+        ),
+    };
+    body.push_str(&hidden);
+    body.push_str(&format!(
+        "<details class=\"list\" open><summary>{} ({})</summary>\n<table class=\"tabs\">{colgroup}\n<tr><th></th>{}</tr>\n{}{rows}</table>\n</details>\n</form>\n",
+        view.title,
+        view.places.places.len(),
+        columns
+            .iter()
+            .map(|c| format!("<th>{c}</th>"))
+            .collect::<String>(),
+        filter_row(columns),
+    ));
+    body
+}
+
+/// The league's counts in one line: the terminal's head and facts line
+/// for tabs, its footer for characters.
+fn counts_line(view: &PlacesPage) -> String {
+    match &view.places.counts {
+        Counted::Tabs(counts) => {
+            let facts = crate::store_cmd::tabs_facts_line(counts, view.now);
+            if counts.tabs == 0 {
+                return facts.trim_end().to_string();
+            }
+            format!(
+                "{}; {}",
+                crate::store_cmd::tabs_head(counts, view.realm, view.league, None),
+                facts.trim_end()
+            )
+        }
+        Counted::Characters(counts) => crate::store_cmd::characters_counts_line(counts)
+            .trim_end()
+            .to_string(),
+    }
+}
+
+/// The rows of `places` at `depth`, each open parent's places after its
+/// head in a group of their own (`tbody.holds`, which the list filter
+/// hides while no row in it shows); a tick under a closed parent is a
+/// hidden field in `hidden`, counted in words on the parent's head.
+fn place_rows(
+    view: &PlacesPage,
+    places: &[Place],
+    at: &str,
+    depth: usize,
+    rows: &mut String,
+    hidden: &mut String,
+) {
+    for (n, place) in places.iter().enumerate() {
+        // the JSON pointer of the object holding its request (`data-way`)
+        let here = format!("{at}/places/{n}");
+        let id = place.id();
+        let ticked = view.ticked.iter().any(|t| t == id);
+        let tick = match place.place {
+            Kind::Tab | Kind::Character => format!(
+                "<input type=\"checkbox\" name=\"{}\" value=\"{}\"{}>",
+                view.tick,
+                esc(id),
+                if ticked { " checked" } else { "" }
+            ),
+            // a page is fetched with its tab, under the substashes box
+            Kind::Page => String::new(),
+            // a folder holds tabs and no items: its tabs are ticked
+            Kind::Folder => String::new(),
+        };
+        let name = match place.name() {
+            "" => "(unnamed)",
+            name => name,
+        };
+        let named = match &place.request {
+            Some(request) => {
+                let mut table = request.clone();
+                table.view = acquisition_search::answer::View::from(
+                    acquisition_search::answer::Shape::Rows(acquisition_search::answer::Rows {
+                        fields: vec![acquisition_search::answer::RowField::Icon],
+                        ..Default::default()
+                    }),
+                );
+                way_on(view.spell, &here, &Way::Search(Box::new(table)), name, "")
+            }
+            None => esc(name),
+        };
+        let open = view.open.iter().any(|o| o == id);
+        let opener = match place.holds {
+            Some(holds) => {
+                let inside = if open {
+                    0
+                } else {
+                    ticked_under(view, place, hidden)
+                };
+                format!(
+                    " <span class=\"holds-said\">{}{}{}</span> <button type=\"submit\" name=\"toggle\" value=\"{}\">{}</button>",
+                    esc(&plural(
+                        holds.places,
+                        if place.place == Kind::Folder {
+                            "tab"
+                        } else {
+                            "page"
+                        },
+                        if place.place == Kind::Folder {
+                            "tabs"
+                        } else {
+                            "pages"
+                        },
+                    )),
+                    match holds.never_fetched {
+                        0 => String::new(),
+                        n => format!(", {n} never fetched"),
+                    },
+                    match inside {
+                        0 => String::new(),
+                        n => format!("; {n} ticked inside"),
+                    },
+                    esc(id),
+                    if open { "Close" } else { "Open" }
+                )
+            }
+            None => String::new(),
+        };
+        let cells = match &place.row {
+            // a folder holds tabs and no items, and is never fetched: no
+            // count and no age stand beside it
+            Row::Tab(tab) if place.place == Kind::Folder => {
+                [esc(&tab.r#type), String::new(), String::new()]
+            }
+            Row::Tab(tab) => [
+                esc(&tab.r#type),
+                esc(&crate::store_cmd::items_cell(
+                    tab.fetched_at,
+                    tab.item_count,
+                )),
+                esc(&crate::store_cmd::ago(view.now, tab.fetched_at)),
+            ],
+            Row::Character(c) => [
+                c.level.map(|l| l.to_string()).unwrap_or_default(),
+                esc(&crate::store_cmd::items_cell(c.fetched_at, c.item_count)),
+                esc(&crate::store_cmd::ago(view.now, c.fetched_at)),
+            ],
+        };
+        rows.push_str(&format!(
+            "<tr class=\"row{}\" id=\"{}\"><td>{tick}</td><td>{named}{opener}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+            if depth > 0 { " member" } else { "" },
+            esc(&place_anchor(id)),
+            cells[0],
+            cells[1],
+            cells[2],
+        ));
+        if open && !place.places.is_empty() {
+            rows.push_str("<tbody class=\"holds\">\n");
+            place_rows(view, &place.places, &here, depth + 1, rows, hidden);
+            rows.push_str("</tbody>\n");
+        }
+    }
+}
+
+/// The ticks among the places `place` holds, at any depth, each written
+/// to `hidden` as the field it travels as: how many there are.
+fn ticked_under(view: &PlacesPage, place: &Place, hidden: &mut String) -> usize {
+    let mut n = 0;
+    for inner in &place.places {
+        if view.ticked.iter().any(|t| t == inner.id()) {
+            hidden.push_str(&format!(
+                "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
+                view.tick,
+                esc(inner.id())
+            ));
+            n += 1;
+        }
+        n += ticked_under(view, inner, hidden);
+    }
+    n
+}
+
+/// The second header row of a list: a box under each named column, the
+/// tick column's cell empty. A box has no name, so nothing in it is sent;
+/// the list filter's script reads it (the page seat's probe).
+fn filter_row(columns: &[&str]) -> String {
+    let boxes: String = columns
+        .iter()
+        .enumerate()
+        .map(|(n, column)| {
+            format!(
+                "<td><input class=\"col-filter\" data-col=\"{}\" placeholder=\"filter\" aria-label=\"filter the {} column\"></td>",
+                n + 1,
+                esc(column)
+            )
+        })
+        .collect();
+    format!("<tr class=\"filters\"><td></td>{boxes}</tr>\n")
 }

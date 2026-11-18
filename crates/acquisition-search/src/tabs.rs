@@ -63,26 +63,6 @@ pub struct Tabs {
     /// more).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
-    /// `rows` grouped, where a reader asks for groups ([`Tabs::grouped`]):
-    /// each listed tab in order with the pages of it that are listed
-    /// nested under it, a page in no listed tab a group of its own, and a
-    /// listed folder's tabs nested in its group. Empty,
-    /// and left out, unless asked, so the flat answer is the same.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub groups: Vec<TabGroup>,
-}
-
-/// One listed tab and its pages (the 4b sitting round): a map or unique
-/// tab with the pages of it the listing names, in their order; any other
-/// tab with none. A folder holds the groups of its own tabs, in their
-/// order (the page seat's probe); any other tab none.
-#[derive(Debug, Clone, Serialize)]
-pub struct TabGroup {
-    pub tab: TabRow,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub pages: Vec<TabRow>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tabs: Vec<TabGroup>,
 }
 
 /// A league's tabs counted: how many, how many fetched and never, its
@@ -220,7 +200,6 @@ impl Tabs {
             rows,
             left_out,
             left_out_needs: (left_out > 0).then_some("expand"),
-            groups: Vec::new(),
         }
     }
 
@@ -246,70 +225,4 @@ impl Tabs {
         tabs.counts.span = coverage.span;
         Ok((tabs, held))
     }
-
-    /// The document with its rows grouped (`groups`): a page — a row
-    /// whose parent is a map or unique tab among the rows — is nested
-    /// under that tab, and every other row is a group in the rows' order.
-    /// A folder's children are tabs of their own, never its pages: each
-    /// a group in the folder's `tabs`. The web UI's refresh page renders
-    /// these groups and computes none (the sitting round's review, its
-    /// fourth finding).
-    pub fn grouped(mut self) -> Tabs {
-        let container = |id: &str| {
-            self.rows
-                .iter()
-                .any(|r| r.id == id && matches!(r.r#type.as_str(), "MapStash" | "UniqueStash"))
-        };
-        let page_of = |row: &TabRow| {
-            row.parent
-                .as_deref()
-                .filter(|p| container(p))
-                .map(str::to_string)
-        };
-        let mut groups: Vec<TabGroup> = Vec::new();
-        let mut pages: Vec<(String, TabRow)> = Vec::new();
-        for row in &self.rows {
-            match page_of(row) {
-                Some(parent) => pages.push((parent, row.clone())),
-                None => groups.push(TabGroup {
-                    tab: row.clone(),
-                    pages: Vec::new(),
-                    tabs: Vec::new(),
-                }),
-            }
-        }
-        for (parent, page) in pages {
-            if let Some(group) = groups.iter_mut().find(|g| g.tab.id == parent) {
-                group.pages.push(page);
-            }
-        }
-        // a group whose parent is a listed folder sits in the folder's
-        // group, the rest stand at the top
-        let folders: Vec<String> = groups
-            .iter()
-            .filter(|g| acquisition_store::is_folder_type(&g.tab.r#type))
-            .map(|g| g.tab.id.clone())
-            .collect();
-        let in_folder = |g: &TabGroup| {
-            g.tab
-                .parent
-                .as_deref()
-                .is_some_and(|p| p != g.tab.id && folders.iter().any(|f| f == p))
-        };
-        let (mut inner, top): (Vec<TabGroup>, Vec<TabGroup>) =
-            groups.into_iter().partition(|g| in_folder(g));
-        self.groups = top.into_iter().map(|g| fill(g, &mut inner)).collect();
-        self
-    }
-}
-
-/// `group` with the groups in `pool` whose parent it is, each filled the
-/// same way, taken out of `pool`.
-fn fill(mut group: TabGroup, pool: &mut Vec<TabGroup>) -> TabGroup {
-    let (mine, rest): (Vec<TabGroup>, Vec<TabGroup>) = std::mem::take(pool)
-        .into_iter()
-        .partition(|g| g.tab.parent.as_deref() == Some(group.tab.id.as_str()));
-    *pool = rest;
-    group.tabs = mine.into_iter().map(|g| fill(g, pool)).collect();
-    group
 }

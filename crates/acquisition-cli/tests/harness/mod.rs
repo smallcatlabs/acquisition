@@ -1548,7 +1548,7 @@ impl Pages {
 
     /// The pages read a world fetched in real time through the daemon:
     /// which location is the oldest or newest, and the facts line's form,
-    /// hang on a second (#172: the refresh page's `tabs` facts line), so
+    /// hang on a second (#172: the stash tabs page's facts line), so
     /// [`fetch_place_rule`] masks the fetch clause.
     pub fn fetched_live(mut self) -> Pages {
         self.fetched_live = true;

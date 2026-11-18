@@ -85,7 +85,10 @@ td.icon img { max-width: 47px; max-height: 94px; }
 .cards .shows { margin: -.4rem 0 0; padding: .3rem .75rem; border: 1px solid var(--rule); border-top: 0; font-size: 12.5px; }
 a.presentation { font-size: 12.5px; }
 
-/* the refresh page's lists */
+/* the place pages' lists (step 6.5a): a parent's head says what it
+   holds beside its opener; its places, open, are indented under it */
+.holds-said { color: var(--muted); font-size: 12.5px; }
+.actions form { display: inline; }
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
 details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }

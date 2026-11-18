@@ -2,7 +2,7 @@
 
 GET search?<every ring, tabs never fetched in two leagues>
 # holds "data-way=\"tabs\" href=\"/"
-# holds "/refresh?realm=pc&amp;league=Standard\">each tab of Standard</a>"
+# holds "/tabs?realm=pc&amp;league=Standard\">each tab of Standard</a>"
 # holds "1 other league holds never-fetched tabs"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:9,&quot;at&quot;:61,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
@@ -11,7 +11,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 <p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
 <table class="opening">
 <tr><th>Query</th><td>class:rings</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>3 matches (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Launch) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a><br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=class%3Arings&amp;view.fields=icon">as a table</a></p>
@@ -82,14 +82,14 @@ basis   store <store> · build <build> · snapshot 9 · facts v9 · prices and p
 </main>
 
 GET search?<every ring outside Standard>
-# holds "/refresh?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"
+# holds "/tabs?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:9,&quot;at&quot;:61,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Answer</h1>
 <p class="count">0 matches</p>
 <table class="opening">
 <tr><th>Query</th><td>class:rings -league=Standard</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Hardcore">each tab of Hardcore</a></td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 5 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Hardcore">each tab of Hardcore</a></td></tr>
 <tr><th>Total</th><td>0 matches<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <div class="zero">
@@ -128,7 +128,7 @@ GET search?<the id that left>
 <p class="count">0 matches</p>
 <table class="opening">
 <tr><th>Query</th><td>id:r2</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 3 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 3 items · 2 locations fetched<br>3 locations never fetched: PremiumStash 3 of 5 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>0 matches<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <div class="zero">
@@ -167,7 +167,7 @@ GET search?<a name eleven items carry>
 <p class="count">11 matches</p>
 <table class="opening">
 <tr><th>Query</th><td>name:kestrel</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 14 items · 3 locations fetched<br>3 locations never fetched: PremiumStash 3 of 6 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 14 items · 3 locations fetched<br>3 locations never fetched: PremiumStash 3 of 6 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>11 matches (fetched <age> ago, pc · Standard / Kestrels)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.fields=icon">as a table</a></p>
@@ -300,7 +300,7 @@ GET search?<a site search with an ambiguous clause>
 </section>
 <table class="opening">
 <tr><th>Query</th><td>sum(line(&quot;#% increased Movement Speed&quot; source=explicit).arg1)&gt;=20 line((&quot;Recover #% of Mana on Kill&quot; or &quot;Lose #% of Mana on Kill&quot;) source=explicit)</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 16 items · 4 locations fetched<br>3 locations never fetched: PremiumStash 3 of 7 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 16 items · 4 locations fetched<br>3 locations never fetched: PremiumStash 3 of 7 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>2 matches (fetched <age> ago, pc · Standard / Rarity)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_2250533757%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.fields=icon">as a table</a></p>
@@ -360,7 +360,7 @@ GET search?<a row that leaves lines out>
 <p class="count">1 match</p>
 <table class="opening">
 <tr><th>Query</th><td>line(template:spirit)</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 17 items · 5 locations fetched<br>3 locations never fetched: PremiumStash 3 of 8 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 17 items · 5 locations fetched<br>3 locations never fetched: PremiumStash 3 of 8 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Spirit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">as cards</a></p>
@@ -401,7 +401,7 @@ GET search?<a table of two values, priced three ways>
 <p class="count">3 matches</p>
 <table class="opening">
 <tr><th>Query</th><td>name:ledger ilvl&gt;=80 line(&quot;# to maximum Life&quot; arg1&gt;=50)</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 20 items · 6 locations fetched<br>3 locations never fetched: PremiumStash 3 of 9 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 20 items · 6 locations fetched<br>3 locations never fetched: PremiumStash 3 of 9 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Ledger)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50">as cards</a></p>
@@ -450,7 +450,7 @@ GET search?<a card whose numbers are links>
 <p class="count">1 match</p>
 <table class="opening">
 <tr><th>Query</th><td>name:kit sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=10</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 21 items · 7 locations fetched<br>3 locations never fetched: PremiumStash 3 of 10 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 21 items · 7 locations fetched<br>3 locations never fetched: PremiumStash 3 of 10 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Kit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Akit%20sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29%3E%3D10&amp;view.fields=icon">as a table</a></p>
@@ -498,7 +498,7 @@ GET search?<a character fetched from a later release>
 <p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
 <table class="opening">
 <tr><th>Query</th><td>class:rings</td></tr>
-<tr><th>Scope</th><td>account Alice#1234 · pc · live · 21 items · 8 locations fetched<br>3 locations never fetched: PremiumStash 3 of 10 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/refresh?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
+<tr><th>Scope</th><td>account Alice#1234 · pc · live · 21 items · 8 locations fetched<br>3 locations never fetched: PremiumStash 3 of 10 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location lists seen, the oldest <age> ago · <a class="way" data-way="tabs" href="/<token>/tabs?realm=pc&amp;league=Standard">each tab of Standard</a> · 1 other league holds never-fetched tabs</td></tr>
 <tr><th>Total</th><td>20 matches (the oldest fetch <age> ago, pc · Standard / Launch; the newest <age> ago, pc · Standard / Kit) · <a class="way" data-way="/total/undecided" href="/<token>/search?realm=pc&amp;text=undecided%28class%3Arings%29">1 undecided</a><br>3 locations were never fetched: nothing here says what they hold<br>these tables read release 3.30 and a character here was fetched from 3.31 (<age> ago): an item of 3.31 may read undecided, or lack a line the tables do not know, until a newer acq</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=class%3Arings&amp;view.fields=icon">as a table</a></p>

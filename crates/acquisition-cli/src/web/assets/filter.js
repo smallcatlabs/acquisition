@@ -1,4 +1,4 @@
-// The list filter (`acq web`'s refresh page): the boxes under a list's
+// The list filter (`acq web`'s place pages): the boxes under a list's
 // column heads hide each row whose cell does not hold a box's words, case
 // aside, and a group (a folder, a tab's pages) while no row in it shows.
 // It keeps nothing: the boxes are sent nowhere and a reload clears them.

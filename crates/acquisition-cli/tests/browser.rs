@@ -9,7 +9,9 @@
 //! is scrolled, the server's rows at their places and holds no more than
 //! a bound the table's length does not move, takes the server's first
 //! block without asking it again, and loads the page again when the
-//! basis moves (`window.js`). The tests type, click and scroll as a
+//! basis moves (`window.js`); and a place page's opener, on a page
+//! several viewports long, leaves the reader at the opened head with
+//! every tick kept (#270). The tests type, click and scroll as a
 //! user's keys and pointer would, and compare what the page shows with
 //! what the server answers for the same form or window.
 //!
@@ -764,6 +766,106 @@ fn the_window_shows_the_servers_rows_in_place_and_follows_a_moved_basis() {
         "the page loaded again, not at the basis now"
     );
     whole(&mut page, "0", "the start, at the new basis");
+}
+
+/// The place pages' opener keeps the reader's place (#270, step 6.5a): on
+/// a stash tabs page several viewports long, a box ticked near the top,
+/// then a far map tab's opener clicked, the page that loads stands at
+/// that tab's head, in the viewport, its pages listed under it, and the
+/// box ticked before is still ticked: the tick travelled through the
+/// open in the URL, and the answer's anchor placed the reader with no
+/// script.
+#[test]
+fn opening_a_far_parent_keeps_its_head_in_view_and_every_tick() {
+    let (scratch, web) = offline_web("browserplaces");
+    let mut store = acquisition_store::Store::open(&acquisition_store::account_path(
+        &scratch.0.join("mock"),
+        USER,
+    ))
+    .expect("the seeded store");
+    let mut listed: Vec<Value> = (0..80)
+        .map(|n| json!({ "id": format!("t{n:02}"), "name": format!("Tab {n:02}"), "type": "PremiumStash" }))
+        .collect();
+    listed.push(json!({ "id": "far", "name": "Far maps", "type": "MapStash" }));
+    listed.extend(
+        (80..90)
+            .map(|n| json!({ "id": format!("t{n:02}"), "name": format!("Tab {n:02}"), "type": "PremiumStash" })),
+    );
+    store
+        .record(
+            &acquisition_store::Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stashes": listed }),
+            70,
+        )
+        .expect("the listing");
+    store
+        .record(
+            &acquisition_store::Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "far".into(),
+                sub: None,
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stash": { "id": "far", "name": "Far maps", "type": "MapStash", "items": [], "children": [
+                { "id": "fp1", "name": "Tier 1", "type": "MapStash", "parent": "far" },
+                { "id": "fp2", "name": "Tier 2", "type": "MapStash", "parent": "far" } ] } }),
+            71,
+        )
+        .expect("the far tab's fetch");
+    drop(store);
+
+    let mut page = Page::blank(&profile_of(&scratch));
+    page.cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        json!({ "width": 1000, "height": 600, "deviceScaleFactor": 1, "mobile": false }),
+    );
+    page.navigate(&format!("{}tabs?realm=pc&league=Standard", web.url));
+    let long = page
+        .cdp
+        .eval("document.documentElement.scrollHeight > 3 * window.innerHeight");
+    assert_eq!(long, json!(true), "the page must be several viewports long");
+    let tick = "document.querySelector('input[name=\"tab\"][value=\"t03\"]')";
+    page.cdp.click(tick);
+    assert_eq!(page.cdp.eval(&format!("{tick}.checked")), json!(true));
+    page.cdp
+        .click("document.querySelector('button[name=\"toggle\"][value=\"far\"]')");
+    page.loaded_again();
+    page.cdp.until("document.getElementById('p-fp2') !== null");
+    let look = page.cdp.eval(
+        "(() => { const head = document.getElementById('p-far').getBoundingClientRect(); \
+         const pages = ['p-fp1', 'p-fp2'].map((id) => document.getElementById(id).getBoundingClientRect().top); \
+         return { hash: location.hash, top: head.top, bottom: head.bottom, vh: window.innerHeight, \
+                  scrolled: window.scrollY, pages, \
+                  ticked: document.querySelector('input[name=\"tab\"][value=\"t03\"]').checked }; })()",
+    );
+    assert_eq!(look["hash"], "#p-far", "{look}");
+    let (top, bottom, vh) = (
+        look["top"].as_f64().unwrap(),
+        look["bottom"].as_f64().unwrap(),
+        look["vh"].as_f64().unwrap(),
+    );
+    assert!(
+        top >= 0.0 && bottom <= vh,
+        "the head is out of view: {look}"
+    );
+    assert!(
+        look["scrolled"].as_f64().unwrap() > vh,
+        "the page is at its top: {look}"
+    );
+    for page_top in look["pages"].as_array().unwrap() {
+        assert!(
+            page_top.as_f64().unwrap() > top,
+            "a page above its tab: {look}"
+        );
+    }
+    assert_eq!(look["ticked"], json!(true), "the tick was lost: {look}");
 }
 
 /// The harness refuses a browser that exits before its debugging
