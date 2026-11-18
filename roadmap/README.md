@@ -37,10 +37,11 @@ when its step closes or the owner strikes it.
 1. 4-full part 1, step 6.5, ruled in `briefs/4-full-1-step6-design.md`
    §3, in four parts. 6.5a, the places and their pages, is built from
    `briefs/4-full-1-step6-places.md` (#248, #191, #189's listing).
-   Then, a brief each, written first: 6.5b, the grouped table (#244,
-   #269); 6.5c, an item under its row and the row's ways (#270, #194,
-   #186, #190); 6.5d, the plan and jobs pages from their documents
-   (#182, #189). The search form's reshaping (#184, #181, #180, #185,
+   Then, a brief each, written first: 6.5b, the grouped table and
+   the list's filter as the request's (#244, #269, #194's
+   never-fetched view); 6.5c, an item under its row and the row's
+   ways (#270, #194, #186, #190); 6.5d, the plan and jobs pages from
+   their documents (#182, #189). The search form's reshaping (#184, #181, #180, #185,
    #188, #183, #193) is the step after, one design; the look is #285.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
