@@ -2530,8 +2530,14 @@ def round_z(earlier):
     # increased_rarity v3 (tools/trade_rows.py, CARRIED): the reworded text at weight 1, counted beside the old.
     # The claim it rests on is checked here: the site kept the ids and changed their text.
     pseudo, old, new = "pseudo.pseudo_increased_rarity", "#% increased Rarity of Items found", "+#% to Item Rarity"
-    ids = sorted(e["id"] for g in json.loads(STATS_330.read_text())["result"] if g["id"] != "pseudo"
-                 for e in g["entries"] if e["text"] == new)
+    lines = [e for g in json.loads(STATS_330.read_text())["result"] if g["id"] != "pseudo" for e in g["entries"]]
+    # #33's item 7 also asks the total on an item carrying the reworded line beside the old one. No search can:
+    # the site moved the text in place, so no id displays the old wording and no listed item shows it (the old
+    # text survives only in a store's bodies fetched before the patch, which the site never sees). Refused here
+    # if a capture ever lists it again; z04 asks two lines of the new wording, the case the site can hold.
+    if any(e["text"] == old for e in lines):
+        raise SystemExit(f"round z: an id still displays {old!r}, so the old line beside the new can be asked")
+    ids = sorted(e["id"] for e in lines if e["text"] == new)
     if ids != sorted(ids_of(old)) or len(ids) != 5:
         raise SystemExit(f"round z: {new!r} is displayed by {len(ids)} ids, not the five that displayed {old!r}")
     add(f"increased_rarity v3, complete: whether any listed item shows `{old}`, the pseudo, while carrying `{new}` "
