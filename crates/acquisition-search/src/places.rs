@@ -19,7 +19,10 @@
 //! A place that can hold items carries the request that lists them
 //! (`request`): `id:<its id>` over its realm, with the league for a tab
 //! or a page, made by the one function a `tab` count's bucket makes its
-//! route with (`counts::place_terms`), so the two are one text.
+//! route with (`counts::place_terms`), so over one realm the two are one
+//! text, save where a second spelling of the league is listed and holds
+//! no item: there the place names its spelling and the bucket does not,
+//! and both select the same items (that function's doc says why).
 //! A folder holds tabs and no items, and carries none.
 //!
 //! The league's counts stand once, as `tabs` counts them
