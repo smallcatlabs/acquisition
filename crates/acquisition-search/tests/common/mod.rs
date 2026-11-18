@@ -332,6 +332,18 @@ pub const STATS_BEFORE_330: &str =
 pub const STATS_NOW: &str =
     include_str!("../../../../search/trade-query/data/stats-2026-11-17.json");
 
+/// Whether a search's capture was taken before 3.30, so that its lines
+/// under a stat 3.30 moved may show the wording before the patch
+/// (`stats_moved_at_330`). Every capture before the sitting of 2026-11-17
+/// is; that sitting's rounds are y, z and za, the first after the patch
+/// (`search/pseudo-stats/MANIFEST.md`), no earlier search's name begins
+/// with either letter, and the rounds after it go on under z (#282). A
+/// capture taken after the patch shows the current wording and is held
+/// like any other.
+pub fn captured_before_330(search: &str) -> bool {
+    !search.starts_with('y') && !search.starts_with('z')
+}
+
 /// The stat ids, `<category>.<id>` as a capture spells them, whose site
 /// text 3.30 moved: listed in the capture of 2026-09-12 and absent from
 /// the stat table's capture, or listed in both with other texts. A stat

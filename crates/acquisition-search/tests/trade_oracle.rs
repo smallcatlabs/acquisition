@@ -384,6 +384,11 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             "{}: a patch's row asks no stat 3.30 moved: {ids:?}",
             r.search
         );
+        assert!(
+            captured_before_330(&r.search),
+            "{}: a patch's row is a capture taken after 3.30",
+            r.search
+        );
     }
 
     // a ruling or a question: the clause that refuses the item, or a filter

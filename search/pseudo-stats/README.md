@@ -162,7 +162,7 @@ arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.
   y11, a mutated explicit `+# to Armour`. y12, a display a `reduced` local line gives below nothing, found
   none, so S4 stays unasked. No group of the copy's 75 is unasked now. The evidence over every capture: 2,798
   readings, none disagreeing.
-- **Not asked**: of the copy's 74 groups of lines 32, holding 91 of 1822 (each with its question in the copy
+- **Not asked before step 7's sitting** (2026-10-16; at `87073d57` the copy file held three groups unasked, which the sitting of 2026-11-17 asked, above): of the copy's 74 groups of lines 32, holding 91 of 1822 (each with its question in the copy
   file); no shape. An explicit twin the item's own (J8) under a flag — crafted 8 groups, 28 lines; fractured
   6, 13; mutated 1, 2 — or on a synthesised item, 1, 4. A text a local stat alone displays (the join): crafted
   5, 15; fractured 3, 6; on a synthesised item 4, 14. A line of a type no roll reads, 3, 7. A synthesised
