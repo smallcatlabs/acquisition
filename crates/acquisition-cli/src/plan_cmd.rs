@@ -55,9 +55,8 @@
 //!   predictable.
 //! - Names without ids in the expanded character lines: ids are what a
 //!   policy names; the default view drops them by counting.
-//! - The events JSON defaulting to the summary: the driver expects the
-//!   event-list document and checks its returned count and limit
-//!   indicator (`tools/tracer-rung.sh`).
+//! - The events JSON defaulting to the summary: a script reading events
+//!   wants the list, with its returned count and limit indicator.
 //! - Colour or other decoration: captured output is the common case.
 //! - A `--quiet` driver: its problem was repetition, not volume.
 //! - A store-side event summary function: the event list is grouped above

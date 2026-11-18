@@ -1,9 +1,13 @@
 # Run ledger
 
-Every run of the Rust daemon against the real GGG API, one row each, in
-order. The rule a run follows and its procedure are the live-run skill
-(the standing rule, the rails, the steps); the drivers draft a
-row (`tools/tracer-rung.sh`, `tools/persist-check.sh`) and a first
+Every live run of the Rust daemon against the real GGG API, one row
+each, in order. A live run answers a question about the wire; the
+owner's own use of the tool is none, and takes a row only when it halts
+a daemon or teaches a fact about GGG (C189; the rows to 2026-11-17
+include his refreshes, which went through the driver then). The rule a
+run follows and its procedure are the live-run skill (the standing
+rule, the rails, the steps); a driver's row is written from its bundle
+(`tools/tracer-rung.sh`, `tools/persist-check.sh`) and a first
 contact's row is written by hand. Evidence — journals, daemon logs, run
 logs, bodies — is copied to `runs/<date>-<name>/` (gitignored) and cited
 by the row, so the row is the committed record of the run. Rows stay as

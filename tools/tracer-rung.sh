@@ -1,259 +1,189 @@
 #!/bin/bash
-# Tracer rung (RUN-LEDGER.md, the tracer rows from 2026-09-01 on): the
-# owner's first real use of the refresh slice, driven end to
-# end with the rails on, verified from the journal, and with the friction
-# notes collected as the run goes rather than recalled afterwards. The
-# human parts stay human: run this from a terminal (the daemon needs your
-# keychain, and the login needs your browser), and every wire phase waits
-# for an explicit enter.
+# tracer-rung.sh — the evidence run of the refresh loop: the stored sync
+# policy applied cycle by cycle (plan → apply → replan) until the plan is
+# empty, each cycle on a fresh daemon under the tripwire and an exact
+# send ceiling, the journal verified after (tools/tracer-verify.py).
 #
-#   tools/tracer-rung.sh [--account SEL] [--realm R] [--league L] \
-#                        [--max-age S] [--cycles K] [--characters all|id,...] \
-#                        <tab1,...,tabN | all | none>                       # live
-#   tools/tracer-rung.sh --mock [--cycles K] [--characters …] <tabs|all|none>  # rehearsal
+# This is a live run's driver (C189): for a change to the path a send
+# takes, or a first start on a platform. Refreshing a store is `acq
+# refresh` or `acq web`, never this.
 #
-# The selection becomes the sync policy (`acq policy set`, policy v3): the
-# named tab ids, or `all` for every tab the league lists, or `none` for no
-# tab coverage at all; `--characters` adds the character facet the same
-# way (`all`, or GGG character ids — the full 64-hex, from `acq store
-# characters`). A character-only run (`none` plus `--characters`) is how
-# the PoE2 realm is driven: stashes are PoE1 only, so `--realm poe2` takes
-# no tab selection. The character list is realm-wide and gets its own
-# probe; each character fetch is one GET on `character-request-limit`
-# (5 per 10 s, 30 per 300 s — the stash policy's shape).
-# A policy id covers the tab
-# and its children (C37): a map/unique tab's
-# substashes are planned the cycle after the parent's first fetch lands
-# their stubs (a plan never expands itself), a folder's children at once.
-# So an id list that names a map tab runs the discovery cycle too, and the
-# loop closes when every covered substash is fetched or skipped as an
-# empty stub. Live, `all` on a 322-tab account is a 323-request plan with
-# ~343 s limiter holds every 30 sends (rung 10's shape) and then every
-# substash — the owner's call, not this script's; `all` defaults
-# max_age_seconds to a day so the hour-long cycle does not make its own
-# facts stale before the next plan (the driver refuses a window shorter
-# than the cycle it projects).
+#   tools/tracer-rung.sh --account SEL [--realm R] [--league L] [--cycles K] \
+#                        [--tabs all|id,...] [--characters all|id,...] [--max-age S]   # live, from a terminal
+#   tools/tracer-rung.sh --mock [the same]                                            # rehearsal, any shell
 #
-# Shape of the run (one fresh daemon per wire phase, each under an EXACT
-# send ceiling, stopped when its phase is over):
-#   0  preflight (no wire, tools/preflight.sh): leftover env; live
-#      refuses working-tree changes to the rung's own files, so the
-#      ledger's tip names what ran; no daemon; a locked build; then
-#      provenance.json pairs HEAD with the contract revision and both
-#      executables' hashes (C84); account
-#   1  login, only if the account's index entry has no uuid (intent binds
-#      to the uuid; a login predating uuid-at-login has none) — 2 sends
-#   2  policy written, then `refresh --plan` with NO daemon: compiled
-#      offline, the note on stderr says so
-#   3+ per cycle: the offline envelope derives the ceiling (one HEAD probe
-#      per route the plan touches + one GET per action, + 1 token POST
-#      when the restored access token would not outlast the cycle: C135,
-#      a lifetime refreshes only at expiry); a daemon comes up under the
-#      ceiling without the POST and reports its token's expiry, and is
-#      replaced, having sent nothing, by one whose ceiling carries the
-#      POST when the token would not last (a token read, its own lifetime
-#      in the journal); a token that would lapse mid-cycle is waited out
-#      first, so the refresh is the cycle's first send, never a guess;
-#      `refresh --plan --json` again, now with the daemon's quote (or its
-#      note says why not — the `/profile` discriminator residual is
-#      collected here, not pre-fixed); that
-#      envelope is checked to be the offline one plus the quote (actions
-#      in order, basis, identity, revision), its actions are shown and
-#      confirmed, and THAT FILE is applied as one `apply` parent with
-#      `--max-requests` = its own count. The ceiling is exact, so the
-#      daemon halts on the bound right after the last planned send — the
-#      expected end of a cycle, and it is checked as such: the daemon
-#      must report the tripwire armed, the ceiling equal to the plan, that
-#      many sends counted, and a ceiling halt in force, with the journal
-#      agreeing; its `daemon status --json` is saved as the lifetime's
-#      report (the socket it was reached on, the identity). A send the plan did not project would consume the bound
-#      and show as a planned child refused. An apply that fails, or
-#      executes anything but the plan, ends the run: the lifetime's
-#      report, its jobs and its log are saved, the daemon is stopped
-#      (the queue stays readable on disk, C45) and the driver exits 1.
-#      Repeat until
-#      the plan is empty (the loop closed) or --cycles is hit. An empty
-#      plan's `--apply` runs with no daemon at all: the no-op must contact
-#      nothing, and the socket is checked dead after it.
-#   4  the next read = facts: `acq tabs`, `acq store status/events`; a
-#      selected tab missing from the store, or a read that fails, fails
-#      the run — the readback is part of what the rung tests
-#   5  evidence + verification (tools/tracer-verify.py; its --self-test
-#      pins the branches the mock cannot reach): per lifetime, probe
-#      before first send per route, no non-2xx; every probe's reported
-#      hits, per window, are at most this run's own GETs on that route
-#      inside the window plus its timing bucket (so the run's FIRST probe
-#      on a route must report 0 — the standing rule — and a later cycle's
-#      probe may carry only the earlier cycle's hits, which are ours); GET
-#      count == the applied plan's logical count (zero 429 re-sends: the
-#      estimate's minimum held); ledger row draft and the friction notes.
-# Mock mode proves the script on the in-process provider with the same
-# exact ceilings: isolated socket + store (fresh each run), a throwaway
-# mock login in the mock's own keyring service (the session must survive
-# the per-cycle daemon restarts; NOT ACQ_NO_KEYRING), logout at the end.
-# One mock caveat: the mock provider dies with each daemon, so a later
-# cycle's probe reads fresh counters there — a probe carrying the earlier
-# cycle's hits is evidence only live.
-# With a non-tty stdin (an agent session) the enter gates and note prompts
-# are skipped; live mode refuses a non-tty.
+# With no --tabs and no --characters it applies the stored policy as it
+# stands. With either, the run covers that selection of the league and
+# nothing else of it, stale after --max-age seconds (300), and the
+# stored policy is put back when the run ends, however it ends: a run
+# leaves stored intent as it found it (policy-before.json is the copy).
+# Live, it logs nobody in (`acq auth`). Mock, it makes a scratch world
+# under runs/mock/, logs a mock account in, stores a policy covering
+# every tab and character of the league, and logs out.
+#
+# The terminal gets what a person at it needs: the plan as `acq` renders
+# it, one question per cycle, the apply's own progress line, one line of
+# result. Everything else is the bundle, runs/<date>-tracer/, which the
+# ledger row is written from:
+#   provenance.json            HEAD, the contract revision, both executables' hashes (C84)
+#   plan-cN-offline.json       the plan compiled with no daemon: the ceiling's source
+#   plan-cN.json               the same plan with the daemon's quote: the file applied
+#   apply-cN.txt               the apply's report; jobs-cN.json every job of the lifetime
+#   daemon-cN-status.json      the daemon's own report at the halt
+#   cycles.tsv                 per cycle: lifetime, requests, probes, ceiling, token POSTs, quote
+#   sends.jsonl, daemon.log    the run's journal and log
+#   summary.txt, verify.sh     the verifier's per-send verdict, and the command that reproduces it
+#
+# What a cycle holds, and stops the run when it does not:
+# - The ceiling is exact: one HEAD probe per route the plan touches, one
+#   GET per action, and one token POST only when the access token the
+#   daemon restores would not outlast the cycle (C135). A token that
+#   would lapse mid-cycle is waited out first, so the refresh is the
+#   cycle's first send and never a guess.
+# - The plan applied is the plan the ceiling was derived from, plus the
+#   quote; compiling it and quoting it send nothing.
+# - The apply executes every action, and the daemon ends halted on the
+#   ceiling with exactly that many sends counted and journaled.
+# - An empty plan's apply runs with no daemon and contacts nothing.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 ACQ="$here/target/debug/acq"
 ACQD="$here/target/debug/acqd"   # the daemon beside acq (C82); the driver starts it and owns the pid
 
+usage="usage: tracer-rung.sh [--mock] [--account SEL] [--realm R] [--league L] [--cycles K] [--tabs all|id,...] [--characters all|id,...] [--max-age S]"
 MODE=live
 ACCOUNT=
 REALM=pc
 LEAGUE=Standard
-MAX_AGE=
 CYCLES=4
+TABS=
 CHARACTERS=
+MAX_AGE=300
 while [ $# -gt 0 ]; do
     case "$1" in
     --mock) MODE=mock; shift ;;
     --account) ACCOUNT=${2:?--account needs a value}; shift 2 ;;
     --realm) REALM=${2:?--realm needs a value}; shift 2 ;;
     --league) LEAGUE=${2:?--league needs a value}; shift 2 ;;
-    --max-age) MAX_AGE=${2:?--max-age needs a value}; shift 2 ;;
     --cycles) CYCLES=${2:?--cycles needs a value}; shift 2 ;;
+    --tabs) TABS=${2:?--tabs needs a value}; shift 2 ;;
     --characters) CHARACTERS=${2:?--characters needs a value}; shift 2 ;;
-    *) break ;;
+    --max-age) MAX_AGE=${2:?--max-age needs a value}; shift 2 ;;
+    -*) echo "$usage" >&2; exit 2 ;;
+    *)
+        echo "refusing: '$1' is no flag. A run's own tabs are --tabs all|id,...; with none named it applies the stored policy." >&2
+        exit 2 ;;
     esac
 done
-SELECTION=${1:?usage: tracer-rung.sh [--mock] [--account SEL] [--realm R] [--league L] [--max-age S] [--cycles K] [--characters all|id,...] <tab1,...|all|none>}
-if [ "$SELECTION" = none ] && [ -z "$CHARACTERS" ]; then
-    echo "refusing: tabs 'none' with no --characters names no work (the policy would be refused)" >&2
-    exit 2
-fi
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 2; }
-# The freshness window must outlive the cycle that fills it, or the next
-# plan re-lists and re-fetches what the previous one just landed: an id
-# list's cycle is seconds, `all` on a real account is an hour (rung 10),
-# so `all` defaults to a day. Checked again per cycle against the plan.
-if [ -z "$MAX_AGE" ]; then
-    if [ "$SELECTION" = all ]; then MAX_AGE=86400; else MAX_AGE=3600; fi
-fi
 INTERACTIVE=0
 if [ -t 0 ]; then INTERACTIVE=1; fi
 if [ "$MODE" = live ] && [ "$INTERACTIVE" = 0 ]; then
-    echo "refusing: stdin is not a terminal — the wire phases gate on enter." >&2
-    echo "run this directly from a terminal, not via a captured or piped shell." >&2
+    echo "refusing: stdin is not a terminal — a live run is a person's, and each cycle waits for one" >&2
     exit 2
 fi
 
-# ---- preflight (no wire) ---------------------------------------------------
+# ---- before any daemon ------------------------------------------------------
 
 # Isolation knobs left over from other work would silently redirect this
-# run; the rails knobs are set per daemon below, so a leftover value there
-# is dropped rather than refused.
+# run; the rails knobs are set per daemon below, so a leftover is dropped.
 for v in ACQ_STORE_DIR ACQ_LOG_DIR ACQ_NO_KEYRING ACQ_NO_SPAWN ACQ_JOURNAL; do
     if [ -n "${!v:-}" ]; then
         echo "refusing: $v is set in this shell (leftover from other work); unset it first" >&2
         exit 2
     fi
 done
-for v in ACQ_PROVIDER ACQ_TRIPWIRE ACQ_MAX_SENDS ACQ_IDLE_SHUTDOWN; do
-    if [ -n "${!v:-}" ]; then echo "note: $v was set in this shell; this script sets it per daemon"; fi
-done
-unset ACQ_GGG ACQ_PROVIDER ACQ_TRIPWIRE ACQ_MAX_SENDS ACQ_IDLE_SHUTDOWN   # ACQ_GGG is retired and refused (C88): a leftover export must not fail the run
+unset ACQ_GGG ACQ_PROVIDER ACQ_TRIPWIRE ACQ_MAX_SENDS ACQ_IDLE_SHUTDOWN   # ACQ_GGG is refused by every binary (C88)
 
 RUN_START=$(date +%s)
 RUN_DIR="$here/runs/$(date -u +%F)-tracer"
-# rehearsals are reproducible and live apart from the evidence the ledger cites
+# rehearsals live apart from the evidence the ledger cites
 if [ "$MODE" = mock ]; then RUN_DIR="$here/runs/mock/$(date -u +%F)-tracer"; fi
-# One directory per attempt: a repeated run the same day gets a time
-# suffix rather than overwriting or mixing with the earlier evidence.
+# one directory per attempt
 if [ -d "$RUN_DIR" ] && [ -n "$(ls -A "$RUN_DIR")" ]; then
     RUN_DIR="$RUN_DIR-$(date -u +%H%M%S)"
 fi
 mkdir -p "$RUN_DIR"
-FRICTION="$RUN_DIR/friction.md"
 
-# The socket derives from the world (C83): the owner's data directory in
-# live mode, the run's scratch store in mock — nothing names it.
+# The socket derives from the world (C83): the owner's in live mode, the
+# run's scratch store in mock. The run's journal and log are written
+# into the bundle, so both are this run's alone.
 if [ "$MODE" = live ]; then
     export ACQ_PROVIDER=ggg   # the default (C88), said so the run's environment reads whole
-    PROVIDER=ggg
 else
     export ACQ_PROVIDER=mock
     export ACQ_STORE_DIR="$RUN_DIR/store"
-    PROVIDER=mock
 fi
-# The run's diagnostics are its evidence (C83: the world's log and journal
-# are bounded and elsewhere; a driver's daemons write the run directory
-# instead — the journal under ACQ_JOURNAL, where the ledger cites it, the
-# log under ACQ_LOG_DIR beside it). Both files are this run's alone, so
-# no slicing by offset is needed at the end.
 JOURNAL="$RUN_DIR/sends.jsonl"
 export ACQ_LOG_DIR="$RUN_DIR/log"
 daemon_log() { find "$RUN_DIR/log" -name daemon.log -type f 2>/dev/null | head -1; }
 
-# No spawn, a clean tree, no daemon, a locked build, no daemon, and the
-# run's provenance.json: the shared preflight (tools/preflight.sh). The
-# offline claims below lean on the no-spawn export it makes: with no
-# daemon up, nothing can appear.
+# No spawn, a clean tree, no daemon, a locked build, and provenance.json
+# (tools/preflight.sh). With no daemon up and no spawn, none can appear.
 . "$here/tools/preflight.sh"
 preflight
 
+ACCT=()
+if [ -n "$ACCOUNT" ]; then ACCT=(--account "$ACCOUNT"); fi
+acq() { "$ACQ" ${ACCT[@]+"${ACCT[@]}"} "$@"; }
 status_json() { "$ACQ" daemon status --json 2>/dev/null || echo '{}'; }
 daemon_up() { [ "$(status_json | jq -r '.pid // empty')" != "" ]; }
 journal_size() { if [ -f "$JOURNAL" ]; then wc -c <"$JOURNAL" | tr -d ' '; else echo 0; fi; }
-# The daemon's own report, saved per lifetime after its wire phase (the
-# split's step 7): the socket it was reached on, its world, contract and
-# artifact (C83, C84), the rails state at the halt. A report that names
-# no socket is no daemon's — refused, never saved as evidence.
-save_status() { # <tag>
-    status_json >"$RUN_DIR/daemon-$1-status.json"
-    if [ -z "$(jq -r '.socket // empty' "$RUN_DIR/daemon-$1-status.json")" ]; then
-        echo "*** $1: no daemon reported on this world's socket:" >&2
-        cat "$RUN_DIR/daemon-$1-status.json" >&2
-        exit 1
-    fi
-    echo "status: pid $(jq -r '.pid' "$RUN_DIR/daemon-$1-status.json") on $(jq -r '.socket' "$RUN_DIR/daemon-$1-status.json") -> daemon-$1-status.json"
-}
 # Sends journaled since a byte offset (event lines excluded).
 sends_since() { tail -c +$(($1 + 1)) "$JOURNAL" 2>/dev/null | grep -c '"method"' || true; }
+span() { if [ "$1" -lt 90 ]; then echo "$1 s"; else echo "$((($1 + 30) / 60)) min"; fi; }
+some() { if [ "$1" = 1 ]; then echo "1 $2"; else echo "$1 $2s"; fi; }
+stop() { echo "*** $*" >&2; exit 1; }
 
-COMPLETED=0
-CLIENT_PID=
-cleanup() {
-    if [ -n "$CLIENT_PID" ]; then kill "$CLIENT_PID" 2>/dev/null || true; fi
-    if [ "$COMPLETED" != 1 ]; then
-        echo ""
-        if [ -z "${PID:-}" ]; then
-            echo "*** aborted before any daemon started; nothing was sent."
-        elif daemon_up; then
-            # Ctrl-C reaches the daemon too (it shares the script's process
-            # group), and it drains and leaves by itself (C133); an abort
-            # that was no signal leaves it up until its idle exit.
-            echo "*** aborted mid-run with a daemon up (possibly halted). After Ctrl-C it drains"
-            echo "*** and leaves by itself within 18 s; otherwise it stays until its idle exit."
-            echo "*** Jobs are on disk: acq daemon status / acq jobs; cancel what should not resume;"
-            echo "*** acq daemon stop ends it now."
-            if [ "$MODE" = mock ]; then echo "*** (this run's world: ACQ_STORE_DIR=$ACQ_STORE_DIR — the socket derives from it)"; fi
-            echo "*** Partial evidence is in $RUN_DIR and $JOURNAL"
-        else
-            echo "*** aborted mid-run; no daemon is up. The queue is on disk (acq jobs reads it, C45)."
-            if [ "$MODE" = mock ]; then echo "*** (this run's world: ACQ_STORE_DIR=$ACQ_STORE_DIR)"; fi
-            echo "*** Partial evidence is in $RUN_DIR and $JOURNAL"
-        fi
-        if [ -s "$FRICTION" ]; then echo "*** friction notes so far: $FRICTION"; fi
+# The stored policy, put back as it was: the run's own coverage never
+# outlives the run. The write is over the revision the run wrote, so a
+# policy another client changed meanwhile is left alone and said.
+POLICY_WRITTEN=0
+restore_policy() {
+    [ "$POLICY_WRITTEN" = 1 ] || return 0
+    POLICY_WRITTEN=0
+    if acq policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$RUN_REVISION" --json \
+        >"$RUN_DIR/policy-restored.json" 2>"$RUN_DIR/policy-restored.err"; then
+        echo "policy: the stored policy is back as it was before the run"
+    else
+        echo "*** the stored policy was NOT put back (policy-restored.err): it is still this run's selection." >&2
+        echo "*** Put it back by hand:  acq policy set @$RUN_DIR/policy-before-value.json --replace" >&2
     fi
+}
+
+DAEMON_STARTED=0
+COMPLETED=0
+cleanup() {
+    restore_policy
+    [ "$COMPLETED" = 1 ] && return 0
+    echo ""
+    if [ "$DAEMON_STARTED" = 0 ]; then
+        echo "*** stopped before any daemon started; nothing was sent."
+    elif daemon_up; then
+        # Ctrl-C reaches the daemon too, and it drains and leaves by itself (C133).
+        echo "*** stopped with a daemon up. After Ctrl-C it drains and leaves within 18 s;"
+        echo "*** otherwise \`acq daemon stop\` ends it. Its jobs stay on disk: \`acq jobs\`, then"
+        echo "*** \`acq cancel\` what should not resume (the live-run skill, \"If something trips\")."
+    else
+        echo "*** stopped; no daemon is up. The queue is on disk: \`acq jobs\` reads it."
+    fi
+    if [ "$MODE" = mock ]; then echo "*** this run's world: ACQ_PROVIDER=mock ACQ_STORE_DIR=$ACQ_STORE_DIR"; fi
+    echo "*** what was written is in $RUN_DIR"
     return 0
 }
 trap cleanup EXIT
 
 spawn_daemon() { # <max_sends> <outfile>
+    DAEMON_STARTED=1
     env ACQ_TRIPWIRE=1 ACQ_MAX_SENDS="$1" ACQ_IDLE_SHUTDOWN=600 ACQ_JOURNAL="$JOURNAL" \
         "$ACQD" >"$RUN_DIR/$2" 2>&1 &
     for _ in $(seq 1 100); do
-        pid=$(status_json | jq -r '.pid // empty')
-        [ -n "$pid" ] && { echo "$pid"; return 0; }
+        daemon_up && return 0
         sleep 0.1
     done
-    echo "daemon did not come up; see $RUN_DIR/$2 and $(daemon_log)" >&2
+    echo "the daemon did not come up; see $RUN_DIR/$2 and $(daemon_log)" >&2
     return 1
 }
 
@@ -263,696 +193,367 @@ stop_daemon() {
         daemon_up || return 0
         sleep 0.1
     done
-    echo "daemon did not stop" >&2
+    echo "the daemon did not stop" >&2
     return 1
 }
 
-# A failed apply ends the run, and the run keeps what the success path
-# keeps: the lifetime's report (as the daemon gives it, or the absence),
-# its jobs, its log. Then the daemon is stopped — nothing it holds is
-# lost: the queue is on disk and `acq jobs` reads it with no daemon
-# (C45), and a daemon left up would only block the next run (preflight
-# refuses one) for as long as its idle knob allows (`REFRESH-SLICE.md` at `b6197a82`,
-# observation; the 2026-09-12 change).
-fail_apply() { # <tag> <journal offset at cycle start> <ceiling>
-    local tag=$1
-    "$ACQ" jobs >&2 || true
-    # the evidence is every job (`--all`): the default lists ten of each
-    # beside the counts (C53, C149)
-    "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$tag.json" 2>/dev/null || true
-    check_rails "apply" "$2" "$3" || true
-    status_json >"$RUN_DIR/daemon-$tag-status.json"
-    if [ -n "$(daemon_log)" ]; then cp "$(daemon_log)" "$RUN_DIR/daemon.log"; fi
-    echo "*** evidence saved to $RUN_DIR (jobs-$tag.json, daemon-$tag-status.json, daemon.log, $JOURNAL); stopping the daemon" >&2
-    stop_daemon || true
-    exit 1
+# The daemon's own report, saved per lifetime after its sends: the socket
+# it was reached on, its world, contract and artifact (C83, C84), the
+# rails at the halt. A report that names no socket is no daemon's.
+save_status() { # <tag>
+    status_json >"$RUN_DIR/daemon-$1-status.json"
+    [ -n "$(jq -r '.socket // empty' "$RUN_DIR/daemon-$1-status.json")" ] ||
+        stop "$1: no daemon reported on this world's socket (daemon-$1-status.json)"
 }
 
-# The rails state after a wire phase, read from the daemon that ran it.
-# The ceiling is exact, so the bound is REACHED at the last planned send
-# (rails.rs trips on sends >= max): the expected end of a phase is a
-# daemon that reports the tripwire armed, a ceiling equal to the plan,
-# exactly that many sends counted, a ceiling halt in force, and the
-# journal agreeing — every one of those, or the phase fails. A journal
-# count that merely matches is not evidence the rail was there.
-check_rails() { # <phase> <journal offset at phase start> <expected sends>
-    local st armed max sends halted journaled
+# The rails after a lifetime's sends, from the daemon that sent them. The
+# ceiling is exact, so the bound is reached at the last planned send: the
+# tripwire armed, the ceiling the plan's, that many sends counted and
+# journaled, and a ceiling halt in force. A journal count that merely
+# matches is no evidence the rail was there.
+check_rails() { # <what> <journal offset at its start> <expected sends>
+    local st armed max sends halted journaled ok=1
     st=$(status_json)
-    armed=$(echo "$st" | jq -r '.rails.tripwire_enabled // false')
-    max=$(echo "$st" | jq -r '.rails.max_sends // "none"')
-    sends=$(echo "$st" | jq -r '.rails.sends // "unknown"')
-    halted=$(echo "$st" | jq -r '.rails.halted // empty')
+    armed=$(jq -r '.rails.tripwire_enabled // false' <<<"$st")
+    max=$(jq -r '.rails.max_sends // "none"' <<<"$st")
+    sends=$(jq -r '.rails.sends // "unknown"' <<<"$st")
+    halted=$(jq -r '.rails.halted // empty' <<<"$st")
     journaled=$(sends_since "$2")
-    local ok=1
-    [ "$armed" = true ] || { echo "*** $1: the daemon reports the tripwire NOT armed" >&2; ok=0; }
+    [ "$armed" = true ] || { echo "*** $1: the daemon reports the tripwire not armed" >&2; ok=0; }
     [ "$max" = "$3" ] || { echo "*** $1: the daemon's ceiling is $max, the plan's is $3" >&2; ok=0; }
     [ "$sends" = "$3" ] || { echo "*** $1: the daemon counted $sends send(s), $3 planned" >&2; ok=0; }
     [ "$journaled" = "$3" ] || { echo "*** $1: $journaled send(s) journaled, $3 planned" >&2; ok=0; }
     case "$halted" in
-    "") echo "*** $1: no halt in force — the bound was not reached (or the rail was not read)" >&2; ok=0 ;;
+    "") echo "*** $1: no halt in force — the ceiling was not reached" >&2; ok=0 ;;
     *ceiling*) ;;
     *)
-        echo "*** TRIPWIRE TRIP during $1: $halted" >&2
-        echo "*** stop. Read the journal; observe the 360 s post-violation rule." >&2
+        echo "*** the tripwire tripped during $1: $halted" >&2
+        echo "*** stop here. Read $JOURNAL; wait 360 s before any reset (the live-run skill)." >&2
         return 1 ;;
     esac
-    if [ "$ok" = 1 ]; then
-        echo "rails: armed, ceiling $max, bound reached exactly after the planned $3 send(s) ($halted) — nothing refused"
-        return 0
-    fi
-    echo "*** $1 did not end on the bound as planned; read $JOURNAL, and acq jobs for anything refused" >&2
-    return 1
+    [ "$ok" = 1 ] || { echo "*** $1 did not end on its ceiling; read $JOURNAL, and \`acq jobs\` for what was refused" >&2; return 1; }
 }
 
-confirm() {
-    [ "$INTERACTIVE" = 1 ] || return 0
-    echo ""
-    echo ">>> $1"
-    read -r -p ">>> enter to proceed (ctrl-c to abort) "
+# A failed apply ends the run with what a passing one keeps: the jobs, the
+# daemon's report, its log. Then the daemon is stopped: the queue is on
+# disk (C45), and a daemon left up would only refuse the next run.
+fail_apply() { # <tag> <journal offset at cycle start> <ceiling>
+    "$ACQ" jobs >&2 || true
+    "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$1.json" 2>/dev/null || true
+    check_rails "cycle ${1#c}" "$2" "$3" || true
+    status_json >"$RUN_DIR/daemon-$1-status.json"
+    if [ -n "$(daemon_log)" ]; then cp "$(daemon_log)" "$RUN_DIR/daemon.log"; fi
+    stop_daemon || true
+    stop "cycle ${1#c} failed; the daemon is stopped and its evidence is in $RUN_DIR"
 }
 
-# Friction is data, collected at the moment it happens. Empty skips.
-note() { # <phase>
-    [ "$INTERACTIVE" = 1 ] || return 0
-    local text
-    echo ""
-    read -r -p "friction note for \"$1\" (anything that felt wrong, slow, or surprising; enter to skip): " text
-    if [ -n "$text" ]; then
-        if [ ! -s "$FRICTION" ]; then
-            printf '# Friction notes — tracer rung %s (%s)\n\n' "$(date -u +%F)" "$MODE" >"$FRICTION"
-        fi
-        printf -- '- **%s**: %s\n' "$1" "$text" >>"$FRICTION"
-    fi
-}
+echo "tracer rung ($MODE): $ver at $tip, $REALM $LEAGUE, up to $(some "$CYCLES" cycle)"
+echo "bundle: $RUN_DIR"
 
-echo "tracer rung ($MODE) — binary $ver, HEAD $tip"
-echo "journal $JOURNAL | evidence -> $RUN_DIR"
-echo "realm $REALM | league $LEAGUE | selection $SELECTION | max_age_seconds $MAX_AGE | up to $CYCLES cycle(s)"
-
-# ---- phase 0: the account ---------------------------------------------------
-
-# The selector resolves the way `acq` resolves it (index.rs
-# `account_matches`): the username or the username without its
-# #discriminator, both case-insensitive (Unicode lowercasing, as Rust's
-# `to_lowercase`), or the exact uuid; exactly one hit. The exact username
-# is what gets exported. Every read of `accounts --json` asks every
-# account (`--expand`; the default lists ten, C53) and reads them under
-# `accounts`, one document (C149).
-resolve_account() { # <selector>
-    "$ACQ" accounts --expand --json | python3 -c '
-import json, sys
-sel = sys.argv[1]; low = sel.lower()
-hits = [e["username"] for e in json.load(sys.stdin)["accounts"]
-        if e["username"].lower() == low
-        or e["username"].lower().split("#", 1)[0] == low
-        or e.get("uuid") == sel]
-print(hits[0] if len(hits) == 1 else f"AMBIGUOUS_OR_NONE:{len(hits)}")' "$1"
-}
-account_uuid() { "$ACQ" accounts --expand --json | jq -r --arg u "$ACTING" '.accounts[] | select(.username == $u) | .uuid // empty'; }
-
-# the account a live run acts as, and the `--account` that names it to each
-# call that reads one (empty in mock: the run's one mock account is taken)
-ACTING=
-ACCT=()
-NEED_LOGIN=0
-if [ "$MODE" = live ]; then
-    echo "accounts on this machine:"
-    "$ACQ" accounts || true
-    persisted=$("$ACQ" accounts --expand --json 2>/dev/null |
-        jq '[.accounts[] | select(.persisted)] | length' || echo 0)
-    if [ -n "$ACCOUNT" ]; then
-        resolved=$(resolve_account "$ACCOUNT")
-        case "$resolved" in
-        AMBIGUOUS_OR_NONE:*)
-            echo "refusing: --account $ACCOUNT matches ${resolved#*:} accounts (needs exactly one:" >&2
-            echo "the exact username, the username without #discriminator, or the uuid)" >&2
-            exit 2 ;;
-        esac
-        ACTING="$resolved"
-    elif [ "$persisted" -gt 1 ]; then
-        echo "refusing: $persisted persisted accounts — every job and store read needs a selector." >&2
-        echo "rerun with --account <selector>, the account whose tabs these are." >&2
-        exit 2
-    else
-        ACTING=$("$ACQ" accounts --expand --json | jq -r '[.accounts[] | select(.persisted)][0].username // empty')
-    fi
-    [ -n "${ACTING:-}" ] || { echo "no persisted account; log in first (acq auth, from a terminal)" >&2; exit 2; }
-    echo "acting as: $ACTING"
-    # `--account` on each call that acts as an account; nothing remembers it
-    ACCT=(--account "$ACTING")
-    uuid=$(account_uuid)
-    if [ -z "$uuid" ]; then
-        echo "the index has no uuid for $ACTING (a login predating uuid-at-login);"
-        echo "intent binds to the uuid, so phase 1 logs in again as this account."
-        NEED_LOGIN=1
-    else
-        echo "uuid on record ($uuid); no login needed — each daemon restores the persisted session."
-    fi
-else
-    NEED_LOGIN=1
-fi
-# A queue an earlier daemon left on disk resumes in the first daemon
-# this run starts, before any plan of the run's is applied: its sends
-# would spend the run's ceilings and go out under no plan of its own
-# (2026-11-03: 250 jobs of an earlier deep refresh, restored by cycle 1's
-# token read). `jobs` reads the queue on disk with no daemon (C45).
-open_jobs=$("$ACQ" jobs --json | jq '.persisted.total // 0')
+# A queue an earlier daemon left on disk resumes in the first daemon this
+# run starts, under no plan of the run's, and spends its ceiling. `jobs`
+# reads the queue with no daemon (C45).
+open_jobs=$("$ACQ" jobs --json | jq 'if .persisted == null then 0 else .persisted.total end')
 if [ "$open_jobs" != 0 ]; then
     echo "refusing: $open_jobs job(s) an earlier daemon left on disk would resume in this run's first daemon:" >&2
     "$ACQ" jobs >&2 || true
     echo "cancel them first (the live-run skill, \"If something trips\"), then run again" >&2
     exit 2
 fi
-OFFSET=$(journal_size)
+
+# ---- mock only: a login and a stored policy in the scratch world -------------
+
 LOGIN_LIFETIME=0
-
-# ---- phase 1: login (only when intent cannot bind without it) ---------------
-
-if [ "$NEED_LOGIN" = 1 ]; then
-    if [ "$MODE" = live ]; then
-        confirm "phase 1: fresh daemon (ceiling 2), browser login as $ACTING — a code-exchange POST and the login's own GET /profile, exactly"
-    fi
+if [ "$MODE" = mock ]; then
     login_offset=$(journal_size)
-    PID=$(spawn_daemon 2 daemon-login.out)
-    echo "login daemon: pid $PID"
-    if [ "$MODE" = live ]; then
-        "$ACQ" auth 2>&1 | tee "$RUN_DIR/auth.out"
-        logged=$(grep -o 'logged in as .*' "$RUN_DIR/auth.out" | sed 's/logged in as //' || true)
-        if [ "$logged" != "$ACTING" ]; then
-            echo "*** the login came back as '${logged:-nobody}', not $ACTING — stop; the policy would bind to the wrong identity" >&2
-            exit 1
-        fi
-        uuid=$(account_uuid)
-        [ -n "$uuid" ] || { echo "*** login succeeded but the index still has no uuid for $ACTING" >&2; exit 1; }
-        echo "uuid recorded: $uuid"
-    else
-        # Scripted mock login (AGENTS.md): auth --no-browser, then approve.
-        "$ACQ" auth --no-browser >"$RUN_DIR/auth.out" 2>&1 &
-        AUTH_PID=$!
-        URL=
-        for _ in $(seq 1 50); do
-            URL=$(grep -o 'http://[^ ]*authorize[^ ]*' "$RUN_DIR/auth.out" | head -1 || true)
-            [ -n "$URL" ] && break
-            sleep 0.1
-        done
-        [ -n "$URL" ] || { echo "no login URL in auth.out" >&2; exit 1; }
-        APPROVE=${URL/\/authorize?/\/approve?}
-        curl -sL "$APPROVE&user=tracer-rung" >/dev/null
-        wait "$AUTH_PID"
-    fi
-    check_rails "login" "$login_offset" 2
+    spawn_daemon 2 daemon-login.out
+    "$ACQ" auth --no-browser --json >"$RUN_DIR/auth.json" 2>"$RUN_DIR/auth.err" &
+    AUTH_PID=$!
+    URL=
+    for _ in $(seq 1 50); do
+        URL=$(jq -r '.authorize_url // empty' "$RUN_DIR/auth.json" 2>/dev/null | head -1 || true)
+        [ -n "$URL" ] && break
+        sleep 0.1
+    done
+    [ -n "$URL" ] || stop "the mock login printed no authorize_url (auth.json, auth.err)"
+    # unquoted on purpose: bash 3.2 keeps a quoted replacement's backslash
+    APPROVE=${URL/\/authorize?/\/approve?}
+    curl -sL "$APPROVE&user=tracer-rung" >/dev/null || stop "the mock login's approval was refused ($APPROVE)"
+    wait "$AUTH_PID" || stop "the mock login did not complete (auth.json, auth.err)"
+    check_rails "the login" "$login_offset" 2
     save_status login
     stop_daemon
     LOGIN_LIFETIME=1
-    note "logging in"
+    # stashes are PoE1 only: a poe2 entry covers characters alone
+    facets='{"tabs": "all", "characters": "all"}'
+    if [ "$REALM" = poe2 ]; then facets='{"characters": "all"}'; fi
+    POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson f "$facets" \
+        '{version: 3, realms: {($r): {leagues: {($l): ({max_age_seconds: 3600} + $f)}}}}')
+    acq policy set "$POLICY" --json >"$RUN_DIR/policy-mock.json"
 fi
 
-# ---- phase 2: intent, then the plan with no daemon --------------------------
+# ---- the run's own coverage, when it names one -----------------------------------
 
-selection_json() { # <all|id,...> → "all" or a JSON id array
-    if [ "$1" = all ]; then echo '"all"'; else echo "$1" | tr ',' '\n' | grep . | jq -R . | jq -sc .; fi
-}
-# Policy v3 (C58, realm above league): leagues under realms, and per league
-# the facets it covers — `tabs` and/or `characters`; an absent facet is no
-# coverage of it (`none` leaves `tabs` out).
-tabs_json='[]'
-[ "$SELECTION" != none ] && tabs_json=$(selection_json "$SELECTION")
-chars_json='[]'
-[ -n "$CHARACTERS" ] && chars_json=$(selection_json "$CHARACTERS")
-# A `policy set` replaces each realm it names whole (C36, the sync
-# policy's replace rule), so the realm is written back with every league
-# the stored policy keeps in it and this run's league set: a run over a
-# new league keeps Standard (the Allflame run dropped it, RUN-LEDGER.md).
-# With no policy stored, the realm holds this league alone, as before.
-# One document (C149): the stored row under `policy`, null when none.
-STORED=$("$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy show --json)
-POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson t "$tabs_json" --argjson c "$chars_json" --argjson a "$MAX_AGE" \
-    --argjson s "$STORED" \
-    '(($s.policy // {}).value // {}) as $v
-    | (($v.realms // {})[$r].leagues // (if $r == "pc" and ($v.version // 3) < 3 then $v.leagues else null end) // {}) as $kept
-    | {version: 3, realms: {($r): {leagues: ($kept + {($l): ({max_age_seconds: $a}
-        + (if $t != [] then {tabs: $t} else {} end)
-        + (if $c != [] then {characters: $c} else {} end))})}}}')
-echo ""
-echo "phase 2: writing the sync policy (no daemon, no wire):"
-echo "  $POLICY"
-# The write is over the revision read above, a compare-and-swap either
-# way: a policy another client changed in between, or created where
-# none stood (revision 0: write only where no policy stands), is a
-# conflict that stops the run, never an overwrite of its edit.
-STORED_REVISION=$(jq -r 'if .policy == null then 0 else .policy.revision end' <<<"$STORED")
-if ! "$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy set "$POLICY" --if-revision "$STORED_REVISION" --json >"$RUN_DIR/policy.json"; then
-    echo "*** the sync policy is no longer as read (revision $STORED_REVISION, 0 for none stored): another client wrote it since; nothing written — stop, read \`acq policy show\`, and run again" >&2
-    cat "$RUN_DIR/policy.json" >&2
-    exit 1
+if [ -n "$TABS$CHARACTERS" ]; then
+    selection() { if [ "$1" = all ]; then echo '"all"'; else jq -Rc 'split(",") | map(select(. != ""))' <<<"$1"; fi; }
+    entry=$(jq -nc --argjson a "$MAX_AGE" '{max_age_seconds: $a}')
+    if [ -n "$TABS" ]; then entry=$(jq -c --argjson t "$(selection "$TABS")" '. + {tabs: $t}' <<<"$entry"); fi
+    if [ -n "$CHARACTERS" ]; then entry=$(jq -c --argjson c "$(selection "$CHARACTERS")" '. + {characters: $c}' <<<"$entry"); fi
+    acq policy show --json >"$RUN_DIR/policy-before.json"
+    [ "$(jq '.policy == null' "$RUN_DIR/policy-before.json")" = false ] ||
+        stop "no policy is stored, so there is none to put back after the run: \`acq policy set\` one first"
+    jq '.policy.value' "$RUN_DIR/policy-before.json" >"$RUN_DIR/policy-before-value.json"
+    # `policy set` replaces each realm it names whole, so the realm is
+    # written with every league the stored policy keeps in it and this
+    # run's league set.
+    POLICY=$(jq -c --arg r "$REALM" --arg l "$LEAGUE" --argjson e "$entry" \
+        '{version: 3, realms: {($r): {leagues: ((.policy.value.realms[$r].leagues // {}) + {($l): $e})}}}' \
+        "$RUN_DIR/policy-before.json")
+    acq policy set "$POLICY" --if-revision "$(jq '.policy.revision' "$RUN_DIR/policy-before.json")" --json >"$RUN_DIR/policy-run.json" ||
+        stop "the run's policy was refused (policy-run.json); the stored policy is as it was"
+    RUN_REVISION=$(jq -r '.revision' "$RUN_DIR/policy-run.json")
+    POLICY_WRITTEN=1
+    echo "policy: for this run $REALM $LEAGUE covers ${TABS:+tabs $TABS}${TABS:+${CHARACTERS:+ and }}${CHARACTERS:+characters $CHARACTERS}, stale after $MAX_AGE s; the stored policy is put back when the run ends"
 fi
-REVISION=$(jq -r '.revision' "$RUN_DIR/policy.json")
-echo "  revision $REVISION"
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy show | tee "$RUN_DIR/policy-show.txt"
 
-# The offline plan, human and JSON, with the socket dead: whatever the
-# note says, it must be "no quote" — a plan compiled with no daemon.
-offline_plan() { # <tag>
-    daemon_up && { echo "a daemon is up before the offline plan — not offline" >&2; return 1; }
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$1-offline.txt" 2>&1 || {
-        cat "$RUN_DIR/plan-$1-offline.txt" >&2; return 1; }
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
-        >"$RUN_DIR/plan-$1-offline.json" 2>"$RUN_DIR/plan-$1-offline.note" || {
-        cat "$RUN_DIR/plan-$1-offline.note" >&2; return 1; }
-    daemon_up && { echo "*** a daemon appeared during the offline plan — the quote path spawned one" >&2; return 1; }
-    if ! grep -q "no quote" "$RUN_DIR/plan-$1-offline.note"; then
-        echo "*** the offline plan's note is not a 'no quote' line:" >&2
-        cat "$RUN_DIR/plan-$1-offline.note" >&2
-        return 1
-    fi
-    return 0
-}
+# ---- the cycles ---------------------------------------------------------------
 
-# What two envelopes must agree on to be "the same plan": everything but
-# the quote, the two timestamps a re-read stamps afresh, and the derived
-# ages inside reasons (`age_seconds` advances with the clock between two
-# compiles; the reason KIND stays and is compared).
+# What two envelopes must agree on to be the same plan: everything but
+# the quote, the two timestamps a compile stamps afresh, and the ages
+# inside reasons, which advance with the clock (the reason's kind stays).
 plan_identity() {
     jq -S 'del(.quote, .generated_at, .basis.snapshot_taken_at)
            | walk(if type == "object" then del(.age_seconds) else . end)' "$1"
 }
-# The action block of an envelope — rendered from the file that will be
-# applied, through the CLI's own renderer (`acq refresh --plan=FILE`: the
-# grouped view, the same text a human reviewing the file would read), so
-# what is confirmed is what goes out. The verdict line through the blank
-# line before the quote.
-render_actions() {
-    local rendered
-    rendered=$("$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan="$1" |
-        awk '/^[0-9]+ requests?:$/ { on = 1 } on && /^$/ { exit } on { print }')
-    if [ -z "$rendered" ]; then
-        echo "*** could not extract the action block from the rendered plan; refusing an empty approval prompt" >&2
-        return 1
-    fi
-    printf '%s\n' "$rendered"
-}
-# The quote block of a rendered plan (or the one-line reason there is none).
-quote_block() {
-    local rendered
-    rendered=$(awk '
-        /^quote:/ || /^quote \(/ { on = 1 }
-        on && (/^wire:/ || /^next:/) { exit }
-        on { print }
-    ' "$1")
-    if [ -z "$rendered" ]; then
-        echo "*** could not extract the quote block from the rendered plan; refusing to ask for approval without it" >&2
-        return 1
-    fi
-    printf '%s\n' "$rendered"
-}
-
-echo ""
-echo "the plan, compiled offline (no daemon is running; checked):"
-offline_plan c1
-cat "$RUN_DIR/plan-c1-offline.txt"
-note "writing the policy and reading the first plan"
-
-# ---- phase 3: the cycles ----------------------------------------------------
-
-# One row per cycle for the verifier: cycle, lifetime index in this run's
-# journal, logical requests, probes expected, ceiling, token POSTs
-# planned, quote outcome.
-CYCLE_ROWS="$RUN_DIR/cycles.tsv"
-: >"$CYCLE_ROWS"
-LIFETIMES=$LOGIN_LIFETIME
+count() { jq --arg k "$2" '[.actions[] | select(.action == $k)] | length' "$1"; }
 # The seconds a restored access token must have left beyond the cycle's
-# estimate to be trusted through it (C135). A send refreshes a token
-# with 5 s or less left (`access_token` in daemon/refresh.rs), so one
-# that would lapse inside the cycle refreshes at a send no plan can
-# name; the driver waits until it is within those 5 s instead, and the
-# cycle's first send is the refresh. An estimate the wire outruns
-# refreshes mid-cycle anyway: the ceiling then refuses the plan's last
-# send, a stop, never a send over the bound.
+# estimate to be trusted through it (C135). A send refreshes a token with
+# 5 s or less left, so one that would lapse inside the cycle refreshes at
+# a send no plan can name; the driver waits it out instead.
 TOKEN_MARGIN=30
-# The run's account's access token, its seconds left as the daemon
-# reports them, once the start's keyring restore is over; empty when the
+# The acting account's access token, its seconds left as the daemon
+# reports them once the start's keyring restore is over; empty when the
 # daemon holds none for it.
 token_seconds() {
     local st=
     for _ in $(seq 1 600); do
         st=$("$ACQ" auth status --json 2>/dev/null || echo '{}')
-        [ "$(echo "$st" | jq -r '.keyring // empty')" = restoring ] || break
+        [ "$(jq -r '.keyring // empty' <<<"$st")" = restoring ] || break
         sleep 0.1
     done
-    echo "$st" | jq -r --arg u "${ACTING:-}" '
-        [.accounts[]? | select($u == "" or .username == $u)]
-        | if length == 1 then (.[0].access_expires_in_seconds // empty) else empty end'
+    jq -r --arg u "$ACTING" '
+        [.accounts[]? | select(.username == $u)]
+        | if length == 1 then (.[0].access_expires_in_seconds // empty) else empty end' <<<"$st"
 }
+
+# One row per cycle for the verifier: cycle, lifetime index in the
+# journal, requests, probes, ceiling, token POSTs planned, quote outcome.
+CYCLE_ROWS="$RUN_DIR/cycles.tsv"
+: >"$CYCLE_ROWS"
+LIFETIMES=$LOGIN_LIFETIME
 CLOSED=0
 for c in $(seq 1 "$CYCLES"); do
     tag="c$c"
-    if [ "$c" -gt 1 ]; then
-        echo ""
-        echo "cycle $c: the plan, compiled offline (no daemon is running):"
-        offline_plan "$tag"
-        cat "$RUN_DIR/plan-$tag-offline.txt"
-    fi
-    plan="$RUN_DIR/plan-$tag-offline.json"
-    logical=$(jq -r '.logical_requests' "$plan")
-    lists=$(jq '[.actions[] | select(.action == "list_stashes")] | length' "$plan")
-    fetches=$(jq '[.actions[] | select(.action == "fetch_tab")] | length' "$plan")
-    subs=$(jq '[.actions[] | select(.action == "fetch_substash")] | length' "$plan")
-    clists=$(jq '[.actions[] | select(.action == "list_characters")] | length' "$plan")
-    cfetches=$(jq '[.actions[] | select(.action == "fetch_character")] | length' "$plan")
-    [ $((lists + fetches + subs + clists + cfetches)) = "$logical" ] || { echo "plan carries an action kind this driver does not count" >&2; exit 1; }
-    wire_min=$(jq -r '.wire_sends.min' "$plan")
-    wire_max=$(jq -r '.wire_sends.max' "$plan")
-    [ "$wire_min" = "$logical" ] || { echo "plan's wire minimum $wire_min != logical $logical" >&2; exit 1; }
+    offline="$RUN_DIR/plan-$tag-offline.json"
+    plan="$RUN_DIR/plan-$tag.json"
+
+    # The plan with no daemon: the ceiling's source.
+    daemon_up && stop "a daemon is up before cycle $c's plan"
+    acq refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$offline" 2>"$RUN_DIR/plan-$tag-offline.note" || {
+        cat "$RUN_DIR/plan-$tag-offline.note" >&2; exit 1; }
+    daemon_up && stop "a daemon appeared while cycle $c's plan compiled: the plan spawned one"
+    [ "$(jq -r '.quote == null' "$offline")" = true ] || stop "cycle $c's plan carries a quote with no daemon up"
+    ACTING=$(jq -r '.account_name' "$offline")
+    logical=$(jq -r '.logical_requests' "$offline")
 
     if [ "$logical" = 0 ]; then
-        # The closed loop: an empty plan applies as a no-op that contacts
-        # nothing. No daemon is up, and none may appear.
+        if [ "$c" = 1 ]; then
+            acq refresh --plan="$offline"
+            echo "refusing: the stored policy asks for nothing in $REALM $LEAGUE that is not fresh, so there is no run." >&2
+            echo "\`acq policy show\` says what it covers; \`acq policy set\` changes it." >&2
+            exit 2
+        fi
+        # The closed loop: an empty plan applies as a no-op that contacts nothing.
+        acq refresh --apply --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/apply-$tag-noop.json"
+        [ "$(jq -r '.requests' "$RUN_DIR/apply-$tag-noop.json")" = 0 ] || stop "the empty plan's apply reported requests"
+        daemon_up && stop "the empty plan's apply spawned a daemon"
         echo ""
-        echo "cycle $c: the plan is empty — applying it with no daemon (must contact nothing):"
-        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --apply --realm "$REALM" --league "$LEAGUE" --json | tee "$RUN_DIR/apply-$tag-noop.json"
-        [ "$(jq -r '.requests' "$RUN_DIR/apply-$tag-noop.json")" = 0 ] || { echo "no-op apply reported requests != 0" >&2; exit 1; }
-        daemon_up && { echo "*** the no-op apply spawned a daemon" >&2; exit 1; }
+        echo "cycle $c: nothing left to fetch; the empty plan's apply started no daemon"
         CLOSED=$c
         break
     fi
 
-    # One free HEAD per route this lifetime: the stash list, the stash
-    # fetch, the character list, the character fetch — each its own route
-    # (and, off pc, its own realm-suffixed route).
+    lists=$(count "$offline" list_stashes)
+    stashes=$(($(count "$offline" fetch_tab) + $(count "$offline" fetch_substash)))
+    clists=$(count "$offline" list_characters)
+    chars=$(count "$offline" fetch_character)
+    [ $((lists + stashes + clists + chars)) = "$logical" ] || stop "cycle $c's plan carries an action kind this driver does not count"
+    [ "$(jq -r '.wire_sends.min' "$offline")" = "$logical" ] || stop "cycle $c's plan: its wire minimum is not its request count"
+    # One HEAD per route a lifetime first touches: the stash list, the
+    # stash fetch, the character list, the character fetch.
     probes=0
-    [ "$lists" -gt 0 ] && probes=$((probes + 1))
-    [ $((fetches + subs)) -gt 0 ] && probes=$((probes + 1))
-    [ "$clists" -gt 0 ] && probes=$((probes + 1))
-    [ "$cfetches" -gt 0 ] && probes=$((probes + 1))
-    pace=""
-    # The cycle's seconds on the wire: the live estimate below; a mock
-    # cycle takes a few.
+    for n in "$lists" "$stashes" "$clists" "$chars"; do
+        if [ "$n" -gt 0 ]; then probes=$((probes + 1)); fi
+    done
+    # The cycle's seconds on the wire, over-estimated on purpose: a ~343 s
+    # hold per 30 GETs on one policy and a ~15 s hold per 15, a minute of
+    # slack. The stash and character policies pace side by side, so the
+    # cycle lasts the longer one.
     est=5
     if [ "$MODE" = live ]; then
-        stash_gets=$((fetches + subs))
-        # Duration of this cycle on the wire, over-estimated on purpose:
-        # a ~343 s hold per 30 stash GETs and a ~15 s hold per 15 (rungs
-        # 10 and 7b; 323 GETs took 61 min live) plus a minute of slack.
-        # The character policy has the same windows (5:10, 30:300) and is
-        # paced independently, so the two facets run side by side and the
-        # cycle lasts as long as the longer one, not the sum.
-        # The facts a cycle lands at its start are the oldest when the
-        # NEXT plan compiles, so the window must outlive the cycle with
-        # margin: refuse unless it is at least twice the estimate.
-        gets=$stash_gets
-        [ "$cfetches" -gt "$gets" ] && gets=$cfetches
-        est=$(( (gets / 30) * 343 + (gets / 15) * 15 + 60 ))
-        if [ $((est * 2)) -gt "$MAX_AGE" ]; then
-            echo "*** cycle $c would take ~$est s on the wire but max_age_seconds is $MAX_AGE:" >&2
-            echo "*** what it lands would be stale (or nearly) for the next plan, and the loop" >&2
-            echo "*** could not close. Rerun with --max-age of at least $((est * 2)) (e.g. 86400)." >&2
-            exit 2
-        fi
-        # The facts this plan leaves alone as fresh keep ageing while the
-        # cycle runs: if the oldest of them plus the cycle's duration
-        # exceeds the window, the NEXT plan refetches them — a refetch
-        # cycle (seen 2026-09-02: 51 min old at start + a 13 min cycle
-        # against 3600 s bought a 6-request cycle 2). Harmless, the loop
-        # still closes, so this warns rather than refuses.
-        oldest=$(jq -r --argjson now "$(date +%s)" '
-            [ ((.skipped_tabs[], .skipped_characters[]) | select(.reason.kind == "fresh") | .reason.age_seconds),
-              (if (.basis.stash_listing != null) and ([.actions[] | select(.action == "list_stashes")] | length) == 0
-               then ($now - .basis.stash_listing.fetched_at) else empty end),
-              (if (.basis.character_listing != null) and ([.actions[] | select(.action == "list_characters")] | length) == 0
-               then ($now - .basis.character_listing.fetched_at) else empty end) ] | max // 0' "$plan")
-        if [ $((oldest + est)) -gt "$MAX_AGE" ]; then
-            echo "note: the oldest fact this plan keeps as fresh is ${oldest}s old and the cycle is ~${est}s;"
-            echo "      together they pass the ${MAX_AGE}s window, so expect the next plan to refetch it (a refetch cycle, not a fault)."
-        fi
-        if [ "$gets" -gt 30 ]; then
-            pace=" — more than 30 GETs on one policy: a ~15 s hold after each 15 and a ~343 s hold after each 30 (rung 10's shape), ~$est s in all; that is the limiter working"
-        elif [ "$gets" -gt 15 ]; then
-            pace=" — more than 15 GETs on one policy: expect one ~15 s limiter hold before the 16th (rung 7b); that is the limiter working"
-        fi
+        gets=$stashes
+        if [ "$chars" -gt "$gets" ]; then gets=$chars; fi
+        est=$(((gets / 30) * 343 + (gets / 15) * 15 + 60))
+    fi
+    # What a cycle lands at its start is the oldest fact when the next
+    # plan compiles, so the window must outlive the cycle with margin, or
+    # the next plan fetches it all again and the loop cannot close.
+    window=$(jq -r '.max_age_seconds' "$offline")
+    if [ $((est * 2)) -gt "$window" ]; then
+        echo "refusing: cycle $c would take about $(span "$est") and the policy's window is $(span "$window"): what it lands would be stale before the next plan." >&2
+        echo "A window of at least $((est * 2)) s lets the loop close (--max-age with a selection, or the stored policy's max_age_seconds)." >&2
+        exit 2
     fi
     need=$((est + TOKEN_MARGIN))
-    confirm "cycle $c: fresh daemon with ceiling $probes probe HEAD(s) + $logical GET(s) ($lists stash listing, $fetches tab, $subs substash, $clists character listing, $cfetches character; plan says $wire_min..$wire_max wire sends), + 1 token POST if the access token it restores has less than ${need}s left (it reports that before anything is sent)$pace"
+
+    # The daemon, under the ceiling its token calls for.
     posts=0
     ceiling=$((probes + logical))
     cycle_offset=$(journal_size)
-    PID=$(spawn_daemon "$ceiling" "daemon-$tag.out")
+    spawn_daemon "$ceiling" "daemon-$tag.out"
     LIFETIMES=$((LIFETIMES + 1))
     left=$(token_seconds)
-    if [ -n "$left" ] && [ "$left" -ge "$need" ]; then
-        echo "daemon $tag: the access token it restored has ${left}s left, at least the cycle's ${need}s: no token POST this lifetime"
-    else
-        echo "daemon $tag: the access token it restored has ${left:-no}${left:+s} left, short of the cycle's ${need}s:"
-        echo "  stopped before it sent anything, and replaced by one whose ceiling carries the refresh's POST"
+    if [ -z "$left" ] || [ "$left" -lt "$need" ]; then
+        # Stopped before it sent anything, and replaced by one whose
+        # ceiling carries the refresh's POST: a token read, its own
+        # lifetime in the journal.
         stop_daemon
-        [ "$(sends_since "$cycle_offset")" = 0 ] || { echo "*** the token read sent something" >&2; exit 1; }
+        [ "$(sends_since "$cycle_offset")" = 0 ] || stop "the token read sent something"
         mv "$RUN_DIR/daemon-$tag.out" "$RUN_DIR/daemon-$tag-read.out"
         if [ -n "$left" ] && [ "$left" -gt 3 ]; then
-            echo "  it would lapse mid-cycle: waiting $((left - 3))s for it to lapse, so the cycle's first send is the refresh"
+            echo ""
+            echo "cycle $c: the access token has $(span "$left") left and the cycle needs $(span "$need")."
+            echo "Waiting until $(date -v "+$((left - 3))S" +%H:%M:%S 2>/dev/null || date -d "+$((left - 3)) seconds" +%H:%M:%S) for it to lapse, so the cycle's first send is its refresh."
             sleep $((left - 3))
         fi
         posts=1
         ceiling=$((1 + probes + logical))
-        PID=$(spawn_daemon "$ceiling" "daemon-$tag.out")
+        spawn_daemon "$ceiling" "daemon-$tag.out"
         LIFETIMES=$((LIFETIMES + 1))
     fi
-    echo "daemon $tag: pid $PID (ceiling $ceiling)"
 
-    echo ""
-    echo "the same plan, now with the daemon up (quote attempt; nothing is sent) — its quote:"
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-$tag.txt" 2>&1
-    quote_block "$RUN_DIR/plan-$tag.txt"
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json \
-        >"$RUN_DIR/plan-$tag.json" 2>"$RUN_DIR/plan-$tag.note" || {
-        cat "$RUN_DIR/plan-$tag.note" >&2; exit 1; }
-    if [ "$(jq -r '.quote != null' "$RUN_DIR/plan-$tag.json")" = true ]; then
+    # The same plan with the daemon's quote: the file that is applied.
+    acq refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$plan" 2>"$RUN_DIR/plan-$tag.note" || {
+        cat "$RUN_DIR/plan-$tag.note" >&2; stop_daemon; exit 1; }
+    if [ "$(plan_identity "$offline")" != "$(plan_identity "$plan")" ]; then
+        echo "*** cycle $c: the plan compiled with the daemon up is not the offline plan plus a quote:" >&2
+        diff <(plan_identity "$offline") <(plan_identity "$plan") >&2 || true
+        stop_daemon
+        exit 1
+    fi
+    [ "$(sends_since "$cycle_offset")" = 0 ] || { stop_daemon; stop "cycle $c: the quote sent something"; }
+    if [ "$(jq -r '.quote != null' "$plan")" = true ]; then
         quote="quoted"
     else
         quote="unquoted: $(tr -d '\n' <"$RUN_DIR/plan-$tag.note")"
     fi
-    echo "quote outcome: $quote"
-    # The envelope that will be applied must be the offline one (the
-    # ceiling's source) plus the quote: same actions in order, basis,
-    # identity, revision, counts. Facts moving between the two compiles
-    # is a stop, not something to paper over.
-    if [ "$(plan_identity "$plan")" != "$(plan_identity "$RUN_DIR/plan-$tag.json")" ]; then
-        echo "*** the envelope compiled with the daemon up is not the offline envelope plus a quote:" >&2
-        diff <(plan_identity "$plan") <(plan_identity "$RUN_DIR/plan-$tag.json") >&2 || true
-        stop_daemon
-        exit 1
-    fi
-    [ "$(sends_since "$cycle_offset")" = 0 ] || { echo "*** the quote sent something" >&2; exit 1; }
+
     echo ""
-    echo "the envelope about to be applied ($RUN_DIR/plan-$tag.json), rendered from that file:"
-    render_actions "$RUN_DIR/plan-$tag.json"
-    confirm "apply exactly these $logical request(s) as one apply parent (--max-requests $logical); long waits are the limiter"
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --apply="$RUN_DIR/plan-$tag.json" --max-requests "$logical" --json \
-        >"$RUN_DIR/apply-$tag.json" 2>"$RUN_DIR/apply-$tag.err" &
-    CLIENT_PID=$!
-    if wait "$CLIENT_PID"; then :; else
-        CLIENT_PID=
-        echo "*** apply exited non-zero:" >&2
-        cat "$RUN_DIR/apply-$tag.json" "$RUN_DIR/apply-$tag.err" >&2
+    echo "cycle $c: the plan"
+    echo ""
+    # the plan's own `next:` line names a command this driver is about to run
+    acq refresh --plan="$plan" | grep -v '^next: ' | sed 's/^/    /'
+    echo ""
+    refresh_words="no token refresh"
+    if [ "$posts" = 1 ]; then refresh_words="1 token refresh"; fi
+    echo "cycle $c: $(some "$logical" request) under a ceiling of $ceiling sends ($(some "$probes" probe), $refresh_words), about $(span "$est")."
+    if [ "$INTERACTIVE" = 1 ]; then
+        read -r -p "Enter to apply, Ctrl-C to stop: "
+    fi
+
+    # The apply's stdout is its report, kept; its stderr is the progress
+    # line, left on the terminal.
+    if ! acq refresh --apply="$plan" --max-requests "$logical" | tee "$RUN_DIR/apply-$tag.txt"; then
         fail_apply "$tag" "$cycle_offset" "$ceiling"
     fi
-    CLIENT_PID=
-    outcome=$(jq -r '.outcome' "$RUN_DIR/apply-$tag.json")
-    requests=$(jq -r '.payload.requests // empty' "$RUN_DIR/apply-$tag.json")
-    done_n=$(jq -r '.payload.children.done // 0' "$RUN_DIR/apply-$tag.json")
-    failed_n=$(jq -r '.payload.children.failed // 0' "$RUN_DIR/apply-$tag.json")
-    echo "apply: outcome $outcome, $requests request(s) admitted, children done $done_n / failed $failed_n"
-    if [ "$outcome" != success ] || [ "$requests" != "$logical" ] || [ "$done_n" != "$logical" ]; then
-        echo "*** the apply did not execute exactly the plan:" >&2
-        cat "$RUN_DIR/apply-$tag.json" >&2
-        fail_apply "$tag" "$cycle_offset" "$ceiling"
-    fi
-    check_rails "apply" "$cycle_offset" "$ceiling"
-    save_status "$tag"
+    # Every job of the lifetime (`--all`: the default lists ten of each).
+    # The apply executed the plan when its parent is done and every action
+    # is a done child of it.
     "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$tag.json"
+    parent=$(jq '[.rows[] | select(.kind == "apply" and .parent == null)] | max_by(.id) // {}' "$RUN_DIR/jobs-$tag.json")
+    parent_id=$(jq -r '.id // empty' <<<"$parent")
+    done_n=0
+    if [ -n "$parent_id" ]; then
+        done_n=$(jq --argjson p "$parent_id" '[.rows[] | select(.parent == $p and .state == "done")] | length' "$RUN_DIR/jobs-$tag.json")
+    fi
+    if [ "$(jq -r '.state // empty' <<<"$parent")" != "done" ] || [ "$done_n" != "$logical" ]; then
+        echo "*** cycle $c: the apply did not execute exactly its plan: $done_n of $logical action(s) done under job ${parent_id:-none}" >&2
+        fail_apply "$tag" "$cycle_offset" "$ceiling"
+    fi
+    check_rails "cycle $c" "$cycle_offset" "$ceiling"
+    save_status "$tag"
     stop_daemon
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$c" "$LIFETIMES" "$logical" "$probes" "$ceiling" "$posts" "$quote" >>"$CYCLE_ROWS"
-    note "cycle $c (plan → quote → apply)"
+    echo "cycle $c: $logical of $logical applied; the daemon halted on its ceiling at $ceiling of $ceiling sends"
 done
 if [ "$CLOSED" = 0 ]; then
     echo ""
-    echo "note: $CYCLES cycle(s) run and the plan is still not empty — the loop did not close within --cycles;"
-    # shellcheck disable=SC2016  # the backticks are literal
-    echo 'the next `acq refresh --plan` says what is left. Recorded as such, not as a failure.'
+    echo "the plan is not empty after $(some "$CYCLES" cycle): \`acq refresh --plan\` says what is left. Recorded as such, not as a failure."
 fi
 
-# ---- phase 4: the next read = facts -------------------------------------------
+restore_policy
 
-echo ""
-echo "phase 4: the facts, read back from the store (no daemon):"
-if [ "$SELECTION" != none ]; then
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} tabs --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/tabs.txt"
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} tabs --realm "$REALM" --league "$LEAGUE" --json --expand >"$RUN_DIR/tabs.json"
-fi
-if [ "$SELECTION" = none ]; then
-    echo "(no tab coverage in this run)"
-elif [ "$SELECTION" = all ]; then
-    head -40 "$RUN_DIR/tabs.txt"
-else
-    head -1 "$RUN_DIR/tabs.txt"
-    unknown=$(jq -r '.unknown_tabs | join(" ")' "$RUN_DIR/plan-c1-offline.json")
-    missing=0
-    for id in $(echo "$SELECTION" | tr ',' ' '); do
-        # By id in the JSON, never the text: the text's layout moved twice
-        # under this check (`28db97c6`'s columns; `76ef839b` counts a league
-        # of more than thirty tabs by type, its ids unlisted), and each move
-        # aborted a live id-list run that had passed (2026-09-09, 2026-09-11,
-        # 2026-10-15). The JSON counts first since `603223af`: the tabs are
-        # `rows`, every one only under --expand (the review of note 38 at `16bba23e`,
-        # step 1, reproduced the abort, 2026-10-18).
-        row=$(jq -r --arg id "$id" '.rows[] | select(.id == $id) | "\(.name)  \(.type)  \(.item_count) items  \(.id)"' "$RUN_DIR/tabs.json")
-        if [ -n "$row" ]; then echo "$row"; continue; fi
-        case " $unknown " in
-        *" $id "*) echo "$id: not in the store — the first plan reported it as unknown (a typo, or a tab that is gone); never fetched" ;;
-        *) echo "*** $id: selected, planned, but not in the store's tab list after the run" >&2; missing=1 ;;
-        esac
-    done
-    tail -1 "$RUN_DIR/tabs.txt"
-    [ "$missing" = 0 ] || exit 1
-    # Children of a selected parent are covered through it: every one on
-    # record must have been fetched by the time the loop closed, except a
-    # substash stub the final plan skips as empty (nothing to fetch).
-    children=$(jq -c --argjson sel "$tabs_json" '[.rows[] | .parent as $p | select($p != null and ($sel | index($p)) != null)]' "$RUN_DIR/tabs.json")
-    n_children=$(echo "$children" | jq 'length')
-    n_unfetched=$(echo "$children" | jq '[.[] | select(.fetched_at == null)] | length')
-    echo "children of selected tabs on record: $n_children (substashes and folder children), $n_unfetched never fetched"
-    if [ "$CLOSED" != 0 ] && [ "$n_unfetched" -gt 0 ]; then
-        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
-        n_empty=$(jq '[.skipped_tabs[]? | select(.reason.kind == "empty_stub")] | length' "$RUN_DIR/plan-final.json" 2>/dev/null || echo 0)
-        if [ "$n_unfetched" != "$n_empty" ]; then
-            echo "*** $n_unfetched covered child(ren) never fetched but only $n_empty skipped as empty stubs — the loop closed with covered work undone" >&2
-            exit 1
-        fi
-        echo "(all $n_unfetched are empty stubs the final plan skips — nothing to fetch)"
-    fi
-fi
-if [ -n "$CHARACTERS" ]; then
-    # The character facet's readback: every covered character on record in
-    # this (realm, league) must have been fetched by the time the loop
-    # closed, unless the final plan skips it for a reason that never
-    # fetches (deleted, expired, no league). Coverage is exact by id, so
-    # the readback asks every character (`--expand`): the default lists
-    # ten beside the counts (C53), one document whose rows are `rows`
-    # (C149).
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} store characters --realm "$REALM" >"$RUN_DIR/characters.txt"
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} store characters --realm "$REALM" --expand --json >"$RUN_DIR/characters.json"
-    head -20 "$RUN_DIR/characters.txt"
-    if [ "$CHARACTERS" = all ]; then
-        covered=$(jq -c --arg l "$LEAGUE" '[.rows[] | select(.league == $l)]' "$RUN_DIR/characters.json")
-    else
-        covered=$(jq -c --argjson sel "$chars_json" '[.rows[] | select(.id as $i | $sel | index($i) != null)]' "$RUN_DIR/characters.json")
-        unknown=$(jq -r '.unknown_characters | join(" ")' "$RUN_DIR/plan-c1-offline.json")
-        for id in $(echo "$CHARACTERS" | tr ',' ' '); do
-            if [ "$(echo "$covered" | jq --arg i "$id" '[.[] | select(.id == $i)] | length')" = 1 ]; then continue; fi
-            case " $unknown " in
-            *" $id "*) echo "$id: not in the store — the first plan reported it as unknown (a typo, or a character that is gone); never fetched" ;;
-            *) echo "*** $id: selected, planned, but not in the store's character list after the run" >&2; exit 1 ;;
-            esac
-        done
-    fi
-    n_covered=$(echo "$covered" | jq 'length')
-    n_unfetched=$(echo "$covered" | jq '[.[] | select(.fetched_at == null)] | length')
-    echo "covered characters on record: $n_covered, $n_unfetched never fetched"
-    if [ "$CLOSED" != 0 ] && [ "$n_unfetched" -gt 0 ]; then
-        "$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/plan-final.json" 2>/dev/null || true
-        n_never=$(jq '[.skipped_characters[]? | select(.reason.kind == "deleted" or .reason.kind == "expired" or .reason.kind == "no_league")] | length' "$RUN_DIR/plan-final.json" 2>/dev/null || echo 0)
-        if [ "$n_unfetched" != "$n_never" ]; then
-            echo "*** $n_unfetched covered character(s) never fetched but only $n_never skipped as deleted/expired/no-league — the loop closed with covered work undone" >&2
-            exit 1
-        fi
-        echo "(all $n_unfetched are skips the final plan never fetches — deleted, expired, or no league)"
-    fi
-fi
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store status 2>&1 | tee "$RUN_DIR/store-status.txt"
-# Everything since the run started (plus an hour of margin), not a fixed
-# hour: an `all` cycle alone is longer than that. The CLI's default
-# limit (ten, the newest) would silently drop a big run's events, so the
-# limit is explicit and reaching it is a failure; the summary lists
-# every location (`--summary --expand`; ten by default, C53). The JSON
-# is one document (C149): the events under `rows`, `returned` counting
-# them and `limit_reached` saying the window may hold more.
+# ---- the store, read back (no daemon) -------------------------------------------
+
+# Since the run started, plus an hour of margin. The default lists ten
+# events, so the limit is explicit, and reaching it stops the run: the
+# evidence would be cut short.
 hours=$(python3 -c "import time; print((time.time() - $RUN_START) / 3600 + 1)")
-EVENT_LIMIT=1000000
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store events --hours "$hours" --limit "$EVENT_LIMIT" --summary --expand >"$RUN_DIR/store-events.txt"
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} store events --hours "$hours" --limit "$EVENT_LIMIT" --json >"$RUN_DIR/store-events.json"
-events_n=$(jq '.returned' "$RUN_DIR/store-events.json")
-if [ "$(jq '.limit_reached' "$RUN_DIR/store-events.json")" != false ]; then
-    echo "*** the item-event readback hit its limit ($EVENT_LIMIT): evidence would be truncated" >&2
-    exit 1
-fi
-echo "item events since the run started: $events_n, in $RUN_DIR/store-events.txt"
-"$ACQ" ${ACCT[@]+"${ACCT[@]}"} refresh --plan --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/plan-final.txt" 2>&1
-if [ "$CLOSED" != 0 ] && ! grep -q "nothing to do" "$RUN_DIR/plan-final.txt"; then
-    echo "*** the loop was recorded as closed but the final plan is not empty:" >&2
-    cat "$RUN_DIR/plan-final.txt" >&2
-    exit 1
-fi
-note "reading the facts back"
+acq store status >"$RUN_DIR/store-status.txt" 2>&1
+acq store events --hours "$hours" --limit 1000000 --summary --expand >"$RUN_DIR/store-events.txt"
+[ "$(acq store events --hours "$hours" --limit 1000000 --json | jq '.limit_reached')" = false ] ||
+    stop "the item events since the run started reached the readback's limit: store-events.txt is cut short"
 if [ "$MODE" = mock ]; then
-    PID=$(spawn_daemon 2 daemon-logout.out)
-    "$ACQ" ${ACCT[@]+"${ACCT[@]}"} auth logout >/dev/null 2>&1 || true
+    spawn_daemon 2 daemon-logout.out
+    acq auth logout >/dev/null 2>&1 || true
     stop_daemon
 fi
-# The wire phases are over and no daemon is left; what remains is analysis,
-# so the trap's "a daemon may still be up" warning no longer applies.
+# No daemon is left; what remains is reading.
 COMPLETED=1
 
-# ---- phase 5: evidence and verification -----------------------------------------
+# ---- the verdict ------------------------------------------------------------------
 
-# The evidence is this run's journal (written into the bundle by every
-# daemon of the run, under ACQ_JOURNAL) and its daemon log (copied from
-# the run's log directory), plus the verifier as it was when the run was
-# checked — copied into the bundle with its checksum — and the
-# verification runs on the saved journal from byte 0 through that copy,
-# so re-running verify.sh later reproduces the verdict exactly, wherever
-# the bundle lives and whatever the working tree's verifier becomes.
-[ -f "$JOURNAL" ] || { echo "*** no journal was written at $JOURNAL" >&2; exit 1; }
+# The verification runs on the bundle's journal from byte 0 through the
+# bundle's own copy of the verifier, so verify.sh reproduces the verdict
+# wherever the bundle lives and whatever the tree's verifier becomes.
+[ -f "$JOURNAL" ] || stop "no journal was written at $JOURNAL"
 if [ -n "$(daemon_log)" ]; then cp "$(daemon_log)" "$RUN_DIR/daemon.log"; fi
 # Which daemon sent: every lifetime's header against provenance.json (C84).
-provenance_matches_journal "$RUN_DIR/sends.jsonl"
+provenance_matches_journal "$JOURNAL" >"$RUN_DIR/provenance.txt"
 cp "$here/tools/tracer-verify.py" "$RUN_DIR/tracer-verify.py"
 (cd "$RUN_DIR" && shasum -a 256 tracer-verify.py sends.jsonl cycles.tsv provenance.json >checksums.sha256)
 cat >"$RUN_DIR/verify.sh" <<EOS
 #!/bin/sh
-# Re-verify this bundle: $(basename "$RUN_DIR"), binary $ver, rung tip $tip (provenance.json).
+# Re-verify this bundle: $(basename "$RUN_DIR"), $ver, tip $tip (provenance.json).
 # Uses the verifier copied into the bundle, never the working tree's.
 cd "\$(dirname "\$0")" && shasum -a 256 -c checksums.sha256 >/dev/null &&
     python3 ./tracer-verify.py sends.jsonl 0 cycles.tsv $LOGIN_LIFETIME $CLOSED $MODE $REALM
 EOS
 chmod +x "$RUN_DIR/verify.sh"
 
-# The full per-send form is the evidence (`summary.txt`, what verify.sh
-# reproduces); the terminal gets the brief form — one line per lifetime
-# with its totals, probe verdicts, and the limiter holds it saw — and the
-# verdict is the full run's.
-verify() { # [brief]
-    python3 "$RUN_DIR/tracer-verify.py" "$RUN_DIR/sends.jsonl" 0 "$CYCLE_ROWS" "$LOGIN_LIFETIME" "$CLOSED" "$MODE" "$REALM" ${1:+brief}
-}
-if verify >"$RUN_DIR/summary.txt"; then
-    verify brief
-else
-    cat "$RUN_DIR/summary.txt"
-    echo ""
-    echo "*** verification FAILED — see above; evidence in $RUN_DIR" >&2
-    exit 1
-fi
-echo "(per-send detail in $RUN_DIR/summary.txt)"
-
 echo ""
-echo "evidence in $RUN_DIR (this run's journal and daemon log, plans, apply results, status reports,"
-echo "store reads, summary, the verifier copy and checksums; ./verify.sh re-runs the verification)."
-if [ -s "$FRICTION" ]; then
-    echo ""
-    echo "friction notes ($FRICTION):"
-    cat "$FRICTION"
-else
-    echo "no friction notes were entered."
+if ! "$RUN_DIR/verify.sh" >"$RUN_DIR/summary.txt"; then
+    cat "$RUN_DIR/summary.txt"
+    stop "the journal does not verify; evidence in $RUN_DIR"
 fi
+python3 "$RUN_DIR/tracer-verify.py" "$JOURNAL" 0 "$CYCLE_ROWS" "$LOGIN_LIFETIME" "$CLOSED" "$MODE" "$REALM" brief |
+    sed -n '/^lifetime /,/^$/p'
+if [ "$CLOSED" != 0 ]; then
+    echo "pass: the loop closed at cycle $CLOSED, every send verified against its plan."
+else
+    echo "pass on the wire: every send verified against its plan; the loop did not close in $(some "$CYCLES" cycle)."
+fi
+echo "bundle: $RUN_DIR (summary.txt is the verdict per send; ./verify.sh reproduces it)"
 if [ "$MODE" = live ]; then
-    echo ""
-    echo "next: paste the ledger row into RUN-LEDGER.md, the owner's friction notes verbatim"
-    echo "inside it; anything learned about GGG goes to ground truth here, docs/design/network-ground-truth.md."
+    echo "next: tell the session the run is done; it writes the RUN-LEDGER.md row from the bundle."
 fi

@@ -309,7 +309,7 @@ def verify(journal, offset, rows_path, login_lifetime, closed, mode, out=print, 
     cyc = "; ".join(f"c{c['cycle']} {c['logical']} req" for c in cycles)
     out(f"| <date> | tracer | <tip> | pass | {lt} | 0 | policy → plan → apply → replan"
         f" ({cyc}{'; closed' if closed else '; not closed'}); each cycle's sends == its plan + probes + its planned POST;"
-        f" quote: {quotes or 'n/a'}; the owner's friction notes verbatim; runs/<date>-tracer/ |")
+        f" quote: {quotes or 'n/a'}; runs/<date>-tracer/ |")
     return True
 
 

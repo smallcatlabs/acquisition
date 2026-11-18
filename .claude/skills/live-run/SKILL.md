@@ -1,6 +1,6 @@
 ---
 name: live-run
-description: Run the Rust daemon against the real GGG API — a first contact on a new endpoint, or the refresh loop under the rails. Human-run, from a terminal. Use before any command that talks to the real provider — the default since C88.
+description: Run the Rust daemon against the real GGG API to answer a question about the wire — a first contact on a new endpoint, the refresh loop under the rails after a change to the path a send takes, a first start on a platform. Human-run, from a terminal. Use before asking the owner for any run against the real provider; his own use of the tool is no live run (C189).
 ---
 
 # Live run
@@ -10,7 +10,15 @@ the default (C88), and a real-mode daemon is started only from a
 terminal (the CLI refuses to spawn one without a terminal on stderr,
 and a daemon spawned from cron or a background shell would have no
 keychain and no session). A live run is the owner's, from a terminal,
-under this procedure. The invariants in `AGENTS.md` apply. Every live
+under this procedure. The invariants in `AGENTS.md` apply.
+
+A live run answers a question about the wire (C189): a first contact
+on an endpoint, a change to the path a send takes, a first start on a
+platform. The owner refreshing his own store is use, with the verbs a
+user has (`acq refresh`, `acq web`): no driver, no rails unless he
+sets them, and no row unless the use halts a daemon or teaches a fact
+about GGG, which takes its row after. Never hand him a driver for a
+refresh. Every live
 run is one row in `RUN-LEDGER.md`, its evidence under gitignored
 `runs/`; a fact learned live is a numbered claim in
 `docs/design/network-ground-truth.md`. The ladder that proved the
@@ -130,16 +138,25 @@ test against the mock with rails 1 and 5 forced on.
 ## The refresh loop (policy → plan → apply → replan)
 
 ```sh
-tools/tracer-rung.sh --account <SEL> [--realm R] [--characters all|id,...] <tab1,...|all>
+tools/tracer-rung.sh --account <SEL> [--realm R] [--league L] [--cycles K] [--tabs all|id,...] [--characters all|id,...] [--max-age S]
 ```
 
-The driver sets the rails, derives each cycle's ceiling from the plan
-exactly, gates every wire phase on an explicit enter, verifies the
-journal (`tools/tracer-verify.py`), copies the evidence to
-`runs/<date>-tracer/`, and drafts the ledger row. It refuses a stale
-binary, working-tree changes to its own files, leftover env, and a
-running daemon. Rehearse first with `--mock` (evidence goes to
-`runs/mock/`). Expect holds: none while a cycle stays under 15 stash
+The driver applies a policy cycle by cycle until the plan is empty.
+Name the run's own coverage, small enough to answer its question (a
+handful of tabs, one of them a map or unique tab, exercises every
+route): with `--tabs` or `--characters` the league covers that
+selection for the run, stale after `--max-age` seconds (300), and the
+driver puts the stored policy back when the run ends, however it
+ends. With neither it applies the stored policy as it stands, which
+may ask for hours. It logs nobody in: `acq auth` comes first if the
+session has lapsed. It sets the rails, derives each cycle's ceiling
+from the plan exactly, shows the plan as `acq` renders it, asks once
+per cycle, leaves the apply's own progress line on the terminal,
+verifies the journal (`tools/tracer-verify.py`) and writes the
+evidence to `runs/<date>-tracer/`; its header lists the bundle's
+files. It refuses working-tree changes to its own files, leftover
+env, a running daemon and a queue left on disk. Rehearse first with
+`--mock` (a scratch world under `runs/mock/`). Expect holds: none while a cycle stays under 15 stash
 GETs, about 15 s before the 16th, about 343 s at most above 30: the
 limiter working, not a hang. macOS has no `timeout`. A Ctrl-C at a driver
 now reaches its `acqd` (before, the shell ignored it there and the
@@ -162,8 +179,9 @@ daemons write the run directory's `sends.jsonl` instead, under
 
 ## After
 
-- The row in `RUN-LEDGER.md` (the driver's draft, or one written by
-  hand for a first contact): date, tip, result, sends as POST/HEAD/GET,
+- The row in `RUN-LEDGER.md`, written by the session from the driver's
+  bundle (`summary.txt`, `cycles.tsv`, the `apply-cN.txt` reports,
+  `store-status.txt`), or by hand for a first contact: date, tip, result, sends as POST/HEAD/GET,
   violations, the observed policy, the run directory, and where each
   lesson landed, never the lesson's text.
 - A new fact about GGG is a numbered ground-truth claim, authored here;

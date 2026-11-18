@@ -46,9 +46,12 @@ policies count per username, so two accounts are one login apart.
 
 ## Rehearse a rung
 
-`tools/tracer-rung.sh --mock ...` and `tools/persist-check.sh --mock ...`
-run the identical flow the live runs use, exact ceilings included;
-tracer evidence goes to `runs/mock/`.
+`tools/tracer-rung.sh --mock` and `tools/persist-check.sh --mock ...`
+run the identical flow the live runs use, exact ceilings included, each
+in a scratch world of its own under `runs/mock/` (unset this session's
+`ACQ_STORE_DIR`, `ACQ_LOG_DIR` and `ACQ_NO_KEYRING` first: the drivers
+refuse them). The tracer driver logs a mock account in and stores a
+policy covering every tab and character of the league itself.
 
 ## Tear down
 
