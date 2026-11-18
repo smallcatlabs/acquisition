@@ -411,3 +411,240 @@ fn a_map_tabs_pages_are_grouped_under_it_when_asked() {
         .collect();
     assert_eq!(inside, ["c1"], "{folder}");
 }
+
+/// A league's places (step 6.5a, `src/places.rs`) over a folder, a map
+/// tab with pages, a page whose tab the store does not hold, a tab fetched
+/// empty and one never fetched: the tree in stash order, each place's
+/// kind, each parent's counts of what it holds, the league's counts as
+/// `tabs` counts them; and each place's request answers the items the
+/// store counts there, a map tab's with its pages', a folder none.
+#[test]
+fn the_places_are_the_stash_tree_in_order_and_each_request_lists_its_items() {
+    use acquisition_search::places::{Kind, Places};
+    use acquisition_store::Endpoint;
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([
+            tab("t1", "Rings"),
+            { "id": "f1", "name": "Old", "type": "Folder", "children": [
+                { "id": "c1", "name": "Old 1", "type": "PremiumStash" },
+                { "id": "c2", "name": "Old 2", "type": "PremiumStash" } ] },
+            { "id": "m1", "name": "Maps", "type": "MapStash" },
+            tab("e1", "Empty"),
+        ]),
+        10,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "t1",
+        "Rings",
+        vec![
+            item("r1", "Doom Loop", "Two-Stone Ring", "Rare", json!({})),
+            item("r2", "Rune Coil", "Two-Stone Ring", "Rare", json!({})),
+        ],
+        20,
+    );
+    fetch_tab(&mut s, "pc", "Standard", "e1", "Empty", vec![], 20);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "c1",
+        "Old 1",
+        vec![item("o1", "Grim Knot", "Iron Ring", "Rare", json!({}))],
+        20,
+    );
+    let mut stash = |id: &str, sub: Option<&str>, body: Value| {
+        s.record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: id.into(),
+                sub: sub.map(str::to_string),
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &body,
+            30,
+        )
+        .unwrap();
+    };
+    stash(
+        "m1",
+        None,
+        json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [], "children": [
+            { "id": "s1", "name": "Tier 16", "type": "MapStash", "parent": "m1", "metadata": { "items": 2 } },
+            { "id": "s2", "name": "Tier 15", "type": "MapStash", "parent": "m1", "metadata": { "items": 1 } } ] } }),
+    );
+    stash(
+        "m1",
+        Some("s1"),
+        json!({ "stash": { "id": "s1", "name": "Tier 16", "type": "MapStash", "parent": "m1", "items": [
+            item("map1", "", "Crimson Temple Map", "Normal", json!({})),
+            item("map2", "", "Crimson Temple Map", "Normal", json!({})) ] } }),
+    );
+    // a page whose tab the store never held
+    stash(
+        "x9",
+        Some("p1"),
+        json!({ "stash": { "id": "p1", "name": "Lost", "type": "UniqueStash", "parent": "x9", "items": [
+            item("lost1", "Kaom's Heart", "Glorious Plate", "Unique", json!({})) ] } }),
+    );
+    let places = Places::tabs(&s, "pc", "Standard", NOW).unwrap();
+    let doc = serde_json::to_value(&places).unwrap();
+
+    // the tree, in stash order, each place's kind
+    fn shape(places: &[acquisition_search::places::Place]) -> Vec<(String, Kind, Vec<String>)> {
+        places
+            .iter()
+            .map(|p| {
+                (
+                    p.id().to_string(),
+                    p.place,
+                    p.places.iter().map(|c| c.id().to_string()).collect(),
+                )
+            })
+            .collect()
+    }
+    let id = |s: &str| s.to_string();
+    assert_eq!(
+        shape(&places.places),
+        [
+            (id("t1"), Kind::Tab, vec![]),
+            (id("f1"), Kind::Folder, vec![id("c1"), id("c2")]),
+            (id("m1"), Kind::Tab, vec![id("s1"), id("s2")]),
+            (id("e1"), Kind::Tab, vec![]),
+            (id("p1"), Kind::Page, vec![]),
+        ],
+        "{doc}"
+    );
+    let every = places.every();
+    let at = |id: &str| *every.iter().find(|p| p.id() == id).unwrap();
+    assert_eq!(at("s1").place, Kind::Page);
+    assert_eq!(at("c1").place, Kind::Tab);
+    // each parent counts what it holds and those of them never fetched;
+    // a place that holds none carries no `holds`
+    let holds = |id: &str| doc_place(&doc, id).get("holds").cloned();
+    assert_eq!(
+        holds("f1"),
+        Some(json!({ "places": 2, "never_fetched": 1 }))
+    );
+    assert_eq!(
+        holds("m1"),
+        Some(json!({ "places": 2, "never_fetched": 1 }))
+    );
+    for none in ["t1", "e1", "p1", "s1", "c1"] {
+        assert_eq!(holds(none), None, "{none}");
+    }
+    // the row whole, aged: never fetched and fetched-empty read apart
+    assert_eq!(doc_place(&doc, "c2")["fetched_at_age"], "never");
+    assert_eq!(doc_place(&doc, "e1")["fetched_items"], 0);
+    assert!(doc_place(&doc, "c2")["fetched_items"].is_null());
+    // the league's counts, once, as `tabs` counts them
+    let (tabs, _) =
+        Tabs::read(&s, "pc", "Standard", &Selection::default(), None, true, NOW).unwrap();
+    let tabs = serde_json::to_value(tabs).unwrap();
+    for key in [
+        "tabs",
+        "fetched",
+        "never_fetched",
+        "folders",
+        "items",
+        "by_type",
+        "list_seen",
+        "oldest_fetch",
+        "newest_fetch_location",
+    ] {
+        assert_eq!(doc[key], tabs[key], "{key}");
+    }
+
+    // each place's request lists the items the store counts there: a tab
+    // its own, a map tab its pages' too, a page its own; a folder none
+    assert!(doc_place(&doc, "f1").get("request").is_none());
+    let corpus = load(&s, Some("pc"));
+    for (place, held) in [
+        ("t1", &["r1", "r2"][..]),
+        ("c1", &["o1"]),
+        ("c2", &[]),
+        ("e1", &[]),
+        ("m1", &["map1", "map2"]),
+        ("s1", &["map1", "map2"]),
+        ("s2", &[]),
+        ("p1", &["lost1"]),
+    ] {
+        let mut request = doc_place(&doc, place)["request"].clone();
+        assert_eq!(request["scope"]["realm"], "pc", "{place}");
+        request["view"] = json!({ "rows": { "limit": 100 } });
+        let request: acquisition_search::Request = serde_json::from_value(request).unwrap();
+        let answered = as_json(&answer(&corpus, &request).unwrap());
+        assert_eq!(ids(&answered), held, "{place}");
+    }
+    // a store row's count is the place's own items: the map tab's are its
+    // pages'
+    assert_eq!(at("s1").item_count(), 2);
+    assert_eq!(at("t1").item_count(), 2);
+}
+
+/// A league's characters as places: the store's order, each its request
+/// over its realm, no league term, the counts as `characters` counts
+/// them.
+#[test]
+fn a_leagues_characters_are_places_each_with_its_request() {
+    use acquisition_search::places::{Kind, Places};
+    let mut s = store();
+    list_characters(
+        &mut s,
+        "pc",
+        json!([
+            { "id": "ch1", "name": "Low", "league": "Standard", "level": 10 },
+            { "id": "ch2", "name": "High", "league": "Standard", "level": 90 },
+            { "id": "ch3", "name": "Elsewhere", "league": "Hardcore", "level": 50 },
+        ]),
+        10,
+    );
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "ch2", "name": "High", "league": "Standard", "level": 90,
+                "inventory": [item("bag", "Doom Loop", "Iron Ring", "Rare", json!({}))], "equipment": [] }),
+        20,
+    );
+    let places = Places::characters(&s, "pc", "Standard", NOW).unwrap();
+    let doc = serde_json::to_value(&places).unwrap();
+    let order: Vec<&str> = places.places.iter().map(|p| p.id()).collect();
+    assert_eq!(order, ["ch2", "ch1"], "the store's order: level first");
+    assert!(places.places.iter().all(|p| p.place == Kind::Character));
+    assert_eq!(
+        (
+            &doc["characters"],
+            &doc["fetched"],
+            &doc["never_fetched"],
+            &doc["items"]
+        ),
+        (&json!(2), &json!(1), &json!(1), &json!(1)),
+        "{doc}"
+    );
+    assert_eq!(doc_place(&doc, "ch2")["request"]["query"]["text"], "id:ch2");
+    let corpus = load(&s, Some("pc"));
+    let mut request = doc_place(&doc, "ch2")["request"].clone();
+    request["view"] = json!({ "rows": { "limit": 100 } });
+    let request: acquisition_search::Request = serde_json::from_value(request).unwrap();
+    assert_eq!(ids(&as_json(&answer(&corpus, &request).unwrap())), ["bag"]);
+}
+
+/// A place of a places document by its id, anywhere in the tree.
+fn doc_place<'a>(doc: &'a Value, id: &str) -> &'a Value {
+    fn find<'a>(places: &'a Value, id: &str) -> Option<&'a Value> {
+        places.as_array()?.iter().find_map(|p| {
+            (p["id"] == id)
+                .then_some(p)
+                .or_else(|| find(&p["places"], id))
+        })
+    }
+    find(&doc["places"], id).unwrap_or_else(|| panic!("no place {id}: {doc}"))
+}

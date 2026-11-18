@@ -4,7 +4,9 @@
 //! selection holds, then the rows the request asked for — ten, more or
 //! fewer on `limit`, every one on `expand` — and how many it left out.
 //! One maker for `acq store characters` (its text and `--json`), the
-//! MCP's `characters` and the web UI's refresh page (C46).
+//! MCP's `characters` (C46); its counts are the places document's too
+//! (`acquisition_search::places`), which the web UI's characters page
+//! renders.
 //!
 //! The rows are the store's own (`CharacterRow`), in the store's order
 //! (by realm, then league, then level, highest first, then name), so the
@@ -13,6 +15,7 @@
 //! (the CLI's footer, these fields' docs, and the MCP's `describe` entry
 //! `character counts`).
 
+use acquisition_search::places::CharacterCounts;
 use acquisition_store::CharacterRow;
 use acquisition_store::bound::bounded;
 use serde::Serialize;
@@ -26,18 +29,11 @@ pub struct Characters {
     /// The league asked about, when one was; every league otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub league: Option<String>,
-    /// Every character the selection holds.
-    pub characters: usize,
-    /// Of them, those a full fetch (equipment and inventory) has filled.
-    pub fetched: usize,
-    /// Of the fetched, those whose last full fetch carried no items
-    /// (`fetched_items` 0): fetched, and empty.
-    pub empty_bodies: usize,
-    /// Of them, those listed and never fetched: no answer says what they
-    /// hold.
-    pub never_fetched: usize,
-    /// The live items the store holds at every one of them.
-    pub items: i64,
+    /// The counts, over every character the selection holds
+    /// (`acquisition_search::places::CharacterCounts`, the places
+    /// document's counter too).
+    #[serde(flatten)]
+    pub counts: CharacterCounts,
     /// The characters listed: ten, the request's `limit`, or every one
     /// under its `expand`, in the store's order.
     pub rows: Vec<CharacterRow>,
@@ -61,23 +57,13 @@ impl Characters {
         expand: bool,
         now: i64,
     ) -> Characters {
-        let characters = rows.len();
-        let fetched = rows.iter().filter(|c| c.fetched_at.is_some()).count();
-        let empty_bodies = rows
-            .iter()
-            .filter(|c| c.fetched_at.is_some() && c.fetched_items == Some(0))
-            .count();
-        let items = rows.iter().map(|c| c.item_count).sum();
+        let counts = CharacterCounts::of(&rows);
         let (rows, left_out) = bounded(rows, limit, expand);
         let rows = rows.into_iter().map(|row| row.aged(now)).collect();
         Characters {
             realm: realm.map(str::to_string),
             league: league.map(str::to_string),
-            characters,
-            fetched,
-            empty_bodies,
-            never_fetched: characters - fetched,
-            items,
+            counts,
             rows,
             left_out,
             left_out_needs: (left_out > 0).then_some("expand"),
@@ -126,11 +112,11 @@ mod tests {
             })
             .collect();
         let listed = Characters::of(None, Some("Standard"), rows.clone(), None, false, NOW);
-        assert_eq!(listed.characters, 65);
-        assert_eq!(listed.fetched, 50);
-        assert_eq!(listed.empty_bodies, 5);
-        assert_eq!(listed.never_fetched, 15);
-        assert_eq!(listed.items, 135);
+        assert_eq!(listed.counts.characters, 65);
+        assert_eq!(listed.counts.fetched, 50);
+        assert_eq!(listed.counts.empty_bodies, 5);
+        assert_eq!(listed.counts.never_fetched, 15);
+        assert_eq!(listed.counts.items, 135);
         assert_eq!(listed.rows.len(), LISTED);
         assert_eq!(listed.rows[0].id, "c00", "the store's order, its head kept");
         assert_eq!(listed.left_out, 65 - LISTED);
@@ -147,7 +133,7 @@ mod tests {
         assert_eq!((more.rows.len(), more.left_out), (20, 45));
         let none = Characters::of(None, None, rows.clone(), Some(0), false, NOW);
         assert_eq!(
-            (none.rows.len(), none.left_out, none.characters),
+            (none.rows.len(), none.left_out, none.counts.characters),
             (0, 65, 65)
         );
         let all = Characters::of(None, None, rows, None, true, NOW);

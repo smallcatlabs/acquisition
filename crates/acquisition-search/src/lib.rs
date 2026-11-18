@@ -367,6 +367,7 @@ mod exact;
 mod group;
 pub mod json;
 pub mod parse;
+pub mod places;
 pub mod price;
 pub mod print;
 pub mod properties;

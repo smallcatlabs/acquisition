@@ -1547,11 +1547,11 @@ async fn tabs(
             true,
             acquisition_store::now(),
         );
-        let empty = (listed.tabs == 0)
+        let empty = (listed.counts.tabs == 0)
             .then(|| store_cmd::no_tabs_text(realm, &league, &facts, &account.entry.username));
         // the terminal's sentence, which reads the realm's characters
         // where the league holds none (the page seat's fault 11)
-        let none = match characters.characters {
+        let none = match characters.counts.characters {
             0 => Some(store_cmd::no_characters_text(
                 Some(realm),
                 Some(&league),
@@ -1601,15 +1601,15 @@ async fn tabs(
         Some(said) => {
             body.push_str(&pre(&format!(
                 "{said}\n{}",
-                store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
+                store_cmd::tabs_facts_line(&listed.counts, acquisition_store::now()).trim_end()
             )));
             body.push_str(buttons);
         }
         None => {
             body.push_str(&pre(&format!(
                 "{}\n{}",
-                store_cmd::tabs_head(&listed, realm, &league, None),
-                store_cmd::tabs_facts_line(&listed, acquisition_store::now()).trim_end()
+                store_cmd::tabs_head(&listed.counts, realm, &league, None),
+                store_cmd::tabs_facts_line(&listed.counts, acquisition_store::now()).trim_end()
             )));
             body.push_str(buttons);
             // the stash list one group, open, the substashes box at its
@@ -1629,7 +1629,7 @@ async fn tabs(
     } else {
         body.push_str(&format!(
             "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n{}",
-            characters.characters,
+            characters.counts.characters,
             filter_row(&["Character", "Level", "Items", "Fetched"])
         ));
         for c in &characters.rows {

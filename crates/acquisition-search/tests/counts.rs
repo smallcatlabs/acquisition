@@ -982,6 +982,11 @@ fn a_tab_bucket_is_the_tabs_full_coordinate() {
         let b = &table["buckets"][bucket];
         assert_eq!(b["request"]["scope"]["realm"], realm);
         assert_eq!(members(&s, b), set(&[id]));
+        // the places document's request for the same tab is the same text
+        // over the same realm (step 6.5a): one function makes both
+        let place = place_request(&s, realm, b["league"].as_str().unwrap(), "same");
+        assert_eq!(place["query"]["text"], b["request"]["query"]["text"]);
+        assert_eq!(place["scope"]["realm"], realm);
     }
     let crossed = view(
         &s,

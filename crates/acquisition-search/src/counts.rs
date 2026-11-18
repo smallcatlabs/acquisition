@@ -637,7 +637,8 @@ fn label_of(
         Of::Tab(at) => (
             "value",
             tabs.get(at).cloned().flatten().map(Json::from),
-            Some(test("id", Op::Contains, Value::Text(at.id.clone()))),
+            // the id's term alone; its league joins below
+            place_terms(&at.id, None, false).pop(),
         ),
         Of::Unlisted(value) => ("value", Some(Json::from(value.as_str())), None),
         Of::Text(value) | Of::Placed { value, .. } => {
@@ -653,23 +654,10 @@ fn label_of(
     // under, over its realm; a place value under every realm is one
     // realm's, and routes over it (F3)
     let (tab, realm, selects) = match (of, term) {
-        (Of::Tab(at), Some(term)) => {
-            let mut terms = vec![term];
-            if let Some(league) = &at.league {
-                // `=` is any-case: where the corpus holds another spelling of
-                // the league, the term selects this one alone (the review of
-                // 9b: one id under `Standard` and `standard` was two buckets
-                // of one whose route returned both)
-                terms.push(if leagues.contains(&bind::folded(league)) {
-                    test(
-                        "league",
-                        Op::Match,
-                        Value::Text(bind::exact_pattern(league)),
-                    )
-                } else {
-                    test("league", Op::Eq, Value::Text(league.clone()))
-                });
-            }
+        (Of::Tab(at), Some(_)) => {
+            let league = at.league.as_deref();
+            let twinned = league.is_some_and(|l| leagues.contains(&bind::folded(l)));
+            let terms = place_terms(&at.id, league, twinned);
             (
                 Some(at.clone()),
                 Some(at.realm.clone()),
@@ -725,6 +713,35 @@ fn label_of(
         }),
     };
     (label, selects)
+}
+
+/// The terms that select one place's items, a `tab` bucket's and the
+/// places document's (`places.rs`) alike: `id:<id>`, which an item in
+/// the place or in a page of it holds, and for a tab or a page the
+/// league it is listed under. `=` is any-case, so where another spelling
+/// of the league folds to this one (`twinned`) the term names this
+/// spelling alone (the review of 9b: one id under `Standard` and
+/// `standard` was two buckets of one whose route returned both). The
+/// twins are the caller's scope's: a bucket's corpus, a place's realm.
+pub(crate) fn place_terms(id: &str, league: Option<&str>, twinned: bool) -> Vec<Node> {
+    let test = |field: &str, op: Op, value: Value| Node::Test {
+        field: field.to_string(),
+        op,
+        value,
+    };
+    let mut terms = vec![test("id", Op::Contains, Value::Text(id.to_string()))];
+    if let Some(league) = league {
+        terms.push(if twinned {
+            test(
+                "league",
+                Op::Match,
+                Value::Text(bind::exact_pattern(league)),
+            )
+        } else {
+            test("league", Op::Eq, Value::Text(league.to_string()))
+        });
+    }
+    terms
 }
 
 /// How a bucket is ordered among those that hold as many items: a value

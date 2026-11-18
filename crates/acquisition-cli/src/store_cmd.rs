@@ -182,28 +182,28 @@ pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store, account: &
 /// count elsewhere holds its characters' items too (C146, a count says
 /// what it counts; answer-facts seat run 2, cli fault 2).
 pub(crate) fn tabs_head(
-    listed: &acquisition_search::tabs::Tabs,
+    counts: &acquisition_search::tabs::TabCounts,
     realm: Realm,
     league: &str,
     characters: Option<&str>,
 ) -> String {
-    let mut parts = vec![format!("{} fetched", listed.fetched)];
-    if listed.never_fetched > 0 {
-        parts.push(format!("{} never fetched", listed.never_fetched));
+    let mut parts = vec![format!("{} fetched", counts.fetched)];
+    if counts.never_fetched > 0 {
+        parts.push(format!("{} never fetched", counts.never_fetched));
     }
-    if listed.folders > 0 {
+    if counts.folders > 0 {
         parts.push(format!(
             "{} folder{} (never fetched)",
-            listed.folders,
-            if listed.folders == 1 { "" } else { "s" }
+            counts.folders,
+            if counts.folders == 1 { "" } else { "s" }
         ));
     }
     format!(
         "{} tabs in {}{league}: {}; {} items in tabs (characters apart{})",
-        listed.tabs,
+        counts.tabs,
         realm_prefix(realm),
         parts.join(", "),
-        listed.items,
+        counts.items,
         characters
             .map(|line| format!(": `{line}`"))
             .unwrap_or_default()
@@ -213,12 +213,12 @@ pub(crate) fn tabs_head(
 /// `tabs`' facts line (#172): the league's tabs, how many were fetched
 /// and their extremes, and when its stash listing was seen, in the words
 /// the other facts lines print ([`crate::price_cmd::fetched_words`]).
-pub(crate) fn tabs_facts_line(listed: &acquisition_search::tabs::Tabs, now: i64) -> String {
-    let places = listed.tabs - listed.folders;
-    let listing = match listed.span.list_seen {
+pub(crate) fn tabs_facts_line(counts: &acquisition_search::tabs::TabCounts, now: i64) -> String {
+    let places = counts.tabs - counts.folders;
+    let listing = match counts.span.list_seen {
         Some(at) => format!(
             "stash listing {}",
-            listed
+            counts
                 .span
                 .list_seen_age
                 .clone()
@@ -228,13 +228,13 @@ pub(crate) fn tabs_facts_line(listed: &acquisition_search::tabs::Tabs, now: i64)
     };
     // an empty league says when its listing was seen, or that it never
     // was (the review of round C, finding 3)
-    if listed.tabs == 0 {
+    if counts.tabs == 0 {
         return format!("facts: no tabs; {listing}\n");
     }
     format!(
         "facts: {}, {}; {listing}\n",
         plural_of(places, "tab", "tabs"),
-        crate::price_cmd::fetched_words(listed.fetched, &listed.span, now)
+        crate::price_cmd::fetched_words(counts.fetched, &counts.span, now)
     )
 }
 
@@ -365,16 +365,19 @@ pub fn tabs(
     }
     let leagues = crate::leagues_cmd::held_line(&held.leagues_held);
     let listed = held.answer;
-    if listed.tabs == 0 {
+    if listed.counts.tabs == 0 {
         println!("{}", no_tabs_text(realm, league, &store, &username));
-        print!("{}", tabs_facts_line(&listed, now));
+        print!("{}", tabs_facts_line(&listed.counts, now));
         print!("{leagues}");
         return Ok(());
     }
     // The answer first (C53), so it is never under a screen of rows.
     let characters = characters_line(&username, realm, league);
-    println!("{}", tabs_head(&listed, realm, league, Some(&characters)));
-    print!("{}", tabs_facts_line(&listed, now));
+    println!(
+        "{}",
+        tabs_head(&listed.counts, realm, league, Some(&characters))
+    );
+    print!("{}", tabs_facts_line(&listed.counts, now));
     print!("{leagues}");
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (the re-sit:
@@ -407,6 +410,7 @@ pub fn tabs(
         return Ok(());
     }
     let width = listed
+        .counts
         .by_type
         .iter()
         .map(|t| t.kind.len())
@@ -417,7 +421,7 @@ pub fn tabs(
         "{:<width$}  {:>5}  {:>7}  {:>6}",
         "type", "tabs", "fetched", "items"
     );
-    for t in &listed.by_type {
+    for t in &listed.counts.by_type {
         println!(
             "{:<width$}  {:>5}  {:>7}  {:>6}",
             t.kind, t.tabs, t.fetched, t.items
@@ -433,7 +437,7 @@ pub fn tabs(
     let (expand, count) = tabs_next(&username, realm, league);
     println!(
         "next: `{expand}` lists all {}; `{count}` counts what a query matches by tab",
-        listed.tabs
+        listed.counts.tabs
     );
     Ok(())
 }
@@ -527,7 +531,7 @@ pub fn characters(
         println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
-    if listed.characters == 0 {
+    if listed.counts.characters == 0 {
         println!("{}", no_characters_text(realm, league, &store)?);
         return Ok(());
     }
@@ -633,16 +637,19 @@ pub(crate) fn characters_text(
             c.id,
         ));
     }
-    let mut summary = format!("{} fetched", listed.fetched);
-    if listed.empty_bodies > 0 {
-        summary.push_str(&format!(" ({} with empty bodies)", listed.empty_bodies));
+    let mut summary = format!("{} fetched", listed.counts.fetched);
+    if listed.counts.empty_bodies > 0 {
+        summary.push_str(&format!(
+            " ({} with empty bodies)",
+            listed.counts.empty_bodies
+        ));
     }
-    if listed.never_fetched > 0 {
-        summary.push_str(&format!(", {} never fetched", listed.never_fetched));
+    if listed.counts.never_fetched > 0 {
+        summary.push_str(&format!(", {} never fetched", listed.counts.never_fetched));
     }
     out.push_str(&format!(
         "{} characters: {summary}; {} items\n",
-        listed.characters, listed.items
+        listed.counts.characters, listed.counts.items
     ));
     if listed.left_out > 0 {
         let mut every = format!(
@@ -661,7 +668,7 @@ pub(crate) fn characters_text(
         out.push_str(&format!(
             "{} of {} listed: `{every} --expand` lists every one\n",
             rows.len(),
-            listed.characters
+            listed.counts.characters
         ));
     }
     out

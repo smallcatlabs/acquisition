@@ -43,26 +43,9 @@ use serde::Serialize;
 pub struct Tabs {
     pub realm: String,
     pub league: String,
-    /// Every live tab the league's listing names, its substashes among
-    /// them.
-    pub tabs: usize,
-    pub fetched: usize,
-    /// Never fetched, folders apart: a folder holds tabs and no items,
-    /// and is never fetched.
-    pub never_fetched: usize,
-    pub folders: usize,
-    /// The live items in the league's tabs.
-    pub items: i64,
-    /// How old the league's tab facts are (#172; C162, the store's one
-    /// derivation): the oldest and newest fetch of its tabs with their
-    /// locations, and when its stash listing was seen, each age in words
-    /// at the answer's time, under the keys a search's scope names them
-    /// by. Filled by [`Tabs::read`]; none on a document made from rows
-    /// alone.
+    /// The league's counts, the places document's too (`places.rs`).
     #[serde(flatten)]
-    pub span: FetchSpan,
-    /// The same counts by GGG's tab type, the most items first.
-    pub by_type: Vec<TabType>,
+    pub counts: TabCounts,
     /// The selection `rows` is cut from, where one was asked, and how
     /// many tabs it holds.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,6 +83,59 @@ pub struct TabGroup {
     pub pages: Vec<TabRow>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tabs: Vec<TabGroup>,
+}
+
+/// A league's tabs counted: how many, how many fetched and never, its
+/// folders and items, how old its facts are, and the same by tab type.
+/// One counter for `tabs` and the places document (`places.rs`), so the
+/// two say one thing.
+#[derive(Debug, Clone, Serialize)]
+pub struct TabCounts {
+    /// Every live tab the league's listing names, its substashes among
+    /// them.
+    pub tabs: usize,
+    pub fetched: usize,
+    /// Never fetched, folders apart: a folder holds tabs and no items,
+    /// and is never fetched.
+    pub never_fetched: usize,
+    pub folders: usize,
+    /// The live items in the league's tabs.
+    pub items: i64,
+    /// How old the league's tab facts are (#172; C162, the store's one
+    /// derivation): the oldest and newest fetch of its tabs with their
+    /// locations, and when its stash listing was seen, each age in words
+    /// at the answer's time, under the keys a search's scope names them
+    /// by. Filled where the store is read ([`Tabs::read`],
+    /// [`crate::places::Places::tabs`]); none on a document made from
+    /// rows alone.
+    #[serde(flatten)]
+    pub span: FetchSpan,
+    /// The same counts by GGG's tab type, the most items first.
+    pub by_type: Vec<TabType>,
+}
+
+impl TabCounts {
+    /// The league's rows counted, with no facts block.
+    pub fn of(rows: &[TabRow]) -> TabCounts {
+        let folders = rows
+            .iter()
+            .filter(|t| acquisition_store::is_folder_type(&t.r#type))
+            .count();
+        let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
+        let tabs = rows.len();
+        TabCounts {
+            tabs,
+            fetched,
+            never_fetched: tabs.saturating_sub(fetched + folders),
+            folders,
+            items: rows.iter().map(|t| t.item_count).sum(),
+            span: FetchSpan::default(),
+            by_type: by_type(
+                rows.iter()
+                    .map(|t| (t.r#type.as_str(), t.fetched_at.is_some(), t.item_count)),
+            ),
+        }
+    }
 }
 
 /// Which of a league's tabs `rows` may hold: of one type (GGG's,
@@ -157,17 +193,7 @@ impl Tabs {
         expand: bool,
         now: i64,
     ) -> Tabs {
-        let folders = rows
-            .iter()
-            .filter(|t| acquisition_store::is_folder_type(&t.r#type))
-            .count();
-        let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
-        let by_type = acquisition_store::coverage::by_type(
-            rows.iter()
-                .map(|t| (t.r#type.as_str(), t.fetched_at.is_some(), t.item_count)),
-        );
-        let tabs = rows.len();
-        let items = rows.iter().map(|t| t.item_count).sum();
+        let counts = TabCounts::of(&rows);
         let rows: Vec<TabRow> = rows.into_iter().filter(|t| select.holds(t)).collect();
         let selected = rows.len();
         // the most items first, then by id, cut by the one bound; where
@@ -187,13 +213,7 @@ impl Tabs {
         Tabs {
             realm: realm.to_string(),
             league: league.to_string(),
-            tabs,
-            fetched,
-            never_fetched: tabs.saturating_sub(fetched + folders),
-            folders,
-            items,
-            span: FetchSpan::default(),
-            by_type,
+            counts,
             selection: (!select.is_empty()).then(|| select.clone()),
             selected: (!select.is_empty()).then_some(selected),
             listed: if whole { "all" } else { "most_items" },
@@ -208,8 +228,8 @@ impl Tabs {
     /// facts block over them (#172), and what the store holds of each of
     /// the realm's leagues, for the wrapper beside it (`leagues_held`),
     /// all from one read snapshot (`Store::tabs_document`): the one read
-    /// every surface makes, `acq tabs`, the MCP's `tabs` and the web UI's
-    /// refresh page.
+    /// `acq tabs` and the MCP's `tabs` make, and the places document
+    /// (`places.rs`) makes the same.
     pub fn read(
         store: &acquisition_store::Store,
         realm: &str,
@@ -223,7 +243,7 @@ impl Tabs {
         // (the review of round C, finding 1; of its fix round, finding 3)
         let (rows, coverage, held) = store.tabs_document(realm, league, now)?;
         let mut tabs = Tabs::of(realm, league, rows, select, limit, expand, now);
-        tabs.span = coverage.span;
+        tabs.counts.span = coverage.span;
         Ok((tabs, held))
     }
 

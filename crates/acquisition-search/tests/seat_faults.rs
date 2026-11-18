@@ -1072,6 +1072,11 @@ fn review_a_tabs_route_selects_its_leagues_spelling_where_two_differ_by_case() {
         assert_eq!(b["count"], 1);
         assert!(b["term"].as_str().unwrap().contains("league~"), "{b}");
         members(&s, b);
+        // the places document reads the twin from the realm's leagues and
+        // names the spelling too: the bucket's route and the place's
+        // request over one realm are one text (step 6.5a)
+        let place = common::place_request(&s, "pc", b["league"].as_str().unwrap(), "d1");
+        assert_eq!(place["query"]["text"], b["request"]["query"]["text"]);
     }
     // one league alone: the plain term, as before
     let mut s = store();

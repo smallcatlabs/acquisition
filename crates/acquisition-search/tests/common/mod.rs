@@ -374,3 +374,15 @@ pub fn stats_moved_at_330() -> std::collections::BTreeSet<String> {
         .map(|(id, _)| id)
         .collect()
 }
+
+/// The request the places document (`places.rs`) gives a place of a
+/// league's stash tabs, by its id, as JSON.
+pub fn place_request(s: &Store, realm: &str, league: &str, id: &str) -> Value {
+    let places = acquisition_search::places::Places::tabs(s, realm, league, 0).unwrap();
+    let place = places
+        .every()
+        .into_iter()
+        .find(|p| p.id() == id)
+        .unwrap_or_else(|| panic!("no place {id} in {realm} {league}"));
+    serde_json::to_value(&place.request).unwrap()
+}
