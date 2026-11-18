@@ -59,9 +59,18 @@ NUMBER = r"[+-]?\d+(?:\.\d+)?"
 LEFT_OUT = {"crucibleMods", "utilityMods"}
 
 
+def plain(description):
+    """A line as the game displays it: markup's display half, as the site has
+    sent PoE1's lines since 3.30 (`+6% to [PlayerItemRarity|Item Rarity]` is
+    `+6% to Item Rarity`, `[Onslaught]` is `Onslaught`); the rule is
+    tools/trade-forms-table.py's `display`."""
+    return re.sub(r"\[([^\]|]*)\|([^\]]*)\]|\[([^\]]*)\]",
+                  lambda m: m.group(2) if m.group(2) is not None else m.group(3), description)
+
+
 def template(description):
     """A line's template: each number a `#`, the leading sign dropped."""
-    return re.sub(NUMBER, "#", description.lstrip("+-")).replace("+#", "#")
+    return re.sub(NUMBER, "#", plain(description).lstrip("+-")).replace("+#", "#")
 
 
 def numbers(description):
@@ -99,7 +108,7 @@ def displayed(item):
         if array == "pseudoMods" or array in LEFT_OUT:
             continue
         for e in entries:
-            for line in e["description"].split("\n"):
+            for line in plain(e["description"]).split("\n"):
                 yield line, e
 
 
