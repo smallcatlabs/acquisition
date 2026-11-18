@@ -8,19 +8,15 @@
 # takes, or a first start on a platform. Refreshing a store is `acq
 # refresh` or `acq web`, never this.
 #
-#   tools/tracer-rung.sh --account SEL [--realm R] [--league L] [--cycles K] \
-#                        [--tabs all|id,...] [--characters all|id,...] [--max-age S]   # live, from a terminal
-#   tools/tracer-rung.sh --mock [the same]                                            # rehearsal, any shell
+#   tools/tracer-rung.sh --account SEL [--realm R] [--league L] [--cycles K]   # live, from a terminal
+#   tools/tracer-rung.sh --mock [--realm R] [--league L] [--cycles K]          # rehearsal, any shell
 #
-# With no --tabs and no --characters it applies the stored policy as it
-# stands. With either, the run covers that selection of the league and
-# nothing else of it, stale after --max-age seconds (300), and the
-# stored policy is put back when the run ends, however it ends: a run
-# leaves stored intent as it found it (policy-before.json is the copy),
-# or fails saying it did not and how to put it back.
-# Live, it logs nobody in (`acq auth`). Mock, it makes a scratch world
-# under runs/mock/, logs a mock account in, stores a policy covering
-# every tab and character of the league, and logs out.
+# It applies the stored sync policy as it stands and writes none: what a
+# run covers is `acq policy set`'s to say, before the run, and a run
+# leaves stored intent as it found it. Live, it logs nobody in (`acq
+# auth`). Mock, it makes a scratch world under runs/mock/, logs a mock
+# account in, stores a policy covering every tab and character of the
+# league, and logs out.
 #
 # The terminal gets what a person at it needs: the plan as `acq` renders
 # it, one question per cycle, the apply's own progress line, one line of
@@ -53,15 +49,12 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 ACQ="$here/target/debug/acq"
 ACQD="$here/target/debug/acqd"   # the daemon beside acq (C82); the driver starts it and owns the pid
 
-usage="usage: tracer-rung.sh [--mock] [--account SEL] [--realm R] [--league L] [--cycles K] [--tabs all|id,...] [--characters all|id,...] [--max-age S]"
+usage="usage: tracer-rung.sh [--mock] [--account SEL] [--realm R] [--league L] [--cycles K]"
 MODE=live
 ACCOUNT=
 REALM=pc
 LEAGUE=Standard
 CYCLES=4
-TABS=
-CHARACTERS=
-MAX_AGE=300
 while [ $# -gt 0 ]; do
     case "$1" in
     --mock) MODE=mock; shift ;;
@@ -69,12 +62,12 @@ while [ $# -gt 0 ]; do
     --realm) REALM=${2:?--realm needs a value}; shift 2 ;;
     --league) LEAGUE=${2:?--league needs a value}; shift 2 ;;
     --cycles) CYCLES=${2:?--cycles needs a value}; shift 2 ;;
-    --tabs) TABS=${2:?--tabs needs a value}; shift 2 ;;
-    --characters) CHARACTERS=${2:?--characters needs a value}; shift 2 ;;
-    --max-age) MAX_AGE=${2:?--max-age needs a value}; shift 2 ;;
+    --tabs | --characters | --max-age)
+        echo "refusing: $1 names coverage, and this driver writes no policy: it applies the stored one. Narrow it first with \`acq policy set\`, whose \`--json\` answer carries the command that puts the prior policy back (\`.undo.request\`)." >&2
+        exit 2 ;;
     -*) echo "$usage" >&2; exit 2 ;;
     *)
-        echo "refusing: '$1' is no flag. A run's own tabs are --tabs all|id,...; with none named it applies the stored policy." >&2
+        echo "refusing: '$1' is no flag. This driver takes no selection and writes no policy: it applies the stored one (\`acq policy set\` narrows it)." >&2
         exit 2 ;;
     esac
 done
@@ -139,63 +132,10 @@ span() { if [ "$1" -lt 90 ]; then echo "$1 s"; else echo "$((($1 + 30) / 60)) mi
 some() { if [ "$1" = 1 ]; then echo "1 $2"; else echo "$1 $2s"; fi; }
 stop() { echo "*** $*" >&2; exit 1; }
 
-# The stored policy, put back as it was: the run's own coverage never
-# outlives the run. One lifecycle. It is owed (1) from before the run's
-# write is attempted, so a run cut between the write and its receipt
-# still owes it. What is undone is the revision the run's write landed
-# at, and only over that revision, so the store decides whose the policy
-# is and the driver never predicts a stored value: the revision is the
-# receipt's, or, for a run cut before its receipt, the store's when that
-# is one on from the revision the run found. A write the store refused,
-# or a store still at the revision the run found, owes nothing. It is
-# settled (0) only by those or by the put-back landing. A put-back that
-# did not happen (2) is said once and fails the run.
-POLICY_OWED=0
-restore_policy() {
-    [ "$POLICY_OWED" = 2 ] && return 1
-    [ "$POLICY_OWED" = 1 ] || return 0
-    POLICY_OWED=2
-    local wrote stands
-    wrote=$(jq -r 'if has("error") then empty else .revision end' "$RUN_DIR/policy-run.json" 2>/dev/null || true)
-    if [ -z "$wrote" ]; then
-        if jq -e 'has("error")' "$RUN_DIR/policy-run.json" >/dev/null 2>&1; then
-            POLICY_OWED=0   # the store refused the run's write
-            return 0
-        fi
-        stands=$(acq policy show --json 2>/dev/null | jq '.policy.revision // 0' 2>/dev/null || true)
-        if [ "$stands" = "$BEFORE_REVISION" ]; then
-            POLICY_OWED=0   # the run's write never landed
-            return 0
-        fi
-        if [ "$stands" != $((BEFORE_REVISION + 1)) ]; then
-            echo "*** the stored policy (revision ${stands:-unread}) is not this run's to put back: the run was cut at its write and another client has written since, or the store could not be read." >&2
-            echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands now." >&2
-            return 1
-        fi
-        wrote=$stands
-    fi
-    if acq policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$wrote" --json >"$RUN_DIR/policy-restored.json" 2>/dev/null; then
-        POLICY_OWED=0
-        echo "policy: the stored policy is back as it was before the run"
-        return 0
-    fi
-    if [ "$(jq -r '.kind // empty' "$RUN_DIR/policy-restored.json" 2>/dev/null || true)" = conflict ]; then
-        echo "*** the stored policy is no longer the one this run wrote: another client wrote it since, and its edit is left as it is." >&2
-        echo "*** The policy before the run is $RUN_DIR/policy-before-value.json; \`acq policy show\` says what stands now." >&2
-        return 1
-    fi
-    echo "*** the stored policy was NOT put back: the store refused the put-back (policy-restored.json says why)." >&2
-    echo "*** Once that is mended, this puts it back, over the revision the run wrote:" >&2
-    printf '***   %s\n' "$(printf '%q ' "$ACQ" ${ACCT[@]+"${ACCT[@]}"} policy set "@$RUN_DIR/policy-before-value.json" --replace --if-revision "$wrote")" >&2
-    return 1
-}
-
 DAEMON_STARTED=0
 COMPLETED=0
 cleanup() {
-    local rc=$?
-    restore_policy || rc=1
-    [ "$COMPLETED" = 1 ] && exit "$rc"
+    [ "$COMPLETED" = 1 ] && return 0
     echo ""
     if [ "$DAEMON_STARTED" = 0 ]; then
         echo "*** stopped before any daemon started; nothing was sent."
@@ -209,7 +149,7 @@ cleanup() {
     fi
     if [ "$MODE" = mock ]; then echo "*** this run's world: ACQ_PROVIDER=mock ACQ_STORE_DIR=$ACQ_STORE_DIR"; fi
     echo "*** what was written is in $RUN_DIR"
-    exit "$rc"
+    return 0
 }
 trap cleanup EXIT
 
@@ -330,30 +270,6 @@ if [ "$MODE" = mock ]; then
     acq policy set "$POLICY" --json >"$RUN_DIR/policy-mock.json"
 fi
 
-# ---- the run's own coverage, when it names one -----------------------------------
-
-if [ -n "$TABS$CHARACTERS" ]; then
-    selection() { if [ "$1" = all ]; then echo '"all"'; else jq -Rc 'split(",") | map(select(. != ""))' <<<"$1"; fi; }
-    entry=$(jq -nc --argjson a "$MAX_AGE" '{max_age_seconds: $a}')
-    if [ -n "$TABS" ]; then entry=$(jq -c --argjson t "$(selection "$TABS")" '. + {tabs: $t}' <<<"$entry"); fi
-    if [ -n "$CHARACTERS" ]; then entry=$(jq -c --argjson c "$(selection "$CHARACTERS")" '. + {characters: $c}' <<<"$entry"); fi
-    acq policy show --json >"$RUN_DIR/policy-before.json"
-    [ "$(jq '.policy == null' "$RUN_DIR/policy-before.json")" = false ] ||
-        stop "no policy is stored, so there is none to put back after the run: \`acq policy set\` one first"
-    jq '.policy.value' "$RUN_DIR/policy-before.json" >"$RUN_DIR/policy-before-value.json"
-    # `policy set` replaces each realm it names whole, so the realm is
-    # written with every league the stored policy keeps in it and this
-    # run's league set.
-    POLICY=$(jq -c --arg r "$REALM" --arg l "$LEAGUE" --argjson e "$entry" \
-        '{version: 3, realms: {($r): {leagues: ((.policy.value.realms[$r].leagues // {}) + {($l): $e})}}}' \
-        "$RUN_DIR/policy-before.json")
-    BEFORE_REVISION=$(jq '.policy.revision' "$RUN_DIR/policy-before.json")
-    POLICY_OWED=1
-    acq policy set "$POLICY" --if-revision "$BEFORE_REVISION" --json >"$RUN_DIR/policy-run.json" ||
-        stop "the run's policy was refused (policy-run.json)"
-    echo "policy: for this run $REALM $LEAGUE covers ${TABS:+tabs $TABS}${TABS:+${CHARACTERS:+ and }}${CHARACTERS:+characters $CHARACTERS}, stale after $MAX_AGE s; the stored policy is put back when the run ends"
-fi
-
 # ---- the cycles ---------------------------------------------------------------
 
 # What two envelopes must agree on to be the same plan: everything but
@@ -464,7 +380,7 @@ for c in $(seq 1 "$CYCLES"); do
     window=$(jq -r '.max_age_seconds' "$offline")
     if [ $((est * 2)) -gt "$window" ]; then
         echo "refusing: cycle $c would take about $(span "$est") and the policy's window is $(span "$window"): what it lands would be stale before the next plan." >&2
-        echo "A window of at least $((est * 2)) s lets the loop close (--max-age with a selection, or the stored policy's max_age_seconds)." >&2
+        echo "A window of at least $((est * 2)) s lets the loop close: the league's max_age_seconds, which \`acq policy set\` writes." >&2
         exit 2
     fi
     need=$((est + TOKEN_MARGIN))
@@ -566,10 +482,6 @@ if [ "$CLOSED" = 0 ]; then
     echo "the plan is not empty after $(some "$CYCLES" cycle): \`acq refresh --plan\` says what is left. Recorded as such, not as a failure."
 fi
 
-# A put-back that fails has said so; the readback and the verdict on the
-# sends still follow, and the run then ends without its pass.
-restore_policy || true
-
 # ---- the store, read back (no daemon) -------------------------------------------
 
 # Since the run started, plus an hour of margin. The default lists ten
@@ -615,9 +527,6 @@ if ! "$RUN_DIR/verify.sh" >"$RUN_DIR/summary.txt"; then
 fi
 python3 "$RUN_DIR/tracer-verify.py" "$JOURNAL" 0 "$CYCLE_ROWS" "$LOGIN_LIFETIME" "$CLOSED" "$MODE" "$REALM" brief |
     sed -n '/^lifetime /,/^$/p'
-if [ "$POLICY_OWED" != 0 ]; then
-    stop "every send verified against its plan, but the stored policy is not as the run found it (said above): no pass. Bundle: $RUN_DIR"
-fi
 if [ "$CLOSED" != 0 ]; then
     echo "pass: the loop closed at cycle $CLOSED, every send verified against its plan."
 else

@@ -138,18 +138,25 @@ test against the mock with rails 1 and 5 forced on.
 ## The refresh loop (policy → plan → apply → replan)
 
 ```sh
-tools/tracer-rung.sh --account <SEL> [--realm R] [--league L] [--cycles K] [--tabs all|id,...] [--characters all|id,...] [--max-age S]
+tools/tracer-rung.sh --account <SEL> [--realm R] [--league L] [--cycles K]
 ```
 
-The driver applies a policy cycle by cycle until the plan is empty.
-Name the run's own coverage, small enough to answer its question (a
+The driver applies the stored sync policy as it stands, cycle by
+cycle, until the plan is empty, and writes none: a run leaves stored
+intent as it found it. The stored policy may ask for hours, so read
+`acq refresh --plan` first. Where the run's question wants less (a
 handful of tabs, one of them a map or unique tab, exercises every
-route): with `--tabs` or `--characters` the league covers that
-selection for the run, stale after `--max-age` seconds (300), and the
-driver puts the stored policy back when the run ends, however it
-ends. With neither it applies the stored policy as it stands, which
-may ask for hours. It logs nobody in: `acq auth` comes first if the
-session has lapsed. It sets the rails, derives each cycle's ceiling
+route), the owner narrows the policy by hand before the run and puts
+it back after, with the command the write itself gives:
+
+```sh
+acq policy set --account <SEL> '<the realm whole, its league narrowed>' --json | jq -r '.undo.request'
+```
+
+That prints the command that puts the prior policy back, over the
+revision just written; keep it, run the driver, then run it. The
+driver logs nobody in: `acq auth` comes first if the session has
+lapsed. It sets the rails, derives each cycle's ceiling
 from the plan exactly, shows the plan as `acq` renders it, asks once
 per cycle, leaves the apply's own progress line on the terminal,
 verifies the journal (`tools/tracer-verify.py`) and writes the

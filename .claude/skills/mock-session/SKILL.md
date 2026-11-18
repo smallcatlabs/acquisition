@@ -53,8 +53,8 @@ in a scratch world of its own under `runs/mock/` (unset this session's
 refuse them). The tracer driver logs a mock account in and stores a
 policy covering every tab and character of the league itself. After
 touching it, run `tools/tracer-rung-breakers.sh` too: it stages what a
-run must leave behind (the stored policy put back, a failed apply's
-words kept), a minute of mock daemons that no gate stage runs.
+run must leave behind (the stored policy untouched, a failed apply's
+words kept), some seconds of mock daemons that no gate stage runs.
 
 ## Tear down
 
