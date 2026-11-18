@@ -56,8 +56,9 @@ when its step closes or the owner strikes it.
 3. The test-shape group's t6, one canonical mock world and the door's
    corpus (#142), designed from the GUI's door; t7 (#143) only if t6
    shows the shape pays.
-4. The queued search and trade issues: #46, #47, and #37 once the
-   owner has sat the site.
+4. The queued search and trade issues: #283 (the translation builds
+   two answers of the sitting of 2026-11-17), #46, #47, and #37 once
+   the owner has sat the site.
 5. `alpha.2` (milestone "League 3.30 and alpha.2"): the release, where
    the `keyring-macos` job runs for the first time; the tables stand at
    3.30 (the close of `search-276`). The prune verb (#43) rides with
@@ -85,8 +86,10 @@ His queue is the open issues labelled `trigger:ruling`:
   last edited.
 - At the next live run, `tools/tracer-rung.sh`, edited (#246: it passes
   `--account` where it exported `ACQ_ACCOUNT`) and not run.
-- The site sitting #37 waits on; it now also asks #33's carried
-  totals, the rarity total first, and one search per Viscera leaf.
+- The site sitting #37 waits on; it can also ask what the sitting of
+  2026-11-17 left open on #33 (which pair the site compares when an
+  item's two differ, a prefixed map Base's refusal captured, what lifted
+  e043's ring) and #34's jewel question.
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
