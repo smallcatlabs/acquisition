@@ -2579,6 +2579,37 @@ def round_z(earlier):
     return rows
 
 
+def round_za(earlier):
+    """The repairs of the sitting of 2026-11-17, composed that night from its
+    counts: za01–za02 the twin id's jewel, y21 having found none; za03 Maven's
+    Invitations from instant buyout, y13 having found none online."""
+    composed = Composed("za", 2, earlier)
+    add = composed.add
+    twin = "explicit.stat_2543977012"
+
+    def jewel(stats):
+        q = batch_query(stats, None, "Crimson Jewel")
+        return {"status": q["status"], "name": "That Which Was Taken", **{k: v for k, v in q.items() if k != "status"}}
+
+    # y21 asked the twin id under `category` `jewel` and found none, where b2 found 3,297 without the category in
+    # September: y20, its pair, proved nothing. The jewel is asked by its name, with and without the id.
+    add("the twin's jewel by its name: `name` `That Which Was Taken`, `type` `Crimson Jewel`. The ten fetched show "
+        "the id each `+# to Strength and Intelligence` line sits under since 3.30; the control of {next}",
+        "the control: must find items", jewel([]))
+    add("the twin's jewel with the twin id required. As many as za01: the id is still the jewel's, and y21's "
+        "`jewel` category is what found none; none, za01 finding the jewels: the line left the id, and y20 asked "
+        "of nothing", "za01, the jewel alone", jewel([group("and", [twin])]))
+    # y13 found none from sellers online, and u025 listed 4,811 under status `any` and was sent nulls.
+    q = batch_query([], category("map.invitation"))
+    add("coverage, `type_filters.category=map.invitation` under status `securable`, instant buyout: items sent, "
+        "the oracle reads the leaf's first; nulls or none, as u025 and y13 found: the site sends no item of them",
+        "u025 listed 4,811 under `any`", {**q, "status": {"option": "securable"}})
+    rows = composed.done()
+    if len(rows) != 3:
+        raise SystemExit(f"round za has {len(rows)} searches, its names written for 3")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2620,6 +2651,7 @@ def compose_sheet(method="site"):
         searches += round_x(searches)
         searches += round_y(searches)
         searches += round_z(searches)
+        searches += round_za(searches)
     return searches
 
 
