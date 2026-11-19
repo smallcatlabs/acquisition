@@ -11,21 +11,38 @@
 //!   - `field op number` on a number field: the field;
 //!   - a comparison on a computed value or a `sum( … )`: that value;
 //!   - inside `line( … )`, each slot compared: `line(S).<slot>`, S the
-//!     group's selector, its slot comparisons favoured away
-//!     (`group::slots_compared`), so the value is the occurrence the
-//!     comparison was on (C92), as a sort takes it, the largest;
+//!     whole group's selector, its slot comparisons favoured away
+//!     (`group::slots_compared`): the occurrences any of the group's
+//!     comparisons could be on (C92), as a sort takes it, the largest.
+//!     A comparison inside one alternative of the group's or is named
+//!     by the whole group's selector too, so
+//!     `line(("# to maximum Life" arg1>=50) or "#% to Cold Resistance")`
+//!     compares `line("# to maximum Life" or "#% to Cold Resistance").arg1`,
+//!     which reads an item's cold line though the comparison binds only
+//!     its life;
 //!   - nothing else: `linked( … )` has no value text that reaches it
 //!     (C101, a missing reach is a field to add), `undecided( … )` asks
 //!     whether a thing could be read and compares nothing, and `has:`,
 //!     `is:`, text tests and constants compare no number.
+//! - **A value is its text as spelled.** Two are one where their
+//!   canonical texts are one, and a selector keeps the grouping, the
+//!   order and the doubled nots its group was written with: two groups
+//!   that ask one question spelled two ways are two values. So
+//!   `line(source=explicit "# to maximum Life" arg1>=5) or
+//!   line("# to maximum Life" arg1>=3 source=explicit)` compares two
+//!   and keeps the store's order, where the same query written in one
+//!   order compares one and is ordered by it — a rewrite that changes
+//!   no meaning changing the order, which invariant 7 does not allow.
+//!   A sort named beside the query's values joins them, and named
+//!   values are kept once, by the same text.
 //! - **Every branch contributes**: of an and, an or, a `holds`, a `not`.
 //! - **A value's direction is best first by its operator**: `>` and `>=`
 //!   largest first, `<` and `<=` smallest first. `=`, a value under a
 //!   `not` (an item's or a group's) or under a `holds` with an upper
 //!   bound, and a value compared both ways (a range) have none: a flipped
 //!   direction would be a rule to learn to predict an order, and a column
-//!   is sorted by asking. Two nots cancel, as they do in meaning, so a
-//!   rewrite that cancels them changes no order (invariant 7).
+//!   is sorted by asking. Two nots around a comparison cancel, as they
+//!   do in meaning, so a rewrite that cancels them changes no direction.
 //! - **The default order** is the one value's, where the query compares
 //!   exactly one and it has a direction; several, or one with none, give
 //!   the store's order.

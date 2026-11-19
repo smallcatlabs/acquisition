@@ -998,9 +998,11 @@ fn template_tests(member: &Member, out: &mut Vec<(Op, String)>) {
 }
 
 /// Each slot a group compares with a number, as a value: `line(S).<slot>`,
-/// S the group's [`selector`], the occurrence the comparison is on (C92);
-/// with the comparison's operator, and whether it stands under an odd
-/// number of the group's nots — what `values.rs` reads a direction from.
+/// S the whole group's [`selector`], the occurrences any of its
+/// comparisons could be on (C92) — for a comparison inside one
+/// alternative of an or, more than that comparison binds; with the
+/// comparison's operator, and whether it stands under an odd number of
+/// the group's nots — what `values.rs` reads a direction from.
 pub(crate) fn slots_compared(whole: &Member) -> Vec<(ValueRef, Op, bool)> {
     fn walk(at: &Member, selector: &Member, negated: bool, out: &mut Vec<(ValueRef, Op, bool)>) {
         match at {
