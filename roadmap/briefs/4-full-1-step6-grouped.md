@@ -139,6 +139,6 @@ session of the run": the plan first, naming the document's keys.
 `TEMPLATE.md`.
 
 ## Taken from the review
-`roadmap/reviews/4-full-1-step6-grouped-brief-65126eb9.md` and
-`…-023bfd3c.md`: every finding. Not reviewed again (C176, a brief's
+`roadmap/reviews/4-full-1-step6-grouped-brief-6c476e51.md` and
+`…-e9cc2802.md`: every finding. Not reviewed again (C176, a brief's
 two): the build's review is the check.
