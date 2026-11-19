@@ -32,8 +32,14 @@ better Acquisition that is agent-friendly and agent-forward.
   (`briefs/4-full-1-step6-plan-jobs.md`): the plan, apply and jobs
   pages render their documents in a player's words, a submit lands at
   its job with the league's place pages linked, a failed job opens to
-  why, and only a refused session says "not signed in". Next is 6.5b,
-  whose brief is on `main` (`briefs/4-full-1-step6-grouped.md`).
+  why, and only a refused session says "not signed in". So is 6.5b
+  (`briefs/4-full-1-step6-grouped.md`): a place page takes a query and
+  a filter, both the request's, lists the places that hold a match,
+  each with its count, the rest folded into one counted line, and an
+  opened place lists its items under its head as a segment of the
+  page's one window, the page at one basis; a rows answer links its
+  place pages. Next is 6.5c, whose brief is on `main`
+  (`briefs/4-full-1-step6-row.md`).
 
 ## Next
 
@@ -42,13 +48,11 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. 4-full part 1, step 6.5, ruled in `briefs/4-full-1-step6-design.md`
-   §3, in four parts; 6.5a, the places and their pages, and 6.5d, the
-   plan and jobs pages from their documents, are closed. Then:
-   6.5b, the grouped table and the list's filter as the request's
-   (#244, #269, #194's never-fetched view; #294, how the search names
-   a value, is an input), from its brief on `main`; 6.5c, an item
-   under its row and the row's ways (#270, #194, #186, #190), its
-   brief written first. The search form's reshaping (#184, #181, #180,
+   §3, in four parts; 6.5a, 6.5d and 6.5b, the grouped table, are
+   closed. Then 6.5c, an item under its row and the row's ways (#270,
+   #194, #186, #190), from its brief on `main`. #294, how the search
+   names a value, waits on the owner's word before any step builds it.
+   The search form's reshaping (#184, #181, #180,
    #185, #188, #183, #193) is the step after, one design; the look is
    #285; what an apply brought, said on its job, is #182's rest.
 2. 4-full parts 2 and 3, each its own design session
