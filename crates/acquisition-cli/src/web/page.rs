@@ -924,8 +924,13 @@ pub(crate) fn answer(
     spell: Spell,
     rows_links: &RowsLinks,
     view: ViewLinks,
-    window: Option<&Window>,
+    shown: &Shows,
 ) -> String {
+    let Shows {
+        window,
+        placed,
+        fields: table_fields,
+    } = *shown;
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
     let mut out = opened
@@ -969,11 +974,27 @@ pub(crate) fn answer(
             // otherwise: the document's view says which, never the URL.
             // The table holds every row and says so in its own line.
             if !rows.fields.contains(&RowField::Item) {
+                // in a GET form holding the page's fields, so a row's
+                // toggle and a card's "Close" ask the page again with
+                // the opened rows the URL names (step 6.5c, Decision 4)
                 if let Some(window) = window {
-                    out.push_str(&rows_table(a, rows, window, view, now));
+                    let hidden: String = table_fields
+                        .iter()
+                        .map(|(k, v)| {
+                            format!(
+                                "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
+                                esc(k),
+                                esc(v)
+                            )
+                        })
+                        .collect();
+                    out.push_str(&format!(
+                        "<form class=\"table\" method=\"get\" action=\"search\">{hidden}\n{}</form>\n",
+                        rows_table(a, rows, window, view, placed, now)
+                    ));
                 }
             } else {
-                out.push_str(&cards(a, view, now));
+                out.push_str(&cards(a, view, placed, now));
             }
             // which cards are shown and in what order, wherever there are
             // rows or rows left out; then the way on, and on a
@@ -1043,6 +1064,17 @@ pub(crate) fn answer(
     ));
     out.push_str(&save_forms(a, opened, links));
     out
+}
+
+/// How an answer page shows its rows, which the handler makes: the
+/// table's window, where the rows are a table; each card's place as a
+/// link; and the fields the table's form carries hidden, the page's own
+/// with the opened rows it keeps (step 6.5c).
+#[derive(Clone, Copy)]
+pub(crate) struct Shows<'a> {
+    pub window: Option<&'a Window>,
+    pub placed: Placed<'a>,
+    pub fields: &'a [(String, String)],
 }
 
 /// The basis at the foot of an answer or an item, in the text's words:
@@ -1253,7 +1285,7 @@ fn row_lines(a: &Answer, row: &acquisition_search::answer::Row) -> Vec<String> {
 /// The rows as cards, in the answer's order: each row's item as [`card`]
 /// renders it, its name a link to the item page, then what the row shows
 /// of the query.
-fn cards(a: &Answer, view: ViewLinks, now: i64) -> String {
+fn cards(a: &Answer, view: ViewLinks, placed: Placed, now: i64) -> String {
     if a.rows.is_empty() {
         return String::new();
     }
@@ -1269,6 +1301,7 @@ fn cards(a: &Answer, view: ViewLinks, now: i64) -> String {
             icon,
             true,
             Some(view),
+            placed(&row.place).as_deref(),
             now,
         ));
         let lines = row_lines(a, row);
@@ -1301,6 +1334,7 @@ pub(crate) fn card(
     icon: Option<&str>,
     link: bool,
     view: Option<ViewLinks>,
+    placed: Option<&str>,
     now: i64,
 ) -> String {
     // `html`, already escaped, as the link a value's change to the view is
@@ -1398,7 +1432,13 @@ pub(crate) fn card(
         "<p class=\"price\">price {}</p>\n",
         esc(&search_cmd::price_words(&it.facts.id, parts.price))
     ));
-    let mut placed = esc(&search_cmd::shown_place_words(place, now));
+    // the place, a link to its page with it open where a page lists it
+    // (step 6.5c, Decision 6), its words otherwise
+    let words = esc(&search_cmd::shown_place_words(place, now));
+    let mut placed = match placed {
+        Some(href) => format!("<a class=\"placed\" href=\"{}\">{words}</a>", esc(href)),
+        None => words,
+    };
     if let Some(removed_at) = it.facts.removed_at {
         placed.push_str(&format!(
             "<br>removed {}",
@@ -1419,12 +1459,159 @@ pub(crate) const ROW_HEIGHT: u32 = 24;
 /// window script asks: written on the table beside the row height.
 pub(crate) const BLOCK_ROWS: usize = 50;
 
-/// A table's window (the module doc, "The table"): its segment's route,
-/// to which the script adds an offset and a count, and its first block,
-/// the first window's answer made over the page's corpus.
+/// A table's window (the module doc, "The table"): its route, to which
+/// the script adds an offset and a count, and its segments, the order cut
+/// after each opened row (step 6.5c, Decision 3), each with the blocks the
+/// server rendered over the page's corpus.
 pub(crate) struct Window {
     pub route: String,
-    pub first: Answer,
+    pub segments: Vec<Segment>,
+}
+
+/// One segment of a window: the rows from `base`, `count` of them, the
+/// blocks the server rendered, each by its number in the segment, and
+/// whether it ends at an opened row, whose card stands after it.
+pub(crate) struct Segment {
+    pub base: usize,
+    pub count: usize,
+    pub blocks: Vec<(usize, Answer)>,
+    pub opened: bool,
+}
+
+impl Window {
+    /// The rows of the whole order.
+    pub fn count(&self) -> usize {
+        self.segments.iter().map(|s| s.count).sum()
+    }
+
+    /// The basis every block stands at, the first block's.
+    pub fn basis(&self) -> Option<&acquisition_search::Basis> {
+        self.segments
+            .first()
+            .and_then(|s| s.blocks.first())
+            .map(|(_, a)| &a.basis)
+    }
+
+    /// The rows the server rendered.
+    fn rendered(&self) -> usize {
+        self.segments
+            .iter()
+            .flat_map(|s| &s.blocks)
+            .map(|(_, a)| a.rows.len())
+            .sum()
+    }
+}
+
+/// A card's place as a link (step 6.5c, Decision 6): the place page with
+/// the place and each holding it open, at its anchor; none where no page
+/// lists the place, which then stands as words.
+pub(crate) type Placed<'a> = &'a dyn Fn(&acquisition_search::corpus::Place) -> Option<String>;
+
+/// What an opened row's card links (step 6.5c, Decisions 5 to 7): the
+/// view's changes, made from a block's rows, and its place.
+pub(crate) struct CardWays<'a> {
+    pub view: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
+    pub placed: Placed<'a>,
+}
+
+/// A row's anchor (step 6.5c): where a row's toggle lands, made beside
+/// [`place_anchor`].
+pub(crate) fn row_anchor(id: &str) -> String {
+    format!("i-{}", enc(id))
+}
+
+/// A window's segments (step 6.5c, Decision 3), the one renderer of the
+/// flat table and of each open place: each segment of one height, its
+/// route the window's, its base and count, the blocks the server
+/// rendered; after a segment that ends at an opened row, that row's card
+/// in the page's flow, with its "Close". Without the script, the rows
+/// the server rendered alone, said so.
+fn segments(window: &Window, ways: &CardWays, now: i64) -> String {
+    let count = window.count();
+    let rendered = window.rendered();
+    let mut out = String::new();
+    if rendered < count {
+        let words = match window.segments.len() {
+            1 => format!(
+                "The first {} of {count} are shown here: the rest come in as the list scrolls, which needs the page's script.",
+                plural(rendered, "item", "items")
+            ),
+            _ => format!(
+                "{} of {count}, around each opened one, are shown here: the rest come in as the list scrolls, which needs the page's script.",
+                plural(rendered, "item", "items")
+            ),
+        };
+        out.push_str(&format!(
+            "<noscript><p class=\"rows-shown\">{}</p></noscript>\n",
+            esc(&words)
+        ));
+    }
+    for seg in &window.segments {
+        out.push_str(&format!(
+            "<div class=\"seg\" data-route=\"{}\" data-count=\"{}\" data-base=\"{}\">",
+            esc(&window.route),
+            seg.count,
+            seg.base
+        ));
+        for (b, block) in &seg.blocks {
+            out.push_str(&format!(
+                "<div class=\"block\" data-block=\"{b}\">\n{}</div>",
+                window_rows(block, now)
+            ));
+        }
+        out.push_str("</div>\n");
+        if !seg.opened {
+            continue;
+        }
+        // the opened row, the segment's last: in the block that holds it
+        let last = seg.base + seg.count - 1;
+        let held = seg.blocks.iter().find_map(|(_, block)| {
+            let after = match &block.view {
+                ViewOut::Rows(rows) => rows.after,
+                _ => 0,
+            };
+            last.checked_sub(after)
+                .and_then(|n| block.rows.get(n))
+                .map(|row| (block, row))
+        });
+        if let Some((block, row)) = held {
+            out.push_str(&opened_card(block, row, ways, now));
+        }
+    }
+    out
+}
+
+/// An opened row's card (step 6.5c, Decision 5): [`card`] of the row's
+/// item, which the window asks, its numbers the view's changes made from
+/// the block's rows, its place a link; then its "Close", the row's own
+/// toggle.
+fn opened_card(
+    block: &Answer,
+    row: &acquisition_search::answer::Row,
+    ways: &CardWays,
+    now: i64,
+) -> String {
+    let Some(shown) = &row.shown else {
+        return String::new();
+    };
+    let view = |value: &str| match &block.view {
+        ViewOut::Rows(rows) => (ways.view)(rows, value),
+        _ => None,
+    };
+    let icon = row.icon.as_ref().and_then(|icon| icon.as_deref());
+    format!(
+        "<div class=\"opened\">\n{}<p class=\"ways\"><button type=\"submit\" name=\"toggle_item\" value=\"{}\">Close</button></p>\n</div>\n",
+        card(
+            ItemParts::of_row(shown),
+            &row.place,
+            icon,
+            true,
+            Some(&view),
+            (ways.placed)(&row.place).as_deref(),
+            now,
+        ),
+        esc(&row.id)
+    )
 }
 
 /// The table (4-full part 1, step 6.4b): every row of the answer in one
@@ -1437,10 +1624,16 @@ pub(crate) struct Window {
 /// the window script asks the rest by the segment's route. Its line says
 /// how many items it holds, in what order and which values it left out;
 /// a page without its script says that it shows the first rows alone.
-fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, view: ViewLinks, now: i64) -> String {
+fn rows_table(
+    a: &Answer,
+    rows: &RowsOut,
+    window: &Window,
+    view: ViewLinks,
+    placed: Placed,
+    now: i64,
+) -> String {
     let heads = item_heads(rows, view);
     let matched = a.total.matched;
-    let first = window.first.rows.len();
     // the order, said once for every row: a sort named is said here, as
     // each row of the cards says it sorts by it
     let order = match (search_cmd::order_words(rows), rows.sort.as_deref()) {
@@ -1458,21 +1651,14 @@ fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, view: ViewLinks, now:
         "{} in the table{order}{values}",
         plural(matched, "matching item", "matching items")
     );
-    let unscripted = (first < matched).then(|| {
-        format!(
-            "<noscript><p class=\"rows-shown\">{}</p></noscript>\n",
-            esc(&format!(
-                "The first {} are shown here: the rest come in as the table scrolls, which needs the page's script.",
-                plural(first, "item", "items")
-            ))
-        )
-    });
+    let ways = CardWays {
+        view: &|_, value| view(value),
+        placed,
+    };
     format!(
-        "<p class=\"rows-shown\">{}</p>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}<div class=\"seg\" data-route=\"{}\" data-count=\"{matched}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n</div>\n",
+        "<p class=\"rows-shown\">{}</p>\n<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}{}</div>\n",
         esc(&line),
-        unscripted.unwrap_or_default(),
-        esc(&window.route),
-        window_rows(&window.first, now)
+        segments(window, &ways, now)
     )
 }
 
@@ -1538,11 +1724,12 @@ pub(crate) fn window_rows(a: &Answer, now: i64) -> String {
             .collect();
         let rarity = row.rarity.as_deref().unwrap_or("").to_lowercase();
         out.push_str(&format!(
-            "<div class=\"r\" data-i=\"{}\" data-id=\"{}\"><a class=\"name rarity-{}\" href=\"item/{}\">{}</a><span>{}</span><span>{}</span><span>{}</span><span>{}</span>{values}</div>\n",
+            "<div class=\"r\" id=\"{}\" data-i=\"{}\" data-id=\"{}\"><button type=\"submit\" class=\"name rarity-{}\" name=\"toggle_item\" value=\"{}\">{}</button><span>{}</span><span>{}</span><span>{}</span><span>{}</span>{values}</div>\n",
+            esc(&row_anchor(&row.id)),
             after + n,
             esc(&row.id),
             esc(&rarity),
-            enc(&row.id),
+            esc(&row.id),
             esc(&name),
             esc(row.base.as_deref().unwrap_or("")),
             esc(&price),
@@ -1941,7 +2128,7 @@ fn terms(a: &Answer, now: i64, spell: Spell) -> String {
 /// where one was asked, and the basis, each fact in the text's words,
 /// made once in `search_cmd.rs`. The price says why there is none, with
 /// no command and no link.
-pub(crate) fn item(shown: &Shown) -> String {
+pub(crate) fn item(shown: &Shown, placed: Option<&str>) -> String {
     let it = &shown.item;
     let now = acquisition_store::now();
     let mut out = card(
@@ -1950,6 +2137,7 @@ pub(crate) fn item(shown: &Shown) -> String {
         it.icon.as_deref(),
         false,
         None,
+        placed,
         now,
     );
     out.push_str("<table class=\"shown\">\n");
@@ -2203,6 +2391,11 @@ pub(crate) struct PlacesPage<'a> {
     pub windows: &'a HashMap<String, Window>,
     /// A value's head: the page ordered by it, from a segment's rows.
     pub view_links: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
+    /// The opened rows the page keeps (step 6.5c), which its list's form
+    /// carries hidden, as it carries the open places.
+    pub items: &'a [String],
+    /// An opened row's card's place as a link.
+    pub placed: Placed<'a>,
     /// Whether the sync policy names the league: "Plan under the policy"
     /// shows only then.
     pub policy: bool,
@@ -2289,6 +2482,12 @@ pub(crate) fn places(view: &PlacesPage) -> String {
             esc(open)
         ));
     }
+    for item in view.items {
+        body.push_str(&format!(
+            "<input type=\"hidden\" name=\"item\" value=\"{}\">",
+            esc(item)
+        ));
+    }
     body.push('\n');
     // the query's box and the buttons above the list, so a long list
     // never hides them (the page seat's probe); "Show" the form's first
@@ -2332,7 +2531,8 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         .every()
         .into_iter()
         .find_map(|p| view.windows.get(p.id()))
-        .and_then(|w| match &w.first.view {
+        .and_then(|w| w.segments.first()?.blocks.first())
+        .and_then(|(_, first)| match &first.view {
             ViewOut::Rows(rows) => {
                 let rows: &RowsOut = rows;
                 Some(item_heads(rows, &|value| (view.view_links)(rows, value)))
@@ -2647,7 +2847,13 @@ fn place_rows(
             ));
             rows.push_str("</div>\n");
         } else if let Some(window) = view.windows.get(id) {
-            rows.push_str(&segment(window, view.now));
+            // an open place's items, segments of the page's one window
+            // (Decision 5), cut after each opened row (6.5c)
+            let ways = CardWays {
+                view: view.view_links,
+                placed: view.placed,
+            };
+            rows.push_str(&segments(window, &ways, view.now));
         }
     }
 }
@@ -2666,30 +2872,6 @@ fn as_table(request: &Request) -> Request {
         }
     }
     table
-}
-
-/// An open place's items, one segment of the page's one window
-/// (Decision 5): its route, its count its first block's matches, its base
-/// 0, that first block the server's. Without the script, the first rows
-/// alone, said so.
-fn segment(window: &Window, now: i64) -> String {
-    let count = window.first.total.matched;
-    let first = window.first.rows.len();
-    let unscripted = (first < count).then(|| {
-        format!(
-            "<noscript><p class=\"rows-shown\">{}</p></noscript>\n",
-            esc(&format!(
-                "The first {} of {count} are shown here: the rest come in as the list scrolls, which needs the page's script.",
-                plural(first, "item", "items")
-            ))
-        )
-    });
-    format!(
-        "{}<div class=\"seg\" data-route=\"{}\" data-count=\"{count}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n",
-        unscripted.unwrap_or_default(),
-        esc(&window.route),
-        window_rows(&window.first, now)
-    )
 }
 
 /// The ticks among the places `place` holds, at any depth, each written

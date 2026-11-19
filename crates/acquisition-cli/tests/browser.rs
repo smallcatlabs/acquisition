@@ -1070,6 +1070,194 @@ fn a_grouped_page_shows_each_open_places_rows_and_keeps_its_place() {
     }
 }
 
+/// An item opened under its row keeps the reader's place (#270, step
+/// 6.5c): on a stash tabs page whose open tab is several blocks long, a
+/// box ticked near the top, then a far row the script fetched opened by
+/// its name, the page that loads stands at that row, in view, its card
+/// under it, the tick kept, and the rows under the card are, id for id,
+/// the segment's route's JSON at those offsets. Closed by the card's
+/// Close, the row is in view again, no card under it, the tick kept.
+#[test]
+fn opening_a_far_row_shows_its_card_under_it_and_keeps_every_tick() {
+    let (scratch, web) = offline_web("browserrow");
+    let mut store = acquisition_store::Store::open(&acquisition_store::account_path(
+        &scratch.0.join("mock"),
+        USER,
+    ))
+    .expect("the seeded store");
+    let mut record = |ep: acquisition_store::Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .expect("a recorded fetch");
+    };
+    let mut listed: Vec<Value> = (0..4)
+        .map(|n| json!({ "id": format!("t{n:02}"), "name": format!("Tab {n:02}"), "type": "PremiumStash" }))
+        .collect();
+    listed.push(json!({ "id": "big", "name": "Bulk", "type": "PremiumStash" }));
+    record(
+        acquisition_store::Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": listed }),
+        60,
+    );
+    let items: Vec<Value> = (0..330)
+        .map(|n| {
+            json!({ "id": format!("big-{n:04}"), "name": format!("Bulk {n:04}"), "typeLine": "Iron Ring",
+                    "baseType": "Iron Ring", "rarity": "Rare", "frameTypeId": 2, "identified": true,
+                    "ilvl": 60, "x": n % 24, "y": n / 24 })
+        })
+        .collect();
+    record(
+        acquisition_store::Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: "big".into(),
+            sub: None,
+        },
+        json!({ "stash": { "id": "big", "name": "Bulk", "type": "PremiumStash", "items": items } }),
+        61,
+    );
+    drop(store);
+
+    let mut page = Page::blank(&profile_of(&scratch));
+    page.cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        json!({ "width": 1000, "height": 600, "deviceScaleFactor": 1, "mobile": false }),
+    );
+    page.navigate(&format!(
+        "{}tabs?realm=pc&league=Standard&open=big",
+        web.url
+    ));
+    page.cdp
+        .until("document.querySelector('.window[data-windowed]') !== null");
+    let tick = "document.querySelector('input[name=\"tab\"][value=\"t01\"]')";
+    page.cdp.click(tick);
+    assert_eq!(page.cdp.eval(&format!("{tick}.checked")), json!(true));
+    // a far row, in a block the script fetched, opened by its name
+    let row = "big-0200";
+    page.cdp.eval(
+        "(() => { const seg = document.querySelector('.seg'); \
+         window.scrollTo(0, seg.getBoundingClientRect().top + window.scrollY + 200 * 24 - 200); return true; })()",
+    );
+    let name =
+        format!("document.querySelector('.r button[name=\"toggle_item\"][value=\"{row}\"]')");
+    page.cdp.until(&format!("{name} !== null"));
+    page.cdp.click(&name);
+    page.loaded_again();
+    page.cdp
+        .until("document.querySelector('.window[data-windowed]') !== null");
+    let look = |page: &mut Page| {
+        page.cdp.eval(&format!(
+            "(() => {{ const row = document.getElementById('i-{row}'); \
+             if (!row) return {{ hash: location.hash, row: null }}; \
+             const box = row.getBoundingClientRect(); \
+             const seg = row.closest('.seg'); \
+             const after = seg.nextElementSibling; \
+             const card = after && after.classList.contains('opened') ? after : null; \
+             const heads = document.querySelector('.window .r.head').getBoundingClientRect(); \
+             return {{ hash: location.hash, top: box.top, bottom: box.bottom, vh: window.innerHeight, \
+                      heads: heads.bottom, \
+                      card: card ? card.querySelector('.name').textContent : null, \
+                      cardTop: card ? card.getBoundingClientRect().top : null, \
+                      last: Number(seg.dataset.base) + Number(seg.dataset.count) - 1, \
+                      ticked: document.querySelector('input[name=\"tab\"][value=\"t01\"]').checked }}; }})()"
+        ))
+    };
+    let opened = look(&mut page);
+    assert_eq!(opened["hash"], format!("#i-{row}"), "{opened}");
+    let (top, bottom, vh) = (
+        opened["top"].as_f64().unwrap(),
+        opened["bottom"].as_f64().unwrap(),
+        opened["vh"].as_f64().unwrap(),
+    );
+    // in view, below the column heads that stick at the top
+    let heads = opened["heads"].as_f64().unwrap();
+    assert!(
+        top >= heads - 0.5 && bottom <= vh,
+        "the row is out of view: {opened}"
+    );
+    assert_eq!(opened["last"], 200, "its segment ends at it: {opened}");
+    assert!(
+        opened["card"]
+            .as_str()
+            .is_some_and(|n| n.starts_with("Bulk 0200")),
+        "no card under it: {opened}"
+    );
+    assert!(
+        opened["cardTop"].as_f64().unwrap() >= bottom - 0.5,
+        "{opened}"
+    );
+    assert_eq!(opened["ticked"], json!(true), "the tick was lost: {opened}");
+
+    // the rows under the card: the next segment's, as its route answers
+    let under = "(() => { const seg = document.querySelector('.opened').nextElementSibling; \
+        const h = Number(document.querySelector('.window').dataset.rowHeight); \
+        const top = seg.getBoundingClientRect().top; const base = Number(seg.dataset.base); \
+        const drawn = Array.from(seg.querySelectorAll('.r[data-i]'), (r) => \
+          [Number(r.dataset.i), r.dataset.id, r.getBoundingClientRect().top - top]); \
+        const at = new Map(drawn.map((r) => [r[0], r])); \
+        const first = Math.max(0, Math.floor(-top / h)); \
+        const last = Math.min(Number(seg.dataset.count), Math.ceil((window.innerHeight - top) / h)) - 1; \
+        const covered = []; \
+        for (let i = first; i <= last; i++) { if (!at.has(base + i)) return null; covered.push(at.get(base + i)); } \
+        return { h, base, route: seg.dataset.route, covered }; })()";
+    page.cdp.until(&format!("{under} !== null"));
+    let seen = page.cdp.eval(under);
+    assert_eq!(seen["base"], 201, "{seen}");
+    let covered = seen["covered"].as_array().unwrap();
+    assert!(!covered.is_empty(), "no row under the card in view: {seen}");
+    let first = covered[0][0].as_u64().unwrap();
+    let route = seen["route"]
+        .as_str()
+        .unwrap()
+        .trim_start_matches(&format!("/{}/", web.token))
+        .to_string();
+    let answered = web.get_json(&format!("{route}&offset={first}&count={}", covered.len()));
+    let ids: Vec<&Value> = answered["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| &r["id"])
+        .collect();
+    let shown: Vec<&Value> = covered.iter().map(|r| &r[1]).collect();
+    assert_eq!(shown, ids, "the rows under the card");
+    let h = seen["h"].as_f64().unwrap();
+    for row in covered {
+        let (i, y) = (row[0].as_f64().unwrap() - 201.0, row[2].as_f64().unwrap());
+        assert!((y - i * h).abs() <= 0.5, "row {i} at {y}");
+    }
+
+    // closed by its card's Close: the row in view, no card, the tick kept
+    page.cdp
+        .click("document.querySelector('.opened button[name=\"toggle_item\"]')");
+    page.loaded_again();
+    page.cdp
+        .until("document.querySelector('.window[data-windowed]') !== null");
+    let closed = look(&mut page);
+    assert_eq!(closed["hash"], format!("#i-{row}"), "{closed}");
+    let (top, bottom) = (
+        closed["top"].as_f64().unwrap(),
+        closed["bottom"].as_f64().unwrap(),
+    );
+    // in view, below the column heads that stick at the top
+    let heads = closed["heads"].as_f64().unwrap();
+    assert!(
+        top >= heads - 0.5 && bottom <= vh,
+        "the row is out of view: {closed}"
+    );
+    assert_eq!(closed["card"], Value::Null, "{closed}");
+    assert!(page.cdp.eval("document.querySelector('.opened') === null") == json!(true));
+    assert_eq!(closed["ticked"], json!(true), "the tick was lost: {closed}");
+}
+
 /// The harness refuses a browser that exits before its debugging
 /// protocol listens, at once and naming how it exited. `acq` stands in
 /// for such a browser: it refuses the browser's flags and exits.

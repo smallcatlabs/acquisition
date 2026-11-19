@@ -17,7 +17,7 @@ GET item/new
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <table class="shown">
 <tr><th>Id</th><td>new</td></tr>
@@ -52,7 +52,7 @@ GET item/mech
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <table class="shown">
 <tr><th>Id</th><td>mech</td></tr>
@@ -104,7 +104,7 @@ GET search?<a stat the table lacks>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring">
@@ -116,7 +116,7 @@ GET search?<a stat the table lacks>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
@@ -131,7 +131,7 @@ GET search?<a stat the table lacks>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
@@ -143,7 +143,7 @@ GET search?<a stat the table lacks>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
@@ -155,7 +155,7 @@ GET search?<a stat the table lacks>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
 <p class="rows-shown">rows 1–5 of 5 shown, in the store&#39;s order (no sort asked)</p>
@@ -199,7 +199,7 @@ GET search?<every ring>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 <div class="card">
@@ -215,7 +215,7 @@ GET search?<every ring>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 <div class="card">
@@ -228,7 +228,7 @@ GET search?<every ring>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 </div>

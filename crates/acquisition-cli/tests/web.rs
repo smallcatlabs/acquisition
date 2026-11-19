@@ -982,8 +982,8 @@ fn every_search_page_is_a_wording_golden() {
             "<div class=\"cards\">",
             "<span class=\"mod-kind\">explicit</span>",
             "<p class=\"price\">price none (",
-            "<p class=\"place\">pc · Standard / Rings",
-            " ago</p>",
+            "#p-t1\">pc · Standard / Rings",
+            " ago</a></p>",
             "<a class=\"presentation\" href=\"search?",
             ">as a table</a>",
             // the order the rows stand in, where no sort was asked: the
@@ -1023,7 +1023,7 @@ fn every_search_page_is_a_wording_golden() {
             "/rows?next=acq1.",
             "data-count=\"2\"",
             "<div class=\"block\" data-block=\"0\">",
-            "data-i=\"0\" data-id=\"r1\"><a class=\"name rarity-rare\" href=\"item/r1\">Doom Loop Two-Stone Ring</a>",
+            "data-i=\"0\" data-id=\"r1\"><button type=\"submit\" class=\"name rarity-rare\" name=\"toggle_item\" value=\"r1\">Doom Loop Two-Stone Ring</button>",
             "<span>none (",
             "<span>Standard / Rings · x 0, y 0</span>",
             "<span>95</span>",
@@ -2076,7 +2076,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         ),
         &[
             "<span class=\"mark\" aria-hidden=\"true\">▲</span>sum(line(template:spirit).arg1)<span class=\"sr\">, ordered smallest first</span></a></div>",
-            "<a class=\"name rarity-rare\" href=\"item/many\">Many Loop Iron Ring</a>",
+            "value=\"many\">Many Loop Iron Ring</button>",
             "<span>36</span></div>",
         ],
     );
@@ -2143,8 +2143,8 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         &[
             "<span>Fetched</span><a class=\"head\" href=\"search?",
             "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?",
-            "href=\"item/lp\">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos",
-            "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read",
+            "value=\"lp\">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos",
+            "value=\"lo\">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read",
             "<span>incomplete at 70</span>",
             "<span>none (",
         ],
@@ -2352,7 +2352,203 @@ fn the_rows_route_answers_a_window_and_refuses_each_wrong_one() {
     );
     let doc = refused_json(&web, &window, 409);
     assert_eq!(doc["kind"], "basis_changed", "{doc}");
+
+    // two opened rows (step 6.5c, Decision 3), over the three rows the
+    // moved world holds: the order cut after each, three segments of one
+    // route, each card in the flow with its Close
+    let order = in_table_order(&web, "search?realm=pc&text=&view.fields=icon");
+    assert_eq!(order.len(), 3, "{order:?}");
+    let two = web.get(&format!(
+        "search?realm=pc&text=&view.fields=icon&item={}&item={}",
+        order[1], order[0]
+    ));
+    pages.page(
+        "GET search?<the table, its first two rows opened>",
+        &two,
+        &[
+            "data-count=\"1\" data-base=\"0\"",
+            "data-count=\"1\" data-base=\"1\"",
+            "data-count=\"1\" data-base=\"2\"",
+            "<div class=\"opened\">",
+            ">Close</button>",
+        ],
+    );
+    assert_eq!(two.body.matches("<div class=\"seg\"").count(), 3);
+    for (at, id) in [(0, &order[0]), (1, &order[1])] {
+        let card = &two.body[two.body.find(&format!("data-i=\"{at}\"")).unwrap()..];
+        let card = &card[card.find("<div class=\"opened\">").unwrap()..];
+        assert!(
+            card[..card.find("</div>\n</div>").unwrap_or(card.len())].contains(&format!(
+                "name=\"toggle_item\" value=\"{id}\">Close</button>"
+            )),
+            "{at}: {}",
+            two.body
+        );
+    }
     page_golden(file!(), "table_rows", &pages);
+}
+
+/// The ids of a table's rows in its order, as its JSON lists them.
+fn in_table_order(web: &WebUi, path: &str) -> Vec<String> {
+    web.get_json(path)["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// Every link and form field a page writes that names `name`, its value
+/// as written: what a test reads to say no URL carries a field.
+fn written(body: &str, name: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for key in [format!("?{name}="), format!("&amp;{name}=")] {
+        out.extend(body.match_indices(&key).map(|(at, _)| {
+            let rest = &body[at + key.len()..];
+            rest[..rest.find(['&', '"', '#']).unwrap_or(rest.len())].to_string()
+        }));
+    }
+    out.extend(
+        body.match_indices(&format!("name=\"{name}\" value=\""))
+            .map(|(at, k)| {
+                let rest = &body[at + k.len()..];
+                rest[..rest.find('"').unwrap()].to_string()
+            }),
+    );
+    out
+}
+
+/// An item opened under its row (step 6.5c, Decisions 1 to 4, and the
+/// designer's "Where a toggle lands"): a row's name is a toggle in the
+/// table's form, answered 303 to the page with the id added and `at`,
+/// at the row's anchor; the page renders the row's block and its card
+/// after it, and no URL it writes carries `at`. A head's link keeps the
+/// row open at its new index; toggled again, it closes, its block still
+/// rendered for the anchor. An id no order holds is dropped; "as cards"
+/// and the query box carry no opened row.
+#[test]
+fn a_row_opens_under_itself_and_stays_open_as_the_view_changes() {
+    let (_scratch, web) = offline_web("webopened");
+    let table = "search?realm=pc&text=&view.fields=icon&view.value=pseudo.total_life";
+    let order = in_table_order(&web, table);
+    let id = order[2].clone();
+    let page = web.get(table);
+    let toggled = follow(
+        &web,
+        &place_form(
+            &web,
+            &page.body,
+            &[],
+            &name_of(&page.body, &id),
+            Some(("toggle_item", &id)),
+        ),
+    );
+    assert_eq!(toggled.status, 303, "{}", toggled.body);
+    let location = toggled.header("location").unwrap().to_string();
+    assert!(
+        location.ends_with(&format!("&item={id}&at={id}#i-{id}")),
+        "{location}"
+    );
+    let opened = follow(&web, &location);
+    let at = |body: &str, words: &str| {
+        body.find(words)
+            .unwrap_or_else(|| panic!("{words}: {body}"))
+    };
+    // the row's segment ends at it, and its card stands after it
+    assert!(
+        opened.body.contains("data-count=\"3\" data-base=\"0\""),
+        "{}",
+        opened.body
+    );
+    assert!(
+        at(&opened.body, &format!("id=\"i-{id}\"")) < at(&opened.body, "<div class=\"opened\">"),
+        "{}",
+        opened.body
+    );
+    assert!(
+        written(&opened.body, "at").is_empty(),
+        "{:?}",
+        written(&opened.body, "at")
+    );
+    // "as cards" and the query box carry no opened row
+    let cards = link_saying(&opened.body, "as cards");
+    assert!(!cards.contains("item="), "{cards}");
+    let query_box = &opened.body[at(&opened.body, "<form class=\"query-box\"")..];
+    assert!(
+        !query_box[..query_box.find("</form>").unwrap()].contains("name=\"item\""),
+        "{query_box}"
+    );
+
+    // a head's link keeps it open, at its index in the new order
+    let head = &opened.body[at(&opened.body, "<div class=\"r head\">")..];
+    let href = attribute(&head[head.find("<a class=\"head\"").unwrap()..], "href").unwrap();
+    assert!(href.contains(&format!("item={id}")), "{href}");
+    let reordered = follow(&web, &format!("/{}/{href}", web.token));
+    let sorted = in_table_order(&web, &href);
+    let n = sorted.iter().position(|i| *i == id).unwrap();
+    assert_ne!(sorted, order, "the head reorders the rows");
+    assert!(
+        reordered
+            .body
+            .contains(&format!("data-count=\"{}\" data-base=\"0\"", n + 1)),
+        "{n}: {}",
+        reordered.body
+    );
+    assert!(
+        reordered.body.contains("<div class=\"opened\">"),
+        "{}",
+        reordered.body
+    );
+
+    // toggled again, it closes: the landing still renders its block
+    let closed = follow(
+        &web,
+        &place_form(
+            &web,
+            &reordered.body,
+            &[],
+            "Close",
+            Some(("toggle_item", &id)),
+        ),
+    );
+    assert_eq!(closed.status, 303, "{}", closed.body);
+    let location = closed.header("location").unwrap().to_string();
+    assert!(!location.contains("item="), "{location}");
+    assert!(location.ends_with(&format!("at={id}#i-{id}")), "{location}");
+    let landed = follow(&web, &location);
+    assert!(
+        !landed.body.contains("<div class=\"opened\">"),
+        "{}",
+        landed.body
+    );
+    assert!(
+        landed.body.contains(&format!("id=\"i-{id}\"")),
+        "{}",
+        landed.body
+    );
+    assert!(written(&landed.body, "at").is_empty(), "{}", landed.body);
+
+    // an id no order holds is dropped, in the page and every URL it writes
+    let stale = web.get(&format!("{table}&item=no-such-item&item={id}"));
+    assert_eq!(stale.status, 200, "{}", stale.body);
+    assert_eq!(
+        written(&stale.body, "item")
+            .iter()
+            .filter(|v| *v == "no-such-item")
+            .count(),
+        0
+    );
+    assert!(written(&stale.body, "item").contains(&id), "{}", stale.body);
+    // a page of cards cuts nothing, and keeps no opened row
+    let cards = web.get(&format!("search?realm=pc&text=&item={id}"));
+    assert!(written(&cards.body, "item").is_empty(), "{}", cards.body);
+}
+
+/// A row's name as its toggle says it.
+fn name_of(body: &str, id: &str) -> String {
+    let key = format!("name=\"toggle_item\" value=\"{id}\">");
+    let at = body.find(&key).unwrap_or_else(|| panic!("{id}: {body}")) + key.len();
+    unescaped(&body[at..at + body[at..].find("</button>").unwrap()])
 }
 
 /// A refusal's document as the server answers a request under the token
@@ -3140,7 +3336,8 @@ fn first_value(body: &str, key: &str) -> String {
     unescaped(&body[at..at + body[at..].find('"').unwrap()])
 }
 
-/// A place page's table form as a browser sends it, with the boxes
+/// A place page's table form, or an answer's table's (step 6.5c), as a
+/// browser sends it, with the boxes
 /// `ticked` ticked besides those it holds ticked, and the button saying
 /// `button` pressed (its `name` and `value` where it carries them): the
 /// path it asks, under the button's `formaction` or the form's action,
@@ -3155,6 +3352,7 @@ fn place_form(
     let start = body
         .find("<form method=\"get\" action=\"tabs\">\n")
         .or_else(|| body.find("<form method=\"get\" action=\"characters\">\n"))
+        .or_else(|| body.find("<form class=\"table\" method=\"get\" action=\"search\">"))
         .unwrap_or_else(|| panic!("no table form: {body}"));
     let form = &body[start..start + body[start..].find("</form>").unwrap()];
     let action = attribute(&form[..form.find('>').unwrap()], "action").unwrap();
@@ -5324,7 +5522,56 @@ fn the_grouped_table_is_a_wording_golden() {
             "data-id=\"c-ring\"",
         ],
     );
+    // an open place's opened row under the query (step 6.5c): the place's
+    // order cut after it, its card in the flow, its place a link
+    let opened = web.get(&format!(
+        "tabs?realm=pc&league=Standard&{query}&open=f1&open=o1&item=o-high"
+    ));
+    pages.page(
+        "GET tabs?<rings, Old rings open, its first row opened>",
+        &opened,
+        &[
+            "data-count=\"1\" data-base=\"0\"",
+            "data-count=\"1\" data-base=\"1\"",
+            "<div class=\"opened\">",
+            "name=\"toggle_item\" value=\"o-high\">Close</button>",
+            "<input type=\"hidden\" name=\"item\" value=\"o-high\">",
+            "open=f1&amp;open=o1#p-o1\">",
+        ],
+    );
     page_golden(file!(), "grouped", &pages);
+
+    // a card's place, followed (Decision 6): its page with the place and
+    // each holding it open, at its head, no query, its items listed — a
+    // tab in a folder, a map tab's page, a character
+    for (item, open, anchor, route) in [
+        ("o-low", "open=f1&open=o1", "#p-o1", "tabs"),
+        ("m-page", "open=m1&open=p1", "#p-p1", "tabs"),
+        ("c-ring", "open=ch1", "#p-ch1", "characters"),
+    ] {
+        let shown = web.get(&format!("item/{item}"));
+        let card = &shown.body[at(&shown.body, "<p class=\"place\">")..];
+        let href = attribute(card, "href").unwrap();
+        assert_eq!(
+            href,
+            format!(
+                "/{}/{route}?realm=pc&league=Standard&{open}{anchor}",
+                web.token
+            ),
+            "{item}"
+        );
+        let place = follow(&web, &href);
+        assert_eq!(place.status, 200, "{item}: {}", place.body);
+        assert!(
+            place.body.contains(&format!("data-id=\"{item}\"")),
+            "{item}: {}",
+            place.body
+        );
+        assert!(
+            place.body.contains(&format!("id=\"{}\"", &anchor[1..])),
+            "{item}"
+        );
+    }
 
     // the document's counts are the page's
     let doc = web.get_json(&grouped);

@@ -118,6 +118,13 @@ p.fold, p.own, p.matched { color: var(--muted); font-size: 12.5px; margin: .2rem
 .window .r > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 0.4rem; }
 .window .r.head { font-weight: bold; position: sticky; top: 0; background: var(--page); z-index: 1; }
 .window .r.head a { color: inherit; }
+/* a row a toggle lands at stands below the sticky heads (step 6.5c) */
+.window .r[id] { scroll-margin-top: calc(2 * var(--row, 24px)); }
+/* a row's name is its toggle (step 6.5c): a button that reads as the name */
+.window .r button.name { background: none; border: 0; border-radius: 0; padding: 0 0.4rem; text-align: left; cursor: pointer; }
+/* an opened row's card, in the flow under its row */
+.window .opened { padding: .4rem 0; border-bottom: 1px solid var(--rule); }
+.window .opened .ways { text-align: center; margin: .3rem 0 0; }
 .mark { margin-right: 0.25rem; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .card a.value { color: inherit; text-decoration: underline dotted; }

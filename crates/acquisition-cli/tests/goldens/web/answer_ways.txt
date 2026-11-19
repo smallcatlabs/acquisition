@@ -26,7 +26,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -42,7 +42,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -55,7 +55,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 </div>
@@ -181,7 +181,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -190,7 +190,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 2, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 2, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -199,7 +199,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 3, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 3, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -208,7 +208,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 4, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 4, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -217,7 +217,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 5, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 5, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -226,7 +226,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 6, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 6, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -235,7 +235,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 7, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 7, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -244,7 +244,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 8, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 8, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -253,7 +253,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 9, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 9, y 0 · fetched <age> ago</a></p>
 </div>
 <div class="card">
 <p><span class="badge">unread — `frameTypeId` is a number, not a string</span></p>
@@ -262,7 +262,7 @@ GET search?<a name eleven items carry>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=name%3Akestrel&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
 <p class="rows-shown">rows 1–10 of 11 shown, in the store&#39;s order (no sort asked) · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
@@ -317,7 +317,7 @@ GET search?<a site search with an ambiguous clause>
 <p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_2250533757%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%25%20increased%20Movement%20Speed%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=m1#p-m1">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;#% increased Movement Speed&quot; source=explicit).arg1) 30<br>30% increased Movement Speed (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
 <div class="card">
@@ -329,7 +329,7 @@ GET search?<a site search with an ambiguous clause>
 <p class="mod"><a class="value" href="search?realm=pc&amp;trade=%7B%22query%22%3A%20%7B%22stats%22%3A%20%5B%7B%22type%22%3A%20%22and%22%2C%20%22filters%22%3A%20%5B%7B%22id%22%3A%20%22explicit.stat_2250533757%22%2C%20%22value%22%3A%20%7B%22min%22%3A%2020%7D%7D%2C%20%7B%22id%22%3A%20%22explicit.stat_1030153674%22%7D%5D%7D%5D%7D%7D&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%25%20increased%20Movement%20Speed%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=m1#p-m1">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;#% increased Movement Speed&quot; source=explicit).arg1) 25<br>25% increased Movement Speed (explicit)<br>Recover 2% of Mana on Kill (explicit)</p>
 </div>
@@ -354,7 +354,7 @@ basis   store <store> · build <build> · snapshot 14 · facts v9 · prices and 
 
 GET search?<a row that leaves lines out>
 # holds "<span class=\"mark\" aria-hidden=\"true\">▲</span>sum(line(template:spirit).arg1)<span class=\"sr\">, ordered smallest first</span></a></div>"
-# holds "<a class=\"name rarity-rare\" href=\"item/many\">Many Loop Iron Ring</a>"
+# holds "value=\"many\">Many Loop Iron Ring</button>"
 # holds "<span>36</span></div>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:16,&quot;at&quot;:101,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
@@ -366,13 +366,15 @@ GET search?<a row that leaves lines out>
 <tr><th>Total</th><td>1 match (fetched <age> ago, pc · Standard / Spirit)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=line%28template%3Aspirit%29&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29">by character</a></p>
+<form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="line(template:spirit)"><input type="hidden" name="view.sort" value="sum(line(template:spirit).arg1)"><input type="hidden" name="view.fields" value="icon">
 <p class="rows-shown">1 matching item in the table, by sum(line(template:spirit).arg1), smallest first, as asked</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=line%28template%3Aspirit%29&amp;view.fields=icon&amp;view.sort=sum%28line%28template%3Aspirit%29.arg1%29&amp;view.desc=true"><span class="mark" aria-hidden="true">▲</span>sum(line(template:spirit).arg1)<span class="sr">, ordered smallest first</span></a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="1" data-base="0"><div class="block" data-block="0">
-<div class="r" data-i="0" data-id="many"><a class="name rarity-rare" href="item/many">Many Loop Iron Ring</a><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Spirit · x 0, y 0</span><span><age> ago</span><span>36</span></div>
+<div class="r" id="i-many" data-i="0" data-id="many"><button type="submit" class="name rarity-rare" name="toggle_item" value="many">Many Loop Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Spirit · x 0, y 0</span><span><age> ago</span><span>36</span></div>
 </div></div>
 </div>
+</form>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -393,8 +395,8 @@ basis   store <store> · build <build> · snapshot 16 · facts v9 · prices and 
 GET search?<a table of two values, priced three ways>
 # holds "<span>Fetched</span><a class=\"head\" href=\"search?"
 # holds "view.sort=ilvl&amp;view.desc=true\">ilvl</a><a class=\"head\" href=\"search?"
-# holds "href=\"item/lp\">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos"
-# holds "href=\"item/lo\">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read"
+# holds "value=\"lp\">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos"
+# holds "value=\"lo\">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read"
 # holds "<span>incomplete at 70</span>"
 # holds "<span>none ("
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:18,&quot;at&quot;:111,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
@@ -407,15 +409,17 @@ GET search?<a table of two values, priced three ways>
 <tr><th>Total</th><td>3 matches (fetched <age> ago, pc · Standard / Ledger)<br>3 locations were never fetched: nothing here says what they hold</td></tr>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by character</a></p>
+<form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="name:ledger ilvl&gt;=80 &quot;# to maximum Life&quot;&gt;=50"><input type="hidden" name="view.fields" value="icon">
 <p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked, and the query compares no one value that orders it)</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=ilvl&amp;view.desc=true">ilvl</a><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.desc=true">line(&quot;# to maximum Life&quot;).arg1</a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
-<div class="r" data-i="0" data-id="li"><a class="name rarity-rare" href="item/li">Ledger Unread Iron Ring</a><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
-<div class="r" data-i="1" data-id="lo"><a class="name rarity-rare" href="item/lo">Ledger Open Iron Ring</a><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
-<div class="r" data-i="2" data-id="lp"><a class="name rarity-rare" href="item/lp">Ledger Priced Iron Ring</a><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
+<div class="r" id="i-li" data-i="0" data-id="li"><button type="submit" class="name rarity-rare" name="toggle_item" value="li">Ledger Unread Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Ledger · x 11, y 0</span><span><age> ago</span><span>83</span><span>incomplete at 70</span></div>
+<div class="r" id="i-lo" data-i="1" data-id="lo"><button type="submit" class="name rarity-rare" name="toggle_item" value="lo">Ledger Open Iron Ring</button><span>Iron Ring</span><span>undecided: the note cannot be read: it is no string, and a note would decide</span><span>Standard / Ledger · x 10, y 0</span><span><age> ago</span><span>82</span><span>60</span></div>
+<div class="r" id="i-lp" data-i="2" data-id="lp"><button type="submit" class="name rarity-rare" name="toggle_item" value="lp">Ledger Priced Iron Ring</button><span>Iron Ring</span><span>5 chaos · game</span><span>Standard / Ledger · x 9, y 0</span><span><age> ago</span><span>81</span><span>90</span></div>
 </div></div>
 </div>
+</form>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -468,7 +472,7 @@ GET search?<a card whose numbers are links>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kit · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=k9#p-k9">pc · Standard / Kit · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 30<br>+30 to maximum Life (explicit)</p>
 </div>
@@ -516,7 +520,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kit · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=k9#p-k9">pc · Standard / Kit · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -529,7 +533,7 @@ GET search?<a character fetched from a later release>
 <p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=m1#p-m1">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -541,7 +545,7 @@ GET search?<a character fetched from a later release>
 <p class="mod"><a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22Recover%20%23%25%20of%20Mana%20on%20Kill%22%20source%3Dexplicit%29.arg1%29">Recover 2% of Mana on Kill</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=m1#p-m1">pc · Standard / Rarity · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -554,7 +558,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Ledger · x 11, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9#p-p9">pc · Standard / Ledger · x 11, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -567,7 +571,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price undecided: the note cannot be read: it is no string, and a note would decide</p>
-<p class="place">pc · Standard / Ledger · x 10, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9#p-p9">pc · Standard / Ledger · x 10, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -580,7 +584,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price 5 chaos · game</p>
-<p class="place">pc · Standard / Ledger · x 9, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=p9#p-p9">pc · Standard / Ledger · x 9, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -600,7 +604,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Spirit · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=s9#p-s9">pc · Standard / Spirit · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -613,7 +617,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -626,7 +630,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 <div class="card">
@@ -636,7 +640,7 @@ GET search?<a character fetched from a later release>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;text=class%3Arings&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=ilvl">70</a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5#p-t5">pc · Standard / Kestrels · x 1, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 </div>

@@ -9,6 +9,8 @@
 // server's; the script keeps the blocks it shows and the asks in flight,
 // nothing a reload must keep. A moved basis (409) loads the page again;
 // a block whose fetch fails is dropped, to be asked at the next fill.
+// A segment ends at an opened row, whose card stands after it in the
+// flow; the next segment goes on from the row after, on the same route.
 (function () {
   const table = document.querySelector('.window[data-row-height]');
   if (!table) return;
@@ -103,5 +105,11 @@
   };
   window.addEventListener('scroll', queue, { passive: true });
   window.addEventListener('resize', queue);
+  // the URL's anchor inside the table (a toggled head or row), sought once
+  // the segments are sized and before the first fill, so the fill keeps
+  // the block the server rendered for it (step 6.5c)
+  // an anchor is written percent-encoded, as its fragment is
+  const anchor = location.hash && document.getElementById(location.hash.slice(1));
+  if (anchor && table.contains(anchor)) anchor.scrollIntoView();
   fill();
 })();
