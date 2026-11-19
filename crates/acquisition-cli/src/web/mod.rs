@@ -2068,6 +2068,11 @@ async fn jobs(
         },
         None => None,
     };
+    // with none served yet, every job's account is named
+    let served = web
+        .served()
+        .map(|account| account.entry.username.clone())
+        .unwrap_or_default();
     let spell = |way: &acquisition_verbs::refusal::Way| {
         use acquisition_verbs::refusal::Surface as _;
         Paged { web: &web }
@@ -2086,6 +2091,7 @@ async fn jobs(
             rails: rails.as_ref(),
             opened: opened.as_ref(),
             places,
+            account: &served,
             spell: &spell,
             now: acquisition_store::now(),
         }),

@@ -3344,6 +3344,29 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
             )
         },
         row(22, "stash", "waiting", Some(21), tab("uniq")),
+        // another account's job, which the list holds beside Alice's
+        JobRow {
+            account: Some("Bob".into()),
+            ..row(23, "stash", "waiting", None, tab("gems"))
+        },
+        // what was fetched and could not be recorded, kept with the result
+        finished(
+            row(30, "stash", "failed", None, tab("cur1")),
+            json!({ "outcome": "failure", "kind": "not_recorded",
+                    "error": "the store could not record it",
+                    "payload": { "stash": {} } }),
+        ),
+        // a page GGG no longer has, listed by its parent tab's fetch
+        finished(
+            row(
+                31,
+                "stash",
+                "failed",
+                None,
+                json!({ "realm": "pc", "league": "Standard", "id": "maps", "sub": "m002", "deep": false }),
+            ),
+            json!({ "outcome": "failure", "kind": "not_found", "error": "404 on the page" }),
+        ),
     ] {
         db.upsert(&job).unwrap();
     }
@@ -3358,11 +3381,15 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
         &queue,
         &[
             "No daemon is running. The queue on record",
-            "3 jobs, 2 waiting, 1 running when the daemon stopped",
+            "4 jobs, 3 waiting, 1 running when the daemon stopped",
             "The next job submitted starts a daemon, which resumes them",
             "<td>\u{21b3} Tab uniq in Standard</td><td>waiting</td>",
+            // the review of d572f30a, its first finding: a job of an
+            // account the page does not serve says whose it is
+            "<td>Tab gems in Standard, for Bob</td><td>waiting</td>",
         ],
     );
+    assert!(!queue.body.contains("for Alice"), "{}", queue.body);
     assert!(!queue.body.contains("j-10"), "{}", queue.body);
     let parent = web.get("jobs?job=10");
     pages.page(
@@ -3386,7 +3413,28 @@ fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
             "Standard: <a href=",
         ],
     );
-    for page in [&parent, &child] {
+    // its second: a result's offer of itself is the page shown, and none
+    let kept = web.get("jobs?job=30");
+    pages.page(
+        "GET jobs?job=30 <what was fetched, not recorded>",
+        &kept,
+        &["could not be saved"],
+    );
+    assert!(!kept.body.contains("jobs?job=30#j-30\""), "{}", kept.body);
+    // its third: a page's 404 is answered by its parent tab's fetch, so
+    // the words name what lists it, not the league's list
+    let gone = web.get("jobs?job=31");
+    pages.page(
+        "GET jobs?job=31 <a page GGG no longer has>",
+        &gone,
+        &["GGG has nothing there now", "what lists it"],
+    );
+    assert!(
+        !gone.body.contains("the league or the characters"),
+        "{}",
+        gone.body
+    );
+    for page in [&parent, &child, &kept, &gone] {
         assert!(!page.body.contains("acq "), "{}", page.body);
         assert!(!page.body.contains("token was refused"), "{}", page.body);
     }

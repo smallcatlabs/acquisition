@@ -2,17 +2,19 @@
 
 GET jobs <no daemon>
 # holds "No daemon is running. The queue on record"
-# holds "3 jobs, 2 waiting, 1 running when the daemon stopped"
+# holds "4 jobs, 3 waiting, 1 running when the daemon stopped"
 # holds "The next job submitted starts a daemon, which resumes them"
 # holds "<td>↳ Tab uniq in Standard</td><td>waiting</td>"
+# holds "<td>Tab gems in Standard, for Bob</td><td>waiting</td>"
 <main>
 <h1>Jobs</h1>
-<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 4 jobs, 3 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
 <table class="jobs">
 <tr><th>What</th><th>State</th><th>When</th></tr>
 <tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
 <tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
 <tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab gems in Standard, for Bob</td><td>waiting</td><td>submitted <age> ago</td></tr>
 </table>
 
 </main>
@@ -37,12 +39,13 @@ GET jobs?job=10 <a failed parent the list leaves out>
 </ul>
 </td></tr>
 </table>
-<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 4 jobs, 3 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
 <table class="jobs">
 <tr><th>What</th><th>State</th><th>When</th></tr>
 <tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
 <tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
 <tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab gems in Standard, for Bob</td><td>waiting</td><td>submitted <age> ago</td></tr>
 </table>
 
 </main>
@@ -62,12 +65,60 @@ GET jobs?job=12&realm=pc&league=Standard <a refused token opened>
 <p>Its account had no session to send with. Signing in again is a person&#39;s to do.</p>
 </td></tr>
 </table>
-<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 4 jobs, 3 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
 <table class="jobs">
 <tr><th>What</th><th>State</th><th>When</th></tr>
 <tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
 <tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
 <tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab gems in Standard, for Bob</td><td>waiting</td><td>submitted <age> ago</td></tr>
+</table>
+
+</main>
+
+GET jobs?job=30 <what was fetched, not recorded>
+# holds "could not be saved"
+<main>
+<h1>Jobs</h1>
+<p class="opened">This job is not among those listed below.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job opened" id="j-30"><td>Tab cur1 in Standard</td><td>failed</td><td>submitted <age> ago</td></tr>
+<tr class="result"><td colspan="3">
+<p>It was fetched, and what it fetched could not be saved; it is kept with this result.</p>
+</td></tr>
+</table>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 4 jobs, 3 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
+<tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab gems in Standard, for Bob</td><td>waiting</td><td>submitted <age> ago</td></tr>
+</table>
+
+</main>
+
+GET jobs?job=31 <a page GGG no longer has>
+# holds "GGG has nothing there now"
+# holds "what lists it"
+<main>
+<h1>Jobs</h1>
+<p class="opened">This job is not among those listed below.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job opened" id="j-31"><td>Page m002 of tab maps in Standard</td><td>failed</td><td>submitted <age> ago</td></tr>
+<tr class="result"><td colspan="3">
+<p>GGG has nothing there now; fetching again what lists it shows what is there.</p>
+</td></tr>
+</table>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 4 jobs, 3 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
+<tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab gems in Standard, for Bob</td><td>waiting</td><td>submitted <age> ago</td></tr>
 </table>
 
 </main>

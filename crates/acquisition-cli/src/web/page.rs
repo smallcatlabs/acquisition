@@ -2650,7 +2650,7 @@ fn action_words(
     plan: &acquisition_plan::RefreshPlan,
     action: &acquisition_plan::RefreshAction,
 ) -> (String, String) {
-    use acquisition_plan::{FetchReason, ListingReason, RefreshAction};
+    use acquisition_plan::{ListingReason, RefreshAction};
     let listing = |reason: &ListingReason| match reason {
         ListingReason::NeverListed => "never listed".to_string(),
         ListingReason::Stale { age_seconds } => {
@@ -2658,23 +2658,7 @@ fn action_words(
         }
         ListingReason::Selected => "what you ticked is read from it".to_string(),
     };
-    let fetch = |reason: &FetchReason| match reason {
-        FetchReason::NeverFetched => "never fetched".to_string(),
-        FetchReason::Selected => "ticked".to_string(),
-        FetchReason::Stale { age_seconds } => {
-            format!("last fetched {} before the plan", span(*age_seconds))
-        }
-        FetchReason::ListedCountDisagrees { listed, held } => format!(
-            "the list says it holds {}, and {held} are on record",
-            plural(usize::try_from(*listed).unwrap_or(0), "item", "items")
-        ),
-        FetchReason::ListedExperienceDisagrees { .. } => {
-            "played since its last fetch: the list says more experience".to_string()
-        }
-        FetchReason::ListedLeagueDisagrees { listed, held } => {
-            format!("the list says it is in {listed}, its last fetch said {held}")
-        }
-    };
+    let fetch = fetch_words;
     match action {
         RefreshAction::ListStashes { league, reason, .. } => (
             format!("The list of stash tabs in {league}"),
@@ -2713,6 +2697,30 @@ fn action_words(
         }
         RefreshAction::FetchCharacter { name, reason, .. } => {
             (format!("Character {}", named(name)), fetch(reason))
+        }
+    }
+}
+
+/// Why a plan fetches a tab or a character, in words.
+fn fetch_words(reason: &acquisition_plan::FetchReason) -> String {
+    use acquisition_plan::FetchReason;
+    match reason {
+        FetchReason::NeverFetched => "never fetched".to_string(),
+        FetchReason::Selected => "ticked".to_string(),
+        FetchReason::Stale { age_seconds } => {
+            format!("last fetched {} before the plan", span(*age_seconds))
+        }
+        FetchReason::ListedCountDisagrees { listed, held } => format!(
+            "the list says it holds {}, and {held} are on record",
+            plural(usize::try_from(*listed).unwrap_or(0), "item", "items")
+        ),
+        // the planner says unequal, in either direction (the review of
+        // d572f30a, its fourth finding)
+        FetchReason::ListedExperienceDisagrees { .. } => {
+            "its experience on the list differs from its last fetch's".to_string()
+        }
+        FetchReason::ListedLeagueDisagrees { listed, held } => {
+            format!("the list says it is in {listed}, its last fetch said {held}")
         }
     }
 }
@@ -2991,6 +2999,8 @@ pub(crate) struct JobsPage<'a> {
     /// The league the URL names, with its two place pages' links: where
     /// a submit came from, made forward at the submit.
     pub places: Option<PlaceLinks>,
+    /// The account the page serves: a job of another says whose it is.
+    pub account: &'a str,
     pub spell: Spell<'a>,
     pub now: i64,
 }
@@ -3023,12 +3033,15 @@ struct JobRow<'a> {
     parent: Option<u64>,
     kind: &'a str,
     params: &'a Value,
+    /// The job's account where it is not the page's (the review of
+    /// d572f30a, its first finding): the list spans accounts.
+    whose: Option<&'a str>,
     state: String,
     when: String,
 }
 
 impl<'a> JobRow<'a> {
-    fn live(job: &'a acquisition_protocol::job::JobInfo) -> JobRow<'a> {
+    fn live(job: &'a acquisition_protocol::job::JobInfo, served: &str) -> JobRow<'a> {
         use acquisition_protocol::job::JobState;
         let age = |words: &Option<String>| words.clone().unwrap_or_default();
         let (state, when) = match job.state {
@@ -3065,12 +3078,13 @@ impl<'a> JobRow<'a> {
             parent: job.parent,
             kind: &job.kind,
             params: &job.params,
+            whose: job.account.as_deref().filter(|a| *a != served),
             state,
             when: when.trim_end().to_string(),
         }
     }
 
-    fn recorded(job: &'a acquisition_store::jobs::PersistedJob) -> JobRow<'a> {
+    fn recorded(job: &'a acquisition_store::jobs::PersistedJob, served: &str) -> JobRow<'a> {
         let state = match job.state.as_str() {
             "running" => "running when the daemon stopped".to_string(),
             other => other.to_string(),
@@ -3080,6 +3094,7 @@ impl<'a> JobRow<'a> {
             parent: job.parent,
             kind: &job.kind,
             params: &job.params,
+            whose: job.account.as_deref().filter(|a| *a != served),
             state,
             when: format!(
                 "submitted {}",
@@ -3153,7 +3168,7 @@ fn failure_words(kind: Option<acquisition_protocol::job::FailureKind>) -> &'stat
     match kind {
         None => "It failed.",
         Some(FailureKind::NotFound) => {
-            "GGG has nothing there now. Listing the league or the characters again shows what is there."
+            "GGG has nothing there now; fetching again what lists it shows what is there."
         }
         Some(FailureKind::Upstream) => {
             "GGG's answer could not be used. The same request may work later."
@@ -3187,6 +3202,9 @@ fn failure_words(kind: Option<acquisition_protocol::job::FailureKind>) -> &'stat
 /// failure by kind, its children's tally, the first failed children
 /// each a link to its own result, and the offers its page takes.
 fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> String {
+    // an offer of this result is the page it stands on (the review of
+    // d572f30a, its second finding)
+    let shown = spell(&Way::Result { id: result.job_id });
     use acquisition_protocol::job::{FailureKind, Outcome};
     let mut out = String::new();
     match &result.outcome {
@@ -3221,6 +3239,9 @@ fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> St
                 let links: Vec<String> = result
                     .offers
                     .iter()
+                    .filter(|offer| {
+                        offer.get("request").and_then(Value::as_str) != shown.as_deref()
+                    })
                     .filter_map(|offer| {
                         Some(format!(
                             "<li><a href=\"{}\">{}</a></li>",
@@ -3262,7 +3283,11 @@ pub(crate) fn jobs(view: &JobsPage) -> String {
     }
     let (rows, counts, left): (Vec<JobRow>, String, Vec<String>) = match view.jobs {
         Jobs::Live(listed) => (
-            listed.rows.iter().map(JobRow::live).collect(),
+            listed
+                .rows
+                .iter()
+                .map(|j| JobRow::live(j, view.account))
+                .collect(),
             live_counts(listed),
             [
                 (listed.open_left_out, "earlier running or waiting"),
@@ -3284,7 +3309,10 @@ pub(crate) fn jobs(view: &JobsPage) -> String {
             Vec::new(),
         ),
         Jobs::Absent { persisted: Some(p) } => (
-            p.jobs.iter().map(JobRow::recorded).collect(),
+            p.jobs
+                .iter()
+                .map(|j| JobRow::recorded(j, view.account))
+                .collect(),
             format!(
                 "No daemon is running. The queue on record, written {}: {}, {} waiting, {} running when the daemon stopped. The next job submitted starts a daemon, which resumes them.",
                 p.written_at_age,
@@ -3309,9 +3337,9 @@ pub(crate) fn jobs(view: &JobsPage) -> String {
     let listed = |id: u64| rows.iter().any(|r| r.id == id);
     if let Some(open) = opened.filter(|o| !listed(o.id)) {
         let row = match &open.job {
-            Some(acquisition_verbs::jobs::Job::Live(job)) => Some(JobRow::live(job)),
+            Some(acquisition_verbs::jobs::Job::Live(job)) => Some(JobRow::live(job, view.account)),
             Some(acquisition_verbs::jobs::Job::Absent { persisted, .. }) => {
-                Some(JobRow::recorded(persisted))
+                Some(JobRow::recorded(persisted, view.account))
             }
             None => None,
         };
@@ -3381,7 +3409,10 @@ fn job_row(
         (true, true) => "job child opened",
     };
     // a finished job's own result is a link where it is not opened
-    let what = job_what(row.kind, row.params);
+    let mut what = job_what(row.kind, row.params);
+    if let Some(whose) = row.whose {
+        what.push_str(&format!(", for {whose}"));
+    }
     let what = if opened || !matches!(row.state.as_str(), "failed" | "cancelled") {
         esc(&what)
     } else {
@@ -3500,4 +3531,23 @@ fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> S
         ));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The review of d572f30a, its fourth finding: the planner says a
+    /// character's listed experience differs from its last fetch's in
+    /// either direction, so the page says it differs, never that it grew.
+    #[test]
+    fn an_experience_that_differs_is_said_to_differ() {
+        let reason = acquisition_plan::FetchReason::ListedExperienceDisagrees {
+            listed: 100,
+            held: 150,
+        };
+        let said = fetch_words(&reason);
+        assert!(!said.contains("more"), "{said}");
+        assert!(said.contains("differs"), "{said}");
+    }
 }
