@@ -51,25 +51,26 @@ session. This closes #182's plan and jobs half and #189's fault 12.
    and that the next job resumes them. The reload while a job runs
    stays.
 7. **A job's ways.** No link is derived from a job's kind or params:
-   the nav bar on every page is the way to the places, and an apply
-   may span leagues and realms. A failed or cancelled job opens its
-   `JobResult` (Q2), read by id through `Frontend::job` and `result`,
-   listed or not: its failure said by `FailureKind` in the page's own
-   words, the first failed children the same way, offers spelled by
-   `Paged`, which now spells `Way::Result`. The daemon's `error` and
+   an apply may span leagues and realms, and Decision 8 holds the way
+   to the places. A failed or cancelled job opens its `JobResult`,
+   read by id through `Frontend::job` and `result`, listed or not:
+   its failure said by `FailureKind` in the page's own words, the
+   first failed children the same way, offers spelled by `Paged`,
+   which now spells `Way::Result`. The daemon's `error` and
    `WayOn.words` can name a command and stay in the JSON alone; a
    failure with no kind says only that it failed.
-
-## Open for the designer (C172, Fable designs)
-Each answer amends this brief before the build starts.
-- **Q1, where an apply lands.** The design says back at the places,
-  but their facts change only once the job lands. Recommended: Jobs,
-  the apply's job opened and reloading until done, the nav bar to the
-  places. The other: the places page, which then reads the jobs too.
-- **Q2, where a job's result shows.** Recommended: under its row,
-  `jobs?job=<id>`, as `open` names a parent on the places; no route
-  name. The other, a route of its own, is a C138 route, taken under
-  delegation as #284 was.
+8. **A submit lands at its job** (the designer's, 2026-11-19).
+   `POST apply` and the listings answer 303 to `jobs?job=<id>`, at
+   that row's anchor, with the `realm` and `league` the plan or the
+   form named. `job` names one job as `open` names a parent, so no
+   route name: its row is marked, a failed or cancelled one's result
+   shows under it, and one the list leaves out stands above the
+   list. Where the URL names a league the page links that league's
+   "Stash tabs" and "Characters". The way back is made forward, at
+   the submit, from what the reader asked; nothing is read back out
+   of a job. *Not taken:* landing on the places, the design's
+   sentence: their facts change only when the job lands, and a page
+   reloading until then would reload under the reader's ticks.
 
 ## Find first
 - `git grep -n -E 'render_plan_on_a_page|jobs_text|persisted_queue_text|rails_text|fn pre\(' -- crates/acquisition-cli/src`:
@@ -103,7 +104,10 @@ Each answer amends this brief before the build starts.
   parent and children, a waiting job, a failed job opened (a token
   refused, its `error` naming a command), the daemon halted with a
   closed route, and the queue with no daemon.
-- A test opens a job the list leaves out, by its URL.
+- A test opens a job the list leaves out, by its URL. An apply's and
+  a listing's 303 name the job and the league, and the page they land
+  on links that league's two place pages; a `jobs` URL naming no
+  league links none (tests).
 - With a daemon that refuses the session, the plan says it; with none
   running, it says nothing of a session; the CLI's text and the JSON
   are unchanged in both (tests).
@@ -113,7 +117,7 @@ Each answer amends this brief before the build starts.
 - `tools/gate.sh` exits 0 on the step's tree, and `--only doc`.
 
 ## Not in scope
-- 6.5b's and 6.5c's pages; the place pages beyond Q1's answer.
+- 6.5b's and 6.5c's pages; the place pages.
 - The refusal block every page shares (`failure_words`).
 - A page that retries, cancels, signs in, starts a daemon or resets
   its halt: these pages explain in prose. A success payload beyond its
@@ -132,6 +136,6 @@ Each answer amends this brief before the build starts.
 ## Taken from the review
 `roadmap/reviews/4-full-1-step6-plan-jobs-brief-82b66b49.md` and
 `…-758587f0.md`. Both found faults in a job's links, derived from its
-kind and params; the links are gone, the nav bar being the way to the
-places (Decision 7). Not reviewed again (C176, a brief's two): the
-build's review is the check.
+kind and params; those links are gone (Decision 7), and the way to
+the places is made at the submit (Decision 8). Not reviewed again
+(C176, a brief's two): the build's review is the check.
