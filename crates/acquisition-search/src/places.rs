@@ -675,7 +675,7 @@ fn read_asked<T>(
     };
     request.check()?;
     let query = request.bind()?;
-    let (corpus, listed) = steady(at, &request, read)?;
+    let (corpus, listed) = steady(at, &request, |_| read())?;
     Ok((
         Some(Asked {
             request,
@@ -686,23 +686,43 @@ fn read_asked<T>(
     ))
 }
 
-/// The holder's corpus for `request` and a listing read at its basis:
-/// the corpus, then the listing, then [`Corpus::is_current`]; where the
-/// store moved between, both again, [`REREADS`] times, then the error a
-/// moving store is.
-fn steady<T>(
+/// The holder's corpus for `request`'s scope and a read made over it at
+/// its basis (C98): the corpus, then `read` given it, then
+/// [`Corpus::is_current`]; where the store moved between, both again,
+/// [`REREADS`] times, then the error a moving store is. The places
+/// document stands at its corpus's basis through it, and a page that
+/// answers over the corpus beside the document reads both inside one
+/// `read`, so the page stands at one basis (step 6.5b, the review of
+/// f36033f5: a page's segments read a corpus of their own after the
+/// document).
+pub fn steady<T>(
     at: Reading,
     request: &Request,
-    mut read: impl FnMut() -> Result<T, SearchError>,
+    mut read: impl FnMut(&Corpus) -> Result<T, SearchError>,
 ) -> Result<(Arc<Corpus>, T), SearchError> {
     for _ in 0..REREADS {
         let corpus = at.holder.corpus(request, at.store, at.intent)?;
-        let listed = read()?;
+        let listed = read(&corpus)?;
         if corpus.is_current(at.store, at.intent)? {
             return Ok((corpus, listed));
         }
     }
     Err(moved())
+}
+
+/// The spelling a place page names a league by, where a query named it
+/// in another case (`league=` is any-case; the review of f36033f5, its
+/// second finding): of the leagues `held` that `=` takes `named` for, the
+/// one held as written, else the one alone, else `named` as written, so
+/// that two spellings held apart are never chosen between.
+pub fn held_spelling<'a>(named: &'a str, held: &'a [String]) -> &'a str {
+    let folded = crate::bind::folded(named);
+    let mut taken = held.iter().filter(|h| crate::bind::folded(h) == folded);
+    match (taken.next(), taken.next()) {
+        _ if held.iter().any(|h| h == named) => named,
+        (Some(one), None) => one,
+        _ => named,
+    }
 }
 
 /// Terms as one node: one alone, several and-ed.
@@ -839,6 +859,21 @@ mod tests {
         .unwrap();
     }
 
+    /// A league a query named in another case is the spelling the store
+    /// holds; held as written, or held twice apart, it is the name as
+    /// written (the review of f36033f5, its second finding).
+    #[test]
+    fn a_league_named_in_another_case_is_the_spelling_held() {
+        use super::held_spelling;
+        let one = ["Standard".to_string(), "Hardcore".to_string()];
+        assert_eq!(held_spelling("standard", &one), "Standard");
+        assert_eq!(held_spelling("Standard", &one), "Standard");
+        assert_eq!(held_spelling("Settlers", &one), "Settlers");
+        let twins = ["Standard".to_string(), "standard".to_string()];
+        assert_eq!(held_spelling("standard", &twins), "standard");
+        assert_eq!(held_spelling("STANDARD", &twins), "STANDARD");
+    }
+
     /// C98 (step 6.5b, Decision 2): a write between the listing's read
     /// and the check reads both again, so the listing and the corpus
     /// stand at one basis; a store that moves at every read is an error
@@ -886,7 +921,7 @@ mod tests {
             ..Request::default()
         };
         let mut reads = 0;
-        let (corpus, listing) = steady(at, &request, || {
+        let (corpus, listing) = steady(at, &request, |_| {
             reads += 1;
             let listing = reader
                 .tabs_document("pc", "Standard", 10)
@@ -906,7 +941,7 @@ mod tests {
         );
 
         let mut reads = 0;
-        let moving = steady(at, &request, || {
+        let moving = steady(at, &request, |_| {
             reads += 1;
             fetched(&mut writer, &["a"], 10 + reads);
             Ok(())

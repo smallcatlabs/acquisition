@@ -146,8 +146,11 @@
 //!   and own-matches line in the flow, and each open place that holds no
 //!   places one segment of its items — its route the token of its
 //!   request's first window, its count that window's own
-//!   `total.matched`, its base 0, its first block the server's, answered
-//!   over one corpus — and none where it holds none. The item columns'
+//!   `total.matched`, its base 0, its first block the server's — and none
+//!   where it holds none. Where the URL opens a place, the document and
+//!   every segment are read inside one `places::steady`, which reads both
+//!   again where the store moved, so the page stands at one basis (the
+//!   review of f36033f5, its first finding). The item columns'
 //!   heads stand once above the places where a segment does, a value's
 //!   head the page ordered by it through the one maker of a change to the
 //!   view, so a sort orders the rows inside each place and the places
@@ -174,9 +177,11 @@
 //!   saved row's `revision`, an answer's opened row or a conflict's
 //!   `current` — is copied into one `<meta name="basis">` line in the
 //!   head, a JSON object keyed by the document, its values the documents'
-//!   own fields ([`page::Head`]); a page whose documents carry none (the
-//!   form's league list, the place pages' places, the
-//!   jobs, a refusal without `current`) carries no line. The scan holds
+//!   own fields ([`page::Head`]): a place page's under a query its
+//!   places document's `basis` (`places`), and where a place is open its
+//!   segment's window's (`rows`), one basis; a page whose documents carry
+//!   none (the form's league list, a place page with no query and nothing
+//!   open, the jobs, a refusal without `current`) carries no line. The scan holds
 //!   a list of words at the tests' recording seam: every page a golden
 //!   records sets no cookie and names only scripts on the harness's one
 //!   list (`SCRIPTS`, `tests/harness/mod.rs`), and
@@ -820,6 +825,22 @@ impl Web {
         )?)
     }
 
+    /// The leagues of `realm` the store holds tabs or characters of, as it
+    /// spells them, through the verbs' read (C46).
+    fn held_leagues(&self, realm: Realm) -> Result<Vec<String>, Failure> {
+        Ok(acquisition_verbs::LeaguesHeld::read(
+            &self.served()?.facts()?,
+            &acquisition_verbs::leagues::PolicyRead::of(None),
+            realm,
+            None,
+            true,
+        )?
+        .leagues
+        .into_iter()
+        .filter_map(|l| l.league)
+        .collect())
+    }
+
     /// The store's league list (the `leagues` job's latest answer), whole,
     /// each league marked with whether this realm has tabs of it on disk:
     /// what both pages' league control lists, through the verbs' two
@@ -1178,12 +1199,24 @@ async fn search(
             }
             _ => None,
         };
-        Ok((answer, window, opened, carried, continued, request))
+        // the realm's leagues on disk, where a rows answer of one realm's
+        // live items links its place pages (Decision 7)
+        let held = match (&answer.view, &answer.scope.realm) {
+            (
+                acquisition_search::answer::ViewOut::Rows(_),
+                acquisition_search::Realm::One(realm),
+            ) if !json => match Realm::parse(realm) {
+                Some(realm) => web.held_leagues(realm)?,
+                None => Vec::new(),
+            },
+            _ => Vec::new(),
+        };
+        Ok((answer, window, opened, carried, continued, request, held))
     })
     .await;
     match asked {
         Ok((answer, ..)) if json => document(&answer),
-        Ok((answer, window, opened, carried, continued, request)) => {
+        Ok((answer, window, opened, carried, continued, request, held)) => {
             let mut head = Head {
                 count: true,
                 window: window.is_some(),
@@ -1209,7 +1242,7 @@ async fn search(
                 })
                 .unwrap_or_default();
             let mut rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
-            rows_links.places = by_place(&web, &request, &answer);
+            rows_links.places = by_place(&web, &request, &answer, &held);
             let view_links = |value: &str| match &answer.view {
                 acquisition_search::answer::ViewOut::Rows(rows) => {
                     view_link(&web, &sent, continued.as_ref(), rows, value)
@@ -1332,11 +1365,13 @@ fn rows_links(
 /// league the query fixes, else the default's, with the canonical text
 /// and the view. None where the form cannot ask the request, under all
 /// realms, or under a membership other than live: a place page is one
-/// realm's live items.
+/// realm's live items. A league is named as the store holds it (`held`,
+/// the realm's leagues on disk).
 fn by_place(
     web: &Web,
     request: &Request,
     answer: &acquisition_search::Answer,
+    held: &[String],
 ) -> Vec<page::Presentation> {
     use acquisition_search::answer::{Membership, Shape, ViewOut};
     let (ViewOut::Rows(_), Shape::Rows(view)) = (&answer.view, &request.view.shape) else {
@@ -1351,9 +1386,13 @@ fn by_place(
     let Some(realm) = Realm::parse(realm) else {
         return Vec::new();
     };
-    let league = answer
-        .fixed_league()
-        .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
+    // the store's spelling of a league the query named in another case
+    let league = acquisition_search::places::held_spelling(
+        answer
+            .fixed_league()
+            .unwrap_or(acquisition_plan::DEFAULT_LEAGUE),
+        held,
+    );
     let shown = Shown {
         text: Some(answer.query.text.clone()),
         view: acquisition_search::answer::Rows {
@@ -1728,13 +1767,15 @@ async fn characters(
     places(web, headers, fields, Listed::Characters).await
 }
 
-/// A place page (step 6.5a; the design's §3, "no query: the place
-/// pages"): the places document of the URL's realm and league, the
-/// parents the URL opens open and the places it ticks ticked. A `toggle`
-/// is the opener of one parent: answered 303 to the page with that parent
-/// opened or closed, at its head, every tick kept. A tick or an open that
-/// names no place of this league is dropped, here and in every URL the
-/// page writes.
+/// A place page (steps 6.5a and 6.5b; the design's §3): the places
+/// document of the URL's realm and league, asked its query and filter,
+/// the places the URL opens open and the places it ticks ticked. A
+/// `toggle` is the opener of one place: answered 303 to the page with
+/// that place opened or closed, at its head, every tick kept. A tick or
+/// an open that names no place of this league is dropped, here and in
+/// every URL the page writes. Where the URL opens a place, the document
+/// and every open place's segment are read inside one `steady`, so the
+/// page stands at one basis, which its basis line says.
 async fn places(
     web: Arc<Web>,
     headers: HeaderMap,
@@ -1754,6 +1795,7 @@ async fn places(
         Err(failure) => return web.failed(title, &failure, &headers),
     };
     let asking = shown.asking();
+    let sent = fields.clone();
     let read = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
         let now = acquisition_store::now();
@@ -1763,9 +1805,30 @@ async fn places(
             intent: &opened.intent,
             holder: &web.held,
         };
-        let places = match listed {
-            Listed::Tabs => Places::tabs(at, realm.as_str(), &league, &asking, now)?,
-            Listed::Characters => Places::characters(at, realm.as_str(), &league, &asking, now)?,
+        let make = || match listed {
+            Listed::Tabs => Places::tabs(at, realm.as_str(), &league, &asking, now),
+            Listed::Characters => Places::characters(at, realm.as_str(), &league, &asking, now),
+        };
+        // a toggle answers with a redirect and draws no segment
+        let windowed = pick(&sent, "toggle").is_none() && sent.iter().any(|(k, _)| k == "open");
+        let (places, windows) = if windowed {
+            let scope = Request {
+                scope: acquisition_search::answer::Scope {
+                    account: None,
+                    realm: Some(acquisition_search::Realm::One(realm.as_str().to_string())),
+                    membership: acquisition_search::answer::Membership::Live,
+                },
+                ..Request::default()
+            };
+            acquisition_search::places::steady(at, &scope, |corpus| {
+                let places = make()?;
+                let open = named_places(&sent, "open", &openable(&places));
+                let windows = windows_over(web, corpus, &places, &open)?;
+                Ok((places, windows))
+            })?
+            .1
+        } else {
+            (make()?, std::collections::HashMap::new())
         };
         // a league with none: the terminal's cause, never its command
         let none = match (listed, places.places.is_empty()) {
@@ -1779,39 +1842,25 @@ async fn places(
         let policy =
             acquisition_verbs::leagues::PolicyRead::of_account(account).names(realm, &league);
         let leagues = web.leagues(realm.as_str())?;
-        Ok((league, places, none, policy, leagues))
+        Ok((league, places, windows, none, policy, leagues))
     })
     .await;
-    let (league, places, none, policy, leagues) = match read {
+    let (league, places, windows, none, policy, leagues) = match read {
         Ok(read) => read,
         Err(failure) => return web.failed(title, &failure, &headers),
     };
     if wants_json(&headers) {
         return document(&places);
     }
-    let every = places.every();
-    // a place opens where it shows something: its places, or its items
-    let openable: Vec<&str> = every
-        .iter()
-        .filter(|p| p.holds.is_some() || p.request.is_some())
-        .map(|p| p.id())
-        .collect();
-    let tickable: Vec<&str> = every
-        .iter()
+    let openable = openable(&places);
+    let tickable: Vec<&str> = places
+        .every()
+        .into_iter()
         .filter(|p| matches!(p.place, Kind::Tab | Kind::Character))
         .map(|p| p.id())
         .collect();
-    let named = |name: &str, among: &[&str]| -> Vec<String> {
-        let mut out: Vec<String> = Vec::new();
-        for (k, v) in &fields {
-            if k == name && among.contains(&v.as_str()) && !out.contains(v) {
-                out.push(v.clone());
-            }
-        }
-        out
-    };
-    let mut open = named("open", &openable);
-    let ticked = named(listed.tick(), &tickable);
+    let mut open = named_places(&fields, "open", &openable);
+    let ticked = named_places(&fields, listed.tick(), &tickable);
     let deep = listed == Listed::Tabs && pick(&fields, "deep").is_some();
     if let Some(toggle) = pick(&fields, "toggle").filter(|t| openable.contains(t)) {
         match open.iter().position(|o| o == toggle) {
@@ -1852,50 +1901,6 @@ async fn places(
         listed.route(),
         &place_fields(listed, realm, &league, &never, deep, &open, &ticked),
     );
-    // each open place the page draws that shows items: one segment of the
-    // page's one window, its first block the server's, its count that
-    // block's own `total.matched` (the designer's read, its second
-    // change); none where it holds none
-    let shows: Vec<(String, Request)> = drawn_items(&places.places, &open)
-        .into_iter()
-        .filter_map(|p| {
-            let mut table = p.request.clone()?;
-            if let acquisition_search::answer::Shape::Rows(rows) = &mut table.view.shape {
-                rows.fields = vec![acquisition_search::answer::RowField::Icon];
-            }
-            Some((p.id().to_string(), table))
-        })
-        .collect();
-    let windows = blocking(&web, move |web| -> Result<_, Failure> {
-        let mut windows = std::collections::HashMap::new();
-        let mut corpus = None;
-        for (id, table) in shows {
-            let corpus = match &corpus {
-                Some(corpus) => Arc::clone(corpus),
-                None => corpus.insert(web.corpus(&table)?).clone(),
-            };
-            let first = web.window(&corpus, &table, &corpus.basis, 0, page::BLOCK_ROWS)?;
-            let count = first.total.matched;
-            if count == 0 {
-                continue;
-            }
-            let token =
-                window_request(&table, &first.basis, 0, count.min(page::BLOCK_ROWS)).token();
-            windows.insert(
-                id,
-                page::Window {
-                    route: web.link("rows", &[("next", token)]),
-                    first,
-                },
-            );
-        }
-        Ok(windows)
-    })
-    .await;
-    let windows = match windows {
-        Ok(windows) => windows,
-        Err(failure) => return web.failed(title, &failure, &headers),
-    };
     // a value's head: the page ordered by it, through the one maker of a
     // change to the view, every open and tick kept
     let view_links = |rows: &acquisition_search::answer::RowsOut, value: &str| {
@@ -1939,14 +1944,82 @@ async fn places(
         spell: &spell,
         now: acquisition_store::now(),
     });
-    web.page(
-        title,
-        Head {
-            window: !windows.is_empty(),
-            ..Head::default()
-        },
-        &body,
-    )
+    // C16: the documents the page renders that carry a version, each its
+    // own field — the places document's basis under a query, and a
+    // segment's window's, which its route answers; one basis by `steady`
+    let mut head = Head {
+        window: !windows.is_empty(),
+        ..Head::default()
+    };
+    if let Some(basis) = &places.basis {
+        head = head.with("places", basis);
+    }
+    if let Some(window) = places.every().into_iter().find_map(|p| windows.get(p.id())) {
+        head = head.with("rows", &window.first.basis);
+    }
+    web.page(title, head, &body)
+}
+
+/// The places a page can open: those that show something, their places
+/// or their items.
+fn openable(places: &Places) -> Vec<&str> {
+    places
+        .every()
+        .into_iter()
+        .filter(|p| p.holds.is_some() || p.request.is_some())
+        .map(|p| p.id())
+        .collect()
+}
+
+/// The ids a place page's URL names under `name` that `among` holds, each
+/// once, in the URL's order: a name of no place of the league is dropped.
+fn named_places(fields: &[(String, String)], name: &str, among: &[&str]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for (k, v) in fields {
+        if k == name && among.contains(&v.as_str()) && !out.contains(v) {
+            out.push(v.clone());
+        }
+    }
+    out
+}
+
+/// Each open place the page draws that shows items, as one segment of the
+/// page's one window over `corpus` (Decision 5): its route the token of
+/// its request's first window, its count that window's own
+/// `total.matched` (the designer's read of the plan, its second change),
+/// its first block the server's; none where it holds none.
+fn windows_over(
+    web: &Web,
+    corpus: &acquisition_search::Corpus,
+    places: &Places,
+    open: &[String],
+) -> Result<std::collections::HashMap<String, page::Window>, SearchError> {
+    let mut windows = std::collections::HashMap::new();
+    for place in drawn_items(&places.places, open) {
+        let Some(mut table) = place.request.clone() else {
+            continue;
+        };
+        if let acquisition_search::answer::Shape::Rows(rows) = &mut table.view.shape {
+            rows.fields = vec![acquisition_search::answer::RowField::Icon];
+        }
+        let first = acquisition_search::answer(
+            corpus,
+            &window_request(&table, &corpus.basis, 0, page::BLOCK_ROWS),
+        )?;
+        let count = first.total.matched;
+        if count == 0 {
+            continue;
+        }
+        let token = window_request(&table, &first.basis, 0, count.min(page::BLOCK_ROWS)).token();
+        windows.insert(
+            place.id().to_string(),
+            page::Window {
+                route: web.link("rows", &[("next", token)]),
+                first,
+            },
+        );
+    }
+    Ok(windows)
 }
 
 /// The open places a page draws that show their items: listed, every

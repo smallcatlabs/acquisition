@@ -4147,6 +4147,36 @@ fn c16_every_page_s_basis_line_is_its_documents_own() {
         asked,
         saved_json(&world, &["show", "0000000000a1"])["revision"]
     );
+    // a place page under a query with a place open (step 6.5b): the
+    // places document's basis and its segment's window's, one basis; a
+    // place open with no query, the window's alone; nothing open and no
+    // query, no line
+    let path = "tabs?realm=pc&league=Standard&text=class%3Arings&open=t1";
+    let page = web.get(path);
+    let line = basis_line(&page.body).unwrap_or_else(|| panic!("no basis line:\n{}", page.body));
+    assert_eq!(line["places"], json_at(&web, &at(path))["basis"], "{line}");
+    let route = |body: &str| {
+        let at = body.find("data-route=\"").expect("a segment") + "data-route=\"".len();
+        unescaped(&body[at..at + body[at..].find('"').unwrap()])
+    };
+    assert_eq!(
+        line["rows"],
+        json_at(&web, &format!("{}&offset=0&count=1", route(&page.body)))["basis"],
+        "{line}"
+    );
+    assert_eq!(line["places"], line["rows"], "one basis");
+    let path = "tabs?realm=pc&league=Standard&open=t1";
+    let page = web.get(path);
+    let line = basis_line(&page.body).unwrap_or_else(|| panic!("no basis line:\n{}", page.body));
+    assert_eq!(line.as_object().unwrap().len(), 1, "{line}");
+    assert_eq!(
+        line["rows"],
+        json_at(&web, &format!("{}&offset=0&count=1", route(&page.body)))["basis"]
+    );
+    assert_eq!(
+        basis_line(&web.get("tabs?realm=pc&league=Standard").body),
+        None
+    );
     // the form page and a refusal with no `current` carry no line
     assert_eq!(basis_line(&web.get("").body), None);
     assert_eq!(basis_line(&web.get("item/t1").body), None);
@@ -5398,6 +5428,19 @@ fn the_grouped_table_is_a_wording_golden() {
         fixed[0].contains("tabs?realm=pc&league=Hardcore&text=class%3Arings%20league%3DHardcore"),
         "{fixed:?}"
     );
+    // a league the query names in another case is the store's spelling
+    // (the review of f36033f5, its second finding)
+    let cased = by("search?realm=pc&text=class%3Arings%20league%3Dstandard");
+    assert!(
+        cased[0].contains("tabs?realm=pc&league=Standard&text="),
+        "{cased:?}"
+    );
+    assert!(
+        cased[1].contains("characters?realm=pc&league=Standard&text="),
+        "{cased:?}"
+    );
+    let landed = follow(&web, &cased[0]);
+    assert!(landed.body.contains("id=\"p-t1\""), "{}", landed.body);
     let landed = follow(&web, &by("search?realm=pc&text=class%3Arings")[0]);
     assert!(
         landed.body.contains("matching items in these stash tabs"),
