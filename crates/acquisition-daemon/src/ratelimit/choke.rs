@@ -403,25 +403,11 @@ impl ChokePoint {
     ///
     /// C190: a route a run of invalid answers closed is held here as a
     /// 429's hold is (C19), for the closure's remainder on the wall clock,
-    /// so a send parked in admission waits it out too; one closed for good
-    /// is refused before this, as a halt (`acquire_send`), and asks for
-    /// the halt's poll here.
+    /// so a send parked in admission waits it out too.
     pub fn check(&self, route: &str) -> Result<(), Duration> {
         let wait = self.limiter.lock().unwrap().wait_for(route, self.now());
-        let wait = match self.rails.route_hold(route) {
-            RouteHold::Open => wait,
-            RouteHold::Closed(left) => wait.max(left),
-            RouteHold::ForGood(_) => wait.max(HALT_POLL),
-        };
+        let wait = wait.max(self.rails.closed_for(route).unwrap_or(Duration::ZERO));
         if wait.is_zero() { Ok(()) } else { Err(wait) }
-    }
-
-    /// C190: how long `route`'s closure holds it yet, if it does for a time.
-    fn closed_for(&self, route: &str) -> Option<Duration> {
-        match self.rails.route_hold(route) {
-            RouteHold::Closed(left) => Some(left),
-            _ => None,
-        }
     }
 
     pub fn eta_for(&self, route: &str, ahead: u32) -> Duration {
@@ -445,7 +431,7 @@ impl ChokePoint {
     /// there, or now.
     fn estimated_from(&self, route: &str) -> (Instant, Duration) {
         let now = self.now();
-        let left = self.closed_for(route).unwrap_or(Duration::ZERO);
+        let left = self.rails.closed_for(route).unwrap_or(Duration::ZERO);
         (now.checked_add(left).unwrap_or(now), left)
     }
 
@@ -472,13 +458,12 @@ impl ChokePoint {
     /// no longer `wanted` (C25) is turned away at the same two points.
     async fn acquire_send(&self, route: &str, wanted: Wanted<'_>) -> Result<SendPermit, SendError> {
         // Rails are consulted before any waiting or permit: a halted daemon
-        // neither sleeps toward a send nor occupies gate capacity, and
-        // neither does a route closed for good (C190, a halt of one route).
+        // neither sleeps toward a send nor occupies gate capacity.
         loop {
             // Re-checked every iteration and again after admission: a task
             // parked in a hold sleep or in the gate must not send after a
             // trip that happened while it waited.
-            if let Some(cause) = self.rails.halted_for(route) {
+            if let Some(cause) = self.rails.halted() {
                 return Err(SendError::Halted(cause));
             }
             if !wanted() {
@@ -491,7 +476,7 @@ impl ChokePoint {
 
             let serial_key = self.serial_key(route);
             let permit = self.gate.acquire(serial_key.clone()).await;
-            if let Some(cause) = self.rails.halted_for(route) {
+            if let Some(cause) = self.rails.halted() {
                 drop(permit);
                 return Err(SendError::Halted(cause));
             }
@@ -517,7 +502,7 @@ impl ChokePoint {
     /// landed response that installed a hold while the probe was queued.
     async fn acquire_head(&self, route: &str, wanted: Wanted<'_>) -> Result<SendPermit, SendError> {
         loop {
-            if let Some(cause) = self.rails.halted_for(route) {
+            if let Some(cause) = self.rails.halted() {
                 return Err(SendError::Halted(cause));
             }
             if !wanted() {
@@ -529,7 +514,7 @@ impl ChokePoint {
             }
 
             let permit = self.gate.acquire_head().await;
-            if let Some(cause) = self.rails.halted_for(route) {
+            if let Some(cause) = self.rails.halted() {
                 drop(permit);
                 return Err(SendError::Halted(cause));
             }
@@ -554,8 +539,7 @@ impl ChokePoint {
     /// One endpoint's quote-relevant state under a single limiter lock —
     /// see `Limiter::project`.
     ///
-    /// C190: a closed route's ETA starts at the closure's end; one closed
-    /// for good has none, which the quote says (`daemon/quote.rs`).
+    /// C190: a closed route's ETA starts at the closure's end.
     pub fn project(&self, route: &str, ahead: u32) -> ScopeProjection {
         let (from, left) = self.estimated_from(route);
         let limiter = self.limiter.lock().unwrap();

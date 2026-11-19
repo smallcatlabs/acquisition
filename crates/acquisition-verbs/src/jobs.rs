@@ -14,6 +14,7 @@ use acquisition_protocol::job::{
 use acquisition_protocol::protocol::{
     ErrorKind, LIST_LIMIT_MAX, ListCounts, ListState, Request, Response,
 };
+use acquisition_protocol::status::ClosedRoute;
 use acquisition_store::bound::{LISTED, bounded};
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use serde::Serialize;
@@ -38,17 +39,17 @@ pub struct ChildTally {
     pub running: usize,
     /// The soonest predicted start among waiting children, with its kind.
     pub next: Option<(u64, String)>,
-    /// C190: what holds that soonest child besides the limiter's pacing,
-    /// its route closed after a run of invalid answers.
-    pub held: Option<acquisition_protocol::job::Held>,
 }
 
 /// One reading of a job being waited for, for a frontend's progress
-/// line: the job, and for a parent that runs its children's tally (C23).
+/// line: the job, and for a parent that runs its children's tally (C23);
+/// and the routes of its account a run of invalid answers closed (C190),
+/// from the daemon's status, the one place the closure is a fact.
 #[derive(Clone, Debug)]
 pub struct Progress {
     pub job: JobInfo,
     pub children: Option<ChildTally>,
+    pub closed: Vec<ClosedRoute>,
 }
 
 /// C51 (the owner's ruling on #246, 2026-11-11): the account a job of
@@ -127,44 +128,45 @@ pub async fn wait(
     loop {
         let job = client.status(id).await.map_err(Fault::from_client)?;
         let terminal = job.state.is_terminal();
-        // C190: a route closed until a person opens it ends the wait, its
-        // jobs waiting on disk, as nothing the wait could see would move:
-        // the daemon says so of the job, or of a parent whose every
-        // unfinished job below it is so held.
-        let held = job.held == Some(acquisition_protocol::job::Held::RouteClosedForGood);
         if let Some(report) = progress.as_deref_mut() {
             let children = if job.kind == "apply" && job.state != JobState::Waiting {
                 Some(tally(client, job.id).await?)
             } else {
                 None
             };
-            report(&Progress { job, children });
+            let closed = if terminal {
+                Vec::new()
+            } else {
+                closed_routes(client, job.account.as_deref()).await
+            };
+            report(&Progress {
+                job,
+                children,
+                closed,
+            });
         }
         if terminal {
             return outcome_live(client, id).await;
-        }
-        if held {
-            return Err(Fault::RouteClosed {
-                id,
-                routes: closed_for_good(client).await,
-            });
         }
         tokio::time::sleep(POLL).await;
     }
 }
 
-/// C190: the routes the daemon holds closed until `reset-tripwire`, as
-/// its status names them; none when the status cannot be read (the fault
-/// still says what waits and the verb).
-async fn closed_for_good(client: &mut Client) -> Vec<acquisition_protocol::status::ClosedRoute> {
-    match client.request(&Request::DaemonStatus {}).await {
-        Ok(Response::DaemonStatus { rails, .. }) => rails
-            .closed_routes
-            .into_iter()
-            .filter(|closed| closed.until.is_none())
-            .collect(),
-        _ => Vec::new(),
-    }
+/// C190: the routes the daemon's status lists closed for `account` (an
+/// endpoint key's `@account`, or none for an accountless job): one more
+/// request for each progress line drawn, since neither the job's status
+/// nor the list carries the rails. None when the status cannot be read:
+/// a progress line is a hint, never the wait's answer.
+async fn closed_routes(client: &mut Client, account: Option<&str>) -> Vec<ClosedRoute> {
+    let Ok(Response::DaemonStatus { rails, .. }) = client.request(&Request::DaemonStatus {}).await
+    else {
+        return Vec::new();
+    };
+    rails
+        .closed_routes
+        .into_iter()
+        .filter(|closed| closed.route.split_once('@').map(|(_, a)| a) == account)
+        .collect()
 }
 
 /// C166: one page of the daemon's job list, as it answered.
@@ -247,7 +249,6 @@ async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
                     && tally.next.as_ref().is_none_or(|(e, _)| eta < *e)
                 {
                     tally.next = Some((eta, job.kind.clone()));
-                    tally.held = job.held;
                 }
             }
         }
@@ -832,7 +833,6 @@ pub fn job_info(job: &PersistedJob) -> Result<JobInfo, Fault> {
         priority: job.priority,
         submitted_by: job.submitted_by.clone(),
         eta_seconds: None,
-        held: None,
         parent: job.parent,
         retries: job.retries,
         account: job.account.clone(),

@@ -667,9 +667,8 @@ impl Daemon {
         let word = self.connections.word();
         let (held, timed) = {
             let s = self.shared.lock().unwrap();
-            let halted = self.rails().halted().is_some() || self.queue_failed().is_some();
-            let parked = self.parked_jobs(&s, halted);
-            let live_jobs = Self::has_live_jobs(&s, &parked);
+            let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
+            let live_jobs = Self::has_live_jobs(&s, parked);
             // A login holds the daemon (C133): its browser step and code
             // exchange belong to no connection and no job. The count and
             // the stamp are read beside this hold, not under it (C148).
@@ -1047,71 +1046,15 @@ async fn until(daemon: &Daemon, at: Option<Instant>) {
 }
 
 impl Daemon {
-    /// Whether any job keeps the daemon up. A parked job does not
-    /// ([`Self::parked_jobs`]): it is on disk, and its successor holds it
-    /// until the reset (C25). A parent holding its result runs no task of
-    /// its own.
-    pub(super) fn has_live_jobs(s: &Shared, parked: &HashSet<JobId>) -> bool {
+    /// Whether any job keeps the daemon up. A halted daemon's waiting jobs
+    /// do not: they are on disk, and its successor holds them until the
+    /// reset (C25). A parent holding its result runs no task of its own.
+    pub(super) fn has_live_jobs(s: &Shared, halted: bool) -> bool {
         s.jobs.values().any(|e| match e.info().state {
-            JobState::Running => e.deferred().is_none() || !parked.contains(&e.info().id),
-            JobState::Waiting => !parked.contains(&e.info().id),
+            JobState::Running => e.deferred().is_none() || !halted,
+            JobState::Waiting => !halted,
             _ => false,
         })
-    }
-
-    /// C190: a running parent holding its result is held as its children
-    /// are when every unfinished one waits on a route closed for good, at
-    /// any depth ([`Self::parked_jobs`], whatever the halt): nothing under
-    /// it moves until a person opens the route, and a frontend waiting on
-    /// it reads that from the parent alone.
-    pub(super) fn parent_held(&self, s: &Shared, info: &JobInfo) -> Option<Held> {
-        (info.state == JobState::Running && self.parked_jobs(s, false).contains(&info.id))
-            .then_some(Held::RouteClosedForGood)
-    }
-
-    /// The jobs a halt holds (C25): under a halt, every waiting job and
-    /// every parent holding its result; else the waiting jobs on a route
-    /// closed for good (C190, a halt of that route), and a parent holding
-    /// its result whose every unfinished child is parked. A child's id is
-    /// above its parent's, so one walk down the ids judges the children
-    /// first.
-    pub(super) fn parked_jobs(&self, s: &Shared, halted: bool) -> HashSet<JobId> {
-        let closed: HashSet<String> = self.rails().routes_closed_for_good().into_iter().collect();
-        if !halted && closed.is_empty() {
-            return HashSet::new();
-        }
-        let mut ids: Vec<JobId> = s.jobs.keys().copied().collect();
-        ids.sort_unstable_by_key(|id| std::cmp::Reverse(*id));
-        let mut parked = HashSet::new();
-        // Per parent: whether it has an unfinished child, and whether
-        // every one seen is parked.
-        let mut children: HashMap<JobId, (bool, bool)> = HashMap::new();
-        for id in ids {
-            let e = &s.jobs[&id];
-            let info = e.info();
-            let this = match info.state {
-                JobState::Waiting => {
-                    halted
-                        || self
-                            .keyed_route_for(&info.kind, &info.params, info.account.as_deref())
-                            .is_some_and(|(route, _)| closed.contains(&route))
-                }
-                JobState::Running if e.deferred().is_some() => {
-                    halted || children.get(&id).is_some_and(|&(any, all)| any && all)
-                }
-                JobState::Running => false,
-                _ => continue,
-            };
-            if this {
-                parked.insert(id);
-            }
-            if let Some(parent) = info.parent {
-                let seen = children.entry(parent).or_insert((false, true));
-                seen.0 = true;
-                seen.1 &= this;
-            }
-        }
-        parked
     }
 }
 

@@ -2987,10 +2987,15 @@ fn the_jobs_page_opens_with_the_halt() {
     std::fs::create_dir_all(rails.parent().unwrap()).unwrap();
     // C190 beside the trip: a run of invalid answers on one league's
     // fetches closed the account's `stash` route, which every league's
-    // tabs and substashes share, until the reset.
+    // tabs and substashes share, and its trials have reached the cap: the
+    // next one an hour from the harness's now, which the page reads too.
+    let now = harness::now();
     std::fs::write(
         &rails,
-        r#"{"tripped":"429 on GET /stash/Standard (staged trip)","closed_routes":{"stash@A#1":{"invalid":12,"status":400,"closed_at":1800000000,"cooldown_secs":3600,"until":null}}}"#,
+        format!(
+            r#"{{"tripped":"429 on GET /stash/Standard (staged trip)","closed_routes":{{"stash@A#1":{{"invalid":13,"status":400,"closed_at":{now},"cooldown_secs":3600,"until":{}}}}}}}"#,
+            now + 3600
+        ),
     )
     .unwrap();
     let (_daemon, _pid) = harness::start_daemon_with(&base, &[("ACQ_TRIPWIRE", "1")]);
@@ -3005,8 +3010,10 @@ fn the_jobs_page_opens_with_the_halt() {
             "rails:  tripwire ON",
             "HALTED: 429 on GET /stash/Standard (staged trip)",
             "acq daemon reset-tripwire",
-            "ROUTE CLOSED UNTIL RESET: stash@A#1",
-            "12 requests in a row",
+            "ROUTE CLOSED: stash@A#1 for 3600s",
+            "13 requests in a row",
+            "the trial in ~60m",
+            "at the cap",
             "whatever its league",
             "list the league again",
         ],

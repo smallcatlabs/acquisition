@@ -3060,7 +3060,6 @@ fn c165_a_requeued_job_keeps_its_first_start() {
                 priority: 0,
                 submitted_by: "client".into(),
                 eta_seconds: None,
-                held: None,
                 parent: None,
                 retries: 0,
                 account: None,

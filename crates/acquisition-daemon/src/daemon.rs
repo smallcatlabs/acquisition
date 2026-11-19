@@ -119,7 +119,7 @@ use std::collections::VecDeque;
 
 use crate::frame::{Frame, FrameReader};
 use crate::provider::{CALLBACK_PATH, Provider, SCOPES};
-use crate::rails::{BlockShape, Rails, RailsConfig, RouteHold, Verdict, verify_state};
+use crate::rails::{BlockShape, Rails, RailsConfig, Verdict, verify_state};
 use crate::ratelimit::{
     Bearer, ChokePoint, Clock, EndpointState, ProbeError, RetryAfter, SendError, SystemClock,
     url_path,
@@ -127,7 +127,7 @@ use crate::ratelimit::{
 use crate::ratelimit::{Expired, endpoint_key, split_endpoint_key, within_on};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    CLIENT_KINDS, Children, FailureKind, Held, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES,
+    CLIENT_KINDS, Children, FailureKind, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES,
     MOCK_ONLY_KINDS, Outcome, Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
@@ -348,7 +348,6 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
         priority: row.priority,
         submitted_by: row.submitted_by,
         eta_seconds: None,
-        held: None,
         parent: row.parent,
         retries: row.retries,
         account: row.account,
@@ -871,13 +870,11 @@ impl Shared {
     fn snapshot(&self, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
         let entry = self.jobs.get(&id)?;
         let mut info = entry.info().clone();
-        if info.state == JobState::Waiting
-            && let Some(&(eta, held)) = self.waiting_etas(daemon, Some(id)).get(&id)
-        {
-            info.eta_seconds = eta;
-            info.held = held;
-        }
-        info.held = info.held.or(daemon.parent_held(self, &info));
+        info.eta_seconds = if info.state == JobState::Waiting {
+            self.waiting_etas(daemon, Some(id)).get(&id).copied()
+        } else {
+            None
+        };
         Some(info)
     }
 
@@ -887,21 +884,16 @@ impl Shared {
     /// `shared`, and 3,408 jobs held the dispatcher for a second.
     fn list(&self, daemon: &Daemon) -> Vec<JobInfo> {
         let etas = self.waiting_etas(daemon, None);
-        let parked = daemon.parked_jobs(self, false);
         let mut jobs: Vec<JobInfo> = self
             .jobs
             .values()
             .map(|e| {
                 let mut info = e.info().clone();
-                if info.state == JobState::Waiting
-                    && let Some(&(eta, held)) = etas.get(&info.id)
-                {
-                    info.eta_seconds = eta;
-                    info.held = held;
-                }
-                if info.state == JobState::Running && parked.contains(&info.id) {
-                    info.held = Some(Held::RouteClosedForGood);
-                }
+                info.eta_seconds = if info.state == JobState::Waiting {
+                    etas.get(&info.id).copied()
+                } else {
+                    None
+                };
                 info
             })
             .collect();
@@ -913,13 +905,7 @@ impl Shared {
     /// given). Only same-route jobs ahead of a job compete for its
     /// policy, so its estimate is its route's forward simulation at the
     /// count of those; a job whose kind sends nothing waits for nothing.
-    /// Beside each, what holds its route besides pacing (C190); a job on
-    /// a route closed for good has no eta, for none can be promised.
-    fn waiting_etas(
-        &self,
-        daemon: &Daemon,
-        only: Option<JobId>,
-    ) -> HashMap<JobId, (Option<u64>, Option<Held>)> {
+    fn waiting_etas(&self, daemon: &Daemon, only: Option<JobId>) -> HashMap<JobId, u64> {
         let mut etas = HashMap::new();
         // Per route: how many of its jobs the walk has passed, and the
         // waiting jobs it must estimate, with their counts ahead.
@@ -940,7 +926,7 @@ impl Shared {
                     *passed += 1;
                 }
                 None if wanted => {
-                    etas.insert(id, (Some(0), None));
+                    etas.insert(id, 0);
                 }
                 None => {}
             }
@@ -953,15 +939,8 @@ impl Shared {
                 continue;
             };
             let by_position = daemon.choke.etas_for(&route, deepest + 1);
-            let held = match daemon.rails().route_hold(&route) {
-                RouteHold::Open => None,
-                RouteHold::Closed(_) => Some(Held::RouteClosed),
-                RouteHold::ForGood(_) => Some(Held::RouteClosedForGood),
-            };
             for (id, ahead) in wanted {
-                let eta =
-                    (held != Some(Held::RouteClosedForGood)).then(|| by_position[ahead].as_secs());
-                etas.insert(id, (eta, held));
+                etas.insert(id, by_position[ahead].as_secs());
             }
         }
         etas

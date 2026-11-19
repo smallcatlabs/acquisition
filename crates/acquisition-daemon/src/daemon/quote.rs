@@ -93,12 +93,10 @@ impl Daemon {
             let ahead = (queued_ahead + requests - 1) as u32;
             let projection = self.choke.project(&sample, ahead);
             let (policy, eta_seconds, notes) = match projection.state {
-                // C190: no eta where a route closed for good promises none.
-                EndpointState::Policy(name) => (
-                    Some(name),
-                    projection.eta.map(|eta| eta.as_secs()),
-                    Vec::new(),
-                ),
+                EndpointState::Policy(name) => {
+                    let eta = projection.eta.unwrap_or_default().as_secs();
+                    (Some(name), Some(eta), Vec::new())
+                }
                 EndpointState::Policyless => (
                     None,
                     Some(0),
@@ -142,22 +140,14 @@ impl Daemon {
                 }
             };
             // C190: a closed route's estimate starts at the closure's end
-            // (`ChokePoint::project`), and the note says why; a route
-            // closed for good has no estimate, whatever the limiter knows
-            // of it, for only a person can let it start.
+            // (`ChokePoint::project`), and the note says why.
             let mut notes = notes;
-            let mut eta_seconds = eta_seconds;
             for endpoint in &endpoints {
-                match self.rails().route_hold(endpoint) {
-                    RouteHold::Open => {}
-                    RouteHold::Closed(left) => notes.push(format!(
+                if let Some(left) = self.rails().closed_for(endpoint) {
+                    notes.push(format!(
                         "{endpoint} is closed after a run of invalid answers for another {}s; then one job goes as the trial, and the estimate starts there",
                         left.as_secs()
-                    )),
-                    RouteHold::ForGood(words) => {
-                        eta_seconds = None;
-                        notes.push(words);
-                    }
+                    ));
                 }
             }
             out.push(QuoteScope {

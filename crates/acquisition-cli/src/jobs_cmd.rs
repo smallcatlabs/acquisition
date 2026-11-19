@@ -275,14 +275,23 @@ fn progress_line(p: &Progress) -> String {
         Some(account) => format!("{} ({account})", job.id),
         None => job.id.to_string(),
     };
-    if let Some(t) = p.children.as_ref().filter(|t| t.total > 0) {
-        return children_line(&id, t);
-    }
+    let line = match p.children.as_ref().filter(|t| t.total > 0) {
+        Some(t) => children_line(&id, t),
+        None => job_line(&id, job),
+    };
+    // C190: a closed route of the job's account, in the status's words
+    let now = acquisition_store::now();
+    p.closed.iter().fold(line, |line, closed| {
+        format!(
+            "{line}; route closed: {}",
+            crate::daemon_cmd::closed_route_words(closed, now)
+        )
+    })
+}
+
+/// A job's own line, its state and ETA.
+fn job_line(id: &str, job: &JobInfo) -> String {
     match (job.state, job.eta_seconds) {
-        // C190: a closed route says so before any other reason to wait.
-        (JobState::Waiting, eta) if job.held.is_some() => {
-            format!("job {id}: waiting, {}", held_words(job.held, eta))
-        }
         (JobState::Waiting, Some(eta)) if eta > 0 && job.retries > 0 => {
             format!("job {id}: got a 429, retry {} in ~{eta}s...", job.retries)
         }
@@ -308,33 +317,10 @@ fn children_line(id: &str, t: &ChildTally) -> String {
     if t.waiting > 0 {
         line.push_str(&format!(", {} waiting", t.waiting));
     }
-    match (&t.next, t.held) {
-        (Some((eta, _)), Some(_)) => {
-            line.push_str(&format!(", next {}", held_words(t.held, Some(*eta))))
-        }
-        (Some((eta, kind)), None) => {
-            line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"))
-        }
-        (None, _) => {}
+    if let Some((eta, kind)) = &t.next {
+        line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"));
     }
     line
-}
-
-/// C190: a waiting job's route, closed after a run of invalid answers, in
-/// the progress line's words: the trial's time from the job's `eta`, or
-/// the verb that opens a route closed for good.
-fn held_words(held: Option<acquisition_protocol::job::Held>, eta: Option<u64>) -> String {
-    use acquisition_protocol::job::Held;
-    match held {
-        Some(Held::RouteClosedForGood) => {
-            "its route closed after a run of invalid answers until `acq daemon reset-tripwire`"
-                .to_string()
-        }
-        _ => format!(
-            "in ~{}s (route closed after a run of invalid answers; list the league again once it reopens)",
-            eta.unwrap_or(0)
-        ),
-    }
 }
 
 /// A finished job in text (rule 4 of the legibility ruling), the one
@@ -745,53 +731,41 @@ mod tests {
     /// open and finished apart, each with the flag that lists every one
     /// (the brief's second review, finding 2: the open jobs are cut too);
     /// C166: the counts are the daemon's, over jobs the rows leave out.
-    /// C190: a waiting job held by its closed route says so, the trial's
-    /// time from its eta, or the verb when the route is closed for good;
-    /// a parent's next child likewise, in place of the limiter's hold.
+    /// C190: a progress line carries each closed route of its job's
+    /// account in the status's words (`daemon_cmd::closed_route_words`,
+    /// whose words `rails_text`'s test reads), after what it said before.
     #[test]
     fn c190_the_progress_line_says_a_closed_route() {
-        use acquisition_protocol::job::Held;
-        let job = |held| JobInfo {
+        use acquisition_protocol::status::ClosedRoute;
+        let job = JobInfo {
             id: 7,
             kind: "stash".into(),
             state: JobState::Waiting,
             priority: 0,
             submitted_by: "t".into(),
             eta_seconds: Some(40),
-            held,
             parent: None,
             retries: 0,
             account: Some("A#1".into()),
             params: serde_json::json!({}),
             times: Default::default(),
         };
-        let line = |held| {
-            progress_line(&Progress {
-                job: job(held),
-                children: None,
-            })
+        let closed = ClosedRoute {
+            route: "stash@A#1".into(),
+            invalid: 5,
+            status: 400,
+            closed_at: 0,
+            cooldown_secs: 60,
+            until: 0,
         };
+        let line = progress_line(&Progress {
+            job,
+            children: None,
+            closed: vec![closed],
+        });
         assert_eq!(
-            line(Some(Held::RouteClosed)),
-            "job 7 (A#1): waiting, in ~40s (route closed after a run of invalid answers; list the league again once it reopens)"
-        );
-        assert!(
-            line(Some(Held::RouteClosedForGood)).ends_with("until `acq daemon reset-tripwire`"),
-            "{}",
-            line(Some(Held::RouteClosedForGood))
-        );
-        assert_eq!(line(None), "job 7 (A#1): rate limited, starting in ~40s...");
-        let tally = ChildTally {
-            total: 3,
-            done: 1,
-            waiting: 2,
-            next: Some((40, "stash".into())),
-            held: Some(Held::RouteClosed),
-            ..ChildTally::default()
-        };
-        assert_eq!(
-            children_line("6", &tally),
-            "job 6: 1/3 done, 2 waiting, next in ~40s (route closed after a run of invalid answers; list the league again once it reopens)"
+            line,
+            "job 7 (A#1): rate limited, starting in ~40s...; route closed: stash@A#1 for 60s — GGG answered 5 requests in a row on it as invalid, the last 400; the next job sent on it is the trial"
         );
     }
 
@@ -804,7 +778,6 @@ mod tests {
             priority: 0,
             submitted_by: "cli:1".into(),
             eta_seconds: (state == JobState::Waiting).then_some(id),
-            held: None,
             parent: None,
             retries: 0,
             account: None,

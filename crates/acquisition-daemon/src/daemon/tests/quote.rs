@@ -118,9 +118,8 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         assert_eq!(door.journal(), journal_before);
 
         // C190: a route a run of invalid answers closed is quoted from
-        // the closure's end, and the note says why; closed for good, it
-        // promises no start at all (the review of the build, finding 2).
-        let invalid = |door: &Door| {
+        // the closure's end, and the note says why.
+        for _ in 0..5 {
             door.daemon().rails().record(&crate::rails::SendReport {
                 method: "GET",
                 route: "fetch",
@@ -135,27 +134,23 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
                 unreachable: false,
                 headers: &Value::Null,
                 wait: Duration::ZERO,
-            })
-        };
-        for _ in 0..5 {
-            invalid(&door);
+            });
         }
-        let fetch_scope = |quote: Quote| {
-            let [scope] = quote.scopes.as_slice() else {
-                panic!("{:?}", quote.scopes)
-            };
-            scope.clone()
-        };
-        let one_fetch = || Request::Quote {
-            jobs: vec![QuoteJob {
-                kind: "fetch".into(),
-                params: json!({}),
-            }],
-            account: None,
-        };
-        let scope = match door.request(one_fetch()).await {
-            Response::Quote { quote } => fetch_scope(quote),
+        let closed = match door
+            .request(Request::Quote {
+                jobs: vec![QuoteJob {
+                    kind: "fetch".into(),
+                    params: json!({}),
+                }],
+                account: None,
+            })
+            .await
+        {
+            Response::Quote { quote } => quote,
             other => panic!("{other:?}"),
+        };
+        let [scope] = closed.scopes.as_slice() else {
+            panic!("{:?}", closed.scopes)
         };
         assert!(
             scope.eta_seconds.is_some_and(|eta| eta >= 60),
@@ -167,23 +162,6 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
                 .notes
                 .iter()
                 .any(|note| note.contains("closed after a run of invalid answers")),
-            "{:?}",
-            scope.notes
-        );
-        for cooldown in [60, 120, 240, 480, 960, 1920, 3600] {
-            door.advance(Duration::from_secs(cooldown));
-            invalid(&door);
-        }
-        let scope = match door.request(one_fetch()).await {
-            Response::Quote { quote } => fetch_scope(quote),
-            other => panic!("{other:?}"),
-        };
-        assert_eq!(scope.eta_seconds, None, "a start promised: {scope:?}");
-        assert!(
-            scope
-                .notes
-                .iter()
-                .any(|note| note.contains("reset-tripwire")),
             "{:?}",
             scope.notes
         );
@@ -346,76 +324,4 @@ a sync policy that covers fewer tabs or characters plans fewer actions",
         )
     );
     finish_harness(None, &log);
-}
-
-/// C190, the review of the build's fix round (finding 1): a route closed
-/// for good promises no start in a quote whatever the limiter knows of
-/// it: a declared-policyless route (`/profile`, C32) quotes no eta there,
-/// and its note says the closure and the verb.
-#[test]
-fn c190_a_route_closed_for_good_is_quoted_with_no_eta_whatever_its_state() {
-    Door::open(
-        Server::Mock,
-        Arc::new(ParkingClock::new()),
-        Arc::new(RecordingCredentialStore::default()),
-    )
-    .sessions(logged_in_sessions())
-    .run(|mut door| async move {
-        // The first profile renames the session to its account's name; the
-        // second teaches that account's route its declared policyless state.
-        for account in [Some("test-user"), None] {
-            let profile = door.submit("profile", account).await;
-            let (info, outcome) = door.await_terminal(profile).await;
-            assert_eq!(info.state, JobState::Done, "{outcome:?}");
-        }
-        let quote = || Request::Quote {
-            jobs: vec![QuoteJob {
-                kind: "profile".into(),
-                params: json!({}),
-            }],
-            account: None,
-        };
-        let scope = |answer: Response| match answer {
-            Response::Quote { quote } => quote.scopes[0].clone(),
-            other => panic!("{other:?}"),
-        };
-        let open = scope(door.request(quote()).await);
-        assert_eq!(open.eta_seconds, Some(0), "{open:?}");
-        let route = open.endpoints[0].clone();
-        let invalid = |door: &Door| {
-            door.daemon().rails().record(&crate::rails::SendReport {
-                method: "GET",
-                route: &route,
-                url_path: "/profile",
-                status: Some(400),
-                error: None,
-                ok: false,
-                counted: true,
-                rate: &Value::Null,
-                shape: None,
-                block: false,
-                unreachable: false,
-                headers: &Value::Null,
-                wait: Duration::ZERO,
-            })
-        };
-        for _ in 0..5 {
-            invalid(&door);
-        }
-        for cooldown in [60, 120, 240, 480, 960, 1920, 3600] {
-            door.advance(Duration::from_secs(cooldown));
-            invalid(&door);
-        }
-        let closed = scope(door.request(quote()).await);
-        assert_eq!(closed.eta_seconds, None, "a start promised: {closed:?}");
-        assert!(
-            closed
-                .notes
-                .iter()
-                .any(|note| note.contains("reset-tripwire")),
-            "{:?}",
-            closed.notes
-        );
-        door.finish().await;
-    });
 }

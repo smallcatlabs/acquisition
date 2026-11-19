@@ -56,12 +56,10 @@ pub struct ClosedRoute {
     pub status: u16,
     pub closed_at: i64,
     /// How long this closure lasts; the next one after a failed trial is
-    /// twice as long, to an hour.
+    /// twice as long, to a cap of an hour, where it stays.
     pub cooldown_secs: u64,
-    /// When one waiting job goes as the trial; `None` once a trial failed
-    /// after an hour's closure: the route stays closed until
-    /// `reset-tripwire`.
-    pub until: Option<i64>,
+    /// When one waiting job goes as the trial.
+    pub until: i64,
 }
 
 /// A degraded endpoint (N20), for the dashboard.

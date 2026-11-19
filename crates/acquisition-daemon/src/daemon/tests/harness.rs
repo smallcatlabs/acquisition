@@ -880,9 +880,10 @@ fn probe_exempt(route: &str) -> bool {
 /// other than 401, 403 and 429, not Cloudflare's; a 2xx ends the run)
 /// closes it for a minute, and the next send on it, the trial, goes no
 /// sooner than the closure's end by the journal's clock; a trial answered
-/// invalid closes it for twice as long, to an hour, and one after an
-/// hour's closure for good, after which only a person's reset sends
-/// again, at any time. Everything else goes out at once.
+/// invalid closes it for twice as long, to a cap of an hour, where it
+/// stays. (A reset that opens a route early is a person's act the journal
+/// does not record; no scenario resets a closure.) Everything else goes
+/// out at once.
 /// Runs over every journal a scripted server's or a serverless daemon
 /// writes (`finish_harness`), so a rewrite that paces slower (or stops
 /// pacing) fails here without any test naming the numbers.
@@ -899,25 +900,22 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
                 .is_none_or(|rate| !rate.keys().any(|k| k.starts_with("x-rate-limit-")))
     };
     // C190: per (lifetime, route), the invalid answers in a row; per
-    // route, its closure as (closed at, cooldown, for good, trial due).
+    // route, its closure as (closed at, cooldown, trial due).
     let mut runs: HashMap<(u64, String), u32> = HashMap::new();
-    let mut closures: HashMap<String, (u64, u64, bool, bool)> = HashMap::new();
+    let mut closures: HashMap<String, (u64, u64, bool)> = HashMap::new();
     for send in sends {
         let route = send["route"].as_str().unwrap().to_string();
         let wait = send["wait_ms"].as_u64().expect("wait_ms");
         let at = journal_ms(send["ts"].as_str().expect("ts"));
-        // The trial, or the first send after a reset that opened a route
-        // closed for good: the closure's demand, not the pacing's.
+        // The trial: the closure's demand, not the pacing's.
         let closure_demand = match closures.get_mut(&route) {
-            Some((closed_at, cooldown, for_good, trial)) if *trial => {
+            Some((closed_at, cooldown, trial)) if *trial => {
                 *trial = false;
-                if !*for_good {
-                    assert!(
-                        at >= *closed_at + *cooldown,
-                        "C190: the trial on {route} went {} ms after its closure of {cooldown} ms: {send}",
-                        at - *closed_at
-                    );
-                }
+                assert!(
+                    at >= *closed_at + *cooldown,
+                    "C190: the trial on {route} went {} ms after its closure of {cooldown} ms: {send}",
+                    at - *closed_at
+                );
                 true
             }
             _ => false,
@@ -994,20 +992,14 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
             let run = runs.entry((pid, route.clone())).or_default();
             *run += 1;
             match closures.get(&route).copied() {
-                // A trial answered invalid: twice as long, to an hour, then
-                // for good.
-                Some((_, cooldown, false, false)) if closure_demand => {
-                    let hour = 3_600_000;
-                    let next = if cooldown >= hour {
-                        (cooldown, true)
-                    } else {
-                        ((cooldown * 2).min(hour), false)
-                    };
-                    closures.insert(route.clone(), (at, next.0, next.1, true));
+                // A trial answered invalid: twice as long, to the cap.
+                Some((_, cooldown, false)) if closure_demand => {
+                    let next = (cooldown * 2).min(3_600_000);
+                    closures.insert(route.clone(), (at, next, true));
                 }
                 Some(_) => {}
                 None if *run >= 5 => {
-                    closures.insert(route.clone(), (at, 60_000, false, true));
+                    closures.insert(route.clone(), (at, 60_000, true));
                 }
                 None => {}
             }

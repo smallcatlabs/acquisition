@@ -2737,46 +2737,41 @@ fn wire_rows() -> Vec<Row> {
         journal: five_sent.clone(),
         ..Row::default()
     });
-    // Past the cap: each failed trial doubles the closure to an hour, and
-    // the trial after an hour's closure closes the route for good, a halt
-    // of that route alone; the next job waits, unpicked, until the reset
-    // opens the route, and goes at once.
+    // The cap: each failed trial doubles the closure to an hour, where it
+    // stays: the trial after an hour's closure, answered invalid, closes
+    // the route for an hour again, and the trial after that hour is sent,
+    // answered 200, and the route opens. No closure waits for a person.
     {
         let cooldowns = [
-            60_000, 120_000, 240_000, 480_000, 960_000, 1_920_000, 3_600_000,
+            60_000, 120_000, 240_000, 480_000, 960_000, 1_920_000, 3_600_000, 3_600_000,
         ];
         let mut script = five();
         script.extend(cooldowns.iter().map(|_| invalid()));
         script.push(landed());
         let mut journal = five_sent.clone();
         journal.extend(cooldowns.iter().map(|&wait| sent(400, wait)));
-        journal.push(sent(200, 0));
+        journal.push(sent(200, 3_600_000));
         let mut jobs = five_failed();
-        jobs.extend((0..6).map(|_| failed().carries(&["the trial after its closure"])));
-        jobs.push(failed().carries(&[
-            "12 invalid answers in a row",
-            "nothing more is sent on it until `acq daemon reset-tripwire`",
-            "first check whether GGG's API changed and whether a newer acq exists",
+        jobs.extend((0..7).map(|_| failed().carries(&["the trial after its closure"])));
+        jobs.push(closing(&[
+            "the trial after its closure was answered 400 too, 13 invalid answers in a row",
+            "for 3600 s",
         ]));
         jobs.push(Job::fetch(Done));
         jobs.push(Job::probe(Done));
         rows.push(Row {
-            name: "c190: past the cap the route stays closed until the reset opens it".into(),
+            name: "c190: at the cap the cooldown stays an hour, and the next trial is sent".into(),
             script,
             steps: vec![
-                fetches(13),
-                each(0..12, Failed),
-                Step::Await(vec![(12, Waiting)]),
-                Step::Closed(vec!["fetch"]),
-                Step::DaemonStatus { halted: None },
-                Step::ResetTripwire,
-                Step::Await(vec![(12, Done)]),
+                fetches(14),
+                each(0..13, Failed),
+                Step::Await(vec![(13, Done)]),
                 Step::Closed(vec![]),
+                Step::DaemonStatus { halted: None },
                 Step::Logged(vec![
-                    "ROUTE CLOSED at",
-                    "the trial after its closure was answered 400 too, 11 invalid answers in a row: for 3600 s",
-                    "12 invalid answers in a row; halted on fetch",
-                    "fetch by `reset-tripwire`, after 12 invalid answers in a row",
+                    "the trial after its closure was answered 400 too, 12 invalid answers in a row: for 3600 s",
+                    "the trial after its closure was answered 400 too, 13 invalid answers in a row: for 3600 s",
+                    "fetch answered 200 to the trial after 13 invalid answers in a row",
                 ]),
             ],
             jobs,

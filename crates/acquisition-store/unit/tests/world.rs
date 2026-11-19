@@ -471,7 +471,13 @@ fn the_rails_state_keeps_a_later_builds_fields() {
         .unwrap();
     let mut held: RailsState =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    assert_eq!(held.closed_routes["stash@A#1"].until, Some(61));
+    assert_eq!(held.closed_routes["stash@A#1"].until, 61);
+    // #291: a closure #288's build wrote with no end reads as due now.
+    let older: RailsState = serde_json::from_str(
+        r#"{"closed_routes":{"stash@A#1":{"invalid":12,"status":400,"closed_at":1,"cooldown_secs":3600,"until":null}}}"#,
+    )
+    .unwrap();
+    assert_eq!(older.closed_routes["stash@A#1"].until, 0);
     assert!(held.reset(), "the trip was cleared");
     // C190: a reset opens every closed route, on either path.
     assert!(held.closed_routes.is_empty());

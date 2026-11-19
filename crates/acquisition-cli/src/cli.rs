@@ -939,9 +939,8 @@ pub(crate) enum DaemonCmd {
     /// Cloudflare answer in GGG's place leaves, which holds every daemon
     /// until cleared, and the halt this daemon keeps after Cloudflare
     /// could not reach GGG; and opens every route a run of invalid
-    /// answers closed, which `daemon status` lists — one closed until this
-    /// verb wants a look first at whether GGG's API changed and whether a
-    /// newer acq exists. A met send ceiling is not cleared: it belongs
+    /// answers closed, which `daemon status` lists, without waiting for
+    /// its trial. A met send ceiling is not cleared: it belongs
     /// to the daemon's lifetime, and only a new daemon counts from zero
     /// again. After a trip, wait 360 s before clearing; a trip or a mark
     /// is evidence to read, and the next send goes to GGG unless the

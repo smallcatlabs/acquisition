@@ -55,11 +55,6 @@ fn fault_words(fault: &Fault, named: &str) -> String {
             format!("{fault}{}", account_way(fault.kind(), named))
         }
         Fault::NoUuid { .. } => format!("{fault}; a human can fix it with one `acq auth` login"),
-        // C190: the reset is a person's, after a look
-        Fault::RouteClosed { .. } => format!(
-            "{fault} — a human first checks whether GGG's API changed and whether a newer acq exists, then runs `{}` from a terminal; list_jobs shows what waits",
-            acquisition_verbs::fault::ROUTE_REOPEN
-        ),
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }

@@ -197,40 +197,48 @@ pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus, now:
 /// C190: each route a run of invalid answers closed, as `daemon status`
 /// and the web UI's jobs page say it from the status's facts: what closed
 /// it, that every request on it waits whatever its league, when the trial
-/// goes or what to check before the verb, and to list again once it
-/// reopens.
+/// goes, what to check when it stands at the cap, and to list again once
+/// it reopens.
 fn closed_routes_text(closed: &[acquisition_protocol::status::ClosedRoute], now: i64) -> String {
     let mut out = String::new();
     for route in closed {
-        let made = format!(
-            "GGG answered {} requests in a row on it as invalid, the last {}",
-            route.invalid, route.status
-        );
-        match route.until {
-            Some(until) => {
-                let trial = if until > now {
-                    format!(
-                        "one waiting job goes as the trial in ~{}",
-                        acquisition_store::age::span(until - now)
-                    )
-                } else {
-                    "the next job sent on it is the trial".to_string()
-                };
-                out.push_str(&format!(
-                    "ROUTE CLOSED: {} for {}s — {made}; {trial}\n",
-                    route.route, route.cooldown_secs
-                ));
-            }
-            None => out.push_str(&format!(
-                "ROUTE CLOSED UNTIL RESET: {} — {made}, the last after an hour's closure; first check whether GGG's API changed and whether a newer acq exists, then `acq daemon reset-tripwire`\n",
-                route.route
-            )),
-        }
+        out.push_str(&format!(
+            "ROUTE CLOSED: {}\n",
+            closed_route_words(route, now)
+        ));
         out.push_str(
             "        every request on it waits, whatever its league; once it reopens, list the league again: what was fetched just before may be older than GGG's state\n",
         );
+        if route.cooldown_secs >= CAP_SECS {
+            out.push_str(
+                "        at the cap: one trial an hour while jobs wait; a route that keeps failing may mean GGG's API changed — check whether a newer acq exists\n",
+            );
+        }
     }
     out
+}
+
+/// C190: the cooldown a closure stays at (the daemon's cap).
+const CAP_SECS: u64 = 3600;
+
+/// C190: one closed route in words, at the answer's `now`: the one
+/// renderer `daemon status`, the web jobs page and a progress line share.
+pub(crate) fn closed_route_words(
+    route: &acquisition_protocol::status::ClosedRoute,
+    now: i64,
+) -> String {
+    let trial = if route.until > now {
+        format!(
+            "one waiting job goes as the trial in ~{}",
+            acquisition_store::age::span(route.until - now)
+        )
+    } else {
+        "the next job sent on it is the trial".to_string()
+    };
+    format!(
+        "{} for {}s — GGG answered {} requests in a row on it as invalid, the last {}; {trial}",
+        route.route, route.cooldown_secs, route.invalid, route.status
+    )
 }
 
 #[cfg(test)]
@@ -240,7 +248,7 @@ mod tests {
     /// C190: a timed closure says the trial's time from the status's
     /// facts at the answer's `now`, and that every league's requests on the
     /// route wait: the run was one league's, the route is the account's.
-    /// Its wording closed for good is the web jobs page's golden.
+    /// Its wording at the cap is the web jobs page's golden.
     #[test]
     fn c190_a_closed_route_says_when_its_trial_goes() {
         use acquisition_protocol::status::{ClosedRoute, RailsStatus};
@@ -251,7 +259,7 @@ mod tests {
                 status: 404,
                 closed_at: 1_800_000_000,
                 cooldown_secs: 120,
-                until: Some(1_800_000_120),
+                until: 1_800_000_120,
             }],
             ..RailsStatus::default()
         };
@@ -265,6 +273,17 @@ mod tests {
         assert!(
             due.contains("the next job sent on it is the trial"),
             "{due}"
+        );
+        assert!(!text.contains("at the cap"), "{text}");
+        // #291: at the cap, the words say what a route that keeps failing
+        // may mean, from the status's fields alone, and no verb is owed.
+        let mut capped = rails.clone();
+        capped.closed_routes[0].cooldown_secs = 3600;
+        let at_cap = rails_text(&capped, 1_800_000_080);
+        assert!(
+            at_cap.contains("at the cap: one trial an hour while jobs wait")
+                && at_cap.contains("GGG's API changed"),
+            "{at_cap}"
         );
     }
 

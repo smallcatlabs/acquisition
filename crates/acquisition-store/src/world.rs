@@ -1017,16 +1017,23 @@ pub struct RailsState {
 
 /// C190: one route's closure, as the world's rails state keeps it: the
 /// length of the run of invalid answers that closed it, the last one's
-/// status, when it closed and for how long, in unix seconds on the
-/// daemon's wall clock. `until` is `None` once a trial failed after the
-/// longest cooldown: the route stays closed until a reset.
+/// status, when it closed, for how long and until when, in unix seconds
+/// on the daemon's wall clock. A `null` until, which #288's build wrote
+/// for a closure a person had to clear (withdrawn by #291), reads as a
+/// trial already due, so no daemon refuses to start over it.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RouteClosure {
     pub invalid: u32,
     pub status: u16,
     pub closed_at: i64,
     pub cooldown_secs: u64,
-    pub until: Option<i64>,
+    #[serde(deserialize_with = "due_if_null")]
+    pub until: i64,
+}
+
+/// [`RouteClosure::until`]'s reading: a number, or `null` as due now.
+fn due_if_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+    Ok(<Option<i64> as serde::Deserialize>::deserialize(d)?.unwrap_or(0))
 }
 
 impl RailsState {

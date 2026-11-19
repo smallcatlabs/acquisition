@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
 use acquisition_protocol::job::{
-    Children, FailureKind, Held, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
+    Children, FailureKind, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, LIST_LIMIT_DEFAULT,
@@ -159,8 +159,6 @@ fn job() -> JobInfo {
         priority: 0,
         submitted_by: "cli:1234".into(),
         eta_seconds: Some(17),
-        // C190: its route closed after it was re-queued
-        held: Some(Held::RouteClosed),
         parent: Some(41),
         retries: 1,
         account: Some("Alice#1234".into()),
@@ -204,7 +202,7 @@ fn rails() -> RailsStatus {
             status: 400,
             closed_at: 1_800_000_000,
             cooldown_secs: 60,
-            until: Some(1_800_000_060),
+            until: 1_800_000_060,
         }],
     }
 }

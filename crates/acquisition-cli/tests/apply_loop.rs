@@ -263,13 +263,16 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     assert!(failed[0]["error"].is_string(), "{doc}");
 }
 
-/// C190: an apply whose fetches wait on a route closed until a person
-/// opens it ends, saying the route, what to check and the verb, with its
-/// jobs waiting on disk, and never waits on it; the reset opens the route
-/// and the same job goes on. The closure is staged in the world's rails
-/// state, where a daemon keeps it across lifetimes.
+/// C190 as #291 amended it: an apply over a route closed at the cap
+/// waits, its progress line saying the closure in the status's words and
+/// when the trial goes; nothing ends it but its jobs or a person, whose
+/// reset opens the route, and the same apply goes on. The closure is
+/// staged in the world's rails state at the cap, its trial an hour off,
+/// where a daemon keeps it across lifetimes. The test waits on the
+/// apply's own output under the harness's deadline, never on a sleep.
 #[test]
-fn c190_an_apply_on_a_route_closed_for_good_ends_with_its_jobs_waiting() {
+fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
+    use std::io::BufRead as _;
     let scratch = harness::scratch("acl");
     let base = scratch.0.clone();
     let login = login_as_mock(&base, &[]);
@@ -282,73 +285,66 @@ fn c190_an_apply_on_a_route_closed_for_good_ends_with_its_jobs_waiting() {
     }
     // The daemon the login started is stopped; the next is this test's.
     drop(login);
-    let rails = base.join("store").join("mock").join("rails.json");
+    let now = harness::now();
     std::fs::write(
-        &rails,
-        r#"{"closed_routes":{"stash@ExileTester":{"invalid":12,"status":400,"closed_at":1800000000,"cooldown_secs":3600,"until":null}}}"#,
+        base.join("store").join("mock").join("rails.json"),
+        format!(
+            r#"{{"closed_routes":{{"stash@ExileTester":{{"invalid":13,"status":400,"closed_at":{now},"cooldown_secs":3600,"until":{}}}}}}}"#,
+            now + 3600
+        ),
     )
     .unwrap();
     // A login again, its daemon reading the staged state at its start.
     let _daemon = login_as_mock(&base, &[]);
 
-    let out = acq(&base, &["refresh", "--apply"]);
-    let said = String::from_utf8_lossy(&out.stderr).into_owned();
-    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
-    assert!(!out.status.success(), "{stdout}{said}");
+    let mut apply = harness::command(&base, &["refresh", "--apply"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawning the apply");
+    let stderr = apply.stderr.take().expect("piped stderr");
+    let (lines, read) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for line in std::io::BufReader::new(stderr)
+            .lines()
+            .map_while(Result::ok)
+        {
+            if lines.send(line).is_err() {
+                return;
+            }
+        }
+    });
+    let closed = loop {
+        let line = read
+            .recv_timeout(harness::HANG)
+            .expect("the apply drew a progress line naming the closure");
+        if line.contains("route closed:") {
+            break line;
+        }
+    };
+    let _ = apply.kill();
+    let _ = apply.wait();
     for words in [
-        "stopped waiting for job",
-        "wait on disk for stash@ExileTester",
-        "12 requests in a row as invalid (the last 400)",
-        "first check whether GGG's API changed and whether a newer acq exists",
-        "then `acq daemon reset-tripwire`",
+        "route closed: stash@ExileTester for 3600s",
+        "GGG answered 13 requests in a row on it as invalid, the last 400",
+        "one waiting job goes as the trial in ~60m",
     ] {
-        assert!(said.contains(words), "lacks {words:?}: {said}");
+        assert!(closed.contains(words), "lacks {words:?}: {closed}");
     }
-    let id: u64 = stdout
-        .split("as job ")
-        .nth(1)
+    let id: u64 = closed
+        .strip_prefix("job ")
         .and_then(|rest| rest.split_whitespace().next())
-        .and_then(|id| {
-            id.trim_end_matches(|c: char| !c.is_ascii_digit())
-                .parse()
-                .ok()
-        })
-        .unwrap_or_else(|| panic!("the apply's job id: {stdout}"));
+        .and_then(|id| id.parse().ok())
+        .unwrap_or_else(|| panic!("the apply's job id: {closed}"));
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert!(
         status["jobs_waiting"].as_u64().is_some_and(|n| n > 0),
         "its fetches wait: {status}"
     );
-    let jobs = sole_json(&acq(&base, &["jobs", "--json"]));
-    assert!(
-        jobs.to_string()
-            .contains(r#""held":"route_closed_for_good""#),
-        "a waiting fetch names what holds it: {jobs}"
-    );
-    // The review's findings 1 and 2: the parent holding its result for
-    // them is held as they are, whatever its kind, and nothing held so
-    // promises a start time.
-    let apply = sole_json(&acq(&base, &["status", &id.to_string(), "--json"]));
-    assert_eq!(apply["held"], json!("route_closed_for_good"), "{apply}");
-    fn held_rows<'a>(value: &'a Value, rows: &mut Vec<&'a Value>) {
-        match value {
-            Value::Object(map) if map.get("held") == Some(&json!("route_closed_for_good")) => {
-                rows.push(value)
-            }
-            Value::Object(map) => map.values().for_each(|v| held_rows(v, rows)),
-            Value::Array(items) => items.iter().for_each(|v| held_rows(v, rows)),
-            _ => {}
-        }
-    }
-    let mut rows = Vec::new();
-    held_rows(&jobs, &mut rows);
-    assert!(rows.len() > 1, "{jobs}");
-    for row in rows {
-        assert!(row["eta_seconds"].is_null(), "a start promised: {row}");
-    }
-    assert!(
-        !jobs.to_string().contains("soonest_eta_seconds\":0"),
-        "a soonest start promised: {jobs}"
+    assert_eq!(
+        status["rails"]["closed_routes"][0]["until"],
+        json!(now + 3600),
+        "{status}"
     );
 
     // The person's verb opens the route, and the same apply goes on.
