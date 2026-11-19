@@ -1809,9 +1809,7 @@ async fn places(
             Listed::Tabs => Places::tabs(at, realm.as_str(), &league, &asking, now),
             Listed::Characters => Places::characters(at, realm.as_str(), &league, &asking, now),
         };
-        // a toggle answers with a redirect and draws no segment
-        let windowed = pick(&sent, "toggle").is_none() && sent.iter().any(|(k, _)| k == "open");
-        let (places, windows) = if windowed {
+        let (places, windows) = if sent.iter().any(|(k, _)| k == "open") {
             let scope = Request {
                 scope: acquisition_search::answer::Scope {
                     account: None,
@@ -1822,7 +1820,14 @@ async fn places(
             };
             acquisition_search::places::steady(at, &scope, |corpus| {
                 let places = make()?;
-                let open = named_places(&sent, "open", &openable(&places));
+                let openable = openable(&places);
+                // a toggle that names a place answers with a redirect and
+                // draws no segment; one that names none is dropped, as the
+                // redirect drops it (the review of fc0f2f63)
+                if pick(&sent, "toggle").is_some_and(|t| openable.contains(&t)) {
+                    return Ok((places, std::collections::HashMap::new()));
+                }
+                let open = named_places(&sent, "open", &openable);
                 let windows = windows_over(web, corpus, &places, &open)?;
                 Ok((places, windows))
             })?

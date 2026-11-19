@@ -5372,6 +5372,23 @@ fn the_grouped_table_is_a_wording_golden() {
             .as_str()
         )
     );
+    // a toggle naming no place of the league (one a refresh took away,
+    // sent from a page loaded before it) is dropped, and the open places
+    // still list their items (the review of fc0f2f63)
+    for (path, row) in [
+        (
+            "tabs?realm=pc&league=Standard&open=t1&toggle=gone",
+            "data-id=\"r1\"",
+        ),
+        (
+            "characters?realm=pc&league=Standard&open=ch1&toggle=gone",
+            "data-id=\"c-ring\"",
+        ),
+    ] {
+        let stale = web.get(path);
+        assert_eq!(stale.status, 200, "{path}: {}", stale.body);
+        assert!(stale.body.contains(row), "{path}: {}", stale.body);
+    }
     // the fold's never-fetched count: the page under `fetched=never`
     // alone, every open and tick kept
     let fold = &page.body[at(&page.body, "1 tab not shown")..];
