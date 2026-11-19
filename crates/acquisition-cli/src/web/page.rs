@@ -19,10 +19,12 @@
 //! the verb grows first. Every version a page renders is copied into its
 //! head's basis line, never composed ([`Head::basis`]).
 
+use std::collections::HashMap;
+
 use acquisition_protocol::realm::Realm;
 use acquisition_search::Classed;
 use acquisition_search::answer::{
-    Answer, Count, ExplainOut, Request, RowField, RowsOut, TradeOut, ViewOut, Zero,
+    Answer, Count, ExplainOut, Request, RowField, RowsOut, Shape, TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
 use acquisition_search::places::{Counted, Filter as PlaceFilter, Holds, Kind, Place, Places, Row};
@@ -948,12 +950,20 @@ pub(crate) fn answer(
     out.push_str(&opening(a, now, spell));
     match &a.view {
         ViewOut::Rows(rows) => {
-            if let Some(other) = &rows_links.other {
-                out.push_str(&format!(
-                    "<p><a class=\"presentation\" href=\"{}\">{}</a></p>\n",
-                    esc(&other.href),
-                    esc(other.words)
-                ));
+            let presented: Vec<String> = rows_links
+                .other
+                .iter()
+                .chain(&rows_links.places)
+                .map(|p| {
+                    format!(
+                        "<a class=\"presentation\" href=\"{}\">{}</a>",
+                        esc(&p.href),
+                        esc(p.words)
+                    )
+                })
+                .collect();
+            if !presented.is_empty() {
+                out.push_str(&format!("<p>{}</p>\n", presented.join(" · ")));
             }
             // a card wherever the rows carry the item, the table
             // otherwise: the document's view says which, never the URL.
@@ -1121,12 +1131,13 @@ fn opening(a: &Answer, now: i64, spell: Spell) -> String {
         };
         scope.push_str(&format!(
             " · {}",
+            // the list that page shows: the never fetched (step 6.5b)
             way_on(
                 spell,
                 "tabs",
                 &way,
-                &format!("each tab of {}", pointer.league),
-                ""
+                &format!("each tab of {} never fetched", pointer.league),
+                "&fetched=never"
             )
         ));
         if pointer.other_leagues > 0 {
@@ -1216,6 +1227,8 @@ fn ordered(text: &str, order: Option<bool>) -> String {
 pub(crate) struct RowsLinks {
     pub other: Option<Presentation>,
     pub first: Option<String>,
+    /// The same query by stash tab and by character (step 6.5b).
+    pub places: Vec<Presentation>,
 }
 
 /// What a row shows of the query and its sort, each line in the text's
@@ -1425,20 +1438,7 @@ pub(crate) struct Window {
 /// how many items it holds, in what order and which values it left out;
 /// a page without its script says that it shows the first rows alone.
 fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, view: ViewLinks, now: i64) -> String {
-    // the five fixed heads are text, none a value the sort takes; each
-    // value's head is the link that orders by it, the ordered one marked
-    let fixed = ["Item", "Base", "Price", "Location", "Fetched"]
-        .iter()
-        .map(|h| format!("<span>{}</span>", esc(h)));
-    let valued = rows.values.iter().map(|value| match view(value) {
-        Some(link) => format!(
-            "<a class=\"head\" href=\"{}\">{}</a>",
-            esc(&link.href),
-            ordered(&esc(value), link.ordered)
-        ),
-        None => format!("<span>{}</span>", esc(value)),
-    });
-    let heads: String = fixed.chain(valued).collect();
+    let heads = item_heads(rows, view);
     let matched = a.total.matched;
     let first = window.first.rows.len();
     // the order, said once for every row: a sort named is said here, as
@@ -1468,11 +1468,34 @@ fn rows_table(a: &Answer, rows: &RowsOut, window: &Window, view: ViewLinks, now:
         )
     });
     format!(
-        "<p class=\"rows-shown\">{}</p>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n<div class=\"r head\">{heads}</div>\n<div class=\"seg\" data-route=\"{}\" data-count=\"{matched}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n</div>\n",
+        "<p class=\"rows-shown\">{}</p>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}<div class=\"seg\" data-route=\"{}\" data-count=\"{matched}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n</div>\n",
         esc(&line),
         unscripted.unwrap_or_default(),
         esc(&window.route),
         window_rows(&window.first, now)
+    )
+}
+
+/// A table's heads, one line: the item, its base, its price, its location
+/// and when that was fetched, as text, none a value the sort takes; then
+/// each value the rows carry by its own text, the link that orders the
+/// rows by it, the ordered one marked ([`ordered`]). The flat table's
+/// and a place page's (step 6.5b), which stands once above its places.
+fn item_heads(rows: &RowsOut, view: ViewLinks) -> String {
+    let fixed = ["Item", "Base", "Price", "Location", "Fetched"]
+        .iter()
+        .map(|h| format!("<span>{}</span>", esc(h)));
+    let valued = rows.values.iter().map(|value| match view(value) {
+        Some(link) => format!(
+            "<a class=\"head\" href=\"{}\">{}</a>",
+            esc(&link.href),
+            ordered(&esc(value), link.ordered)
+        ),
+        None => format!("<span>{}</span>", esc(value)),
+    });
+    format!(
+        "<div class=\"r head\">{}</div>\n",
+        fixed.chain(valued).collect::<String>()
     )
 }
 
@@ -2139,10 +2162,10 @@ pub(crate) fn fetch_leagues() -> String {
     "<form method=\"post\" action=\"leagues\"><button type=\"submit\">Fetch the league list</button></form>\n".to_string()
 }
 
-// ---- the place pages (step 6.5a) ---------------------------------------------------------------
+// ---- the place pages (steps 6.5a and 6.5b) -----------------------------------------------------
 
 /// What a place page renders: the places document, and what its URL
-/// opens and ticks.
+/// asks, opens and ticks.
 pub(crate) struct PlacesPage<'a> {
     /// Its route: `tabs` or `characters`.
     pub listed: &'static str,
@@ -2156,13 +2179,18 @@ pub(crate) struct PlacesPage<'a> {
     pub places: &'a Places,
     /// A characters page's sentence where the league holds none.
     pub none: Option<&'a str>,
-    /// The parents open, and the places ticked, as the URL names them.
+    /// The places open, and the places ticked, as the URL names them.
     pub open: &'a [String],
     pub ticked: &'a [String],
     /// The substashes box, ticked.
     pub deep: bool,
     /// The filter the URL names (step 6.5b).
     pub filter: &'a PlaceFilter,
+    /// The query's text the URL names, for its box.
+    pub text: Option<&'a str>,
+    /// The view's fields the URL names, which the table's form carries
+    /// hidden: no control writes them.
+    pub view_fields: &'a [(&'static str, String)],
     /// The fields the realm and league selects' form carries: every
     /// field of the URL but the realm, the league, the ticks and the
     /// opens.
@@ -2170,6 +2198,11 @@ pub(crate) struct PlacesPage<'a> {
     /// A fold's never-fetched link: the page under `fetched=never`
     /// alone, every open and tick kept.
     pub never: &'a str,
+    /// Each open place's items as a segment of the page's one window, by
+    /// the place's id: its route and its first block, the server's.
+    pub windows: &'a HashMap<String, Window>,
+    /// A value's head: the page ordered by it, from a segment's rows.
+    pub view_links: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
     /// Whether the sync policy names the league: "Plan under the policy"
     /// shows only then.
     pub policy: bool,
@@ -2182,15 +2215,18 @@ pub(crate) fn place_anchor(id: &str) -> String {
     format!("p-{}", enc(id))
 }
 
-/// A place page (step 6.5a): the realm and league selects, a form of
-/// their own carrying no tick (one id can stand in two leagues); the
-/// league list's fetch and the listing beside it; the league's counts in
-/// one line; then one GET form holding the table, each place a plain row
-/// (no window: with parents closed a level is short, and a tick in a
-/// dropped block would be lost), its tick, its name a link to its items
-/// as a table, a parent's opener, and the buttons that plan the ticks.
-/// A league with nothing listed says so where the table would be, with
-/// the listing. No `pre` and no command line (#182, #189).
+/// A place page (steps 6.5a and 6.5b): the realm and league selects, a
+/// form of their own carrying every field but the ticks and the opens
+/// (one id can stand in two leagues); the league list's fetch and the
+/// listing beside it; the league's counts in one line; then one GET form
+/// holding the list and its buttons, "Show" first. The list is the
+/// page's one `.window`, inside the form: each place's head in flow, its
+/// tick, its name a link to its items as a table, its opener; an open
+/// place's places under it, or its items as one segment of the window,
+/// the item columns' heads standing once above the places where one
+/// does; each level's fold line after its rows. A league with nothing
+/// listed says so where the list would be, with the listing. No `pre`
+/// and no command line (#182, #189).
 pub(crate) fn places(view: &PlacesPage) -> String {
     let realms = ["pc", "xbox", "sony", "poe2"]
         .iter()
@@ -2216,7 +2252,7 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         route = view.listed,
     );
     // the listing stands beside the league list's fetch, or, where the
-    // league has nothing listed, where the table would be
+    // league has nothing listed, where the list would be
     let empty = view.places.places.is_empty();
     let mut body = format!(
         "<form method=\"get\" action=\"{}\"><label class=\"control\">Realm <select name=\"realm\">{realms}</select></label> {}{}<button type=\"submit\">Show</button></form>\n<div class=\"actions\">{}{}</div>\n",
@@ -2238,13 +2274,14 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         body.push_str(&format!("<p class=\"none\">{}</p>\n{listing}", esc(&said)));
         return body;
     }
-    // the table's form: the open parents and the substashes box travel
-    // through every open and close, as the ticks do
+    // the list's form: the open places, the view and the substashes box
+    // travel through every open and close, as the ticks do
     body.push_str(&format!(
-        "<form method=\"get\" action=\"{}\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">",
+        "<form method=\"get\" action=\"{}\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">{}",
         view.listed,
         esc(view.realm.as_str()),
-        esc(view.league)
+        esc(view.league),
+        hidden_fields(view.view_fields),
     ));
     for open in view.open {
         body.push_str(&format!(
@@ -2253,17 +2290,25 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         ));
     }
     body.push('\n');
-    // the buttons above the list, so a long list never hides them (the
-    // page seat's probe); "Show" first, the form's default, so Enter in a
-    // box sends the page again, never the plan
+    // the query's box and the buttons above the list, so a long list
+    // never hides them (the page seat's probe); "Show" the form's first
+    // button, its default, so Enter in a box sends the page again with
+    // every tick and open, never the plan
     body.push_str(&format!(
-        "<p><button type=\"submit\">Show</button> <button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
+        "<p><label class=\"control\">Items matching <input type=\"text\" name=\"text\" value=\"{}\" placeholder=\"a query, as the search reads it\" aria-label=\"show the places holding items this query matches\"></label> <button type=\"submit\">Show</button> <button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
+        esc(view.text.unwrap_or("")),
         if view.policy {
             " <button type=\"submit\" formaction=\"plan\">Plan under the policy</button>"
         } else {
             ""
         }
     ));
+    if view.listed == "tabs" {
+        body.push_str(&format!(
+            "<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"{}> the substashes box: also fetch a ticked map or unique tab's pages</label>\n",
+            if view.deep { " checked" } else { "" }
+        ));
+    }
     let mut hidden = String::new();
     let mut rows = String::new();
     place_rows(view, &view.places.places, "", 0, &mut rows, &mut hidden);
@@ -2271,40 +2316,73 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         view,
         view.places.folded,
         &view.places.places,
-        "tab",
-        "tabs",
+        ("tab", "tabs"),
         0,
     ));
-    let (columns, colgroup): (&[&str], &str) = match view.listed {
-        "tabs" => {
-            body.push_str(&format!(
-                "<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"{}> the substashes box: also fetch a ticked map or unique tab's pages</label>\n",
-                if view.deep { " checked" } else { "" }
-            ));
-            (
-                &["Tab", "Type", "Items", "Fetched"],
-                "<colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>",
-            )
-        }
-        _ => (
-            &["Character", "Level", "Items", "Fetched"],
-            "<colgroup><col class=\"tick\"><col><col class=\"type\"><col class=\"items\"><col class=\"fetched\"></colgroup>",
-        ),
+    let columns: &[&str] = match view.listed {
+        "tabs" => &["Tab", "Type", "Items", "Fetched"],
+        _ => &["Character", "Level", "Items", "Fetched"],
     };
     body.push_str(&hidden);
+    // the item columns' heads, once above the places, where one lists its
+    // items: from the first segment's rows, every segment's columns the
+    // same, since a place's terms compare no number
+    let heads = view
+        .places
+        .every()
+        .into_iter()
+        .find_map(|p| view.windows.get(p.id()))
+        .and_then(|w| match &w.first.view {
+            ViewOut::Rows(rows) => {
+                let rows: &RowsOut = rows;
+                Some(item_heads(rows, &|value| (view.view_links)(rows, value)))
+            }
+            _ => None,
+        })
+        .unwrap_or_default();
     body.push_str(&format!(
-        "<details class=\"list\" open><summary>{}</summary>\n<table class=\"tabs\">{colgroup}\n<tr><th></th>{}</tr>\n{}{rows}</table>\n</details>\n</form>\n",
+        "<details class=\"list\" open><summary>{}</summary>\n{}<div class=\"p head\"><span></span>{}</div>\n{}<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}{rows}</div>\n</details>\n</form>\n",
         // the list named, its counts the counts line's alone: a count of
         // the rows at the top would stand beside the league's, saying
         // another thing (the build's review, its first finding)
         view.title,
+        matched_line(view),
         columns
             .iter()
-            .map(|c| format!("<th>{c}</th>"))
+            .map(|c| format!("<span>{c}</span>"))
             .collect::<String>(),
         filter_row(view),
     ));
     body
+}
+
+/// Under a query, the matches the league's places hold beside the
+/// query's own, the query's own request a link to every match as a
+/// table (Decision 7).
+fn matched_line(view: &PlacesPage) -> String {
+    let Some(query) = &view.places.query else {
+        return String::new();
+    };
+    let mut table = query.request.clone();
+    if let Shape::Rows(rows) = &mut table.view.shape {
+        rows.fields = vec![RowField::Icon];
+    }
+    let here = match view.listed {
+        "tabs" => "in these stash tabs",
+        _ => "on these characters",
+    };
+    format!(
+        "<p class=\"matched\">{} {here}, of {} · {}</p>\n",
+        esc(&plural(query.matched, "matching item", "matching items")),
+        esc(&plural(query.total.matched, "match", "matches")),
+        way_on(
+            view.spell,
+            "/query/request",
+            &Way::Search(Box::new(table)),
+            "every match as a table",
+            ""
+        )
+    )
 }
 
 /// Fields as hidden inputs, in order.
@@ -2329,8 +2407,7 @@ fn fold_line(
     view: &PlacesPage,
     folded: Option<Holds>,
     places: &[Place],
-    one: &str,
-    many: &str,
+    (one, many): (&str, &str),
     depth: usize,
 ) -> String {
     let Some(folded) = folded.filter(|f| f.places > 0) else {
@@ -2346,8 +2423,7 @@ fn fold_line(
         .map(|p| usize::from(view.ticked.iter().any(|t| t == p.id())) + ticked_in(view, p))
         .sum();
     format!(
-        "<tr class=\"fold{}\"><td></td><td colspan=\"4\">{}{}{}</td></tr>\n",
-        if depth > 0 { " member" } else { "" },
+        "<p class=\"fold depth-{depth}\">{}{}{}</p>\n",
         esc(&format!("{} not shown", plural(folded.places, one, many))),
         match folded.never_fetched {
             0 => String::new(),
@@ -2390,11 +2466,23 @@ fn counts_line(view: &PlacesPage) -> String {
     }
 }
 
-/// The rows of the listed `places` at `depth`, each open parent's places
-/// after its head in a group of their own (`tbody.holds`) and its fold
-/// line after them; a tick under a closed parent is a hidden field in
-/// `hidden`, counted in words on the parent's head, and a tick on a place
-/// not listed one there too, counted on its level's fold line.
+/// What a place shows when open: its places, or its items where it holds
+/// none — under a query, its matches.
+fn has_items(view: &PlacesPage, place: &Place) -> bool {
+    place.request.is_some()
+        && match (&view.places.query, place.matched) {
+            (Some(_), matched) => matched.unwrap_or(0) > 0,
+            (None, _) => place.item_count() > 0,
+        }
+}
+
+/// The heads of the listed `places` at `depth`, in flow: each open
+/// parent's places after its head in a group of their own (`.holds`),
+/// a tab's own matches and its fold line after them; each open place
+/// that holds items its segment (Decision 5). A tick under a closed
+/// parent is a hidden field in `hidden`, counted in words on the
+/// parent's head, and a tick on a place not listed one there too,
+/// counted on its level's fold line.
 fn place_rows(
     view: &PlacesPage,
     places: &[Place],
@@ -2433,20 +2521,18 @@ fn place_rows(
             "" => "(unnamed)",
             name => name,
         };
-        let named = match &place.request {
-            Some(request) => {
-                let mut table = request.clone();
-                table.view = acquisition_search::answer::View::from(
-                    acquisition_search::answer::Shape::Rows(acquisition_search::answer::Rows {
-                        fields: vec![acquisition_search::answer::RowField::Icon],
-                        ..Default::default()
-                    }),
-                );
-                way_on(view.spell, &here, &Way::Search(Box::new(table)), name, "")
-            }
+        let named = match place.request.as_ref().map(as_table) {
+            Some(table) => way_on(view.spell, &here, &Way::Search(Box::new(table)), name, ""),
             None => esc(name),
         };
         let open = view.open.iter().any(|o| o == id);
+        let toggle = |open: bool| {
+            format!(
+                "<button type=\"submit\" name=\"toggle\" value=\"{}\">{}</button>",
+                esc(id),
+                if open { "Close" } else { "Open" }
+            )
+        };
         let opener = match place.holds {
             Some(holds) => {
                 let inside = if open {
@@ -2455,7 +2541,7 @@ fn place_rows(
                     ticked_under(view, place, hidden)
                 };
                 format!(
-                    " <span class=\"holds-said\">{}{}{}</span> <button type=\"submit\" name=\"toggle\" value=\"{}\">{}</button>",
+                    " <span class=\"holds-said\">{}{}{}</span> {}",
                     esc(&plural(
                         holds.places,
                         if place.place == Kind::Folder {
@@ -2477,44 +2563,78 @@ fn place_rows(
                         0 => String::new(),
                         n => format!("; {n} ticked inside"),
                     },
-                    esc(id),
-                    if open { "Close" } else { "Open" }
+                    toggle(open)
                 )
             }
+            // a place that holds items opens to them (Decision 4)
+            None if has_items(view, place) => format!(" {}", toggle(open)),
             None => String::new(),
+        };
+        // under a query, a place's matches beside what it holds
+        let items = |fetched_at: Option<i64>, count: i64| match (&view.places.query, place.matched)
+        {
+            (Some(_), Some(matched)) if place.places.is_empty() => format!(
+                "{matched} of {}",
+                crate::store_cmd::items_cell(fetched_at, count)
+            ),
+            (Some(_), Some(matched)) => format!("{matched} matching"),
+            _ => crate::store_cmd::items_cell(fetched_at, count),
         };
         let cells = match &place.row {
             // a folder holds tabs and no items, and is never fetched: no
-            // count and no age stand beside it
-            Row::Tab(tab) if place.place == Kind::Folder => {
-                [esc(&tab.r#type), String::new(), String::new()]
-            }
+            // count and no age stand beside it, save its matches
+            Row::Tab(tab) if place.place == Kind::Folder => [
+                esc(&tab.r#type),
+                match place.matched {
+                    Some(matched) => esc(&format!("{matched} matching")),
+                    None => String::new(),
+                },
+                String::new(),
+            ],
             Row::Tab(tab) => [
                 esc(&tab.r#type),
-                esc(&crate::store_cmd::items_cell(
-                    tab.fetched_at,
-                    tab.item_count,
-                )),
+                esc(&items(tab.fetched_at, tab.item_count)),
                 esc(&crate::store_cmd::ago(view.now, tab.fetched_at)),
             ],
             Row::Character(c) => [
                 c.level.map(|l| l.to_string()).unwrap_or_default(),
-                esc(&crate::store_cmd::items_cell(c.fetched_at, c.item_count)),
+                esc(&items(c.fetched_at, c.item_count)),
                 esc(&crate::store_cmd::ago(view.now, c.fetched_at)),
             ],
         };
         rows.push_str(&format!(
-            "<tr class=\"row{}\" id=\"{}\"><td>{tick}</td><td>{named}{opener}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-            if depth > 0 { " member" } else { "" },
+            "<div class=\"p row depth-{depth}\" id=\"{}\"><span>{tick}</span><span>{named}{opener}</span><span>{}</span><span>{}</span><span>{}</span></div>\n",
             esc(&place_anchor(id)),
             cells[0],
             cells[1],
             cells[2],
         ));
-        if open && !place.places.is_empty() {
-            rows.push_str("<tbody class=\"holds\">\n");
+        if !open {
+            continue;
+        }
+        if !place.places.is_empty() {
+            rows.push_str("<div class=\"holds\">\n");
             place_rows(view, &place.places, &here, depth + 1, rows, hidden);
-            let (one, many) = match place.place {
+            // a tab's own matches beside its pages': said apart, its
+            // request (the tab's and its pages') as a table
+            if let (Some(own), Some(request)) = (place.own.filter(|n| *n > 0), &place.request) {
+                rows.push_str(&format!(
+                    "<p class=\"own depth-{}\">{} · {}</p>\n",
+                    depth + 1,
+                    esc(&format!(
+                        "{} in the tab itself",
+                        plural(own, "matching item", "matching items")
+                    )),
+                    way_on(
+                        view.spell,
+                        &here,
+                        &Way::Search(Box::new(as_table(request))),
+                        "the tab's and its pages' as a table",
+                        ""
+                    )
+                ));
+            }
+            let words = match place.place {
                 Kind::Folder => ("tab", "tabs"),
                 _ => ("page", "pages"),
             };
@@ -2522,13 +2642,54 @@ fn place_rows(
                 view,
                 place.folded,
                 &place.places,
-                one,
-                many,
+                words,
                 depth + 1,
             ));
-            rows.push_str("</tbody>\n");
+            rows.push_str("</div>\n");
+        } else if let Some(window) = view.windows.get(id) {
+            rows.push_str(&segment(window, view.now));
         }
     }
+}
+
+/// A place's request as a table: its view's rows, each carrying its
+/// icon (`view.fields=icon`), the sort and the values kept.
+fn as_table(request: &Request) -> Request {
+    let mut table = request.clone();
+    match &mut table.view.shape {
+        Shape::Rows(rows) => rows.fields = vec![RowField::Icon],
+        other => {
+            *other = Shape::Rows(acquisition_search::answer::Rows {
+                fields: vec![RowField::Icon],
+                ..Default::default()
+            })
+        }
+    }
+    table
+}
+
+/// An open place's items, one segment of the page's one window
+/// (Decision 5): its route, its count its first block's matches, its base
+/// 0, that first block the server's. Without the script, the first rows
+/// alone, said so.
+fn segment(window: &Window, now: i64) -> String {
+    let count = window.first.total.matched;
+    let first = window.first.rows.len();
+    let unscripted = (first < count).then(|| {
+        format!(
+            "<noscript><p class=\"rows-shown\">{}</p></noscript>\n",
+            esc(&format!(
+                "The first {} of {count} are shown here: the rest come in as the list scrolls, which needs the page's script.",
+                plural(first, "item", "items")
+            ))
+        )
+    });
+    format!(
+        "{}<div class=\"seg\" data-route=\"{}\" data-count=\"{count}\" data-base=\"0\"><div class=\"block\" data-block=\"0\">\n{}</div></div>\n",
+        unscripted.unwrap_or_default(),
+        esc(&window.route),
+        window_rows(&window.first, now)
+    )
 }
 
 /// The ticks among the places `place` holds, at any depth, each written
@@ -2549,13 +2710,13 @@ fn ticked_under(view: &PlacesPage, place: &Place, hidden: &mut String) -> usize 
     n
 }
 
-/// The filter's controls (step 6.5b, Decision 3): the second header
-/// row of a list, each under the column it filters — words the name
-/// holds, a tab's type, never fetched — sent with the table's form, so
-/// the URL names them (C16) and "Show" or Enter asks the page again.
+/// The filter's controls (step 6.5b, Decision 3): the second head of the
+/// list, each under the column it filters — words the name holds, a
+/// tab's type, never fetched — sent with the list's form, so the URL
+/// names them (C16) and "Show" or Enter asks the page again.
 fn filter_row(view: &PlacesPage) -> String {
     let name = format!(
-        "<td><input type=\"text\" name=\"name\" value=\"{}\" placeholder=\"words in the name\" aria-label=\"show the places whose name holds these words\"></td>",
+        "<span><input type=\"text\" name=\"name\" value=\"{}\" placeholder=\"words in the name\" aria-label=\"show the places whose name holds these words\"></span>",
         esc(view.filter.name.as_deref().unwrap_or(""))
     );
     let typed = match &view.places.counts {
@@ -2585,20 +2746,20 @@ fn filter_row(view: &PlacesPage) -> String {
                 ));
             }
             format!(
-                "<td><select name=\"type\" aria-label=\"show the tabs of one type\">{options}</select></td>"
+                "<span><select name=\"type\" aria-label=\"show the tabs of one type\">{options}</select></span>"
             )
         }
-        Counted::Characters(_) => "<td></td>".to_string(),
+        Counted::Characters(_) => "<span></span>".to_string(),
     };
     let never = format!(
-        "<td><label><input type=\"checkbox\" name=\"fetched\" value=\"never\"{}> never</label></td>",
+        "<span><label><input type=\"checkbox\" name=\"fetched\" value=\"never\"{}> never</label></span>",
         if view.filter.fetched.is_some() {
             " checked"
         } else {
             ""
         }
     );
-    format!("<tr class=\"filters\"><td></td>{name}{typed}<td></td>{never}</tr>\n")
+    format!("<div class=\"p filters\"><span></span>{name}{typed}<span></span>{never}</div>\n")
 }
 
 // ---- the plan and apply pages (step 6.5d) -------------------------------------------------------

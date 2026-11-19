@@ -92,15 +92,19 @@ a.presentation { font-size: 12.5px; }
 details.list > summary { cursor: pointer; font-weight: 600; padding: .3rem 0; }
 details.pages > summary { cursor: pointer; color: var(--muted); }
 details.folder > summary { cursor: pointer; padding: .3rem .5rem; color: var(--muted); }
-/* a folder's tabs sit under it, so a tab after the folder reads as the list's own */
-tr.member > td:nth-child(2) { padding-left: 1.75rem; }
-table.tabs { table-layout: fixed; }
-table.tabs col.tick { width: 2.5rem; }
-table.tabs col.type, table.tabs col.items { width: 18%; }
-table.tabs col.fetched { width: 14%; }
-/* the filter's controls under the heads, and a level's fold line (step 6.5b) */
-tr.filters input[type=text], tr.filters select { width: 100%; box-sizing: border-box; }
-tr.fold > td { color: var(--muted); font-size: 12.5px; }
+/* a place's head (steps 6.5a and 6.5b): a line of five cells in the
+   list's one window, its places under it indented by their depth, so a
+   tab after a folder reads as the list's own; a head stands clear of the
+   item heads, which stick at the top, when an anchor lands at it */
+.p { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 18% 18% 14%; align-items: center; border-bottom: 1px solid var(--rule); padding: .15rem 0; font-size: 1rem; scroll-margin-top: 2rem; }
+.p.head { font-weight: 600; }
+.p > * { overflow: hidden; text-overflow: ellipsis; padding: 0 .3rem; }
+.depth-1 > :nth-child(2), p.depth-1 { padding-left: 1.75rem; }
+.depth-2 > :nth-child(2), p.depth-2 { padding-left: 3.5rem; }
+/* the filter's controls under the heads, a level's fold line, a tab's
+   own matches and the matches line (step 6.5b) */
+.p.filters input[type=text], .p.filters select { width: 100%; box-sizing: border-box; }
+p.fold, p.own, p.matched { color: var(--muted); font-size: 12.5px; margin: .2rem 0 .2rem 2.5rem; }
 
 /* the table (step 6.4b): rows of one height in one segment, which the
    window script sizes and fills a block at a time; the height is the

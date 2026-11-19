@@ -35,9 +35,9 @@ GET characters?realm=pc&league=Standard <nothing listed>
 GET tabs?realm=pc&league=Standard <listed, never fetched>
 # holds "tabs in Standard"
 # holds "name=\"tab\" value=\"dump\""
-# holds ">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td>"
-# holds "<td>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>"
-# holds "<td>Folder</td><td></td><td></td></tr>"
+# holds ">Dump</a></span><span>PremiumStash</span><span>-</span><span>never</span>"
+# holds "<span>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>"
+# holds "<span>Folder</span><span></span><span></span></div>"
 # holds "2 tabs, 2 never fetched"
 # holds "name=\"toggle\" value=\"fold\">Open</button>"
 # holds "Refresh ticked"
@@ -53,19 +53,19 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 <p class="counts">8 tabs in Standard: 0 fetched, 7 never fetched, 1 folder (never fetched); 0 items in tabs (characters apart); facts: 7 tabs, none fetched; stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>CurrencyStash</option><option>Folder</option><option>MapStash</option><option>PremiumStash</option><option>QuadStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
-<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>-</td><td>never</td></tr>
-<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td></tr>
-<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs, 2 never fetched</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
-<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
-<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-</table>
+<div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>CurrencyStash</option><option>Folder</option><option>MapStash</option><option>PremiumStash</option><option>QuadStash</option><option>UniqueStash</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="p row depth-0" id="p-cur1"><span><input type="checkbox" name="tab" value="cur1"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></span><span>CurrencyStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-dump"><span><input type="checkbox" name="tab" value="dump"></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></span><span>PremiumStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-fold"><span></span><span>Old leagues <span class="holds-said">2 tabs, 2 never fetched</span> <button type="submit" name="toggle" value="fold">Open</button></span><span>Folder</span><span></span><span></span></div>
+<div class="p row depth-0" id="p-uniq"><span><input type="checkbox" name="tab" value="uniq"></span><span><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a></span><span>UniqueStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-maps"><span><input type="checkbox" name="tab" value="maps"></span><span><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-mape"><span><input type="checkbox" name="tab" value="mape"></span><span><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+</div>
 </details>
 </form>
 
@@ -120,21 +120,21 @@ GET characters?realm=pc&league=Standard
 <p class="counts">2 characters: 0 fetched, 2 never fetched; 0 items</p>
 <form method="get" action="characters">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <details class="list" open><summary>Characters</summary>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
-<tr class="row" id="p-fake0001"><td><input type="checkbox" name="character" value="fake0001"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Afake0001&amp;view.fields=icon">StashHoarder</a></td><td>97</td><td>-</td><td>never</td></tr>
-<tr class="row" id="p-fake0002"><td><input type="checkbox" name="character" value="fake0002"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Afake0002&amp;view.fields=icon">MuleQuadTab</a></td><td>12</td><td>-</td><td>never</td></tr>
-</table>
+<div class="p head"><span></span><span>Character</span><span>Level</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="p row depth-0" id="p-fake0001"><span><input type="checkbox" name="character" value="fake0001"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Afake0001&amp;view.fields=icon">StashHoarder</a></span><span>97</span><span>-</span><span>never</span></div>
+<div class="p row depth-0" id="p-fake0002"><span><input type="checkbox" name="character" value="fake0002"></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Afake0002&amp;view.fields=icon">MuleQuadTab</a></span><span>12</span><span>-</span><span>never</span></div>
+</div>
 </details>
 </form>
 
 </main>
 
 GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
-# holds "Maps (empty)</a></td><td>MapStash</td><td>0</td>"
+# holds "Maps (empty)</a></span><span>MapStash</span><span>0</span>"
 # holds "4 pages, 4 never fetched"
 # holds "name=\"toggle\" value=\"maps\">Open</button>"
 # holds "name=\"tab\" value=\"dump\" checked"
@@ -147,19 +147,19 @@ GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
 <p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
-<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
-<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
-<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
-<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
-<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Open</button></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-</table>
+<div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="p row depth-0" id="p-cur1"><span><input type="checkbox" name="tab" value="cur1"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a> <button type="submit" name="toggle" value="cur1">Open</button></span><span>CurrencyStash</span><span>3</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-dump"><span><input type="checkbox" name="tab" value="dump" checked></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a> <button type="submit" name="toggle" value="dump">Open</button></span><span>PremiumStash</span><span>11</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-fold"><span></span><span>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></span><span>Folder</span><span></span><span></span></div>
+<div class="p row depth-0" id="p-uniq"><span><input type="checkbox" name="tab" value="uniq"></span><span><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></span><span>UniqueStash</span><span>0</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-maps"><span><input type="checkbox" name="tab" value="maps"></span><span><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Open</button></span><span>MapStash</span><span>0</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-mape"><span><input type="checkbox" name="tab" value="mape"></span><span><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></span><span>MapStash</span><span>0</span><span><age> ago</span></div>
+</div>
 </details>
 </form>
 
@@ -167,9 +167,9 @@ GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
 
 GET tabs?<Maps opened>
 # holds "name=\"toggle\" value=\"maps\">Close</button>"
-# holds "<tbody class=\"holds\">"
-# holds "<tr class=\"row member\" id=\"p-m001\">"
-# holds "<tr class=\"row\" id=\"p-maps\">"
+# holds "<div class=\"holds\">"
+# holds "<div class=\"p row depth-1\" id=\"p-m001\">"
+# holds "<div class=\"p row depth-0\" id=\"p-maps\">"
 # holds "name=\"tab\" value=\"dump\" checked"
 <main>
 <h1>Stash tabs</h1>
@@ -180,25 +180,25 @@ GET tabs?<Maps opened>
 <p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="maps">
-<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
-<table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
-<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
-<tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
-<tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
-<tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
-<tr class="row" id="p-uniq"><td><input type="checkbox" name="tab" value="uniq"></td><td><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
-<tr class="row" id="p-maps"><td><input type="checkbox" name="tab" value="maps"></td><td><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Close</button></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-<tbody class="holds">
-<tr class="row member" id="p-m001"><td></td><td><a class="way" data-way="/places/4/places/0" href="/<token>/search?realm=pc&amp;text=id%3Am001%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row member" id="p-m002"><td></td><td><a class="way" data-way="/places/4/places/1" href="/<token>/search?realm=pc&amp;text=id%3Am002%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row member" id="p-m003"><td></td><td><a class="way" data-way="/places/4/places/2" href="/<token>/search?realm=pc&amp;text=id%3Am003%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-<tr class="row member" id="p-m004"><td></td><td><a class="way" data-way="/places/4/places/3" href="/<token>/search?realm=pc&amp;text=id%3Am004%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></td><td>MapStash</td><td>-</td><td>never</td></tr>
-</tbody>
-<tr class="row" id="p-mape"><td><input type="checkbox" name="tab" value="mape"></td><td><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
-</table>
+<div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<div class="p row depth-0" id="p-cur1"><span><input type="checkbox" name="tab" value="cur1"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a> <button type="submit" name="toggle" value="cur1">Open</button></span><span>CurrencyStash</span><span>3</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-dump"><span><input type="checkbox" name="tab" value="dump" checked></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a> <button type="submit" name="toggle" value="dump">Open</button></span><span>PremiumStash</span><span>11</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-fold"><span></span><span>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></span><span>Folder</span><span></span><span></span></div>
+<div class="p row depth-0" id="p-uniq"><span><input type="checkbox" name="tab" value="uniq"></span><span><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Auniq%20league%3DStandard&amp;view.fields=icon">Uniques</a> <span class="holds-said">3 pages, 3 never fetched</span> <button type="submit" name="toggle" value="uniq">Open</button></span><span>UniqueStash</span><span>0</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-maps"><span><input type="checkbox" name="tab" value="maps"></span><span><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3Amaps%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">4 pages, 4 never fetched</span> <button type="submit" name="toggle" value="maps">Close</button></span><span>MapStash</span><span>0</span><span><age> ago</span></div>
+<div class="holds">
+<div class="p row depth-1" id="p-m001"><span></span><span><a class="way" data-way="/places/4/places/0" href="/<token>/search?realm=pc&amp;text=id%3Am001%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-1" id="p-m002"><span></span><span><a class="way" data-way="/places/4/places/1" href="/<token>/search?realm=pc&amp;text=id%3Am002%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-1" id="p-m003"><span></span><span><a class="way" data-way="/places/4/places/2" href="/<token>/search?realm=pc&amp;text=id%3Am003%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+<div class="p row depth-1" id="p-m004"><span></span><span><a class="way" data-way="/places/4/places/3" href="/<token>/search?realm=pc&amp;text=id%3Am004%20league%3DStandard&amp;view.fields=icon">(unnamed)</a></span><span>MapStash</span><span>-</span><span>never</span></div>
+</div>
+<div class="p row depth-0" id="p-mape"><span><input type="checkbox" name="tab" value="mape"></span><span><a class="way" data-way="/places/5" href="/<token>/search?realm=pc&amp;text=id%3Amape%20league%3DStandard&amp;view.fields=icon">Maps (empty)</a></span><span>MapStash</span><span>0</span><span><age> ago</span></div>
+</div>
 </details>
 </form>
 

@@ -1934,7 +1934,7 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         "search?realm=pc&text=class%3Arings",
         &[
             "data-way=\"tabs\" href=\"/",
-            "/tabs?realm=pc&amp;league=Standard\">each tab of Standard</a>",
+            "/tabs?realm=pc&amp;league=Standard&amp;fetched=never\">each tab of Standard never fetched</a>",
             "1 other league holds never-fetched tabs",
         ],
     );
@@ -1942,7 +1942,9 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
         &mut pages,
         "GET search?<every ring outside Standard>",
         "search?realm=pc&text=class%3Arings+-league%3DStandard",
-        &["/tabs?realm=pc&amp;league=Hardcore\">each tab of Hardcore</a>"],
+        &[
+            "/tabs?realm=pc&amp;league=Hardcore&amp;fetched=never\">each tab of Hardcore never fetched</a>",
+        ],
     );
 
     // an id that left: Rune Coil gone from its tab at a later fetch
@@ -2490,9 +2492,9 @@ fn the_refresh_loop_runs_through_the_pages() {
             "tabs in Standard",
             "name=\"tab\" value=\"dump\"",
             // never fetched reads apart from fetched and empty (#191)
-            ">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td>",
-            "<td>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>",
-            "<td>Folder</td><td></td><td></td></tr>",
+            ">Dump</a></span><span>PremiumStash</span><span>-</span><span>never</span>",
+            "<span>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>",
+            "<span>Folder</span><span></span><span></span></div>",
             "2 tabs, 2 never fetched",
             "name=\"toggle\" value=\"fold\">Open</button>",
             "Refresh ticked",
@@ -2526,7 +2528,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         tabs.body
     );
     assert!(at(&tabs.body, "Refresh ticked") < at(&tabs.body, "<summary>Stash tabs</summary>"));
-    assert!(at(&tabs.body, "name=\"deep\"") < at(&tabs.body, "<th>Tab</th>"));
+    assert!(at(&tabs.body, "name=\"deep\"") < at(&tabs.body, "<span>Tab</span>"));
     let table_form = at(&tabs.body, "<form method=\"get\" action=\"tabs\">\n");
     assert_eq!(
         at(&tabs.body[table_form..], "<button "),
@@ -2667,7 +2669,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         "GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>",
         &tabs,
         &[
-            "Maps (empty)</a></td><td>MapStash</td><td>0</td>",
+            "Maps (empty)</a></span><span>MapStash</span><span>0</span>",
             "4 pages, 4 never fetched",
             "name=\"toggle\" value=\"maps\">Open</button>",
             "name=\"tab\" value=\"dump\" checked",
@@ -2693,9 +2695,9 @@ fn the_refresh_loop_runs_through_the_pages() {
         &open,
         &[
             "name=\"toggle\" value=\"maps\">Close</button>",
-            "<tbody class=\"holds\">",
-            "<tr class=\"row member\" id=\"p-m001\">",
-            "<tr class=\"row\" id=\"p-maps\">",
+            "<div class=\"holds\">",
+            "<div class=\"p row depth-1\" id=\"p-m001\">",
+            "<div class=\"p row depth-0\" id=\"p-maps\">",
             "name=\"tab\" value=\"dump\" checked",
         ],
     );
@@ -2790,7 +2792,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         filtered.body
     );
     assert!(
-        filtered.body.contains("4 tabs not shown; 1 ticked</td>"),
+        filtered.body.contains("4 tabs not shown; 1 ticked</p>"),
         "{}",
         filtered.body
     );
@@ -2878,7 +2880,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     let whole = web.get(every_open);
     every_request_an_answer_carries_is_a_way_on_its_page(&web, every_open, &whole);
     assert!(
-        whole.body.contains("<td>Old leagues <span"),
+        whole.body.contains("<span>Old leagues <span"),
         "{}",
         whole.body
     );
@@ -5139,4 +5141,274 @@ fn the_saved_pages_are_a_wording_golden() {
         ],
     );
     page_golden(file!(), "saved_pages", &pages);
+}
+
+/// The grouped table (step 6.5b, `roadmap/briefs/4-full-1-step6-grouped.md`):
+/// the seeded world with a folder holding a tab of rings, a map tab with
+/// a ring of its own beside a page's, and a tab never fetched, and a
+/// character carrying a ring. Under a query, the stash tabs page lists
+/// the places that hold a match, each head its matches beside its
+/// items, a parent's its places' sum, a map tab's own said apart, the
+/// rest folded into one counted line; each open place's items one
+/// segment of the page's window under the item columns' heads, a
+/// value's head ordering them. Golden: that page, the page under
+/// `fetched=never`, and the characters page under the query. Then each
+/// way names the URL its decision does: an answer's "by stash tab" and
+/// "by character", the league its query fixes or the default's, none
+/// over all realms or removed items; the fold's; a value's head; a
+/// toggle; and a place opened with no query and a sort named orders its
+/// rows by it.
+#[test]
+fn the_grouped_table_is_a_wording_golden() {
+    let (scratch, web) = offline_web("webgrouped");
+    let mut pages = Pages::new(&scratch.0, &web);
+    let at = |body: &str, words: &str| {
+        body.find(words)
+            .unwrap_or_else(|| panic!("{words}: {body}"))
+    };
+    let mut store = Store::open(&account_path(&scratch.0.join("mock"), USER)).unwrap();
+    let mut record = |ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    let ring = |id: &str, name: &str, ilvl: i64| {
+        json!({ "id": id, "name": name, "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": ilvl, "x": 0, "y": 0 })
+    };
+    let stash = |id: &str, sub: Option<&str>| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: id.into(),
+        sub: sub.map(str::to_string),
+    };
+    record(
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Launch", "type": "PremiumStash" },
+            { "id": "f1", "name": "Old", "type": "Folder", "children": [
+                { "id": "o1", "name": "Old rings", "type": "PremiumStash" } ] },
+            { "id": "m1", "name": "Maps", "type": "MapStash" },
+            { "id": "t3", "name": "Never", "type": "PremiumStash" } ] }),
+        60,
+    );
+    record(
+        stash("o1", None),
+        json!({ "stash": { "id": "o1", "name": "Old rings", "type": "PremiumStash", "items": [
+            ring("o-low", "Cold Band", 62), ring("o-high", "Grim Knot", 81) ] } }),
+        61,
+    );
+    record(
+        stash("m1", None),
+        json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [
+            ring("m-own", "Atlas Loop", 75) ], "children": [
+            { "id": "p1", "name": "Tier 16", "type": "MapStash", "parent": "m1", "metadata": { "items": 1 } },
+            { "id": "p2", "name": "Tier 15", "type": "MapStash", "parent": "m1", "metadata": { "items": 1 } } ] } }),
+        62,
+    );
+    record(
+        stash("m1", Some("p1")),
+        json!({ "stash": { "id": "p1", "name": "Tier 16", "type": "MapStash", "parent": "m1", "items": [
+            ring("m-page", "Tier Loop", 70) ] } }),
+        63,
+    );
+    record(
+        Endpoint::Characters { realm: "pc".into() },
+        json!({ "characters": [
+            { "id": "ch1", "name": "Exile", "league": "Standard", "level": 90 },
+            { "id": "ch2", "name": "Idle", "league": "Standard", "level": 12 } ] }),
+        64,
+    );
+    record(
+        Endpoint::Character {
+            realm: "pc".into(),
+            name: "Exile".into(),
+        },
+        json!({ "character": { "id": "ch1", "name": "Exile", "league": "Standard", "level": 90,
+                               "equipment": [ ring("c-ring", "Worn Loop", 66) ], "inventory": [] } }),
+        65,
+    );
+    drop(store);
+
+    let query = "text=class%3Arings%20ilvl%3E%3D60";
+    let grouped =
+        format!("tabs?realm=pc&league=Standard&{query}&open=t1&open=f1&open=o1&open=m1&tab=t3");
+    let page = web.get(&grouped);
+    pages.page(
+        "GET tabs?<rings, four places open>",
+        &page,
+        &[
+            // the matches here beside the query's own, and the way to them
+            "7 matching items in these stash tabs, of 8 matches",
+            ">every match as a table</a>",
+            // a head whose matches are fewer than its items
+            "<span>PremiumStash</span><span>2 of 3</span>",
+            // a parent's, its places' sum; a map tab's own said apart
+            "<span>Folder</span><span>2 matching</span>",
+            "<span>MapStash</span><span>2 matching</span>",
+            "1 matching item in the tab itself",
+            // the fold: the tab never fetched, its tick travelling hidden
+            "1 tab not shown, <a href=",
+            ">1 never fetched</a>; 1 ticked</p>",
+            "<input type=\"hidden\" name=\"tab\" value=\"t3\">",
+            "1 page not shown, <a href=",
+            // an open place's segment under the columns' heads, once
+            "<div class=\"r head\"><span>Item</span>",
+            "<div class=\"seg\" data-route=\"",
+            "data-count=\"2\" data-base=\"0\"",
+            "ilvl<span class=\"sr\">, ordered largest first</span></a>",
+        ],
+    );
+    assert_eq!(
+        page.body.matches("<div class=\"r head\">").count(),
+        1,
+        "{}",
+        page.body
+    );
+    let never = web.get("tabs?realm=pc&league=Standard&fetched=never");
+    pages.page(
+        "GET tabs?realm=pc&league=Standard&fetched=never",
+        &never,
+        &["id=\"p-t3\"", "id=\"p-m1\"", "3 tabs not shown</p>"],
+    );
+    let characters = web.get(&format!(
+        "characters?realm=pc&league=Standard&{query}&open=ch1"
+    ));
+    pages.page(
+        "GET characters?<rings, Exile open>",
+        &characters,
+        &[
+            "1 matching item on these characters, of 8 matches",
+            "<span>90</span><span>1 of 1</span>",
+            "1 character not shown, <a href=",
+            "data-id=\"c-ring\"",
+        ],
+    );
+    page_golden(file!(), "grouped", &pages);
+
+    // the document's counts are the page's
+    let doc = web.get_json(&grouped);
+    assert_eq!(doc["query"]["matched"], 7, "{doc}");
+    assert_eq!(doc["query"]["total"]["matched"], 8, "{doc}");
+    assert_eq!(doc["folded"], json!({ "places": 1, "never_fetched": 1 }));
+
+    // a value's head: the same page ordered by it the other way from the
+    // query's own order (largest first), every open and tick kept, the
+    // places in stash order and the rows inside each ordered
+    let head = &page.body[at(&page.body, "<div class=\"r head\">")..];
+    let href = attribute(&head[head.find("<a class=\"head\"").unwrap()..], "href").unwrap();
+    assert_eq!(
+        href,
+        format!(
+            "/{}/tabs?realm=pc&league=Standard&text=class%3Arings%20ilvl%3E%3D60&view.sort=ilvl&open=t1&open=f1&open=o1&open=m1&tab=t3",
+            web.token
+        )
+    );
+    let ordered = follow(&web, &href);
+    let ids = |body: &str| -> Vec<String> {
+        body.split("data-id=\"")
+            .skip(1)
+            .map(|s| s[..s.find('"').unwrap()].to_string())
+            .collect()
+    };
+    let shown = ids(&ordered.body);
+    assert!(
+        shown.iter().position(|i| i == "o-low") < shown.iter().position(|i| i == "o-high"),
+        "{shown:?}"
+    );
+    assert!(at(&ordered.body, "id=\"p-t1\"") < at(&ordered.body, "id=\"p-f1\""));
+    // a toggle keeps the query, the view and every tick
+    let toggled = follow(
+        &web,
+        &place_form(&web, &ordered.body, &[], "Close", Some(("toggle", "t1"))),
+    );
+    assert_eq!(
+        toggled.header("location"),
+        Some(
+            format!(
+                "/{}/tabs?realm=pc&league=Standard&text=class%3Arings%20ilvl%3E%3D60&view.sort=ilvl&open=f1&open=o1&open=m1&tab=t3#p-t1",
+                web.token
+            )
+            .as_str()
+        )
+    );
+    // the fold's never-fetched count: the page under `fetched=never`
+    // alone, every open and tick kept
+    let fold = &page.body[at(&page.body, "1 tab not shown")..];
+    let href = attribute(&fold[fold.find("<a ").unwrap()..], "href").unwrap();
+    assert_eq!(
+        href,
+        format!(
+            "/{}/tabs?realm=pc&league=Standard&fetched=never&open=t1&open=f1&open=o1&open=m1&tab=t3",
+            web.token
+        )
+    );
+    // a place opened with no query and a sort named orders its rows by
+    // it, either way
+    for (desc, first) in [("&view.desc=true", "o-high"), ("", "o-low")] {
+        let sorted = web.get(&format!(
+            "tabs?realm=pc&league=Standard&open=f1&open=o1&view.sort=ilvl{desc}"
+        ));
+        assert_eq!(
+            ids(&sorted.body).first().map(String::as_str),
+            Some(first),
+            "{}",
+            sorted.body
+        );
+    }
+
+    // an answer's ways to the place pages: the league its query fixes, or
+    // the default's, the canonical text and the view
+    let by = |path: &str| -> Vec<String> {
+        let body = web.get(path).body;
+        ["by stash tab", "by character"]
+            .iter()
+            .filter_map(|words| {
+                let end = body.find(&format!("\">{words}</a>"))?;
+                let start = body[..end].rfind("href=\"")? + "href=\"".len();
+                Some(unescaped(&body[start..end]))
+            })
+            .collect()
+    };
+    assert_eq!(
+        by("search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl"),
+        [
+            format!(
+                "/{}/tabs?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl",
+                web.token
+            ),
+            format!(
+                "/{}/characters?realm=pc&league=Standard&text=class%3Arings&view.sort=ilvl",
+                web.token
+            ),
+        ]
+    );
+    let fixed = by("search?realm=pc&text=class%3Arings%20league%3DHardcore");
+    assert!(
+        fixed[0].contains("tabs?realm=pc&league=Hardcore&text=class%3Arings%20league%3DHardcore"),
+        "{fixed:?}"
+    );
+    let landed = follow(&web, &by("search?realm=pc&text=class%3Arings")[0]);
+    assert!(
+        landed.body.contains("matching items in these stash tabs"),
+        "{}",
+        landed.body
+    );
+    // none over all realms, none over removed items
+    for path in [
+        "search?realm=all&text=class%3Arings",
+        "search?realm=pc&membership=all&text=class%3Arings",
+    ] {
+        assert_eq!(by(path), Vec::<String>::new(), "{path}");
+    }
 }

@@ -183,12 +183,15 @@ impl Cdp {
     }
 
     /// Keys as a user's would: each character a key down carrying its
-    /// text and a key up; `\u{8}` the backspace key.
+    /// text and a key up; `\u{8}` the backspace key, `\r` the Enter key.
     fn keys(&mut self, text: &str) {
         for c in text.chars() {
             let down = match c {
                 '\u{8}' => {
                     json!({ "type": "rawKeyDown", "key": "Backspace", "code": "Backspace", "windowsVirtualKeyCode": 8 })
+                }
+                '\r' => {
+                    json!({ "type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "text": "\r" })
                 }
                 c => json!({ "type": "keyDown", "key": c.to_string(), "text": c.to_string() }),
             };
@@ -866,6 +869,205 @@ fn opening_a_far_parent_keeps_its_head_in_view_and_every_tick() {
         );
     }
     assert_eq!(look["ticked"], json!(true), "the tick was lost: {look}");
+}
+
+/// What one segment of a place page's window shows now (step 6.5b), as
+/// [`LOOK`] reads the table's one: the segment by its place's id.
+fn look_at(place: &str) -> String {
+    format!(
+        "(() => {{ \
+        const table = document.querySelector('.window[data-row-height]'); \
+        let seg = document.getElementById('p-{place}').nextElementSibling; \
+        while (seg && seg.tagName === 'NOSCRIPT') seg = seg.nextElementSibling; \
+        if (!seg || !seg.classList.contains('seg')) return 'no segment'; \
+        const h = Number(table.dataset.rowHeight); \
+        const top = seg.getBoundingClientRect().top; \
+        const vh = window.innerHeight; \
+        const count = Number(seg.dataset.count); \
+        const drawn = Array.from(seg.querySelectorAll('.r[data-i]'), (r) => \
+          [Number(r.dataset.i), r.dataset.id, r.getBoundingClientRect().top - top]); \
+        const at = new Map(drawn.map((row) => [row[0], row])); \
+        const first = Math.max(0, Math.floor(-top / h)); \
+        const last = Math.min(count, Math.ceil((vh - top) / h)) - 1; \
+        const covered = []; \
+        for (let i = first; i <= last; i++) {{ if (!at.has(i)) return null; covered.push(at.get(i)); }} \
+        return {{ h, count, route: seg.dataset.route, top: top + window.scrollY, covered }}; }})()"
+    )
+}
+
+/// The grouped table's window (step 6.5b, Decision 5): on a stash tabs
+/// page, a query typed in its box and sent by Enter lands on the place
+/// page, a tick and an open kept, never the plan. Then, with a tab of
+/// several blocks open and a second tab's opener clicked, the page that
+/// loads stands at the second's head, in view, though the first's
+/// segment above it was sized after the anchor landed; and wherever
+/// either segment is scrolled into view, the rows the viewport covers
+/// under its head are, id for id, its route's JSON at those offsets,
+/// each drawn at its index times the row height.
+#[test]
+fn a_grouped_page_shows_each_open_places_rows_and_keeps_its_place() {
+    let (scratch, web) = offline_web("browsergrouped");
+    let mut store = acquisition_store::Store::open(&acquisition_store::account_path(
+        &scratch.0.join("mock"),
+        USER,
+    ))
+    .expect("the seeded store");
+    let mut record = |ep: acquisition_store::Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "pc", "league": "Standard" }),
+                200,
+                &body,
+                at,
+            )
+            .expect("a recorded fetch");
+    };
+    let small = |n: usize| json!({ "id": format!("t{n:02}"), "name": format!("Tab {n:02}"), "type": "PremiumStash" });
+    let mut listed: Vec<Value> = (0..4).map(small).collect();
+    listed.push(json!({ "id": "big1", "name": "Bulk one", "type": "PremiumStash" }));
+    listed.extend((4..8).map(small));
+    listed.push(json!({ "id": "big2", "name": "Bulk two", "type": "PremiumStash" }));
+    listed.extend((8..12).map(small));
+    record(
+        acquisition_store::Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        json!({ "stashes": listed }),
+        60,
+    );
+    for (id, name, rows) in [("big1", "Bulk one", 330), ("big2", "Bulk two", 140)] {
+        let items: Vec<Value> = (0..rows)
+            .map(|n| {
+                json!({ "id": format!("{id}-{n:04}"), "name": format!("Bulk {n:04}"), "typeLine": "Iron Ring",
+                        "baseType": "Iron Ring", "rarity": "Rare", "frameTypeId": 2, "identified": true,
+                        "ilvl": 60, "x": n % 24, "y": n / 24 })
+            })
+            .collect();
+        record(
+            acquisition_store::Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: id.into(),
+                sub: None,
+            },
+            json!({ "stash": { "id": id, "name": name, "type": "PremiumStash", "items": items } }),
+            61,
+        );
+    }
+    drop(store);
+
+    let mut page = Page::blank(&profile_of(&scratch));
+    page.cdp.call(
+        "Emulation.setDeviceMetricsOverride",
+        json!({ "width": 1000, "height": 600, "deviceScaleFactor": 1, "mobile": false }),
+    );
+    // a query sent by Enter: the place page, the tick and the open kept
+    page.navigate(&format!(
+        "{}tabs?realm=pc&league=Standard&open=big1",
+        web.url
+    ));
+    page.cdp
+        .click("document.querySelector('input[name=\"tab\"][value=\"t01\"]')");
+    page.cdp
+        .click("document.querySelector('input[name=\"text\"]')");
+    page.cdp.keys("name:bulk\r");
+    page.loaded_again();
+    let landed = page.cdp.eval(
+        "({ path: location.pathname, fields: location.search, \
+            matched: document.querySelector('p.matched') !== null })",
+    );
+    let fields = landed["fields"].as_str().unwrap_or_default().to_string();
+    assert!(
+        landed["path"]
+            .as_str()
+            .is_some_and(|p| p.ends_with("/tabs")),
+        "{landed}"
+    );
+    for field in ["text=name%3Abulk", "open=big1", "tab=t01"] {
+        assert!(fields.contains(field), "{field}: {landed}");
+    }
+    assert_eq!(landed["matched"], json!(true), "{landed}");
+
+    // the second tab opened: its head in view, the first's segment above
+    // it sized
+    page.cdp
+        .click("document.querySelector('button[name=\"toggle\"][value=\"big2\"]')");
+    page.loaded_again();
+    page.cdp
+        .until("document.querySelector('.window[data-windowed]') !== null");
+    let head = page.cdp.eval(
+        "(() => { const head = document.getElementById('p-big2').getBoundingClientRect(); \
+         return { hash: location.hash, top: head.top, bottom: head.bottom, vh: window.innerHeight, \
+                  scrolled: window.scrollY }; })()",
+    );
+    assert_eq!(head["hash"], "#p-big2", "{head}");
+    let (top, bottom, vh) = (
+        head["top"].as_f64().unwrap(),
+        head["bottom"].as_f64().unwrap(),
+        head["vh"].as_f64().unwrap(),
+    );
+    assert!(
+        top >= 0.0 && bottom <= vh,
+        "the head is out of view: {head}"
+    );
+    assert!(
+        head["scrolled"].as_f64().unwrap() > 330.0 * 24.0 / 2.0,
+        "the first segment is not above the head: {head}"
+    );
+
+    // each segment's rows, wherever it is scrolled into view
+    let seen = |page: &mut Page, place: &str, rows: usize, at: &str, scroll: &str| {
+        page.cdp.eval(&format!(
+            "(() => {{ let seg = document.getElementById('p-{place}').nextElementSibling; \
+             while (seg.tagName === 'NOSCRIPT') seg = seg.nextElementSibling; \
+             window.scrollTo(0, seg.getBoundingClientRect().top + window.scrollY + {scroll}); return true; }})()"
+        ));
+        page.cdp.until(&format!("{} !== null", look_at(place)));
+        let look = page.cdp.eval(&look_at(place));
+        assert_eq!(look["count"], rows, "{place} {at}: {look}");
+        let covered = look["covered"].as_array().unwrap();
+        assert!(!covered.is_empty(), "{place} {at}: no row in view");
+        let first = covered[0][0].as_u64().unwrap();
+        let route = look["route"]
+            .as_str()
+            .unwrap()
+            .trim_start_matches(&format!("/{}/", web.token))
+            .to_string();
+        let answered = web.get_json(&format!("{route}&offset={first}&count={}", covered.len()));
+        let ids: Vec<&Value> = answered["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| &r["id"])
+            .collect();
+        let shown: Vec<&Value> = covered.iter().map(|r| &r[1]).collect();
+        assert_eq!(shown, ids, "{place} {at}: the rows the viewport covers");
+        let h = look["h"].as_f64().unwrap();
+        for row in covered {
+            let (i, y) = (row[0].as_f64().unwrap(), row[2].as_f64().unwrap());
+            assert!((y - i * h).abs() <= 0.5, "{place} {at}: row {i} at {y}");
+        }
+    };
+    for (place, rows) in [("big1", 330), ("big2", 140)] {
+        let h = 24;
+        seen(&mut page, place, rows, "its start", "-100");
+        seen(
+            &mut page,
+            place,
+            rows,
+            "its middle",
+            &format!("{} - 300", rows * h / 2),
+        );
+        seen(
+            &mut page,
+            place,
+            rows,
+            "its end",
+            &format!("{} - 500", rows * h),
+        );
+    }
 }
 
 /// The harness refuses a browser that exits before its debugging

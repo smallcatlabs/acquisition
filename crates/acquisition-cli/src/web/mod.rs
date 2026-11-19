@@ -108,15 +108,15 @@
 //!   characters`) render the search crate's places document of the URL's
 //!   realm and league, and "Refresh" is gone. The realm and league selects
 //!   are a form of their own and carry no tick: one id can stand in two
-//!   leagues. The table and its buttons are one GET form: `open` names
-//!   each open parent, `tab` or `character` each ticked place, and the
-//!   server renders both from the URL (C16). A parent's opener sends
+//!   leagues. The list and its buttons are one GET form: `open` names
+//!   each open place, `tab` or `character` each ticked place, and the
+//!   server renders both from the URL (C16). A place's opener sends
 //!   `toggle`, answered `303` to the page with `open` changed, every tick
 //!   kept and no `toggle`, at the parent's head's anchor, so the reader
 //!   stays where they were (#270, #269). A tick under a closed parent
 //!   travels as a hidden field, counted in words on its head. An `open`
 //!   or a tick that names no place of the league is dropped, in the page
-//!   and in every URL it writes. Heads are plain rows, never windowed. A
+//!   and in every URL it writes. Heads are never windowed. A
 //!   place's name is its request as a table, spelled by [`Paged`]; a
 //!   folder's is words. "Refresh ticked" sends the form to `plan` as a
 //!   selection, and "Plan under the policy" shows only where the policy
@@ -138,6 +138,30 @@
 //!   its level's one fold line after its rows counts it, those never
 //!   fetched a link to the page under `fetched=never` alone, every open
 //!   and tick kept.
+//! - **The grouped table** (the same brief): `text` is the places
+//!   document's query, `view.value`, `view.sort` and `view.desc` the view
+//!   every place's request takes, with a query or without, carried hidden
+//!   in the list's form; its box stands before "Show". The list is the
+//!   page's one `.window`, inside the form: each place's head, fold line
+//!   and own-matches line in the flow, and each open place that holds no
+//!   places one segment of its items — its route the token of its
+//!   request's first window, its count that window's own
+//!   `total.matched`, its base 0, its first block the server's, answered
+//!   over one corpus — and none where it holds none. The item columns'
+//!   heads stand once above the places where a segment does, a value's
+//!   head the page ordered by it through the one maker of a change to the
+//!   view, so a sort orders the rows inside each place and the places
+//!   keep their order. `window.js` is the table's, unchanged: it sizes
+//!   the segments while the page is parsed, before the browser scrolls to
+//!   a toggle's anchor, so the head lands in view
+//!   (`a_grouped_page_shows_each_open_places_rows_and_keeps_its_place`).
+//!   Under a query each head says its matches beside its items, and the
+//!   page the league's matches beside the query's own, linking every match
+//!   as a table. A rows answer links "by stash tab" and "by character",
+//!   the place page of the league its query fixes or the default's, with
+//!   its canonical text and view ([`by_place`]), none under all realms,
+//!   another membership than live, or a request the form cannot ask; the
+//!   scope's tabs link names `fetched=never`.
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
@@ -1154,12 +1178,12 @@ async fn search(
             }
             _ => None,
         };
-        Ok((answer, window, opened, carried, continued))
+        Ok((answer, window, opened, carried, continued, request))
     })
     .await;
     match asked {
         Ok((answer, ..)) if json => document(&answer),
-        Ok((answer, window, opened, carried, continued)) => {
+        Ok((answer, window, opened, carried, continued, request)) => {
             let mut head = Head {
                 count: true,
                 window: window.is_some(),
@@ -1184,7 +1208,8 @@ async fn search(
                     )
                 })
                 .unwrap_or_default();
-            let rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
+            let mut rows_links = rows_links(&web, &sent, continued.as_ref(), &answer);
+            rows_links.places = by_place(&web, &request, &answer);
             let view_links = |value: &str| match &answer.view {
                 acquisition_search::answer::ViewOut::Rows(rows) => {
                     view_link(&web, &sent, continued.as_ref(), rows, value)
@@ -1271,6 +1296,7 @@ fn rows_links(
                 words,
             }),
             first: None,
+            places: Vec::new(),
         };
     };
     // the continued search from its start, as the form would ask it, the
@@ -1297,7 +1323,60 @@ fn rows_links(
     page::RowsLinks {
         other: spelt(swapped).map(|href| page::Presentation { href, words }),
         first: spelt(first),
+        places: Vec::new(),
     }
+}
+
+/// The ways from a rows answer to the place pages (step 6.5b, Decision
+/// 7): "by stash tab" and "by character", each the place page of the one
+/// league the query fixes, else the default's, with the canonical text
+/// and the view. None where the form cannot ask the request, under all
+/// realms, or under a membership other than live: a place page is one
+/// realm's live items.
+fn by_place(
+    web: &Web,
+    request: &Request,
+    answer: &acquisition_search::Answer,
+) -> Vec<page::Presentation> {
+    use acquisition_search::answer::{Membership, Shape, ViewOut};
+    let (ViewOut::Rows(_), Shape::Rows(view)) = (&answer.view, &request.view.shape) else {
+        return Vec::new();
+    };
+    let acquisition_search::Realm::One(realm) = &answer.scope.realm else {
+        return Vec::new();
+    };
+    if answer.scope.membership != Membership::Live || web.asked_by_the_form(request).is_none() {
+        return Vec::new();
+    }
+    let Some(realm) = Realm::parse(realm) else {
+        return Vec::new();
+    };
+    let league = answer
+        .fixed_league()
+        .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
+    let shown = Shown {
+        text: Some(answer.query.text.clone()),
+        view: acquisition_search::answer::Rows {
+            values: view.values.clone(),
+            sort: view.sort.clone(),
+            desc: view.desc,
+            ..Default::default()
+        },
+        ..Shown::default()
+    };
+    [
+        (Listed::Tabs, "by stash tab"),
+        (Listed::Characters, "by character"),
+    ]
+    .into_iter()
+    .map(|(listed, words)| page::Presentation {
+        href: web.link(
+            listed.route(),
+            &place_fields(listed, realm, league, &shown, false, &[], &[]),
+        ),
+        words,
+    })
+    .collect()
 }
 
 /// The one maker of a change to the view (4-full part 1, step 6.4c,
@@ -1321,18 +1400,17 @@ fn view_link(
     rows: &acquisition_search::answer::RowsOut,
     value: &str,
 ) -> Option<page::ViewLink> {
-    use acquisition_search::answer::{Shape, VALUES};
-    let held = rows.values.iter().any(|v| v == value);
-    if !held && rows.values.len() >= VALUES {
-        return None;
-    }
-    let ordered = (rows.sort.as_deref() == Some(value)).then_some(rows.desc);
-    // largest first, or the other way where the rows are ordered by it so
-    let desc = ordered.is_none_or(|desc| !desc);
+    use acquisition_search::answer::Shape;
+    let ViewChange {
+        desc,
+        values,
+        held,
+        ordered,
+        ..
+    } = view_change(rows, value)?;
     let listed = |list: &mut Vec<String>| {
-        if !held {
-            *list = rows.values.clone();
-            list.push(value.to_string());
+        if let Some(values) = &values {
+            list.clone_from(values);
         }
     };
     let href = match continued {
@@ -1380,6 +1458,42 @@ fn view_link(
     };
     Some(page::ViewLink {
         href,
+        held,
+        ordered,
+    })
+}
+
+/// A change to the view by one value (step 6.4c, Decision 2): the rows
+/// ordered by it, largest first or the other way where they are ordered
+/// by it so, and the list of values to name where the view lacks it —
+/// the answer's with it added at the end. None where the list is full
+/// ([`VALUES`]). [`view_link`] spells it for an answer, a place page
+/// for its own fields (step 6.5b).
+///
+/// [`VALUES`]: acquisition_search::answer::VALUES
+struct ViewChange {
+    sort: String,
+    desc: bool,
+    values: Option<Vec<String>>,
+    held: bool,
+    ordered: Option<bool>,
+}
+
+fn view_change(rows: &acquisition_search::answer::RowsOut, value: &str) -> Option<ViewChange> {
+    let held = rows.values.iter().any(|v| v == value);
+    if !held && rows.values.len() >= acquisition_search::answer::VALUES {
+        return None;
+    }
+    let ordered = (rows.sort.as_deref() == Some(value)).then_some(rows.desc);
+    Some(ViewChange {
+        sort: value.to_string(),
+        // largest first, or the other way where the rows are ordered by it so
+        desc: ordered.is_none_or(|desc| !desc),
+        values: (!held).then(|| {
+            let mut list = rows.values.clone();
+            list.push(value.to_string());
+            list
+        }),
         held,
         ordered,
     })
@@ -1676,9 +1790,10 @@ async fn places(
         return document(&places);
     }
     let every = places.every();
-    let parents: Vec<&str> = every
+    // a place opens where it shows something: its places, or its items
+    let openable: Vec<&str> = every
         .iter()
-        .filter(|p| p.holds.is_some())
+        .filter(|p| p.holds.is_some() || p.request.is_some())
         .map(|p| p.id())
         .collect();
     let tickable: Vec<&str> = every
@@ -1695,10 +1810,10 @@ async fn places(
         }
         out
     };
-    let mut open = named("open", &parents);
+    let mut open = named("open", &openable);
     let ticked = named(listed.tick(), &tickable);
     let deep = listed == Listed::Tabs && pick(&fields, "deep").is_some();
-    if let Some(toggle) = pick(&fields, "toggle").filter(|t| parents.contains(t)) {
+    if let Some(toggle) = pick(&fields, "toggle").filter(|t| openable.contains(t)) {
         match open.iter().position(|o| o == toggle) {
             Some(at) => {
                 open.remove(at);
@@ -1731,11 +1846,76 @@ async fn places(
             fetched: Some(acquisition_search::places::Fetched::Never),
             ..Default::default()
         },
+        ..Shown::default()
     };
     let never = web.link(
         listed.route(),
         &place_fields(listed, realm, &league, &never, deep, &open, &ticked),
     );
+    // each open place the page draws that shows items: one segment of the
+    // page's one window, its first block the server's, its count that
+    // block's own `total.matched` (the designer's read, its second
+    // change); none where it holds none
+    let shows: Vec<(String, Request)> = drawn_items(&places.places, &open)
+        .into_iter()
+        .filter_map(|p| {
+            let mut table = p.request.clone()?;
+            if let acquisition_search::answer::Shape::Rows(rows) = &mut table.view.shape {
+                rows.fields = vec![acquisition_search::answer::RowField::Icon];
+            }
+            Some((p.id().to_string(), table))
+        })
+        .collect();
+    let windows = blocking(&web, move |web| -> Result<_, Failure> {
+        let mut windows = std::collections::HashMap::new();
+        let mut corpus = None;
+        for (id, table) in shows {
+            let corpus = match &corpus {
+                Some(corpus) => Arc::clone(corpus),
+                None => corpus.insert(web.corpus(&table)?).clone(),
+            };
+            let first = web.window(&corpus, &table, &corpus.basis, 0, page::BLOCK_ROWS)?;
+            let count = first.total.matched;
+            if count == 0 {
+                continue;
+            }
+            let token =
+                window_request(&table, &first.basis, 0, count.min(page::BLOCK_ROWS)).token();
+            windows.insert(
+                id,
+                page::Window {
+                    route: web.link("rows", &[("next", token)]),
+                    first,
+                },
+            );
+        }
+        Ok(windows)
+    })
+    .await;
+    let windows = match windows {
+        Ok(windows) => windows,
+        Err(failure) => return web.failed(title, &failure, &headers),
+    };
+    // a value's head: the page ordered by it, through the one maker of a
+    // change to the view, every open and tick kept
+    let view_links = |rows: &acquisition_search::answer::RowsOut, value: &str| {
+        let change = view_change(rows, value)?;
+        let mut changed = shown.clone();
+        changed.view.sort = Some(change.sort);
+        changed.view.desc = change.desc;
+        if let Some(values) = change.values {
+            changed.view.values = values;
+        }
+        Some(page::ViewLink {
+            href: web.link(
+                listed.route(),
+                &place_fields(listed, realm, &league, &changed, deep, &open, &ticked),
+            ),
+            held: change.held,
+            ordered: change.ordered,
+        })
+    };
+    let hidden_view: Vec<(&'static str, String)> = shown.view_fields();
     let body = page::places(&page::PlacesPage {
         listed: listed.route(),
         title,
@@ -1749,19 +1929,54 @@ async fn places(
         ticked: &ticked,
         deep,
         filter: &shown.filter,
+        text: shown.text.as_deref(),
+        view_fields: &hidden_view,
         carried: &carried,
         never: &never,
+        windows: &windows,
+        view_links: &view_links,
         policy,
         spell: &spell,
         now: acquisition_store::now(),
     });
-    web.page(title, Head::default(), &body)
+    web.page(
+        title,
+        Head {
+            window: !windows.is_empty(),
+            ..Head::default()
+        },
+        &body,
+    )
+}
+
+/// The open places a page draws that show their items: listed, every
+/// place above them open, and holding no places of their own, in order.
+fn drawn_items<'a>(
+    places: &'a [acquisition_search::places::Place],
+    open: &[String],
+) -> Vec<&'a acquisition_search::places::Place> {
+    let mut out = Vec::new();
+    for place in places.iter().filter(|p| p.is_listed()) {
+        if !open.iter().any(|o| o == place.id()) {
+            continue;
+        }
+        if place.places.is_empty() {
+            out.push(place);
+        } else {
+            out.extend(drawn_items(&place.places, open));
+        }
+    }
+    out
 }
 
 /// What a place page's URL asks of its places beside the opens and the
-/// ticks (step 6.5b): the filter, read as the places document reads it.
+/// ticks (step 6.5b): the query's text, the filter, read as the places
+/// document reads it, and the view every place's request takes.
+#[derive(Clone, Default)]
 struct Shown {
+    text: Option<String>,
     filter: acquisition_search::places::Filter,
+    view: acquisition_search::answer::Rows,
 }
 
 impl Shown {
@@ -1769,11 +1984,22 @@ impl Shown {
     /// refuses is the page's refusal.
     fn read(fields: &[(String, String)]) -> Result<Shown, Failure> {
         Ok(Shown {
+            text: pick(fields, "text").map(str::to_string),
             filter: acquisition_search::places::Filter::read(
                 pick(fields, "name"),
                 pick(fields, "type"),
                 pick(fields, "fetched"),
             )?,
+            view: acquisition_search::answer::Rows {
+                values: fields
+                    .iter()
+                    .filter(|(k, v)| k == "view.value" && !v.is_empty())
+                    .map(|(_, v)| v.clone())
+                    .collect(),
+                sort: pick(fields, "view.sort").map(str::to_string),
+                desc: pick(fields, "view.desc") == Some("true"),
+                ..Default::default()
+            },
         })
     }
 
@@ -1781,14 +2007,30 @@ impl Shown {
     fn asking(&self) -> acquisition_search::places::Asking {
         acquisition_search::places::Asking {
             filter: self.filter.clone(),
-            ..Default::default()
+            query: self.text.clone(),
+            view: self.view.clone(),
         }
+    }
+
+    /// The view's fields, in their order: each value, the sort, the order.
+    fn view_fields(&self) -> Vec<(&'static str, String)> {
+        let mut fields: Vec<(&'static str, String)> = self
+            .view
+            .values
+            .iter()
+            .map(|v| ("view.value", v.clone()))
+            .collect();
+        fields.extend(self.view.sort.iter().map(|s| ("view.sort", s.clone())));
+        if self.view.desc {
+            fields.push(("view.desc", "true".to_string()));
+        }
+        fields
     }
 }
 
 /// A place page's URL fields, in the one order every link and redirect
-/// writes them: realm, league, the filter's fields, the substashes box,
-/// each open place, each tick.
+/// writes them: realm, league, the query's text, the filter's fields, the
+/// view's, the substashes box, each open place, each tick.
 fn place_fields(
     listed: Listed,
     realm: Realm,
@@ -1802,12 +2044,14 @@ fn place_fields(
         ("realm", realm.as_str().to_string()),
         ("league", league.to_string()),
     ];
+    fields.extend(shown.text.iter().map(|t| ("text", t.clone())));
     let filter = &shown.filter;
     fields.extend(filter.name.iter().map(|n| ("name", n.clone())));
     fields.extend(filter.r#type.iter().map(|t| ("type", t.clone())));
     if filter.fetched.is_some() {
         fields.push(("fetched", "never".to_string()));
     }
+    fields.extend(shown.view_fields());
     if deep {
         fields.push(("deep", "true".to_string()));
     }
