@@ -410,6 +410,31 @@ fn the_places_are_the_stash_tree_in_order_and_each_request_lists_its_items() {
     // pages'
     assert_eq!(at("s1").item_count(), 2);
     assert_eq!(at("t1").item_count(), 2);
+
+    // an item's place and each place holding it, top first (step 6.5c):
+    // the place an item's row names is the document's
+    let placed = |item: &str| {
+        let request: acquisition_search::Request = serde_json::from_value(json!({
+            "query": { "text": format!("id:{item}") },
+            "view": { "rows": { "limit": 1 } },
+        }))
+        .unwrap();
+        let a = as_json(&answer(&corpus, &request).unwrap());
+        a["rows"][0]["place"]["id"].as_str().unwrap().to_string()
+    };
+    for (item, path) in [
+        ("r1", &["t1"][..]),
+        ("o1", &["f1", "c1"]),
+        ("map1", &["m1", "s1"]),
+        ("lost1", &["p1"]),
+    ] {
+        assert_eq!(
+            places.holders(&placed(item)).as_deref(),
+            Some(path),
+            "{item}"
+        );
+    }
+    assert_eq!(places.holders("nowhere"), None);
 }
 
 /// A league's characters as places: the store's order, each its request
@@ -464,7 +489,11 @@ fn a_leagues_characters_are_places_each_with_its_request() {
     let mut request = doc_place(&doc, "ch2")["request"].clone();
     request["view"] = json!({ "rows": { "limit": 100 } });
     let request: acquisition_search::Request = serde_json::from_value(request).unwrap();
-    assert_eq!(ids(&as_json(&answer(&corpus, &request).unwrap())), ["bag"]);
+    let a = as_json(&answer(&corpus, &request).unwrap());
+    assert_eq!(ids(&a), ["bag"]);
+    // the place an item's row names is the character's, held alone
+    let place = a["rows"][0]["place"]["id"].as_str().unwrap();
+    assert_eq!(places.holders(place).as_deref(), Some(&["ch2"][..]));
 }
 
 /// A place of a places document by its id, anywhere in the tree.

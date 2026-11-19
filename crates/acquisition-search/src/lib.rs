@@ -381,7 +381,7 @@ pub mod trade;
 pub mod tree;
 mod values;
 
-pub use answer::{Answer, Request, answer};
+pub use answer::{Answer, Request, answer, indices};
 pub use bind::{NOT_BUILT, NotBuilt, Query, bind, not_built, parse_query};
 pub use category::{CATEGORY_TABLE_VERSION, COLOUR_TABLE_VERSION, Category, CategoryTableError};
 pub use class::{CLASS_TABLE_VERSION, ClassGap, ClassTable, ClassTableError, Classed};

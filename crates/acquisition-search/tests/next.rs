@@ -115,6 +115,61 @@ fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
     assert_eq!(second["terms"], first["terms"]);
 }
 
+/// Each id's index in a rows request's whole order (step 6.5c, Decision
+/// 2): asked of `answer` with `after` that index and `limit` one, it is
+/// that row, in the store's order, under a sort either way, and in the
+/// order the query gave; an id outside the order has none, whatever the
+/// request's own `after` and `limit`.
+#[test]
+fn an_ids_index_is_the_place_answer_lists_its_row_at() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    for (text, rows) in [
+        ("", json!({})),
+        ("", json!({ "sort": "none" })),
+        ("", json!({ "sort": "pseudo.total_res" })),
+        ("", json!({ "sort": "pseudo.total_res", "desc": true })),
+        ("pseudo.total_res>=0", json!({})),
+    ] {
+        let view = |after: Option<u64>, limit: u64| {
+            let mut rows = rows.clone();
+            rows["limit"] = json!(limit);
+            if let Some(after) = after {
+                rows["after"] = json!(after);
+            }
+            json!({ "query": { "text": text }, "view": { "rows": rows } })
+        };
+        let whole = asked(&corpus, &view(None, 100)).unwrap();
+        let order = in_order(&whole);
+        assert!(order.len() > 3, "{whole}");
+        let mut ids: Vec<&str> = order.iter().map(String::as_str).collect();
+        ids.reverse();
+        ids.push("not-an-item");
+        // the request's own place and limit aside: a window of it
+        let mut window = view(Some(2), 1);
+        window["basis"] = whole["basis"].clone();
+        let window: Request = serde_json::from_value(window).unwrap();
+        let at = acquisition_search::indices(&corpus, &window, &ids).unwrap();
+        assert_eq!(at.last(), Some(&None), "{rows}");
+        for (id, at) in ids.iter().zip(&at).filter(|(id, _)| **id != "not-an-item") {
+            let n = at.unwrap_or_else(|| panic!("{id} has no index under {rows}"));
+            let mut one = view(Some(n as u64), 1);
+            one["basis"] = whole["basis"].clone();
+            let one = asked(&corpus, &one).unwrap();
+            assert_eq!(in_order(&one), [id.to_string()], "{text} {rows}");
+        }
+    }
+    // a view that lists no rows holds no order
+    let counts: Request = serde_json::from_value(json!({
+        "query": { "text": "" }, "view": { "counts": { "keys": ["rarity"] } },
+    }))
+    .unwrap();
+    assert_eq!(
+        acquisition_search::indices(&corpus, &counts, &["r1"]).unwrap(),
+        [None]
+    );
+}
+
 /// A continuation of rows the query ordered unasked goes on in that
 /// order (4-full part 1, step 6.1): it names what its request named and
 /// the query fills the rest again, the same at the basis it names, so

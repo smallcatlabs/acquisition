@@ -2177,7 +2177,186 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
     (places.len(), Some(coverage::span(&fetched, &bases)))
 }
 
-pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
+/// The matches' order, each an index into `matches`: by `sort`, largest
+/// first where `desc`, an item lacking the value after every item that
+/// has it, ties in the corpus's order; with none, the corpus's order.
+fn ordered(
+    corpus: &Corpus,
+    matches: &[(usize, Vec<Outcome>)],
+    sort: Option<&bind::SortKey>,
+    desc: bool,
+) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..matches.len()).collect();
+    if let Some(key) = sort {
+        let scalars: Vec<Scalar> = matches
+            .iter()
+            .map(|(at, _)| eval::scalar(key, &corpus.items[*at]))
+            .collect();
+        order.sort_by(|a, b| match (scalars[*a], scalars[*b]) {
+            (Scalar::Value(x), Scalar::Value(y)) => {
+                let by = x.cmp(&y);
+                if desc { by.reverse() } else { by }
+            }
+            (Scalar::Value(_), _) => std::cmp::Ordering::Less,
+            (_, Scalar::Value(_)) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        });
+    }
+    order
+}
+
+/// Each id's index in the whole order of a rows request (4-full part 1,
+/// step 6.5c, Decision 2): the place [`answer`] lists its row at, its
+/// `after` and `limit` aside, so a window with `after` that index and
+/// `limit` one is that row; none where the order holds no such id, and
+/// none for each id where the view lists no rows. Refused as [`answer`]
+/// refuses the request. One matching and one order with [`answer`]'s.
+pub fn indices(
+    corpus: &Corpus,
+    request: &Request,
+    ids: &[&str],
+) -> Result<Vec<Option<usize>>, SearchError> {
+    let Prepared {
+        asking: Asking { query, .. },
+        view,
+        ..
+    } = prepare(corpus, request)?;
+    let BoundView::Rows { sort, desc, .. } = &view else {
+        return Ok(vec![None; ids.len()]);
+    };
+    let Matching { matches, .. } = matching(corpus, &query);
+    let order = ordered(corpus, &matches, sort.as_ref().map(|(_, key)| key), *desc);
+    let mut at: HashMap<&str, usize> = HashMap::with_capacity(ids.len());
+    for (n, m) in order.iter().enumerate() {
+        let id = corpus.items[matches[*m].0].item.facts.id.as_str();
+        if ids.contains(&id) {
+            at.insert(id, n);
+        }
+    }
+    Ok(ids.iter().map(|id| at.get(id).copied()).collect())
+}
+
+/// Every term of `query` over every item of `corpus`, then the tree: the
+/// matches, each with its terms' outcomes, in the corpus's order, and
+/// what an answer counts beside them. [`unaged`] and [`indices`] share it,
+/// so an index is a place in the order an answer lists.
+struct Matching {
+    matches: Vec<(usize, Vec<Outcome>)>,
+    tallies: Vec<[usize; 4]>,
+    together: Vec<usize>,
+    picked: Vec<bool>,
+    carried: Vec<Option<HashMap<String, usize>>>,
+    reasons: Vec<UndecidedReason>,
+    n_undecided: usize,
+    truths: Vec<Truth>,
+    part_matched: Vec<usize>,
+}
+
+fn matching(corpus: &Corpus, query: &Query) -> Matching {
+    // every term over every item, then the tree
+    let n_terms = query.terms.len();
+    let mut tallies = vec![[0usize; 4]; n_terms];
+    let mut together = vec![0usize; n_terms];
+    // whether a group's selector picked any occurrence in the scope: what
+    // the zero block means by a selector that resolved to nothing
+    let mut picked = vec![false; n_terms];
+    let mut carried: Vec<Option<HashMap<String, usize>>> = query
+        .terms
+        .iter()
+        .map(|t| resolves(t).map(|_| HashMap::new()))
+        .collect();
+    let mut matches: Vec<(usize, Vec<Outcome>)> = Vec::new();
+    let mut reasons: Vec<UndecidedReason> = Vec::new();
+    let mut n_undecided = 0usize;
+    let mut outcomes: Vec<Outcome> = Vec::with_capacity(n_terms);
+    // each item's outcome at the root, for what an ambiguous clause's
+    // other reading would change (C119)
+    let mut truths: Vec<Truth> = Vec::with_capacity(corpus.items.len());
+    // the query's parts — the children of the root, a root that is no and
+    // its one part — and how many items each holds on: what a zero answer
+    // orders its offers by, counted while nothing has matched
+    let parts = eval::parts(&query.bound);
+    let mut part_matched = vec![0usize; parts.len()];
+    for (at, held) in corpus.items.iter().enumerate() {
+        eval::asked(&query.terms, held, &mut outcomes);
+        if matches.is_empty() {
+            for (n, part) in parts.iter().enumerate() {
+                if eval::truth(part, &outcomes) == Truth::True {
+                    part_matched[n] += 1;
+                }
+            }
+        }
+        for (i, term) in query.terms.iter().enumerate() {
+            let outcome = outcomes[i];
+            tallies[i][outcome as usize] += 1;
+            if let (Atom::Lines(group), Outcome::Failed) = (&term.atom, outcome)
+                && eval::together(held, group)
+            {
+                together[i] += 1;
+            }
+            if !picked[i]
+                && let Atom::Lines(group) | Atom::Sum { group, .. } = &term.atom
+            {
+                picked[i] = eval::selected(held, group).next().is_some();
+            }
+            if let Some(carried) = &mut carried[i] {
+                for value in resolved_values(term, held, outcome) {
+                    *carried.entry(value).or_default() += 1;
+                }
+            }
+        }
+        let truth = eval::truth(&query.bound, &outcomes);
+        truths.push(truth);
+        match truth {
+            Truth::True => matches.push((at, outcomes.clone())),
+            Truth::Undecided => {
+                n_undecided += 1;
+                // one entry per kind of reason, the first item met its
+                // example (V8): the whole list, so the rest can be counted
+                let mut blamed = Vec::new();
+                eval::blame(&query.bound, &outcomes, &mut blamed);
+                for reason in eval::distinct_reasons(&query.terms, &blamed, held) {
+                    if !reasons.iter().any(|r| r.reason.unread == reason.unread) {
+                        reasons.push(UndecidedReason {
+                            reason,
+                            example: Example {
+                                id: held.item.facts.id.clone(),
+                                name: label(held),
+                            },
+                        });
+                    }
+                }
+            }
+            Truth::False => {}
+        }
+    }
+    Matching {
+        matches,
+        tallies,
+        together,
+        picked,
+        carried,
+        reasons,
+        n_undecided,
+        truths,
+        part_matched,
+    }
+}
+
+/// What [`unaged`] and [`indices`] read of a request before any item:
+/// the scope checked against the corpus, the query, the view bound and
+/// filled, what explain asks, the scope resolved, and the place a
+/// continuation starts at, refused across a moved basis.
+struct Prepared {
+    asking: Asking,
+    view: BoundView,
+    explained: Option<Explained>,
+    typed: String,
+    resolved: Scope,
+    after: usize,
+}
+
+fn prepare(corpus: &Corpus, request: &Request) -> Result<Prepared, SearchError> {
     if let Some(account) = &request.scope.account
         && !account_is(corpus, account)
     {
@@ -2263,6 +2442,34 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
         Some((after, _)) => after,
         None => 0,
     };
+    Ok(Prepared {
+        asking: Asking {
+            query,
+            set_aside,
+            translation,
+        },
+        view,
+        explained,
+        typed,
+        resolved,
+        after,
+    })
+}
+
+pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
+    let Prepared {
+        asking:
+            Asking {
+                query,
+                set_aside,
+                translation,
+            },
+        view,
+        explained,
+        typed,
+        resolved,
+        after,
+    } = prepare(corpus, request)?;
 
     let router = Router {
         scope: Scope {
@@ -2279,83 +2486,17 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
     };
     let count = |n: usize, node: Option<&Node>| router.count(n, node);
 
-    // every term over every item, then the tree
-    let n_terms = query.terms.len();
-    let mut tallies = vec![[0usize; 4]; n_terms];
-    let mut together = vec![0usize; n_terms];
-    // whether a group's selector picked any occurrence in the scope: what
-    // the zero block means by a selector that resolved to nothing
-    let mut picked = vec![false; n_terms];
-    let mut carried: Vec<Option<HashMap<String, usize>>> = query
-        .terms
-        .iter()
-        .map(|t| resolves(t).map(|_| HashMap::new()))
-        .collect();
-    let mut matches: Vec<(usize, Vec<Outcome>)> = Vec::new();
-    let mut reasons: Vec<UndecidedReason> = Vec::new();
-    let mut n_undecided = 0usize;
-    let mut outcomes: Vec<Outcome> = Vec::with_capacity(n_terms);
-    // each item's outcome at the root, for what an ambiguous clause's
-    // other reading would change (C119)
-    let mut truths: Vec<Truth> = Vec::with_capacity(corpus.items.len());
-    // the query's parts — the children of the root, a root that is no and
-    // its one part — and how many items each holds on: what a zero answer
-    // orders its offers by, counted while nothing has matched
-    let parts = eval::parts(&query.bound);
-    let mut part_matched = vec![0usize; parts.len()];
-    for (at, held) in corpus.items.iter().enumerate() {
-        eval::asked(&query.terms, held, &mut outcomes);
-        if matches.is_empty() {
-            for (n, part) in parts.iter().enumerate() {
-                if eval::truth(part, &outcomes) == Truth::True {
-                    part_matched[n] += 1;
-                }
-            }
-        }
-        for (i, term) in query.terms.iter().enumerate() {
-            let outcome = outcomes[i];
-            tallies[i][outcome as usize] += 1;
-            if let (Atom::Lines(group), Outcome::Failed) = (&term.atom, outcome)
-                && eval::together(held, group)
-            {
-                together[i] += 1;
-            }
-            if !picked[i]
-                && let Atom::Lines(group) | Atom::Sum { group, .. } = &term.atom
-            {
-                picked[i] = eval::selected(held, group).next().is_some();
-            }
-            if let Some(carried) = &mut carried[i] {
-                for value in resolved_values(term, held, outcome) {
-                    *carried.entry(value).or_default() += 1;
-                }
-            }
-        }
-        let truth = eval::truth(&query.bound, &outcomes);
-        truths.push(truth);
-        match truth {
-            Truth::True => matches.push((at, outcomes.clone())),
-            Truth::Undecided => {
-                n_undecided += 1;
-                // one entry per kind of reason, the first item met its
-                // example (V8): the whole list, so the rest can be counted
-                let mut blamed = Vec::new();
-                eval::blame(&query.bound, &outcomes, &mut blamed);
-                for reason in eval::distinct_reasons(&query.terms, &blamed, held) {
-                    if !reasons.iter().any(|r| r.reason.unread == reason.unread) {
-                        reasons.push(UndecidedReason {
-                            reason,
-                            example: Example {
-                                id: held.item.facts.id.clone(),
-                                name: label(held),
-                            },
-                        });
-                    }
-                }
-            }
-            Truth::False => {}
-        }
-    }
+    let Matching {
+        matches,
+        tallies,
+        together,
+        picked,
+        mut carried,
+        reasons,
+        n_undecided,
+        truths,
+        part_matched,
+    } = matching(corpus, &query);
 
     let terms: Vec<TermOut> = query
         .terms
@@ -2485,24 +2626,12 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
     };
     // an answer that lists no row orders none: explain's forced counts
     // ask with a limit of nothing
-    let scalars: Option<Vec<Scalar>> = sort.filter(|_| limit > 0).map(|(_, key)| {
-        matches
-            .iter()
-            .map(|(at, _)| eval::scalar(key, &corpus.items[*at]))
-            .collect()
-    });
-    let mut order: Vec<usize> = (0..matches.len()).collect();
-    if let Some(scalars) = &scalars {
-        order.sort_by(|a, b| match (scalars[*a], scalars[*b]) {
-            (Scalar::Value(x), Scalar::Value(y)) => {
-                let by = x.cmp(&y);
-                if desc { by.reverse() } else { by }
-            }
-            (Scalar::Value(_), _) => std::cmp::Ordering::Less,
-            (_, Scalar::Value(_)) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
-        });
-    }
+    let order = ordered(
+        corpus,
+        &matches,
+        sort.filter(|_| limit > 0).map(|(_, key)| key),
+        desc,
+    );
     let rows: Vec<Row> = order
         .iter()
         .skip(after)

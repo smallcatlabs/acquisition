@@ -525,6 +525,25 @@ impl Places {
         out
     }
 
+    /// The place `id` and each place holding it, top first (step 6.5c,
+    /// Decision 6): what a page opens to show the place's items, a
+    /// folder's tab or a map tab's page under its tab; none where the
+    /// document holds no place `id`.
+    pub fn holders(&self, id: &str) -> Option<Vec<&str>> {
+        fn walk<'a>(places: &'a [Place], id: &str, path: &mut Vec<&'a str>) -> bool {
+            for place in places {
+                path.push(place.id());
+                if place.id() == id || walk(&place.places, id, path) {
+                    return true;
+                }
+                path.pop();
+            }
+            false
+        }
+        let mut path = Vec::new();
+        walk(&self.places, id, &mut path).then_some(path)
+    }
+
     /// The places marked as `asking` asks (the module doc): under a
     /// query, each place's matches counted over the corpus, then, under a
     /// filter or a query, each place listed or folded and each level's
