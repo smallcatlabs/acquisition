@@ -1586,6 +1586,15 @@ impl Pages {
     /// stands in its body.
     pub fn page(&mut self, label: &str, reply: &Reply, facts: &[&str]) {
         no_state(reply, &self.web_token).unwrap_or_else(|e| panic!("{label}: {e}"));
+        // a counted form's count is written by its script: a page that
+        // holds one loads `count.js` (the review of 306e0abd, its first
+        // finding)
+        assert!(
+            !reply.body.contains(" data-count>")
+                || reply.body.contains("/assets/count.js\"></script>"),
+            "{label}: a counted form without the count's script:\n{}",
+            reply.body
+        );
         for fact in facts {
             assert!(
                 reply.body.contains(fact),

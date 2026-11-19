@@ -667,8 +667,9 @@ impl Web {
     }
 
     /// [`Web::failed`], the page's own `after` rendered under the refusal:
-    /// a refused search's query box (#190). JSON and status are the
-    /// refusal's.
+    /// a refused search's query box (#190), whose count its script writes,
+    /// so the page loads it (the review of 306e0abd, its first finding).
+    /// JSON and status are the refusal's.
     fn failed_then(
         &self,
         title: &str,
@@ -682,10 +683,11 @@ impl Web {
         let doc = self.refusal(failure);
         // a conflict's page renders the row as it stands: its revision is
         // the page's basis
-        let head = match page::saved_current(&doc) {
+        let mut head = match page::saved_current(&doc) {
             Some(row) => Head::default().with("saved_search", &row["revision"]),
             None => Head::default(),
         };
+        head.count = !after.is_empty();
         html(
             StatusCode::BAD_REQUEST,
             page::page(
@@ -1539,11 +1541,8 @@ fn rows_links(
     };
     // the continued search from its start, as the form would ask it, the
     // saved search it was opened from carried as every link of it is
-    let saved: String = sent
-        .iter()
-        .filter(|(k, _)| k == "saved" || k == "saved_revision")
-        .map(|(k, v)| format!("&{}={}", page::enc(k), page::enc(v)))
-        .collect();
+    // cards cut nothing: the other way and the first rows carry no row
+    let saved = carried_on(sent, false);
     let spelt = |request: Request| {
         web.asked_by_the_form(&request)
             .map(|fields| format!("{}{saved}", web.link("search", &fields)))
@@ -1689,11 +1688,8 @@ fn view_link(
             view.sort = Some(value.to_string());
             view.desc = desc;
             listed(&mut view.values);
-            let saved: String = sent
-                .iter()
-                .filter(|(k, _)| k == "saved" || k == "saved_revision")
-                .map(|(k, v)| format!("&{}={}", page::enc(k), page::enc(v)))
-                .collect();
+            // a change to the view keeps each opened row (step 6.5c)
+            let saved = carried_on(sent, true);
             format!(
                 "{}{saved}",
                 web.link("search", &web.asked_by_the_form(&request)?)
@@ -1741,6 +1737,18 @@ fn view_change(rows: &acquisition_search::answer::RowsOut, value: &str) -> Optio
         held,
         ordered,
     })
+}
+
+/// What a link spelt from a continuation carries of the page beside its
+/// request, as query fields to append: the saved search it was opened
+/// from, and, where `rows`, the opened rows the page keeps (step 6.5c,
+/// Decision 1; the review of 306e0abd, its second finding). One list for
+/// every such link, so no link of the page drops what another keeps.
+fn carried_on(sent: &Fields, rows: bool) -> String {
+    sent.iter()
+        .filter(|(k, _)| k == "saved" || k == "saved_revision" || (rows && k == "item"))
+        .map(|(k, v)| format!("&{}={}", page::enc(k), page::enc(v)))
+        .collect()
 }
 
 /// `saved` and `saved_revision` taken out of a search's fields, which the

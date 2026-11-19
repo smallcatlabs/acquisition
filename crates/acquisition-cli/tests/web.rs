@@ -2617,6 +2617,27 @@ fn a_row_opens_under_itself_and_stays_open_as_the_view_changes() {
     );
     assert!(written(&landed.body, "at").is_empty(), "{}", landed.body);
 
+    // a table reached by a continuation keeps it through a head's link
+    // too (the review of 306e0abd, its second finding)
+    let first = web.get_json(&format!("{table}&view.limit=1"));
+    let next: acquisition_search::answer::Request =
+        serde_json::from_value(first["view"]["rows"]["next"]["request"].clone()).unwrap();
+    let continued = web.get(&format!("search?next={}&item={id}", next.token()));
+    assert!(
+        continued.body.contains("<div class=\"opened\">"),
+        "{}",
+        continued.body
+    );
+    let head = &continued.body[at(&continued.body, "<div class=\"r head\">")..];
+    let href = attribute(&head[head.find("<a class=\"head\"").unwrap()..], "href").unwrap();
+    assert!(href.contains(&format!("item={id}")), "{href}");
+    let followed = follow(&web, &href);
+    assert!(
+        followed.body.contains("<div class=\"opened\">"),
+        "{}",
+        followed.body
+    );
+
     // an id no order holds is dropped, in the page and every URL it writes
     let stale = web.get(&format!("{table}&item=no-such-item&item={id}"));
     assert_eq!(stale.status, 200, "{}", stale.body);
