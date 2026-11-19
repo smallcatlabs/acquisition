@@ -1014,6 +1014,7 @@ fn a_daemons_report_is_flat_whether_it_is_this_clients_or_another() {
             max_sends: None,
             journal: None,
             journal_path: None,
+            closed_routes: vec![],
         },
         keyring: "ok".into(),
         log: Some("/l/daemon.log".into()),

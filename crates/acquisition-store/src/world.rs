@@ -977,7 +977,7 @@ impl Lock {
 
 /// The world's rails state, as [`World::rails_state_path`] holds it: the
 /// file's one format, read and written by the daemon's rails and by the
-/// offline `reset-tripwire`, which links no daemon (C1). It has three
+/// offline `reset-tripwire`, which links no daemon (C1). It has four
 /// owners, and each one's state survives every other's writes:
 ///
 /// - `tripped`, the live-test tripwire's ladder trip, honoured only by a
@@ -987,7 +987,9 @@ impl Lock {
 ///   daemon;
 /// - `refresh_failed_by_account`, the dead-grant marks (C24), which
 ///   persist across restarts and clear on login or logout, never on a
-///   reset.
+///   reset;
+/// - `closed_routes`, the routes a run of invalid answers closed (C190),
+///   honoured by every daemon and cleared by a reset.
 ///
 /// A field this build does not know is a later build's owner: it is
 /// carried in [`RailsState::unknown`] and written back unchanged, so an
@@ -1004,9 +1006,27 @@ pub struct RailsState {
     /// and carried with the unknown fields.
     #[serde(default)]
     pub refresh_failed_by_account: std::collections::HashMap<String, String>,
+    /// C190: by endpoint key (`stash@Alice#1234`), each route a run of
+    /// invalid answers closed. Absent from the file when none is.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub closed_routes: std::collections::BTreeMap<String, RouteClosure>,
     /// Every field this build does not know, kept for the build that does.
     #[serde(flatten)]
     pub unknown: std::collections::BTreeMap<String, serde_json::Value>,
+}
+
+/// C190: one route's closure, as the world's rails state keeps it: the
+/// length of the run of invalid answers that closed it, the last one's
+/// status, when it closed and for how long, in unix seconds on the
+/// daemon's wall clock. `until` is `None` once a trial failed after the
+/// longest cooldown: the route stays closed until a reset.
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RouteClosure {
+    pub invalid: u32,
+    pub status: u16,
+    pub closed_at: i64,
+    pub cooldown_secs: u64,
+    pub until: Option<i64>,
 }
 
 impl RailsState {
@@ -1015,16 +1035,19 @@ impl RailsState {
         self.tripped.is_none()
             && self.blocked.is_none()
             && self.refresh_failed_by_account.is_empty()
+            && self.closed_routes.is_empty()
             && self.unknown.is_empty()
     }
 
-    /// What `reset-tripwire` clears, on either path: the trip and the
-    /// block mark. The dead-grant marks are kept (C24). Returns whether
-    /// anything was cleared.
+    /// What `reset-tripwire` clears, on either path: the trip, the block
+    /// mark and every closed route (C190). The dead-grant marks are kept
+    /// (C24). Returns whether anything was cleared.
     pub fn reset(&mut self) -> bool {
-        let held = self.tripped.is_some() || self.blocked.is_some();
+        let held =
+            self.tripped.is_some() || self.blocked.is_some() || !self.closed_routes.is_empty();
         self.tripped = None;
         self.blocked = None;
+        self.closed_routes.clear();
         held
     }
 

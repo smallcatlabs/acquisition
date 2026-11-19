@@ -875,7 +875,14 @@ fn probe_exempt(route: &str) -> bool {
 /// assumed counted and the hold may reach the longest window period of
 /// the route's last known policy plus the same pad; so too after a
 /// counted send lost in transport, with no status (C19: a send lost in
-/// transport is paced as if counted). Everything else goes out at once.
+/// transport is paced as if counted). C190, from the ruling's words: the
+/// fifth invalid answer in a row on a route (a landed GET's or POST's 4xx
+/// other than 401, 403 and 429, not Cloudflare's; a 2xx ends the run)
+/// closes it for a minute, and the next send on it, the trial, goes no
+/// sooner than the closure's end by the journal's clock; a trial answered
+/// invalid closes it for twice as long, to an hour, and one after an
+/// hour's closure for good, after which only a person's reset sends
+/// again, at any time. Everything else goes out at once.
 /// Runs over every journal a scripted server's or a serverless daemon
 /// writes (`finish_harness`), so a rewrite that paces slower (or stops
 /// pacing) fails here without any test naming the numbers.
@@ -891,9 +898,30 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
                 .as_object()
                 .is_none_or(|rate| !rate.keys().any(|k| k.starts_with("x-rate-limit-")))
     };
+    // C190: per (lifetime, route), the invalid answers in a row; per
+    // route, its closure as (closed at, cooldown, for good, trial due).
+    let mut runs: HashMap<(u64, String), u32> = HashMap::new();
+    let mut closures: HashMap<String, (u64, u64, bool, bool)> = HashMap::new();
     for send in sends {
         let route = send["route"].as_str().unwrap().to_string();
         let wait = send["wait_ms"].as_u64().expect("wait_ms");
+        let at = journal_ms(send["ts"].as_str().expect("ts"));
+        // The trial, or the first send after a reset that opened a route
+        // closed for good: the closure's demand, not the pacing's.
+        let closure_demand = match closures.get_mut(&route) {
+            Some((closed_at, cooldown, for_good, trial)) if *trial => {
+                *trial = false;
+                if !*for_good {
+                    assert!(
+                        at >= *closed_at + *cooldown,
+                        "C190: the trial on {route} went {} ms after its closure of {cooldown} ms: {send}",
+                        at - *closed_at
+                    );
+                }
+                true
+            }
+            _ => false,
+        };
         let prev = last_on_route.get(&route);
         let raw_retry_after = prev.and_then(|prev| prev["rate"]["retry-after"].as_str());
         let headerless_ceiling = prev
@@ -918,6 +946,8 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
                          waited {wait} ms; allowed at most {ceiling}: {send}"
                 );
             }
+            // C190: the closure held it, as asserted above.
+            _ if closure_demand => {}
             // Exact on a manual clock; on a real one, under the pacing
             // floor (C137: no wall-clock bound a slow machine can miss,
             // and a wait the limiter asked for is never shorter).
@@ -950,8 +980,59 @@ fn assert_pacing_follows_responses(sends: &[Value], exact: bool) {
                 }
             }
         }
+        // C190: this answer's part in its route's run.
+        let pid = send["pid"].as_u64().unwrap_or_default();
+        let status = send["status"].as_u64();
+        let invalid = send["method"] != "HEAD"
+            && send["shape"] != "cloudflare"
+            && status.is_some_and(|s| (400..500).contains(&s) && ![401, 403, 429].contains(&s));
+        let valid = send["method"] != "HEAD" && status.is_some_and(|s| (200..300).contains(&s));
+        if valid {
+            runs.remove(&(pid, route.clone()));
+            closures.remove(&route);
+        } else if invalid {
+            let run = runs.entry((pid, route.clone())).or_default();
+            *run += 1;
+            match closures.get(&route).copied() {
+                // A trial answered invalid: twice as long, to an hour, then
+                // for good.
+                Some((_, cooldown, false, false)) if closure_demand => {
+                    let hour = 3_600_000;
+                    let next = if cooldown >= hour {
+                        (cooldown, true)
+                    } else {
+                        ((cooldown * 2).min(hour), false)
+                    };
+                    closures.insert(route.clone(), (at, next.0, next.1, true));
+                }
+                Some(_) => {}
+                None if *run >= 5 => {
+                    closures.insert(route.clone(), (at, 60_000, false, true));
+                }
+                None => {}
+            }
+        }
         last_on_route.insert(route, send);
     }
+}
+
+/// A journal line's `ts` (`2000-01-01T00:01:00.000Z`) as milliseconds
+/// since the epoch, for C190's gaps: the rails' own format, read here.
+fn journal_ms(ts: &str) -> u64 {
+    let num = |range: std::ops::Range<usize>| -> u64 {
+        ts.get(range)
+            .and_then(|n| n.parse().ok())
+            .unwrap_or_else(|| panic!("a journal ts: {ts}"))
+    };
+    let (y, m, d) = (num(0..4) as i64, num(5..7) as i64, num(8..10) as i64);
+    // Days from the civil date (Howard Hinnant's algorithm).
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = (era * 146_097 + doe - 719_468) as u64;
+    ((days * 24 + num(11..13)) * 60 + num(14..16)) * 60_000 + num(17..19) * 1000 + num(20..23)
 }
 
 /// C19's reading of a landed 429's `Retry-After`, written from the

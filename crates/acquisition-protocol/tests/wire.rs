@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
 use acquisition_protocol::job::{
-    Children, FailureKind, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
+    Children, FailureKind, Held, JobInfo, JobState, JobTimes, MAX_429_RETRIES, Outcome,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, LIST_LIMIT_DEFAULT,
@@ -22,7 +22,7 @@ use acquisition_protocol::protocol::{
     Response, SessionStatus, UNKNOWN, error_message,
 };
 use acquisition_protocol::status::{
-    DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord, WindowStatus,
+    ClosedRoute, DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord, WindowStatus,
 };
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -159,6 +159,8 @@ fn job() -> JobInfo {
         priority: 0,
         submitted_by: "cli:1234".into(),
         eta_seconds: Some(17),
+        // C190: its route closed after it was re-queued
+        held: Some(Held::RouteClosed),
         parent: Some(41),
         retries: 1,
         account: Some("Alice#1234".into()),
@@ -194,6 +196,16 @@ fn rails() -> RailsStatus {
         max_sends: Some(200),
         journal: Some("/tmp/acq.sock.mock.sends.jsonl".into()),
         journal_path: Some("/tmp/acq.sock.mock.sends.jsonl".into()),
+        // C190: one league's failures close the account's `stash` route,
+        // every league's tabs and substashes with it.
+        closed_routes: vec![ClosedRoute {
+            route: "stash@Alice#1234".into(),
+            invalid: 5,
+            status: 400,
+            closed_at: 1_800_000_000,
+            cooldown_secs: 60,
+            until: Some(1_800_000_060),
+        }],
     }
 }
 

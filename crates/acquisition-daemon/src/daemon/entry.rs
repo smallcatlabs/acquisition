@@ -187,6 +187,7 @@ impl Entry {
                 priority: row.priority,
                 submitted_by: row.submitted_by,
                 eta_seconds: None,
+                held: None,
                 parent: row.parent,
                 retries: row.retries,
                 account: row.account,

@@ -1236,12 +1236,23 @@ enum Step {
     DaemonStatus { halted: Option<String> },
     /// `Request::Dashboard {}`: its `degraded_endpoints` name these.
     Dashboard { degraded: Vec<&'static str> },
+    /// `Request::DaemonStatus {}`: its `rails.closed_routes` name these
+    /// routes (C190).
+    Closed(Vec<&'static str>),
+    /// `Request::Dashboard {}`: its `errors`, the daemon log's lines that
+    /// a person reads, carry each fragment (C190: a close, each trial and
+    /// a reopen, said where a halt is).
+    Logged(Vec<&'static str>),
     /// A second lifetime while this one is live: a door opened beside
     /// this one on the same rails state path, facing no server, whose
-    /// `DaemonStatus` `rails.halted` carries these words or is `None`;
-    /// when halted, a `fetch` submitted there stays waiting and its
+    /// `DaemonStatus` `rails.halted` carries these words or is `None`,
+    /// and whose `rails.closed_routes` name `closed`; when halted or a
+    /// route is closed, a `fetch` submitted there stays waiting and its
     /// journal holds no send; then finished.
-    SecondLifetime { halted: Option<String> },
+    SecondLifetime {
+        halted: Option<String>,
+        closed: Vec<&'static str>,
+    },
 }
 
 /// What a row expects of one job the daemon lists.
@@ -1734,6 +1745,7 @@ fn wire_rows() -> Vec<Row> {
                 },
                 Step::SecondLifetime {
                     halted: Some(cause),
+                    closed: vec![],
                 },
             ],
             jobs: vec![
@@ -1828,7 +1840,10 @@ fn wire_rows() -> Vec<Row> {
                         "Cloudflare could not reach GGG: {status} on GET fetch at 2000-01-01T"
                     )),
                 },
-                Step::SecondLifetime { halted: None },
+                Step::SecondLifetime {
+                    halted: None,
+                    closed: vec![],
+                },
                 Step::ResetTripwire,
                 Step::Await(vec![(1, Done)]),
             ],
@@ -2401,6 +2416,375 @@ fn wire_rows() -> Vec<Row> {
         ],
         ..Row::default()
     });
+
+    // C190: a run of invalid answers on a route closes it for a cooldown,
+    // and it reopens by itself. GGG's 400 (N60's shape: its policy headers,
+    // error code 2), on the mock's `fetch` route.
+    let invalid = || {
+        ScriptedResponse::full(
+            "GET",
+            "400 Bad Request",
+            None,
+            r#"{"error":{"code":2,"message":"Invalid query"}}"#,
+        )
+    };
+    let landed = || ScriptedResponse::full("GET", "200 OK", None, r#"{"items":[]}"#);
+    let sent = |status: u16, wait_ms: u64| match status {
+        200 => json!(["GET", "/fetch", 200, true, true, wait_ms, null]),
+        _ => json!([
+            "GET",
+            "/fetch",
+            status,
+            false,
+            true,
+            wait_ms,
+            "unclassified"
+        ]),
+    };
+    let fetches = |n: usize| Step::Send((0..n).map(|_| submit("fetch")).collect());
+    let each = |range: std::ops::Range<usize>, state: JobState| {
+        Step::Await(range.map(|submit| (submit, state)).collect())
+    };
+    let failed = || Job::fetch(Failed).fails(FailureKind::Upstream);
+    let closing = |words: &[&str]| {
+        failed()
+            .carries(words)
+            .carries(&["list the league again", "may be older than GGG's state"])
+    };
+    // The fifth invalid answer in a row closes the route, and the sixth
+    // job waits unsent. The journal is the assertion invariant 3's
+    // neighbour asks for: each job that drew an invalid answer was sent
+    // once, and nothing is sent between the fifth and the trial.
+    let five = || {
+        let mut five = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+        five.extend((0..5).map(|_| invalid()));
+        five
+    };
+    let five_sent: Vec<Value> = std::iter::once(probe_sent())
+        .chain((0..5).map(|_| sent(400, 0)))
+        .collect();
+    let five_failed = || {
+        let mut jobs: Vec<Job> = (0..4).map(|_| failed()).collect();
+        jobs.push(closing(&[
+            "GGG error code 2",
+            "fetch closed after 5 invalid answers in a row, the last 400: for 60 s",
+            "one waiting job goes as the trial",
+        ]));
+        jobs
+    };
+    rows.push(Row {
+        name:
+            "c190: the fifth invalid answer in a row closes the route; the sixth job waits unsent"
+                .into(),
+        script: five(),
+        steps: vec![
+            fetches(6),
+            each(0..5, Failed),
+            Step::Await(vec![(5, Waiting)]),
+            Step::Closed(vec!["fetch"]),
+            Step::DaemonStatus { halted: None },
+        ],
+        jobs: [five_failed(), vec![Job::fetch(Waiting), Job::probe(Done)]]
+            .into_iter()
+            .flatten()
+            .collect(),
+        journal: five_sent.clone(),
+        ..Row::default()
+    });
+    // After the cooldown one job goes as the trial; answered 200, the
+    // route is open and the queue drains.
+    rows.push(Row {
+        name: "c190: a trial answered 2xx reopens the route and the queue drains".into(),
+        script: [five(), vec![landed(), landed()]].into_iter().flatten().collect(),
+        steps: vec![
+            fetches(7),
+            each(0..5, Failed),
+            Step::Await(vec![(5, Done), (6, Done)]),
+            Step::Closed(vec![]),
+            Step::Logged(vec![
+                "ROUTE CLOSED at 2000-01-01T00:00:00.000Z: fetch closed after 5 invalid answers",
+                "ROUTE REOPENED at 2000-01-01T00:01:00.000Z: fetch answered 200 to the trial after 5 invalid answers in a row",
+            ]),
+        ],
+        jobs: [
+            five_failed(),
+            vec![Job::fetch(Done), Job::fetch(Done), Job::probe(Done)],
+        ]
+        .into_iter().flatten().collect(),
+        journal: [five_sent.clone(), vec![sent(200, 60_000), sent(200, 0)]].into_iter().flatten().collect(),
+        ..Row::default()
+    });
+    // Answered invalid, the trial closes the route for twice as long.
+    rows.push(Row {
+        name: "c190: a trial answered invalid closes the route for twice as long".into(),
+        script: [five(), vec![invalid(), landed()]]
+            .into_iter()
+            .flatten()
+            .collect(),
+        steps: vec![fetches(7), each(0..6, Failed), Step::Await(vec![(6, Done)])],
+        jobs: [
+            five_failed(),
+            vec![
+                closing(&[
+                    "the trial after its closure was answered 400 too, 6 invalid answers in a row",
+                    "for 120 s",
+                ]),
+                Job::fetch(Done),
+                Job::probe(Done),
+            ],
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        journal: [
+            five_sent.clone(),
+            vec![sent(400, 60_000), sent(200, 120_000)],
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        ..Row::default()
+    });
+    // A 2xx between invalid answers ends the run: four, a 200, four more
+    // close nothing.
+    let mut broken = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+    broken.extend((0..4).map(|_| invalid()));
+    broken.push(landed());
+    broken.extend((0..4).map(|_| invalid()));
+    rows.push(Row {
+        name: "c190: a 2xx between invalid answers ends the run".into(),
+        script: broken,
+        steps: vec![
+            fetches(9),
+            each(0..4, Failed),
+            Step::Await(vec![(4, Done)]),
+            each(5..9, Failed),
+            Step::Closed(vec![]),
+        ],
+        jobs: [
+            (0..4).map(|_| failed()).collect::<Vec<_>>(),
+            vec![Job::fetch(Done)],
+            (0..4).map(|_| failed().lacks(&["closed after"])).collect(),
+            vec![Job::probe(Done)],
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        journal: std::iter::once(probe_sent())
+            .chain((0..4).map(|_| sent(400, 0)))
+            .chain(std::iter::once(sent(200, 0)))
+            .chain((0..4).map(|_| sent(400, 0)))
+            .collect(),
+        ..Row::default()
+    });
+    // GGG's 401 and 403 between invalid answers count for nothing and end
+    // nothing: the fifth invalid answer after them closes. A 404 counts.
+    for (case, between, code, kind) in [
+        ("401", "401 Unauthorized", 401, FailureKind::Upstream),
+        ("403", "403 Forbidden", 403, FailureKind::NotRetried),
+    ] {
+        let mut script = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+        script.extend((0..4).map(|_| invalid()));
+        script.push(ScriptedResponse::full("GET", between, None, "{}"));
+        script.push(invalid());
+        let mut journal = vec![probe_sent()];
+        journal.extend((0..4).map(|_| sent(400, 0)));
+        journal.push(sent(code, 0));
+        journal.push(sent(400, 0));
+        rows.push(Row {
+            name: format!("c190: a {case} counts for nothing toward a run"),
+            script,
+            steps: vec![fetches(6), each(0..6, Failed), Step::Closed(vec!["fetch"])],
+            jobs: [
+                (0..4).map(|_| failed()).collect::<Vec<_>>(),
+                vec![
+                    Job::fetch(Failed).fails(kind).lacks(&["closed after"]),
+                    closing(&["fetch closed after 5 invalid answers in a row, the last 400"]),
+                    Job::probe(Done),
+                ],
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            journal,
+            ..Row::default()
+        });
+    }
+    // A 429 re-queues its job as it does today (C26) and counts for
+    // nothing: that job's retry is the fifth invalid answer.
+    {
+        let mut script = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+        script.extend((0..4).map(|_| invalid()));
+        script.push(ScriptedResponse::full(
+            "GET",
+            "429 Too Many Requests",
+            Some(0),
+            "{}",
+        ));
+        script.push(invalid());
+        let mut journal = vec![probe_sent()];
+        journal.extend((0..4).map(|_| sent(400, 0)));
+        journal.push(json!([
+            "GET",
+            "/fetch",
+            429,
+            false,
+            true,
+            0,
+            "unclassified"
+        ]));
+        journal.push(sent(400, hold));
+        rows.push(Row {
+            name: "c190: a 429 counts for nothing toward a run".into(),
+            script,
+            steps: vec![fetches(5), each(0..5, Failed), Step::Closed(vec!["fetch"])],
+            jobs: [
+                (0..4).map(|_| failed()).collect::<Vec<_>>(),
+                vec![
+                    closing(&["fetch closed after 5 invalid answers in a row, the last 400"])
+                        .retries(1),
+                    Job::probe(Done),
+                ],
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            journal,
+            ..Row::default()
+        });
+    }
+    {
+        let mut script = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+        script.extend((0..4).map(|_| invalid()));
+        script.push(ScriptedResponse::full("GET", "404 Not Found", None, "{}"));
+        let mut journal = vec![probe_sent()];
+        journal.extend((0..4).map(|_| sent(400, 0)));
+        journal.push(sent(404, 0));
+        rows.push(Row {
+            name: "c190: a 404 counts toward a run".into(),
+            script,
+            steps: vec![fetches(5), each(0..5, Failed), Step::Closed(vec!["fetch"])],
+            jobs: [
+                (0..4).map(|_| failed()).collect::<Vec<_>>(),
+                vec![
+                    Job::fetch(Failed)
+                        .fails(FailureKind::NotFound)
+                        .carries(&["5 invalid answers in a row, the last 404"]),
+                    Job::probe(Done),
+                ],
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            journal,
+            ..Row::default()
+        });
+    }
+    // Cloudflare's block does what it does today (C129) and is no invalid
+    // answer of GGG's: the daemon halts, and no route is closed.
+    {
+        let (_, block, status, shape) = cloudflare_blocks().into_iter().next().unwrap();
+        let mut script = vec![ScriptedResponse::full("HEAD", "204 No Content", None, "")];
+        script.extend((0..4).map(|_| invalid()));
+        script.push(block);
+        let mut journal = vec![probe_sent()];
+        journal.extend((0..4).map(|_| sent(400, 0)));
+        journal.push(json!(["GET", "/fetch", status, false, true, 0, shape]));
+        rows.push(Row {
+            name: "c190: a block halts as it does and closes no route".into(),
+            script,
+            steps: vec![
+                fetches(5),
+                each(0..5, Failed),
+                Step::Closed(vec![]),
+                Step::DaemonStatus {
+                    halted: Some("Cloudflare answered in GGG's place".into()),
+                },
+            ],
+            jobs: [
+                (0..4).map(|_| failed()).collect::<Vec<_>>(),
+                vec![
+                    Job::fetch(Failed)
+                        .fails(FailureKind::Blocked)
+                        .lacks(&["closed after"]),
+                    Job::probe(Done),
+                ],
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+            journal,
+            ..Row::default()
+        });
+    }
+    // The closure outlives the daemon: a second lifetime reads it, and a
+    // job given to it there waits, unsent.
+    rows.push(Row {
+        name: "c190: a closed route is closed in the next lifetime".into(),
+        script: five(),
+        steps: vec![
+            fetches(5),
+            each(0..5, Failed),
+            Step::SecondLifetime {
+                halted: None,
+                closed: vec!["fetch"],
+            },
+        ],
+        jobs: [five_failed(), vec![Job::probe(Done)]]
+            .into_iter()
+            .flatten()
+            .collect(),
+        journal: five_sent.clone(),
+        ..Row::default()
+    });
+    // Past the cap: each failed trial doubles the closure to an hour, and
+    // the trial after an hour's closure closes the route for good, a halt
+    // of that route alone; the next job waits, unpicked, until the reset
+    // opens the route, and goes at once.
+    {
+        let cooldowns = [
+            60_000, 120_000, 240_000, 480_000, 960_000, 1_920_000, 3_600_000,
+        ];
+        let mut script = five();
+        script.extend(cooldowns.iter().map(|_| invalid()));
+        script.push(landed());
+        let mut journal = five_sent.clone();
+        journal.extend(cooldowns.iter().map(|&wait| sent(400, wait)));
+        journal.push(sent(200, 0));
+        let mut jobs = five_failed();
+        jobs.extend((0..6).map(|_| failed().carries(&["the trial after its closure"])));
+        jobs.push(failed().carries(&[
+            "12 invalid answers in a row",
+            "nothing more is sent on it until `acq daemon reset-tripwire`",
+            "first check whether GGG's API changed and whether a newer acq exists",
+        ]));
+        jobs.push(Job::fetch(Done));
+        jobs.push(Job::probe(Done));
+        rows.push(Row {
+            name: "c190: past the cap the route stays closed until the reset opens it".into(),
+            script,
+            steps: vec![
+                fetches(13),
+                each(0..12, Failed),
+                Step::Await(vec![(12, Waiting)]),
+                Step::Closed(vec!["fetch"]),
+                Step::DaemonStatus { halted: None },
+                Step::ResetTripwire,
+                Step::Await(vec![(12, Done)]),
+                Step::Closed(vec![]),
+                Step::Logged(vec![
+                    "ROUTE CLOSED at",
+                    "the trial after its closure was answered 400 too, 11 invalid answers in a row: for 3600 s",
+                    "12 invalid answers in a row; halted on fetch",
+                    "fetch by `reset-tripwire`, after 12 invalid answers in a row",
+                ]),
+            ],
+            jobs,
+            journal,
+            ..Row::default()
+        });
+    }
+
     rows
 }
 
@@ -2629,7 +3013,26 @@ fn c158_the_wire_table_through_the_door() {
                             .collect();
                         assert_eq!(named, degraded, "{name}: the degraded endpoints");
                     }
-                    Step::SecondLifetime { halted } => {
+                    Step::Logged(fragments) => {
+                        let Response::Dashboard { errors, .. } =
+                            door.request(Request::Dashboard {}).await
+                        else {
+                            panic!("{name}: the dashboard did not answer")
+                        };
+                        let logged: Vec<&str> =
+                            errors.iter().map(|error| error.message.as_str()).collect();
+                        for fragment in fragments {
+                            assert!(
+                                logged.iter().any(|line| line.contains(fragment)),
+                                "{name}: the log lacks {fragment:?}: {logged:#?}"
+                            );
+                        }
+                    }
+                    Step::Closed(routes) => {
+                        let read = closed_of(door.request(Request::DaemonStatus {}).await);
+                        assert_eq!(read, routes, "{name}: the closed routes");
+                    }
+                    Step::SecondLifetime { halted, closed } => {
                         let mut second = Door::open(
                             Server::None,
                             door.clock(),
@@ -2642,10 +3045,17 @@ fn c158_the_wire_table_through_the_door() {
                         .beside(&door)
                         .await;
                         let read = halted_of(second.request(Request::DaemonStatus {}).await);
+                        let read_closed = closed_of(second.request(Request::DaemonStatus {}).await);
+                        assert_eq!(
+                            read_closed, closed,
+                            "{name}: a second lifetime's closed routes"
+                        );
                         // A halt the second lifetime reports admits no
                         // send there either (invariant 3, #218): a job it
-                        // is given waits, and its journal stays empty.
-                        if halted.is_some() {
+                        // is given waits, and its journal stays empty. A
+                        // closed route it reads holds its job the same
+                        // way (C190).
+                        if halted.is_some() || !closed.is_empty() {
                             let id = second.submit("fetch", None).await;
                             second.settle().await;
                             let state = second
@@ -2794,6 +3204,18 @@ fn c158_the_wire_table_through_the_door() {
 fn halted_of(answer: Response) -> Option<String> {
     match answer {
         Response::DaemonStatus { rails, .. } => rails.halted,
+        other => panic!("the daemon's status reads {other:?}"),
+    }
+}
+
+/// `DaemonStatus`'s `rails.closed_routes`, by route (C190).
+fn closed_of(answer: Response) -> Vec<String> {
+    match answer {
+        Response::DaemonStatus { rails, .. } => rails
+            .closed_routes
+            .into_iter()
+            .map(|closed| closed.route)
+            .collect(),
         other => panic!("the daemon's status reads {other:?}"),
     }
 }

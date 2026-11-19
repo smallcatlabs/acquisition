@@ -119,7 +119,7 @@ use std::collections::VecDeque;
 
 use crate::frame::{Frame, FrameReader};
 use crate::provider::{CALLBACK_PATH, Provider, SCOPES};
-use crate::rails::{BlockShape, Rails, RailsConfig, Verdict, verify_state};
+use crate::rails::{BlockShape, Rails, RailsConfig, RouteHold, Verdict, verify_state};
 use crate::ratelimit::{
     Bearer, ChokePoint, Clock, EndpointState, ProbeError, RetryAfter, SendError, SystemClock,
     url_path,
@@ -127,7 +127,7 @@ use crate::ratelimit::{
 use crate::ratelimit::{Expired, endpoint_key, split_endpoint_key, within_on};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    CLIENT_KINDS, Children, FailureKind, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES,
+    CLIENT_KINDS, Children, FailureKind, Held, JobId, JobInfo, JobState, JobTimes, MAX_429_RETRIES,
     MOCK_ONLY_KINDS, Outcome, Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
@@ -348,6 +348,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
         priority: row.priority,
         submitted_by: row.submitted_by,
         eta_seconds: None,
+        held: None,
         parent: row.parent,
         retries: row.retries,
         account: row.account,
@@ -870,11 +871,12 @@ impl Shared {
     fn snapshot(&self, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
         let entry = self.jobs.get(&id)?;
         let mut info = entry.info().clone();
-        info.eta_seconds = if info.state == JobState::Waiting {
-            self.waiting_etas(daemon, Some(id)).get(&id).copied()
-        } else {
-            None
-        };
+        if info.state == JobState::Waiting
+            && let Some(&(eta, held)) = self.waiting_etas(daemon, Some(id)).get(&id)
+        {
+            info.eta_seconds = Some(eta);
+            info.held = held;
+        }
         Some(info)
     }
 
@@ -889,11 +891,12 @@ impl Shared {
             .values()
             .map(|e| {
                 let mut info = e.info().clone();
-                info.eta_seconds = if info.state == JobState::Waiting {
-                    etas.get(&info.id).copied()
-                } else {
-                    None
-                };
+                if info.state == JobState::Waiting
+                    && let Some(&(eta, held)) = etas.get(&info.id)
+                {
+                    info.eta_seconds = Some(eta);
+                    info.held = held;
+                }
                 info
             })
             .collect();
@@ -905,7 +908,12 @@ impl Shared {
     /// given). Only same-route jobs ahead of a job compete for its
     /// policy, so its estimate is its route's forward simulation at the
     /// count of those; a job whose kind sends nothing waits for nothing.
-    fn waiting_etas(&self, daemon: &Daemon, only: Option<JobId>) -> HashMap<JobId, u64> {
+    /// Beside each, what holds its route besides pacing (C190).
+    fn waiting_etas(
+        &self,
+        daemon: &Daemon,
+        only: Option<JobId>,
+    ) -> HashMap<JobId, (u64, Option<Held>)> {
         let mut etas = HashMap::new();
         // Per route: how many of its jobs the walk has passed, and the
         // waiting jobs it must estimate, with their counts ahead.
@@ -926,7 +934,7 @@ impl Shared {
                     *passed += 1;
                 }
                 None if wanted => {
-                    etas.insert(id, 0);
+                    etas.insert(id, (0, None));
                 }
                 None => {}
             }
@@ -939,8 +947,13 @@ impl Shared {
                 continue;
             };
             let by_position = daemon.choke.etas_for(&route, deepest + 1);
+            let held = match daemon.rails().route_hold(&route) {
+                RouteHold::Open => None,
+                RouteHold::Closed(_) => Some(Held::RouteClosed),
+                RouteHold::ForGood(_) => Some(Held::RouteClosedForGood),
+            };
             for (id, ahead) in wanted {
-                etas.insert(id, by_position[ahead].as_secs());
+                etas.insert(id, (by_position[ahead].as_secs(), held));
             }
         }
         etas
@@ -1669,6 +1682,11 @@ impl Daemon {
     fn announce_trip(&self) {
         for error in self.rails().take_unwritten() {
             self.note_error(&format!("RAILS STATE NOT WRITTEN: {error}"));
+        }
+        // C190: each close (a trial's included) and each reopen, with its
+        // route, its count and its time, said where a halt is said.
+        for news in self.rails().take_route_news() {
+            self.note_error(&news);
         }
         if let Some(cause) = self.rails().take_unannounced_trip() {
             if cause.starts_with("Cloudflare answered") {

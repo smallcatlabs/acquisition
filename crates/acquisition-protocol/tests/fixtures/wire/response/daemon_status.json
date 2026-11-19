@@ -19,7 +19,17 @@
     "sends": 12,
     "max_sends": 200,
     "journal": "/tmp/acq.sock.mock.sends.jsonl",
-    "journal_path": "/tmp/acq.sock.mock.sends.jsonl"
+    "journal_path": "/tmp/acq.sock.mock.sends.jsonl",
+    "closed_routes": [
+      {
+        "route": "stash@Alice#1234",
+        "invalid": 5,
+        "status": 400,
+        "closed_at": 1800000000,
+        "cooldown_secs": 60,
+        "until": 1800000060
+      }
+    ]
   },
   "keyring": "ok",
   "log": "/home/alice/.local/state/acq/log/0123456789ab/mock/daemon.log"

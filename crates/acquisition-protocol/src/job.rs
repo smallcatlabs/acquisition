@@ -107,6 +107,23 @@ pub struct JobInfo {
     /// absent until it happens.
     #[serde(flatten)]
     pub times: JobTimes,
+    /// C190: what holds a waiting job besides the limiter's pacing, as a
+    /// fact a frontend says; absent when nothing does. Additive (C10).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held: Option<Held>,
+}
+
+/// C190: why a waiting job's route admits no send. The closure's facts
+/// are the status's `closed_routes`; the time is the job's `eta_seconds`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Held {
+    /// A run of invalid answers closed the route for a cooldown; one
+    /// waiting job goes as the trial when it ends.
+    RouteClosed,
+    /// A trial failed after the longest cooldown: nothing is sent on the
+    /// route until a person runs `reset-tripwire`.
+    RouteClosedForGood,
 }
 
 /// C165 (a job's record says when): unix seconds on the daemon's one

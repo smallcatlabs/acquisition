@@ -803,6 +803,7 @@ pub fn job_info(job: &PersistedJob) -> Result<JobInfo, Fault> {
         priority: job.priority,
         submitted_by: job.submitted_by.clone(),
         eta_seconds: None,
+        held: None,
         parent: job.parent,
         retries: job.retries,
         account: job.account.clone(),

@@ -213,6 +213,7 @@ mod tests {
             max_sends: None,
             journal: Some("/j/journal.jsonl".into()),
             journal_path: Some("/j/journal.jsonl".into()),
+            closed_routes: vec![],
         };
         let status = Response::DaemonStatus {
             pid: 4242,

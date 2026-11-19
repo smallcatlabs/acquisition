@@ -116,6 +116,55 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         // Read-only and non-reserving: no job was added, nothing was sent.
         assert_eq!(list(door.every_job().await), jobs_before);
         assert_eq!(door.journal(), journal_before);
+
+        // C190: a route a run of invalid answers closed is quoted from
+        // the closure's end, and the note says why.
+        for _ in 0..5 {
+            door.daemon().rails().record(&crate::rails::SendReport {
+                method: "GET",
+                route: "fetch",
+                url_path: "/fetch",
+                status: Some(400),
+                error: None,
+                ok: false,
+                counted: true,
+                rate: &Value::Null,
+                shape: None,
+                block: false,
+                unreachable: false,
+                headers: &Value::Null,
+                wait: Duration::ZERO,
+            });
+        }
+        let closed = match door
+            .request(Request::Quote {
+                jobs: vec![QuoteJob {
+                    kind: "fetch".into(),
+                    params: json!({}),
+                }],
+                account: None,
+            })
+            .await
+        {
+            Response::Quote { quote } => quote,
+            other => panic!("{other:?}"),
+        };
+        let [scope] = closed.scopes.as_slice() else {
+            panic!("{:?}", closed.scopes)
+        };
+        assert!(
+            scope.eta_seconds.is_some_and(|eta| eta >= 60),
+            "{:?}",
+            scope.eta_seconds
+        );
+        assert!(
+            scope
+                .notes
+                .iter()
+                .any(|note| note.contains("closed after a run of invalid answers")),
+            "{:?}",
+            scope.notes
+        );
         door.finish().await;
     });
 }

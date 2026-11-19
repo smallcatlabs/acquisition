@@ -33,6 +33,35 @@ pub struct RailsStatus {
     /// that prints or redacts the journal's location reads this, never
     /// `journal`'s words.
     pub journal_path: Option<String>,
+    /// C190: the routes a run of invalid answers closed, by endpoint key.
+    /// Additive: absent from a status that holds none, and read as none
+    /// from a daemon that never sends it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub closed_routes: Vec<ClosedRoute>,
+}
+
+/// C190: one route a run of invalid answers closed — a 4xx of GGG's own
+/// other than 401, 403 and 429. Facts, never words: a frontend says them.
+/// Times are unix seconds on the daemon's wall clock.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClosedRoute {
+    /// The limiter's endpoint key: the route and the account it is for
+    /// (`stash@Alice#1234`), so one closure holds every tab and substash
+    /// of that account in every league.
+    pub route: String,
+    /// The invalid answers in a row when it last closed: five at the
+    /// first closure, one more for each trial that failed.
+    pub invalid: u32,
+    /// The last invalid answer's status.
+    pub status: u16,
+    pub closed_at: i64,
+    /// How long this closure lasts; the next one after a failed trial is
+    /// twice as long, to an hour.
+    pub cooldown_secs: u64,
+    /// When one waiting job goes as the trial; `None` once a trial failed
+    /// after an hour's closure: the route stays closed until
+    /// `reset-tripwire`.
+    pub until: Option<i64>,
 }
 
 /// A degraded endpoint (N20), for the dashboard.

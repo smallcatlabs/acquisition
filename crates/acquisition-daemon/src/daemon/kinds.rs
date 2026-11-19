@@ -1061,6 +1061,22 @@ impl Daemon {
                 response.body,
                 response.verdict,
             );
+            // C190: the answer that closed its route says so, and what to
+            // do once it reopens, in the job's own failure: the reason
+            // outlives the closure.
+            let classified = match &response.closed {
+                Some(closure) => classified.map_err(|error| match error {
+                    ApiError::Other(kind, evidence) => ApiError::Other(
+                        kind,
+                        format!(
+                            "{evidence} — {}",
+                            crate::rails::closure_words(route, closure)
+                        ),
+                    ),
+                    other => other,
+                }),
+                None => classified,
+            };
             if let Some(username) = cleared_for {
                 return classified.map_err(|error| match error {
                     ApiError::Other(kind, evidence) => ApiError::Other(kind, format!(

@@ -451,7 +451,7 @@ fn c83_the_socket_derives_from_the_world_into_the_runtime_directory() {
     }
 }
 
-/// The rails state's fields are three owners'; a field this build
+/// The rails state's fields are four owners'; a field this build
 /// does not know is a later build's, and survives a read, a reset and
 /// a write unchanged. A file holding only such a field is kept. The
 /// write leaves nothing beside the file (its partial is renamed).
@@ -465,13 +465,16 @@ fn the_rails_state_keeps_a_later_builds_fields() {
     std::fs::write(
             &path,
             format!(
-                r#"{{"tripped":"429 on GET /x","later_build_mark":{later},"refresh_failed_by_account":{{"A#1":"400"}}}}"#
+                r#"{{"tripped":"429 on GET /x","later_build_mark":{later},"refresh_failed_by_account":{{"A#1":"400"}},"closed_routes":{{"stash@A#1":{{"invalid":5,"status":400,"closed_at":1,"cooldown_secs":60,"until":61}}}}}}"#
             ),
         )
         .unwrap();
     let mut held: RailsState =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(held.closed_routes["stash@A#1"].until, Some(61));
     assert!(held.reset(), "the trip was cleared");
+    // C190: a reset opens every closed route, on either path.
+    assert!(held.closed_routes.is_empty());
     held.write(&path).unwrap();
     let text = std::fs::read_to_string(&path).unwrap();
     let written: serde_json::Value = serde_json::from_str(&text).unwrap();
@@ -482,6 +485,7 @@ fn the_rails_state_keeps_a_later_builds_fields() {
     );
     assert_eq!(written["refresh_failed_by_account"]["A#1"], "400", "{text}");
     assert!(written["tripped"].is_null(), "{text}");
+    assert!(written.get("closed_routes").is_none(), "{text}");
 
     let only_later = RailsState {
         unknown: [("later_build_mark".to_string(), serde_json::json!(1))].into(),

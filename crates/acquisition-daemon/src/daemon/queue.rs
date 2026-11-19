@@ -131,7 +131,7 @@ impl Shared {
     /// C166: the counts over every job of the list: memory's by state,
     /// the evicted beside them, and of the waiting jobs predicted to start
     /// later than now the soonest and the latest start, from `etas`.
-    pub(super) fn counts(&self, etas: &HashMap<JobId, u64>) -> ListCounts {
+    pub(super) fn counts(&self, etas: &HashMap<JobId, (u64, Option<Held>)>) -> ListCounts {
         let mut counts = ListCounts {
             done: self.evicted.done,
             failed: self.evicted.failed,
@@ -143,7 +143,7 @@ impl Shared {
                 JobState::Running => counts.running += 1,
                 JobState::Waiting => {
                     counts.waiting += 1;
-                    if let Some(&eta) = etas.get(&e.info().id)
+                    if let Some(&(eta, _)) = etas.get(&e.info().id)
                         && eta > 0
                     {
                         counts.soonest_eta_seconds =
@@ -963,11 +963,12 @@ resubmit if still wanted",
                 match s.jobs.get(&id) {
                     Some(e) if state.holds(e.info().state) => {
                         let mut info = self.page_row(e.info());
-                        info.eta_seconds = if info.state == JobState::Waiting {
-                            etas.get(&id).copied()
-                        } else {
-                            None
-                        };
+                        if info.state == JobState::Waiting
+                            && let Some(&(eta, held)) = etas.get(&id)
+                        {
+                            info.eta_seconds = Some(eta);
+                            info.held = held;
+                        }
                         jobs.push(info);
                     }
                     // Its state has moved off the list's since the first
@@ -1196,6 +1197,7 @@ resubmit if still wanted",
                 priority,
                 submitted_by,
                 eta_seconds: None,
+                held: None,
                 parent,
                 retries: 0,
                 account,

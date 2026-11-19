@@ -15,11 +15,11 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
     {
         let s = daemon.shared.lock().unwrap();
         assert!(
-            Daemon::has_live_jobs(&s, false),
+            Daemon::has_live_jobs(&s, &daemon.parked_jobs(&s, false)),
             "a waiting job keeps an unhalted daemon up"
         );
         assert!(
-            !Daemon::has_live_jobs(&s, true),
+            !Daemon::has_live_jobs(&s, &daemon.parked_jobs(&s, true)),
             "…but not a halted one: the queue is on disk"
         );
     }
@@ -32,7 +32,10 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
         .unwrap()
         .start(daemon.unix_now());
     assert!(
-        Daemon::has_live_jobs(&daemon.shared.lock().unwrap(), true),
+        {
+            let s = daemon.shared.lock().unwrap();
+            Daemon::has_live_jobs(&s, &daemon.parked_jobs(&s, true))
+        },
         "a running job keeps even a halted daemon up"
     );
     finish_harness(None, &log);
@@ -40,8 +43,9 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
 
 /// C3's idle verdict, read on the daemon's clock: a fresh daemon is
 /// not idle until the knob elapses; a connection, a waiting job and
-/// any activity each hold it; a rails halt lets a daemon idle out over
-/// its waiting queue, which stays on disk (C25).
+/// any activity each hold it; a rails halt, or a route closed for good
+/// (C190), lets a daemon idle out over its waiting queue, which stays on
+/// disk (C25).
 #[test]
 fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
     let clock = Arc::new(ParkingClock::new());
@@ -84,6 +88,48 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         !daemon.is_idle(knob),
         "the waiting job holds an unhalted daemon"
     );
+    // C190: a route closed for a time holds its waiting job, which keeps
+    // the daemon up; closed for good, it is a halt of that route, and the
+    // daemon idles out over the job, which stays on disk (C25).
+    let answered = |rails: &crate::rails::Rails, method: &'static str, status: u16| {
+        rails.record(&crate::rails::SendReport {
+            method,
+            route: "fetch",
+            url_path: "/fetch",
+            status: Some(status),
+            error: None,
+            ok: status < 300,
+            counted: method != "HEAD",
+            rate: &Value::Null,
+            shape: None,
+            block: false,
+            unreachable: false,
+            headers: &Value::Null,
+            wait: Duration::ZERO,
+        })
+    };
+    // The route's probe first, as every lifetime's first send on it is.
+    answered(daemon.rails(), "HEAD", 204);
+    let invalid = |rails: &crate::rails::Rails| answered(rails, "GET", 400);
+    for _ in 0..5 {
+        invalid(daemon.rails());
+    }
+    assert!(
+        !daemon.is_idle(knob),
+        "a job waiting on a timed closure holds the daemon"
+    );
+    for cooldown in [60, 120, 240, 480, 960, 1920, 3600] {
+        clock.advance(Duration::from_secs(cooldown));
+        invalid(daemon.rails());
+    }
+    assert_eq!(daemon.rails().routes_closed_for_good(), ["fetch"]);
+    assert!(daemon.rails().halted().is_none(), "no route but this one");
+    assert!(
+        daemon.is_idle(knob),
+        "a daemon idles out over a job on a route closed for good"
+    );
+    daemon.rails().reset_tripwire().unwrap();
+    assert!(!daemon.is_idle(knob), "reopened, the job holds it again");
     // GGG's 429 (it names its policy): a ladder trip, not a block (C129).
     let ggg = json!({ "x-rate-limit-policy": "dispatcher-test-policy" });
     daemon.choke.rails().record(&crate::rails::SendReport {

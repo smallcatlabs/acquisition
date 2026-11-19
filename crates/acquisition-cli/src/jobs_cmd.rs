@@ -727,6 +727,7 @@ mod tests {
             priority: 0,
             submitted_by: "cli:1".into(),
             eta_seconds: (state == JobState::Waiting).then_some(id),
+            held: None,
             parent: None,
             retries: 0,
             account: None,

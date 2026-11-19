@@ -427,6 +427,7 @@ fn c166_a_rows_bound_holds_its_widest_row() {
         priority: Priority::MAX,
         submitted_by: text.clone(),
         eta_seconds: Some(u64::MAX),
+        held: None,
         parent: Some(JobId::MAX),
         retries: u32::MAX,
         account: Some(text),

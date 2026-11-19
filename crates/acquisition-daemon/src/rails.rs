@@ -23,6 +23,20 @@
 //!   send until `reset_tripwire`. The mark carries the status, method,
 //!   route and time, never a body or another header, and persists in the
 //!   same file, loaded whatever the tripwire says.
+//! - **Closed routes** (C190, every daemon, tripwire on or off): a run of
+//!   five invalid answers on one route (an endpoint key, `stash@Alice#1234`)
+//!   closes it for a cooldown. An invalid answer is a landed GET's or
+//!   POST's 4xx other than 401, 403 and 429 that is not a block; a HEAD
+//!   counts for nothing (a failed probe closes its route already), and so
+//!   does every other answer, while any 2xx ends the run and reopens the
+//!   route. The choke point reads a closure as a hold
+//!   ([`Rails::route_hold`]): its jobs wait, and the first send after the
+//!   cooldown is the trial. A trial answered invalid closes the route again
+//!   for twice as long, to an hour; one that fails after an hour's closure
+//!   closes it for good, a halt of that route alone, until
+//!   `reset_tripwire`. Persisted in the same file with its time, so a
+//!   restart spends no second run; the run before a closure is the
+//!   lifetime's. Each close and reopen is announced for the daemon log.
 //! - **Unreachable origin** (C129, every daemon, tripwire on or off): a
 //!   landed 5xx that is Cloudflare's, by its status alone (520–527, 530)
 //!   or by its own page ([`Verdict::of`]), Cloudflare answering for an
@@ -87,7 +101,8 @@ use acquisition_protocol::status::RailsStatus;
 
 use crate::ratelimit::{Clock, SystemClock};
 
-use acquisition_store::world::RailsState;
+use acquisition_protocol::status::ClosedRoute;
+use acquisition_store::world::{RailsState, RouteClosure};
 use serde_json::{Value, json};
 
 /// How the rails are configured for one daemon lifetime.
@@ -239,6 +254,14 @@ struct State {
     stopping: bool,
     /// Accounts whose refresh grant the provider rejected (persisted).
     refresh_failed: HashMap<String, String>,
+    /// C190: per endpoint key, the invalid answers in a row since its last
+    /// 2xx, this lifetime's alone.
+    runs: HashMap<String, u32>,
+    /// C190: the routes a run closed, by endpoint key (persisted).
+    closed: std::collections::BTreeMap<String, RouteClosure>,
+    /// C190: closes and reopens nobody has logged yet, in order; drained
+    /// by the daemon's `announce_trip`.
+    route_news: Vec<String>,
     /// The state file's fields this build does not know: held only to be
     /// written back unchanged, so a later build's state survives this
     /// daemon's writes as the ladder's trip does.
@@ -441,6 +464,8 @@ impl Rails {
             // honours it.
             state.blocked = persisted.blocked;
             state.refresh_failed = persisted.refresh_failed_by_account;
+            // C190: a closed route holds every daemon, as the block mark does.
+            state.closed = persisted.closed_routes;
             state.unknown = persisted.unknown;
         }
         let (journal, journal_error) = match &config.journal_path {
@@ -536,6 +561,50 @@ impl Rails {
         s.stopping.then(|| STOPPING.to_string())
     }
 
+    /// C190: what `route`'s closure asks of a send on it now.
+    pub fn route_hold(&self, route: &str) -> RouteHold {
+        let s = self.state.lock().unwrap();
+        let Some(closure) = s.closed.get(route) else {
+            return RouteHold::Open;
+        };
+        match closure.until {
+            None => RouteHold::ForGood(for_good_words(route, closure)),
+            Some(until) => {
+                let until = UNIX_EPOCH + Duration::from_secs(until.max(0) as u64);
+                match until.duration_since(self.clock.wall()) {
+                    Ok(left) if !left.is_zero() => RouteHold::Closed(left),
+                    _ => RouteHold::Open,
+                }
+            }
+        }
+    }
+
+    /// Why a send on `route` must be refused right now: a halt of every
+    /// route ([`Rails::halted`]) first, then this route's closure for good
+    /// (C190), which is a halt of that route alone.
+    pub fn halted_for(&self, route: &str) -> Option<String> {
+        self.halted().or_else(|| match self.route_hold(route) {
+            RouteHold::ForGood(words) => Some(words),
+            _ => None,
+        })
+    }
+
+    /// C190: the routes closed for good, which hold their jobs as a halt
+    /// does (C25): picked by nothing, and keeping no daemon up.
+    pub fn routes_closed_for_good(&self) -> Vec<String> {
+        let s = self.state.lock().unwrap();
+        s.closed
+            .iter()
+            .filter(|(_, closure)| closure.until.is_none())
+            .map(|(route, _)| route.clone())
+            .collect()
+    }
+
+    /// C190: the closes and reopens not logged yet, once.
+    pub fn take_route_news(&self) -> Vec<String> {
+        std::mem::take(&mut self.state.lock().unwrap().route_news)
+    }
+
     /// C133: the daemon's exit has begun. From here the choke point admits
     /// nothing more, as under any halt, so a job parked before its send is
     /// turned away to waiting (C25) and what is already on the wire lands.
@@ -572,14 +641,88 @@ impl Rails {
     /// while the send's permit is still held, so no send admitted after
     /// the block has landed can pass the halt check.
     pub fn record(&self, report: &SendReport<'_>) -> Option<String> {
+        self.record_send(report).halted
+    }
+
+    /// [`Rails::record`], with the closure this report made on its route
+    /// (C190), for the job whose answer it was.
+    pub(crate) fn record_send(&self, report: &SendReport<'_>) -> Recorded {
         self.journal_line(report);
         let mut s = self.state.lock().unwrap();
         s.sends = s.sends.saturating_add(1);
+        let closed = self.judge_route(&mut s, report);
+        let halted = self.record_halts(&mut s, report);
+        Recorded { halted, closed }
+    }
+
+    /// C190: one answer's part in its route's run. See the module doc.
+    fn judge_route(&self, s: &mut State, report: &SendReport<'_>) -> Option<RouteClosure> {
+        let answer = route_answer(report)?;
+        let route = report.route;
+        let now = wall_secs(self.clock.wall());
+        if answer == RouteAnswer::Valid {
+            s.runs.remove(route);
+            if let Some(closure) = s.closed.remove(route) {
+                self.persist_locked(s);
+                s.route_news.push(format!(
+                    "ROUTE REOPENED at {}: {route} answered {} to the trial after {} invalid answers in a row; {RELIST}",
+                    iso_utc(self.clock.wall()),
+                    report.status.unwrap_or_default(),
+                    closure.invalid
+                ));
+            }
+            return None;
+        }
+        let status = report.status.unwrap_or_default();
+        let run = {
+            let run = s.runs.entry(route.to_string()).or_default();
+            *run = run.saturating_add(1);
+            *run
+        };
+        let closure = match s.closed.get(route) {
+            // Landed while the route was closed: counted, nothing more.
+            Some(held) if held.until.is_none_or(|until| until > now) => return None,
+            // The trial failed: closed again for twice as long, to an hour,
+            // and for good after an hour's closure.
+            Some(held) => {
+                let longest = LONGEST_COOLDOWN.as_secs();
+                let cooldown = (held.cooldown_secs < longest)
+                    .then(|| held.cooldown_secs.saturating_mul(2).min(longest));
+                RouteClosure {
+                    invalid: held.invalid.saturating_add(1),
+                    status,
+                    closed_at: now,
+                    cooldown_secs: cooldown.unwrap_or(held.cooldown_secs),
+                    until: cooldown.map(|c| now.saturating_add(c as i64)),
+                }
+            }
+            None if run >= RUN_TO_CLOSE => RouteClosure {
+                invalid: run,
+                status,
+                closed_at: now,
+                cooldown_secs: FIRST_COOLDOWN.as_secs(),
+                until: Some(now.saturating_add(FIRST_COOLDOWN.as_secs() as i64)),
+            },
+            None => return None,
+        };
+        s.route_news.push(format!(
+            "ROUTE CLOSED at {}: {}",
+            iso_utc(self.clock.wall()),
+            closure_words(route, &closure)
+        ));
+        s.closed.insert(route.to_string(), closure.clone());
+        self.persist_locked(s);
+        Some(closure)
+    }
+
+    /// The halts one report sets: the block mark, the unreachable origin,
+    /// the tripwire's trip and the ceiling.
+    fn record_halts(&self, s: &mut State, report: &SendReport<'_>) -> Option<String> {
         let mut newly = None;
         if report.block && s.blocked.is_none() {
             let cause = self.cloudflare_cause("Cloudflare answered in GGG's place", report);
             s.blocked = Some(cause.clone());
-            self.persist_locked(&mut s);
+            self.persist_locked(s);
             newly = Some(cause);
         }
         if report.unreachable && s.unreachable.is_none() {
@@ -630,7 +773,7 @@ impl Rails {
             if let Some(cause) = cause {
                 s.tripped = Some(cause.clone());
                 newly.get_or_insert(cause);
-                self.persist_locked(&mut s);
+                self.persist_locked(s);
             }
         }
         if let Some(max) = self.config.max_sends
@@ -695,8 +838,24 @@ impl Rails {
         self.write(&Persisted {
             tripped: None,
             blocked: None,
+            closed_routes: Default::default(),
             ..Self::persisted(&s)
         })?;
+        // C190: the verb opens every closed route, said as each opens.
+        let at = iso_utc(self.clock.wall());
+        let opened: Vec<String> = s
+            .closed
+            .iter()
+            .map(|(route, closure)| {
+                format!(
+                    "ROUTE REOPENED at {at}: {route} by `reset-tripwire`, after {} invalid answers in a row; {RELIST}",
+                    closure.invalid
+                )
+            })
+            .collect();
+        s.route_news.extend(opened);
+        s.closed.clear();
+        s.runs.clear();
         s.tripped = None;
         s.dormant_trip = None;
         s.blocked = None;
@@ -774,6 +933,18 @@ impl Rails {
                 .journal_path
                 .as_ref()
                 .map(|path| path.display().to_string()),
+            closed_routes: s
+                .closed
+                .iter()
+                .map(|(route, closure)| ClosedRoute {
+                    route: route.clone(),
+                    invalid: closure.invalid,
+                    status: closure.status,
+                    closed_at: closure.closed_at,
+                    cooldown_secs: closure.cooldown_secs,
+                    until: closure.until,
+                })
+                .collect(),
         }
     }
 
@@ -793,6 +964,7 @@ impl Rails {
             tripped: s.tripped.clone().or_else(|| s.dormant_trip.clone()),
             blocked: s.blocked.clone(),
             refresh_failed_by_account: s.refresh_failed.clone(),
+            closed_routes: s.closed.clone(),
             unknown: s.unknown.clone(),
         }
     }
@@ -837,6 +1009,101 @@ impl Rails {
         let _ = writeln!(file, "{line}");
         let _ = file.flush();
     }
+}
+
+/// C190: the invalid answers in a row that close a route.
+pub(crate) const RUN_TO_CLOSE: u32 = 5;
+/// C190: a route's first closure; each failed trial doubles it.
+pub(crate) const FIRST_COOLDOWN: Duration = Duration::from_secs(60);
+/// C190: the longest closure; a trial that fails after it closes the
+/// route for good.
+pub(crate) const LONGEST_COOLDOWN: Duration = Duration::from_secs(3600);
+
+/// C190: what a closure leaves to do once the route reopens.
+pub(crate) const RELIST: &str =
+    "list the league again: what was fetched just before the closure may be older than GGG's state";
+
+/// What one report did, for the choke point: the halt it set, and the
+/// closure it made on its route (C190).
+pub(crate) struct Recorded {
+    pub(crate) halted: Option<String>,
+    pub(crate) closed: Option<RouteClosure>,
+}
+
+/// C190: what a route's closure asks of a send on it now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RouteHold {
+    Open,
+    /// Closed for this long yet; the send waits, as under a 429's hold.
+    Closed(Duration),
+    /// Closed until a reset, in the words a halt of the route carries.
+    ForGood(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RouteAnswer {
+    Valid,
+    Invalid,
+}
+
+/// C190: a landed GET's or POST's 2xx ends a run; its 4xx other than 401,
+/// 403 and 429 that is not a block extends it; nothing else counts, a HEAD
+/// included.
+fn route_answer(report: &SendReport<'_>) -> Option<RouteAnswer> {
+    if report.method == "HEAD" {
+        return None;
+    }
+    match report.status? {
+        200..=299 => Some(RouteAnswer::Valid),
+        401 | 403 | 429 => None,
+        400..=499 if !report.block => Some(RouteAnswer::Invalid),
+        _ => None,
+    }
+}
+
+/// Unix seconds of `at`, rounded up: a closure computed from it lasts at
+/// least its cooldown.
+fn wall_secs(at: SystemTime) -> i64 {
+    let since = at.duration_since(UNIX_EPOCH).unwrap_or_default();
+    let secs = since.as_secs() + u64::from(since.subsec_nanos() > 0);
+    i64::try_from(secs).unwrap_or(i64::MAX)
+}
+
+/// C190: a closure `closure` made on `route`, in the words its log line
+/// and the failure of the job whose answer made it carry: the run, the
+/// cooldown and when the trial goes, or the halt of the route.
+pub(crate) fn closure_words(route: &str, closure: &RouteClosure) -> String {
+    let made = if closure.invalid > RUN_TO_CLOSE {
+        format!(
+            "the trial after its closure was answered {} too, {} invalid answers in a row",
+            closure.status, closure.invalid
+        )
+    } else {
+        format!(
+            "{} invalid answers in a row, the last {}",
+            closure.invalid, closure.status
+        )
+    };
+    match closure.until {
+        Some(until) => format!(
+            "{route} closed after {made}: for {} s, and one waiting job goes as the trial at {}; {RELIST} once it reopens",
+            closure.cooldown_secs,
+            iso_utc(UNIX_EPOCH + Duration::from_secs(until.max(0) as u64))
+        ),
+        None => format!(
+            "{route} closed after {made}; {}",
+            for_good_words(route, closure)
+        ),
+    }
+}
+
+/// C190: a route closed for good, in the words its halt carries: what to
+/// check before the verb, and the verb.
+fn for_good_words(route: &str, closure: &RouteClosure) -> String {
+    format!(
+        "halted on {route}: GGG answered {} requests on it in a row as invalid, the last {}, the last after an hour's closure; nothing more is sent on it until `acq daemon reset-tripwire` — first check whether GGG's API changed and whether a newer acq exists",
+        closure.invalid, closure.status
+    )
 }
 
 /// The exit's halt, in the words a turned-away job's log line carries.
@@ -902,6 +1169,192 @@ mod tests {
             },
             wait: Duration::ZERO,
         }
+    }
+
+    /// C190, answer by answer on one route (an endpoint key): what counts
+    /// toward a run and what ends one, the close at the fifth, the hold,
+    /// the trial and its doubling to an hour, the close for good after an
+    /// hour's trial, the reset that opens it, and every close and reopen
+    /// said for the log. The clock moves; nothing sleeps.
+    #[test]
+    fn c190_a_run_of_invalid_answers_closes_a_route_until_a_trial_reopens_it() {
+        use crate::testing::ParkingClock;
+        const ROUTE: &str = "stash@A#1";
+        let clock = Arc::new(ParkingClock::new());
+        let rails = Rails::with_config_and_clock(RailsConfig::default(), clock.clone());
+        let on = |method: &'static str, status: Option<u16>| SendReport {
+            method,
+            route: ROUTE,
+            url_path: "/stash/Standard/t1",
+            ..report(status)
+        };
+        let block = SendReport {
+            block: true,
+            ..on("GET", Some(403))
+        };
+        let closes = |sent: SendReport<'_>| rails.record_send(&sent).closed;
+        let held = || rails.route_hold(ROUTE);
+        // A 2xx ends a run: four, a 200, four more close nothing.
+        for _ in 0..4 {
+            assert_eq!(closes(on("GET", Some(400))), None);
+        }
+        assert_eq!(closes(on("GET", Some(200))), None);
+        for _ in 0..4 {
+            assert_eq!(closes(on("GET", Some(400))), None);
+        }
+        // Answers that count for nothing and end nothing: GGG's 401, 403
+        // and 429, a 3xx, a 5xx, a send that never landed, a HEAD's 400
+        // and a HEAD's 200, and Cloudflare's block (which halts, C129).
+        for (what, sent) in [
+            ("401", on("GET", Some(401))),
+            ("403", on("GET", Some(403))),
+            ("429", on("GET", Some(429))),
+            ("307", on("GET", Some(307))),
+            ("503", on("GET", Some(503))),
+            ("lost", on("GET", None)),
+            ("HEAD 400", on("HEAD", Some(400))),
+            ("HEAD 200", on("HEAD", Some(200))),
+        ] {
+            assert_eq!(closes(sent), None, "{what}");
+            assert_eq!(held(), RouteHold::Open, "{what}");
+        }
+        assert!(rails.record(&block).is_some(), "a block halts");
+        rails.reset_tripwire().unwrap();
+        // The reset forgot the run of four: four 400s and a 404 (which
+        // counts) close it at the fifth, for a minute.
+        for _ in 0..4 {
+            assert_eq!(closes(on("GET", Some(400))), None);
+        }
+        let closure = closes(on("POST", Some(404))).expect("the fifth closes");
+        assert_eq!(
+            (closure.invalid, closure.status, closure.cooldown_secs),
+            (5, 404, 60)
+        );
+        assert_eq!(held(), RouteHold::Closed(Duration::from_secs(60)));
+        assert_eq!(rails.halted_for(ROUTE), None, "a timed closure is a hold");
+        assert_eq!(rails.route_hold("stash@B#2"), RouteHold::Open, "one route");
+        // Landed while closed: nothing more.
+        assert_eq!(closes(on("GET", Some(400))), None);
+        // Each failed trial doubles the closure, to an hour.
+        for cooldown in [120, 240, 480, 960, 1920, 3600] {
+            clock.advance(held_for(&held()));
+            assert_eq!(held(), RouteHold::Open, "the trial is due");
+            let closure = closes(on("GET", Some(400))).expect("a failed trial closes");
+            assert_eq!(closure.cooldown_secs, cooldown);
+            assert_eq!(held(), RouteHold::Closed(Duration::from_secs(cooldown)));
+        }
+        // The trial after an hour's closure fails: closed for good, a halt
+        // of this route alone, until the reset.
+        clock.advance(Duration::from_secs(3600));
+        let closure = closes(on("GET", Some(400))).expect("closed for good");
+        assert_eq!((closure.until, closure.invalid), (None, 12));
+        let words = rails.halted_for(ROUTE).expect("a halt of the route");
+        assert!(words.contains("reset-tripwire"), "{words}");
+        assert!(words.contains("API changed"), "{words}");
+        assert_eq!(rails.halted(), None, "no other route is halted");
+        assert_eq!(rails.routes_closed_for_good(), [ROUTE]);
+        clock.advance(Duration::from_secs(86_400));
+        assert!(matches!(held(), RouteHold::ForGood(_)), "no time opens it");
+        rails.reset_tripwire().unwrap();
+        assert_eq!(held(), RouteHold::Open);
+        assert!(rails.status().closed_routes.is_empty());
+        // A trial's 2xx reopens: close again, wait, answer 200.
+        for _ in 0..5 {
+            closes(on("GET", Some(400)));
+        }
+        clock.advance(Duration::from_secs(60));
+        assert_eq!(closes(on("GET", Some(200))), None);
+        assert_eq!(held(), RouteHold::Open);
+        // The log's lines, each with its route and count: the first close,
+        // each trial's, the close for good, the reset's reopen, the last
+        // close and the trial's reopen.
+        let news = rails.take_route_news();
+        assert_eq!(news.len(), 11, "{news:#?}");
+        assert!(news[0].starts_with("ROUTE CLOSED at 2000-01-01T00:00:00.000Z: stash@A#1 closed after 5 invalid answers in a row, the last 404: for 60 s, and one waiting job goes as the trial at 2000-01-01T00:01:00.000Z"), "{}", news[0]);
+        assert!(
+            news[1].contains(
+                "the trial after its closure was answered 400 too, 6 invalid answers in a row"
+            ),
+            "{}",
+            news[1]
+        );
+        assert!(
+            news[7].contains("12 invalid answers") && news[7].contains("reset-tripwire"),
+            "{}",
+            news[7]
+        );
+        assert!(
+            news[8].contains("stash@A#1 by `reset-tripwire`, after 12 invalid answers"),
+            "{}",
+            news[8]
+        );
+        assert!(
+            news[10]
+                .contains("stash@A#1 answered 200 to the trial after 5 invalid answers in a row"),
+            "{}",
+            news[10]
+        );
+        assert!(news[10].contains("list the league again"), "{}", news[10]);
+        // C24 beside it: a rejected grant is one invalid answer on the
+        // token route, one rule with no exception. C24 sends no refresh
+        // after the first (the refresh table's
+        // `rejected_refresh_grant_disables_further_refreshes_until_logout`,
+        // one POST in its journal), so five come only from five exchanges
+        // a client asked for.
+        let token = |status| SendReport {
+            method: "POST",
+            route: crate::ratelimit::TOKEN_ROUTE,
+            url_path: "/oauth/token",
+            ..report(Some(status))
+        };
+        for _ in 0..4 {
+            assert_eq!(rails.record_send(&token(400)).closed, None);
+        }
+        assert!(rails.record_send(&token(400)).closed.is_some());
+        assert_eq!(
+            rails.refresh_failed("A#1"),
+            None,
+            "no grant is marked dead here"
+        );
+    }
+
+    /// The remainder a timed closure holds for.
+    fn held_for(hold: &RouteHold) -> Duration {
+        match hold {
+            RouteHold::Closed(left) => *left,
+            other => panic!("not a timed closure: {other:?}"),
+        }
+    }
+
+    /// C190: a closed route outlives the daemon, every daemon honours it,
+    /// tripwire or not, and its persisted time is the wall clock's, so a
+    /// successor holds what remains of it.
+    #[test]
+    fn c190_a_closed_route_holds_the_next_lifetime() {
+        use crate::testing::ParkingClock;
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails.json");
+        let clock = Arc::new(ParkingClock::new());
+        let config = RailsConfig {
+            state_path: Some(path.clone()),
+            ..RailsConfig::default()
+        };
+        let first = Rails::with_config_and_clock(config.clone(), clock.clone());
+        for _ in 0..5 {
+            first.record(&SendReport {
+                route: "stash@A#1",
+                ..report(Some(400))
+            });
+        }
+        clock.advance(Duration::from_secs(20));
+        let second = Rails::with_config_and_clock(config, clock.clone());
+        assert_eq!(
+            second.route_hold("stash@A#1"),
+            RouteHold::Closed(Duration::from_secs(40))
+        );
+        let status = second.status().closed_routes;
+        assert_eq!(status.len(), 1);
+        assert_eq!((status[0].invalid, status[0].status), (5, 400));
     }
 
     /// A ceiling met beside another halt is named with it, for a reset

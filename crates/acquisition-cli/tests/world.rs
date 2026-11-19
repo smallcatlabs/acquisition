@@ -540,9 +540,10 @@ fn c83_the_rails_state_lives_in_the_world_and_reset_tripwire_clears_it() {
     std::fs::remove_dir_all(&current).unwrap();
 }
 
-/// C24, C129: the offline reset clears what a reset clears, the trip and
-/// the block mark, and keeps the dead-grant marks, which persist across
-/// restarts until `acq auth` or logout; only the halt goes.
+/// C24, C129, C190: the offline reset clears what a reset clears, the
+/// trip, the block mark and every closed route, and keeps the dead-grant
+/// marks, which persist across restarts until `acq auth` or logout; only
+/// the halt goes.
 #[test]
 fn c24_the_offline_reset_clears_the_halt_and_keeps_the_dead_grant_marks() {
     let scratch = scratch("rails-owners");
@@ -551,7 +552,7 @@ fn c24_the_offline_reset_clears_the_halt_and_keeps_the_dead_grant_marks() {
     std::fs::create_dir_all(current.parent().unwrap()).unwrap();
     std::fs::write(
         &current,
-        r#"{"tripped":"429 on GET /stash/Standard","blocked":"Cloudflare answered in GGG's place: 403 on GET stash@A#1 at 2026-10-22T00:00:00.000Z","refresh_failed_by_account":{"A#1":"400 invalid_grant"}}"#,
+        r#"{"tripped":"429 on GET /stash/Standard","blocked":"Cloudflare answered in GGG's place: 403 on GET stash@A#1 at 2026-10-22T00:00:00.000Z","refresh_failed_by_account":{"A#1":"400 invalid_grant"},"closed_routes":{"stash@A#1":{"invalid":12,"status":400,"closed_at":1800000000,"cooldown_secs":3600,"until":null}}}"#,
     )
     .unwrap();
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
@@ -560,6 +561,10 @@ fn c24_the_offline_reset_clears_the_halt_and_keeps_the_dead_grant_marks() {
     let held: Value = serde_json::from_str(&std::fs::read_to_string(&current).unwrap()).unwrap();
     assert!(held.get("blocked").is_none_or(|b| b.is_null()), "{held}");
     assert!(held.get("tripped").is_none_or(|t| t.is_null()), "{held}");
+    assert!(
+        held.get("closed_routes").is_none(),
+        "the closed route stands: {held}"
+    );
     assert_eq!(
         held["refresh_failed_by_account"]["A#1"], "400 invalid_grant",
         "the dead-grant mark was lost: {held}"

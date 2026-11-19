@@ -83,6 +83,10 @@ impl Daemon {
         }
         let mut busy: HashSet<String> = s.active_jobs.values().cloned().collect();
         let halted = self.rails().halted().is_some();
+        // C190: a route closed for good holds its jobs as a halt holds
+        // every route's (C25): they wait, on disk, for the reset.
+        let closed_for_good: HashSet<String> =
+            self.rails().routes_closed_for_good().into_iter().collect();
         let mut picks = Vec::new();
         // Whether a route's probe is pending, asked once per route: the
         // question scans every job, and a queue waiting on one probe
@@ -101,6 +105,12 @@ impl Daemon {
             // `whoami`'s refresh). A job a halt turned away after its pick
             // (C25) is so not picked again at once.
             if halted && (route.is_some() || Self::sends_unrouted(&entry.info().kind)) {
+                continue;
+            }
+            if route
+                .as_ref()
+                .is_some_and(|(route, _)| closed_for_good.contains(route))
+            {
                 continue;
             }
             // A job whose route is still being probed has nothing to do yet.
@@ -153,7 +163,12 @@ impl Daemon {
         // wait, no permit. The job stays waiting (the dispatcher will not
         // pick it again until the reset); its key is given back. A probe
         // and `whoami` (`sends_unrouted`) are held the same way.
-        if self.rails().halted().is_some() && (route.is_some() || Self::sends_unrouted(&kind)) {
+        // C190: a route closed for good is a halt of that route alone.
+        let halted = match &route {
+            Some((route, _)) => self.rails().halted_for(route),
+            None => self.rails().halted(),
+        };
+        if halted.is_some() && (route.is_some() || Self::sends_unrouted(&kind)) {
             return;
         }
 
@@ -196,7 +211,7 @@ impl Daemon {
                     ));
                     return;
                 }
-                if let Some(cause) = self.rails().halted() {
+                if let Some(cause) = self.rails().halted_for(route) {
                     self.log(&format!(
                         "job {id} ({kind}): turned away before its send by a halt; still waiting, no retry spent: {cause}"
                     ));
