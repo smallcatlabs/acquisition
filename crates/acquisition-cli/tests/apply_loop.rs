@@ -262,3 +262,74 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     );
     assert!(failed[0]["error"].is_string(), "{doc}");
 }
+
+/// C190: an apply whose fetches wait on a route closed until a person
+/// opens it ends, saying the route, what to check and the verb, with its
+/// jobs waiting on disk, and never waits on it; the reset opens the route
+/// and the same job goes on. The closure is staged in the world's rails
+/// state, where a daemon keeps it across lifetimes.
+#[test]
+fn c190_an_apply_on_a_route_closed_for_good_ends_with_its_jobs_waiting() {
+    let scratch = harness::scratch("acl");
+    let base = scratch.0.clone();
+    let login = login_as_mock(&base, &[]);
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    assert!(acq(&base, &["policy", "set", policy]).status.success());
+    assert!(acq(&base, &["stashes"]).status.success());
+    assert!(acq(&base, &["daemon", "stop"]).status.success());
+    while sole_json(&acq(&base, &["daemon", "status", "--json"]))["running"] != false {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // The daemon the login started is stopped; the next is this test's.
+    drop(login);
+    let rails = base.join("store").join("mock").join("rails.json");
+    std::fs::write(
+        &rails,
+        r#"{"closed_routes":{"stash@ExileTester":{"invalid":12,"status":400,"closed_at":1800000000,"cooldown_secs":3600,"until":null}}}"#,
+    )
+    .unwrap();
+    // A login again, its daemon reading the staged state at its start.
+    let _daemon = login_as_mock(&base, &[]);
+
+    let out = acq(&base, &["refresh", "--apply"]);
+    let said = String::from_utf8_lossy(&out.stderr).into_owned();
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(!out.status.success(), "{stdout}{said}");
+    for words in [
+        "stopped waiting for job",
+        "wait on disk for stash@ExileTester",
+        "12 requests in a row as invalid (the last 400)",
+        "first check whether GGG's API changed and whether a newer acq exists",
+        "then `acq daemon reset-tripwire`",
+    ] {
+        assert!(said.contains(words), "lacks {words:?}: {said}");
+    }
+    let id: u64 = stdout
+        .split("as job ")
+        .nth(1)
+        .and_then(|rest| rest.split_whitespace().next())
+        .and_then(|id| {
+            id.trim_end_matches(|c: char| !c.is_ascii_digit())
+                .parse()
+                .ok()
+        })
+        .unwrap_or_else(|| panic!("the apply's job id: {stdout}"));
+    let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
+    assert!(
+        status["jobs_waiting"].as_u64().is_some_and(|n| n > 0),
+        "its fetches wait: {status}"
+    );
+    let jobs = sole_json(&acq(&base, &["jobs", "--json"]));
+    assert!(
+        jobs.to_string()
+            .contains(r#""held":"route_closed_for_good""#),
+        "a waiting fetch names what holds it: {jobs}"
+    );
+
+    // The person's verb opens the route, and the same apply goes on.
+    assert!(acq(&base, &["daemon", "reset-tripwire"]).status.success());
+    let out = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["outcome"], json!("success"));
+    assert!(acq(&base, &["daemon", "stop"]).status.success());
+}

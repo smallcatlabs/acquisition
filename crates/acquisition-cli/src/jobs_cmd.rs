@@ -279,6 +279,10 @@ fn progress_line(p: &Progress) -> String {
         return children_line(&id, t);
     }
     match (job.state, job.eta_seconds) {
+        // C190: a closed route says so before any other reason to wait.
+        (JobState::Waiting, eta) if job.held.is_some() => {
+            format!("job {id}: waiting, {}", held_words(job.held, eta))
+        }
         (JobState::Waiting, Some(eta)) if eta > 0 && job.retries > 0 => {
             format!("job {id}: got a 429, retry {} in ~{eta}s...", job.retries)
         }
@@ -304,10 +308,33 @@ fn children_line(id: &str, t: &ChildTally) -> String {
     if t.waiting > 0 {
         line.push_str(&format!(", {} waiting", t.waiting));
     }
-    if let Some((eta, kind)) = &t.next {
-        line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"));
+    match (&t.next, t.held) {
+        (Some((eta, _)), Some(_)) => {
+            line.push_str(&format!(", next {}", held_words(t.held, Some(*eta))))
+        }
+        (Some((eta, kind)), None) => {
+            line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"))
+        }
+        (None, _) => {}
     }
     line
+}
+
+/// C190: a waiting job's route, closed after a run of invalid answers, in
+/// the progress line's words: the trial's time from the job's `eta`, or
+/// the verb that opens a route closed for good.
+fn held_words(held: Option<acquisition_protocol::job::Held>, eta: Option<u64>) -> String {
+    use acquisition_protocol::job::Held;
+    match held {
+        Some(Held::RouteClosedForGood) => {
+            "its route closed after a run of invalid answers until `acq daemon reset-tripwire`"
+                .to_string()
+        }
+        _ => format!(
+            "in ~{}s (route closed after a run of invalid answers; list the league again once it reopens)",
+            eta.unwrap_or(0)
+        ),
+    }
 }
 
 /// A finished job in text (rule 4 of the legibility ruling), the one
@@ -718,6 +745,56 @@ mod tests {
     /// open and finished apart, each with the flag that lists every one
     /// (the brief's second review, finding 2: the open jobs are cut too);
     /// C166: the counts are the daemon's, over jobs the rows leave out.
+    /// C190: a waiting job held by its closed route says so, the trial's
+    /// time from its eta, or the verb when the route is closed for good;
+    /// a parent's next child likewise, in place of the limiter's hold.
+    #[test]
+    fn c190_the_progress_line_says_a_closed_route() {
+        use acquisition_protocol::job::Held;
+        let job = |held| JobInfo {
+            id: 7,
+            kind: "stash".into(),
+            state: JobState::Waiting,
+            priority: 0,
+            submitted_by: "t".into(),
+            eta_seconds: Some(40),
+            held,
+            parent: None,
+            retries: 0,
+            account: Some("A#1".into()),
+            params: serde_json::json!({}),
+            times: Default::default(),
+        };
+        let line = |held| {
+            progress_line(&Progress {
+                job: job(held),
+                children: None,
+            })
+        };
+        assert_eq!(
+            line(Some(Held::RouteClosed)),
+            "job 7 (A#1): waiting, in ~40s (route closed after a run of invalid answers; list the league again once it reopens)"
+        );
+        assert!(
+            line(Some(Held::RouteClosedForGood)).ends_with("until `acq daemon reset-tripwire`"),
+            "{}",
+            line(Some(Held::RouteClosedForGood))
+        );
+        assert_eq!(line(None), "job 7 (A#1): rate limited, starting in ~40s...");
+        let tally = ChildTally {
+            total: 3,
+            done: 1,
+            waiting: 2,
+            next: Some((40, "stash".into())),
+            held: Some(Held::RouteClosed),
+            ..ChildTally::default()
+        };
+        assert_eq!(
+            children_line("6", &tally),
+            "job 6: 1/3 done, 2 waiting, next in ~40s (route closed after a run of invalid answers; list the league again once it reopens)"
+        );
+    }
+
     #[test]
     fn c149_the_jobs_text_counts_every_job_and_says_what_it_left_out() {
         let job = |id: u64, state: JobState| JobInfo {

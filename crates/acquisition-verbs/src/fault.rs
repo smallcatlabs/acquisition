@@ -123,6 +123,15 @@ pub enum Fault {
     Unresponsive(Unresponsive),
     /// The daemon's own refusal, its closed kind (C85).
     Daemon(DaemonError),
+    /// C190: the wait for job `id` ended with `waiting` of its jobs
+    /// waiting on disk on a route closed until `reset-tripwire`, which
+    /// only a person runs: never waited on. `routes` are the daemon's
+    /// status's closures for good. Kind `route_closed`, with `next`.
+    RouteClosed {
+        id: u64,
+        waiting: usize,
+        routes: Vec<acquisition_protocol::status::ClosedRoute>,
+    },
     /// The conversation with the daemon failed: a closed socket, an
     /// answer of the wrong shape. Kind `transport`.
     Transport(anyhow::Error),
@@ -162,6 +171,7 @@ impl Fault {
             Fault::Unresponsive(_) => "unresponsive",
             Fault::Daemon(refused) => refused.kind.as_str(),
             Fault::Transport(_) => "transport",
+            Fault::RouteClosed { .. } => "route_closed",
         }
     }
 
@@ -184,6 +194,9 @@ impl Fault {
             | Fault::NoJobOnDisk { next, .. }
             | Fault::Unfinished { next, .. } => {
                 out.insert("next".into(), json!(next));
+            }
+            Fault::RouteClosed { .. } => {
+                out.insert("next".into(), json!(ROUTE_REOPEN));
             }
             _ => {}
         }
@@ -299,9 +312,39 @@ impl fmt::Display for Fault {
             Fault::AnotherDaemon(found) => write!(f, "{found}"),
             Fault::Unresponsive(found) => write!(f, "{found}"),
             Fault::Daemon(refused) => write!(f, "{refused}"),
+            Fault::RouteClosed {
+                id,
+                waiting,
+                routes,
+            } => {
+                let jobs = match waiting {
+                    1 => "1 job".to_string(),
+                    n => format!("{n} jobs"),
+                };
+                let closed = match routes.as_slice() {
+                    [] => "a route closed after a run of invalid answers".to_string(),
+                    routes => routes
+                        .iter()
+                        .map(|closed| {
+                            format!(
+                                "{}, which GGG answered {} requests in a row as invalid (the last {}), the last after an hour's closure",
+                                closed.route, closed.invalid, closed.status
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; and "),
+                };
+                write!(
+                    f,
+                    "stopped waiting for job {id}: {jobs} under it wait on disk for {closed}; nothing is sent on it until a person opens it, and the jobs go on then"
+                )
+            }
         }
     }
 }
+
+/// C190: the verb that opens a route closed for good.
+pub const ROUTE_REOPEN: &str = "acq daemon reset-tripwire";
 
 impl std::error::Error for Fault {}
 

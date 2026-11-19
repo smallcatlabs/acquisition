@@ -113,7 +113,7 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
                 );
                 line!("socket: {}", found.socket());
                 line!("log:    {}", log.as_deref().unwrap_or("not reported"));
-                out.push_str(&rails_text(rails));
+                out.push_str(&rails_text(rails, acquisition_store::now()));
                 if keyring != "ok" {
                     line!("KEYRING: {keyring} — a rotated refresh token may be memory-only");
                 }
@@ -135,7 +135,7 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
 /// queue that stands still says why. A journal that was not written is
 /// named by its path, the status's own field, before the daemon's words
 /// of why, which name none (C152).
-pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> String {
+pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> String {
     let journal = match (&rails.journal_path, &rails.journal) {
         (Some(path), Some(words)) if words != path => format!("{path} {words}"),
         (_, Some(words)) => words.clone(),
@@ -147,6 +147,7 @@ pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> S
         rails.sends,
         rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
     );
+    out.push_str(&closed_routes_text(&rails.closed_routes, now));
     let Some(cause) = &rails.halted else {
         return out;
     };
@@ -193,9 +194,79 @@ pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> S
     out
 }
 
+/// C190: each route a run of invalid answers closed, as `daemon status`
+/// and the web UI's jobs page say it from the status's facts: what closed
+/// it, that every request on it waits whatever its league, when the trial
+/// goes or what to check before the verb, and to list again once it
+/// reopens.
+fn closed_routes_text(closed: &[acquisition_protocol::status::ClosedRoute], now: i64) -> String {
+    let mut out = String::new();
+    for route in closed {
+        let made = format!(
+            "GGG answered {} requests in a row on it as invalid, the last {}",
+            route.invalid, route.status
+        );
+        match route.until {
+            Some(until) => {
+                let trial = if until > now {
+                    format!(
+                        "one waiting job goes as the trial in ~{}",
+                        acquisition_store::age::span(until - now)
+                    )
+                } else {
+                    "the next job sent on it is the trial".to_string()
+                };
+                out.push_str(&format!(
+                    "ROUTE CLOSED: {} for {}s — {made}; {trial}\n",
+                    route.route, route.cooldown_secs
+                ));
+            }
+            None => out.push_str(&format!(
+                "ROUTE CLOSED UNTIL RESET: {} — {made}, the last after an hour's closure; first check whether GGG's API changed and whether a newer acq exists, then `acq daemon reset-tripwire`\n",
+                route.route
+            )),
+        }
+        out.push_str(
+            "        every request on it waits, whatever its league; once it reopens, list the league again: what was fetched just before may be older than GGG's state\n",
+        );
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// C190: a timed closure says the trial's time from the status's
+    /// facts at the answer's `now`, and that every league's requests on the
+    /// route wait: the run was one league's, the route is the account's.
+    /// Its wording closed for good is the web jobs page's golden.
+    #[test]
+    fn c190_a_closed_route_says_when_its_trial_goes() {
+        use acquisition_protocol::status::{ClosedRoute, RailsStatus};
+        let rails = RailsStatus {
+            closed_routes: vec![ClosedRoute {
+                route: "stash@A#1".into(),
+                invalid: 6,
+                status: 404,
+                closed_at: 1_800_000_000,
+                cooldown_secs: 120,
+                until: Some(1_800_000_120),
+            }],
+            ..RailsStatus::default()
+        };
+        let text = rails_text(&rails, 1_800_000_080);
+        assert!(
+            text.contains("ROUTE CLOSED: stash@A#1 for 120s — GGG answered 6 requests in a row on it as invalid, the last 404; one waiting job goes as the trial in ~40s\n"),
+            "{text}"
+        );
+        assert!(text.contains("whatever its league"), "{text}");
+        let due = rails_text(&rails, 1_800_000_120);
+        assert!(
+            due.contains("the next job sent on it is the trial"),
+            "{due}"
+        );
+    }
 
     /// C146 (a count says what it counts): the sends and the policies
     /// learned are this daemon's lifetime's, never persisted, said beside

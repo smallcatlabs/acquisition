@@ -86,6 +86,11 @@ pub(crate) fn fault_words(fault: &Fault) -> String {
         | Fault::Transport(_)
         | Fault::Other(_) => fault.to_string(),
         Fault::NoAccounts { .. } => format!("{fault} — log in with `acq auth`"),
+        // C190: what to check before the verb, then the verb
+        Fault::RouteClosed { .. } => format!(
+            "{fault} — first check whether GGG's API changed and whether a newer acq exists, then `{}`; `acq jobs` lists what waits",
+            acquisition_verbs::fault::ROUTE_REOPEN
+        ),
         // the verbs' refusal and the daemon's of the same kind, one tail
         Fault::UnknownAccount { .. } | Fault::AmbiguousAccount { .. } | Fault::Daemon(_) => {
             format!("{fault}{}", account_way(fault.kind()))

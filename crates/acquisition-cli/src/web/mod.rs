@@ -1925,7 +1925,7 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
             let rails = match web.cx.frontend.daemon().await {
                 Ok(acquisition_verbs::DaemonReport::Running { status, .. }) => match *status {
                     acquisition_protocol::protocol::Response::DaemonStatus { rails, .. } => {
-                        crate::daemon_cmd::rails_text(&rails)
+                        crate::daemon_cmd::rails_text(&rails, acquisition_store::now())
                     }
                     _ => String::new(),
                 },

@@ -4,10 +4,16 @@ GET jobs <the daemon halted>
 # holds "rails:  tripwire ON"
 # holds "HALTED: 429 on GET /stash/Standard (staged trip)"
 # holds "acq daemon reset-tripwire"
+# holds "ROUTE CLOSED UNTIL RESET: stash@A#1"
+# holds "12 requests in a row"
+# holds "whatever its league"
+# holds "list the league again"
 <main>
 <h1>Jobs</h1>
 <pre>
 rails:  tripwire ON · sends 0 since this daemon started · journal off
+ROUTE CLOSED UNTIL RESET: stash@A#1 — GGG answered 12 requests in a row on it as invalid, the last 400, the last after an hour&#39;s closure; first check whether GGG&#39;s API changed and whether a newer acq exists, then `acq daemon reset-tripwire`
+        every request on it waits, whatever its league; once it reopens, list the league again: what was fetched just before may be older than GGG&#39;s state
 HALTED: 429 on GET /stash/Standard (staged trip)
         clear with `acq daemon reset-tripwire` after the post-violation wait
 no jobs
