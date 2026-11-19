@@ -385,10 +385,12 @@ fn invariant_7_holds_where_a_block_is_cut() {
 /// #292: a padding beside a group whose query orders the rows unasked.
 /// The padded query is another question, which agrees with the first
 /// only on these items, and the values a query compares are its text's,
-/// so the padded pair is compared in the store's order. Each case moved
-/// that order before: a slot the padding's one template lacks, refused
-/// once the selector folds to it (the seed's case, and the projection's
-/// own slot), and one value padded apart into two.
+/// so the padded pair is compared in the store's order. In each case the
+/// padding changed whether the query names a value to order by, and so
+/// what each row says it sorts by: a slot the padding's one template
+/// lacks, refused once the selector folds to it (the seed's case, and the
+/// projection's own slot, where no row has a number for the value and
+/// the rows' sequence stays), and one value padded apart into two.
 #[test]
 fn invariant_7_holds_beside_a_padding_where_the_query_orders_the_rows() {
     let life = || Q::Alt("\"life\"".into(), "text:life".into(), TermKind::Plain);
