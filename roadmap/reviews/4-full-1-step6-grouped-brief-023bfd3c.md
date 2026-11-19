@@ -1,0 +1,11 @@
+`roadmap/briefs/4-full-1-step6-grouped.md` at `023bfd3c` — not yet: the builder must guess how the query and filters are submitted.
+
+- **Decisions 3 / Done when — changes what gets built.** The brief adds editable query/filter fields without specifying an action that submits them to the place page. In `web/page.rs`, `places` currently puts “Refresh ticked” first among the table form’s submit buttons, with `formaction="plan"`; retaining that arrangement makes implicit submission reach the plan. All done-when lines could pass using direct URLs without exercising query entry. **Smallest change:** specify a submit button targeting the current place route, make it the default submit action, and require a browser check that enters and submits a query/filter while preserving ticks and opens.
+
+- **Done when — changes what gets built.** The criteria verify the document’s match counts but never require the page’s heads to display those counts. Today `place_rows` renders `item_count`; a builder could retain that cell, add correct query windows and document counts, and satisfy every listed check while displaying all-item counts beside filtered results. **Concrete input:** a tab containing several items with only one query match. **Smallest change:** require the query-page goldens to distinguish `matched` from `item_count`, including a parent’s aggregate.
+
+- **Find first, fourth command — wording.** The command described as finding these pages’ tests misses `tests/browser.rs`. Running it returns no browser test because that file uses `"search?…"` and `"{}tabs?…"`, without either `GET ` or the required preceding slash; the fifth command separately finds only the named opener test. **Smallest change:** use `git grep -l -E 'search\?|tabs\?|characters\?|GET (search|tabs|characters)' -- crates/acquisition-cli/tests`.
+
+What I did not check and why: I ran no builds, tests, browser sessions or gates, as requested. GitHub issue contents and hosted CI status remain unverified because the read-only GitHub requests could not connect.
+
+What got in the way: the template asks for CI run ids and conclusions, while the prompt and the ruling that briefs carry commands rather than output prohibit their output; that makes the expected Inputs form ambiguous.
