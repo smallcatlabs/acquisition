@@ -48,6 +48,23 @@ others:
    protocol or search document.
 4. **A look at the shape** when the second stop rule fires.
 
+## Starting a session
+- Opus is `claude-opus-5-5` on `start_session`, fresh, in its own
+  worktree. A build belongs in a session, never a subagent: a
+  subagent that waits on a gate rewrites its context at each wait.
+- The session that wrote a brief does not build it. A fresh one
+  does, so the brief is tested by a reader who has only the brief.
+- A start prompt is short: the part, its brief or issue, "Rules for
+  every session of the run" by path, and what done is. It retells
+  nothing the brief says.
+- The designer's first message names what it reads (the design
+  whole, `4-full-1-step6-places.md` and `4-full-1-step6-table.md`,
+  #244, #269, #194, #294) and that its brief answers 6.5c's question
+  in a section of its own, is reviewed cold at most twice, lands by
+  `tools/gate.sh --docs`, and builds nothing.
+- A start, a push or a `gh` write the harness refuses is left and
+  reported in one line, never worked around.
+
 ## Order
 One build or gate at a time on the machine: gates share the per-user
 real-mode lock, and the three parts change the same web files and
