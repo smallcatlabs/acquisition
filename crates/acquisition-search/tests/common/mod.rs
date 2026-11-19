@@ -7,6 +7,7 @@ pub mod generated;
 
 use std::collections::BTreeMap;
 
+use acquisition_search::places::Asking;
 use acquisition_search::show::Shown;
 use acquisition_search::{Answer, Corpus, Realm, Request, SearchError};
 use acquisition_store::corpus::RealmScope;
@@ -378,11 +379,42 @@ pub fn stats_moved_at_330() -> std::collections::BTreeSet<String> {
 /// The request the places document (`places.rs`) gives a place of a
 /// league's stash tabs, by its id, as JSON.
 pub fn place_request(s: &Store, realm: &str, league: &str, id: &str) -> Value {
-    let places = acquisition_search::places::Places::tabs(s, realm, league, 0).unwrap();
+    let places = places(s, Listed::Tabs, realm, league, &Asking::default(), 0).unwrap();
     let place = places
         .every()
         .into_iter()
         .find(|p| p.id() == id)
         .unwrap_or_else(|| panic!("no place {id} in {realm} {league}"));
     serde_json::to_value(&place.request).unwrap()
+}
+
+/// Which places a places document lists.
+#[derive(Clone, Copy)]
+pub enum Listed {
+    Tabs,
+    Characters,
+}
+
+/// A league's places document (`places.rs`) asked `asking`, over a
+/// holder of its own and an empty intent file.
+pub fn places(
+    s: &Store,
+    listed: Listed,
+    realm: &str,
+    league: &str,
+    asking: &Asking,
+    now: i64,
+) -> Result<acquisition_search::places::Places, SearchError> {
+    use acquisition_search::places::{Places, Reading};
+    let intent = intent(s);
+    let holder = acquisition_search::Holder::new();
+    let at = Reading {
+        store: s,
+        intent: &intent,
+        holder: &holder,
+    };
+    match listed {
+        Listed::Tabs => Places::tabs(at, realm, league, asking, now),
+        Listed::Characters => Places::characters(at, realm, league, asking, now),
+    }
 }

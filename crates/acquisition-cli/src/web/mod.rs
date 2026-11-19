@@ -1627,18 +1627,24 @@ async fn places(
         .to_string();
     let read = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
-        let facts = account.facts()?;
         let now = acquisition_store::now();
+        let opened = account.open()?;
+        let at = acquisition_search::places::Reading {
+            store: &opened.facts,
+            intent: &opened.intent,
+            holder: &web.held,
+        };
+        let asking = acquisition_search::places::Asking::default();
         let places = match listed {
-            Listed::Tabs => Places::tabs(&facts, realm.as_str(), &league, now)?,
-            Listed::Characters => Places::characters(&facts, realm.as_str(), &league, now)?,
+            Listed::Tabs => Places::tabs(at, realm.as_str(), &league, &asking, now)?,
+            Listed::Characters => Places::characters(at, realm.as_str(), &league, &asking, now)?,
         };
         // a league with none: the terminal's cause, never its command
         let none = match (listed, places.places.is_empty()) {
             (Listed::Characters, true) => Some(store_cmd::no_characters_cause(
                 Some(realm),
                 Some(&league),
-                &facts,
+                &opened.facts,
             )?),
             _ => None,
         };

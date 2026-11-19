@@ -2060,6 +2060,15 @@ pub struct Suggestion {
 /// own time, the clock read now ([`Answer::aged`]): a corpus is held
 /// across answers, so its places are aged by each answer, never by the
 /// load.
+/// Whether `query` is true of `held`, as an answer counts a match: every
+/// term over the item, then the tree at its root (the places document's
+/// one evaluation, `places.rs`).
+pub(crate) fn is_true(query: &Query, held: &Held) -> bool {
+    let mut outcomes = Vec::with_capacity(query.terms.len());
+    eval::asked(&query.terms, held, &mut outcomes);
+    eval::truth(&query.bound, &outcomes) == Truth::True
+}
+
 pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     unaged(corpus, request).map(|answered| answered.aged(acquisition_store::now()))
 }
@@ -2168,7 +2177,7 @@ fn subject(corpus: &Corpus, at: impl Iterator<Item = usize>) -> (usize, Option<F
     (places.len(), Some(coverage::span(&fetched, &bases)))
 }
 
-fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
+pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     if let Some(account) = &request.scope.account
         && !account_is(corpus, account)
     {
@@ -3501,6 +3510,12 @@ impl Answer {
             league: league.clone(),
             other_leagues,
         })
+    }
+
+    /// The one league the answer's query fixes (`fixed_league`'s
+    /// rule): a page's way to that league's places (step 6.5b).
+    pub fn fixed_league(&self) -> Option<&str> {
+        fixed_league(&self.query.tree)
     }
 
     /// The account this answer was made for, as a request names it: its
