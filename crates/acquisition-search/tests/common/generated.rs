@@ -938,10 +938,14 @@ pub fn sort_shuffled(sort: &Sort, seed: u64) -> Sort {
 /// line's group: `false()`, or a quoted template — a row of a mod of
 /// several rows among them — from a source no generated line has. The
 /// rewrite changes no match, and no number a comparison of the group
-/// reads (the outside review of step 9c4, finding 1). What it may
-/// change is what is said of the group's own syntax — the slot check,
-/// the together bound, what its templates resolved to — so its answers
-/// are compared by [`said`].
+/// reads (the outside review of step 9c4, finding 1). A quoted template
+/// holds on an item that has its line, so the padded query is another
+/// question, which agrees with the first only on generated items. What
+/// it may change is what is said of the group's own syntax — the slot
+/// check, the together bound, what its templates resolved to, the
+/// values the query compares and so the order it gives where no sort is
+/// named (#292) — so its answers are compared by [`said`], in the
+/// store's order where no sort is named.
 pub fn padded(q: &Q, seed: u64) -> Q {
     fn walk(q: &Q, rng: &mut Lcg) -> Q {
         let each = |children: &[Q], rng: &mut Lcg| -> Vec<Q> {

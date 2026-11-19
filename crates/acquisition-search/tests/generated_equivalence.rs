@@ -15,11 +15,15 @@
 //! reading that prints the query's own tree, followed as a route is.
 //!
 //! And a fourth way since the outside review of step 9c4: with an
-//! alternative that holds nowhere beside every line's group. It changes
-//! what is said of the group's syntax — the slot check, the together
-//! bound, what its templates resolved to — and nothing else: the matches,
-//! every term's four counts by their members, and what each row sorts by
-//! are compared.
+//! alternative that holds nowhere beside every line's group. It holds on
+//! none of these items, but on another item it would, so the padded
+//! query is another question that agrees with the first only here. It
+//! changes what is said of the group's syntax — the slot check, the
+//! together bound, what its templates resolved to, the values the query
+//! compares and so the order it gives where no sort is named (#292) —
+//! and nothing these items decide: the matches, every term's four counts
+//! by their members, and what each row sorts by, in the store's order
+//! where the case names no sort, are compared.
 //!
 //! What this cannot see: a fault every spelling shares. That is the
 //! hand-counted tests' and the completion property's.
@@ -308,15 +312,20 @@ fn check(
     // an alternative that holds nowhere, beside every group: the same
     // matches, the same counts and the same order. An error of the
     // group's own syntax — a slot its one template lacks — is the
-    // authored group's alone, so only an answer is compared.
+    // authored group's alone, so only an answer is compared; and the
+    // order a query gives unasked is its text's (`values.rs`), so where
+    // the case names no sort the pair is asked in the store's order
     if written.is_err() {
         return Ok(());
     }
     let beside = padded(q, seed);
     let beside_text = q_text(&beside, Spelling::Authored);
     let ask = |q: &Q, sort: &Sort| -> Result<Value, String> {
-        let sort = sort_text(sort, Spelling::Authored);
-        let request = request(&q_text(q, Spelling::Authored), sort.as_deref(), desc, 50);
+        let (sort, desc) = match sort_text(sort, Spelling::Authored) {
+            Some(sort) => (sort, desc),
+            None => ("none".to_string(), false),
+        };
+        let request = request(&q_text(q, Spelling::Authored), Some(&sort), desc, 50);
         let answer = run(corpus, &request).map_err(|e| format!("refused: {request}: {e}"))?;
         said_of(corpus, scope, &answer, false)
     };
@@ -369,6 +378,44 @@ fn invariant_7_holds_where_a_block_is_cut() {
     for q in [Q::Undecided(Box::new(Q::And(terms.clone()))), Q::And(terms)] {
         for seed in 1..6 {
             check(&corpus, &scope, &q, &Sort::None, false, seed).unwrap();
+        }
+    }
+}
+
+/// #292: a padding beside a group whose query orders the rows unasked.
+/// The padded query is another question, which agrees with the first
+/// only on these items, and the values a query compares are its text's,
+/// so the padded pair is compared in the store's order. Each case moved
+/// that order before: a slot the padding's one template lacks, refused
+/// once the selector folds to it (the seed's case, and the projection's
+/// own slot), and one value padded apart into two.
+#[test]
+fn invariant_7_holds_beside_a_padding_where_the_query_orders_the_rows() {
+    let life = || Q::Alt("\"life\"".into(), "text:life".into(), TermKind::Plain);
+    let leaf = |text: &str| G::Leaf(text.to_string());
+    let cases = [
+        Q::Or(vec![
+            Q::Proj(
+                G::And(vec![leaf("arg2>=0"), leaf("false()")]),
+                "arg1".into(),
+                ">=0".into(),
+            ),
+            life(),
+        ]),
+        Q::Or(vec![
+            Q::Proj(leaf("false()"), "arg2".into(), ">=0".into()),
+            life(),
+        ]),
+        Q::Or(vec![
+            Q::Line(G::And(vec![leaf(&format!("\"{LIFE}\"")), leaf("arg1>=5")])),
+            Q::Line(G::And(vec![leaf(&format!("\"{LIFE}\"")), leaf("arg1>=3")])),
+        ]),
+    ];
+    let (corpus, scope) = fixture(anchors());
+    for q in &cases {
+        for seed in (1..6).chain([2475793989686853974]) {
+            check(&corpus, &scope, q, &Sort::None, false, seed)
+                .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
         }
     }
 }
