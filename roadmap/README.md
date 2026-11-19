@@ -28,7 +28,12 @@ better Acquisition that is agent-friendly and agent-forward.
   places document, a parent closed until opened, the URL naming what is
   open and ticked, an opener landing at its head, a place's name its
   items as a table, and a league with nothing listed offering its
-  listing on the page. Next is 6.5b, whose brief is written first.
+  listing on the page. 6.5d is closed too
+  (`briefs/4-full-1-step6-plan-jobs.md`): the plan, apply and jobs
+  pages render their documents in a player's words, a submit lands at
+  its job with the league's place pages linked, a failed job opens to
+  why, and only a refused session says "not signed in". Next is 6.5b,
+  whose brief is on `main` (`briefs/4-full-1-step6-grouped.md`).
 
 ## Next
 
@@ -37,13 +42,15 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. 4-full part 1, step 6.5, ruled in `briefs/4-full-1-step6-design.md`
-   §3, in four parts; 6.5a, the places and their pages, is closed.
-   Then, a brief each, written first: 6.5b, the grouped table and
-   the list's filter as the request's (#244, #269, #194's
-   never-fetched view; #294, how the search names a value, is an input); 6.5c, an item under its row and the row's
-   ways (#270, #194, #186, #190); 6.5d, the plan and jobs pages from
-   their documents (#182, #189). The search form's reshaping (#184, #181, #180, #185,
-   #188, #183, #193) is the step after, one design; the look is #285.
+   §3, in four parts; 6.5a, the places and their pages, and 6.5d, the
+   plan and jobs pages from their documents, are closed. Then:
+   6.5b, the grouped table and the list's filter as the request's
+   (#244, #269, #194's never-fetched view; #294, how the search names
+   a value, is an input), from its brief on `main`; 6.5c, an item
+   under its row and the row's ways (#270, #194, #186, #190), its
+   brief written first. The search form's reshaping (#184, #181, #180,
+   #185, #188, #183, #193) is the step after, one design; the look is
+   #285; what an apply brought, said on its job, is #182's rest.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
