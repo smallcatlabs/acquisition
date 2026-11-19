@@ -142,8 +142,11 @@ impl Daemon {
                 }
             };
             // C190: a closed route's estimate starts at the closure's end
-            // (`ChokePoint::project`), and the note says why.
+            // (`ChokePoint::project`), and the note says why; a route
+            // closed for good has no estimate, whatever the limiter knows
+            // of it, for only a person can let it start.
             let mut notes = notes;
+            let mut eta_seconds = eta_seconds;
             for endpoint in &endpoints {
                 match self.rails().route_hold(endpoint) {
                     RouteHold::Open => {}
@@ -151,7 +154,10 @@ impl Daemon {
                         "{endpoint} is closed after a run of invalid answers for another {}s; then one job goes as the trial, and the estimate starts there",
                         left.as_secs()
                     )),
-                    RouteHold::ForGood(words) => notes.push(words),
+                    RouteHold::ForGood(words) => {
+                        eta_seconds = None;
+                        notes.push(words);
+                    }
                 }
             }
             out.push(QuoteScope {
