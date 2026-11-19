@@ -131,8 +131,7 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
 /// sends against their ceiling, this daemon's lifetime's (C146: the
 /// limiter and the count are never persisted, while the journal beside
 /// them spans lifetimes), and the journal, then a halt with its
-/// cause and what clears it — the web UI's jobs page opens with it, so a
-/// queue that stands still says why. A journal that was not written is
+/// cause and what clears it. A journal that was not written is
 /// named by its path, the status's own field, before the daemon's words
 /// of why, which name none (C152).
 pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> String {
@@ -195,7 +194,7 @@ pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus, now:
 }
 
 /// C190: each route a run of invalid answers closed, as `daemon status`
-/// and the web UI's jobs page say it from the status's facts: what closed
+/// says it from the status's facts: what closed
 /// it, that every request on it waits whatever its league, when the trial
 /// goes, what to check when it stands at the cap, and to list again once
 /// it reopens.
@@ -222,7 +221,8 @@ fn closed_routes_text(closed: &[acquisition_protocol::status::ClosedRoute], now:
 const CAP_SECS: u64 = 3600;
 
 /// C190: one closed route in words, at the answer's `now`: the one
-/// renderer `daemon status`, the web jobs page and a progress line share.
+/// renderer `daemon status` and a progress line share; the web jobs page
+/// says it in its own words (step 6.5d).
 pub(crate) fn closed_route_words(
     route: &acquisition_protocol::status::ClosedRoute,
     now: i64,
@@ -248,7 +248,8 @@ mod tests {
     /// C190: a timed closure says the trial's time from the status's
     /// facts at the answer's `now`, and that every league's requests on the
     /// route wait: the run was one league's, the route is the account's.
-    /// Its wording at the cap is the web jobs page's golden.
+    /// `daemon status` says it in a halted world beside the jobs page
+    /// (`the_jobs_page_opens_with_the_halt`).
     #[test]
     fn c190_a_closed_route_says_when_its_trial_goes() {
         use acquisition_protocol::status::{ClosedRoute, RailsStatus};

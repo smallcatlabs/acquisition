@@ -1,0 +1,73 @@
+# golden web/jobs_opened: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET jobs <no daemon>
+# holds "No daemon is running. The queue on record"
+# holds "3 jobs, 2 waiting, 1 running when the daemon stopped"
+# holds "The next job submitted starts a daemon, which resumes them"
+# holds "<td>↳ Tab uniq in Standard</td><td>waiting</td>"
+<main>
+<h1>Jobs</h1>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
+<tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+</table>
+
+</main>
+
+GET jobs?job=10 <a failed parent the list leaves out>
+# holds "This job is not among those listed below"
+# holds "<tr class=\"job opened\" id=\"j-10\"><td>A refresh of 2 requests</td><td>failed</td>"
+# holds "Some of its requests failed"
+# holds "Of its requests: 1 failed, 1 done."
+# holds "jobs?job=12#j-12\">Tab Standard/dump</a> failed"
+<main>
+<h1>Jobs</h1>
+<p class="opened">This job is not among those listed below.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job opened" id="j-10"><td>A refresh of 2 requests</td><td>failed</td><td>submitted <age> ago</td></tr>
+<tr class="result"><td colspan="3">
+<p>Some of its requests failed; each says why in its own result.</p>
+<p>Of its requests: 1 failed, 1 done.</p>
+<ul class="failed">
+<li><a href="/<token>/jobs?job=12#j-12">Tab Standard/dump</a> failed</li>
+</ul>
+</td></tr>
+</table>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
+<tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+</table>
+
+</main>
+
+GET jobs?job=12&realm=pc&league=Standard <a refused token opened>
+# holds "Its account had no session to send with"
+# holds "Signing in again is a person"
+# holds "Standard: <a href="
+<main>
+<h1>Jobs</h1>
+<p class="places">Standard: <a href="/<token>/tabs?realm=pc&amp;league=Standard">Stash tabs</a> · <a href="/<token>/characters?realm=pc&amp;league=Standard">Characters</a></p>
+<p class="opened">This job is not among those listed below.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job opened" id="j-12"><td>Tab dump in Standard</td><td>failed</td><td>submitted <age> ago</td></tr>
+<tr class="result"><td colspan="3">
+<p>Its account had no session to send with. Signing in again is a person&#39;s to do.</p>
+</td></tr>
+</table>
+<p class="counts">No daemon is running. The queue on record, written <age> ago: 3 jobs, 2 waiting, 1 running when the daemon stopped. The next job submitted starts a daemon, which resumes them.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab maps in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+<tr class="job" id="j-21"><td>The list of stash tabs in Standard</td><td>running when the daemon stopped</td><td>submitted <age> ago</td></tr>
+<tr class="job child" id="j-22"><td>↳ Tab uniq in Standard</td><td>waiting</td><td>submitted <age> ago</td></tr>
+</table>
+
+</main>

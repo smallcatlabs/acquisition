@@ -1,25 +1,23 @@
 # golden web/jobs_halted: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
 
 GET jobs <the daemon halted>
-# holds "rails:  tripwire ON"
-# holds "HALTED: 429 on GET /stash/Standard (staged trip)"
-# holds "acq daemon reset-tripwire"
-# holds "ROUTE CLOSED: stash@A#1 for 3600s"
+# holds "The daemon is sending nothing: 429 on GET /stash/Standard (staged trip)"
+# holds "A person clears this stop"
+# holds "Fetching tabs for A#1 is paused"
 # holds "13 requests in a row"
-# holds "the trial in ~60m"
-# holds "at the cap"
+# holds "tries again in ~60m"
+# holds "an hour between tries"
 # holds "whatever its league"
 # holds "list the league again"
+# holds "<td>A test fetch (the test world&#39;s)</td><td>waiting</td><td>submitted "
 <main>
 <h1>Jobs</h1>
-<pre>
-rails:  tripwire ON · sends 0 since this daemon started · journal off
-ROUTE CLOSED: stash@A#1 for 3600s — GGG answered 13 requests in a row on it as invalid, the last 400; one waiting job goes as the trial in ~60m
-        every request on it waits, whatever its league; once it reopens, list the league again: what was fetched just before may be older than GGG&#39;s state
-        at the cap: one trial an hour while jobs wait; a route that keeps failing may mean GGG&#39;s API changed — check whether a newer acq exists
-HALTED: 429 on GET /stash/Standard (staged trip)
-        clear with `acq daemon reset-tripwire` after the post-violation wait
-no jobs
-</pre>
+<p class="halt">The daemon is sending nothing: 429 on GET /stash/Standard (staged trip). A person clears this stop; until then no job here starts.</p>
+<p class="halt">Fetching tabs for A#1 is paused: GGG answered 13 requests in a row as invalid, the last with 400. One waiting job tries again in ~60m; until then every such request waits, whatever its league. Once it reopens, list the league again: what was fetched just before may be older than GGG's. It waits its longest now, an hour between tries; one that keeps failing may mean GGG's API changed, and a newer Acquisition may know it.</p>
+<p class="counts">1 job: 0 running, 1 waiting, 0 done.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-2"><td>A test fetch (the test world&#39;s)</td><td>waiting</td><td>submitted <age> ago; starts next</td></tr>
+</table>
 
 </main>

@@ -45,7 +45,7 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 # holds "aria-label=\"filter the Tab column\""
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
@@ -77,7 +77,7 @@ GET plan?<two tabs ticked>
 # holds "could go now"
 # holds "not yet known"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:3,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;cur1&quot;,&quot;dump&quot;]}}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:4,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;cur1&quot;,&quot;dump&quot;]}}}">
 <main>
 <h1>Plan</h1>
 <p class="what">Refresh Standard as ExileTester: the places you ticked.</p>
@@ -112,7 +112,7 @@ GET characters?realm=pc&league=Standard
 # holds "aria-label=\"filter the Character column\""
 <main>
 <h1>Characters</h1>
-<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="post" action="characters"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List characters</button></form>
 </div>
@@ -139,7 +139,7 @@ GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
 # holds "name=\"tab\" value=\"dump\" checked"
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
@@ -172,7 +172,7 @@ GET tabs?<Maps opened>
 # holds "name=\"tab\" value=\"dump\" checked"
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
 </div>
@@ -209,7 +209,7 @@ GET plan?realm=pc&league=Standard <the policy's>
 # holds "Outside your sync policy: 13 of the league&#39;s 14 tabs"
 # holds "Not fetched: 1 tab"
 # holds ">Apply</button>"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:18,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:19,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
 <main>
 <h1>Plan</h1>
 <p class="what">Refresh Standard as ExileTester: everything your sync policy covers (revision 1).</p>
@@ -255,28 +255,27 @@ the sync policy covers Standard on realm pc, not Hardcore
 </main>
 
 GET jobs <every job done>
-# holds "rails:  tripwire"
-# holds "apply"
-# holds "done"
-# holds "web:"
+# holds "<td>A refresh of 2 requests</td><td>done</td>"
+# holds "<td>↳ Character StashHoarder</td><td>done</td>"
+# holds "jobs: 0 running, 0 waiting,"
+# holds "earlier finished jobs are not listed"
 <main>
 <h1>Jobs</h1>
-<pre>
-rails:  tripwire off · sends 25 since this daemon started · journal off
-id  parent  kind  target  state  prio  account  by  when  eta
-19  15  stash  Standard/old1  done  0  ExileTester  cli:<pid>  finished <age> ago
-20  15  stash  Standard/old2  done  0  ExileTester  cli:<pid>  finished <age> ago
-21  15  stash  Standard/uniq  done  0  ExileTester  cli:<pid>  finished <age> ago
-22  15  stash  Standard/maps  done  0  ExileTester  cli:<pid>  finished <age> ago
-23  15  stash  Standard/mape  done  0  ExileTester  cli:<pid>  finished <age> ago
-24  stash  Standard/maps/m002  done  0  ExileTester  cli:<pid>  finished <age> ago
-25  apply  plan (2 requests)  done  0  ExileTester  web:<pid>  finished <age> ago
-26  25  character  StashHoarder  done  0  ExileTester  web:<pid>  finished <age> ago
-27  25  character  MuleQuadTab  done  0  ExileTester  web:<pid>  finished <age> ago
-<n>  probe  character@ExileTester  done  255  ExileTester  daemon  finished <age> ago
-28 jobs this daemon holds (its own and the restored): 0 running, 0 waiting, 28 done
-18 earlier finished jobs not listed (`acq jobs --all`)
-</pre>
+<p class="counts">29 jobs: 0 running, 0 waiting, 29 done.</p>
+<table class="jobs">
+<tr><th>What</th><th>State</th><th>When</th></tr>
+<tr class="job" id="j-20"><td>Tab old1 in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-21"><td>Tab old2 in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-22"><td>Tab uniq in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-23"><td>Tab maps in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-24"><td>Tab mape in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-25"><td>Page m002 of tab maps in Standard</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-26"><td>A refresh of 2 requests</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job child" id="j-27"><td>↳ Character StashHoarder</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job child" id="j-28"><td>↳ Character MuleQuadTab</td><td>done</td><td>finished <age> ago</td></tr>
+<tr class="job" id="j-<n>"><td>A first check of a route before its requests</td><td>done</td><td>finished <age> ago</td></tr>
+</table>
+<p class="left-out">19 earlier finished jobs are not listed.</p>
 
 </main>
 
@@ -295,7 +294,7 @@ POST apply <the same envelope again>
 GET plan?realm=pc&league=Standard <every request fresh>
 # holds "Nothing to fetch in Standard"
 # holds "Not fetched: 2 characters"
-<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:20,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:21,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
 <main>
 <h1>Plan</h1>
 <p class="what">Refresh Standard as ExileTester: everything your sync policy covers (revision 1).</p>

@@ -1761,13 +1761,16 @@ fn every_request_an_answer_carries_is_a_way_on_its_page(
 /// the ways on are the page's own. Read from the files, as `no_ids.rs`
 /// reads them: the pages served are the goldens'. A place page (`GET
 /// tabs`, `GET characters`, step 6.5a) is read too, and holds no `pre`
-/// either (#182). The plan and jobs pages are not read; they print the
-/// CLI's command lines still.
+/// either (#182); so is every answered plan, apply and jobs page (`GET
+/// plan`, `POST apply`, `GET jobs`, step 6.5d), which outside attribute
+/// values also names none of the daemon's words: `rails`, `tripwire`,
+/// `prio` and `eta` as words, `web:`, `cli:` and `-limit` anywhere.
 #[test]
 fn an_answer_item_or_place_page_prints_no_command_line_and_no_flag() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/web");
     let mut read = 0;
     let mut places = 0;
+    let mut documents = 0;
     for entry in std::fs::read_dir(&dir).unwrap() {
         let file = entry.unwrap().path();
         let text = std::fs::read_to_string(&file).unwrap();
@@ -1787,14 +1790,22 @@ fn an_answer_item_or_place_page_prints_no_command_line_and_no_flag() {
             let label = page[0];
             let answered = !page.iter().any(|l| l.starts_with("--- status"));
             let place = label.starts_with("GET tabs") || label.starts_with("GET characters");
-            if !(label.starts_with("GET search") || label.starts_with("GET item/") || place)
+            let document = label.starts_with("GET plan")
+                || label.starts_with("POST apply")
+                || label.starts_with("GET jobs");
+            if !(label.starts_with("GET search")
+                || label.starts_with("GET item/")
+                || place
+                || document)
                 || !answered
             {
                 continue;
             }
             read += 1;
             places += usize::from(place);
-            for line in &page[1..] {
+            documents += usize::from(document);
+            // the page itself: a `# holds` line quotes a fact, not the page
+            for line in page[1..].iter().filter(|l| !l.starts_with("# holds")) {
                 let flag = line.match_indices(" --").any(|(at, _)| {
                     line[at + 3..]
                         .chars()
@@ -1802,15 +1813,62 @@ fn an_answer_item_or_place_page_prints_no_command_line_and_no_flag() {
                         .is_some_and(|c| c.is_ascii_alphabetic())
                 });
                 assert!(
-                    !line.contains("acq ") && !flag && !(place && line.contains("<pre")),
+                    !line.contains("acq ")
+                        && !flag
+                        && !((place || document) && line.contains("<pre")),
                     "{}: {label}: {line}",
                     file.display()
                 );
+                if document {
+                    let said = outside_attribute_values(line);
+                    let words: Vec<&str> =
+                        said.split(|c: char| !c.is_ascii_alphanumeric()).collect();
+                    for word in ["rails", "tripwire", "prio", "eta"] {
+                        assert!(
+                            !words.iter().any(|w| w.eq_ignore_ascii_case(word)),
+                            "{}: {label}: {word}: {line}",
+                            file.display()
+                        );
+                    }
+                    for part in ["web:", "cli:", "-limit"] {
+                        assert!(
+                            !said.contains(part),
+                            "{}: {label}: {part}: {line}",
+                            file.display()
+                        );
+                    }
+                }
             }
         }
     }
     assert!(read > 20, "only {read} answer and item pages read");
     assert!(places >= 6, "only {places} place pages read");
+    assert!(
+        documents >= 13,
+        "only {documents} plan, apply and jobs pages read"
+    );
+}
+
+/// `line` with every attribute value inside a tag emptied: what a reader
+/// reads of it, and the tags' names.
+fn outside_attribute_values(line: &str) -> String {
+    let mut out = String::new();
+    let (mut tag, mut quoted) = (false, false);
+    for c in line.chars() {
+        match c {
+            '<' if !quoted => tag = true,
+            '>' if !quoted => tag = false,
+            '"' if tag => {
+                quoted = !quoted;
+                continue;
+            }
+            _ => {}
+        }
+        if !quoted {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// The ways no seeded page reaches are a wording golden (4-full part 1,
@@ -2384,13 +2442,29 @@ fn the_refresh_loop_runs_through_the_pages() {
         let mut form = form_on(&page.body, button, None);
         form.action = format!("/{}/{}", web.token, form.action);
         let listed = send(&web, &form, false);
-        assert_eq!(listed.status, 303, "{}", listed.body);
-        assert_eq!(
-            listed.header("location"),
-            Some(format!("/{}/jobs", web.token).as_str())
+        // a listing lands at its job, naming the form's league (Decision
+        // 8): its row marked, the league's place pages linked
+        let (id, landed) = landed_at_a_job(&web, &listed, Some("Standard"));
+        assert!(
+            landed
+                .body
+                .contains(&format!("<tr class=\"job opened\" id=\"j-{id}\">")),
+            "{}",
+            landed.body
         );
         until_done(&web);
     }
+    // the league list's fetch lands at its job and names no league, so
+    // the page it lands on links no place page
+    let (id, landed) = landed_at_a_job(&web, &web.post("leagues", &[]), None);
+    assert!(
+        landed.body.contains(&format!(
+            "<tr class=\"job opened\" id=\"j-{id}\"><td>The league list</td>"
+        )),
+        "{}",
+        landed.body
+    );
+    until_done(&web);
     let jobs = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
     let kinds: Vec<(&Value, &Value)> = jobs["rows"]
         .as_array()
@@ -2484,7 +2558,12 @@ fn the_refresh_loop_runs_through_the_pages() {
         selected.body
     );
     let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
-    assert_eq!(applied.status, 303, "{}", applied.body);
+    let (_, landed) = landed_at_a_job(&web, &applied, Some("Standard"));
+    assert!(
+        landed.body.contains("A refresh of 3 requests"),
+        "{}",
+        landed.body
+    );
     until_done(&web);
     // `refresh --tabs` compiles and applies the same jobs (C44 as amended)
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
@@ -2762,12 +2841,17 @@ fn the_refresh_loop_runs_through_the_pages() {
         plan.body
     );
     let applied = web.post("apply", &[("plan", &envelope)]);
-    assert_eq!(applied.status, 303, "{}", applied.body);
+    landed_at_a_job(&web, &applied, Some("Standard"));
     let jobs = probes_in_order(until_done(&web));
     pages.page(
         "GET jobs <every job done>",
         &jobs,
-        &["rails:  tripwire", "apply", "done", "web:"],
+        &[
+            "<td>A refresh of 2 requests</td><td>done</td>",
+            "<td>\u{21b3} Character StashHoarder</td><td>done</td>",
+            "jobs: 0 running, 0 waiting,",
+            "earlier finished jobs are not listed",
+        ],
     );
     // the characters fetched: a character's name opens a table of the
     // items it holds (the build's review, its second finding)
@@ -3009,11 +3093,13 @@ fn place_form(
     format!("/{}/{action}?{}", web.token, query.join("&"))
 }
 
-/// The jobs page under a halt: a trip staged in the mock world's rails, as
-/// the rails tests stage it, and the daemon started with the tripwire on.
-/// The page opens with the halt and its advice in the words `daemon
-/// status` gives them, the one maker both render. No deadline but the
-/// hang ceiling (C137).
+/// The jobs page under a halt: a trip and a closed route at the cap staged
+/// in the mock world's rails, as the rails tests stage them, and the
+/// daemon started with the tripwire on. The page opens with the halt and
+/// the closed route in its own words (step 6.5d, Decision 6), then a job
+/// that waits under it, its start said; `daemon status` says the same
+/// halt in the terminal's words, which it alone now prints. No deadline
+/// but the hang ceiling (C137).
 #[test]
 fn the_jobs_page_opens_with_the_halt() {
     let scratch = harness::scratch("webhalt");
@@ -3045,23 +3131,40 @@ fn the_jobs_page_opens_with_the_halt() {
     let (_daemon, _pid) = harness::start_daemon_with(&base, &[("ACQ_TRIPWIRE", "1")]);
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
     let mut pages = Pages::new(&base, &web);
+    // a listing submitted under the halt waits
+    let out = harness::acq(&base, &["submit", "fetch", "--detach"]);
+    assert!(out.status.success(), "{out:?}");
     let jobs = web.get("jobs");
     assert_eq!(jobs.status, 200, "{}", jobs.body);
     pages.page(
         "GET jobs <the daemon halted>",
         &jobs,
         &[
-            "rails:  tripwire ON",
-            "HALTED: 429 on GET /stash/Standard (staged trip)",
-            "acq daemon reset-tripwire",
-            "ROUTE CLOSED: stash@A#1 for 3600s",
+            "The daemon is sending nothing: 429 on GET /stash/Standard (staged trip)",
+            "A person clears this stop",
+            "Fetching tabs for A#1 is paused",
             "13 requests in a row",
-            "the trial in ~60m",
-            "at the cap",
+            "tries again in ~60m",
+            "an hour between tries",
             "whatever its league",
             "list the league again",
+            "<td>A test fetch (the test world&#39;s)</td><td>waiting</td><td>submitted ",
         ],
     );
+    // the terminal's words for the same halt stand where they stood when
+    // this page printed them: `daemon status`, which no golden holds
+    let status = harness::acq(&base, &["daemon", "status"]);
+    let status = String::from_utf8(status.stdout).unwrap();
+    for fact in [
+        "rails:  tripwire ON",
+        "HALTED: 429 on GET /stash/Standard (staged trip)",
+        "clear with `acq daemon reset-tripwire` after the post-violation wait",
+        "ROUTE CLOSED: stash@A#1 for 3600s",
+        "one waiting job goes as the trial in ~60m",
+        "at the cap: one trial an hour while jobs wait",
+    ] {
+        assert!(status.contains(fact), "{fact}: {status}");
+    }
     page_golden(file!(), "jobs_halted", &pages);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
@@ -3082,6 +3185,55 @@ fn hidden_plan(body: &str) -> String {
 
 /// The jobs page read until it no longer reloads itself: every job done.
 /// No deadline but the hang ceiling (C137).
+/// A submit's `303` to the jobs page (Decision 8 of step 6.5d): the
+/// location names the job, at its row's anchor, and the league where
+/// `league` is one, whose two place pages the page it lands on links; a
+/// location naming no league links none. The job's id and that page.
+fn landed_at_a_job(
+    web: &WebUi,
+    reply: &harness::Reply,
+    league: Option<&str>,
+) -> (u64, harness::Reply) {
+    assert_eq!(reply.status, 303, "{}", reply.body);
+    let location = reply.header("location").expect("a location").to_string();
+    let prefix = format!("/{}/jobs?job=", web.token);
+    let rest = location
+        .strip_prefix(&prefix)
+        .unwrap_or_else(|| panic!("{location}"));
+    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+    let id: u64 = rest[..digits].parse().unwrap();
+    let query = match league {
+        Some(league) => format!("&realm=pc&league={league}"),
+        None => String::new(),
+    };
+    assert_eq!(rest[digits..], format!("{query}#j-{id}"), "{location}");
+    let (path, _) = location.split_once('#').unwrap();
+    let page = web.raw("GET", path, None, &[], "");
+    assert_eq!(page.status, 200, "{}", page.body);
+    let places = |route: &str| {
+        format!(
+            "href=\"/{}/{route}?realm=pc&amp;league={}\"",
+            web.token,
+            league.unwrap_or("")
+        )
+    };
+    for route in ["tabs", "characters"] {
+        assert_eq!(
+            page.body.contains(&places(route)),
+            league.is_some(),
+            "{route}: {}",
+            page.body
+        );
+    }
+    assert_eq!(
+        page.body.contains("<p class=\"places\">"),
+        league.is_some(),
+        "{}",
+        page.body
+    );
+    (id, page)
+}
+
 fn until_done(web: &WebUi) -> harness::Reply {
     loop {
         let jobs = web.get("jobs");
@@ -3093,29 +3245,156 @@ fn until_done(web: &WebUi) -> harness::Reply {
     }
 }
 
-/// A jobs page with its probes' rows in one order: the daemon starts the
-/// two routes' first-contact probes together, so which takes the lower
-/// id is the scheduler's; the rows keep their places, their ids masked.
+/// A jobs page with its probes' rows alike: the daemon starts the two
+/// routes' first-contact probes together, so which takes the lower id is
+/// the scheduler's; their rows say the same words, and their anchors'
+/// ids are masked.
 fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
-    let lines: Vec<&str> = jobs.body.lines().collect();
-    let at: Vec<usize> = (0..lines.len())
-        .filter(|&i| lines[i].contains("  probe  "))
-        .collect();
-    let mut probes: Vec<String> = at
-        .iter()
-        .map(|&i| {
-            let line = lines[i].trim_start();
-            let digits = line.bytes().take_while(u8::is_ascii_digit).count();
-            format!(" <n>{}", &line[digits..])
+    let masked: Vec<String> = jobs
+        .body
+        .lines()
+        .map(|line| match line.find("\" id=\"j-") {
+            Some(at) if line.contains("A first check of a route") => {
+                let digits = at + "\" id=\"j-".len();
+                let end = digits
+                    + line[digits..]
+                        .bytes()
+                        .take_while(u8::is_ascii_digit)
+                        .count();
+                format!("{}<n>{}", &line[..digits], &line[end..])
+            }
+            _ => line.to_string(),
         })
         .collect();
-    probes.sort();
-    let mut out: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-    for (i, probe) in at.into_iter().zip(probes) {
-        out[i] = probe;
-    }
-    jobs.body = out.join("\n");
+    jobs.body = masked.join("\n");
     jobs
+}
+
+/// The jobs page with no daemon, and a job opened by its URL (step 6.5d,
+/// Decisions 6 and 7): the ledger's open rows with how old they are, a
+/// child under its parent, and that the next job resumes them; a failed
+/// parent the list leaves out, opened by `job`, above the list, its
+/// failure by kind and its failed child a link to that child's own
+/// result; that child opened, its refused token said in the page's words
+/// and never the daemon's sentence, which names a command; the league
+/// the URL names linked. The JSON is the `jobs` document whatever the
+/// URL opens.
+#[test]
+fn the_jobs_page_opens_a_job_the_list_leaves_out_by_its_url() {
+    use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
+    let scratch = harness::scratch("webjob");
+    let base = scratch.0.clone();
+    drop(harness::login(&base, "Alice"));
+    let now = harness::now();
+    let row = |id: u64, kind: &str, state: &str, parent: Option<u64>, params: Value| JobRow {
+        id,
+        kind: kind.into(),
+        state: state.into(),
+        priority: 0,
+        submitted_by: format!("web:{id}"),
+        parent,
+        retries: 0,
+        account: Some("Alice".into()),
+        params,
+        outcome: None,
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: now - 600,
+        updated_at: now - 60,
+        started_at: None,
+        finished_at: None,
+    };
+    let tab = |id: &str| json!({ "realm": "pc", "league": "Standard", "id": id, "deep": false });
+    let finished = |row: JobRow, outcome: Value| JobRow {
+        outcome: Some(outcome),
+        started_at: Some(now - 300),
+        finished_at: Some(now - 120),
+        ..row
+    };
+    let db = JobDb::open(&daemon_db_path(&base.join("store").join("mock"))).unwrap();
+    let apply = json!({ "jobs": [
+        { "kind": "stash", "params": tab("cur1") },
+        { "kind": "stash", "params": tab("dump") },
+    ] });
+    for job in [
+        finished(
+            row(10, "apply", "failed", None, apply),
+            json!({ "outcome": "failure", "kind": "children",
+                    "error": "1 of 2 child jobs failed; see `acq result 12`",
+                    "children": { "done": 1, "failed": 1, "cancelled": 0, "failed_ids": [12] } }),
+        ),
+        finished(
+            row(11, "stash", "done", Some(10), tab("cur1")),
+            json!({ "outcome": "success", "payload": {} }),
+        ),
+        finished(
+            row(12, "stash", "failed", Some(10), tab("dump")),
+            json!({ "outcome": "failure", "kind": "not_logged_in",
+                    "error": "the token was refused: log in again with `acq auth`" }),
+        ),
+        row(20, "stash", "waiting", None, tab("maps")),
+        JobRow {
+            started_at: Some(now - 90),
+            ..row(
+                21,
+                "stashes",
+                "running",
+                None,
+                json!({ "realm": "pc", "league": "Standard" }),
+            )
+        },
+        row(22, "stash", "waiting", Some(21), tab("uniq")),
+    ] {
+        db.upsert(&job).unwrap();
+    }
+    db.checkpoint().unwrap();
+    drop(db);
+
+    let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let mut pages = Pages::new(&base, &web);
+    let queue = web.get("jobs");
+    pages.page(
+        "GET jobs <no daemon>",
+        &queue,
+        &[
+            "No daemon is running. The queue on record",
+            "3 jobs, 2 waiting, 1 running when the daemon stopped",
+            "The next job submitted starts a daemon, which resumes them",
+            "<td>\u{21b3} Tab uniq in Standard</td><td>waiting</td>",
+        ],
+    );
+    assert!(!queue.body.contains("j-10"), "{}", queue.body);
+    let parent = web.get("jobs?job=10");
+    pages.page(
+        "GET jobs?job=10 <a failed parent the list leaves out>",
+        &parent,
+        &[
+            "This job is not among those listed below",
+            "<tr class=\"job opened\" id=\"j-10\"><td>A refresh of 2 requests</td><td>failed</td>",
+            "Some of its requests failed",
+            "Of its requests: 1 failed, 1 done.",
+            "jobs?job=12#j-12\">Tab Standard/dump</a> failed",
+        ],
+    );
+    let child = web.get("jobs?job=12&realm=pc&league=Standard");
+    pages.page(
+        "GET jobs?job=12&realm=pc&league=Standard <a refused token opened>",
+        &child,
+        &[
+            "Its account had no session to send with",
+            "Signing in again is a person",
+            "Standard: <a href=",
+        ],
+    );
+    for page in [&parent, &child] {
+        assert!(!page.body.contains("acq "), "{}", page.body);
+        assert!(!page.body.contains("token was refused"), "{}", page.body);
+    }
+    assert_eq!(web.get_json("jobs?job=12"), web.get_json("jobs"));
+    // a job no ledger holds, and a `job` that is no number, are refused
+    assert_ne!(web.get("jobs?job=99").status, 200);
+    assert_eq!(web.get("jobs?job=ten").status, 400);
+    page_golden(file!(), "jobs_opened", &pages);
 }
 
 /// The served account, named on every submit (the review of 4b, its

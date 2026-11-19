@@ -85,9 +85,24 @@
 //!   never-fetched tabs go through [`Paged`], a link where a page takes
 //!   one and the count or the words where none does; a continuation, a
 //!   request with its place, is `search?next=` and its token, on an
-//!   answer or a refusal alike. The words are still the CLI's
-//!   (`failure_words`), as are the command lines the jobs page prints,
-//!   which no route takes (#182).
+//!   answer or a refusal alike. A refusal's words are still the CLI's
+//!   (`failure_words`), in the one `pre` a page holds; every page's own
+//!   text is its document in a player's words (#182).
+//! - **The plan and jobs pages** (`roadmap/briefs/4-full-1-step6-plan-jobs.md`,
+//!   step 6.5d): `GET plan` renders the `Planned` document, `POST apply`
+//!   an apply that sent nothing, and `GET jobs` the `jobs` document, each
+//!   in [`page`] and none through the CLI's text; their JSON is the
+//!   document unchanged. A submit lands at its job: `POST apply`, the
+//!   listings and the league list's fetch answer `303` to `jobs?job=<id>`
+//!   at the row's anchor, with the realm and league the plan or the form
+//!   named, and a jobs URL naming a league links its two place pages.
+//!   `job` names one job as `open` names a parent: read by id, listed or
+//!   not, its row marked, one the list leaves out above the list, and a
+//!   failed or cancelled one's result under it, its failure said by its
+//!   kind and its offers spelled by [`Paged`], which spells a job's result
+//!   as that job opened. The daemon's `error` and the way on's words can
+//!   name a command and stand in the JSON alone. Only a quote the daemon
+//!   refused for want of a session says "not signed in".
 //! - **The place pages** (`roadmap/briefs/4-full-1-step6-places.md`,
 //!   step 6.5a; #248): "Stash tabs" (`GET tabs`) and "Characters" (`GET
 //!   characters`) render the search crate's places document of the URL's
@@ -251,7 +266,7 @@ use serde_json::{Value, json};
 
 use crate::run::Ctx;
 use crate::store_cmd;
-use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
+use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, refusal};
 
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
@@ -879,6 +894,12 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 realm,
                 league: named,
             } if self.web.serves(account) => self.web.link("tabs", &league(realm, named)),
+            // a job's result, under its row on the jobs page (step 6.5d)
+            Way::Result { id } => format!(
+                "{}#{}",
+                self.web.link("jobs", &[("job", id.to_string())]),
+                page::job_anchor(*id)
+            ),
             Way::SavedSearches { expand: false } => self.web.link("saved", &[]),
             Way::SavedSearches { expand: true } | Way::SavedSearchShow { .. } => {
                 self.web.link("saved", &[("expand", "true".to_string())])
@@ -1768,7 +1789,7 @@ async fn list(
     };
     let submitted = async {
         let mut client = crate::run::connect(&web.cx).await?;
-        acquisition_verbs::jobs::submit(
+        let id = acquisition_verbs::jobs::submit(
             &web.cx.frontend,
             &mut client,
             kind,
@@ -1777,11 +1798,11 @@ async fn list(
             Some(web.served()?.entry.username.as_str()),
         )
         .await?;
-        anyhow::Ok(())
+        anyhow::Ok(id)
     }
     .await;
     match submitted {
-        Ok(()) => to_jobs(&web),
+        Ok(id) => to_job(&web, id, Some((realm, &league))),
         Err(e) => web.failed(listed.title(), &Failure::Other(e), &headers),
     }
 }
@@ -1792,7 +1813,7 @@ async fn list(
 async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
     let submitted = async {
         let mut client = crate::run::connect(&web.cx).await?;
-        acquisition_verbs::jobs::submit(
+        let id = acquisition_verbs::jobs::submit(
             &web.cx.frontend,
             &mut client,
             "leagues",
@@ -1801,17 +1822,31 @@ async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Respo
             Some(web.served()?.entry.username.as_str()),
         )
         .await?;
-        anyhow::Ok(())
+        anyhow::Ok(id)
     }
     .await;
     match submitted {
-        Ok(()) => to_jobs(&web),
+        Ok(id) => to_job(&web, id, None),
         Err(e) => web.failed("Leagues", &Failure::Other(e), &headers),
     }
 }
 
-fn to_jobs(web: &Web) -> Response {
-    see_other(&web.link("jobs", &[]))
+/// A submit lands at its job (Decision 8 of step 6.5d): `303` to the
+/// jobs page naming the job, at its row, with the realm and league the
+/// form or the plan named, so the page links that league's place pages.
+/// The way back is made here, from what the reader asked, never read
+/// back out of the job.
+fn to_job(web: &Web, id: u64, league: Option<(Realm, &str)>) -> Response {
+    let mut fields = vec![("job", id.to_string())];
+    if let Some((realm, league)) = league {
+        fields.push(("realm", realm.as_str().to_string()));
+        fields.push(("league", league.to_string()));
+    }
+    see_other(&format!(
+        "{}#{}",
+        web.link("jobs", &fields),
+        page::job_anchor(id)
+    ))
 }
 
 /// The plan page (Do 7): a selection's plan or the stored policy's,
@@ -1919,7 +1954,11 @@ async fn apply(
     }
     .await;
     match applied {
-        Ok((Apply::Submitted(_), _)) => to_jobs(&web),
+        Ok((Apply::Submitted(submitted), plan)) => to_job(
+            &web,
+            submitted.job_id,
+            Some((plan.realm, plan.league.as_str())),
+        ),
         Ok((done, _)) if wants_json(&headers) => document(&done),
         Ok((done, plan)) => web.page(
             "Apply",
@@ -1955,50 +1994,146 @@ fn plan_again(web: &Web, plan: &RefreshPlan) -> String {
     web.link("plan", &fields)
 }
 
-/// The jobs (Do 7): the `jobs` document, reloading itself while a job is
-/// not done. It observes and never spawns.
-async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
+/// The jobs (Do 7; step 6.5d): the `jobs` document rendered in words
+/// ([`page::jobs`]), reloading itself while a job is not done; `job`
+/// names one job, read by id whether the list holds it or not, its
+/// result shown where it failed or was cancelled; `realm` and `league`
+/// name the league whose place pages it links. It observes and never
+/// spawns, and its JSON is the `jobs` document whatever the URL names.
+async fn jobs(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Query(fields): Query<Vec<(String, String)>>,
+) -> Response {
+    let opened = match pick(&fields, "job").map(|word| {
+        word.parse::<u64>().map_err(|_| {
+            Failure::Usage(format!(
+                "`job` {word:?} is no job: it names one job by its number"
+            ))
+        })
+    }) {
+        None => None,
+        Some(Ok(id)) => Some(id),
+        Some(Err(failure)) => return web.failed("Jobs", &failure, &headers),
+    };
+    let places = match pick(&fields, "league") {
+        None => None,
+        Some(league) => match realm_of(&fields) {
+            Ok(realm) => {
+                let at = [
+                    ("realm", realm.as_str().to_string()),
+                    ("league", league.to_string()),
+                ];
+                Some(page::PlaceLinks {
+                    realm,
+                    league: league.to_string(),
+                    tabs: web.link("tabs", &at),
+                    characters: web.link("characters", &at),
+                })
+            }
+            Err(failure) => return web.failed("Jobs", &failure, &headers),
+        },
+    };
     let listed = match web.cx.frontend.jobs(ListState::All, false).await {
         Ok(listed) => listed,
         Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
     };
-    match listed {
-        Jobs::Live(ref jobs) => {
-            if wants_json(&headers) {
-                return document(&listed);
-            }
-            let running = jobs.counts.by_state.running + jobs.counts.by_state.waiting > 0;
-            let head = Head {
-                refresh: running.then_some(JOBS_REFRESH),
-                ..Head::default()
-            };
-            // the daemon's rails and their halt first, as `daemon status`
-            // prints them, so a queue that stands still says why
+    if wants_json(&headers) {
+        return document(&listed);
+    }
+    let (running, rails) = match &listed {
+        Jobs::Live(jobs) => {
+            // the daemon's halts first, so a queue that stands still says
+            // why
             let rails = match web.cx.frontend.daemon().await {
                 Ok(acquisition_verbs::DaemonReport::Running { status, .. }) => match *status {
                     acquisition_protocol::protocol::Response::DaemonStatus { rails, .. } => {
-                        crate::daemon_cmd::rails_text(&rails, acquisition_store::now())
+                        Some(rails)
                     }
-                    _ => String::new(),
+                    _ => None,
                 },
-                _ => String::new(),
+                _ => None,
             };
-            web.page(
-                "Jobs",
-                head,
-                &pre(&format!("{rails}{}", crate::jobs_cmd::jobs_text(jobs))),
+            (
+                jobs.counts.by_state.running + jobs.counts.by_state.waiting > 0,
+                rails,
             )
         }
-        Jobs::Absent { ref persisted } => {
-            if wants_json(&headers) {
-                return document(&listed);
-            }
-            match crate::jobs_cmd::persisted_queue_text(persisted.as_ref()) {
-                Ok(text) => web.page("Jobs", Head::default(), &pre(&text)),
-                Err(e) => web.failed("Jobs", &Failure::Other(e), &headers),
-            }
+        Jobs::Absent { .. } => (false, None),
+    };
+    let opened = match opened {
+        Some(id) => match opened_job(&web, &listed, id).await {
+            Ok(opened) => Some(opened),
+            Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
+        },
+        None => None,
+    };
+    let spell = |way: &acquisition_verbs::refusal::Way| {
+        use acquisition_verbs::refusal::Surface as _;
+        Paged { web: &web }
+            .request(way)
+            .and_then(|(link, _)| link.as_str().map(str::to_string))
+    };
+    let head = Head {
+        refresh: running.then_some(JOBS_REFRESH),
+        ..Head::default()
+    };
+    web.page(
+        "Jobs",
+        head,
+        &page::jobs(&page::JobsPage {
+            jobs: &listed,
+            rails: rails.as_ref(),
+            opened: opened.as_ref(),
+            places,
+            spell: &spell,
+            now: acquisition_store::now(),
+        }),
+    )
+}
+
+/// The job `id` as the jobs page opens it (Decision 7): read by id where
+/// the list leaves it out, and its result where it failed or was
+/// cancelled, its offers spelled by [`Paged`].
+async fn opened_job(web: &Web, listed: &Jobs, id: u64) -> Result<page::OpenedJob, Fault> {
+    use acquisition_protocol::job::JobState;
+    let row = match listed {
+        Jobs::Live(jobs) => jobs.rows.iter().find(|j| j.id == id).map(|j| j.state),
+        Jobs::Absent { persisted } => persisted
+            .as_ref()
+            .and_then(|p| p.jobs.iter().find(|j| j.id == id))
+            .map(|_| JobState::Waiting),
+    };
+    let job = match row {
+        Some(_) => None,
+        None => Some(web.cx.frontend.job(id).await?),
+    };
+    let finished = match (&row, &job) {
+        (Some(state), _) => matches!(state, JobState::Failed | JobState::Cancelled),
+        (None, Some(acquisition_verbs::jobs::Job::Live(job))) => {
+            matches!(job.state, JobState::Failed | JobState::Cancelled)
         }
-    }
+        // the ledger holds a job's outcome once it is final; one with
+        // none is unfinished, and has no result to show
+        (None, Some(acquisition_verbs::jobs::Job::Absent { .. })) => true,
+        (None, None) => false,
+    };
+    let result = match finished {
+        true => match web.cx.frontend.result(id).await {
+            Ok(result) => Some(result.offered(&Paged { web })),
+            Err(Fault::Unfinished { .. }) => None,
+            Err(fault) => return Err(fault),
+        },
+        false => None,
+    };
+    // a success read from the ledger has no result to show
+    let result = result.filter(|r| {
+        !matches!(
+            r.outcome,
+            acquisition_protocol::job::Outcome::Success { .. }
+        )
+    });
+    Ok(page::OpenedJob { id, job, result })
 }
 
 // ---- the saved pages (C168) --------------------------------------------------------------------

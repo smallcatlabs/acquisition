@@ -21,8 +21,8 @@ use crate::run::{Ctx, attach};
 use crate::store_cmd;
 use crate::terminal::{AlreadyReported, Terminal, plural};
 
-/// The persisted queue as text (C45): what `jobs` says with no daemon,
-/// and the web UI's jobs page with it — the same table as the live list,
+/// The persisted queue as text (C45): what `jobs` says with no daemon —
+/// the same table as the live list,
 /// without ETAs, under a line that says how old the picture is and what
 /// restores it. `persisted` is [`Jobs::Absent`]'s, none where this world
 /// has no queue yet.
@@ -517,8 +517,7 @@ fn latest_said(times: &JobTimes) -> String {
 /// `jobs` as text, a function of its document (C53, C149): the rows,
 /// the counts by state read from the document, and what it left out —
 /// the earliest open and finished past the newest ten of each — with
-/// `--all`, which lists every one. The web UI's jobs page states
-/// it word for word.
+/// `--all`, which lists every one.
 pub(crate) fn jobs_text(listed: &Listed) -> String {
     let mut out = String::new();
     if !listed.rows.is_empty() {

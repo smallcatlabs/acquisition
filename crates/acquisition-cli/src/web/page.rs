@@ -10,11 +10,11 @@
 //! is one card ([`card`], step 5) on both: a row that carries the item on
 //! the answer page, `show`'s document on the item page. The place pages
 //! render the places document ([`places`], step 6.5a), no `pre` and no
-//! command line. The plan and apply pages render the plan and the
-//! apply's documents ([`plan`], [`applied`], step 6.5d), in a player's
-//! words and with no command line; the jobs page still prints the CLI's
-//! text in a `pre` ([`pre`]) until it is rendered from its document too
-//! (#182). A page sorts, filters, groups and composes
+//! command line. The plan, apply and jobs pages render the plan, the
+//! apply's and the jobs documents ([`plan`], [`applied`], [`jobs`], step
+//! 6.5d), in a player's words and with no command line; a refusal's
+//! words, the CLI's, are the one `pre` a page holds (#182). A page sorts,
+//! filters, groups and composes
 //! nothing; where it wants what no document carries, the search crate or
 //! the verb grows first. Every version a page renders is copied into its
 //! head's basis line, never composed ([`Head::basis`]).
@@ -168,9 +168,11 @@ pub(crate) fn page(
         .replace("{body}", body)
 }
 
-/// Text the CLI prints, as a block: each of its lines a line of the page
-/// source too (a newline just inside `<pre>` is no part of its text).
-pub(crate) fn pre(text: &str) -> String {
+/// A refusal's words as the CLI prints them (`failure_words`), as a
+/// block: each of its lines a line of the page source too (a newline just
+/// inside `<pre>` is no part of its text). No page's own text is one
+/// (#182).
+fn pre(text: &str) -> String {
     format!("<pre>\n{}\n</pre>\n", esc(text.trim_end_matches('\n')))
 }
 
@@ -2973,4 +2975,529 @@ pub(crate) fn applied(applied: &acquisition_verbs::Apply, again: &str, now: i64)
         esc(&said),
         esc(again)
     )
+}
+
+// ---- the jobs page (step 6.5d) ------------------------------------------------------------------
+
+/// What the jobs page renders: the jobs document, the daemon's halts
+/// where one answers, the job the URL opens, and the league the URL
+/// names (Decision 8).
+pub(crate) struct JobsPage<'a> {
+    pub jobs: &'a acquisition_verbs::Jobs,
+    /// The daemon's rails, where a daemon answers.
+    pub rails: Option<&'a acquisition_protocol::status::RailsStatus>,
+    /// The job the URL names (`job`), where it does.
+    pub opened: Option<&'a OpenedJob>,
+    /// The league the URL names, with its two place pages' links: where
+    /// a submit came from, made forward at the submit.
+    pub places: Option<PlaceLinks>,
+    pub spell: Spell<'a>,
+    pub now: i64,
+}
+
+/// The league a jobs URL names, and the links to its place pages.
+pub(crate) struct PlaceLinks {
+    pub realm: Realm,
+    pub league: String,
+    pub tabs: String,
+    pub characters: String,
+}
+
+/// A job the URL opens (`jobs?job=<id>`): read by id, listed or not,
+/// with its result where it failed or was cancelled.
+pub(crate) struct OpenedJob {
+    pub id: u64,
+    /// The job read by id, where the list leaves it out.
+    pub job: Option<acquisition_verbs::jobs::Job>,
+    pub result: Option<acquisition_verbs::jobs::JobResult>,
+}
+
+/// A job's row's anchor: where a submit lands.
+pub(crate) fn job_anchor(id: u64) -> String {
+    format!("j-{id}")
+}
+
+/// One job as a row says it, from the daemon's reading or the ledger's.
+struct JobRow<'a> {
+    id: u64,
+    parent: Option<u64>,
+    kind: &'a str,
+    params: &'a Value,
+    state: String,
+    when: String,
+}
+
+impl<'a> JobRow<'a> {
+    fn live(job: &'a acquisition_protocol::job::JobInfo) -> JobRow<'a> {
+        use acquisition_protocol::job::JobState;
+        let age = |words: &Option<String>| words.clone().unwrap_or_default();
+        let (state, when) = match job.state {
+            JobState::Waiting => {
+                let start = match job.eta_seconds {
+                    Some(0) => "starts next".to_string(),
+                    Some(s) => format!("starts in ~{}", span(i64::try_from(s).unwrap_or(i64::MAX))),
+                    None => "its start is not yet known".to_string(),
+                };
+                (
+                    "waiting".to_string(),
+                    format!("submitted {}; {start}", age(&job.times.submitted_at_age)),
+                )
+            }
+            JobState::Running => (
+                "running".to_string(),
+                format!("started {}", age(&job.times.started_at_age)),
+            ),
+            JobState::Done => (
+                "done".to_string(),
+                format!("finished {}", age(&job.times.finished_at_age)),
+            ),
+            JobState::Failed => (
+                "failed".to_string(),
+                format!("finished {}", age(&job.times.finished_at_age)),
+            ),
+            JobState::Cancelled => (
+                "cancelled".to_string(),
+                format!("finished {}", age(&job.times.finished_at_age)),
+            ),
+        };
+        JobRow {
+            id: job.id,
+            parent: job.parent,
+            kind: &job.kind,
+            params: &job.params,
+            state,
+            when: when.trim_end().to_string(),
+        }
+    }
+
+    fn recorded(job: &'a acquisition_store::jobs::PersistedJob) -> JobRow<'a> {
+        let state = match job.state.as_str() {
+            "running" => "running when the daemon stopped".to_string(),
+            other => other.to_string(),
+        };
+        JobRow {
+            id: job.id,
+            parent: job.parent,
+            kind: &job.kind,
+            params: &job.params,
+            state,
+            when: format!(
+                "submitted {}",
+                job.submitted_at_age.clone().unwrap_or_default()
+            )
+            .trim_end()
+            .to_string(),
+        }
+    }
+}
+
+/// What a job does, in words, from its kind and params: no daemon word,
+/// no route, no channel.
+fn job_what(kind: &str, params: &Value) -> String {
+    let s = |k: &str| params.get(k).and_then(Value::as_str).unwrap_or("");
+    let realm = match s("realm") {
+        "" | "pc" => String::new(),
+        other => format!(" ({other})"),
+    };
+    match kind {
+        "profile" => "The account's profile".to_string(),
+        "leagues" => format!("The league list{realm}"),
+        "characters" => format!("The list of characters{realm}"),
+        "character" => format!("Character {}{realm}", s("name")),
+        "stashes" => format!("The list of stash tabs in {}{realm}", s("league")),
+        "stash" => match params.get("sub").and_then(Value::as_str) {
+            Some(sub) => format!("Page {sub} of tab {} in {}{realm}", s("id"), s("league")),
+            None => format!("Tab {} in {}{realm}", s("id"), s("league")),
+        },
+        "apply" => format!(
+            "A refresh of {}",
+            plural(
+                params
+                    .get("jobs")
+                    .and_then(Value::as_array)
+                    .map_or(0, Vec::len),
+                "request",
+                "requests"
+            )
+        ),
+        "probe" => "A first check of a route before its requests".to_string(),
+        "sleep" => "A wait (the test world's)".to_string(),
+        "fetch" => "A test fetch (the test world's)".to_string(),
+        "whoami" => "An account check (the test world's)".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// A failed child as its parent's result names it: its kind and target,
+/// the only facts the result carries of it.
+fn child_what(kind: &str, target: &str, id: u64) -> String {
+    let noun = match kind {
+        "" => return format!("Job {id}"),
+        "stash" => "Tab",
+        "stashes" => "The list of stash tabs in",
+        "character" => "Character",
+        "characters" => "The list of characters",
+        "leagues" => "The league list",
+        "profile" => "The account's profile",
+        "apply" => "A refresh",
+        other => other,
+    };
+    format!("{noun} {target}").trim_end().to_string()
+}
+
+/// A failure's kind in the page's own words (C165, Decision 7): never
+/// the daemon's `error` nor the way on's words, which can name a
+/// command; a failure with no kind says only that it failed.
+fn failure_words(kind: Option<acquisition_protocol::job::FailureKind>) -> &'static str {
+    use acquisition_protocol::job::FailureKind;
+    match kind {
+        None => "It failed.",
+        Some(FailureKind::NotFound) => {
+            "GGG has nothing there now. Listing the league or the characters again shows what is there."
+        }
+        Some(FailureKind::Upstream) => {
+            "GGG's answer could not be used. The same request may work later."
+        }
+        Some(FailureKind::RateLimited) => {
+            "GGG asked to slow down until the job ran out of tries. The same request can go again once that wait has passed."
+        }
+        Some(FailureKind::Blocked) => {
+            "Cloudflare answered in GGG's place. Nothing is sent again, this or anything like it, until a person has looked and cleared it."
+        }
+        Some(FailureKind::NotRetried) => {
+            "GGG refused it, and a refusal like this is never tried again: a person looks first. One that names the sign-in asks for signing in again."
+        }
+        Some(FailureKind::NotRecorded) => {
+            "It was fetched, and what it fetched could not be saved; it is kept with this result."
+        }
+        Some(FailureKind::Children) => {
+            "Some of its requests failed; each says why in its own result."
+        }
+        Some(FailureKind::NotLoggedIn) => {
+            "Its account had no session to send with. Signing in again is a person's to do."
+        }
+        Some(FailureKind::Interrupted) => {
+            "The daemon stopped before it finished. The same request can go again."
+        }
+        Some(FailureKind::Internal) => "The daemon failed on its own account; nothing is offered.",
+    }
+}
+
+/// A failed or cancelled job's result under its row (Decision 7): its
+/// failure by kind, its children's tally, the first failed children
+/// each a link to its own result, and the offers its page takes.
+fn result_words(result: &acquisition_verbs::jobs::JobResult, spell: Spell) -> String {
+    use acquisition_protocol::job::{FailureKind, Outcome};
+    let mut out = String::new();
+    match &result.outcome {
+        Outcome::Cancelled => out.push_str("<p>It was cancelled.</p>\n"),
+        Outcome::Success { .. } => out.push_str("<p>It finished.</p>\n"),
+        Outcome::Failure { kind, children, .. } => {
+            out.push_str(&format!("<p>{}</p>\n", esc(failure_words(*kind))));
+            if let Some(c) = children {
+                let mut parts = vec![format!("{} failed", c.failed)];
+                if c.cancelled > 0 {
+                    parts.push(format!("{} cancelled", c.cancelled));
+                }
+                parts.push(format!("{} done", c.done));
+                out.push_str(&format!(
+                    "<p>Of its requests: {}.</p>\n",
+                    esc(&parts.join(", "))
+                ));
+            }
+            if !result.failed_children.is_empty() {
+                out.push_str("<ul class=\"failed\">\n");
+                for child in &result.failed_children {
+                    let what = child_what(&child.kind, &child.target, child.job_id);
+                    out.push_str(&format!(
+                        "<li>{} failed</li>\n",
+                        result_link(spell, child.job_id, &what)
+                    ));
+                }
+                out.push_str("</ul>\n");
+            }
+            // a parent's offers are its children's results, linked above
+            if *kind != Some(FailureKind::Children) {
+                let links: Vec<String> = result
+                    .offers
+                    .iter()
+                    .filter_map(|offer| {
+                        Some(format!(
+                            "<li><a href=\"{}\">{}</a></li>",
+                            esc(offer.get("request")?.as_str()?),
+                            esc(offer.get("says")?.as_str()?)
+                        ))
+                    })
+                    .collect();
+                if !links.is_empty() {
+                    out.push_str(&format!(
+                        "<ul class=\"offers\">\n{}\n</ul>\n",
+                        links.join("\n")
+                    ));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The jobs page (Decision 6): the daemon's halts in prose, the job the
+/// URL opens where the list leaves it out, the counts, and the listed
+/// jobs as a table, a child under its listed parent; with no daemon, the
+/// ledger's rows, how old, and that the next job resumes them. No `pre`,
+/// no command line, no channel, no priority.
+pub(crate) fn jobs(view: &JobsPage) -> String {
+    use acquisition_verbs::Jobs;
+    let mut body = String::new();
+    if let Some(places) = &view.places {
+        body.push_str(&format!(
+            "<p class=\"places\">{}: <a href=\"{}\">Stash tabs</a> · <a href=\"{}\">Characters</a></p>\n",
+            esc(&league_on(places.realm, &places.league)),
+            esc(&places.tabs),
+            esc(&places.characters)
+        ));
+    }
+    if let Some(rails) = view.rails {
+        body.push_str(&rails_words(rails, view.now));
+    }
+    let (rows, counts, left): (Vec<JobRow>, String, Vec<String>) = match view.jobs {
+        Jobs::Live(listed) => (
+            listed.rows.iter().map(JobRow::live).collect(),
+            live_counts(listed),
+            [
+                (listed.open_left_out, "earlier running or waiting"),
+                (listed.finished_left_out, "earlier finished"),
+            ]
+            .iter()
+            .filter(|(n, _)| *n > 0)
+            .map(|(n, what)| {
+                format!(
+                    "{n} {what} {} not listed.",
+                    if *n == 1 { "job is" } else { "jobs are" }
+                )
+            })
+            .collect(),
+        ),
+        Jobs::Absent { persisted: None } => (
+            Vec::new(),
+            "No daemon is running, and no job is on record.".to_string(),
+            Vec::new(),
+        ),
+        Jobs::Absent { persisted: Some(p) } => (
+            p.jobs.iter().map(JobRow::recorded).collect(),
+            format!(
+                "No daemon is running. The queue on record, written {}: {}, {} waiting, {} running when the daemon stopped. The next job submitted starts a daemon, which resumes them.",
+                p.written_at_age,
+                plural(p.total, "job", "jobs"),
+                p.waiting,
+                p.recorded_running
+            ),
+            (p.left_out > 0)
+                .then(|| {
+                    format!(
+                        "{} more on record {} not listed.",
+                        p.left_out,
+                        if p.left_out == 1 { "is" } else { "are" }
+                    )
+                })
+                .into_iter()
+                .collect(),
+        ),
+    };
+    // the job the URL opens, where the list leaves it out, above the list
+    let opened = view.opened;
+    let listed = |id: u64| rows.iter().any(|r| r.id == id);
+    if let Some(open) = opened.filter(|o| !listed(o.id)) {
+        let row = match &open.job {
+            Some(acquisition_verbs::jobs::Job::Live(job)) => Some(JobRow::live(job)),
+            Some(acquisition_verbs::jobs::Job::Absent { persisted, .. }) => {
+                Some(JobRow::recorded(persisted))
+            }
+            None => None,
+        };
+        if let Some(row) = row {
+            body.push_str("<p class=\"opened\">This job is not among those listed below.</p>\n");
+            body.push_str(JOBS_HEAD);
+            body.push_str(&job_row(&row, 0, true, open.result.as_ref(), view.spell));
+            body.push_str("</table>\n");
+        }
+    }
+    body.push_str(&format!("<p class=\"counts\">{}</p>\n", esc(&counts)));
+    if !rows.is_empty() {
+        body.push_str(JOBS_HEAD);
+        // a child under its parent where both are listed
+        let roots: Vec<&JobRow> = rows
+            .iter()
+            .filter(|r| r.parent.is_none_or(|p| !listed(p)))
+            .collect();
+        for root in roots {
+            job_tree(&rows, root, 0, opened, view.spell, &mut body);
+        }
+        body.push_str("</table>\n");
+    }
+    for words in left {
+        body.push_str(&format!("<p class=\"left-out\">{}</p>\n", esc(&words)));
+    }
+    body
+}
+
+const JOBS_HEAD: &str =
+    "<table class=\"jobs\">\n<tr><th>What</th><th>State</th><th>When</th></tr>\n";
+
+/// `row` and its listed children, each under its parent.
+fn job_tree(
+    rows: &[JobRow],
+    row: &JobRow,
+    depth: usize,
+    opened: Option<&OpenedJob>,
+    spell: Spell,
+    body: &mut String,
+) {
+    let open = opened.filter(|o| o.id == row.id);
+    body.push_str(&job_row(
+        row,
+        depth,
+        open.is_some(),
+        open.and_then(|o| o.result.as_ref()),
+        spell,
+    ));
+    for child in rows.iter().filter(|r| r.parent == Some(row.id)) {
+        job_tree(rows, child, depth + 1, opened, spell, body);
+    }
+}
+
+/// One job's row, marked where the URL opens it, its result under it.
+fn job_row(
+    row: &JobRow,
+    depth: usize,
+    opened: bool,
+    result: Option<&acquisition_verbs::jobs::JobResult>,
+    spell: Spell,
+) -> String {
+    let class = match (depth > 0, opened) {
+        (false, false) => "job",
+        (true, false) => "job child",
+        (false, true) => "job opened",
+        (true, true) => "job child opened",
+    };
+    // a finished job's own result is a link where it is not opened
+    let what = job_what(row.kind, row.params);
+    let what = if opened || !matches!(row.state.as_str(), "failed" | "cancelled") {
+        esc(&what)
+    } else {
+        result_link(spell, row.id, &what)
+    };
+    let mut out = format!(
+        "<tr class=\"{class}\" id=\"{}\"><td>{}{what}</td><td>{}</td><td>{}</td></tr>\n",
+        job_anchor(row.id),
+        "\u{21b3} ".repeat(depth),
+        esc(&row.state),
+        esc(&row.when)
+    );
+    if let Some(result) = result {
+        out.push_str(&format!(
+            "<tr class=\"result\"><td colspan=\"3\">\n{}</td></tr>\n",
+            result_words(result, spell)
+        ));
+    }
+    out
+}
+
+/// A job's words as a link to its result on this page, where the page
+/// spells one; the words alone where it does not.
+fn result_link(spell: Spell, id: u64, words: &str) -> String {
+    match spell(&Way::Result { id }) {
+        Some(link) => format!("<a href=\"{}\">{}</a>", esc(&link), esc(words)),
+        None => esc(words),
+    }
+}
+
+/// The live list's counts in one sentence: every job by state, and when
+/// the waiting ones start.
+fn live_counts(listed: &acquisition_verbs::jobs::Listed) -> String {
+    let by = &listed.counts.by_state;
+    let mut parts = vec![
+        format!("{} running", by.running),
+        format!("{} waiting", by.waiting),
+        format!("{} done", by.done),
+    ];
+    if by.failed > 0 {
+        parts.push(format!("{} failed", by.failed));
+    }
+    if by.cancelled > 0 {
+        parts.push(format!("{} cancelled", by.cancelled));
+    }
+    let mut out = format!(
+        "{}: {}.",
+        plural(listed.counts.total, "job", "jobs"),
+        parts.join(", ")
+    );
+    let at = |s: u64| span(i64::try_from(s).unwrap_or(i64::MAX));
+    match (
+        listed.counts.next_starts_in_seconds,
+        listed.counts.last_starts_in_seconds,
+    ) {
+        (Some(next), Some(last)) if last > next => out.push_str(&format!(
+            " The next waiting job starts in ~{}, the last in ~{}.",
+            at(next),
+            at(last)
+        )),
+        (Some(next), _) => out.push_str(&format!(" The next waiting job starts in ~{}.", at(next))),
+        _ => {}
+    }
+    out
+}
+
+/// The daemon's halts in prose (Decision 6): a halt, each closed route,
+/// and a session it cannot renew; nothing of its tripwire, its sends or
+/// its journal.
+fn rails_words(rails: &acquisition_protocol::status::RailsStatus, now: i64) -> String {
+    let mut out = String::new();
+    if let Some(cause) = &rails.halted {
+        out.push_str(&format!(
+            "<p class=\"halt\">The daemon is sending nothing: {}. A person clears this stop; until then no job here starts.</p>\n",
+            esc(cause)
+        ));
+    }
+    for route in &rails.closed_routes {
+        let (what, account) = match route.route.split_once('@') {
+            Some((what, account)) => (what, Some(account)),
+            None => (route.route.as_str(), None),
+        };
+        let what = match what {
+            "stash" => "Fetching tabs",
+            "stash-list" => "Listing stash tabs",
+            "character" => "Fetching characters",
+            "character-list" => "Listing characters",
+            "league" | "leagues" => "Fetching the league list",
+            "profile" => "Fetching the profile",
+            _ => "A kind of request",
+        };
+        let trial = if route.until > now {
+            format!(
+                "One waiting job tries again in ~{}",
+                span(route.until - now)
+            )
+        } else {
+            "The next job of it tries again".to_string()
+        };
+        let cap = if route.cooldown_secs >= 3600 {
+            " It waits its longest now, an hour between tries; one that keeps failing may mean GGG's API changed, and a newer Acquisition may know it."
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "<p class=\"halt\">{what}{} is paused: GGG answered {} in a row as invalid, the last with {}. {trial}; until then every such request waits, whatever its league. Once it reopens, list the league again: what was fetched just before may be older than GGG's.{cap}</p>\n",
+            esc(&account.map(|a| format!(" for {a}")).unwrap_or_default()),
+            plural(usize::try_from(route.invalid).unwrap_or(usize::MAX), "request", "requests"),
+            route.status,
+        ));
+    }
+    if let Some(failed) = &rails.refresh_failed {
+        out.push_str(&format!(
+            "<p class=\"halt\">The daemon cannot renew a session ({}). Signing in again is a person's to do.</p>\n",
+            esc(failed)
+        ));
+    }
+    out
 }
