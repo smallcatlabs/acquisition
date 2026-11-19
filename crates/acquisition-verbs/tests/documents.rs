@@ -871,6 +871,11 @@ fn a_quote_notes_sentence_is_its_cause_in_words() {
             QuoteNote::Other("a daemon of another contract".into()),
             "no quote: a daemon of another contract — plan compiled offline",
         ),
+        // #189, fault 12: typed for the page, the sentence `Other`'s
+        (
+            QuoteNote::NotLoggedIn("account Alice: not logged in".into()),
+            "no quote: account Alice: not logged in — plan compiled offline",
+        ),
     ] {
         assert_eq!(note.to_string(), words);
         assert_eq!(serde_json::to_value(&note).unwrap(), json!(words));

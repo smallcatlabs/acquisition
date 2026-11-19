@@ -922,7 +922,7 @@ fn render_wire(plan: &RefreshPlan) -> String {
 
 /// The full text of `acq refresh --plan`: header, verdict, the grouped (or
 /// expanded) actions, the skips, the quote or why there is none, and what
-/// to type next.
+/// to type next, its plan read from `source` where a file is named.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn render_plan(
     plan: &RefreshPlan,
@@ -931,48 +931,6 @@ pub(crate) fn render_plan(
     now: i64,
     expand: bool,
     source: Option<&str>,
-    account: &str,
-    uncovered: Option<&UncoveredTabs>,
-) -> String {
-    rendered(
-        plan,
-        quote_note,
-        notes,
-        now,
-        expand,
-        Some(source),
-        account,
-        uncovered,
-    )
-}
-
-/// [`render_plan`] as the plan page renders it, grouped: all but the
-/// command to type next, since the page's way on is its own Apply button,
-/// the route that takes the apply (#97, each surface spells its own ways
-/// on).
-pub(crate) fn render_plan_on_a_page(
-    plan: &RefreshPlan,
-    quote_note: Option<&QuoteNote>,
-    notes: &PlanNotes,
-    now: i64,
-    account: &str,
-    uncovered: Option<&UncoveredTabs>,
-) -> String {
-    rendered(
-        plan, quote_note, notes, now, false, None, account, uncovered,
-    )
-}
-
-/// The plan's text, and where `next` is given the command to type next,
-/// its plan read from that file where one is named.
-#[allow(clippy::too_many_arguments)]
-fn rendered(
-    plan: &RefreshPlan,
-    quote_note: Option<&QuoteNote>,
-    notes: &PlanNotes,
-    now: i64,
-    expand: bool,
-    next: Option<Option<&str>>,
     account: &str,
     uncovered: Option<&UncoveredTabs>,
 ) -> String {
@@ -1027,7 +985,7 @@ fn rendered(
         out.push_str(&render_wire(plan));
     }
     // a selection compiled here is applied by the command that compiled
-    // it, or by the page's Apply: no command to name but a reviewed file's
+    // it: no command to name but a reviewed file's
     // either names the plan's account, realm and league, so it runs as
     // printed with a second account known (the league seat, cli call 28)
     let apply = |plan_file: Option<&str>| {
@@ -1038,9 +996,9 @@ fn rendered(
             plan: plan_file.map(str::to_string),
         }))
     };
-    match (next, plan.basis.policy_revision) {
-        (Some(Some(path)), _) => out.push_str(&format!("next: {}\n", apply(Some(path)))),
-        (Some(None), Some(_)) => out.push_str(&format!("next: {}\n", apply(None))),
+    match (source, plan.basis.policy_revision) {
+        (Some(path), _) => out.push_str(&format!("next: {}\n", apply(Some(path)))),
+        (None, Some(_)) => out.push_str(&format!("next: {}\n", apply(None))),
         _ => {}
     }
     out
@@ -1788,7 +1746,7 @@ fn render_decision_quote_note(note: &QuoteNote) -> String {
         QuoteNote::NoAccountName => "the facts record no account name to quote as".into(),
         QuoteNote::Timeout(limit) => format!("the daemon did not answer within {limit:?}"),
         QuoteNote::Rejected(e) => format!("daemon quote rejected: {e}"),
-        QuoteNote::Other(why) => why.clone(),
+        QuoteNote::NotLoggedIn(why) | QuoteNote::Other(why) => why.clone(),
     };
     format!("quote: unavailable — {cause}\n")
 }

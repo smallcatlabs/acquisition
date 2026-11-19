@@ -71,28 +71,37 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 </main>
 
 GET plan?<two tabs ticked>
-# holds "a selection"
-# holds "fetch 2 tabs"
+# holds "the places you ticked"
+# holds "<td>Tab Dump</td><td>ticked</td>"
+# holds "3 requests:"
+# holds "could go now"
+# holds "not yet known"
 # holds ">Apply</button>"
 <meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:3,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;selection&quot;:{&quot;tabs&quot;:[&quot;cur1&quot;,&quot;dump&quot;]}}}">
 <main>
 <h1>Plan</h1>
-<pre>
-refresh Standard on mock as ExileTester — a selection
-facts: stash listed <age> before the plan; plan made <age> ago
-
-the listing is fetched beside the selection: what it newly lists takes the next plan
-3 requests:
-  list stashes      the selection is read from it
-  fetch 2 tabs      2 selected
-    cur1  Currency  selected
-    dump  Dump      selected
-
-quote (<age> ago):
-  stash-list-request-limit  1 request — ready
-  stash                     2 requests — ETA unavailable (unlearned)
-wire: 3–9 sends; plus first-contact probes and token refresh if needed
-</pre>
+<p class="what">Refresh Standard as ExileTester: the places you ticked.</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td><age> before the plan</td></tr>
+<tr><th>Characters listed</th><td><age> before the plan</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="note">The list is fetched beside what you ticked: a place it newly lists is in the next plan.</p>
+<p class="counts">3 requests:</p>
+<table class="actions">
+<tr><th>What</th><th>Why</th></tr>
+<tr><td>The list of stash tabs in Standard</td><td>what you ticked is read from it</td></tr>
+<tr><td>Tab Currency</td><td>ticked</td></tr>
+<tr><td>Tab Dump</td><td>ticked</td></tr>
+</table>
+<p class="quote">The 1 request whose timing is known could go now; the timing of 2 requests is not yet known: the daemon learns GGG&#39;s pace from its first answer (asked <age> ago).</p>
+<details class="not-covered"><summary>What no estimate includes</summary>
+<ul>
+<li>a HEAD probe before the first request on stash — its own send, outside every estimate</li>
+<li>an OAuth token refresh if the access token expires first — paced by the token policy, not quoted</li>
+<li>429 re-sends (up to 2 per request) — possible, never predicted</li>
+</ul>
+</details>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
@@ -195,26 +204,36 @@ GET tabs?<Maps opened>
 </main>
 
 GET plan?realm=pc&league=Standard <the policy's>
-# holds "quote"
+# holds "your sync policy covers (revision 1)"
+# holds "Character StashHoarder"
+# holds "Outside your sync policy: 13 of the league&#39;s 14 tabs"
+# holds "Not fetched: 1 tab"
 # holds ">Apply</button>"
 <meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:18,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
 <main>
 <h1>Plan</h1>
-<pre>
-refresh Standard on mock as ExileTester — policy 1
-facts: stash listed <age> before the plan; characters listed <age> before the plan; plan made <age> ago
-
-2 requests:
-  fetch 2 characters
-    fake0001  StashHoarder
-    fake0002  MuleQuadTab
-reason: selected characters never fetched
-skipped 1 tab: 1 fresh
-outside the policy: 13 of 14 tabs (`acq policy set --account ExileTester` names them)
-
-quote: ETA unavailable until 1 rate-limit policy is learned
-wire: 2–6 sends; plus first-contact probes and token refresh if needed
-</pre>
+<p class="what">Refresh Standard as ExileTester: everything your sync policy covers (revision 1).</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td><age> before the plan</td></tr>
+<tr><th>Characters listed</th><td><age> before the plan</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="counts">2 requests:</p>
+<table class="actions">
+<tr><th>What</th><th>Why</th></tr>
+<tr><td>Character StashHoarder</td><td>never fetched</td></tr>
+<tr><td>Character MuleQuadTab</td><td>never fetched</td></tr>
+</table>
+<p class="skipped">Not fetched: 1 tab — 1 fetched within 60m.</p>
+<p class="skipped">Outside your sync policy: 13 of the league&#39;s 14 tabs.</p>
+<p class="quote">The timing of 2 requests is not yet known: the daemon learns GGG&#39;s pace from its first answer (asked <age> ago).</p>
+<details class="not-covered"><summary>What no estimate includes</summary>
+<ul>
+<li>a HEAD probe before the first request on character — its own send, outside every estimate</li>
+<li>an OAuth token refresh if the access token expires first — paced by the token policy, not quoted</li>
+<li>429 re-sends (up to 2 per request) — possible, never predicted</li>
+</ul>
+</details>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
@@ -262,12 +281,44 @@ id  parent  kind  target  state  prio  account  by  when  eta
 </main>
 
 POST apply <the same envelope again>
-# holds "nothing to do: every request of this plan is spent"
+# holds "Nothing was sent: every request of this plan is spent"
+# holds "2 fetched after it was compiled"
+# holds "A plan made now would fetch"
+# holds "plan?realm=pc&amp;league=Standard\">The plan made again</a>"
 <main>
 <h1>Apply</h1>
-<pre>
-nothing to do: every request of this plan is spent — 2 fetched after it was compiled, the latest <age> ago
-</pre>
+<p class="applied">Nothing was sent: every request of this plan is spent — 2 fetched after it was compiled, the latest <age> ago. A plan made now would fetch nothing. It left out 1 tab.</p>
+<p><a href="/<token>/plan?realm=pc&amp;league=Standard">The plan made again</a></p>
+
+</main>
+
+GET plan?realm=pc&league=Standard <every request fresh>
+# holds "Nothing to fetch in Standard"
+# holds "Not fetched: 2 characters"
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:20,&quot;stash_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;character_listing&quot;:{&quot;response_id&quot;:<response>,&quot;fetched_at&quot;:<epoch>},&quot;policy_revision&quot;:1}}">
+<main>
+<h1>Plan</h1>
+<p class="what">Refresh Standard as ExileTester: everything your sync policy covers (revision 1).</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td><age> before the plan</td></tr>
+<tr><th>Characters listed</th><td><age> before the plan</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="none">Nothing to fetch in Standard.</p>
+<p class="skipped">Not fetched: 1 tab — 1 fetched within 60m.</p>
+<p class="skipped">Not fetched: 2 characters — 2 fetched within 60m.</p>
+<p class="skipped">Outside your sync policy: 13 of the league&#39;s 14 tabs.</p>
+
+</main>
+
+POST apply <a plan with nothing to fetch>
+# holds "Nothing was sent: this plan has nothing to fetch"
+# holds "It left out 1 tab and 2 characters"
+# holds "\">The plan made again</a>"
+<main>
+<h1>Apply</h1>
+<p class="applied">Nothing was sent: this plan has nothing to fetch. It left out 1 tab and 2 characters.</p>
+<p><a href="/<token>/plan?realm=pc&amp;league=Standard">The plan made again</a></p>
 
 </main>
 

@@ -10,9 +10,11 @@
 //! is one card ([`card`], step 5) on both: a row that carries the item on
 //! the answer page, `show`'s document on the item page. The place pages
 //! render the places document ([`places`], step 6.5a), no `pre` and no
-//! command line. The plan and jobs pages still print the CLI's text, in
-//! a `pre` (`mod.rs` renders them through [`pre`]), until they are
-//! rendered from their documents too (#182). A page sorts, filters, groups and composes
+//! command line. The plan and apply pages render the plan and the
+//! apply's documents ([`plan`], [`applied`], step 6.5d), in a player's
+//! words and with no command line; the jobs page still prints the CLI's
+//! text in a `pre` ([`pre`]) until it is rendered from its document too
+//! (#182). A page sorts, filters, groups and composes
 //! nothing; where it wants what no document carries, the search crate or
 //! the verb grows first. Every version a page renders is copied into its
 //! head's basis line, never composed ([`Head::basis`]).
@@ -2462,4 +2464,513 @@ fn filter_row(columns: &[&str]) -> String {
         })
         .collect();
     format!("<tr class=\"filters\"><td></td>{boxes}</tr>\n")
+}
+
+// ---- the plan and apply pages (step 6.5d) -------------------------------------------------------
+
+/// A span in the store's one vocabulary (`3m`, `2d`).
+fn span(seconds: i64) -> String {
+    acquisition_store::age::span(seconds)
+}
+
+/// "Standard" on pc, "Standard (xbox)" elsewhere: pc is silent, as on
+/// every place page.
+fn league_on(realm: Realm, league: &str) -> String {
+    match realm {
+        Realm::Pc => league.to_string(),
+        other => format!("{league} ({})", other.as_str()),
+    }
+}
+
+/// A place's name as a page says it: `(unnamed)` for none.
+fn named(name: &str) -> &str {
+    if name.is_empty() { "(unnamed)" } else { name }
+}
+
+/// The plan page (step 6.5d, Decision 3): the plan document in a
+/// player's words — what is refreshed, how old its facts are, what the
+/// compile noticed, each request as a row with why, what is left out,
+/// and when the daemon says the requests could go — and no command line.
+/// The envelope's Apply form follows, written by the route.
+pub(crate) fn plan(planned: &acquisition_verbs::Planned, now: i64) -> String {
+    use acquisition_verbs::refresh::PlanSpans;
+    let plan = &planned.plan;
+    let account = plan.account_name.as_deref().unwrap_or("this account");
+    let place = league_on(plan.realm, &plan.league);
+    let what = match (&plan.basis.policy_revision, &plan.basis.selection) {
+        (Some(revision), _) => format!("everything your sync policy covers (revision {revision})"),
+        (None, Some(selection)) if selection.deep => {
+            "the places you ticked, with the pages of a ticked map or unique tab".to_string()
+        }
+        _ => "the places you ticked".to_string(),
+    };
+    let mut body = format!(
+        "<p class=\"what\">Refresh {} as {}: {}.</p>\n",
+        esc(&place),
+        esc(account),
+        esc(&what)
+    );
+    // the facts' ages, measured as the plan measures them
+    let spans = PlanSpans::of(plan, now);
+    let listed = |s: Option<i64>| match s {
+        Some(s) => format!("{} before the plan", span(s)),
+        None => "never".to_string(),
+    };
+    body.push_str("<table class=\"facts\">\n");
+    body.push_str(&fact_row(
+        "Stash tabs listed",
+        &esc(&listed(spans.stash_listing)),
+    ));
+    body.push_str(&fact_row(
+        "Characters listed",
+        &esc(&listed(spans.character_listing)),
+    ));
+    body.push_str(&fact_row(
+        "Plan made",
+        &esc(&acquisition_store::age::span_ago(spans.plan)),
+    ));
+    body.push_str("</table>\n");
+    for note in plan_notes(planned, now) {
+        body.push_str(&format!("<p class=\"note\">{}</p>\n", esc(&note)));
+    }
+    if plan.actions.is_empty() {
+        body.push_str(&format!(
+            "<p class=\"none\">Nothing to fetch in {}.</p>\n",
+            esc(&place)
+        ));
+    } else {
+        body.push_str(&format!(
+            "<p class=\"counts\">{}:</p>\n<table class=\"actions\">\n<tr><th>What</th><th>Why</th></tr>\n",
+            esc(&plural(plan.actions.len(), "request", "requests"))
+        ));
+        for action in &plan.actions {
+            let (what, why) = action_words(plan, action);
+            body.push_str(&format!(
+                "<tr><td>{}</td><td>{}</td></tr>\n",
+                esc(&what),
+                esc(&why)
+            ));
+        }
+        body.push_str("</table>\n");
+    }
+    for left in left_out(planned) {
+        body.push_str(&format!("<p class=\"skipped\">{}</p>\n", esc(&left)));
+    }
+    // the timing, where there is a request to time
+    let timing = quote_words(planned, now);
+    if !plan.actions.is_empty() && !timing.is_empty() {
+        body.push_str(&format!("<p class=\"quote\">{}</p>\n", esc(&timing)));
+    }
+    if let Some(quote) = plan.quote.as_ref().filter(|q| !q.not_covered.is_empty()) {
+        // the daemon's own sentences, folded: what it may send that no
+        // estimate counts
+        body.push_str(
+            "<details class=\"not-covered\"><summary>What no estimate includes</summary>\n<ul>\n",
+        );
+        for words in &quote.not_covered {
+            body.push_str(&format!("<li>{}</li>\n", esc(words)));
+        }
+        body.push_str("</ul>\n</details>\n");
+    }
+    body
+}
+
+/// What the compile noticed beside the plan, each a sentence: a league
+/// the league list lacks, a league with no character listed, the
+/// selection's listing fetched beside it, and a deep selection's map or
+/// unique tab with no page on record.
+fn plan_notes(planned: &acquisition_verbs::Planned, now: i64) -> Vec<String> {
+    use acquisition_plan::{ListingReason, RefreshAction};
+    use acquisition_verbs::refresh::PlanSpans;
+    let plan = &planned.plan;
+    let mut notes = Vec::new();
+    if let Some(note) = &planned.notes.league {
+        let place = league_on(note.realm, &note.league);
+        notes.push(match note.list_fetched_at {
+            None => {
+                format!("The league list was never fetched, so {place} is not checked against it.")
+            }
+            Some(at) => format!(
+                "{place} is not among the leagues fetched {}: check the league's name.",
+                acquisition_store::age::ago(now, Some(at))
+            ),
+        });
+    }
+    if planned.notes.no_characters_listed {
+        let when = PlanSpans::of(plan, now)
+            .character_listing
+            .map(|s| format!(", listed {} before the plan", span(s)))
+            .unwrap_or_default();
+        notes.push(format!(
+            "No character is listed in {} (the realm's character list{when}).",
+            league_on(plan.realm, &plan.league)
+        ));
+    }
+    if plan.actions.iter().any(|a| {
+        matches!(
+            a,
+            RefreshAction::ListStashes {
+                reason: ListingReason::Selected,
+                ..
+            } | RefreshAction::ListCharacters {
+                reason: ListingReason::Selected,
+                ..
+            }
+        )
+    }) {
+        notes.push(
+            "The list is fetched beside what you ticked: a place it newly lists is in the next plan."
+                .to_string(),
+        );
+    }
+    if plan.basis.selection.as_ref().is_some_and(|s| s.deep) {
+        for action in &plan.actions {
+            if let RefreshAction::FetchTab {
+                id, name, tab_type, ..
+            } = action
+                && matches!(tab_type.as_str(), "MapStash" | "UniqueStash")
+                && !plan.actions.iter().any(
+                    |a| matches!(a, RefreshAction::FetchSubstash { parent, .. } if parent == id),
+                )
+            {
+                notes.push(format!(
+                    "Pages of {}: none on record to fetch. Its fetch lists any it has; one that lists none means it has none.",
+                    named(name)
+                ));
+            }
+        }
+    }
+    notes
+}
+
+/// One request of a plan as the page says it: what it fetches, and why.
+fn action_words(
+    plan: &acquisition_plan::RefreshPlan,
+    action: &acquisition_plan::RefreshAction,
+) -> (String, String) {
+    use acquisition_plan::{FetchReason, ListingReason, RefreshAction};
+    let listing = |reason: &ListingReason| match reason {
+        ListingReason::NeverListed => "never listed".to_string(),
+        ListingReason::Stale { age_seconds } => {
+            format!("last listed {} before the plan", span(*age_seconds))
+        }
+        ListingReason::Selected => "what you ticked is read from it".to_string(),
+    };
+    let fetch = |reason: &FetchReason| match reason {
+        FetchReason::NeverFetched => "never fetched".to_string(),
+        FetchReason::Selected => "ticked".to_string(),
+        FetchReason::Stale { age_seconds } => {
+            format!("last fetched {} before the plan", span(*age_seconds))
+        }
+        FetchReason::ListedCountDisagrees { listed, held } => format!(
+            "the list says it holds {}, and {held} are on record",
+            plural(usize::try_from(*listed).unwrap_or(0), "item", "items")
+        ),
+        FetchReason::ListedExperienceDisagrees { .. } => {
+            "played since its last fetch: the list says more experience".to_string()
+        }
+        FetchReason::ListedLeagueDisagrees { listed, held } => {
+            format!("the list says it is in {listed}, its last fetch said {held}")
+        }
+    };
+    match action {
+        RefreshAction::ListStashes { league, reason, .. } => (
+            format!("The list of stash tabs in {league}"),
+            listing(reason),
+        ),
+        RefreshAction::FetchTab { name, reason, .. } => {
+            (format!("Tab {}", named(name)), fetch(reason))
+        }
+        RefreshAction::FetchSubstash {
+            parent,
+            name,
+            reason,
+            ..
+        } => {
+            // the parent's name where the plan holds it, else its id
+            let parent = plan
+                .actions
+                .iter()
+                .find_map(|a| match a {
+                    RefreshAction::FetchTab { id, name, .. } if id == parent => {
+                        Some(named(name).to_string())
+                    }
+                    _ => None,
+                })
+                .or_else(|| {
+                    plan.skipped_tabs
+                        .iter()
+                        .find(|t| &t.id == parent)
+                        .map(|t| named(&t.name).to_string())
+                })
+                .unwrap_or_else(|| parent.clone());
+            (format!("Page {} of {parent}", named(name)), fetch(reason))
+        }
+        RefreshAction::ListCharacters { reason, .. } => {
+            ("The list of characters".to_string(), listing(reason))
+        }
+        RefreshAction::FetchCharacter { name, reason, .. } => {
+            (format!("Character {}", named(name)), fetch(reason))
+        }
+    }
+}
+
+/// What the plan leaves out, counted by why: covered tabs and characters
+/// it skips, places the policy names that are not on record, and the
+/// league's tabs outside the policy.
+fn left_out(planned: &acquisition_verbs::Planned) -> Vec<String> {
+    use acquisition_plan::{CharacterSkipReason, SkipReason};
+    let plan = &planned.plan;
+    let window = span(i64::from(plan.max_age_seconds));
+    let said = |n: usize, words: &str| (n > 0).then(|| format!("{n} {words}"));
+    let mut out = Vec::new();
+    if !plan.skipped_tabs.is_empty() {
+        let count =
+            |f: fn(&SkipReason) -> bool| plan.skipped_tabs.iter().filter(|t| f(&t.reason)).count();
+        let parts: Vec<String> = [
+            said(
+                count(|r| matches!(r, SkipReason::Fresh { .. })),
+                &format!("fetched within {window}"),
+            ),
+            said(
+                count(|r| matches!(r, SkipReason::Folder)),
+                "folders, which hold tabs and no items",
+            ),
+            said(
+                count(|r| matches!(r, SkipReason::AwaitingListing)),
+                "waiting for the list",
+            ),
+            said(
+                count(|r| matches!(r, SkipReason::OrphanedParent { .. })),
+                "under a tab no longer on record",
+            ),
+            said(count(|r| matches!(r, SkipReason::EmptyStub)), "empty pages"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        out.push(format!(
+            "Not fetched: {} — {}.",
+            plural(plan.skipped_tabs.len(), "tab", "tabs"),
+            parts.join(", ")
+        ));
+    }
+    if !plan.skipped_characters.is_empty() {
+        let count = |f: fn(&CharacterSkipReason) -> bool| {
+            plan.skipped_characters
+                .iter()
+                .filter(|c| f(&c.reason))
+                .count()
+        };
+        let parts: Vec<String> = [
+            said(
+                count(|r| matches!(r, CharacterSkipReason::Fresh { .. })),
+                &format!("fetched within {window}"),
+            ),
+            said(
+                count(|r| matches!(r, CharacterSkipReason::AwaitingListing)),
+                "waiting for the list",
+            ),
+            said(
+                count(|r| matches!(r, CharacterSkipReason::NoLeague)),
+                "in no league",
+            ),
+            said(
+                count(|r| matches!(r, CharacterSkipReason::Deleted)),
+                "deleted",
+            ),
+            said(
+                count(|r| matches!(r, CharacterSkipReason::Expired)),
+                "expired",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        out.push(format!(
+            "Not fetched: {} — {}.",
+            plural(plan.skipped_characters.len(), "character", "characters"),
+            parts.join(", ")
+        ));
+    }
+    // what the policy names, or the reader ticked, that is not on record
+    let unknown = |n: usize, one: &str, many: &str| match plan.basis.policy_revision {
+        Some(_) => format!(
+            "Your sync policy names {} not on record; nothing is fetched for {}.",
+            plural(n, one, many),
+            if n == 1 { "it" } else { "them" }
+        ),
+        None => format!(
+            "{} you ticked {} not on record; nothing is fetched for {}.",
+            plural(n, one, many),
+            if n == 1 { "is" } else { "are" },
+            if n == 1 { "it" } else { "them" }
+        ),
+    };
+    if !plan.unknown_tabs.is_empty() {
+        out.push(unknown(plan.unknown_tabs.len(), "tab", "tabs"));
+    }
+    if !plan.unknown_characters.is_empty() {
+        out.push(unknown(
+            plan.unknown_characters.len(),
+            "character",
+            "characters",
+        ));
+    }
+    if let Some(u) = planned.uncovered_tabs.filter(|u| u.count > 0) {
+        out.push(format!(
+            "Outside your sync policy: {} of the league's {}.",
+            u.count,
+            plural(u.of, "tab", "tabs")
+        ));
+    }
+    out
+}
+
+/// When the daemon says the plan's requests could go (Decision 3), or why
+/// it says nothing. A scope's estimate is when its *last* request could
+/// go, so the largest known one is the time for every request whose
+/// timing is known; a scope with none is counted as not yet known. Only a
+/// quote the daemon refused for want of a session says "not signed in"
+/// (#189, fault 12): no daemon, a timeout or another miss observed no
+/// session and says nothing of one.
+fn quote_words(planned: &acquisition_verbs::Planned, now: i64) -> String {
+    use acquisition_verbs::QuoteNote;
+    let Some(quote) = &planned.plan.quote else {
+        return match &planned.quote_note {
+            Some(QuoteNote::NotLoggedIn(_)) => {
+                "Not signed in: the daemon holds no session for this account, so it says nothing of when these requests could go. Sign in before you apply.".to_string()
+            }
+            Some(QuoteNote::NoDaemon) => {
+                "No daemon is running, so nothing says when these requests could go; Apply starts one.".to_string()
+            }
+            Some(QuoteNote::NoAccountName) => {
+                "The facts record no account name, so the daemon was not asked when these requests could go.".to_string()
+            }
+            Some(QuoteNote::Timeout(_)) => {
+                "The daemon did not answer in time, so nothing says when these requests could go.".to_string()
+            }
+            Some(QuoteNote::Rejected(_)) => {
+                "The daemon's answer was about other work, so nothing says when these requests could go.".to_string()
+            }
+            Some(QuoteNote::Other(_)) => {
+                "The daemon could not be asked, so nothing says when these requests could go.".to_string()
+            }
+            None => String::new(),
+        };
+    };
+    let asked = acquisition_store::age::ago(now, Some(quote.observed_at));
+    if quote.halted.is_some() {
+        return format!(
+            "The daemon is sending nothing (asked {asked}): none of these requests would go until a person clears its stop."
+        );
+    }
+    if quote.scopes.is_empty() {
+        return format!("None of these requests waits on GGG's pace (asked {asked}).");
+    }
+    let known: Vec<_> = quote
+        .scopes
+        .iter()
+        .filter(|s| s.eta_seconds.is_some())
+        .collect();
+    let requests =
+        |scopes: &mut dyn Iterator<Item = &acquisition_protocol::protocol::QuoteScope>| {
+            usize::try_from(scopes.map(|s| s.requests).sum::<u64>()).unwrap_or(usize::MAX)
+        };
+    let timed = requests(&mut known.iter().copied());
+    let untimed = requests(&mut quote.scopes.iter().filter(|s| s.eta_seconds.is_none()));
+    let queued: u64 = quote.scopes.iter().map(|s| s.queued_ahead).sum();
+    let mut said = Vec::new();
+    if let Some(last) = known.iter().filter_map(|s| s.eta_seconds).max() {
+        let when = if last == 0 {
+            "now".to_string()
+        } else {
+            format!("within ~{}", span(i64::try_from(last).unwrap_or(i64::MAX)))
+        };
+        said.push(if timed == 1 {
+            format!("The 1 request whose timing is known could go {when}")
+        } else {
+            format!("The {timed} requests whose timing is known could all go {when}")
+        });
+    }
+    if untimed > 0 {
+        let lead = if said.is_empty() {
+            "The timing of "
+        } else {
+            "the timing of "
+        };
+        said.push(format!(
+            "{lead}{} is not yet known: the daemon learns GGG's pace from its first answer",
+            plural(untimed, "request", "requests")
+        ));
+    }
+    let mut words = format!("{} (asked {asked}).", said.join("; "));
+    if queued > 0 {
+        words.push_str(&format!(
+            " {} already waiting go first.",
+            plural(usize::try_from(queued).unwrap_or(usize::MAX), "job", "jobs")
+        ));
+    }
+    words
+}
+
+/// The apply page (Decision 5): an apply that sent nothing, said from its
+/// fields — a plan with nothing to fetch, or one whose every request is
+/// spent — with a link to the plan compiled again. A submitted apply
+/// lands at its job and has no page.
+pub(crate) fn applied(applied: &acquisition_verbs::Apply, again: &str, now: i64) -> String {
+    use acquisition_verbs::Apply;
+    let skipped_words = |skipped: &acquisition_verbs::Skipped| {
+        let mut parts = Vec::new();
+        if skipped.tabs > 0 {
+            parts.push(plural(skipped.tabs, "tab", "tabs"));
+        }
+        if skipped.characters > 0 {
+            parts.push(plural(skipped.characters, "character", "characters"));
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!(" It left out {}.", parts.join(" and "))
+        }
+    };
+    let said = match applied {
+        Apply::Nothing { skipped, .. } => format!(
+            "Nothing was sent: this plan has nothing to fetch.{}",
+            skipped_words(skipped)
+        ),
+        Apply::Spent {
+            spent,
+            skipped,
+            remaining_requests,
+            ..
+        } => {
+            let remaining = match remaining_requests {
+                Some(0) => " A plan made now would fetch nothing.".to_string(),
+                Some(n) => format!(
+                    " A plan made now would fetch {}.",
+                    plural(
+                        usize::try_from(*n).unwrap_or(usize::MAX),
+                        "request",
+                        "requests"
+                    )
+                ),
+                None => {
+                    " What a plan made now would fetch is known once the waiting requests land."
+                        .to_string()
+                }
+            };
+            format!(
+                "Nothing was sent: every request of this plan is spent — {}.{remaining}{}",
+                acquisition_verbs::refresh::spent_phrase(spent, now),
+                skipped_words(skipped)
+            )
+        }
+        Apply::Submitted(_) => String::new(),
+    };
+    format!(
+        "<p class=\"applied\">{}</p>\n<p><a href=\"{}\">The plan made again</a></p>\n",
+        esc(&said),
+        esc(again)
+    )
 }

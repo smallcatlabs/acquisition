@@ -9,12 +9,12 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::Duration;
 
-use acquisition_client::client::{Client, Observed};
+use acquisition_client::client::{Client, DaemonError, Observed};
 use acquisition_plan::{
     PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, SyncPolicy, apply_params_of, plan_notes,
     plan_refresh, plan_selection,
 };
-use acquisition_protocol::protocol::{ListState, QuoteJob};
+use acquisition_protocol::protocol::{ErrorKind, ListState, QuoteJob};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{RefreshSnapshot, Status, Store};
 use serde::Serialize;
@@ -394,10 +394,17 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
             Ok(Observed::Unresponsive(found)) => return Err(QuoteNote::Other(found.to_string())),
             Err(e) => return Err(QuoteNote::Other(format!("{e:#}"))),
         };
-        client
-            .quote(jobs, Some(account))
-            .await
-            .map_err(|e| QuoteNote::Other(format!("{e:#}")))
+        client.quote(jobs, Some(account)).await.map_err(|e| {
+            let why = format!("{e:#}");
+            // #189, fault 12: the daemon observed no session for the
+            // account; every other miss observed none and says none
+            match DaemonError::find(&e) {
+                Some(refused) if refused.kind == ErrorKind::NotLoggedIn => {
+                    QuoteNote::NotLoggedIn(why)
+                }
+                _ => QuoteNote::Other(why),
+            }
+        })
     };
     let miss = match tokio::time::timeout(limit, attempt).await {
         Err(_) => QuoteNote::Timeout(limit),
@@ -443,6 +450,11 @@ pub enum QuoteNote {
     Timeout(Duration),
     /// The daemon answered about something other than this plan.
     Rejected(String),
+    /// The daemon refused the quote `not_logged_in`: it holds no session
+    /// for the plan's account (#189, fault 12). Its sentence is
+    /// [`QuoteNote::Other`]'s, so the JSON and the CLI's text did not
+    /// change when the cause became typed; a page reads the variant.
+    NotLoggedIn(String),
     /// Another daemon, an unresponsive peer, a failed conversation: its
     /// words.
     Other(String),
@@ -462,7 +474,9 @@ impl std::fmt::Display for QuoteNote {
                 "no quote: the daemon did not answer within {limit:?} — plan compiled offline"
             ),
             QuoteNote::Rejected(e) => write!(f, "daemon quote rejected: {e}"),
-            QuoteNote::Other(why) => write!(f, "no quote: {why} — plan compiled offline"),
+            QuoteNote::NotLoggedIn(why) | QuoteNote::Other(why) => {
+                write!(f, "no quote: {why} — plan compiled offline")
+            }
         }
     }
 }

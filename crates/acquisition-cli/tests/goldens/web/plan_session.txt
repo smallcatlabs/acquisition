@@ -1,0 +1,78 @@
+# golden web/plan_session: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET plan?<every timing unknown>
+# holds "The timing of 1 request is not yet known"
+# holds "Your sync policy names 1 tab not on record"
+# holds ">Apply</button>"
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:1,&quot;stash_listing&quot;:null,&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1}}">
+<main>
+<h1>Plan</h1>
+<p class="what">Refresh Standard as Alice: everything your sync policy covers (revision 1).</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td>never</td></tr>
+<tr><th>Characters listed</th><td>never</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="counts">1 request:</p>
+<table class="actions">
+<tr><th>What</th><th>Why</th></tr>
+<tr><td>The list of stash tabs in Standard</td><td>never listed</td></tr>
+</table>
+<p class="skipped">Your sync policy names 1 tab not on record; nothing is fetched for it.</p>
+<p class="quote">The timing of 1 request is not yet known: the daemon learns GGG&#39;s pace from its first answer (asked <age> ago).</p>
+<details class="not-covered"><summary>What no estimate includes</summary>
+<ul>
+<li>a HEAD probe before the first request on stash-list — its own send, outside every estimate</li>
+<li>an OAuth token refresh if the access token expires first — paced by the token policy, not quoted</li>
+<li>429 re-sends (up to 2 per request) — possible, never predicted</li>
+</ul>
+</details>
+<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+
+</main>
+
+GET plan?<the daemon holds no session>
+# holds "Not signed in: the daemon holds no session"
+# holds ">Apply</button>"
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:1,&quot;stash_listing&quot;:null,&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1}}">
+<main>
+<h1>Plan</h1>
+<p class="what">Refresh Standard as Alice: everything your sync policy covers (revision 1).</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td>never</td></tr>
+<tr><th>Characters listed</th><td>never</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="counts">1 request:</p>
+<table class="actions">
+<tr><th>What</th><th>Why</th></tr>
+<tr><td>The list of stash tabs in Standard</td><td>never listed</td></tr>
+</table>
+<p class="skipped">Your sync policy names 1 tab not on record; nothing is fetched for it.</p>
+<p class="quote">Not signed in: the daemon holds no session for this account, so it says nothing of when these requests could go. Sign in before you apply.</p>
+<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+
+</main>
+
+GET plan?<no daemon>
+# holds "No daemon is running"
+# holds ">Apply</button>"
+<meta name="basis" content="{&quot;plan&quot;:{&quot;snapshot_taken_at&quot;:<epoch>,&quot;snapshot_response&quot;:1,&quot;stash_listing&quot;:null,&quot;character_listing&quot;:null,&quot;policy_revision&quot;:1}}">
+<main>
+<h1>Plan</h1>
+<p class="what">Refresh Standard as Alice: everything your sync policy covers (revision 1).</p>
+<table class="facts">
+<tr><th>Stash tabs listed</th><td>never</td></tr>
+<tr><th>Characters listed</th><td>never</td></tr>
+<tr><th>Plan made</th><td><age> ago</td></tr>
+</table>
+<p class="counts">1 request:</p>
+<table class="actions">
+<tr><th>What</th><th>Why</th></tr>
+<tr><td>The list of stash tabs in Standard</td><td>never listed</td></tr>
+</table>
+<p class="skipped">Your sync policy names 1 tab not on record; nothing is fetched for it.</p>
+<p class="quote">No daemon is running, so nothing says when these requests could go; Apply starts one.</p>
+<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
+
+</main>

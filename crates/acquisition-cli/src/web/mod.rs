@@ -86,8 +86,8 @@
 //!   one and the count or the words where none does; a continuation, a
 //!   request with its place, is `search?next=` and its token, on an
 //!   answer or a refusal alike. The words are still the CLI's
-//!   (`failure_words`), as are the command lines the plan and jobs
-//!   pages print, which no route takes (#182).
+//!   (`failure_words`), as are the command lines the jobs page prints,
+//!   which no route takes (#182).
 //! - **The place pages** (`roadmap/briefs/4-full-1-step6-places.md`,
 //!   step 6.5a; #248): "Stash tabs" (`GET tabs`) and "Characters" (`GET
 //!   characters`) render the search crate's places document of the URL's
@@ -250,7 +250,7 @@ use axum::routing::{get, post};
 use serde_json::{Value, json};
 
 use crate::run::Ctx;
-use crate::{plan_cmd, store_cmd};
+use crate::store_cmd;
 use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, pre, refusal};
 
 /// The channel every write and submit from a page carries (C65).
@@ -1815,8 +1815,8 @@ fn to_jobs(web: &Web) -> Response {
 }
 
 /// The plan page (Do 7): a selection's plan or the stored policy's,
-/// rendered as `--plan` renders one, the envelope whole in a hidden field
-/// beside "Apply".
+/// rendered from its document ([`page::plan`], step 6.5d), the envelope
+/// whole in a hidden field beside "Apply".
 async fn plan(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -1877,14 +1877,7 @@ async fn plan(
     }
     // the instant the plan's ages were said at (#211)
     let now = planned.ages.at.unwrap_or_else(acquisition_store::now);
-    let mut body = pre(&plan_cmd::render_plan_on_a_page(
-        &planned.plan,
-        planned.quote_note.as_ref(),
-        &planned.notes,
-        now,
-        &account.entry.username,
-        planned.uncovered_tabs.as_ref(),
-    ));
+    let mut body = page::plan(&planned, now);
     if !planned.plan.actions.is_empty() {
         match serde_json::to_string(&planned.plan) {
             Ok(envelope) => body.push_str(&format!(
@@ -1922,17 +1915,44 @@ async fn apply(
         if let Some(client) = &slot {
             crate::note_spawn(client);
         }
-        anyhow::Ok(applied?)
+        anyhow::Ok((applied?, plan))
     }
     .await;
     match applied {
-        Ok(Apply::Submitted(_)) => to_jobs(&web),
-        Ok(done) if wants_json(&headers) => document(&done),
-        Ok(Apply::Nothing { note, .. } | Apply::Spent { note, .. }) => {
-            web.page("Apply", Head::default(), &pre(&note))
-        }
+        Ok((Apply::Submitted(_), _)) => to_jobs(&web),
+        Ok((done, _)) if wants_json(&headers) => document(&done),
+        Ok((done, plan)) => web.page(
+            "Apply",
+            Head::default(),
+            &page::applied(&done, &plan_again(&web, &plan), acquisition_store::now()),
+        ),
         Err(e) => web.failed("Apply", &Failure::Other(e), &headers),
     }
+}
+
+/// The plan `plan` was compiled from, compiled again: its realm and league,
+/// and the selection it names, ticked as the place pages send one.
+fn plan_again(web: &Web, plan: &RefreshPlan) -> String {
+    let mut fields = vec![
+        ("realm", plan.realm.as_str().to_string()),
+        ("league", plan.league.clone()),
+    ];
+    if let Some(selection) = &plan.basis.selection {
+        fields.push(("selected", "yes".to_string()));
+        if let Some(acquisition_plan::Selection::Ids(ids)) = &selection.tabs {
+            fields.extend(ids.iter().map(|id| ("tab", id.clone())));
+        }
+        fields.extend(
+            selection
+                .characters
+                .iter()
+                .map(|id| ("character", id.clone())),
+        );
+        if selection.deep {
+            fields.push(("deep", "true".to_string()));
+        }
+    }
+    web.link("plan", &fields)
 }
 
 /// The jobs (Do 7): the `jobs` document, reloading itself while a job is

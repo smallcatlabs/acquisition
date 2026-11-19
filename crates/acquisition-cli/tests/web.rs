@@ -2465,7 +2465,14 @@ fn the_refresh_loop_runs_through_the_pages() {
     pages.page(
         "GET plan?<two tabs ticked>",
         &selected,
-        &["a selection", "fetch 2 tabs", ">Apply</button>"],
+        &[
+            "the places you ticked",
+            "<td>Tab Dump</td><td>ticked</td>",
+            "3 requests:",
+            "could go now",
+            "not yet known",
+            ">Apply</button>",
+        ],
     );
     // C16: the basis line is the envelope's own, read unmasked (the
     // golden masks its listings' response ids, #192)
@@ -2525,8 +2532,13 @@ fn the_refresh_loop_runs_through_the_pages() {
         &place_form(&web, &characters.body, &[&ticked], "Refresh ticked", None),
     );
     assert_eq!(planned.status, 200, "{}", planned.body);
-    assert!(planned.body.contains("a selection"), "{}", planned.body);
-    assert!(!planned.body.contains("fetch 2 tabs"), "{}", planned.body);
+    assert!(
+        planned.body.contains("the places you ticked"),
+        "{}",
+        planned.body
+    );
+    assert!(planned.body.contains("<td>Character "), "{}", planned.body);
+    assert!(!planned.body.contains("<td>Tab "), "{}", planned.body);
 
     // a league with no character beside a realm with two: the page says
     // the terminal's own cause, which names where they are (the page
@@ -2718,7 +2730,13 @@ fn the_refresh_loop_runs_through_the_pages() {
     pages.page(
         "GET plan?realm=pc&league=Standard <the policy's>",
         &plan,
-        &["quote", ">Apply</button>"],
+        &[
+            "your sync policy covers (revision 1)",
+            "Character StashHoarder",
+            "Outside your sync policy: 13 of the league&#39;s 14 tabs",
+            "Not fetched: 1 tab",
+            ">Apply</button>",
+        ],
     );
     // the page's way on is its Apply button, never the command a terminal
     // prints beside the plan (#97)
@@ -2777,7 +2795,33 @@ fn the_refresh_loop_runs_through_the_pages() {
     pages.page(
         "POST apply <the same envelope again>",
         &replay,
-        &["nothing to do: every request of this plan is spent"],
+        &[
+            "Nothing was sent: every request of this plan is spent",
+            "2 fetched after it was compiled",
+            "A plan made now would fetch",
+            "plan?realm=pc&amp;league=Standard\">The plan made again</a>",
+        ],
+    );
+    // the policy's plan once all it covers is fresh: nothing to fetch, no
+    // Apply; its envelope posted anyway sends nothing and says so
+    let fresh = web.get("plan?realm=pc&league=Standard");
+    pages.page(
+        "GET plan?realm=pc&league=Standard <every request fresh>",
+        &fresh,
+        &["Nothing to fetch in Standard", "Not fetched: 2 characters"],
+    );
+    assert!(!fresh.body.contains(">Apply</button>"), "{}", fresh.body);
+    let nothing = web.get_json("plan?realm=pc&league=Standard");
+    let nothing = web.post("apply", &[("plan", &nothing["plan"].to_string())]);
+    assert_eq!(nothing.status, 200, "{}", nothing.body);
+    pages.page(
+        "POST apply <a plan with nothing to fetch>",
+        &nothing,
+        &[
+            "Nothing was sent: this plan has nothing to fetch",
+            "It left out 1 tab and 2 characters",
+            "\">The plan made again</a>",
+        ],
     );
     let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["cur1"],"max_age_seconds":3600}}}}}"#;
     assert!(
@@ -3143,6 +3187,95 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     assert_eq!(applies[0]["account"], "Alice", "{}", applies[0]);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
+
+/// #189, fault 12: the plan page says "not signed in" only where the
+/// daemon refused the quote for having no session for the account — not
+/// where no daemon runs, which observed no session — and the plan's JSON
+/// and the CLI's text say what they said before the cause was typed: the
+/// page's JSON note is the sentence around the CLI's words, in both. The
+/// pages are a golden: a policy's plan whose quote knows no timing, the
+/// refused session, and no daemon.
+#[test]
+fn a_plan_says_not_signed_in_only_where_the_daemon_refused_the_session() {
+    let scratch = harness::scratch("websession");
+    let base = scratch.0.clone();
+    let daemon = harness::login(&base, "Alice");
+    let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let mut pages = Pages::new(&base, &web);
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["dump"],"max_age_seconds":3600}}}}}"#;
+    assert!(
+        harness::acq(&base, &["policy", "set", policy])
+            .status
+            .success()
+    );
+    let path = "plan?realm=pc&league=Standard";
+    let cli = |base: &Path| {
+        let args = ["refresh", "--plan"];
+        let text = harness::acq(base, &args);
+        assert!(text.status.success(), "{text:?}");
+        let json = sole_json(&harness::acq(base, &[&args[..], &["--json"]].concat()));
+        (String::from_utf8(text.stdout).unwrap(), json)
+    };
+    let unknown = web.get(path);
+    pages.page(
+        "GET plan?<every timing unknown>",
+        &unknown,
+        &[
+            "The timing of 1 request is not yet known",
+            "Your sync policy names 1 tab not on record",
+            ">Apply</button>",
+        ],
+    );
+    assert!(!unknown.body.contains("signed in"), "{}", unknown.body);
+
+    // Alice logged out: the daemon holds no session, and refuses the quote
+    let out = harness::acq(&base, &["auth", "logout", "--account", "Alice"]);
+    assert!(out.status.success(), "{out:?}");
+    let refused = web.get(path);
+    pages.page(
+        "GET plan?<the daemon holds no session>",
+        &refused,
+        &[
+            "Not signed in: the daemon holds no session",
+            ">Apply</button>",
+        ],
+    );
+    // the CLI's decision view names the daemon's words, as it did when
+    // the note was `Other`; the page's JSON note is `Other`'s sentence
+    // around the same words, and the CLI's envelope carries no note
+    let (text, json) = cli(&base);
+    assert!(json.get("quote_note").is_none(), "{json}");
+    let said = text
+        .lines()
+        .find_map(|l| l.strip_prefix("quote: unavailable — "))
+        .unwrap_or_else(|| panic!("{text}"));
+    assert!(said.contains("session"), "{text}");
+    assert_eq!(
+        web.get_json(path)["quote_note"],
+        format!("no quote: {said} — plan compiled offline")
+    );
+
+    // no daemon: nothing was observed of a session, so nothing is said
+    drop(daemon);
+    let none = web.get(path);
+    pages.page(
+        "GET plan?<no daemon>",
+        &none,
+        &["No daemon is running", ">Apply</button>"],
+    );
+    assert!(!none.body.contains("signed in"), "{}", none.body);
+    let (text, json) = cli(&base);
+    assert!(json.get("quote_note").is_none(), "{json}");
+    assert_eq!(
+        web.get_json(path)["quote_note"],
+        "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)"
+    );
+    assert!(
+        text.contains("quote: unavailable — no daemon running\n"),
+        "{text}"
+    );
+    page_golden(file!(), "plan_session", &pages);
 }
 
 // ---- the saved pages (C16, C168; `roadmap/briefs/4-full-1-pages.md`) -----
