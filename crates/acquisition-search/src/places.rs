@@ -689,12 +689,12 @@ fn read_asked<T>(
 /// The holder's corpus for `request`'s scope and a read made over it at
 /// its basis (C98): the corpus, then `read` given it, then
 /// [`Corpus::is_current`]; where the store moved between, both again,
-/// [`REREADS`] times, then the error a moving store is. The places
-/// document stands at its corpus's basis through it, and a page that
-/// answers over the corpus beside the document reads both inside one
-/// `read`, so the page stands at one basis (step 6.5b, the review of
-/// f36033f5: a page's segments read a corpus of their own after the
-/// document).
+/// three times (`corpus::REREADS`), then the error a moving store is.
+/// The places document stands at its corpus's basis through it, and a
+/// page that answers over the corpus beside the document reads both
+/// inside one `read`, so the page stands at one basis (step 6.5b, the
+/// review of f36033f5: a page's segments read a corpus of their own
+/// after the document).
 pub fn steady<T>(
     at: Reading,
     request: &Request,
