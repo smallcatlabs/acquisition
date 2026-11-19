@@ -2496,8 +2496,10 @@ fn the_refresh_loop_runs_through_the_pages() {
             "2 tabs, 2 never fetched",
             "name=\"toggle\" value=\"fold\">Open</button>",
             "Refresh ticked",
-            "/assets/filter.js\"",
-            "aria-label=\"filter the Tab column\"",
+            // the filter's controls, sent with the form (step 6.5b)
+            "<input type=\"text\" name=\"name\" value=\"\"",
+            "<select name=\"type\"",
+            "name=\"fetched\" value=\"never\"",
         ],
     );
     assert!(!tabs.body.contains(" checked"), "no default selection");
@@ -2511,7 +2513,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         tabs.body
     );
     // the buttons and the substashes box above the list (the page seat's
-    // probe), and no filter box sent
+    // probe), "Show" the form's first, so Enter sends the page again
     let at = |body: &str, words: &str| {
         body.find(words)
             .unwrap_or_else(|| panic!("{words}: {body}"))
@@ -2525,10 +2527,15 @@ fn the_refresh_loop_runs_through_the_pages() {
     );
     assert!(at(&tabs.body, "Refresh ticked") < at(&tabs.body, "<summary>Stash tabs</summary>"));
     assert!(at(&tabs.body, "name=\"deep\"") < at(&tabs.body, "<th>Tab</th>"));
-    for filter in tabs.body.split("<input class=\"col-filter\"").skip(1) {
-        let tag = &filter[..filter.find('>').unwrap()];
-        assert!(!tag.contains("name="), "a filter box is sent: {tag}");
-    }
+    let table_form = at(&tabs.body, "<form method=\"get\" action=\"tabs\">\n");
+    assert_eq!(
+        at(&tabs.body[table_form..], "<button "),
+        at(
+            &tabs.body[table_form..],
+            "<button type=\"submit\">Show</button>"
+        ),
+        "Show is the table form's first button"
+    );
 
     // two tabs ticked, planned and applied: a selection needs no policy
     let selected = follow(
@@ -2602,7 +2609,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         &[
             "characters: 0 fetched",
             "name=\"character\" value=\"",
-            "aria-label=\"filter the Character column\"",
+            "<input type=\"text\" name=\"name\"",
         ],
     );
     let ticked = first_value(&characters.body, "name=\"character\" value=\"");
@@ -2760,6 +2767,106 @@ fn the_refresh_loop_runs_through_the_pages() {
         fetched,
         std::collections::BTreeSet::from(["dump", "old1"]),
         "{planned}"
+    );
+
+    // the filter (step 6.5b, Decisions 2 and 3): the places whose name
+    // holds "maps", a tick on a tab it does not list travelling hidden and
+    // counted on its level's fold line, the map tab's pages folded with
+    // their never-fetched count a link to the page under `fetched=never`
+    // alone, every open and tick kept
+    let filtered = web.get("tabs?realm=pc&league=Standard&name=maps&open=maps&tab=dump");
+    assert_eq!(filtered.status, 200, "{}", filtered.body);
+    assert!(
+        !filtered.body.contains("id=\"p-dump\""),
+        "{}",
+        filtered.body
+    );
+    assert!(filtered.body.contains("id=\"p-mape\""), "{}", filtered.body);
+    assert!(
+        filtered
+            .body
+            .contains("<input type=\"hidden\" name=\"tab\" value=\"dump\">"),
+        "{}",
+        filtered.body
+    );
+    assert!(
+        filtered.body.contains("4 tabs not shown; 1 ticked</td>"),
+        "{}",
+        filtered.body
+    );
+    let never = format!(
+        "/{}/tabs?realm=pc&amp;league=Standard&amp;fetched=never&amp;open=maps&amp;tab=dump",
+        web.token
+    );
+    assert!(
+        filtered.body.contains(&format!(
+            "4 pages not shown, <a href=\"{never}\">4 never fetched</a>"
+        )),
+        "{}",
+        filtered.body
+    );
+    // the selects' form carries the filter, and no tick or open
+    let selects = &filtered.body[..at(&filtered.body, "<div class=\"actions\">")];
+    assert!(
+        selects.contains("<input type=\"hidden\" name=\"name\" value=\"maps\">"),
+        "{selects}"
+    );
+    assert!(!selects.contains("name=\"tab\""), "{selects}");
+    // the never fetched, each with the parent that holds it
+    let unfetched = follow(&web, &unescaped(&never));
+    for listed in ["p-maps", "p-m001", "p-m004", "p-uniq"] {
+        assert!(
+            unfetched.body.contains(&format!("id=\"{listed}\"")),
+            "{listed}: {}",
+            unfetched.body
+        );
+    }
+    assert!(
+        !unfetched.body.contains("id=\"p-mape\""),
+        "{}",
+        unfetched.body
+    );
+    // a toggle keeps the filter; "Show" sends it with every tick and open
+    let closed = follow(
+        &web,
+        &place_form(&web, &filtered.body, &[], "Close", Some(("toggle", "maps"))),
+    );
+    assert_eq!(
+        closed.header("location"),
+        Some(
+            format!(
+                "/{}/tabs?realm=pc&league=Standard&name=maps&tab=dump#p-maps",
+                web.token
+            )
+            .as_str()
+        )
+    );
+    let shown = follow(&web, &place_form(&web, &filtered.body, &[], "Show", None));
+    assert_eq!(shown.status, 200, "{}", shown.body);
+    assert_eq!(main_of(&shown.body), main_of(&filtered.body));
+    // the tick on the tab the page does not list reaches the plan
+    let plan = place_form(&web, &filtered.body, &[], "Refresh ticked", None);
+    let planned = web.raw(
+        "GET",
+        &unescaped(&plan),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let planned: Value = serde_json::from_str(&planned.body).unwrap();
+    let fetched: Vec<&str> = planned["plan"]["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a["id"].as_str())
+        .collect();
+    assert_eq!(fetched, ["dump"], "{planned}");
+    // a filter the document refuses is the page's refusal, in its words
+    let refused = web.get("tabs?realm=pc&league=Standard&fetched=yesterday");
+    assert!(
+        refused.body.contains("is no way a place was fetched"),
+        "{}",
+        refused.body
     );
 
     // with every parent open, each place's name is the way to its items as

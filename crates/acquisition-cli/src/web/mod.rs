@@ -125,12 +125,24 @@
 //!   characters`) submit the `stashes` and `characters` jobs as `POST
 //!   leagues` submits `leagues` (#189). A league with nothing listed says
 //!   so in words where the table would be, beside the listing (#189).
+//! - **The filter** (`roadmap/briefs/4-full-1-step6-grouped.md`, step
+//!   6.5b): `name` (words the name holds), `type` (a tab's type) and
+//!   `fetched` (`never`) are the places document's filter, read by it and
+//!   refused in its words. Its controls stand under the column heads in
+//!   the table's form, whose first button, "Show", sends the form to the
+//!   page again, so Enter in a box keeps every tick and open and never
+//!   plans; the selects' form carries every field but the ticks and the
+//!   opens, hidden. A place's fields stand in one order in every link and
+//!   redirect ([`place_fields`]), a toggle's 303 among them. A place the
+//!   document does not list is not drawn: its ticks travel hidden, and
+//!   its level's one fold line after its rows counts it, those never
+//!   fetched a link to the page under `fetched=never` alone, every open
+//!   and tick kept.
 //! - **C16, what a page holds** (the owner's reading of the ruling's word
 //!   "state", 2026-11-06): document state is what a page shows, rebuilt
 //!   from its URL; transient state — input not yet sent, the picker's
 //!   asks in flight, the count beside a search's button and its ask in
-//!   flight, the words in a list's filter boxes — is discarded by
-//!   a reload and labels nothing. A page
+//!   flight — is discarded by a reload and labels nothing. A page
 //!   holds no browser storage, no cookie, no history entry of its own and
 //!   no value computed from a document. Every document a page renders
 //!   that carries a version — the answer's and the item's `basis`, the
@@ -271,11 +283,10 @@ use page::{Head, Opened, OpenedRow, SavedLinks, enc, esc, refusal};
 /// The channel every write and submit from a page carries (C65).
 const VIA: &str = "web";
 
-/// The stylesheet, the picker's script, the list filter's, the count's
-/// and the table's window, served as written.
+/// The stylesheet, the picker's script, the count's and the table's
+/// window, served as written.
 const CSS: &str = include_str!("assets/page.css");
 const PICKER: &str = include_str!("assets/picker.js");
-const FILTER: &str = include_str!("assets/filter.js");
 const COUNT: &str = include_str!("assets/count.js");
 const WINDOW: &str = include_str!("assets/window.js");
 
@@ -408,7 +419,6 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         ))
         .route(&at("/assets/page.css"), get(css))
         .route(&at("/assets/picker.js"), get(picker))
-        .route(&at("/assets/filter.js"), get(filter))
         .route(&at("/assets/count.js"), get(count_script))
         .route(&at("/assets/window.js"), get(window_script))
         .fallback(no_such_page)
@@ -1625,6 +1635,11 @@ async fn places(
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
         .to_string();
+    let shown = match Shown::read(&fields) {
+        Ok(shown) => shown,
+        Err(failure) => return web.failed(title, &failure, &headers),
+    };
+    let asking = shown.asking();
     let read = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
         let now = acquisition_store::now();
@@ -1634,7 +1649,6 @@ async fn places(
             intent: &opened.intent,
             holder: &web.held,
         };
-        let asking = acquisition_search::places::Asking::default();
         let places = match listed {
             Listed::Tabs => Places::tabs(at, realm.as_str(), &league, &asking, now)?,
             Listed::Characters => Places::characters(at, realm.as_str(), &league, &asking, now)?,
@@ -1693,7 +1707,7 @@ async fn places(
         }
         let at = web.link(
             listed.route(),
-            &place_fields(listed, realm, &league, deep, &open, &ticked),
+            &place_fields(listed, realm, &league, &shown, deep, &open, &ticked),
         );
         return see_other(&format!("{at}#{}", page::place_anchor(toggle)));
     }
@@ -1703,6 +1717,25 @@ async fn places(
             .request(way)
             .and_then(|(link, _)| link.as_str().map(str::to_string))
     };
+    // what the selects' form carries: every field but the ticks and the
+    // opens, since one id can stand in two leagues
+    let carried: Vec<(&'static str, String)> =
+        place_fields(listed, realm, &league, &shown, deep, &[], &[])
+            .into_iter()
+            .filter(|(k, _)| !matches!(*k, "realm" | "league"))
+            .collect();
+    // a fold's never-fetched count: the page under `fetched=never` alone,
+    // every open and tick kept
+    let never = Shown {
+        filter: acquisition_search::places::Filter {
+            fetched: Some(acquisition_search::places::Fetched::Never),
+            ..Default::default()
+        },
+    };
+    let never = web.link(
+        listed.route(),
+        &place_fields(listed, realm, &league, &never, deep, &open, &ticked),
+    );
     let body = page::places(&page::PlacesPage {
         listed: listed.route(),
         title,
@@ -1715,27 +1748,52 @@ async fn places(
         open: &open,
         ticked: &ticked,
         deep,
+        filter: &shown.filter,
+        carried: &carried,
+        never: &never,
         policy,
         spell: &spell,
         now: acquisition_store::now(),
     });
-    web.page(
-        title,
-        Head {
-            filter: true,
-            ..Head::default()
-        },
-        &body,
-    )
+    web.page(title, Head::default(), &body)
+}
+
+/// What a place page's URL asks of its places beside the opens and the
+/// ticks (step 6.5b): the filter, read as the places document reads it.
+struct Shown {
+    filter: acquisition_search::places::Filter,
+}
+
+impl Shown {
+    /// The fields of a place page's URL: a filter field the document
+    /// refuses is the page's refusal.
+    fn read(fields: &[(String, String)]) -> Result<Shown, Failure> {
+        Ok(Shown {
+            filter: acquisition_search::places::Filter::read(
+                pick(fields, "name"),
+                pick(fields, "type"),
+                pick(fields, "fetched"),
+            )?,
+        })
+    }
+
+    /// What the places document is asked.
+    fn asking(&self) -> acquisition_search::places::Asking {
+        acquisition_search::places::Asking {
+            filter: self.filter.clone(),
+            ..Default::default()
+        }
+    }
 }
 
 /// A place page's URL fields, in the one order every link and redirect
-/// writes them: realm, league, the substashes box, each open parent, each
-/// tick.
+/// writes them: realm, league, the filter's fields, the substashes box,
+/// each open place, each tick.
 fn place_fields(
     listed: Listed,
     realm: Realm,
     league: &str,
+    shown: &Shown,
     deep: bool,
     open: &[String],
     ticked: &[String],
@@ -1744,6 +1802,12 @@ fn place_fields(
         ("realm", realm.as_str().to_string()),
         ("league", league.to_string()),
     ];
+    let filter = &shown.filter;
+    fields.extend(filter.name.iter().map(|n| ("name", n.clone())));
+    fields.extend(filter.r#type.iter().map(|t| ("type", t.clone())));
+    if filter.fetched.is_some() {
+        fields.push(("fetched", "never".to_string()));
+    }
     if deep {
         fields.push(("deep", "true".to_string()));
     }
@@ -2432,14 +2496,6 @@ async fn picker() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
         PICKER,
-    )
-        .into_response()
-}
-
-async fn filter() -> Response {
-    (
-        [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
-        FILTER,
     )
         .into_response()
 }

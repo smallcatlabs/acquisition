@@ -98,7 +98,9 @@ table.tabs { table-layout: fixed; }
 table.tabs col.tick { width: 2.5rem; }
 table.tabs col.type, table.tabs col.items { width: 18%; }
 table.tabs col.fetched { width: 14%; }
-input.col-filter { width: 100%; box-sizing: border-box; }
+/* the filter's controls under the heads, and a level's fold line (step 6.5b) */
+tr.filters input[type=text], tr.filters select { width: 100%; box-sizing: border-box; }
+tr.fold > td { color: var(--muted); font-size: 12.5px; }
 
 /* the table (step 6.4b): rows of one height in one segment, which the
    window script sizes and fills a block at a time; the height is the

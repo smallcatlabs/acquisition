@@ -25,7 +25,7 @@ use acquisition_search::answer::{
     Answer, Count, ExplainOut, Request, RowField, RowsOut, TradeOut, ViewOut, Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
-use acquisition_search::places::{Counted, Kind, Place, Places, Row};
+use acquisition_search::places::{Counted, Filter as PlaceFilter, Holds, Kind, Place, Places, Row};
 use acquisition_search::show::Shown;
 use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_verbs::refusal::Way;
@@ -78,9 +78,6 @@ pub(crate) struct Head {
     pub refresh: Option<u32>,
     /// The stat picker's script.
     pub picker: bool,
-    /// The list filter's script: the place pages' boxes under their
-    /// columns.
-    pub filter: bool,
     /// The count's script: the number beside each form that submits a
     /// search ([`COUNT`]).
     pub count: bool,
@@ -134,7 +131,6 @@ pub(crate) fn page(
         .unwrap_or_default();
     let script: String = [
         (head.picker, "picker"),
-        (head.filter, "filter"),
         (head.count, "count"),
         (head.window, "window"),
     ]
@@ -2165,6 +2161,15 @@ pub(crate) struct PlacesPage<'a> {
     pub ticked: &'a [String],
     /// The substashes box, ticked.
     pub deep: bool,
+    /// The filter the URL names (step 6.5b).
+    pub filter: &'a PlaceFilter,
+    /// The fields the realm and league selects' form carries: every
+    /// field of the URL but the realm, the league, the ticks and the
+    /// opens.
+    pub carried: &'a [(&'static str, String)],
+    /// A fold's never-fetched link: the page under `fetched=never`
+    /// alone, every open and tick kept.
+    pub never: &'a str,
     /// Whether the sync policy names the league: "Plan under the policy"
     /// shows only then.
     pub policy: bool,
@@ -2214,9 +2219,10 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     // league has nothing listed, where the table would be
     let empty = view.places.places.is_empty();
     let mut body = format!(
-        "<form method=\"get\" action=\"{}\"><label class=\"control\">Realm <select name=\"realm\">{realms}</select></label> {}<button type=\"submit\">Show</button></form>\n<div class=\"actions\">{}{}</div>\n",
+        "<form method=\"get\" action=\"{}\"><label class=\"control\">Realm <select name=\"realm\">{realms}</select></label> {}{}<button type=\"submit\">Show</button></form>\n<div class=\"actions\">{}{}</div>\n",
         view.listed,
         league_select(view.leagues, Some(view.league), false),
+        hidden_fields(view.carried),
         fetch_leagues(),
         if empty { "" } else { listing.as_str() },
     );
@@ -2248,9 +2254,10 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     }
     body.push('\n');
     // the buttons above the list, so a long list never hides them (the
-    // page seat's probe)
+    // page seat's probe); "Show" first, the form's default, so Enter in a
+    // box sends the page again, never the plan
     body.push_str(&format!(
-        "<p><button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
+        "<p><button type=\"submit\">Show</button> <button type=\"submit\" formaction=\"plan\" name=\"selected\" value=\"yes\">Refresh ticked</button>{}</p>\n",
         if view.policy {
             " <button type=\"submit\" formaction=\"plan\">Plan under the policy</button>"
         } else {
@@ -2260,6 +2267,14 @@ pub(crate) fn places(view: &PlacesPage) -> String {
     let mut hidden = String::new();
     let mut rows = String::new();
     place_rows(view, &view.places.places, "", 0, &mut rows, &mut hidden);
+    rows.push_str(&fold_line(
+        view,
+        view.places.folded,
+        &view.places.places,
+        "tab",
+        "tabs",
+        0,
+    ));
     let (columns, colgroup): (&[&str], &str) = match view.listed {
         "tabs" => {
             body.push_str(&format!(
@@ -2287,9 +2302,71 @@ pub(crate) fn places(view: &PlacesPage) -> String {
             .iter()
             .map(|c| format!("<th>{c}</th>"))
             .collect::<String>(),
-        filter_row(columns),
+        filter_row(view),
     ));
     body
+}
+
+/// Fields as hidden inputs, in order.
+fn hidden_fields(fields: &[(&'static str, String)]) -> String {
+    fields
+        .iter()
+        .map(|(k, v)| {
+            format!(
+                "<input type=\"hidden\" name=\"{}\" value=\"{}\">",
+                k,
+                esc(v)
+            )
+        })
+        .collect()
+}
+
+/// A level's fold (step 6.5b, Decision 3): one line after its rows, the
+/// places it does not list counted, of them those never fetched a link to
+/// the page under `fetched=never`, and the ticks among them, which travel
+/// hidden. None where the level folds nothing.
+fn fold_line(
+    view: &PlacesPage,
+    folded: Option<Holds>,
+    places: &[Place],
+    one: &str,
+    many: &str,
+    depth: usize,
+) -> String {
+    let Some(folded) = folded.filter(|f| f.places > 0) else {
+        return String::new();
+    };
+    let (one, many) = match view.listed {
+        "characters" => ("character", "characters"),
+        _ => (one, many),
+    };
+    let ticked: usize = places
+        .iter()
+        .filter(|p| !p.is_listed())
+        .map(|p| usize::from(view.ticked.iter().any(|t| t == p.id())) + ticked_in(view, p))
+        .sum();
+    format!(
+        "<tr class=\"fold{}\"><td></td><td colspan=\"4\">{}{}{}</td></tr>\n",
+        if depth > 0 { " member" } else { "" },
+        esc(&format!("{} not shown", plural(folded.places, one, many))),
+        match folded.never_fetched {
+            0 => String::new(),
+            n => format!(", <a href=\"{}\">{n} never fetched</a>", esc(view.never)),
+        },
+        match ticked {
+            0 => String::new(),
+            n => format!("; {n} ticked"),
+        },
+    )
+}
+
+/// The ticks among the places `place` holds, at any depth.
+fn ticked_in(view: &PlacesPage, place: &Place) -> usize {
+    place
+        .places
+        .iter()
+        .map(|p| usize::from(view.ticked.iter().any(|t| t == p.id())) + ticked_in(view, p))
+        .sum()
 }
 
 /// The league's counts in one line: the terminal's head and facts line
@@ -2313,10 +2390,11 @@ fn counts_line(view: &PlacesPage) -> String {
     }
 }
 
-/// The rows of `places` at `depth`, each open parent's places after its
-/// head in a group of their own (`tbody.holds`, which the list filter
-/// hides while no row in it shows); a tick under a closed parent is a
-/// hidden field in `hidden`, counted in words on the parent's head.
+/// The rows of the listed `places` at `depth`, each open parent's places
+/// after its head in a group of their own (`tbody.holds`) and its fold
+/// line after them; a tick under a closed parent is a hidden field in
+/// `hidden`, counted in words on the parent's head, and a tick on a place
+/// not listed one there too, counted on its level's fold line.
 fn place_rows(
     view: &PlacesPage,
     places: &[Place],
@@ -2330,6 +2408,15 @@ fn place_rows(
         let here = format!("{at}/places/{n}");
         let id = place.id();
         let ticked = view.ticked.iter().any(|t| t == id);
+        // a place the page does not list: its ticks and its places'
+        // travel hidden, counted on its level's fold line
+        if !place.is_listed() {
+            if ticked {
+                hidden.push_str(&hidden_fields(&[(view.tick, id.to_string())]));
+            }
+            ticked_under(view, place, hidden);
+            continue;
+        }
         let tick = match place.place {
             Kind::Tab | Kind::Character => format!(
                 "<input type=\"checkbox\" name=\"{}\" value=\"{}\"{}>",
@@ -2427,6 +2514,18 @@ fn place_rows(
         if open && !place.places.is_empty() {
             rows.push_str("<tbody class=\"holds\">\n");
             place_rows(view, &place.places, &here, depth + 1, rows, hidden);
+            let (one, many) = match place.place {
+                Kind::Folder => ("tab", "tabs"),
+                _ => ("page", "pages"),
+            };
+            rows.push_str(&fold_line(
+                view,
+                place.folded,
+                &place.places,
+                one,
+                many,
+                depth + 1,
+            ));
             rows.push_str("</tbody>\n");
         }
     }
@@ -2450,22 +2549,56 @@ fn ticked_under(view: &PlacesPage, place: &Place, hidden: &mut String) -> usize 
     n
 }
 
-/// The second header row of a list: a box under each named column, the
-/// tick column's cell empty. A box has no name, so nothing in it is sent;
-/// the list filter's script reads it (the page seat's probe).
-fn filter_row(columns: &[&str]) -> String {
-    let boxes: String = columns
-        .iter()
-        .enumerate()
-        .map(|(n, column)| {
+/// The filter's controls (step 6.5b, Decision 3): the second header
+/// row of a list, each under the column it filters — words the name
+/// holds, a tab's type, never fetched — sent with the table's form, so
+/// the URL names them (C16) and "Show" or Enter asks the page again.
+fn filter_row(view: &PlacesPage) -> String {
+    let name = format!(
+        "<td><input type=\"text\" name=\"name\" value=\"{}\" placeholder=\"words in the name\" aria-label=\"show the places whose name holds these words\"></td>",
+        esc(view.filter.name.as_deref().unwrap_or(""))
+    );
+    let typed = match &view.places.counts {
+        Counted::Tabs(counts) => {
+            let wanted = view.filter.r#type.as_deref();
+            let mut options = format!(
+                "<option value=\"\"{}>any type</option>",
+                if wanted.is_none() { " selected" } else { "" }
+            );
+            let mut held: Vec<&str> = counts.by_type.iter().map(|t| t.kind.as_str()).collect();
+            // a type the URL names that the league holds none of still
+            // shows, so the page says what it filtered by
+            if let Some(wanted) = wanted
+                && !held.iter().any(|t| t.eq_ignore_ascii_case(wanted))
+            {
+                held.push(wanted);
+            }
+            for t in held {
+                options.push_str(&format!(
+                    "<option{}>{}</option>",
+                    if wanted.is_some_and(|w| w.eq_ignore_ascii_case(t)) {
+                        " selected"
+                    } else {
+                        ""
+                    },
+                    esc(t)
+                ));
+            }
             format!(
-                "<td><input class=\"col-filter\" data-col=\"{}\" placeholder=\"filter\" aria-label=\"filter the {} column\"></td>",
-                n + 1,
-                esc(column)
+                "<td><select name=\"type\" aria-label=\"show the tabs of one type\">{options}</select></td>"
             )
-        })
-        .collect();
-    format!("<tr class=\"filters\"><td></td>{boxes}</tr>\n")
+        }
+        Counted::Characters(_) => "<td></td>".to_string(),
+    };
+    let never = format!(
+        "<td><label><input type=\"checkbox\" name=\"fetched\" value=\"never\"{}> never</label></td>",
+        if view.filter.fetched.is_some() {
+            " checked"
+        } else {
+            ""
+        }
+    );
+    format!("<tr class=\"filters\"><td></td>{name}{typed}<td></td>{never}</tr>\n")
 }
 
 // ---- the plan and apply pages (step 6.5d) -------------------------------------------------------

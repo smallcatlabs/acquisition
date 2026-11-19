@@ -41,8 +41,9 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 # holds "2 tabs, 2 never fetched"
 # holds "name=\"toggle\" value=\"fold\">Open</button>"
 # holds "Refresh ticked"
-# holds "/assets/filter.js\""
-# holds "aria-label=\"filter the Tab column\""
+# holds "<input type=\"text\" name=\"name\" value=\"\""
+# holds "<select name=\"type\""
+# holds "name=\"fetched\" value=\"never\""
 <main>
 <h1>Stash tabs</h1>
 <form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
@@ -52,12 +53,12 @@ GET tabs?realm=pc&league=Standard <listed, never fetched>
 <p class="counts">8 tabs in Standard: 0 fetched, 7 never fetched, 1 folder (never fetched); 0 items in tabs (characters apart); facts: 7 tabs, none fetched; stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>CurrencyStash</option><option>Folder</option><option>MapStash</option><option>PremiumStash</option><option>QuadStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
 <tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>-</td><td>never</td></tr>
 <tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>-</td><td>never</td></tr>
 <tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs, 2 never fetched</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
@@ -109,7 +110,7 @@ GET plan?<two tabs ticked>
 GET characters?realm=pc&league=Standard
 # holds "characters: 0 fetched"
 # holds "name=\"character\" value=\""
-# holds "aria-label=\"filter the Character column\""
+# holds "<input type=\"text\" name=\"name\""
 <main>
 <h1>Characters</h1>
 <form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Rehearsal">Rehearsal (no tabs on disk)</option><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
@@ -119,11 +120,11 @@ GET characters?realm=pc&league=Standard
 <p class="counts">2 characters: 0 fetched, 2 never fetched; 0 items</p>
 <form method="get" action="characters">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <details class="list" open><summary>Characters</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Character column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Level column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
 <tr class="row" id="p-fake0001"><td><input type="checkbox" name="character" value="fake0001"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Afake0001&amp;view.fields=icon">StashHoarder</a></td><td>97</td><td>-</td><td>never</td></tr>
 <tr class="row" id="p-fake0002"><td><input type="checkbox" name="character" value="fake0002"></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Afake0002&amp;view.fields=icon">MuleQuadTab</a></td><td>12</td><td>-</td><td>never</td></tr>
 </table>
@@ -146,12 +147,12 @@ GET tabs?realm=pc&league=Standard&tab=dump <every tab fetched>
 <p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
-<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
 <tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
 <tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
 <tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
@@ -179,12 +180,12 @@ GET tabs?<Maps opened>
 <p class="counts">15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items in tabs (characters apart); facts: 14 tabs, 7 fetched (fetched <age> ago, pc · Standard / Currency); stash listing <age> ago</p>
 <form method="get" action="tabs">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="maps">
-<p><button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<p><button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
 <table class="tabs"><colgroup><col class="tick"><col><col class="type"><col class="items"><col class="fetched"></colgroup>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
-<tr class="filters"><td></td><td><input class="col-filter" data-col="1" placeholder="filter" aria-label="filter the Tab column"></td><td><input class="col-filter" data-col="2" placeholder="filter" aria-label="filter the Type column"></td><td><input class="col-filter" data-col="3" placeholder="filter" aria-label="filter the Items column"></td><td><input class="col-filter" data-col="4" placeholder="filter" aria-label="filter the Fetched column"></td></tr>
+<tr class="filters"><td></td><td><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></td><td><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>CurrencyStash</option><option>QuadStash</option><option>Folder</option><option>MapStash</option><option>UniqueStash</option></select></td><td></td><td><label><input type="checkbox" name="fetched" value="never"> never</label></td></tr>
 <tr class="row" id="p-cur1"><td><input type="checkbox" name="tab" value="cur1"></td><td><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3Acur1%20league%3DStandard&amp;view.fields=icon">Currency</a></td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
 <tr class="row" id="p-dump"><td><input type="checkbox" name="tab" value="dump" checked></td><td><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3Adump%20league%3DStandard&amp;view.fields=icon">Dump</a></td><td>PremiumStash</td><td>11</td><td><age> ago</td></tr>
 <tr class="row" id="p-fold"><td></td><td>Old leagues <span class="holds-said">2 tabs</span> <button type="submit" name="toggle" value="fold">Open</button></td><td>Folder</td><td></td><td></td></tr>
