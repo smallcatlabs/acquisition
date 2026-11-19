@@ -40,7 +40,7 @@ when its step closes or the owner strikes it.
    §3, in four parts; 6.5a, the places and their pages, is closed.
    Then, a brief each, written first: 6.5b, the grouped table and
    the list's filter as the request's (#244, #269, #194's
-   never-fetched view); 6.5c, an item under its row and the row's
+   never-fetched view; #294, how the search names a value, is an input); 6.5c, an item under its row and the row's
    ways (#270, #194, #186, #190); 6.5d, the plan and jobs pages from
    their documents (#182, #189). The search form's reshaping (#184, #181, #180, #185,
    #188, #183, #193) is the step after, one design; the look is #285.
