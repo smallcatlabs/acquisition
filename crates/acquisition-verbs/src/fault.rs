@@ -123,13 +123,12 @@ pub enum Fault {
     Unresponsive(Unresponsive),
     /// The daemon's own refusal, its closed kind (C85).
     Daemon(DaemonError),
-    /// C190: the wait for job `id` ended with `waiting` of its jobs
-    /// waiting on disk on a route closed until `reset-tripwire`, which
-    /// only a person runs: never waited on. `routes` are the daemon's
-    /// status's closures for good. Kind `route_closed`, with `next`.
+    /// C190: the wait for job `id` ended with its jobs waiting on disk on
+    /// a route closed until `reset-tripwire`, which only a person runs:
+    /// never waited on. `routes` are the daemon's status's closures for
+    /// good. Kind `route_closed`, with `next`.
     RouteClosed {
         id: u64,
-        waiting: usize,
         routes: Vec<acquisition_protocol::status::ClosedRoute>,
     },
     /// The conversation with the daemon failed: a closed socket, an
@@ -312,15 +311,7 @@ impl fmt::Display for Fault {
             Fault::AnotherDaemon(found) => write!(f, "{found}"),
             Fault::Unresponsive(found) => write!(f, "{found}"),
             Fault::Daemon(refused) => write!(f, "{refused}"),
-            Fault::RouteClosed {
-                id,
-                waiting,
-                routes,
-            } => {
-                let jobs = match waiting {
-                    1 => "1 job".to_string(),
-                    n => format!("{n} jobs"),
-                };
+            Fault::RouteClosed { id, routes } => {
                 let closed = match routes.as_slice() {
                     [] => "a route closed after a run of invalid answers".to_string(),
                     routes => routes
@@ -336,7 +327,7 @@ impl fmt::Display for Fault {
                 };
                 write!(
                     f,
-                    "stopped waiting for job {id}: {jobs} under it wait on disk for {closed}; nothing is sent on it until a person opens it, and the jobs go on then"
+                    "stopped waiting for job {id}: its jobs wait on disk for {closed}; nothing is sent on it until a person opens it, and the jobs go on then"
                 )
             }
         }

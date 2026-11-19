@@ -108,13 +108,16 @@ pub struct JobInfo {
     #[serde(flatten)]
     pub times: JobTimes,
     /// C190: what holds a waiting job besides the limiter's pacing, as a
-    /// fact a frontend says; absent when nothing does. Additive (C10).
+    /// fact a frontend says; absent when nothing does. A running parent
+    /// holding its result is `route_closed_for_good` when every unfinished
+    /// job below it is. Additive (C10).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub held: Option<Held>,
 }
 
 /// C190: why a waiting job's route admits no send. The closure's facts
-/// are the status's `closed_routes`; the time is the job's `eta_seconds`.
+/// are the status's `closed_routes`; the time is the job's `eta_seconds`,
+/// absent for a route closed for good, where no start is promised.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Held {

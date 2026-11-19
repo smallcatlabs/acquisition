@@ -131,7 +131,7 @@ impl Shared {
     /// C166: the counts over every job of the list: memory's by state,
     /// the evicted beside them, and of the waiting jobs predicted to start
     /// later than now the soonest and the latest start, from `etas`.
-    pub(super) fn counts(&self, etas: &HashMap<JobId, (u64, Option<Held>)>) -> ListCounts {
+    pub(super) fn counts(&self, etas: &HashMap<JobId, (Option<u64>, Option<Held>)>) -> ListCounts {
         let mut counts = ListCounts {
             done: self.evicted.done,
             failed: self.evicted.failed,
@@ -143,7 +143,7 @@ impl Shared {
                 JobState::Running => counts.running += 1,
                 JobState::Waiting => {
                     counts.waiting += 1;
-                    if let Some(&(eta, _)) = etas.get(&e.info().id)
+                    if let Some(&(Some(eta), _)) = etas.get(&e.info().id)
                         && eta > 0
                     {
                         counts.soonest_eta_seconds =
@@ -959,6 +959,8 @@ resubmit if still wanted",
         let mut from_table: Vec<JobId> = Vec::new();
         {
             let s = self.shared.lock().unwrap();
+            // C190: a parent held by its children's route closed for good.
+            let parked = self.parked_jobs(&s, false);
             for &id in &chosen {
                 match s.jobs.get(&id) {
                     Some(e) if state.holds(e.info().state) => {
@@ -966,8 +968,11 @@ resubmit if still wanted",
                         if info.state == JobState::Waiting
                             && let Some(&(eta, held)) = etas.get(&id)
                         {
-                            info.eta_seconds = Some(eta);
+                            info.eta_seconds = eta;
                             info.held = held;
+                        }
+                        if info.state == JobState::Running && parked.contains(&id) {
+                            info.held = Some(Held::RouteClosedForGood);
                         }
                         jobs.push(info);
                     }

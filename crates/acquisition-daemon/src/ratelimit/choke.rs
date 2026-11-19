@@ -554,12 +554,16 @@ impl ChokePoint {
     /// One endpoint's quote-relevant state under a single limiter lock —
     /// see `Limiter::project`.
     ///
-    /// C190: a closed route's ETA starts at the closure's end.
+    /// C190: a closed route's ETA starts at the closure's end, and one
+    /// closed for good has none.
     pub fn project(&self, route: &str, ahead: u32) -> ScopeProjection {
         let (from, left) = self.estimated_from(route);
+        let for_good = matches!(self.rails.route_hold(route), RouteHold::ForGood(_));
         let limiter = self.limiter.lock().unwrap();
         let mut projection = limiter.project(route, ahead, self.now());
-        if !left.is_zero() && projection.eta.is_some() {
+        if for_good {
+            projection.eta = None;
+        } else if !left.is_zero() && projection.eta.is_some() {
             projection.eta = Some(limiter.eta_for(route, ahead, from) + left);
         }
         projection

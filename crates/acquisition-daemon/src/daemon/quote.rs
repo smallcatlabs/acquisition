@@ -93,10 +93,12 @@ impl Daemon {
             let ahead = (queued_ahead + requests - 1) as u32;
             let projection = self.choke.project(&sample, ahead);
             let (policy, eta_seconds, notes) = match projection.state {
-                EndpointState::Policy(name) => {
-                    let eta = projection.eta.unwrap_or_default().as_secs();
-                    (Some(name), Some(eta), Vec::new())
-                }
+                // C190: no eta where a route closed for good promises none.
+                EndpointState::Policy(name) => (
+                    Some(name),
+                    projection.eta.map(|eta| eta.as_secs()),
+                    Vec::new(),
+                ),
                 EndpointState::Policyless => (
                     None,
                     Some(0),

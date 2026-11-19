@@ -41,14 +41,6 @@ pub struct ChildTally {
     /// C190: what holds that soonest child besides the limiter's pacing,
     /// its route closed after a run of invalid answers.
     pub held: Option<acquisition_protocol::job::Held>,
-    /// C190: the waiting jobs below the parent, at any depth, whose route
-    /// is closed until `reset-tripwire`.
-    pub closed_for_good: usize,
-    /// C190: nothing below the parent can move until a person opens a
-    /// route: every unfinished job under it waits on a route closed for
-    /// good or is a parent of one that is unfinished, and one at least
-    /// waits so.
-    pub stalled: bool,
 }
 
 /// One reading of a job being waited for, for a frontend's progress
@@ -136,27 +128,24 @@ pub async fn wait(
         let job = client.status(id).await.map_err(Fault::from_client)?;
         let terminal = job.state.is_terminal();
         // C190: a route closed until a person opens it ends the wait, its
-        // jobs waiting on disk, as nothing the wait could see would move.
-        let mut stalled = job.held == Some(acquisition_protocol::job::Held::RouteClosedForGood);
-        let mut waiting = usize::from(stalled);
-        let children = if job.kind == "apply" && job.state != JobState::Waiting {
-            let tally = tally(client, job.id).await?;
-            stalled |= tally.stalled;
-            waiting = waiting.max(tally.closed_for_good);
-            Some(tally)
-        } else {
-            None
-        };
+        // jobs waiting on disk, as nothing the wait could see would move:
+        // the daemon says so of the job, or of a parent whose every
+        // unfinished job below it is so held.
+        let held = job.held == Some(acquisition_protocol::job::Held::RouteClosedForGood);
         if let Some(report) = progress.as_deref_mut() {
+            let children = if job.kind == "apply" && job.state != JobState::Waiting {
+                Some(tally(client, job.id).await?)
+            } else {
+                None
+            };
             report(&Progress { job, children });
         }
         if terminal {
             return outcome_live(client, id).await;
         }
-        if stalled {
+        if held {
             return Err(Fault::RouteClosed {
                 id,
-                waiting,
                 routes: closed_for_good(client).await,
             });
         }
@@ -241,9 +230,7 @@ pub async fn every(client: &mut Client, state: ListState) -> Result<Vec<JobInfo>
 async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
     let mut tally = ChildTally::default();
     let below = |jobs: &[JobInfo]| jobs.last().is_some_and(|job| job.id < parent);
-    let jobs = pages(client, ListState::All, below).await?.0;
-    stall(&mut tally, parent, &jobs);
-    for job in jobs {
+    for job in pages(client, ListState::All, below).await?.0 {
         if job.parent != Some(parent) {
             continue;
         }
@@ -266,39 +253,6 @@ async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
         }
     }
     Ok(tally)
-}
-
-/// C190: `tally`'s `closed_for_good` and `stalled`, over every job below
-/// `parent` in `jobs` (any order; a child's id is above its parent's, so
-/// one walk up the ids finds each job's ancestry first).
-fn stall(tally: &mut ChildTally, parent: u64, jobs: &[JobInfo]) {
-    use acquisition_protocol::job::Held;
-    let mut sorted: Vec<&JobInfo> = jobs.iter().filter(|job| job.id > parent).collect();
-    sorted.sort_unstable_by_key(|job| job.id);
-    let mut below = std::collections::HashSet::from([parent]);
-    // A waiting job a route closed for good holds moves nothing;
-    // any other waiting job moves, and so does a running one that is no
-    // parent holding its result for an unfinished child.
-    let mut waiting_moves = false;
-    let mut running: Vec<u64> = Vec::new();
-    let mut parents: std::collections::HashSet<u64> = Default::default();
-    for job in sorted {
-        if !job.parent.is_some_and(|p| below.contains(&p)) {
-            continue;
-        }
-        below.insert(job.id);
-        match job.state {
-            JobState::Waiting if job.held == Some(Held::RouteClosedForGood) => {
-                tally.closed_for_good += 1;
-            }
-            JobState::Waiting => waiting_moves = true,
-            JobState::Running => running.push(job.id),
-            _ => continue,
-        }
-        parents.extend(job.parent);
-    }
-    let running_moves = running.iter().any(|id| !parents.contains(id));
-    tally.stalled = tally.closed_for_good > 0 && !waiting_moves && !running_moves;
 }
 
 /// C165 and C163 (every time a document carries has its words beside
@@ -1118,67 +1072,4 @@ impl Frontend {
 /// An answer of a shape the request does not take.
 pub(crate) fn unexpected(response: Response) -> Fault {
     Fault::Transport(anyhow::anyhow!("unexpected response: {response:?}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use acquisition_protocol::job::Held;
-
-    fn job(id: u64, parent: u64, state: JobState, held: Option<Held>) -> JobInfo {
-        JobInfo {
-            id,
-            kind: "stash".into(),
-            state,
-            priority: 0,
-            submitted_by: "t".into(),
-            eta_seconds: None,
-            held,
-            parent: Some(parent),
-            retries: 0,
-            account: None,
-            params: serde_json::json!({}),
-            times: JobTimes::default(),
-        }
-    }
-
-    /// C190: an apply is stalled when nothing under it can move until a
-    /// person opens a route — its substashes waiting on a route closed for
-    /// good under a deep tab that holds its result for them, N60's shape —
-    /// and not while any job under it waits on anything else, or runs.
-    #[test]
-    fn c190_an_apply_stalls_only_on_routes_a_person_must_open() {
-        let for_good = Some(Held::RouteClosedForGood);
-        let stalled = |jobs: &[JobInfo]| {
-            let mut tally = ChildTally::default();
-            stall(&mut tally, 1, jobs);
-            (tally.stalled, tally.closed_for_good)
-        };
-        let deep = [
-            job(2, 1, JobState::Done, None),
-            job(3, 1, JobState::Running, None),
-            job(4, 3, JobState::Waiting, for_good),
-            job(5, 3, JobState::Waiting, for_good),
-            job(6, 3, JobState::Done, None),
-        ];
-        assert_eq!(stalled(&deep), (true, 2));
-        let mut moving = deep.to_vec();
-        moving.push(job(7, 1, JobState::Waiting, Some(Held::RouteClosed)));
-        assert_eq!(stalled(&moving), (false, 2), "a timed closure moves");
-        let mut running = deep.to_vec();
-        running.push(job(7, 1, JobState::Running, None));
-        assert_eq!(stalled(&running), (false, 2), "a running fetch moves");
-        let mut other = deep.to_vec();
-        other.push(job(8, 99, JobState::Waiting, None));
-        assert_eq!(
-            stalled(&other),
-            (true, 2),
-            "another tree's job is not this one's"
-        );
-        assert_eq!(
-            stalled(&deep[..2]),
-            (false, 0),
-            "nothing closed, nothing stalled"
-        );
-    }
 }

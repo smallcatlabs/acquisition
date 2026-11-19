@@ -325,6 +325,31 @@ fn c190_an_apply_on_a_route_closed_for_good_ends_with_its_jobs_waiting() {
             .contains(r#""held":"route_closed_for_good""#),
         "a waiting fetch names what holds it: {jobs}"
     );
+    // The review's findings 1 and 2: the parent holding its result for
+    // them is held as they are, whatever its kind, and nothing held so
+    // promises a start time.
+    let apply = sole_json(&acq(&base, &["status", &id.to_string(), "--json"]));
+    assert_eq!(apply["held"], json!("route_closed_for_good"), "{apply}");
+    fn held_rows<'a>(value: &'a Value, rows: &mut Vec<&'a Value>) {
+        match value {
+            Value::Object(map) if map.get("held") == Some(&json!("route_closed_for_good")) => {
+                rows.push(value)
+            }
+            Value::Object(map) => map.values().for_each(|v| held_rows(v, rows)),
+            Value::Array(items) => items.iter().for_each(|v| held_rows(v, rows)),
+            _ => {}
+        }
+    }
+    let mut rows = Vec::new();
+    held_rows(&jobs, &mut rows);
+    assert!(rows.len() > 1, "{jobs}");
+    for row in rows {
+        assert!(row["eta_seconds"].is_null(), "a start promised: {row}");
+    }
+    assert!(
+        !jobs.to_string().contains("soonest_eta_seconds\":0"),
+        "a soonest start promised: {jobs}"
+    );
 
     // The person's verb opens the route, and the same apply goes on.
     assert!(acq(&base, &["daemon", "reset-tripwire"]).status.success());

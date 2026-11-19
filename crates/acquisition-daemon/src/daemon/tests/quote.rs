@@ -118,8 +118,9 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         assert_eq!(door.journal(), journal_before);
 
         // C190: a route a run of invalid answers closed is quoted from
-        // the closure's end, and the note says why.
-        for _ in 0..5 {
+        // the closure's end, and the note says why; closed for good, it
+        // promises no start at all (the review of the build, finding 2).
+        let invalid = |door: &Door| {
             door.daemon().rails().record(&crate::rails::SendReport {
                 method: "GET",
                 route: "fetch",
@@ -134,23 +135,27 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
                 unreachable: false,
                 headers: &Value::Null,
                 wait: Duration::ZERO,
-            });
-        }
-        let closed = match door
-            .request(Request::Quote {
-                jobs: vec![QuoteJob {
-                    kind: "fetch".into(),
-                    params: json!({}),
-                }],
-                account: None,
             })
-            .await
-        {
-            Response::Quote { quote } => quote,
-            other => panic!("{other:?}"),
         };
-        let [scope] = closed.scopes.as_slice() else {
-            panic!("{:?}", closed.scopes)
+        for _ in 0..5 {
+            invalid(&door);
+        }
+        let fetch_scope = |quote: Quote| {
+            let [scope] = quote.scopes.as_slice() else {
+                panic!("{:?}", quote.scopes)
+            };
+            scope.clone()
+        };
+        let one_fetch = || Request::Quote {
+            jobs: vec![QuoteJob {
+                kind: "fetch".into(),
+                params: json!({}),
+            }],
+            account: None,
+        };
+        let scope = match door.request(one_fetch()).await {
+            Response::Quote { quote } => fetch_scope(quote),
+            other => panic!("{other:?}"),
         };
         assert!(
             scope.eta_seconds.is_some_and(|eta| eta >= 60),
@@ -162,6 +167,23 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
                 .notes
                 .iter()
                 .any(|note| note.contains("closed after a run of invalid answers")),
+            "{:?}",
+            scope.notes
+        );
+        for cooldown in [60, 120, 240, 480, 960, 1920, 3600] {
+            door.advance(Duration::from_secs(cooldown));
+            invalid(&door);
+        }
+        let scope = match door.request(one_fetch()).await {
+            Response::Quote { quote } => fetch_scope(quote),
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(scope.eta_seconds, None, "a start promised: {scope:?}");
+        assert!(
+            scope
+                .notes
+                .iter()
+                .any(|note| note.contains("reset-tripwire")),
             "{:?}",
             scope.notes
         );

@@ -1059,6 +1059,16 @@ impl Daemon {
         })
     }
 
+    /// C190: a running parent holding its result is held as its children
+    /// are when every unfinished one waits on a route closed for good, at
+    /// any depth ([`Self::parked_jobs`], whatever the halt): nothing under
+    /// it moves until a person opens the route, and a frontend waiting on
+    /// it reads that from the parent alone.
+    pub(super) fn parent_held(&self, s: &Shared, info: &JobInfo) -> Option<Held> {
+        (info.state == JobState::Running && self.parked_jobs(s, false).contains(&info.id))
+            .then_some(Held::RouteClosedForGood)
+    }
+
     /// The jobs a halt holds (C25): under a halt, every waiting job and
     /// every parent holding its result; else the waiting jobs on a route
     /// closed for good (C190, a halt of that route), and a parent holding

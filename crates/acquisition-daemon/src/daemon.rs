@@ -874,9 +874,10 @@ impl Shared {
         if info.state == JobState::Waiting
             && let Some(&(eta, held)) = self.waiting_etas(daemon, Some(id)).get(&id)
         {
-            info.eta_seconds = Some(eta);
+            info.eta_seconds = eta;
             info.held = held;
         }
+        info.held = info.held.or(daemon.parent_held(self, &info));
         Some(info)
     }
 
@@ -886,6 +887,7 @@ impl Shared {
     /// `shared`, and 3,408 jobs held the dispatcher for a second.
     fn list(&self, daemon: &Daemon) -> Vec<JobInfo> {
         let etas = self.waiting_etas(daemon, None);
+        let parked = daemon.parked_jobs(self, false);
         let mut jobs: Vec<JobInfo> = self
             .jobs
             .values()
@@ -894,8 +896,11 @@ impl Shared {
                 if info.state == JobState::Waiting
                     && let Some(&(eta, held)) = etas.get(&info.id)
                 {
-                    info.eta_seconds = Some(eta);
+                    info.eta_seconds = eta;
                     info.held = held;
+                }
+                if info.state == JobState::Running && parked.contains(&info.id) {
+                    info.held = Some(Held::RouteClosedForGood);
                 }
                 info
             })
@@ -908,12 +913,13 @@ impl Shared {
     /// given). Only same-route jobs ahead of a job compete for its
     /// policy, so its estimate is its route's forward simulation at the
     /// count of those; a job whose kind sends nothing waits for nothing.
-    /// Beside each, what holds its route besides pacing (C190).
+    /// Beside each, what holds its route besides pacing (C190); a job on
+    /// a route closed for good has no eta, for none can be promised.
     fn waiting_etas(
         &self,
         daemon: &Daemon,
         only: Option<JobId>,
-    ) -> HashMap<JobId, (u64, Option<Held>)> {
+    ) -> HashMap<JobId, (Option<u64>, Option<Held>)> {
         let mut etas = HashMap::new();
         // Per route: how many of its jobs the walk has passed, and the
         // waiting jobs it must estimate, with their counts ahead.
@@ -934,7 +940,7 @@ impl Shared {
                     *passed += 1;
                 }
                 None if wanted => {
-                    etas.insert(id, (0, None));
+                    etas.insert(id, (Some(0), None));
                 }
                 None => {}
             }
@@ -953,7 +959,9 @@ impl Shared {
                 RouteHold::ForGood(_) => Some(Held::RouteClosedForGood),
             };
             for (id, ahead) in wanted {
-                etas.insert(id, (by_position[ahead].as_secs(), held));
+                let eta =
+                    (held != Some(Held::RouteClosedForGood)).then(|| by_position[ahead].as_secs());
+                etas.insert(id, (eta, held));
             }
         }
         etas
