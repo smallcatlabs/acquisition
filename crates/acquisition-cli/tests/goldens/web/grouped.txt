@@ -164,7 +164,7 @@ GET tabs?<rings, Old rings open, its first row opened>
 <p class="price">price none (nothing applies)</p>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=f1&amp;open=o1#p-o1">pc · Standard / Old rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
-<p class="ways"><button type="submit" name="toggle_item" value="o-high">Close</button></p>
+<p class="ways"><button type="submit" name="toggle_item" value="o-high">Close</button> <a class="against" href="item/o-high?against=class%3Arings%20ilvl%3E%3D60">the query against it, term by term</a></p>
 </div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="1" data-base="1"><div class="block" data-block="0">
 <div class="r" id="i-o-low" data-i="1" data-id="o-low"><button type="submit" class="name rarity-rare" name="toggle_item" value="o-low">Cold Band Iron Ring</button><span>Iron Ring</span><span>none (nothing applies)</span><span>Standard / Old rings · x 0, y 0</span><span><age> ago</span><span>62</span></div>

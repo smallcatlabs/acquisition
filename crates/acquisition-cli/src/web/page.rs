@@ -498,7 +498,7 @@ fn opened_notice(a: &Answer, opened: &Opened, links: &SavedLinks) -> String {
 /// its realm and membership hidden, and a name typed; over the saved
 /// search it was opened from where that row stands readable, at the
 /// revision the URL names, beside a second form that saves it as new.
-fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String {
+fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks, boxed: &BoxView) -> String {
     let query = || {
         vec![
             ("text", a.query.text.clone()),
@@ -530,6 +530,22 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks) -> String
                 ))
             ));
         }
+    }
+    // what the query box carries of the view and a save leaves behind
+    // (#186): a saved search is its query and its scope (C167)
+    let left = boxed.left_by_a_save();
+    if !left.is_empty() {
+        let listed = match left.as_slice() {
+            [one] => one.to_string(),
+            [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+            [] => String::new(),
+        };
+        out.push_str(&format!(
+            "<p class=\"save-note\">{}</p>\n",
+            esc(&format!(
+                "Saved without {listed}: a saved search is its query and its scope."
+            ))
+        ));
     }
     match opened {
         Some(Opened {
@@ -672,7 +688,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     out.push_str("</select></label> <label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option><option value=\"icon\">a table</option></select></label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button> ");
     out.push_str(COUNT);
     out.push_str("</div>\n</div>\n</form>\n");
-    out.push_str(&query_box(realm, None, "", None, None));
+    out.push_str(&query_box(realm, None, "", None, &BoxView::default()));
     out.push_str(&trade_box(realm));
     out.push_str(&fetch_leagues());
     out
@@ -703,13 +719,15 @@ const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched
 /// unasked is never carried (#38), so the edited query gives its own. Its
 /// "Results as" is the big form's (the page seat of 2026-11-08, its T2):
 /// cards, sent empty, or the table, set on an answer to the way it
-/// showed, so an edited query keeps it.
+/// showed, so an edited query keeps it. What it carries of the view is
+/// one [`BoxView`], an answer's or, on a refused search, the URL's as
+/// sent (step 6.5c, #190), and the save note reads the same.
 pub(crate) fn query_box(
     realm: &str,
     membership: Option<&str>,
     text: &str,
     saved: Option<(&str, i64)>,
-    rows: Option<&RowsOut>,
+    view: &BoxView,
 ) -> String {
     let hidden = |name: &str, value: &str| {
         format!(
@@ -726,7 +744,7 @@ pub(crate) fn query_box(
         carried.push_str(&hidden("saved_revision", &at.to_string()));
     }
     let listed = acquisition_store::bound::LISTED;
-    let limit = rows.map_or(listed, |r| r.limit);
+    let limit = view.limit.unwrap_or(listed);
     let mut limits = vec![(String::new(), listed)];
     limits.extend(LIMITS.iter().map(|n| (n.to_string(), *n)));
     if !limits.iter().any(|(_, n)| *n == limit) {
@@ -745,22 +763,18 @@ pub(crate) fn query_box(
     // the sort named, never the order the query gave unasked (#38), and
     // the values named, never the query's: what the URL named, so sending
     // the box again asks what was asked of the edited query
-    if let Some(rows) = rows {
-        if let Some(sort) = rows.sort.as_deref().filter(|_| !rows.sort_from_query) {
-            carried.push_str(&hidden("view.sort", sort));
-            if rows.desc {
-                carried.push_str(&hidden("view.desc", "true"));
-            }
+    if let Some(sort) = &view.sort {
+        carried.push_str(&hidden("view.sort", sort));
+        if view.desc {
+            carried.push_str(&hidden("view.desc", "true"));
         }
-        if !rows.values_from_query {
-            for value in &rows.values {
-                carried.push_str(&hidden("view.value", value));
-            }
-        }
+    }
+    for value in &view.values {
+        carried.push_str(&hidden("view.value", value));
     }
     // the presentation, as the big form's "Results as": cards, the default
     // sent empty, or the table, selected where the answer was one
-    let tabled = rows.is_some_and(|r| r.fields == [RowField::Icon]);
+    let tabled = view.table;
     let results_as = format!(
         "<label class=\"control\">Results as <select name=\"view.fields\"><option value=\"\"{}>cards</option><option value=\"icon\"{}>a table</option></select></label>",
         if tabled { "" } else { " selected" },
@@ -770,6 +784,74 @@ pub(crate) fn query_box(
         "<form class=\"query-box\" method=\"get\" action=\"search\" data-count>{carried}<label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><label class=\"control\">Show <select name=\"view.limit\">{shown}</select></label> {results_as} <button type=\"submit\">Run this query</button> {COUNT}</form>\n",
         esc(text)
     )
+}
+
+/// What the query box carries of the view (step 6.4c; step 6.5c,
+/// Decisions 8 and 9): the sort and the values the URL named, never what
+/// the query gave unasked, the table where the rows were one, and the
+/// rows' number. Made from an answer's rows, or from a refused search's
+/// fields as sent; the save note says what of it a save leaves behind.
+#[derive(Default)]
+pub(crate) struct BoxView {
+    pub sort: Option<String>,
+    pub desc: bool,
+    pub values: Vec<String>,
+    pub table: bool,
+    pub limit: Option<usize>,
+}
+
+impl BoxView {
+    /// What an answer's rows carry into the box.
+    pub fn of(rows: &RowsOut) -> BoxView {
+        let sort = rows.sort.clone().filter(|_| !rows.sort_from_query);
+        BoxView {
+            desc: sort.is_some() && rows.desc,
+            sort,
+            values: match rows.values_from_query {
+                true => Vec::new(),
+                false => rows.values.clone(),
+            },
+            table: rows.fields == [RowField::Icon],
+            limit: Some(rows.limit),
+        }
+    }
+
+    /// What a search's fields name of the view, as sent.
+    pub fn sent(fields: &[(String, String)]) -> BoxView {
+        let named = |name: &str| {
+            fields
+                .iter()
+                .find(|(k, v)| k == name && !v.is_empty())
+                .map(|(_, v)| v.as_str())
+        };
+        BoxView {
+            sort: named("view.sort").map(str::to_string),
+            desc: named("view.desc") == Some("true"),
+            values: fields
+                .iter()
+                .filter(|(k, v)| k == "view.value" && !v.is_empty())
+                .map(|(_, v)| v.clone())
+                .collect(),
+            table: named("view.fields") == Some("icon"),
+            limit: named("view.limit").and_then(|n| n.parse().ok()),
+        }
+    }
+
+    /// The parts of the view the box carries that a saved search, a
+    /// query and its scope (C167), leaves behind, in the page's words.
+    fn left_by_a_save(&self) -> Vec<&'static str> {
+        let mut left = Vec::new();
+        if self.sort.is_some() {
+            left.push("its order");
+        }
+        if !self.values.is_empty() {
+            left.push("its columns");
+        }
+        if self.table {
+            left.push("the table");
+        }
+        left
+    }
 }
 
 /// The trade site box (#188, its first half): a site search as the
@@ -1052,17 +1134,18 @@ pub(crate) fn answer(
         ));
     }
     out.push_str(&basis_foot(&search_cmd::basis_text(&a.basis)));
+    let boxed = match &a.view {
+        ViewOut::Rows(rows) => BoxView::of(rows),
+        _ => BoxView::default(),
+    };
     out.push_str(&query_box(
         a.scope.realm.as_str(),
         Some(a.scope.membership.as_str()),
         &a.query.text,
         carried,
-        match &a.view {
-            ViewOut::Rows(rows) => Some(rows),
-            _ => None,
-        },
+        &boxed,
     ));
-    out.push_str(&save_forms(a, opened, links));
+    out.push_str(&save_forms(a, opened, links, &boxed));
     out
 }
 
@@ -1508,10 +1591,14 @@ impl Window {
 pub(crate) type Placed<'a> = &'a dyn Fn(&acquisition_search::corpus::Place) -> Option<String>;
 
 /// What an opened row's card links (step 6.5c, Decisions 5 to 7): the
-/// view's changes, made from a block's rows, and its place.
+/// view's changes, made from a block's rows, its place, and the page's
+/// query against it.
 pub(crate) struct CardWays<'a> {
     pub view: &'a dyn Fn(&RowsOut, &str) -> Option<ViewLink>,
     pub placed: Placed<'a>,
+    /// The page's query, canonical, where it has one: the card links the
+    /// item page against it (Decision 7).
+    pub against: Option<&'a str>,
 }
 
 /// A row's anchor (step 6.5c): where a row's toggle lands, made beside
@@ -1599,8 +1686,21 @@ fn opened_card(
         _ => None,
     };
     let icon = row.icon.as_ref().and_then(|icon| icon.as_deref());
+    // the query's outcome on it, term by term, one link away: `show
+    // --against`'s document on the item page
+    let against = ways
+        .against
+        .filter(|text| !text.is_empty())
+        .map(|text| {
+            format!(
+                " <a class=\"against\" href=\"item/{}?against={}\">the query against it, term by term</a>",
+                enc(&row.id),
+                enc(text)
+            )
+        })
+        .unwrap_or_default();
     format!(
-        "<div class=\"opened\">\n{}<p class=\"ways\"><button type=\"submit\" name=\"toggle_item\" value=\"{}\">Close</button></p>\n</div>\n",
+        "<div class=\"opened\">\n{}<p class=\"ways\"><button type=\"submit\" name=\"toggle_item\" value=\"{}\">Close</button>{against}</p>\n</div>\n",
         card(
             ItemParts::of_row(shown),
             &row.place,
@@ -1654,6 +1754,7 @@ fn rows_table(
     let ways = CardWays {
         view: &|_, value| view(value),
         placed,
+        against: Some(&a.query.text),
     };
     format!(
         "<p class=\"rows-shown\">{}</p>\n<div class=\"window\" data-row-height=\"{ROW_HEIGHT}\" data-block-rows=\"{BLOCK_ROWS}\">\n{heads}{}</div>\n",
@@ -2852,6 +2953,7 @@ fn place_rows(
             let ways = CardWays {
                 view: view.view_links,
                 placed: view.placed,
+                against: view.places.query.as_ref().map(|q| q.text.as_str()),
             };
             rows.push_str(&segments(window, &ways, view.now));
         }

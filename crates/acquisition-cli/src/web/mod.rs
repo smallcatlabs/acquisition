@@ -313,7 +313,19 @@
 //!   every card and on the item page, is a link ([`Web::place_links`]):
 //!   the place page of its realm and league with the place and each
 //!   holding it open (`Places::holders`), at its anchor, no query; a
-//!   place no places document lists stands as words.
+//!   place no places document lists stands as words. **Its query**: an
+//!   opened row's card links `item/<id>?against=` the page's canonical
+//!   text, where it has one; [`item`] takes `against` as `acq show
+//!   --against` does, through `show::against`, and its JSON is that
+//!   document. The way back is the row the card stands under.
+//! - **What a page keeps of its input** (the same brief, #186 and #190):
+//!   the query box carries one `page::BoxView` — the order and values the
+//!   URL named, the table, the rows' number — made from an answer's rows,
+//!   and a line by the save form names each part of it a save leaves
+//!   behind, a saved search being its query and its scope (C167). A
+//!   refused `GET search` whose URL names `text` renders the refusal, then
+//!   the box holding that text and the view as sent; its status and its
+//!   JSON are the refusal's.
 
 mod form;
 mod page;
@@ -651,6 +663,19 @@ impl Web {
     /// A refusal as a page, or as its document where JSON is asked (C11):
     /// the page renders the document (C16).
     fn failed(&self, title: &str, failure: &Failure, headers: &HeaderMap) -> Response {
+        self.failed_then(title, failure, headers, "")
+    }
+
+    /// [`Web::failed`], the page's own `after` rendered under the refusal:
+    /// a refused search's query box (#190). JSON and status are the
+    /// refusal's.
+    fn failed_then(
+        &self,
+        title: &str,
+        failure: &Failure,
+        headers: &HeaderMap,
+        after: &str,
+    ) -> Response {
         if wants_json(headers) {
             return self.refused_document(failure);
         }
@@ -668,7 +693,7 @@ impl Web {
                 title,
                 self.account_name(),
                 head,
-                &page::refused(&doc),
+                &format!("{}{after}", page::refused(&doc)),
             ),
         )
     }
@@ -1433,7 +1458,24 @@ async fn search(
                 ),
             )
         }
-        Err(failure) => web.failed("Answer", &failure, &headers),
+        // a refused query keeps its box (#190): where the URL names a
+        // query's text, the refusal, then the box holding the text and the
+        // view as sent, so it can be fixed and run again
+        Err(failure) => match sent.iter().find(|(k, _)| k == "text") {
+            Some((_, text)) if !json => {
+                let saved = pick(&sent, "saved")
+                    .zip(pick(&sent, "saved_revision").and_then(|at| at.parse::<i64>().ok()));
+                let boxed = page::query_box(
+                    pick(&sent, "realm").unwrap_or(Realm::DEFAULT.as_str()),
+                    pick(&sent, "membership"),
+                    text,
+                    saved,
+                    &page::BoxView::sent(&sent),
+                );
+                web.failed_then("Answer", &failure, &headers, &boxed)
+            }
+            _ => web.failed("Answer", &failure, &headers),
+        },
     }
 }
 
@@ -1893,13 +1935,34 @@ fn place_key(place: &acquisition_search::corpus::Place) -> PlaceKey {
     )
 }
 
-/// One item (Do 6): `show`'s document, with its art and its badges.
-async fn item(State(web): State<Arc<Web>>, headers: HeaderMap, Path(id): Path<String>) -> Response {
+/// One item (Do 6): `show`'s document, with its art and its badges. With
+/// `against`, a query's text (step 6.5c, Decision 7), the document is
+/// `show --against`'s, through `show::against`: the item, and beside it
+/// the query's outcome on it, term by term.
+async fn item(
+    State(web): State<Arc<Web>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(fields): Query<Fields>,
+) -> Response {
     let json = wants_json(&headers);
+    let against = fields
+        .iter()
+        .find(|(k, _)| k == "against")
+        .map(|(_, text)| acquisition_search::answer::QueryInput {
+            trade: None,
+            text: Some(text.trim().to_string()),
+            tree: None,
+        });
     let shown = blocking(&web, move |web| -> Result<_, Failure> {
         let account = web.served()?;
         let opened = account.open()?;
-        let shown = acquisition_search::show(&opened.facts, &opened.intent, &id, false)?;
+        let shown = match &against {
+            Some(query) => {
+                acquisition_search::show::against(&opened.facts, &opened.intent, &id, false, query)?
+            }
+            None => acquisition_search::show(&opened.facts, &opened.intent, &id, false)?,
+        };
         let placed = match json {
             true => None,
             false => web

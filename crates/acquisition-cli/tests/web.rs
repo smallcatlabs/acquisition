@@ -1300,6 +1300,95 @@ fn every_search_page_is_a_wording_golden() {
     let refused = web.get("search?view.sort=no%20such%20value");
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
+    // an opened row's card links the item against the answer's query,
+    // its canonical text (step 6.5c, Decision 7): the item page under
+    // `against`, whose JSON is `acq show <id> --against`'s
+    let opened_path =
+        "search?realm=pc&text=class%3Arings%20%20ilvl%3E%3D1&view.fields=icon&item=r1";
+    let canonical = web.get_json(opened_path)["query"]["text"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let opened = web.get(opened_path);
+    let card = &opened.body[opened.body.find("<div class=\"opened\">").unwrap()..];
+    let tag = &card[card.find("<a class=\"against\"").unwrap()..];
+    let href = attribute(tag, "href").unwrap();
+    assert_eq!(
+        href,
+        format!(
+            "item/r1?against={}",
+            canonical
+                .replace(' ', "%20")
+                .replace(':', "%3A")
+                .replace('>', "%3E")
+                .replace('=', "%3D")
+        )
+    );
+    let against = web.get(&href);
+    pages.page(
+        "GET item/r1?against=<the answer's query>",
+        &against,
+        &[
+            "Doom Loop Two-Stone Ring",
+            "<p class=\"against\">",
+            "<table class=\"against\">",
+        ],
+    );
+    let shown = offline_acq(
+        &scratch.0,
+        &["show", "r1", "--against", &canonical, "--json"],
+    );
+    assert!(
+        shown.status.success(),
+        "{}",
+        String::from_utf8_lossy(&shown.stderr)
+    );
+    let shown: Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(web.get_json(&href), shown);
+    // a refused table query keeps its box (#190): the refusal, then the
+    // text it refused and the view as sent, so it can be fixed and run
+    let refused_table = web.get(
+        "search?realm=pc&text=class%3Arings%20sort%3Alife&view.fields=icon&view.sort=ilvl&view.desc=true&view.value=ilvl&view.value=pseudo.total_life",
+    );
+    assert_eq!(refused_table.status, 400, "{}", refused_table.body);
+    pages.page(
+        "GET search?<a refused table query, an order and values named>",
+        &refused_table,
+        &[
+            "<div class=\"refusal\">",
+            "name=\"text\" rows=\"3\">class:rings sort:life</textarea>",
+            "<input type=\"hidden\" name=\"view.sort\" value=\"ilvl\"><input type=\"hidden\" name=\"view.desc\" value=\"true\">",
+            "<input type=\"hidden\" name=\"view.value\" value=\"ilvl\"><input type=\"hidden\" name=\"view.value\" value=\"pseudo.total_life\">",
+            "<option value=\"icon\" selected>a table</option>",
+        ],
+    );
+    let refused_doc = refused_json(
+        &web,
+        "search?realm=pc&text=class%3Arings%20sort%3Alife&view.fields=icon&view.sort=ilvl",
+        400,
+    );
+    assert!(refused_doc["error"].is_string(), "{refused_doc}");
+    // what a save leaves behind (#186), said by the save form: a sorted
+    // table's order and table, a table's table alone
+    for (path, said) in [
+        (
+            "search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl&view.desc=true",
+            "Saved without its order, its columns and the table: a saved search is its query and its scope.",
+        ),
+        (
+            "search?realm=pc&text=class%3Arings&view.fields=icon",
+            "Saved without the table: a saved search is its query and its scope.",
+        ),
+    ] {
+        let saving = web.get(path);
+        pages.page(
+            &format!("GET {path}"),
+            &saving,
+            &[&format!("<p class=\"save-note\">{said}</p>")],
+        );
+    }
+    let cards = web.get("search?realm=pc&text=class%3Arings");
+    assert!(!cards.body.contains("Saved without"), "{}", cards.body);
     // a count asked of no realm over a store of two: each realm offered
     // keeps the count, and each link answers it (the review of #97's
     // build, its second finding) — a key in another case and a narrowing
