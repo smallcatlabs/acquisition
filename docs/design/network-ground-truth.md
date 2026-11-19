@@ -1092,6 +1092,23 @@ Allflame] The first Standard refresh after Allflame ended recorded
 Allflame tab ids listed in Standard, 18 carry the suffix (`Blight`
 became `Blight (Remove-only)`).
 
+**N60. A stash fetch of a shape GGG answers 200 can be answered 400
+with error code 2 for minutes at a time, carrying the full policy
+headers and counted as a hit.** [OBSERVED — High for the answers, one
+window; the cause is not observed] On 2026-11-18, from 22:05:54 to
+22:18:13 UTC, 90 `GET /stash/Standard/<tab>/<substash>` in a row drew
+400 with GGG's error code 2 (the message beside the code was not
+kept). All were substashes of one tab, whose other 111 substashes drew
+200: the last before the window at 22:00:11, the first after it at
+22:23:58. Each 400 carried `stash-request-limit`'s headers with the
+request counted in the account state (`1:10:0,1:300:0` at the first,
+`15:10:0,30:300:0` at the thirtieth) and no `Retry-After`. The owner
+places GGG's 3.30.0c patch at that hour; nothing on the wire names a
+cause. For N27's budget this is one data point under a threshold still
+unknown: 90 such answers in 12 minutes restricted nothing, and the 475
+fetches after them were all 200. `RUN-LEDGER.md`, the refresh of
+2026-11-18; the daemon's answer is C190.
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom
