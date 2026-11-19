@@ -385,3 +385,63 @@ fn c190_a_closed_route_is_quoted_from_the_closures_end_whatever_its_state() {
         door.finish().await;
     });
 }
+
+/// C190, the review of #291's fix round (finding 1): a scope's estimate
+/// starts at the latest closure among all its endpoints, not its sample's
+/// alone: two routes learned under one policy, the second closed, and the
+/// scope's projection from the open one waits the closure and then paces
+/// every request ahead from its end.
+#[tokio::test]
+async fn c190_a_scopes_estimate_starts_at_the_latest_closure_among_its_endpoints() {
+    let clock = Arc::new(ParkingClock::new());
+    let (transport, _mock) = crate::transport::mock(&Hold::new(), clock.clone());
+    let (daemon, log_path) = test_daemon(Boundary::Function, transport, clock);
+    // Two routes the mock answers under its one fetch policy.
+    for route in ["fetch", "fetch-twin"] {
+        daemon
+            .choke
+            .head(
+                route,
+                &format!("{BASE}/fetch"),
+                None,
+                daemon.choke.now(),
+                ALWAYS_WANTED,
+            )
+            .await
+            .unwrap();
+    }
+    assert_eq!(
+        daemon.choke.serial_key("fetch"),
+        daemon.choke.serial_key("fetch-twin"),
+        "one scope"
+    );
+    for _ in 0..5 {
+        daemon.rails().record(&crate::rails::SendReport {
+            method: "GET",
+            route: "fetch-twin",
+            url_path: "/fetch",
+            status: Some(400),
+            error: None,
+            ok: false,
+            counted: true,
+            rate: &Value::Null,
+            shape: None,
+            block: false,
+            unreachable: false,
+            headers: &Value::Null,
+            wait: Duration::ZERO,
+        });
+    }
+    let scope = vec!["fetch".to_string(), "fetch-twin".to_string()];
+    let open_only = daemon.choke.project("fetch", &scope[..1], 30);
+    let whole = daemon.choke.project("fetch", &scope, 30);
+    let (open_only, whole) = (open_only.eta.unwrap(), whole.eta.unwrap());
+    // Thirty requests ahead outrun the policy's 30-per-300s window, and
+    // the closure's minute comes first: the scope paces from its end.
+    assert!(open_only >= Duration::from_secs(300), "{open_only:?}");
+    assert!(
+        whole > open_only && whole >= Duration::from_secs(60 + 300),
+        "the closure not waited before the pacing: {whole:?} beside {open_only:?}"
+    );
+    finish_harness(None, &log_path);
+}

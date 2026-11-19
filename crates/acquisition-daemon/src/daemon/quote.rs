@@ -91,7 +91,8 @@ impl Daemon {
             let sample = endpoints.iter().next().cloned().unwrap_or_default();
             let queued_ahead = queued.get(&key).copied().unwrap_or(0);
             let ahead = (queued_ahead + requests - 1) as u32;
-            let projection = self.choke.project(&sample, ahead);
+            let scope: Vec<String> = endpoints.iter().cloned().collect();
+            let projection = self.choke.project(&sample, &scope, ahead);
             let (policy, eta_seconds, notes) = match projection.state {
                 EndpointState::Policy(name) => {
                     let eta = projection.eta.unwrap_or_default().as_secs();

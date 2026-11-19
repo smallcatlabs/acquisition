@@ -298,12 +298,17 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
     // A login again, its daemon reading the staged state at its start.
     let _daemon = login_as_mock(&base, &[]);
 
-    let mut apply = harness::command(&base, &["refresh", "--apply"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .expect("spawning the apply");
-    let stderr = apply.stderr.take().expect("piped stderr");
+    // The harness's guard: killed and reaped on any way out, a failed
+    // deadline's included.
+    let mut apply = harness::Proc(
+        harness::command(&base, &["refresh", "--apply"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawning the apply"),
+        harness::acq_exe().to_path_buf(),
+    );
+    let stderr = apply.0.stderr.take().expect("piped stderr");
     let (lines, read) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         for line in std::io::BufReader::new(stderr)
@@ -332,7 +337,7 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
     }
     // Still waiting: the apply has not ended, and its fetches wait.
     assert!(
-        apply.try_wait().expect("the apply's state").is_none(),
+        apply.0.try_wait().expect("the apply's state").is_none(),
         "the apply ended over a closed route"
     );
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
@@ -351,7 +356,7 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
     assert!(acq(&base, &["daemon", "reset-tripwire"]).status.success());
     let deadline = std::time::Instant::now() + harness::HANG;
     let ended = loop {
-        if let Some(ended) = apply.try_wait().expect("the apply's state") {
+        if let Some(ended) = apply.0.try_wait().expect("the apply's state") {
             break ended;
         }
         assert!(
