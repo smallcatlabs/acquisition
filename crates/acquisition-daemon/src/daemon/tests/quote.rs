@@ -325,3 +325,63 @@ a sync policy that covers fewer tabs or characters plans fewer actions",
     );
     finish_harness(None, &log);
 }
+
+/// C190, the review of #291's build (finding 1): a closed route's quote
+/// starts at the closure's end whatever the limiter knows of it: a
+/// declared-policyless route (`/profile`, C32), paced by nothing else,
+/// quotes the closure's remainder, not zero.
+#[test]
+fn c190_a_closed_route_is_quoted_from_the_closures_end_whatever_its_state() {
+    Door::open(
+        Server::Mock,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .run(|mut door| async move {
+        // The first profile renames the session to its account's name; the
+        // second teaches that account's route its declared policyless state.
+        for account in [Some("test-user"), None] {
+            let profile = door.submit("profile", account).await;
+            let (info, outcome) = door.await_terminal(profile).await;
+            assert_eq!(info.state, JobState::Done, "{outcome:?}");
+        }
+        let quote = || Request::Quote {
+            jobs: vec![QuoteJob {
+                kind: "profile".into(),
+                params: json!({}),
+            }],
+            account: None,
+        };
+        let scope = |answer: Response| match answer {
+            Response::Quote { quote } => quote.scopes[0].clone(),
+            other => panic!("{other:?}"),
+        };
+        let open = scope(door.request(quote()).await);
+        assert_eq!(open.eta_seconds, Some(0), "{open:?}");
+        let route = open.endpoints[0].clone();
+        for _ in 0..5 {
+            door.daemon().rails().record(&crate::rails::SendReport {
+                method: "GET",
+                route: &route,
+                url_path: "/profile",
+                status: Some(400),
+                error: None,
+                ok: false,
+                counted: true,
+                rate: &Value::Null,
+                shape: None,
+                block: false,
+                unreachable: false,
+                headers: &Value::Null,
+                wait: Duration::ZERO,
+            });
+        }
+        let closed = scope(door.request(quote()).await);
+        assert!(
+            closed.eta_seconds.is_some_and(|eta| eta >= 60),
+            "a start sooner than the trial: {closed:?}"
+        );
+        door.finish().await;
+    });
+}

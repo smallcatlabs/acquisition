@@ -152,20 +152,28 @@ pub async fn wait(
     }
 }
 
-/// C190: the routes the daemon's status lists closed for `account` (an
-/// endpoint key's `@account`, or none for an accountless job): one more
-/// request for each progress line drawn, since neither the job's status
-/// nor the list carries the rails. None when the status cannot be read:
+/// C190: the routes the daemon's status lists closed that can hold a job
+/// of `account` ([`of_account`]): one more request for each progress line
+/// drawn, since neither the job's status nor the list carries the rails. None when the status cannot be read:
 /// a progress line is a hint, never the wait's answer.
 async fn closed_routes(client: &mut Client, account: Option<&str>) -> Vec<ClosedRoute> {
     let Ok(Response::DaemonStatus { rails, .. }) = client.request(&Request::DaemonStatus {}).await
     else {
         return Vec::new();
     };
-    rails
-        .closed_routes
+    of_account(rails.closed_routes, account)
+}
+
+/// The closures among `closed` that can hold a job of `account`: its own
+/// routes (`route@account`) and every route no account owns (the token
+/// endpoint, whose refresh an account's job may wait on).
+fn of_account(closed: Vec<ClosedRoute>, account: Option<&str>) -> Vec<ClosedRoute> {
+    closed
         .into_iter()
-        .filter(|closed| closed.route.split_once('@').map(|(_, a)| a) == account)
+        .filter(|closed| match closed.route.split_once('@') {
+            Some((_, owner)) => Some(owner) == account,
+            None => true,
+        })
         .collect()
 }
 
@@ -1072,4 +1080,38 @@ impl Frontend {
 /// An answer of a shape the request does not take.
 pub(crate) fn unexpected(response: Response) -> Fault {
     Fault::Transport(anyhow::anyhow!("unexpected response: {response:?}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// C190, the review of #291's build (finding 3): a job's progress
+    /// names the closures that can hold it, its account's own routes and
+    /// the routes no account owns (the token endpoint, whose refresh an
+    /// account's job may wait on), and no other account's.
+    #[test]
+    fn c190_a_jobs_closures_are_its_accounts_and_the_accountless() {
+        let closed = |route: &str| ClosedRoute {
+            route: route.into(),
+            ..ClosedRoute::default()
+        };
+        let all = || {
+            vec![
+                closed("stash@A#1"),
+                closed("stash@B#2"),
+                closed("oauth-token"),
+            ]
+        };
+        let routes = |kept: Vec<ClosedRoute>| {
+            kept.into_iter()
+                .map(|closed| closed.route)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            routes(of_account(all(), Some("A#1"))),
+            ["stash@A#1", "oauth-token"]
+        );
+        assert_eq!(routes(of_account(all(), None)), ["oauth-token"]);
+    }
 }

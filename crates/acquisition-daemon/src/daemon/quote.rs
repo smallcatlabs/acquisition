@@ -139,11 +139,15 @@ impl Daemon {
                     )
                 }
             };
-            // C190: a closed route's estimate starts at the closure's end
-            // (`ChokePoint::project`), and the note says why.
+            // C190: a closed route's estimate starts at the closure's end,
+            // whatever the limiter knows of it (`ChokePoint::project` runs a
+            // learned policy's from there; any other estimate is at least
+            // the remainder), and the note says why.
             let mut notes = notes;
+            let mut eta_seconds = eta_seconds;
             for endpoint in &endpoints {
                 if let Some(left) = self.rails().closed_for(endpoint) {
+                    eta_seconds = eta_seconds.map(|eta| eta.max(left.as_secs()));
                     notes.push(format!(
                         "{endpoint} is closed after a run of invalid answers for another {}s; then one job goes as the trial, and the estimate starts there",
                         left.as_secs()

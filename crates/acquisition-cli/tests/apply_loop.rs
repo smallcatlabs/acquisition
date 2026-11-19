@@ -269,7 +269,8 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
 /// reset opens the route, and the same apply goes on. The closure is
 /// staged in the world's rails state at the cap, its trial an hour off,
 /// where a daemon keeps it across lifetimes. The test waits on the
-/// apply's own output under the harness's deadline, never on a sleep.
+/// apply's own output, then on its exit, each under the harness's
+/// deadline, never on a sleep's length.
 #[test]
 fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
     use std::io::BufRead as _;
@@ -322,8 +323,6 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
             break line;
         }
     };
-    let _ = apply.kill();
-    let _ = apply.wait();
     for words in [
         "route closed: stash@ExileTester for 3600s",
         "GGG answered 13 requests in a row on it as invalid, the last 400",
@@ -331,11 +330,11 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
     ] {
         assert!(closed.contains(words), "lacks {words:?}: {closed}");
     }
-    let id: u64 = closed
-        .strip_prefix("job ")
-        .and_then(|rest| rest.split_whitespace().next())
-        .and_then(|id| id.parse().ok())
-        .unwrap_or_else(|| panic!("the apply's job id: {closed}"));
+    // Still waiting: the apply has not ended, and its fetches wait.
+    assert!(
+        apply.try_wait().expect("the apply's state").is_none(),
+        "the apply ended over a closed route"
+    );
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert!(
         status["jobs_waiting"].as_u64().is_some_and(|n| n > 0),
@@ -347,10 +346,20 @@ fn c190_an_apply_over_a_route_closed_at_the_cap_waits_saying_the_closure() {
         "{status}"
     );
 
-    // The person's verb opens the route, and the same apply goes on.
+    // The person's verb opens the route, and the same apply, its client
+    // still waiting, goes on and finishes, under the harness's deadline.
     assert!(acq(&base, &["daemon", "reset-tripwire"]).status.success());
-    let out = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
-    assert!(out.status.success(), "{out:?}");
-    assert_eq!(sole_json(&out)["outcome"], json!("success"));
+    let deadline = std::time::Instant::now() + harness::HANG;
+    let ended = loop {
+        if let Some(ended) = apply.try_wait().expect("the apply's state") {
+            break ended;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the apply did not finish after the reset"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    assert!(ended.success(), "the apply failed: {ended:?}");
     assert!(acq(&base, &["daemon", "stop"]).status.success());
 }
