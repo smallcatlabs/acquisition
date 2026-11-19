@@ -22,24 +22,16 @@ better Acquisition that is agent-friendly and agent-forward.
   column's head orders the rows by it and flips, a number on a card
   adds its value as a column, and the URL names the values
   (`view.value`). Step 6.5, the places and the grouped table (the
-  design's §3 and §5 item 5), is cut into four parts. Its first, 6.5a,
-  is closed (`briefs/4-full-1-step6-places.md`): "Stash tabs" and
-  "Characters" replace "Refresh", each a page of the search crate's
-  places document, a parent closed until opened, the URL naming what is
-  open and ticked, an opener landing at its head, a place's name its
-  items as a table, and a league with nothing listed offering its
-  listing on the page. 6.5d is closed too
-  (`briefs/4-full-1-step6-plan-jobs.md`): the plan, apply and jobs
-  pages render their documents in a player's words, a submit lands at
-  its job with the league's place pages linked, a failed job opens to
-  why, and only a refused session says "not signed in". So is 6.5b
-  (`briefs/4-full-1-step6-grouped.md`): a place page takes a query and
-  a filter, both the request's, lists the places that hold a match,
-  each with its count, the rest folded into one counted line, and an
-  opened place lists its items under its head as a segment of the
-  page's one window, the page at one basis; a rows answer links its
-  place pages. Next is 6.5c, whose brief is on `main`
-  (`briefs/4-full-1-step6-row.md`).
+  design's §3 and §5 item 5), is closed in four parts: 6.5a, the place
+  pages (`briefs/4-full-1-step6-places.md`); 6.5d, the plan, apply and
+  jobs pages in a player's words (`briefs/4-full-1-step6-plan-jobs.md`);
+  6.5b, a place page under a query and a filter, each open place a
+  segment of the page's one window (`briefs/4-full-1-step6-grouped.md`);
+  and 6.5c (`briefs/4-full-1-step6-row.md`): a row opens its item as a
+  card under it, the table cut at it and the reader kept at its row, the
+  card's place a link to that place opened and the query against it one
+  link away; a refused query keeps its box, and the save form says what
+  a save leaves behind. Next is the search form's reshaping.
 
 ## Next
 
@@ -47,14 +39,13 @@ In order. A session takes the first item (C180), skipping one that
 names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
-1. 4-full part 1, step 6.5, ruled in `briefs/4-full-1-step6-design.md`
-   §3, in four parts; 6.5a, 6.5d and 6.5b, the grouped table, are
-   closed. Then 6.5c, an item under its row and the row's ways (#270,
-   #194, #186, #190), from its brief on `main`. #294, how the search
-   names a value, waits on the owner's word before any step builds it.
-   The search form's reshaping (#184, #181, #180,
-   #185, #188, #183, #193) is the step after, one design; the look is
-   #285; what an apply brought, said on its job, is #182's rest.
+1. 4-full part 1, the search form's reshaping (#184, #181, #180,
+   #185, #188, #183, #193), one design, its brief first; #190's rest
+   (the save form's, the big form's and the plan's refusals) rides with
+   it. The look is #285; what an apply brought, said on its job, is
+   #182's rest; the never-fetched tabs of a league the scope's link does
+   not name are #194's rest. #294, how the search names a value, waits on
+   the owner's word before any step builds it.
 2. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
    then the resident and morning 2.
