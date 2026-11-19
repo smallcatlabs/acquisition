@@ -3,8 +3,9 @@
 ## Goal
 At `acq web` a table's row opens its item as a card under it, the
 reader kept in place. The card's place links that place opened, and
-the query's outcome on it, term by term, is one link away. A refused query keeps its box, and the save form says
-what a save leaves behind. Step 6.5's last part.
+the query's outcome on it, term by term, is one link away. A refused
+query keeps its box, and the save form says what a save leaves
+behind.
 
 ## Inputs
 - `4-full-1-step6-design.md` §2, §3, §4, §7.
@@ -33,26 +34,27 @@ what a save leaves behind. Step 6.5's last part.
    ends at it; the card stands in the page's flow; a segment of the
    same route starts at the next row. The server renders each
    segment's first block and the block holding each opened row, at
-   one basis. A segment's route names its opened row as `item`,
-   outside the token, and `rows` marks it, so a block fetched again
-   keeps the mark. One renderer makes the segments and cuts, for the
+   one basis. `rows` stands, and no row is marked open: its card,
+   in the flow and never fetched again, is the mark and holds a
+   "Close" button. One renderer makes the segments and cuts, for the
    flat table and each open place of 6.5b.
-4. **The opener is 6.5a's toggle.** A row's name is a button sending
-   `toggle_item` with its id, inside the page's one GET form: the
-   place pages', and on `search` one around the table holding the
-   URL's fields hidden; answered 303 to the page with the id added,
+4. **The opener is 6.5a's toggle**, not a link: a link drops a tick
+   changed since the load, and a fetched row has no page's fields. A
+   row's name is a button sending `toggle_item` with its id, as the
+   card's "Close" does, inside the page's one GET form: the place
+   pages', and on `search` one around the table holding the URL's
+   fields hidden. It is answered 303 to the page with the id added,
    or taken out where open, at the row's anchor (an `id` on each
    row, made beside `place_anchor`).
-   A fetched row needs no page's fields, and a tick changed since
-   the load travels. An opened row is marked, its button a closer.
 5. **The card** is `page::card` of the block's row (its `item`,
    which the window asks), with the page's view links: its numbers
    add columns. No second read.
 6. **The place is a link** on every card and on the item page: the
    place page with the place and each holding it `open`, at its
    anchor, no query. A function of `Places` gives the holders, top
-   first; a place it lacks is words. *Not taken:* the query on it: #194 asks for the tab and
-   its neighbours, and 6.5b's answer links the query by place.
+   first; a place it lacks is words. *Not taken:* the query on it:
+   #194 asks for the tab and its neighbours, and 6.5b's answer links
+   the query by place.
 7. **The query against it.** `item/<id>` takes `against`, a query's
    text, as `acq show --against` does, through `show::against`; its
    JSON is that document. The card under a row links it with the
@@ -67,15 +69,14 @@ what a save leaves behind. Step 6.5's last part.
    holding that text and the view's fields as sent. JSON and status
    stay.
 
-## Open, for the designer
-**Where a closed card lands** (C172, a choice of shape). Closing
-takes the id out, so the next page renders no block holding the row
-and its anchor misses. (a) The toggle's 303 names the row as `at`,
-whose block the server renders, dropped from every URL the page
-writes; (b) the fragment names the row's index, and the script
-seeks it after sizing, as 6.5b's anchor seek does. Also to see:
-Decision 4 lands the answer's "link" as 6.5a's toggle. The build
-waits on the answer, amended here.
+## Where a toggle lands (the designer's, 2026-11-19)
+**The 303 names the row as `at`,** its id, beside the fragment. The
+server renders the block holding the `at` row as it does an opened
+row's, by Decision 2's index, so a closed card's row is there for
+its anchor. `at` is one load's landing, never state: no link or form
+carries it, and one no order holds is ignored. 6.5b's anchor seek
+must come before the script's first fill, which drops a far block;
+if built after, it moves.
 
 ## Find first
 - `git log --grep='^Step: 4-full-1-step6-grouped' -1`;
@@ -96,13 +97,15 @@ waits on the answer, amended here.
   index and `limit` one, gives that row; an id outside the order
   gives none; under a sort and in the store's order (tests).
 - Goldens: a table with two opened rows (three segments, the cards
-  between, each row marked), a tabs page's open place under a query
-  with an opened row, the item page under `against`, a refused
+  between, each with its "Close"), a tabs page's open place under a
+  query with an opened row, the item page under `against`, a refused
   table query naming an order and values, its box carrying all of
   them, the save note on a sorted table and on a table alone.
 - A test toggles a row open, then a head's link reorders and it
-  stays open at its new index; toggled again, it closes. An `item`
-  no order holds is dropped; "as cards" and the query box carry none.
+  stays open at its new index; toggled again, it closes: the 303
+  names `at`, the page renders that row's block, and no URL the page
+  writes carries `at`. An `item` no order holds is dropped; "as
+  cards" and the query box carry none.
 - A test follows a card's place to its page: the place and its
   holders open, its items listed; a tab in a folder, a map tab's
   page and a character each. A test follows the card's query link:
@@ -111,8 +114,8 @@ waits on the answer, amended here.
 - A browser test on a tabs page several blocks long: a box ticked,
   then a far row the script fetched opened; the row is in view, its
   card under it, the tick kept, and the rows under the card are, id
-  for id, the route's JSON at those offsets. Scrolled away and back,
-  the row is still marked. Closed: in view, no card, the tick kept.
+  for id, the route's JSON at those offsets. Closed: the row in
+  view, no card, the tick kept.
 - The module doc says `item`, the cut and the card's ways; a
   retired test has its line (C154, a retirement names its holder). The
   close closes #270 and #186, closes #194 or says what 6.5b left,
@@ -138,6 +141,6 @@ with the box and the note.
 ## Taken from the review
 `roadmap/reviews/4-full-1-step6-row-brief-5e4d34e3.md`: 2 and 3 by
 one rule, the opener as 6.5a's toggle; 4, `text`; 5, 6 and 7 in
-Done when and Find first; 8, C167. `…-4bb804d9.md`: 2, the route
-names its opened row; 3 and 4 in Done when and Find first. Each
-round's 1 is the open question. Not reviewed again (C176).
+Done when and Find first; 8, C167. `…-4bb804d9.md`: 2, no row is
+marked (Decision 3); 3 and 4 in Done when and Find first. Each
+round's 1 is answered above. Not reviewed again (C176).
