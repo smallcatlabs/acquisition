@@ -41,6 +41,9 @@ was named:
    for each `retired X; held by Y` line in a message, Y missing at
    that commit, run neither by the gate nor by CI, or holding less
    than X held.
+11. History outside the records: a date, a step, a round, a seat or a
+   review written into code, a comment or a current document
+   (`AGENTS.md`, "Where things live", names the records).
 
 Then whether the brief's "done when" lines are actually met by what
 landed; a line that needs execution to check is reported as "not
