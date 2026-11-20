@@ -105,7 +105,7 @@ pub struct PolicyStatus {
 }
 
 /// One HTTP request the choke point actually sent (there is no other way to
-/// send one), for the dashboard's sent-requests table.
+/// send one), for the dashboard's recent sends.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendRecord {
     pub seconds_ago: f64,

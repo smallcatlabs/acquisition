@@ -92,7 +92,7 @@ pub(crate) fn print_auth(status: &Response, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// What `auth status` and the dashboard say while the daemon's start
+/// What `auth status` says while the daemon's start
 /// restores its sessions from the keyring (its keyring word `restoring`):
 /// no session is live yet and none is lost.
 pub(crate) const RESTORING_SESSIONS: &str =

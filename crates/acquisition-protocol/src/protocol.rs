@@ -591,7 +591,7 @@ pub enum Request {
     /// a trip, wait 360 s before clearing; a trip or a block is evidence
     /// to read.
     ResetTripwire {},
-    /// Everything the live dashboard renders, in one round-trip: daemon
+    /// The dashboard's snapshot, in one round-trip: daemon
     /// vitals, auth state, limiter policies, jobs, HTTP sends, recent errors.
     Dashboard {},
 }
