@@ -175,11 +175,18 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
             "tabs": "all", "max_age_seconds": 60 } } } } }),
     ] {
         let err = SyncPolicy::from_value(&older).unwrap_err();
-        assert!(
-            matches!(&err, PlanError::MalformedPolicy { detail }
-                if detail.contains("older than this build's v3")
-                    && detail.contains("write the whole policy again")),
-            "{older}: {err}"
+        // the words whole: the version, the floor and the remedy, and no
+        // claim on where the value came from (a release stored one too)
+        let v = older["version"].as_i64().unwrap();
+        assert_eq!(
+            err,
+            PlanError::MalformedPolicy {
+                detail: format!(
+                    "sync policy declares version {v}, older than this build's v3, which \
+                     reads no older one: write the whole policy again (`replace`)"
+                )
+            },
+            "{older}"
         );
     }
     // A newer version is refused as such — checked before the shape,

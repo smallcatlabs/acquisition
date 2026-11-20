@@ -1400,16 +1400,16 @@ impl Store {
                 path.display()
             );
         }
-        let conn = Connection::open_with_flags(
+        let mut conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .with_context(|| format!("opening {} read-only", path.display()))?;
         conn.busy_timeout(store_wait())?;
-        let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         // A file with content and no stamp is the writing door's refusal
         // too, with the same remedy; an empty one is no store at all.
-        if found == 0 && has_tables(&conn)? {
+        let (found, tables) = stamp(&mut conn)?;
+        if tables {
             return Err(SchemaTooOld {
                 found,
                 path: path.to_path_buf(),
@@ -1454,13 +1454,7 @@ impl Store {
         // A stamp below the floor, or 0 beside tables (a file from before
         // versioning, or a foreign one), is refused here too, as found;
         // both facts from one snapshot, as the annotation file reads them.
-        let (found, tables): (i64, bool) = {
-            let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
-            let found = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-            let tables = found == 0 && has_tables(&gate)?;
-            gate.rollback()?;
-            (found, tables)
-        };
+        let (found, tables) = stamp(&mut conn)?;
         if found > FACT_SCHEMA_VERSION {
             return Err(SchemaTooNew {
                 found,
@@ -2871,6 +2865,19 @@ fn count_granted(items: Option<&Value>) -> usize {
 /// un-lifted array in a character envelope.
 fn is_item_shaped(v: &Value) -> bool {
     v.as_object().is_some_and(|o| o.contains_key("typeLine"))
+}
+
+/// A file's stamp and, where it is 0, whether it holds any table (a file
+/// from before versioning, or a foreign one, which both doors refuse):
+/// both from one snapshot, a deferred transaction that writes nothing, so
+/// a create committing between the two reads cannot show its tables
+/// beside a stamp read before it. Both doors read the gate here.
+fn stamp(conn: &mut Connection) -> Result<(i64, bool)> {
+    let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
+    let found: i64 = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    let tables = found == 0 && has_tables(&gate)?;
+    gate.rollback()?;
+    Ok((found, tables))
 }
 
 /// Whether a file holds any table: a stamp of 0 beside one is a file from
