@@ -42,7 +42,10 @@ when its step closes or the owner strikes it.
 1. 4-full part 1, the search form's reshaping (#184, #181, #180,
    #185, #188, #183, #193), one design, its brief first; #190's rest
    (the save form's, the big form's and the plan's refusals) rides with
-   it. The look is #285; what an apply brought, said on its job, is
+   it, and so does a sort by values a player names (the page seat after
+   step 6, fault 2; `audits/web-step6/seat/README.md`); #296, a place's
+   line, waits on the owner's word. The look is #285; what an apply
+   brought, said on its job, is
    #182's rest; the never-fetched tabs of a league the scope's link does
    not name are #194's rest. #294, how the search names a value, waits on
    the owner's word before any step builds it.
