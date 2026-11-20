@@ -1214,6 +1214,64 @@ fn a_writer_beside_the_ingest_makes_it_wait_never_fail_its_upgrade() {
     );
 }
 
+/// The gate's two facts, staged exactly between them, as the annotation
+/// file's `c35_a_create_attempted_between_the_gates_two_reads_cannot_commit_or_cause_a_refusal`
+/// stages its own: a connection to an empty facts file carries an
+/// authorizer that fires when the table check is prepared, after the
+/// stamp was read; there another connection creates the schema, stamps
+/// it and tries to commit. `stamp`, the gate both doors read, holds one
+/// snapshot across the two reads, so that commit waits and gives up and
+/// the reader sees an empty file (0, no tables). Read in two snapshots,
+/// it would see stamp 0 beside the new tables, and both doors would tell
+/// the owner to delete a store being created.
+#[test]
+fn the_gates_two_facts_are_one_snapshot_so_a_create_between_them_cannot_be_refused() {
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("race.db");
+    let mut reader = Connection::open(&path).unwrap();
+    let fired = Arc::new(AtomicBool::new(false));
+    let committed = Arc::new(AtomicU32::new(0));
+    let (other_path, fired_in, committed_in) = (path.clone(), fired.clone(), committed.clone());
+    reader
+        .authorizer(Some(move |ctx: AuthContext<'_>| {
+            if let AuthAction::Read { table_name, .. } = ctx.action
+                && table_name == "sqlite_master"
+                && !fired_in.swap(true, Ordering::SeqCst)
+            {
+                let other = Connection::open(&other_path).unwrap();
+                other
+                    .busy_timeout(std::time::Duration::from_millis(200))
+                    .unwrap();
+                let create = (|| -> rusqlite::Result<()> {
+                    other.execute_batch("BEGIN IMMEDIATE")?;
+                    other.execute_batch(SCHEMA)?;
+                    other.pragma_update(None, "user_version", FACT_SCHEMA_VERSION)?;
+                    other.execute_batch("COMMIT")
+                })();
+                if create.is_ok() {
+                    committed_in.fetch_add(1, Ordering::SeqCst);
+                } else {
+                    let _ = other.execute_batch("ROLLBACK");
+                }
+            }
+            Authorization::Allow
+        }))
+        .unwrap();
+    let read = stamp(&mut reader).unwrap();
+    assert!(fired.load(Ordering::SeqCst), "the staging never fired");
+    assert_eq!(
+        committed.load(Ordering::SeqCst),
+        0,
+        "the create committed between the gate's two reads"
+    );
+    assert_eq!(read, (0, false), "an empty file, read as one snapshot");
+}
+
 /// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4) and C124:
 /// the version is read before anything is written. A facts file in
 /// rollback-journal mode that this build refuses is refused exactly as
