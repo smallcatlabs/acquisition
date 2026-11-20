@@ -258,7 +258,6 @@ Commands:
   events      Item events (added/moved/changed/removed) from recent ingests, the newest ten (--limit more or fewer): by default one line per location with counts (text) or the event list (--json); --expand alone picks the event list and --summary the locations in both modes, ten locations, --summary --expand every one. `--json` counts what it lists: the events `returned` and whether the limit was reached; the summary the events, the locations and each kind
   refused     Bodies the store refused as malformed, kept verbatim as evidence: the list (newest first), or one body in full by its row id. `--json` lists them under `rows`, beside `returned` and `limit`
   rebuild     Re-extract derived columns from each item's own JSON
-  import      Replay a snapshot file from the retired `acq pull` into the store (no GGG traffic)
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -327,20 +326,6 @@ Options:
 Re-extract derived columns from each item's own JSON
 
 Usage: acq store rebuild [OPTIONS]
-
-Options:
-  -h, --help               Print help
-```
-
-## `acq store import`
-
-```text
-Replay a snapshot file from the retired `acq pull` into the store (no GGG traffic)
-
-Usage: acq store import [OPTIONS] <PATH>
-
-Arguments:
-  <PATH>
 
 Options:
   -h, --help               Print help

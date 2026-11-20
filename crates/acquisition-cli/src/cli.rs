@@ -808,8 +808,6 @@ pub(crate) enum StoreCmd {
     },
     /// Re-extract derived columns from each item's own JSON.
     Rebuild,
-    /// Replay a snapshot file from the retired `acq pull` into the store (no GGG traffic).
-    Import { path: std::path::PathBuf },
 }
 
 #[derive(Subcommand)]

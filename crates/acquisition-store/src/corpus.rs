@@ -86,7 +86,7 @@
 //!     every earlier exit is an error, which rolls back whole. A refused
 //!     body's row goes to `refused` alone, in a transaction of its own, and
 //!     the id it did not keep is the next record's — no reader ever saw it.
-//!   - `acq store import` goes through `record`. [`Store::rebuild`] rewrites
+//!   - [`Store::rebuild`] rewrites
 //!     the derived columns alone, none of which this read hands over or
 //!     orders by. No code deletes a response. No other crate opens a facts
 //!     file to write it.

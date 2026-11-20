@@ -380,8 +380,7 @@ fn a_policy_write_is_validated_and_compares_its_revision() {
     let s = scratch();
     login(&s.mock, USER, UUID);
     let account = frontend(&s.mock).account(None).unwrap();
-    let typo =
-        json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } });
+    let typo = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } } } });
     let fault = account
         .set_policy(&typo, Expect::Current, PolicyWrite::Merge)
         .unwrap_err();

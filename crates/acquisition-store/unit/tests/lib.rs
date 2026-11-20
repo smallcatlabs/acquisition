@@ -949,203 +949,6 @@ fn intent_survives_fact_removal_and_surfaces_as_orphaned() {
     assert_eq!(orphaned.unreadable[0].kind, "note");
 }
 
-#[test]
-fn files_from_before_the_listing_columns_are_migrated_in_place() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let path = dir.join("old.db");
-    {
-        // A tabs table as the schema had it before listed_json /
-        // listed_response, with one live row.
-        let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(
-                "CREATE TABLE tabs (
-                    league TEXT NOT NULL, id TEXT NOT NULL, parent TEXT, name TEXT, type TEXT,
-                    idx INTEGER, json TEXT NOT NULL, listed_at INTEGER, fetched_at INTEGER,
-                    removed_at INTEGER, PRIMARY KEY (league, id));
-                 INSERT INTO tabs (league, id, name, type, idx, json, listed_at)
-                 VALUES ('Standard', 'old1', 'Old', 'PremiumStash', 0, '{}', 5);
-                 CREATE TABLE items (
-                    id TEXT PRIMARY KEY, league TEXT, location_kind TEXT NOT NULL, location_id TEXT NOT NULL,
-                    socketed_in TEXT, name TEXT, type_line TEXT, base_type TEXT, rarity TEXT, stack_size INTEGER,
-                    x INTEGER, y INTEGER, w INTEGER, h INTEGER, json TEXT NOT NULL,
-                    first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, removed_at INTEGER);
-                 INSERT INTO items (id, league, location_kind, location_id, name, type_line, base_type, json, first_seen, last_seen)
-                 VALUES ('old-item', 'Standard', 'stash', 'old1', 'Foo', 'Imperial Bow', 'Imperial Bow', '{\"id\":\"old-item\"}', 5, 5);
-                 CREATE TABLE characters (
-                    name TEXT PRIMARY KEY, league TEXT, class TEXT, level INTEGER, json TEXT NOT NULL,
-                    listed_at INTEGER, fetched_at INTEGER, removed_at INTEGER);
-                 INSERT INTO characters (name, league, json, listed_at, fetched_at)
-                 VALUES ('Hero', 'Standard', '{\"id\":\"c-hero\",\"name\":\"Hero\",\"_split\":{}}', 5, 6);
-                 INSERT INTO characters (name, league, json, listed_at) VALUES ('Ghost', 'Standard', '{\"name\":\"Ghost\"}', 5);
-                 INSERT INTO items (id, league, location_kind, location_id, name, type_line, base_type, json, first_seen, last_seen)
-                 VALUES ('hero-item', 'Standard', 'character', 'Hero', 'Bar', 'Bow', 'Bow', '{\"id\":\"hero-item\"}', 6, 6);
-                 INSERT INTO items (id, league, location_kind, location_id, name, type_line, base_type, json, first_seen, last_seen)
-                 VALUES ('ghost-item', 'Standard', 'character', 'Ghost', 'Baz', 'Bow', 'Bow', '{\"id\":\"ghost-item\"}', 6, 6);
-                 CREATE TABLE responses (id INTEGER PRIMARY KEY, endpoint TEXT NOT NULL, params TEXT NOT NULL,
-                    fetched_at INTEGER NOT NULL, status INTEGER NOT NULL, envelope TEXT NOT NULL, item_count INTEGER NOT NULL);
-                 INSERT INTO responses (id, endpoint, params, fetched_at, status, envelope, item_count)
-                 VALUES (7, 'characters', '{}', 5, 200, '{\"characters\":[{\"id\":\"c-hero\",\"name\":\"Hero\",\"league\":\"Standard\"}]}', 0);",
-            )
-            .unwrap();
-    }
-    let mut s = Store::open(&path).unwrap();
-    let tabs = s.tabs("pc", "Standard").unwrap();
-    assert_eq!(
-        (tabs[0].id.as_str(), tabs[0].realm.as_str()),
-        ("old1", "pc")
-    );
-    // Pre-realm items are pc too — not null: the tab's count and the
-    // item's own row both say so (review finding 2026-09-02).
-    assert_eq!(tabs[0].item_count, 1);
-    assert_eq!(s.item("old-item").unwrap().unwrap().realm, "pc");
-    assert_eq!(
-        s.item("old-item").unwrap().unwrap().container.as_deref(),
-        Some("items")
-    );
-    // v4: characters rekeyed by the id in their json — the row without
-    // one is dropped and its items retired; the other's items move to
-    // its id (container unknown: not in the json, so left NULL).
-    let chars = s.characters(None, None).unwrap();
-    assert_eq!(chars.len(), 1);
-    let hero = &chars[0];
-    assert_eq!(
-        (
-            hero.id.as_str(),
-            hero.name.as_str(),
-            hero.realm.as_str(),
-            hero.fetched_at,
-            hero.item_count
-        ),
-        ("c-hero", "Hero", "pc", Some(6), 1)
-    );
-    let hero_item = s.item("hero-item").unwrap().unwrap();
-    assert_eq!(
-        (
-            hero_item.location_id.as_str(),
-            hero_item.container.as_deref()
-        ),
-        ("c-hero", None)
-    );
-    assert!(s.item("ghost-item").unwrap().unwrap().removed_at.is_some());
-    // Membership is re-stamped from the latest listing on record, so
-    // a basis a planner cites has its rows stamped to it.
-    let (listed_response, listed_json): (Option<i64>, Option<String>) = s
-        .conn
-        .query_row(
-            "SELECT listed_response, listed_json FROM characters WHERE id = 'c-hero'",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    assert_eq!(listed_response, Some(7));
-    assert!(listed_json.unwrap().contains("\"Hero\""));
-    // The migrated file is stamped with the current schema version.
-    let v: i64 = s
-        .conn
-        .query_row("PRAGMA user_version", [], |r| r.get(0))
-        .unwrap();
-    assert_eq!(v, FACT_SCHEMA_VERSION);
-    // The next listing stamps membership per response id and retires
-    // the pre-migration row it dropped.
-    s.record(
-            &Endpoint::Stashes { realm: "pc".into(),
-                league: "Standard".into(),
-            },
-            &json!({}),
-            200,
-            &json!({ "stashes": [ { "id": "new1", "name": "New", "type": "PremiumStash", "index": 0 } ] }),
-            10,
-        )
-        .unwrap();
-    let ids: Vec<String> = s
-        .tabs("pc", "Standard")
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    assert_eq!(ids, vec!["new1"]);
-    // A file stamped newer than this build is refused, not guessed at.
-    s.conn.pragma_update(None, "user_version", 99).unwrap();
-    drop(s);
-    let err = Store::open(&path).err().unwrap();
-    assert_eq!(
-        err.downcast_ref::<SchemaTooNew>(),
-        Some(&SchemaTooNew {
-            found: 99,
-            supported: FACT_SCHEMA_VERSION
-        })
-    );
-}
-
-/// Facts v8 (B4): a v7 file loses `items_names` and gains
-/// `items_removed`, every row where it was; a second open changes
-/// nothing, and a fresh file has the same two.
-#[test]
-fn v7_to_v8_swaps_the_index_and_moves_no_row() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let path = dir.join("facts.db");
-    let indexes = |s: &Store| -> Vec<String> {
-        let mut stmt = s
-                .conn
-                .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'items' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-                .unwrap();
-        stmt.query_map([], |r| r.get(0))
-            .unwrap()
-            .collect::<Result<_, _>>()
-            .unwrap()
-    };
-    let rows = |s: &Store| -> Vec<(String, Option<i64>)> {
-        let mut stmt = s
-            .conn
-            .prepare("SELECT id, removed_at FROM items ORDER BY id")
-            .unwrap();
-        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-            .unwrap()
-            .collect::<Result<_, _>>()
-            .unwrap()
-    };
-    let mut s = Store::open(&path).unwrap();
-    let fresh = indexes(&s);
-    assert_eq!(
-        fresh,
-        [
-            "items_live",
-            "items_live_at",
-            "items_location",
-            "items_removed",
-            "items_socketed_in"
-        ]
-    );
-    let both = stash("a", vec![item("i1", "Foo", 0), item("i2", "Bar", 2)]);
-    s.record(&stash_ep("a"), &json!({}), 200, &both, 100)
-        .unwrap();
-    let one = stash("a", vec![item("i1", "Foo", 0)]);
-    s.record(&stash_ep("a"), &json!({}), 200, &one, 200)
-        .unwrap();
-    let before = rows(&s);
-    assert_eq!(
-        before,
-        [("i1".to_string(), None), ("i2".to_string(), Some(200))]
-    );
-    // the file as a v7 build left it
-    s.conn
-        .execute_batch(
-            "DROP INDEX items_removed;
-                 CREATE INDEX items_names ON items (name, type_line, base_type);
-                 PRAGMA user_version = 7;",
-        )
-        .unwrap();
-    drop(s);
-    for _ in 0..2 {
-        let s = Store::open(&path).unwrap();
-        assert_eq!(indexes(&s), fresh);
-        assert_eq!(rows(&s), before);
-        assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
-    }
-}
-
 /// Facts v9 (0a): a v8 file gains `items_live` and `items_live_at`,
 /// the live items' partial indexes, and no row moves; a second open
 /// changes nothing.
@@ -1287,7 +1090,7 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
 /// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 2): `record`
 /// and `rebuild` take the write lock before their first read (BEGIN
 /// IMMEDIATE), so a second writer on the file — `acq store rebuild`
-/// or `store import` beside an ingesting daemon — makes the ingest
+/// beside an ingesting daemon — makes the ingest
 /// wait, never fail its upgrade from read to write. Both halves of
 /// the SQLite behaviour are pinned. The fault: a deferred transaction
 /// that has read, a write committed beside it, then its own write,
@@ -1411,41 +1214,96 @@ fn a_writer_beside_the_ingest_makes_it_wait_never_fail_its_upgrade() {
     );
 }
 
-/// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4): the
-/// version is read before anything is written. A facts file in
-/// rollback-journal mode stamped newer than this build is refused
-/// exactly as found: its journal mode still `delete` after, no `-wal`
-/// beside it — where `ensure_wal` used to run before the gate and
-/// would have rewritten the header of a file this build may not touch.
+/// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4) and C124:
+/// the version is read before anything is written. A facts file in
+/// rollback-journal mode that this build refuses is refused exactly as
+/// found — its bytes the same, its journal mode still `delete`, no `-wal`
+/// beside it: one stamped newer, one older than the released format
+/// (facts 8, below which only development builds wrote), and one stamped
+/// 0 that holds tables (a file from before versioning, or a foreign one),
+/// each in its words and with its remedy. The control: an empty file is
+/// created at this build's version with every index.
 #[test]
-fn a_newer_file_is_refused_before_its_journal_mode_is_touched() {
+fn a_file_this_build_refuses_is_refused_before_its_journal_mode_is_touched() {
     let temp = tempfile::tempdir().unwrap();
-    let path = temp.path().join("facts.db");
-    {
-        let raw = Connection::open(&path).unwrap();
-        raw.execute_batch("CREATE TABLE future (x); PRAGMA user_version = 99;")
+    for (stamp, says) in [
+        (99, "newer than this build's v9"),
+        (7, "older than the released format v8"),
+        (5, "older than the released format v8"),
+        (1, "older than the released format v8"),
+        (0, "has content but no schema version"),
+    ] {
+        let path = temp.path().join(format!("v{stamp}.db"));
+        {
+            let raw = Connection::open(&path).unwrap();
+            raw.execute_batch(&format!(
+                "CREATE TABLE tabs (id TEXT); PRAGMA user_version = {stamp};"
+            ))
             .unwrap();
+            let mode: String = raw
+                .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(mode, "delete", "staged in rollback-journal mode");
+        }
+        let before = file_hash(&path);
+        let refused = Store::open(&path).map(drop).unwrap_err();
+        match stamp {
+            99 => assert_eq!(
+                refused.downcast_ref::<SchemaTooNew>(),
+                Some(&SchemaTooNew {
+                    found: 99,
+                    supported: FACT_SCHEMA_VERSION
+                })
+            ),
+            found => {
+                assert_eq!(
+                    refused.downcast_ref::<SchemaTooOld>(),
+                    Some(&SchemaTooOld { found })
+                );
+                assert!(
+                    refused.to_string().contains(FACTS_BELOW_FLOOR_REMEDY),
+                    "{refused}"
+                );
+            }
+        }
+        assert!(refused.to_string().contains(says), "v{stamp}: {refused}");
+        assert_eq!(
+            file_hash(&path),
+            before,
+            "the refused v{stamp} file changed"
+        );
+        let raw = Connection::open(&path).unwrap();
         let mode: String = raw
             .query_row("PRAGMA journal_mode", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(mode, "delete", "staged in rollback-journal mode");
+        assert_eq!(mode, "delete", "the refused file keeps its journal mode");
+        assert!(
+            !path.with_extension("db-wal").exists(),
+            "no WAL side file was written beside a refused file"
+        );
     }
-    let refused = Store::open(&path).map(drop).unwrap_err();
-    assert_eq!(
-        refused.downcast_ref::<SchemaTooNew>(),
-        Some(&SchemaTooNew {
-            found: 99,
-            supported: FACT_SCHEMA_VERSION
-        })
-    );
-    let raw = Connection::open(&path).unwrap();
-    let mode: String = raw
-        .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+    let empty = temp.path().join("empty.db");
+    std::fs::write(&empty, b"").unwrap();
+    let s = Store::open(&empty).unwrap();
+    assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
+    let mut stmt = s
+        .conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'items' AND name NOT LIKE 'sqlite_%' ORDER BY name")
         .unwrap();
-    assert_eq!(mode, "delete", "the refused file keeps its journal mode");
-    assert!(
-        !path.with_extension("db-wal").exists(),
-        "no WAL side file was written beside a refused file"
+    let indexes: Vec<String> = stmt
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(
+        indexes,
+        [
+            "items_live",
+            "items_live_at",
+            "items_location",
+            "items_removed",
+            "items_socketed_in"
+        ]
     );
 }
 
@@ -2408,41 +2266,6 @@ fn a_withheld_fetch_is_marked_counted_exactly_and_still_validated() {
     assert_eq!(s.status().unwrap().responses, responses_before);
 }
 
-/// A v5 file's `withheld` (NOT NULL DEFAULT 0) is rebuilt nullable:
-/// a positive count stays a withheld mark, 0 becomes an ordinary
-/// response (v5 could not tell an empty withheld fetch apart).
-#[test]
-fn a_v5_withheld_column_is_rebuilt_nullable() {
-    let temp = tempfile::tempdir().unwrap();
-    let dir = temp.path().to_path_buf();
-    let path = dir.join("v5.db");
-    {
-        let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(
-                "CREATE TABLE responses (id INTEGER PRIMARY KEY, endpoint TEXT NOT NULL, params TEXT NOT NULL,
-                    fetched_at INTEGER NOT NULL, status INTEGER NOT NULL, envelope TEXT NOT NULL, item_count INTEGER NOT NULL,
-                    withheld INTEGER NOT NULL DEFAULT 0);
-                 INSERT INTO responses (endpoint, params, fetched_at, status, envelope, item_count, withheld)
-                 VALUES ('stash', '{}', 1, 200, '{}', 0, 2), ('stash', '{}', 2, 200, '{}', 3, 0);
-                 PRAGMA user_version = 5;",
-            )
-            .unwrap();
-    }
-    let s = Store::open(&path).unwrap();
-    let rows: Vec<Option<i64>> = {
-        let mut stmt = s
-            .conn
-            .prepare("SELECT withheld FROM responses ORDER BY id")
-            .unwrap();
-        let rows = stmt.query_map([], |r| r.get(0)).unwrap();
-        rows.collect::<Result<_, _>>().unwrap()
-    };
-    assert_eq!(rows, vec![Some(2), None]);
-    let st = s.status().unwrap();
-    assert_eq!((st.withheld_responses, st.withheld_items), (1, 2));
-    drop(s);
-}
-
 /// The bytes of a file, hashed: what "left as it was found" is judged by.
 fn file_hash(path: &Path) -> Vec<u8> {
     use sha2::Digest;
@@ -2450,13 +2273,14 @@ fn file_hash(path: &Path) -> Vec<u8> {
 }
 
 /// C124 (a read never migrates): a file one version behind (a v8
-/// file, without the v9 live indexes) and one a version ahead are
-/// each refused by the read-only door with `SchemaNotCurrent`, in
-/// words that name both versions and the remedy, and the file's bytes
-/// are the same after the attempt. The control: `Store::open` on the
-/// behind file migrates it and its hash moves, so an unchanged hash
-/// is the door's doing and not a hash blind to a migration. A missing
-/// file is refused and not created.
+/// file, without the v9 live indexes), one below the released format
+/// (v7) and one a version ahead are each refused by the read-only door
+/// with `SchemaNotCurrent`, in words that name both versions and the
+/// remedy — to migrate from the floor, to move the file aside below it —
+/// and the file's bytes are the same after the attempt. The control:
+/// `Store::open` on the v8 file migrates it and its hash moves, so an
+/// unchanged hash is the door's doing and not a hash blind to a
+/// migration. A missing file is refused and not created.
 #[test]
 fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
     let temp = tempfile::tempdir().unwrap();
@@ -2464,12 +2288,14 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
     let missing = dir.join("missing.db");
     assert!(Store::open_read_only(&missing).is_err());
     assert!(!missing.exists(), "a read-only open created the file");
-    for (stamp, ddl) in [
+    for (stamp, ddl, remedy) in [
         (
             FACT_SCHEMA_VERSION - 1,
             "DROP INDEX items_live; DROP INDEX items_live_at;",
+            MIGRATE_REMEDY,
         ),
-        (FACT_SCHEMA_VERSION + 1, ""),
+        (7, "", FACTS_BELOW_FLOOR_REMEDY),
+        (FACT_SCHEMA_VERSION + 1, "", MIGRATE_REMEDY),
     ] {
         let path = dir.join(format!("v{stamp}.db"));
         drop(Store::open(&path).unwrap());
@@ -2486,7 +2312,7 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
                 file: "the facts file",
                 found: stamp,
                 supported: FACT_SCHEMA_VERSION,
-                remedy: MIGRATE_REMEDY,
+                remedy,
             })
         );
         let text = format!("{err:#}");
@@ -2495,18 +2321,18 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
                 && text.contains(&format!("this build's version {FACT_SCHEMA_VERSION}")),
             "{text}"
         );
-        let remedy = if stamp < FACT_SCHEMA_VERSION {
-            "open it with `acq` once to migrate, or use the build that wrote it"
-        } else {
-            "use the build that wrote it"
+        let says = match stamp {
+            7 => FACTS_BELOW_FLOOR_REMEDY,
+            8 => "open it with `acq` once to migrate, or use the build that wrote it",
+            _ => "use the build that wrote it",
         };
-        assert!(text.contains(remedy), "{text}");
+        assert!(text.contains(says), "{text}");
         assert_eq!(
             file_hash(&path),
             before,
             "the refused v{stamp} file changed"
         );
-        if stamp < FACT_SCHEMA_VERSION {
+        if stamp == FACT_SCHEMA_VERSION - 1 {
             drop(Store::open(&path).unwrap());
             assert_ne!(
                 file_hash(&path),

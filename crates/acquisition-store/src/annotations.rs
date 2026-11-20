@@ -69,8 +69,9 @@
 //!   exactly what was read — the first differing path is named — which
 //!   closes the holes serde leaves open (`null` for an absent field, an
 //!   empty list for "none", an extra field beside a unit variant's tag). A
-//!   value stamped older is upgraded in memory by the kind's parse and
-//!   stored as written. [`Annotations::put`] runs the generic before the
+//!   value stamped older goes to the kind's parse, which refuses one below
+//!   the kind's floor with its remedy (C66; every kind's floor is its
+//!   version today). [`Annotations::put`] runs the generic before the
 //!   compare-and-swap, so there is no untyped write door: the store crate
 //!   itself cannot land a value its kind refuses.
 //!   [`IntentValue::check_write`] holds the writer's rules — the first is
@@ -338,7 +339,8 @@ impl Provenance {
 ///
 /// `parse` receives a value whose integer `version` is at most
 /// [`IntentValue::VERSION`] and returns the in-memory form: for the
-/// current version, exactly what was read; for an older one, the upgrade.
+/// current version, exactly what was read; an older one below the kind's
+/// floor it refuses with its remedy (C66).
 /// The wire structs behind it carry `deny_unknown_fields` at every depth,
 /// so a typo is a structured error, never intent half-honored. `Serialize`
 /// must produce the current wire shape, since a current-schema value is
@@ -1037,7 +1039,7 @@ impl Annotations {
     /// gate, `K`'s strict parse, the exact round-trip for a current-schema
     /// value — and a value that fails never lands
     /// ([`AnnotationError::Invalid`]); what lands is `value` as given,
-    /// never a re-serialization, so an older stamp stays stored as written.
+    /// never a re-serialization.
     ///
     /// `expected_revision` is what the caller last read: `None` creates
     /// (fails if the annotation currently exists), `Some(r)` updates (fails
@@ -1275,7 +1277,7 @@ impl Annotations {
 
     /// The stored row of kind `K` and its typed value (C66): the same
     /// generic as the write door, so a row a newer build wrote is reported
-    /// as such and an older stamp upgrades in memory. A stored row that
+    /// as such and an older stamp is the kind's parse to refuse. A stored row that
     /// fails is an error, never "no such annotation".
     pub fn get_as<K: IntentValue>(
         &self,

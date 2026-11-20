@@ -57,8 +57,8 @@ fn policy(value: Value) -> SyncPolicy {
 
 fn all_policy_value(max_age_seconds: u32) -> Value {
     json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": "all", "max_age_seconds": max_age_seconds } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": max_age_seconds } } } }
     })
 }
 
@@ -102,14 +102,12 @@ fn plan(s: &Store, policy: &Value, now: i64) -> RefreshPlan {
 fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
     // The valid shapes: "all" and an explicit id list.
     let p = policy(json!({
-        "version": 1,
-        "leagues": {
+        "version": 3,
+        "realms": { "pc": { "leagues": {
             "Standard": { "tabs": "all", "max_age_seconds": 3600 },
             "Hardcore": { "tabs": ["t1", "s1"], "max_age_seconds": 60 },
-        }
+        } } }
     }));
-    // A v1 policy reads as v2 on realm pc — the only realm it could
-    // have meant — while the stored value stays what was written.
     assert_eq!(p.version, SYNC_POLICY_VERSION);
     let pc = &p.realms[&Realm::Pc].leagues;
     assert_eq!(pc["Standard"].tabs, Some(Selection::All));
@@ -117,9 +115,9 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
         pc["Hardcore"].tabs,
         Some(Selection::Ids(vec!["t1".into(), "s1".into()]))
     );
-    // The v2 shape: leagues under realms.
+    // Leagues under each realm.
     let v2 = policy(json!({
-        "version": 2,
+        "version": 3,
         "realms": {
             "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 3600 } } },
             "xbox": { "leagues": { "Standard": { "tabs": ["x1"], "max_age_seconds": 60 } } },
@@ -132,20 +130,19 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
     // Tabs under poe2 name a URL shape the stash endpoints do not
     // have (PoE1 only): a parse error, never a request.
     let err = SyncPolicy::from_value(&json!({
-            "version": 2,
+            "version": 3,
             "realms": { "poe2": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } }
         }))
         .unwrap_err();
     assert!(err.to_string().contains("poe2"), "{err}");
-    // An unknown realm key, a v1 stamp on a v2 body, and a stray
-    // top-level field under either stamp are all malformed — the
-    // strict parse is per stamped shape, top level included.
+    // An unknown realm key, leagues outside a realm, and a stray
+    // top-level field are all malformed — the strict parse holds the
+    // top level too.
     for bad in [
-        json!({ "version": 2, "realms": { "ps5": { "leagues": {} } } }),
-        json!({ "version": 1, "realms": { "pc": { "leagues": {} } } }),
-        json!({ "version": 2, "leagues": {} }),
-        json!({ "version": 1, "leagues": {}, "typo": true }),
-        json!({ "version": 2, "realms": {}, "leagues": {} }),
+        json!({ "version": 3, "realms": { "ps5": { "leagues": {} } } }),
+        json!({ "version": 3, "leagues": {} }),
+        json!({ "version": 3, "realms": {}, "typo": true }),
+        json!({ "version": 3, "realms": {}, "leagues": {} }),
     ] {
         let err = SyncPolicy::from_value(&bad).unwrap_err();
         assert!(
@@ -156,20 +153,35 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
     // A typo'd field is malformed, never silently ignored — the policy
     // is intent, and intent that half-parses is worse than an error.
     let err = SyncPolicy::from_value(&json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } } }
     }))
     .unwrap_err();
     assert!(matches!(err, PlanError::MalformedPolicy { .. }), "{err}");
     // So is a selection word that isn't "all", and a missing version.
     let err = SyncPolicy::from_value(&json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": "everything", "max_age_seconds": 60 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": "everything", "max_age_seconds": 60 } } } }
     }))
     .unwrap_err();
     assert!(matches!(err, PlanError::MalformedPolicy { .. }), "{err}");
     let err = SyncPolicy::from_value(&json!({ "leagues": {} })).unwrap_err();
     assert!(matches!(err, PlanError::MalformedPolicy { .. }), "{err}");
+    // An older version, which only development builds wrote, is refused
+    // with its remedy, whatever its shape: never upgraded (C66).
+    for older in [
+        json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } }),
+        json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": {
+            "tabs": "all", "max_age_seconds": 60 } } } } }),
+    ] {
+        let err = SyncPolicy::from_value(&older).unwrap_err();
+        assert!(
+            matches!(&err, PlanError::MalformedPolicy { detail }
+                if detail.contains("older than this build's v3")
+                    && detail.contains("write the whole policy again")),
+            "{older}: {err}"
+        );
+    }
     // A newer version is refused as such — checked before the shape,
     // so a v3 policy with v3 fields is not misreported as a typo.
     let err = SyncPolicy::from_value(&json!({
@@ -185,8 +197,7 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
             supported: 3
         }
     );
-    // The policy round-trips (in its v2 form): what a frontend writes
-    // is inspectable.
+    // The policy round-trips: what a frontend writes is inspectable.
     let back: SyncPolicy = serde_json::from_value(serde_json::to_value(&p).unwrap()).unwrap();
     assert_eq!(back, p);
 }
@@ -195,11 +206,11 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
 /// re-serialize to exactly what was read, so the spellings the parse
 /// normalizes away (`tabs: []` beside a facet that names work,
 /// `characters: null`) are refused naming the path, never stored as a
-/// second spelling of one intent; older stamps upgrade in memory and
-/// are not held to it. The owner's stored row (2026-09-05: both
-/// facets, an id list, v3) is canonical and unaffected.
+/// second spelling of one intent; an older stamp is refused and never
+/// lands. The owner's stored row (2026-09-05: both facets, an id list,
+/// v3) is canonical and unaffected.
 #[test]
-fn c66_a_current_schema_policy_must_be_canonical_and_older_ones_upgrade() {
+fn c66_a_current_schema_policy_must_be_canonical_and_older_ones_are_refused() {
     let canonical = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": {
             "characters": "all", "max_age_seconds": 3600, "tabs": ["5ba2e1880a", "421496994e"]
         } } } } });
@@ -227,19 +238,13 @@ fn c66_a_current_schema_policy_must_be_canonical_and_older_ones_upgrade() {
         assert!(put_sync_policy(&mut a, &bad, None, PolicyWrite::Replace, &via_test()).is_err());
         assert!(a.get("account", "", SYNC_POLICY_KIND).unwrap().is_none());
     }
-    // A v2 value upgrades (characters: none) and is stored as written.
+    // A v2 value is refused at the write door, and nothing lands.
     let v2 = json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": {
             "tabs": "all", "max_age_seconds": 60 } } } } });
     let mut a = Annotations::open_memory_for("u-1").unwrap();
-    let row = put_sync_policy(&mut a, &v2, None, PolicyWrite::Replace, &via_test()).unwrap();
-    assert_eq!(row.value, v2);
-    let (_, typed) = a.get_as::<SyncPolicy>("account", "").unwrap().unwrap();
-    assert_eq!(typed.version, SYNC_POLICY_VERSION);
-    assert!(
-        typed.realms[&Realm::Pc].leagues["Standard"]
-            .characters
-            .is_none()
-    );
+    let err = put_sync_policy(&mut a, &v2, None, PolicyWrite::Replace, &via_test()).unwrap_err();
+    assert!(matches!(err, PutPolicyError::Invalid(_)), "{err}");
+    assert!(a.get("account", "", SYNC_POLICY_KIND).unwrap().is_none());
 }
 
 #[test]
@@ -250,8 +255,8 @@ fn no_policy_and_uncovered_league_are_distinct_structured_errors() {
     assert_eq!(err, PlanError::NoSyncPolicy);
     // A policy that does not name the league authorizes nothing there.
     let hc_only = json!({
-        "version": 1,
-        "leagues": { "Hardcore": { "tabs": "all", "max_age_seconds": 60 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Hardcore": { "tabs": "all", "max_age_seconds": 60 } } } }
     });
     let err = plan_refresh("mock", &snapshot_with(&s, &hc_only), 1000).unwrap_err();
     assert_eq!(
@@ -265,7 +270,7 @@ fn no_policy_and_uncovered_league_are_distinct_structured_errors() {
     // Coverage is per (realm, league): Standard on xbox does not cover
     // Standard on pc.
     let xbox_only = json!({
-        "version": 2,
+        "version": 3,
         "realms": { "xbox": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } }
     });
     let err = plan_refresh("mock", &snapshot_with(&s, &xbox_only), 1000).unwrap_err();
@@ -364,7 +369,7 @@ fn fresh_facts_compile_to_an_empty_plan_that_still_cites_its_basis() {
     );
     let row = store_policy(
         &mut a,
-        &json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 3600 } } }),
+        &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 3600 } } } } }),
     );
     let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
     let plan = plan_refresh("mock", &snap, 1100).unwrap();
@@ -612,8 +617,8 @@ fn corrupt_store_timestamps_read_as_stale_never_panic_or_wrap() {
 
 fn ids_policy_value(ids: &[&str], max_age_seconds: u32) -> Value {
     json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": ids, "max_age_seconds": max_age_seconds } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": ids, "max_age_seconds": max_age_seconds } } } }
     })
 }
 
@@ -823,8 +828,8 @@ fn ids_the_facts_do_not_know_are_reported_never_invented() {
         1000,
     );
     let p = json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": ["t1", "ghost"], "max_age_seconds": 3600 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": ["t1", "ghost"], "max_age_seconds": 3600 } } } }
     });
     let plan = plan(&s, &p, 1100);
     // The known tab gets its action; the vanished (or mistyped) id is
@@ -949,8 +954,8 @@ fn the_plan_round_trips_through_serde_unchanged() {
         1000,
     );
     let p = json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": ["t1", "f1", "c1", "ghost"], "max_age_seconds": 60 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": ["t1", "f1", "c1", "ghost"], "max_age_seconds": 60 } } } }
     });
     let plan = plan(&s, &p, 5000);
     // A plan crosses sockets and lands in journals; serialization is
@@ -1179,8 +1184,8 @@ fn put_sync_policy_validates_before_it_stores_and_is_a_cas() {
     // A typo'd value is refused by the strict parse and nothing lands:
     // intent is never half-honored, on any frontend's write surface.
     let typo = json!({
-        "version": 1,
-        "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } }
+        "version": 3,
+        "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } } }
     });
     let err = put_sync_policy(&mut a, &typo, None, PolicyWrite::Replace, &via_test()).unwrap_err();
     assert!(matches!(err, PutPolicyError::Invalid(_)), "{err}");
@@ -2073,7 +2078,7 @@ fn a_plan_is_for_one_realm_and_its_tuples_say_which() {
         )
         .unwrap();
     let policy = json!({
-        "version": 2,
+        "version": 3,
         "realms": { "xbox": { "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } } }
     });
     let mut a = Annotations::open_memory_for("u-1").unwrap();
@@ -2327,9 +2332,6 @@ fn policy_v3_covers_per_facet_and_refuses_an_entry_that_names_no_work() {
             .is_none()
     );
     assert_eq!(serde_json::from_value::<SyncPolicy>(json).unwrap(), p);
-    // v1 and v2 upgrade to tab coverage plus no character coverage.
-    let v1 = policy(all_policy_value(60));
-    assert_eq!(v1.realms[&Realm::Pc].leagues["Standard"].characters, None);
     // Malformed shapes, each a structured error and never half-honored.
     for (bad, why) in [
         // Tabs under poe2 name a URL shape the stash endpoints lack,
@@ -2343,8 +2345,7 @@ fn policy_v3_covers_per_facet_and_refuses_an_entry_that_names_no_work() {
             "poe2",
         ),
         // Names no work: neither facet, both empty, one empty and the
-        // other absent — judged after normalization; and a v2 entry
-        // with an empty list is the same declaration.
+        // other absent — judged after normalization.
         (
             json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "max_age_seconds": 60 } } } } }),
             "names no work",
@@ -2357,12 +2358,8 @@ fn policy_v3_covers_per_facet_and_refuses_an_entry_that_names_no_work() {
             json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "tabs": [], "max_age_seconds": 60 } } } } }),
             "names no work",
         ),
-        (
-            json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": { "tabs": [], "max_age_seconds": 60 } } } } }),
-            "names no work",
-        ),
-        // A selection word other than "all", a stray field in the
-        // entry, and `characters` on a v2 stamp (unknown there).
+        // A selection word other than "all", and a stray field in the
+        // entry.
         (
             json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "characters": "everything", "max_age_seconds": 60 } } } } }),
             "everything",
@@ -2370,10 +2367,6 @@ fn policy_v3_covers_per_facet_and_refuses_an_entry_that_names_no_work() {
         (
             json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": { "characters": "all", "max_age_secs": 60 } } } } }),
             "max_age_secs",
-        ),
-        (
-            json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": { "tabs": "all", "characters": "all", "max_age_seconds": 60 } } } } }),
-            "characters",
         ),
     ] {
         let err = SyncPolicy::from_value(&bad).unwrap_err();

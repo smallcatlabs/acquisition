@@ -429,9 +429,8 @@ fn stash_basis(
         .optional()?)
 }
 
-/// The character list is per realm; the same query the v4 migration's
-/// membership re-stamp uses, so the basis cited here is the one the rows
-/// are stamped to.
+/// The character list is per realm: the latest listing response, the
+/// one the rows are stamped to.
 fn character_basis(tx: &rusqlite::Transaction, realm: &str) -> Result<Option<ListingBasis>> {
     Ok(tx
         .query_row(

@@ -27,15 +27,13 @@ use acquisition_plan::{RefreshAction, RefreshPlan};
 use harness::Mcp;
 use serde_json::{Value, json};
 
-const POLICY: &str =
-    r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}"#;
+const POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
 
 /// A valid policy whose one id the facts lack (reported as unknown, never
 /// fetched): the replan against it is an empty plan, which is how the
 /// no-op branch gets exercised with no daemon. (An empty id list is not a
 /// policy — it names no work and is refused since policy v3.)
-const EMPTY_POLICY: &str =
-    r#"{"version":1,"leagues":{"Standard":{"tabs":["no-such-tab"],"max_age_seconds":3600}}}"#;
+const EMPTY_POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["no-such-tab"],"max_age_seconds":3600}}}}}"#;
 
 /// Extract and re-validate the envelope a `refresh_plan` call returned:
 /// what crosses the MCP boundary must be the planner's own self-validating

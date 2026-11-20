@@ -56,19 +56,16 @@
 //! and only when the uuid lands is the session registered, the keyring
 //! written, and the index updated — a login whose profile fetch fails
 //! **fails whole**. A rename (same uuid, new username) is a mapping update.
-//! Facts carry **realm** beside league (schema v3, 2026-09-02 — PoE2
-//! shares league names with PoE1): `tabs` is keyed `(realm, league, id)`,
-//! characters and items carry the *request's* realm (never a body's
-//! field), a listing retires only its own realm's rows, and a pre-realm
-//! file is rebuilt in place as pc. **Characters are keyed by the GGG
-//! character `id`** (facts v4, 2026-09-02): the name is the address the
+//! Facts carry **realm** beside league (PoE2 shares league names with
+//! PoE1): `tabs` is keyed `(realm, league, id)`, characters and items
+//! carry the *request's* realm (never a body's field), and a listing
+//! retires only its own realm's rows. **Characters are keyed by the GGG
+//! character `id`**: the name is the address the
 //! fetch takes and can move, a rename keeps the row and its items, a
 //! deleted-and-recreated name is a new row, `league` is what the basis
 //! listing said (a fetch never overwrites it), and membership is stamped
-//! per listing response and retired per realm exactly as tabs are. A
-//! pre-v4 file rekeys through each row's json (a row without an id is
-//! dropped, its items retired) and moves item locations from the name to
-//! the id. Every item row records the **array it came from**
+//! per listing response and retired per realm exactly as tabs are. Every
+//! item row records the **array it came from**
 //! (`container`: `items` for a stash; a character's `inventory`,
 //! `equipment`, `jewels`, `rucksack`, `guardian`, `wickerman`, or
 //! `skills`) — an
@@ -124,16 +121,14 @@
 //! job: the daemon's `record` classifies the store's verdict, so a
 //! malformed response is `Outcome::Failure`, and so is genuine
 //! persistence trouble, keeping the fetched body as the failure's payload
-//! (C144, the daemon reports no success it did not earn). `acq store import` keeps the
-//! legacy tolerance at its own boundary (id-less snapshot items are
-//! skipped and counted, never ingested silently). Both store files carry
-//! schema versions: a newer file is refused, and migrations run
+//! (C144, the daemon reports no success it did not earn). Both store
+//! files carry schema versions: a newer file is refused, a facts file
+//! older than the released format is refused with its remedy (C124), and
+//! creation and the one migration, from the released format, run
 //! serialized so two openers cannot interleave them.
 //! Each ingest compares with what was known and writes
 //! `item_events` (added/moved/changed/removed; `veiledMods` ignored, N36).
-//! Its tests are the spec; `acq store import <snapshot>` replays a
-//! retired-`acq pull` snapshot through it with no GGG traffic (19,210 rows
-//! in ~2.3 s). `daemon.db` in the same directory is the **persisted job
+//! Its tests are the spec. `daemon.db` in the same directory is the **persisted job
 //! queue** (`jobs.rs`): the daemon mirrors every job there at each state
 //! change and takes the open ones back when it starts, so the queue
 //! survives an idle exit, `daemon stop`, a version respawn, or a crash.
@@ -180,18 +175,10 @@
 //!     the character's own `equipment` to its `guardian` has
 //!     byte-identical json (`inventoryId` `Helm`, x/y 0), so "moving
 //!     between arrays is a `changed` event" needs the column in the
-//!     comparison, not only the json. A pre-v4 character item has no
-//!     container on record (NULL — the value is not in the json, so no
-//!     migration can recompute it); the first fetch after the migration
-//!     sets it without an event.
-//!   - **Facts v4 migration**: `characters` is rebuilt keyed by `id`,
-//!     taken from each row's json (list entries and fetched bodies both
-//!     carry it); a row whose json lacks an id is dropped and its items
-//!     retired (facts are refetchable); item locations move from
-//!     `character/<name>` to `character/<id>` through the same json, so
-//!     the first post-migration fetch produces no false `moved` events;
-//!     `item_events` history keeps its old location strings (history is
-//!     history). Stash items get container `items`.
+//!     comparison, not only the json. A character item may have no
+//!     container on record (NULL, a released file's row from before the
+//!     column, whose value is not in the json); the next fetch sets it
+//!     without an event.
 //!   - **Listing entries need `id` and `name`** (both documented
 //!     required): `id` is the identity that makes retirement safe, `name`
 //!     the address a plan renders; a fetched body without `id` is
@@ -258,28 +245,21 @@ const SCHEMA: &str = include_str!("schema.sql");
 
 /// The fact-file schema this build reads and writes; a file stamped newer
 /// is refused (C48: schema versions and compatibility errors, never
-/// guessing). Version 2 added `tabs.listed_json` / `tabs.listed_response`;
-/// version 3 added `realm` (the coordinate above league, 2026-09-02) to
-/// `tabs` (rekeyed `(realm, league, id)` — the table is rebuilt, every
-/// existing row as pc), `characters`, and `items`; version 4 (same day)
-/// rekeyed `characters` by the GGG `id` (rebuilt through each row's json;
-/// item locations move from the name to the id), added the listing
-/// columns to characters, `items.container`, and `items.seen_response`;
-/// version 5 (same day) added `responses.withheld` as a count, and
-/// version 6 (same day) made it nullable — NULL is "not withheld", so an
-/// empty withheld fetch is still marked; version 7 (same day) added the
-/// `refused` table — a body `record` refuses as malformed is kept there
-/// verbatim, as evidence, in a table no basis query reads; version 8
-/// (2026-10-10; B4, `search/LEDGER.md`) dropped the `items_names` index,
-/// which no query used once the substring search retired and none had
-/// used before (S124, S136), and added `items_removed`, a partial index
-/// on `removed_at`, for the search read's list of what it left out;
-/// version 9 (2026-10-20, roadmap 0a) added `items_live` and
+/// guessing). Version 9 (roadmap 0a) added `items_live` and
 /// `items_live_at`, partial indexes on where the live items sit, so a
-/// store's removed rows stop costing its live reads. 0 is both
-/// "fresh file" and "pre-versioning file" — the DDL and column checks are
-/// idempotent, so one migration path serves both.
+/// store's removed rows stop costing its live reads.
 const FACT_SCHEMA_VERSION: i64 = 9;
+
+/// The oldest fact file this build opens: the released format,
+/// v1.0.0-alpha.1's. An older file was written by a development build and
+/// is refused, never migrated (C124); facts are refetchable (C35).
+const FACT_SCHEMA_FLOOR: i64 = 8;
+
+/// The remedy for a fact file below `FACT_SCHEMA_FLOOR`, one for both
+/// doors, so the read-only door and the writing door say the same.
+pub const FACTS_BELOW_FLOOR_REMEDY: &str = "a development build wrote it, and facts are \
+     refetchable: with no Acquisition process running, delete it and its -wal and -shm files, \
+     and the next refresh fetches the account again";
 
 /// The live items by where they sit (facts v9): every read of the live
 /// names `removed_at IS NULL`, and a store's removed items grow with its
@@ -314,6 +294,32 @@ impl std::fmt::Display for SchemaTooNew {
 
 impl std::error::Error for SchemaTooNew {}
 
+/// A facts file older than the released format (below
+/// `FACT_SCHEMA_FLOOR`), or one stamped 0 that holds tables: refused
+/// as found, never migrated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SchemaTooOld {
+    pub found: i64,
+}
+
+impl std::fmt::Display for SchemaTooOld {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.found {
+            0 => write!(
+                f,
+                "facts file has content but no schema version: {FACTS_BELOW_FLOOR_REMEDY}"
+            ),
+            found => write!(
+                f,
+                "facts file uses schema v{found}, older than the released format v{FACT_SCHEMA_FLOOR}: \
+                 {FACTS_BELOW_FLOOR_REMEDY}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SchemaTooOld {}
+
 /// C124 (a read never migrates): a read-only open met a file stamped at
 /// another schema version than this build's — older, newer, or none.
 /// Nothing was written to it. `file` names which file as a user knows it,
@@ -322,8 +328,9 @@ impl std::error::Error for SchemaTooNew {}
 /// `remedy` is the next step for an older file, chosen by the door that
 /// opened it, since only that door knows which of its older versions its
 /// writing open migrates and which it refuses; the facts door passes
-/// [`MIGRATE_REMEDY`]. A newer or unstamped file has one remedy whichever
-/// door met it.
+/// [`MIGRATE_REMEDY`] from its floor and [`FACTS_BELOW_FLOOR_REMEDY`]
+/// below it. A newer or unstamped file has one remedy whichever door met
+/// it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SchemaNotCurrent {
     pub file: &'static str,
@@ -1401,7 +1408,10 @@ impl Store {
                 file: "the facts file",
                 found,
                 supported: FACT_SCHEMA_VERSION,
-                remedy: MIGRATE_REMEDY,
+                remedy: match found < FACT_SCHEMA_FLOOR {
+                    true => FACTS_BELOW_FLOOR_REMEDY,
+                    false => MIGRATE_REMEDY,
+                },
             })
             .context(format!("{} was not opened", path.display())));
         }
@@ -1428,11 +1438,15 @@ impl Store {
         // write lock, so a reader never waits behind an ingest or blocks
         // the daemon (0a). Anything else goes on to the lock below, which
         // reads it again.
-        let found: i64 = {
+        // A stamp below the floor, or 0 beside tables (a file from before
+        // versioning, or a foreign one), is refused here too, as found;
+        // both facts from one snapshot, as the annotation file reads them.
+        let (found, tables): (i64, bool) = {
             let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
             let found = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+            let tables = found == 0 && has_tables(&gate)?;
             gate.rollback()?;
-            found
+            (found, tables)
         };
         if found > FACT_SCHEMA_VERSION {
             return Err(SchemaTooNew {
@@ -1441,19 +1455,18 @@ impl Store {
             }
             .into());
         }
+        if found < FACT_SCHEMA_FLOOR && (found != 0 || tables) {
+            return Err(SchemaTooOld { found }.into());
+        }
         // WAL: the daemon writes while any number of frontends read.
         ensure_wal(&conn, store_wait())?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         if found == FACT_SCHEMA_VERSION {
             return Ok(Store { conn, path });
         }
-        // Discovery and migration serialize under one immediate
-        // transaction: two processes opening the same legacy file must not
-        // both run the ALTERs (the loser would fail on a duplicate
-        // column); the loser waits here and then reads the stamped
-        // version. Facts are refetchable, but a live store is not
-        // discarded over a new column: pre-version files get them added in
-        // place.
+        // Creation and the one migration, from the released format,
+        // serialize under one immediate transaction: two processes opening
+        // one file wait here, and the loser reads the winner's stamp.
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let found: i64 = tx.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         match found {
@@ -1465,142 +1478,14 @@ impl Store {
                 .into());
             }
             FACT_SCHEMA_VERSION => {}
+            // Tables landed between the gate and the lock with no stamp:
+            // a foreign writer, refused here.
+            0 if has_tables(&tx)? => return Err(SchemaTooOld { found: 0 }.into()),
+            v if v != 0 && v < FACT_SCHEMA_FLOOR => return Err(SchemaTooOld { found: v }.into()),
+            // A fresh file, or v8 to v9: the DDL is idempotent, and v9's
+            // indexes come after it.
             _ => {
                 tx.execute_batch(SCHEMA)?;
-                for (table, column, ddl) in [
-                    (
-                        "tabs",
-                        "listed_json",
-                        "ALTER TABLE tabs ADD COLUMN listed_json TEXT",
-                    ),
-                    (
-                        "tabs",
-                        "listed_response",
-                        "ALTER TABLE tabs ADD COLUMN listed_response INTEGER",
-                    ),
-                    // v3: realm, the coordinate above league. Existing
-                    // rows are pc — the only realm anything ever fetched.
-                    (
-                        "items",
-                        "realm",
-                        "ALTER TABLE items ADD COLUMN realm TEXT NOT NULL DEFAULT 'pc'",
-                    ),
-                    (
-                        "characters",
-                        "realm",
-                        "ALTER TABLE characters ADD COLUMN realm TEXT NOT NULL DEFAULT 'pc'",
-                    ),
-                    // v4: the array an item came from — not in its json,
-                    // so pre-v4 character items stay NULL; stash items
-                    // are backfilled below (theirs is always `items`).
-                    (
-                        "items",
-                        "container",
-                        "ALTER TABLE items ADD COLUMN container TEXT",
-                    ),
-                    // v4: item membership per response, like listings —
-                    // a pre-v4 row (NULL) counts as unseen by any later
-                    // fetch of its location, which is exactly right.
-                    (
-                        "items",
-                        "seen_response",
-                        "ALTER TABLE items ADD COLUMN seen_response INTEGER",
-                    ),
-                    // v6: a withheld fetch's count on its response row,
-                    // NULL for an ordinary response.
-                    (
-                        "responses",
-                        "withheld",
-                        "ALTER TABLE responses ADD COLUMN withheld INTEGER",
-                    ),
-                ] {
-                    if !has_column(&tx, table, column)? {
-                        tx.execute(ddl, [])?;
-                    }
-                }
-                // A v5 file has the column NOT NULL DEFAULT 0, where 0 meant
-                // both "not withheld" and "withheld, empty": rebuild it as
-                // nullable, reading a positive count as withheld and 0 as
-                // ordinary (v5 could not tell an empty withheld fetch
-                // apart, so that information is gone; it never lived past
-                // this branch's own day).
-                let v5_not_null: bool = tx.query_row(
-                    "SELECT \"notnull\" FROM pragma_table_info('responses') WHERE name = 'withheld'",
-                    [],
-                    |r| r.get::<_, i64>(0).map(|n| n != 0),
-                )?;
-                if v5_not_null {
-                    tx.execute_batch(
-                        "ALTER TABLE responses RENAME COLUMN withheld TO withheld_v5;
-                         ALTER TABLE responses ADD COLUMN withheld INTEGER;
-                         UPDATE responses SET withheld = CASE WHEN withheld_v5 > 0 THEN withheld_v5 END;
-                         ALTER TABLE responses DROP COLUMN withheld_v5;",
-                    )?;
-                }
-                // v3 rekeys `tabs` as (realm, league, id). A primary key
-                // cannot be altered in place, so a pre-v3 table is rebuilt
-                // row for row (the listing columns above exist by now, so
-                // v0 and v2 files take the same path); items and events
-                // are untouched.
-                if !has_column(&tx, "tabs", "realm")? {
-                    tx.execute("ALTER TABLE tabs RENAME TO tabs_pre_realm", [])?;
-                    tx.execute_batch(SCHEMA)?;
-                    tx.execute(
-                        "INSERT INTO tabs (realm, league, id, parent, name, type, idx, json, listed_json, listed_at, listed_response, fetched_at, removed_at)
-                         SELECT 'pc', league, id, parent, name, type, idx, json, listed_json, listed_at, listed_response, fetched_at, removed_at FROM tabs_pre_realm",
-                        [],
-                    )?;
-                    tx.execute("DROP TABLE tabs_pre_realm", [])?;
-                }
-                // v4 rekeys `characters` by the GGG id, taken from each
-                // row's json (list entries and fetched bodies both carry
-                // it); a row whose json lacks one is dropped and its items
-                // retired (facts are refetchable). Item locations move
-                // from the name to the id through the same json, so the
-                // first post-migration fetch produces no false moves;
-                // event history keeps its old location strings.
-                if !has_column(&tx, "characters", "id")? {
-                    tx.execute("ALTER TABLE characters RENAME TO characters_pre_id", [])?;
-                    tx.execute_batch(SCHEMA)?;
-                    tx.execute(
-                        "INSERT OR IGNORE INTO characters (id, realm, name, league, class, level, json, listed_json, listed_at, fetched_at, removed_at)
-                         SELECT json_extract(json, '$.id'), realm, name, league, class, level, json,
-                                CASE WHEN fetched_at IS NULL THEN json END, listed_at, fetched_at, removed_at
-                           FROM characters_pre_id
-                          WHERE json_extract(json, '$.id') IS NOT NULL
-                          ORDER BY COALESCE(fetched_at, 0) DESC, COALESCE(listed_at, 0) DESC",
-                        [],
-                    )?;
-                    tx.execute(
-                        "UPDATE items SET location_id = (SELECT json_extract(p.json, '$.id') FROM characters_pre_id p WHERE p.name = items.location_id)
-                          WHERE location_kind = 'character'
-                            AND EXISTS (SELECT 1 FROM characters_pre_id p WHERE p.name = items.location_id AND json_extract(p.json, '$.id') IS NOT NULL)",
-                        [],
-                    )?;
-                    tx.execute(
-                        "UPDATE items SET removed_at = ?1 WHERE location_kind = 'character' AND removed_at IS NULL
-                            AND location_id IN (SELECT name FROM characters_pre_id WHERE json_extract(json, '$.id') IS NULL)",
-                        [now()],
-                    )?;
-                    tx.execute("DROP TABLE characters_pre_id", [])?;
-                    // The listing basis a planner would cite must have
-                    // rows stamped to it: re-stamp membership from the
-                    // latest character listing on record per realm. The
-                    // envelope is the verbatim list (character lists carry
-                    // no items), so each named row gets its entry and the
-                    // response id back; rows it does not name stay
-                    // unstamped and the next listing retires them.
-                    restamp_character_listings(&tx)?;
-                }
-                tx.execute(
-                    "UPDATE items SET container = 'items' WHERE location_kind = 'stash' AND container IS NULL",
-                    [],
-                )?;
-                // v8: the index the retired substring search was given and
-                // never used goes; `items_removed` came with the DDL above.
-                tx.execute("DROP INDEX IF EXISTS items_names", [])?;
-                // v9: after every column it names exists, which a pre-v3
-                // file's items gain only above.
                 tx.execute_batch(LIVE_INDEX)?;
                 tx.pragma_update(None, "user_version", FACT_SCHEMA_VERSION)?;
             }
@@ -2973,56 +2858,14 @@ fn is_item_shaped(v: &Value) -> bool {
     v.as_object().is_some_and(|o| o.contains_key("typeLine"))
 }
 
-/// The v4 migration's membership repair: for each realm, the latest 2xx
-/// character listing on record re-stamps the rows it names (`listed_json`,
-/// `listed_at`, `listed_response`), so a snapshot taken after the
-/// migration cites a basis its rows are actually stamped to.
-fn restamp_character_listings(tx: &Connection) -> Result<()> {
-    let latest: Vec<(String, i64)> = {
-        let mut stmt = tx.prepare(
-            "SELECT COALESCE(json_extract(params, '$.realm'), 'pc'), MAX(id) FROM responses
-              WHERE endpoint = 'characters' AND status BETWEEN 200 AND 299
-              GROUP BY 1",
-        )?;
-        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        rows.collect::<Result<_, _>>()?
-    };
-    for (realm, response_id) in latest {
-        let (fetched_at, envelope): (i64, String) = tx.query_row(
-            "SELECT fetched_at, envelope FROM responses WHERE id = ?1",
-            [response_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
-        // A row this store wrote that no longer parses is a damaged file,
-        // reported — never silently skipped.
-        let body: Value = serde_json::from_str(&envelope)
-            .with_context(|| format!("response {response_id}: malformed envelope in store"))?;
-        for entry in body
-            .get("characters")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            if let Some(id) = entry.get("id").and_then(Value::as_str) {
-                tx.execute(
-                    "UPDATE characters SET listed_json = ?2, listed_at = ?3, listed_response = ?4
-                      WHERE id = ?1 AND realm = ?5",
-                    params![id, entry.to_string(), fetched_at, response_id, realm],
-                )?;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Whether `table` has `column` — the migration's idempotence check.
-fn has_column(tx: &Connection, table: &str, column: &str) -> Result<bool> {
-    let present: i64 = tx.query_row(
-        "SELECT count(*) FROM pragma_table_info(?1) WHERE name = ?2",
-        [table, column],
+/// Whether a file holds any table: a stamp of 0 beside one is a file from
+/// before versioning, or a foreign one, and is refused.
+fn has_tables(conn: &Connection) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table')",
+        [],
         |r| r.get(0),
-    )?;
-    Ok(present > 0)
+    )?)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3133,9 +2976,7 @@ fn ingest_item(
     // Identity-bearing entries error rather than skip (same rule as tabs
     // and characters): an id is what makes an item trackable, and a fetch
     // full of id-less entries silently dropped would remove every real
-    // item at the location. The error rolls the whole ingest back. Legacy
-    // pull snapshots that need tolerance get it at the import boundary
-    // (`acq store import` strips and reports), never here.
+    // item at the location. The error rolls the whole ingest back.
     let Some(id) = item.get("id").and_then(Value::as_str).map(str::to_string) else {
         return Err(MalformedBody::new(kind, "an `id` on an item").into());
     };

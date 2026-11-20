@@ -206,7 +206,7 @@ acq search --saved <ID|NAME> [--limit N]   # run a saved search, its query and s
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq web [--no-browser]   # the search as a page shaped like the trade site's, or a trade site search's URL run as --trade runs it, its results as cards with item art, a table on asking, and the number a form would match beside its button as it changes; the world's saved searches, saved from any answer, opened, renamed and cleared; and the stash tabs and characters as pages, each a place opening its items, to list, tick, plan and apply; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
-acq store import <snapshot.json> | rebuild   # replay a snapshot from the retired `acq pull`; re-extract columns
+acq store rebuild   # re-extract derived columns from each item's own JSON
 
 acq daemon status | stop | reset-tripwire   # inspect; stop (a login not in the keyring goes too); reset rails
 acq version [--json]   # build identity and sibling acqd
@@ -238,7 +238,7 @@ the named account's or else every known account's.
   too. The store, search, pricing and shop verbs read the store without
   one and see only what was fetched. Your own writes are offline as
   well: `price set` and `policy set` write your prices and policy
-  beside the facts, and `store import` replays a snapshot of facts.
+  beside the facts.
 - **Standard unless you name a league.** `stashes`, `stash`,
   `refresh --plan`, `refresh --apply`, `refresh --tabs`, `tabs`,
   `price status` and `shop render` read or fetch Standard without

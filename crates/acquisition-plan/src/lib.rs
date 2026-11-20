@@ -40,17 +40,16 @@
 //! `plan_refresh(provider, &snapshot, now)` parses
 //! the snapshot's sync-policy row (the planner owns that value's schema:
 //! version-stamped and strict-parsed — a typo'd field is a structured
-//! error, never intent half-honored; a newer version is refused as such;
-//! **v3** covers per facet under `realms.<R>.leagues.<L>`: `tabs` and/or
+//! error, never intent half-honored; a newer version is refused as such,
+//! and an older one, which only development builds wrote, with its
+//! remedy; **v3** covers per facet under `realms.<R>.leagues.<L>`: `tabs` and/or
 //! `characters`, each `"all"` or an id list, absent meaning no coverage
 //! of that facet — a v3 value must spell it absent: `[]` or `null`
 //! there is refused as non-canonical by the store's exact round-trip
-//! (C66, 2026-09-05), while a v1/v2 value's `[]` still upgrades to
-//! absent — an entry covering neither refused
+//! (C66) — an entry covering neither refused
 //! as "names no work"; `tabs` under `poe2` is a parse error because the
 //! stash endpoints are PoE1 only while `characters` is taken under every
-//! realm; a v1 `leagues.<L>` value still parses as realm pc, and v1/v2
-//! as tab coverage only)
+//! realm)
 //! and compiles it, with the daemon down, into a serializable
 //! `RefreshPlan`: the explicit action set (the league's stash listing
 //! and/or per-tab fetches, the realm's character listing and/or
@@ -181,8 +180,7 @@
 //!   judged after normalization for every version. Validation is per facet
 //!   against `Family::accepts`: `tabs` is refused under a realm the stash
 //!   family does not take (poe2), `characters` is accepted under every
-//!   realm. v1 and v2 upgrade to their tab coverage plus no character
-//!   coverage; the stored value stays as written.
+//!   realm.
 //! - **C62** (a character's freshness arms): the planner is
 //!   facet-symmetric. `Selection` (`all` | ids) serves both facets;
 //!   [`LeaguePolicy`] `{ tabs?, characters?, max_age_seconds }` with `None`
@@ -273,16 +271,14 @@ pub const REFRESH_PLAN_SCHEMA: i64 = 6;
 
 /// The sync-policy value schema this build reads ([`SyncPolicy::version`]).
 /// The store carries the row opaquely; its shape is this crate's business.
-/// v2 (2026-09-02) nests leagues under realms
-/// (`realms.<R>.leagues.<L>`); a v1 policy (`leagues.<L>`) still parses,
-/// upgraded on the way in as realm pc — the only realm v1 could mean. v3
-/// (same day) puts `characters` beside `tabs` under each league, each
-/// facet optional — absent means no coverage of that facet, and an entry
-/// covering neither is malformed ("names no work"). Since 2026-09-05 a
-/// v3 value is held to its canonical spelling (C66): an empty list or
-/// `null` for a facet is refused naming the path, not normalized. v1 and
-/// v2 upgrade to their tab coverage (an empty list there reads as
-/// absent) plus no character coverage.
+/// v3 nests leagues under realms (`realms.<R>.leagues.<L>`) and puts
+/// `characters` beside `tabs` under each league, each facet optional —
+/// absent means no coverage of that facet, and an entry covering neither
+/// is malformed ("names no work"). A value is held to its canonical
+/// spelling (C66): an empty list or `null` for a facet is refused naming
+/// the path, not normalized. It is also the floor: v1.0.0-alpha.1 wrote
+/// v3, and an older value, which only development builds wrote, is
+/// refused with its remedy, never upgraded (C66).
 pub const SYNC_POLICY_VERSION: i64 = 3;
 
 /// A planner failure with a stable kind (C47: malformed external
@@ -394,14 +390,10 @@ fn tabs_not_taken(realm: Realm) -> String {
 /// The per-account sync policy: an inspectable declaration of desired
 /// coverage and freshness — not a scheduler. Stored as the
 /// `("account", "", "sync-policy")` annotation; written by frontends,
-/// compiled here into minimal requests. In memory it is always the v3
-/// shape; a stored v1 or v2 value is upgraded on parse (v1 as realm pc,
-/// both as tab coverage only) and stays stored as written — what the
-/// human typed is what `policy show` shows — until a write merges into
-/// it ([`PolicyWrite::Merge`]), which stores the merged policy as v3.
+/// compiled here into minimal requests, always the v3 shape.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SyncPolicy {
-    /// [`SYNC_POLICY_VERSION`] once parsed (older values read as v3).
+    /// [`SYNC_POLICY_VERSION`].
     pub version: i64,
     /// Coverage per realm, then per league. A (realm, league) not named
     /// here compiles to [`PlanError::LeagueNotCovered`], never to
@@ -444,26 +436,6 @@ pub struct LeaguePolicy {
 /// [`SyncPolicy::from_value`].
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SyncPolicyWireV1 {
-    /// The stamp [`parse_policy`] already dispatched on; named so the
-    /// strict parse does not refuse the key, never read again.
-    #[serde(rename = "version")]
-    _version: i64,
-    leagues: BTreeMap<String, LeagueWireV2>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SyncPolicyWireV2 {
-    /// The stamp [`parse_policy`] already dispatched on; named so the
-    /// strict parse does not refuse the key, never read again.
-    #[serde(rename = "version")]
-    _version: i64,
-    realms: BTreeMap<Realm, RealmWire<LeagueWireV2>>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 struct SyncPolicyWireV3 {
     /// The stamp [`parse_policy`] already dispatched on; named so the
     /// strict parse does not refuse the key, never read again.
@@ -476,24 +448,6 @@ struct SyncPolicyWireV3 {
 #[serde(deny_unknown_fields)]
 struct RealmWire<L> {
     leagues: BTreeMap<String, L>,
-}
-
-/// v1 and v2 league entries: `tabs` required, characters unknown.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct LeagueWireV2 {
-    tabs: Selection,
-    max_age_seconds: u32,
-}
-
-impl From<LeagueWireV2> for LeaguePolicy {
-    fn from(w: LeagueWireV2) -> LeaguePolicy {
-        LeaguePolicy {
-            tabs: w.tabs.normalize(),
-            characters: None,
-            max_age_seconds: w.max_age_seconds,
-        }
-    }
 }
 
 /// v3 league entries: each facet optional.
@@ -560,9 +514,9 @@ impl From<ValueError> for PlanError {
     }
 }
 
-/// The one parse: the `version` stamp selects the strict shape, the
-/// shape is validated whole, older values upgrade (v1 to realm pc; v1
-/// and v2 to tab coverage only), every entry must name work, and no
+/// The one parse: the `version` stamp must be this build's (an older one
+/// is refused with its remedy), the shape is validated whole, every entry
+/// must name work, and no
 /// facet may name work its endpoint family does not take on that realm
 /// (`tabs` under poe2; `characters` is taken everywhere).
 fn parse_policy(value: &Value) -> Result<SyncPolicy, String> {
@@ -571,20 +525,14 @@ fn parse_policy(value: &Value) -> Result<SyncPolicy, String> {
         .and_then(Value::as_i64)
         .ok_or_else(|| "missing integer `version`".to_string())?;
     let realms: BTreeMap<Realm, RealmPolicy> = match version {
-        1 => {
-            let wire: SyncPolicyWireV1 =
-                serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
-            BTreeMap::from([(Realm::Pc, realm_policy(wire.leagues))])
+        v if v < SYNC_POLICY_VERSION => {
+            return Err(format!(
+                "sync policy declares version {v}, older than this build's \
+                 v{SYNC_POLICY_VERSION}, which reads no older one: a development build \
+                 wrote it; write the whole policy again (`replace`)"
+            ));
         }
-        2 => {
-            let wire: SyncPolicyWireV2 =
-                serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
-            wire.realms
-                .into_iter()
-                .map(|(r, p)| (r, realm_policy(p.leagues)))
-                .collect()
-        }
-        3 => {
+        SYNC_POLICY_VERSION => {
             let wire: SyncPolicyWireV3 =
                 serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
             wire.realms
@@ -699,8 +647,8 @@ impl SyncPolicy {
     /// ([`check_value`], C66): the version stamp is checked before the
     /// full shape so a genuinely newer policy reports
     /// [`PlanError::PolicyVersionUnsupported`], not a spurious
-    /// unknown-field complaint; v1, v2 and v3 all parse (older values
-    /// upgrade in memory); a v3 value must re-serialize to exactly what
+    /// unknown-field complaint; an older one is refused with its remedy;
+    /// a v3 value must re-serialize to exactly what
     /// was read, so `tabs: []` or `characters: null` — spellings the parse
     /// would normalize away — are refused naming the path, never stored
     /// as a second spelling of the same intent.

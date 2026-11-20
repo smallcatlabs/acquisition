@@ -2,13 +2,12 @@
 //! opens the same SQLite file the daemon writes; WAL makes that safe.
 
 use crate::printed::Printed as _;
-use std::path::Path;
 
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{Endpoint, Store};
+use acquisition_store::Store;
 use acquisition_verbs::AccountRow;
 use acquisition_verbs::events::LocationChanges;
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use serde_json::{Value, json};
 
 use crate::run::Ctx;
@@ -1123,109 +1122,6 @@ pub fn rebuild(cx: &Ctx, json: bool) -> Result<()> {
         println!("re-extracted columns for {n} items");
     }
     Ok(())
-}
-
-/// Replay a snapshot from the retired `acq pull` (its format: `{league,
-/// taken_at_unix, tabs: {id: {name, type, items: {id: item}}}}`) into the
-/// store as if each tab had just been fetched: real-shape data, zero GGG
-/// traffic. Those snapshots lost tab metadata and parents, so tabs land
-/// flat. Kept as the real-data fixture path.
-pub fn import(cx: &Ctx, path: &Path, json: bool) -> Result<()> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let snap: Value = serde_json::from_str(&text)?;
-    let league = snap
-        .get("league")
-        .and_then(Value::as_str)
-        .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
-        .to_string();
-    let at = snap
-        .get("taken_at_unix")
-        .and_then(Value::as_i64)
-        .unwrap_or_else(acquisition_store::now);
-    let Some(tabs) = snap.get("tabs").and_then(Value::as_object) else {
-        bail!("not a pull snapshot: no `tabs`")
-    };
-    let mut store = open(cx)?;
-    let started = std::time::Instant::now();
-    let mut total = acquisition_store::Ingest::default();
-    let mut skipped_no_id = 0usize;
-    for (id, tab) in tabs {
-        let mut items: Vec<Value> = match tab.get("items") {
-            Some(Value::Object(m)) => m.values().cloned().collect(),
-            Some(Value::Array(a)) => a.clone(),
-            _ => Vec::new(),
-        };
-        // Legacy tolerance lives here, at the import boundary, and is
-        // reported: the store's network ingest refuses an id-less item as
-        // malformed (it cannot be tracked, and dropped silently it would
-        // poison removal), but an old pull snapshot is what it is.
-        strip_idless_items(&mut items, &mut skipped_no_id);
-        let body = json!({ "stash": { "id": id, "name": tab.get("name"), "type": tab.get("type"), "items": items } });
-        // A retired-pull snapshot predates realms: pc, the only realm it
-        // could have been taken on.
-        let ep = Endpoint::Stash {
-            realm: "pc".into(),
-            league: league.clone(),
-            id: id.clone(),
-            sub: None,
-        };
-        let ing = store.record(
-            &ep,
-            &json!({ "realm": "pc", "league": league, "id": id }),
-            200,
-            &body,
-            at,
-        )?;
-        total.items += ing.items;
-        total.added += ing.added;
-        total.moved += ing.moved;
-        total.changed += ing.changed;
-        total.removed += ing.removed;
-    }
-    let elapsed = started.elapsed();
-    if json {
-        println!(
-            "{}",
-            json!({ "tabs": tabs.len(), "ingest": total, "seconds": elapsed.as_secs_f64(),
-                    "skipped_no_id": skipped_no_id })
-        );
-    } else {
-        println!(
-            "imported {} tabs, {} items (+{} added, ~{} changed, >{} moved, -{} removed) in {:.2}s",
-            tabs.len(),
-            total.items,
-            total.added,
-            total.changed,
-            total.moved,
-            total.removed,
-            elapsed.as_secs_f64()
-        );
-        if skipped_no_id > 0 {
-            println!("skipped {skipped_no_id} item(s) without ids (legacy snapshot tolerance)");
-        }
-    }
-    Ok(())
-}
-
-/// Drop items (and socketed gems) that carry no `id`, counting them, so a
-/// legacy snapshot imports with a report instead of failing — the store's
-/// own ingest refuses id-less items as malformed.
-fn strip_idless_items(items: &mut Vec<Value>, skipped: &mut usize) {
-    items.retain(|item| {
-        let ok = item.get("id").and_then(Value::as_str).is_some();
-        if !ok {
-            *skipped += 1;
-        }
-        ok
-    });
-    for item in items {
-        if let Some(gems) = item.get_mut("socketedItems").and_then(Value::as_array_mut) {
-            let before = gems.len();
-            gems.retain(|gem| gem.get("id").and_then(Value::as_str).is_some());
-            *skipped += before - gems.len();
-        }
-    }
 }
 
 /// `acq leagues` in text: the list GGG returned, one league a line with

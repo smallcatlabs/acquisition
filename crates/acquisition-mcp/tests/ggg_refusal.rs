@@ -22,8 +22,7 @@ use serde_json::{Value, json};
 const USER: &str = "Refusal#0001";
 const UUID: &str = "00000000-0000-4000-8000-00000000c013";
 
-const POLICY: &str =
-    r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}"#;
+const POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
 
 /// What a login leaves on disk for provider `ggg`, with no login and no
 /// daemon: the index entry and the facts file's account identity (the

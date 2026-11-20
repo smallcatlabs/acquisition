@@ -141,7 +141,7 @@ fn json_stdout_is_the_contract_surface() {
         &[
             "policy",
             "set",
-            r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_secs":60}}}"#,
+            r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_secs":60}}}}}"#,
             "--json",
         ],
     );
@@ -158,7 +158,7 @@ fn json_stdout_is_the_contract_surface() {
     // A valid write answers the stored row, and C126's note on a league
     // the fetched league list does not hold: here no list was ever
     // fetched. Show answers the same row.
-    let policy = r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}"#;
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let out = acq(&base, &["policy", "set", policy, "--json"]);
     assert!(out.status.success(), "{out:?}");
     let mut row = sole_json(&out);
