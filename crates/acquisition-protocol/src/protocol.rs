@@ -404,10 +404,13 @@ pub struct QuoteScope {
     /// Seconds until the last quoted request on this scope could dispatch,
     /// simulating the pacing rule forward over current limiter state and
     /// the queue. An estimate, never a promise or a reservation. `None`:
-    /// unquotable until the policy is learned (see `notes`).
+    /// unquotable while the policy is unlearned, or while an endpoint of
+    /// the scope is closed, by a failed probe or by a run of invalid
+    /// answers (C190), whatever the policy (see `notes`).
     pub eta_seconds: Option<u64>,
     /// What this scope's numbers cannot see, named: an unlearned policy,
-    /// a degraded probe cooldown, a declared-policyless route.
+    /// a degraded probe cooldown, a route a run of invalid answers closed,
+    /// a declared-policyless route.
     pub notes: Vec<String>,
 }
 
