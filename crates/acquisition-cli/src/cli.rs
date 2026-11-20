@@ -335,10 +335,10 @@ summary.")]
         #[arg(long, default_value_t = 8)]
         count: u32,
     },
-    /// Live dashboard (TUI): rate limiter state (enter expands a policy:
-    /// bucket state, the observed X-Rate-Limit headers, per-endpoint
-    /// sends), job queue, HTTP sends, recent errors, a rails halt in red.
-    /// With --json, prints one snapshot and exits.
+    /// One snapshot of the daemon as JSON, with --json alone: the rate
+    /// limiter's policies and windows, the jobs, the recent HTTP sends and
+    /// errors, the rails. Observes only, never spawning a daemon. In words:
+    /// `acq daemon status`, `acq jobs --watch`, `acq web`'s jobs page.
     Dash,
     /// What this build is: the package version, the shared-contract
     /// revision the daemon handshake compares — a digest over the

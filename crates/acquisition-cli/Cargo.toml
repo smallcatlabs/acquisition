@@ -25,7 +25,6 @@ acquisition-plan = { path = "../acquisition-plan" }
 acquisition-search = { path = "../acquisition-search" }
 acquisition-verbs = { path = "../acquisition-verbs" }
 clap.workspace = true
-ratatui = "0.30"
 # `acq web` (C139): the loopback listener, over the hyper and tower the
 # lock already holds; HTTP/1 alone, no default features.
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query", "form"] }
@@ -49,8 +48,9 @@ getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 
 [target.'cfg(unix)'.dependencies]
 # rustix `default`, `fs`: tempfile's, a dev-dependency of six crates; acq
-# links it through ratatui's crossterm, and acqd on Linux through keyring's
-# zbus, which leans on this pin by the workspace's unification (#124, #91).
+# links it through this pin alone, and acqd on Linux through keyring's zbus,
+# which leans on it by the workspace's unification (#124, #91); without it
+# the test build also differs on bitflags `std` on macOS.
 rustix = { version = "1", features = ["fs"] }
 # ---- end of the feature pins ---------------------------------------------
 

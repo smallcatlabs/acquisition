@@ -11,8 +11,8 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-# Transitive crates nobody maintains (paste under ratatui, 2026-09-12) are
-# a warning; a vulnerability anywhere in the graph still fails.
+# Transitive crates nobody maintains are a warning; a vulnerability
+# anywhere in the graph still fails.
 unmaintained = "workspace"
 
 # The licences the graph carried when the list was ruled; a crate under

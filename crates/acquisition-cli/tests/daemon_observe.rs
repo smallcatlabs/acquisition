@@ -67,6 +67,24 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
         !base.join("store").exists(),
         "dash created the world's root — a spawn"
     );
+    // The dashboard is its snapshot alone: without --json it refuses,
+    // naming the snapshot and the verbs that say the same facts in words,
+    // and asks no daemon.
+    let out = acq(&base, &["dash"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stderr);
+    for remedy in [
+        "acq dash --json",
+        "acq daemon status",
+        "acq jobs --watch",
+        "acq web",
+    ] {
+        assert!(said.contains(remedy), "{remedy}: {said}");
+    }
+    assert!(
+        !base.join("store").exists(),
+        "dash created the world's root — a spawn"
+    );
 
     // A mock daemon is up. A shell that wants ggg observes it: reported
     // as running and incompatible on the provider dimension alone, with
