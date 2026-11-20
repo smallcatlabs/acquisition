@@ -50,10 +50,10 @@ carries one, the sort's, as `Sorted { value, status, shows }`.
   result is the default, not a setting. Before them the table always
   shows the columns he ruled (§7): name, base, price, the price's age,
   location, the location's age.
-- **The query's own value is the default order** (#38): a query that
-  compares exactly one value, asked with no sort, is ordered by it,
-  best first by its operator, and the answer names it. Several values
-  give columns and no default order.
+- **No order comes from the query** (#38; removed by #293 cut 3, the
+  owner's approval of 2026-11-20): rows stand in the store's order
+  unless a sort is named. The query's values are columns, and a head
+  orders by one.
 - **A card's numbers are links.** For each number a shown item
   carries (a property, a line's slot, a computed total), the document
   says the value text that reads it, made by the search crate, so no
@@ -131,8 +131,9 @@ loads its URL again.
 
 ## 5. The build, least uncertain first
 
-1. **Values on rows** (search crate, CLI, MCP): `values`, the default
-   list and order from the query. No page changes. Closes #38.
+1. **Values on rows** (search crate, CLI, MCP): `values` and the
+   default list from the query; the default order built here was
+   removed by #293 cut 3. No page changes. Closes #38.
 2. **The count** (#245).
 3. **The spike** of §4.
 4. **The flat table**: columns from values, heads that sort, card
@@ -193,7 +194,9 @@ As drafted:
 - **The default order from the query** (#38): it changes the row order
   of a CLI or MCP answer that names no sort and compares one value.
   Agent-facing, so the session's, raised because existing answers
-  reorder. Recommended.
+  reorder. Recommended. Built in step 6.1, removed by #293 cut 3 (the
+  owner's approval, 2026-11-20): rows stand in the store's order
+  unless a sort is named.
 - **The window script by hand first**. Recommended.
 - **Familiar patterns this would cut**, asked before cutting:
   - The old app's fixed columns. Here a table with no query shows the

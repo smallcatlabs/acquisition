@@ -1,5 +1,9 @@
 # 4-full-1, step 6.1 — Values on rows
 
+Amended 2026-11-20: the default order this step built (its Goal's
+second clause, Decision 3's `sort_from_query`) was removed by #293
+cut 3; rows stand in the store's order unless a sort is named.
+
 ## Goal
 A rows answer carries named values on every row, filled from the
 query when none is named, and a query comparing one value is ordered
