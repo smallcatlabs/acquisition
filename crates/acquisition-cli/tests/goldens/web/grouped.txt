@@ -127,7 +127,7 @@ GET tabs?<rings, Old rings open, its first row opened>
 # holds "<div class=\"opened\">"
 # holds "name=\"toggle_item\" value=\"o-high\">Close</button>"
 # holds "<input type=\"hidden\" name=\"item\" value=\"o-high\">"
-# holds "open=f1&amp;open=o1#p-o1\">"
+# holds "open=f1&amp;open=o1&amp;at=o-high#i-o-high\">"
 <meta name="basis" content="{&quot;places&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:13,&quot;at&quot;:65,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2},&quot;rows&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:13,&quot;at&quot;:65,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
 <main>
 <h1>Stash tabs</h1>
@@ -162,7 +162,7 @@ GET tabs?<rings, Old rings open, its first row opened>
 <p class="properties">Item Level: <a class="value valued" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.sort=ilvl&amp;open=f1&amp;open=o1&amp;item=o-high"><span class="mark" aria-hidden="true">▼</span>81<span class="sr">, ordered largest first</span></a></p>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=f1&amp;open=o1#p-o1">pc · Standard / Old rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=f1&amp;open=o1&amp;at=o-high#i-o-high">pc · Standard / Old rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="ways"><button type="submit" name="toggle_item" value="o-high">Close</button> <a class="against" href="item/o-high?against=class%3Arings%20ilvl%3E%3D60">the query against it, term by term</a></p>
 </div>

@@ -303,8 +303,8 @@
 //!   on `search` a form around the table holding the page's fields hidden
 //!   — answered `303` to the page with the id added, or taken out where
 //!   open, and `at`, at the row's anchor (`page::row_anchor`). `at` is one
-//!   load's landing, never state: no link or form writes it, and one no
-//!   order holds is ignored. `window.js` seeks the URL's anchor inside the
+//!   load's landing, never state: no form writes it and no link carries
+//!   a page's own on, and one no order holds is ignored. `window.js` seeks the URL's anchor inside the
 //!   table once its segments are sized and before its first fill, so the
 //!   fill keeps the block the server rendered for it; a row's anchor
 //!   stands below the sticky heads by its scroll margin. **The card** is
@@ -312,7 +312,10 @@
 //!   page's view links, so its numbers add columns. **Its place**, on
 //!   every card and on the item page, is a link ([`Web::place_links`]):
 //!   the place page of its realm and league with the place and each
-//!   holding it open (`Places::holders`), at its anchor, no query; a
+//!   holding it open (`Places::holders`), no query, landing at the
+//!   card's own row (`at`, the one link that writes one, for another
+//!   page's one load; the page seat after GUI step 6, its fault 7), or at
+//!   the place's head for a removed item, which its live rows lack; a
 //!   place no places document lists stands as words. **Its query**: an
 //!   opened row's card links `item/<id>?against=` the page's canonical
 //!   text, where it has one; [`item`] takes `against` as `acq show
@@ -890,9 +893,10 @@ impl Web {
 
     /// Each place's link as a card shows it (step 6.5c, Decision 6): the
     /// place page of its realm and league, its kind's, with the place and
-    /// each place holding it open ([`Places::holders`]), at its head, no
-    /// query; none where that league's places document lacks it. Each
-    /// realm, league and kind's document is read once.
+    /// each place holding it open ([`Places::holders`]), no query, and no
+    /// landing, which the card adds for its own item ([`page::card`]);
+    /// none where that league's places document lacks it. Each realm,
+    /// league and kind's document is read once.
     fn place_links(
         &self,
         shown: &[&acquisition_search::corpus::Place],
@@ -949,10 +953,7 @@ impl Web {
                     },
                 ),
             );
-            links.insert(
-                place_key(place),
-                format!("{href}#{}", page::place_anchor(&place.id)),
-            );
+            links.insert(place_key(place), href);
         }
         Ok(links)
     }
@@ -2393,8 +2394,8 @@ async fn places(
         })
     };
     let hidden_view: Vec<(&'static str, String)> = shown.view_fields();
-    // an opened row's place: this page with it and its holders open, at
-    // its head, no query (Decision 6)
+    // an opened row's place: this page with it and its holders open, no
+    // query, the card adding its landing (Decision 6)
     let placed = |place: &acquisition_search::corpus::Place| {
         let kind = match listed {
             Listed::Tabs => "stash",
@@ -2411,22 +2412,18 @@ async fn places(
             .into_iter()
             .map(str::to_string)
             .collect();
-        Some(format!(
-            "{}#{}",
-            web.link(
-                listed.route(),
-                &place_fields(
-                    listed,
-                    realm,
-                    &league,
-                    &Shown::default(),
-                    Marked {
-                        open: &open,
-                        ..Marked::default()
-                    }
-                ),
+        Some(web.link(
+            listed.route(),
+            &place_fields(
+                listed,
+                realm,
+                &league,
+                &Shown::default(),
+                Marked {
+                    open: &open,
+                    ..Marked::default()
+                },
             ),
-            page::place_anchor(&place.id)
         ))
     };
     let body = page::places(&page::PlacesPage {

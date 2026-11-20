@@ -51,7 +51,7 @@ GET search?<the ring search>
 # holds "<div class=\"cards\">"
 # holds "<span class=\"mod-kind\">explicit</span>"
 # holds "<p class=\"price\">price none ("
-# holds "#p-t1\">pc · Standard / Rings"
+# holds "#i-r1\">pc · Standard / Rings"
 # holds " ago</a></p>"
 # holds "<a class=\"presentation\" href=\"search?"
 # holds ">as a table</a>"
@@ -82,7 +82,7 @@ GET search?<the ring search>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)<br>category accessory.ring</p>
 <div class="card">
@@ -98,7 +98,7 @@ GET search?<the ring search>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r2#i-r2">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</p>
 </div>
@@ -205,7 +205,7 @@ GET search?<an edited text>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by line(&quot;# to maximum Life&quot;).arg1 95<br>+95 to maximum Life (explicit)<br>class Rings</p>
 </div>
@@ -266,7 +266,7 @@ GET search?<a trade site search's URL>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=kaom#i-kaom">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 500<br>+500 to maximum Life (explicit)</p>
 <div class="card">
@@ -279,7 +279,7 @@ GET search?<a trade site search's URL>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)</p>
 <div class="card">
@@ -295,7 +295,7 @@ GET search?<a trade site search's URL>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r2#i-r2">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)</p>
 </div>
@@ -403,7 +403,7 @@ GET search?<the site's query JSON with its sort>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 <div class="card">
@@ -419,7 +419,7 @@ GET search?<the site's query JSON with its sort>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r2#i-r2">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 <div class="card">
@@ -432,7 +432,7 @@ GET search?<the site's query JSON with its sort>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2#p-t2">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=mech#i-mech">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">category accessory.ring</p>
 </div>
@@ -536,7 +536,7 @@ GET search?<every ring, one row shown>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 </div>
@@ -591,7 +591,7 @@ GET search?<every ring, the second row>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r2#i-r2">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="shows">class Rings</p>
 </div>
@@ -729,7 +729,7 @@ GET item/r1
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <table class="shown">
 <tr><th>Id</th><td>r1</td></tr>
@@ -776,7 +776,7 @@ GET item/r1?against=<the answer's query>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <table class="shown">
 <tr><th>Id</th><td>r1</td></tr>

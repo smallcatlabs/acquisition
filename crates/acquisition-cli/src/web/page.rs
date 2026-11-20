@@ -1516,10 +1516,22 @@ pub(crate) fn card(
         esc(&search_cmd::price_words(&it.facts.id, parts.price))
     ));
     // the place, a link to its page with it open where a page lists it
-    // (step 6.5c, Decision 6), its words otherwise
+    // (step 6.5c, Decision 6), its words otherwise; the link lands at this
+    // item's row (`at`, one load's), so a long tab is not searched again
+    // for it (the page seat after GUI step 6, its fault 7), and a removed
+    // item, which the place's live rows lack, at the place's head
     let words = esc(&search_cmd::shown_place_words(place, now));
     let mut placed = match placed {
-        Some(href) => format!("<a class=\"placed\" href=\"{}\">{words}</a>", esc(href)),
+        Some(href) => {
+            let landing = match it.facts.removed_at {
+                None => format!("&at={}#{}", enc(&it.facts.id), row_anchor(&it.facts.id)),
+                Some(_) => format!("#{}", place_anchor(&place.id)),
+            };
+            format!(
+                "<a class=\"placed\" href=\"{}\">{words}</a>",
+                esc(&format!("{href}{landing}"))
+            )
+        }
         None => words,
     };
     if let Some(removed_at) = it.facts.removed_at {
@@ -1586,8 +1598,9 @@ impl Window {
 }
 
 /// A card's place as a link (step 6.5c, Decision 6): the place page with
-/// the place and each holding it open, at its anchor; none where no page
-/// lists the place, which then stands as words.
+/// the place and each holding it open, a URL with fields and no fragment,
+/// to which the card adds its landing; none where no page lists the
+/// place, which then stands as words.
 pub(crate) type Placed<'a> = &'a dyn Fn(&acquisition_search::corpus::Place) -> Option<String>;
 
 /// What an opened row's card links (step 6.5c, Decisions 5 to 7): the

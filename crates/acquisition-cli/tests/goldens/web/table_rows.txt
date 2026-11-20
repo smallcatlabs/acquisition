@@ -136,7 +136,7 @@ GET search?<the table, its first two rows opened>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=kaom#i-kaom">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="ways"><button type="submit" name="toggle_item" value="kaom">Close</button></p>
 </div>
@@ -154,7 +154,7 @@ GET search?<the table, its first two rows opened>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
-<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1#p-t1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
+<p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 <p class="ways"><button type="submit" name="toggle_item" value="r1">Close</button></p>
 </div>

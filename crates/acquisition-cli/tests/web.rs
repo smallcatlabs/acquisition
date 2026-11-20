@@ -982,7 +982,7 @@ fn every_search_page_is_a_wording_golden() {
             "<div class=\"cards\">",
             "<span class=\"mod-kind\">explicit</span>",
             "<p class=\"price\">price none (",
-            "#p-t1\">pc · Standard / Rings",
+            "#i-r1\">pc · Standard / Rings",
             " ago</a></p>",
             "<a class=\"presentation\" href=\"search?",
             ">as a table</a>",
@@ -2056,6 +2056,15 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
             ">find it under membership all</a>",
         ],
     );
+    // its card's place lands at the place's head, not at its row, which
+    // the place's live rows lack (the page seat after GUI step 6, fault 7)
+    let gone = web.get("item/r2");
+    let card = &gone.body[gone.body.find("<p class=\"place\">").unwrap()..];
+    let href = attribute(card, "href").unwrap();
+    assert!(
+        href.ends_with("open=t1#p-t1") && !href.contains("at="),
+        "{href}"
+    );
 
     // a value list cut: eleven names a term's `:` resolves to
     let kestrels: Vec<Value> = (1..=11)
@@ -2491,6 +2500,18 @@ fn in_table_order(web: &WebUi, path: &str) -> Vec<String> {
 /// as written: what a test reads to say no URL carries a field.
 fn written(body: &str, name: &str) -> Vec<String> {
     let mut out = Vec::new();
+    // a card's place is the one link that lands elsewhere at its own row
+    // (the page seat after GUI step 6, its fault 7), never a page's `at`
+    // carried on, so this helper reads past it
+    let mut kept = String::new();
+    let mut rest = body;
+    while let Some(start) = rest.find("<a class=\"placed\" href=\"") {
+        kept.push_str(&rest[..start]);
+        rest = &rest[start..];
+        rest = &rest[rest.find('>').map_or(rest.len(), |end| end + 1)..];
+    }
+    kept.push_str(rest);
+    let body = kept.as_str();
     for key in [format!("?{name}="), format!("&amp;{name}=")] {
         out.extend(body.match_indices(&key).map(|(at, _)| {
             let rest = &body[at + key.len()..];
@@ -5648,18 +5669,20 @@ fn the_grouped_table_is_a_wording_golden() {
             "<div class=\"opened\">",
             "name=\"toggle_item\" value=\"o-high\">Close</button>",
             "<input type=\"hidden\" name=\"item\" value=\"o-high\">",
-            "open=f1&amp;open=o1#p-o1\">",
+            "open=f1&amp;open=o1&amp;at=o-high#i-o-high\">",
         ],
     );
     page_golden(file!(), "grouped", &pages);
 
     // a card's place, followed (Decision 6): its page with the place and
-    // each holding it open, at its head, no query, its items listed — a
-    // tab in a folder, a map tab's page, a character
-    for (item, open, anchor, route) in [
-        ("o-low", "open=f1&open=o1", "#p-o1", "tabs"),
-        ("m-page", "open=m1&open=p1", "#p-p1", "tabs"),
-        ("c-ring", "open=ch1", "#p-ch1", "characters"),
+    // each holding it open, no query, its items listed, landing at the
+    // card's own row, so a long tab is not searched again for it (the page
+    // seat after GUI step 6, its fault 7) — a tab in a folder, a map tab's
+    // page, a character
+    for (item, open, route) in [
+        ("o-low", "open=f1&open=o1", "tabs"),
+        ("m-page", "open=m1&open=p1", "tabs"),
+        ("c-ring", "open=ch1", "characters"),
     ] {
         let shown = web.get(&format!("item/{item}"));
         let card = &shown.body[at(&shown.body, "<p class=\"place\">")..];
@@ -5667,7 +5690,7 @@ fn the_grouped_table_is_a_wording_golden() {
         assert_eq!(
             href,
             format!(
-                "/{}/{route}?realm=pc&league=Standard&{open}{anchor}",
+                "/{}/{route}?realm=pc&league=Standard&{open}&at={item}#i-{item}",
                 web.token
             ),
             "{item}"
@@ -5675,13 +5698,9 @@ fn the_grouped_table_is_a_wording_golden() {
         let place = follow(&web, &href);
         assert_eq!(place.status, 200, "{item}: {}", place.body);
         assert!(
-            place.body.contains(&format!("data-id=\"{item}\"")),
+            place.body.contains(&format!("id=\"i-{item}\" data-i=")),
             "{item}: {}",
             place.body
-        );
-        assert!(
-            place.body.contains(&format!("id=\"{}\"", &anchor[1..])),
-            "{item}"
         );
     }
 
