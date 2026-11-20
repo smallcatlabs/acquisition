@@ -167,8 +167,8 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
     assert!(matches!(err, PlanError::MalformedPolicy { .. }), "{err}");
     let err = SyncPolicy::from_value(&json!({ "leagues": {} })).unwrap_err();
     assert!(matches!(err, PlanError::MalformedPolicy { .. }), "{err}");
-    // An older version, which only development builds wrote, is refused
-    // with its remedy, whatever its shape: never upgraded (C66).
+    // An older version is refused with its remedy, whatever its shape:
+    // never upgraded (C66).
     for older in [
         json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_seconds": 60 } } }),
         json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": {

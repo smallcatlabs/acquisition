@@ -1258,10 +1258,15 @@ fn a_file_this_build_refuses_is_refused_before_its_journal_mode_is_touched() {
             found => {
                 assert_eq!(
                     refused.downcast_ref::<SchemaTooOld>(),
-                    Some(&SchemaTooOld { found })
+                    Some(&SchemaTooOld {
+                        found,
+                        path: path.clone()
+                    })
                 );
+                // the file to delete, named, and the remedy
                 assert!(
-                    refused.to_string().contains(FACTS_BELOW_FLOOR_REMEDY),
+                    refused.to_string().contains(&path.display().to_string())
+                        && refused.to_string().contains(FACTS_BELOW_FLOOR_REMEDY),
                     "{refused}"
                 );
             }
@@ -2280,7 +2285,9 @@ fn file_hash(path: &Path) -> Vec<u8> {
 /// and the file's bytes are the same after the attempt. The control:
 /// `Store::open` on the v8 file migrates it and its hash moves, so an
 /// unchanged hash is the door's doing and not a hash blind to a
-/// migration. A missing file is refused and not created.
+/// migration. An unstamped file with content is refused as the writing
+/// door refuses it, naming the file; a missing file is refused and not
+/// created.
 #[test]
 fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
     let temp = tempfile::tempdir().unwrap();
@@ -2341,6 +2348,29 @@ fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged()
             );
         }
     }
+    // An unstamped file with content (a file from before versioning) is
+    // the writing door's refusal, naming it and the same remedy, and is
+    // left as found.
+    let populated = dir.join("populated.db");
+    {
+        let c = Connection::open(&populated).unwrap();
+        c.execute_batch("CREATE TABLE tabs (id TEXT);").unwrap();
+    }
+    let before = file_hash(&populated);
+    let err = Store::open_read_only(&populated).err().unwrap();
+    assert_eq!(
+        err.downcast_ref::<SchemaTooOld>(),
+        Some(&SchemaTooOld {
+            found: 0,
+            path: populated.clone()
+        })
+    );
+    let text = format!("{err:#}");
+    assert!(
+        text.contains(&populated.display().to_string()) && text.contains(FACTS_BELOW_FLOOR_REMEDY),
+        "{text}"
+    );
+    assert_eq!(file_hash(&populated), before, "the populated file changed");
     // An unstamped file (empty: no Acquisition store is here) is
     // refused with the next step, and stays empty.
     let empty = dir.join("empty.db");

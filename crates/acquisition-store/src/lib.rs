@@ -296,23 +296,27 @@ impl std::error::Error for SchemaTooNew {}
 
 /// A facts file older than the released format (below
 /// `FACT_SCHEMA_FLOOR`), or one stamped 0 that holds tables: refused
-/// as found, never migrated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// as found, never migrated. It names the file, since its remedy is to
+/// delete it, by either door.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SchemaTooOld {
     pub found: i64,
+    pub path: PathBuf,
 }
 
 impl std::fmt::Display for SchemaTooOld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let path = self.path.display();
         match self.found {
             0 => write!(
                 f,
-                "facts file has content but no schema version: {FACTS_BELOW_FLOOR_REMEDY}"
+                "the facts file {path} has content but no schema version: \
+                 {FACTS_BELOW_FLOOR_REMEDY}"
             ),
             found => write!(
                 f,
-                "facts file uses schema v{found}, older than the released format v{FACT_SCHEMA_FLOOR}: \
-                 {FACTS_BELOW_FLOOR_REMEDY}"
+                "the facts file {path} uses schema v{found}, older than the released format \
+                 v{FACT_SCHEMA_FLOOR}: {FACTS_BELOW_FLOOR_REMEDY}"
             ),
         }
     }
@@ -1403,6 +1407,15 @@ impl Store {
         .with_context(|| format!("opening {} read-only", path.display()))?;
         conn.busy_timeout(store_wait())?;
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        // A file with content and no stamp is the writing door's refusal
+        // too, with the same remedy; an empty one is no store at all.
+        if found == 0 && has_tables(&conn)? {
+            return Err(SchemaTooOld {
+                found,
+                path: path.to_path_buf(),
+            }
+            .into());
+        }
         if found != FACT_SCHEMA_VERSION {
             return Err(anyhow::Error::new(SchemaNotCurrent {
                 file: "the facts file",
@@ -1456,7 +1469,7 @@ impl Store {
             .into());
         }
         if found < FACT_SCHEMA_FLOOR && (found != 0 || tables) {
-            return Err(SchemaTooOld { found }.into());
+            return Err(SchemaTooOld { found, path }.into());
         }
         // WAL: the daemon writes while any number of frontends read.
         ensure_wal(&conn, store_wait())?;
@@ -1480,8 +1493,10 @@ impl Store {
             FACT_SCHEMA_VERSION => {}
             // Tables landed between the gate and the lock with no stamp:
             // a foreign writer, refused here.
-            0 if has_tables(&tx)? => return Err(SchemaTooOld { found: 0 }.into()),
-            v if v != 0 && v < FACT_SCHEMA_FLOOR => return Err(SchemaTooOld { found: v }.into()),
+            0 if has_tables(&tx)? => return Err(SchemaTooOld { found: 0, path }.into()),
+            v if v != 0 && v < FACT_SCHEMA_FLOOR => {
+                return Err(SchemaTooOld { found: v, path }.into());
+            }
             // A fresh file, or v8 to v9: the DDL is idempotent, and v9's
             // indexes come after it.
             _ => {

@@ -41,8 +41,7 @@
 //! the snapshot's sync-policy row (the planner owns that value's schema:
 //! version-stamped and strict-parsed — a typo'd field is a structured
 //! error, never intent half-honored; a newer version is refused as such,
-//! and an older one, which only development builds wrote, with its
-//! remedy; **v3** covers per facet under `realms.<R>.leagues.<L>`: `tabs` and/or
+//! and an older one with its remedy; **v3** covers per facet under `realms.<R>.leagues.<L>`: `tabs` and/or
 //! `characters`, each `"all"` or an id list, absent meaning no coverage
 //! of that facet — a v3 value must spell it absent: `[]` or `null`
 //! there is refused as non-canonical by the store's exact round-trip
@@ -276,8 +275,7 @@ pub const REFRESH_PLAN_SCHEMA: i64 = 6;
 /// absent means no coverage of that facet, and an entry covering neither
 /// is malformed ("names no work"). A value is held to its canonical
 /// spelling (C66): an empty list or `null` for a facet is refused naming
-/// the path, not normalized. It is also the floor: v1.0.0-alpha.1 wrote
-/// v3, and an older value, which only development builds wrote, is
+/// the path, not normalized. It is also the floor: an older value is
 /// refused with its remedy, never upgraded (C66).
 pub const SYNC_POLICY_VERSION: i64 = 3;
 
@@ -528,8 +526,8 @@ fn parse_policy(value: &Value) -> Result<SyncPolicy, String> {
         v if v < SYNC_POLICY_VERSION => {
             return Err(format!(
                 "sync policy declares version {v}, older than this build's \
-                 v{SYNC_POLICY_VERSION}, which reads no older one: a development build \
-                 wrote it; write the whole policy again (`replace`)"
+                 v{SYNC_POLICY_VERSION}, which reads no older one: write the whole policy \
+                 again (`replace`)"
             ));
         }
         SYNC_POLICY_VERSION => {
