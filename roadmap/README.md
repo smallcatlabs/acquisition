@@ -10,6 +10,11 @@ better Acquisition that is agent-friendly and agent-forward.
 
 ## Now
 
+- **The #293 removals** (`audits/assessment-6-5/README.md`, "The
+  candidates, ranked", items 1 to 5; the owner's "cuts 1-5 are
+  approved", 2026-11-20), built one at a time in the order 4, 2, 3, 1,
+  5. Cut 4 is closed: a quote over a closed route gives no estimate.
+  Next is cut 2, the terminal dashboard (`acq dash --json` stays).
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
   milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
   is designed and ruled (`briefs/4-full-1-step6-design.md`, values
