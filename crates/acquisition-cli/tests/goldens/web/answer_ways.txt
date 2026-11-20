@@ -59,7 +59,7 @@ GET search?<every ring, tabs never fetched in two leagues>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>
@@ -265,7 +265,7 @@ GET search?<a name eleven items carry>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t5&amp;at=k10#i-k10">pc · Standard / Kestrels · x 10, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–10 of 11 shown, in the store&#39;s order (no sort asked) · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–10 of 11 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -411,7 +411,7 @@ GET search?<a table of two values, priced three ways>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=name%3Aledger%20ilvl%3E%3D80%20line%28%22%23%20to%20maximum%20Life%22%20arg1%3E%3D50%29">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value="name:ledger ilvl&gt;=80 &quot;# to maximum Life&quot;&gt;=50"><input type="hidden" name="view.fields" value="icon">
-<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked, and the query compares no one value that orders it)</p>
+<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked, and the query compares no one value that orders it) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=ilvl&amp;view.desc=true">ilvl</a><a class="head" href="search?realm=pc&amp;text=name%3Aledger%20ilvl%3E%3D80%20%22%23%20to%20maximum%20Life%22%3E%3D50&amp;view.fields=icon&amp;view.sort=line%28%22%23%20to%20maximum%20Life%22%29.arg1&amp;view.desc=true">line(&quot;# to maximum Life&quot;).arg1</a></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
@@ -646,7 +646,7 @@ GET search?<a character fetched from a later release>
 </div>
 <p class="shows">class Rings</p>
 </div>
-<p class="rows-shown">rows 1–10 of 20 shown, in the store&#39;s order (no sort asked) · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
+<p class="rows-shown">rows 1–10 of 20 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class="way" data-way="/view/rows/next" href="/<token>/search?next=acq1.<token>">more</a></p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>

@@ -119,7 +119,7 @@ GET search?<the table, its first two rows opened>
 </table>
 <p><a class="presentation" href="search?realm=pc&amp;text=">as cards</a> · <a class="presentation" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=">by stash tab</a> · <a class="presentation" href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=">by character</a></p>
 <form class="table" method="get" action="search"><input type="hidden" name="realm" value="pc"><input type="hidden" name="text" value=""><input type="hidden" name="view.fields" value="icon"><input type="hidden" name="item" value="r1"><input type="hidden" name="item" value="kaom">
-<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>
 <div class="window" data-row-height="24" data-block-rows="50">
 <div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span></div>
 <div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="1" data-base="0"><div class="block" data-block="0">

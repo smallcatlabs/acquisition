@@ -1193,7 +1193,9 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<every ring, one row shown>",
         &first,
         &[
-            "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
+            // where no sort was asked, the way to one (the page seat after
+            // GUI step 6, its fault 2)
+            "rows 1–1 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it · <a class=\"way\" data-way=\"/view/rows/next\" href=\"/",
             "search?next=acq1.",
             "\">more</a>",
             "data-way=\"/terms/0/undecided\" href=",
@@ -1370,21 +1372,25 @@ fn every_search_page_is_a_wording_golden() {
     assert!(refused_doc["error"].is_string(), "{refused_doc}");
     // what a save leaves behind (#186), said by the save form: a sorted
     // table's order and table, a table's table alone
-    for (path, said) in [
+    for (path, said, line) in [
         (
             "search?realm=pc&text=class%3Arings&view.fields=icon&view.sort=ilvl&view.desc=true",
             "Saved without its order, its columns and the table: a saved search is its query and its scope.",
+            "3 matching items in the table, by ilvl, largest first, as asked</p>",
         ),
         (
             "search?realm=pc&text=class%3Arings&view.fields=icon",
             "Saved without the table: a saved search is its query and its scope.",
+            // where no sort was asked, the way to one (the page seat after
+            // GUI step 6, its fault 2)
+            "3 matching items in the table, in the store&#39;s order (no sort asked) · open an item by its name and press a number on its card to order the rows by it</p>",
         ),
     ] {
         let saving = web.get(path);
         pages.page(
             &format!("GET {path}"),
             &saving,
-            &[&format!("<p class=\"save-note\">{said}</p>")],
+            &[&format!("<p class=\"save-note\">{said}</p>"), line],
         );
     }
     let cards = web.get("search?realm=pc&text=class%3Arings");
@@ -5670,6 +5676,16 @@ fn the_grouped_table_is_a_wording_golden() {
             "name=\"toggle_item\" value=\"o-high\">Close</button>",
             "<input type=\"hidden\" name=\"item\" value=\"o-high\">",
             "open=f1&amp;open=o1&amp;at=o-high#i-o-high\">",
+        ],
+    );
+    // a place open with no query: its items in the store's order, and the
+    // way to order them said (the page seat after GUI step 6, its fault 2)
+    let plain = web.get("tabs?realm=pc&league=Standard&open=t1");
+    pages.page(
+        "GET tabs?<a place open, no query>",
+        &plain,
+        &[
+            "<p class=\"rows-shown\">Each place&#39;s items stand in the store&#39;s order: open one by its name and press a number on its card to order them by it.</p>",
         ],
     );
     page_golden(file!(), "grouped", &pages);

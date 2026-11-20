@@ -158,7 +158,7 @@ GET search?<a stat the table lacks>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–5 of 5 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–5 of 5 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -232,7 +232,7 @@ GET search?<every ring>
 </div>
 <p class="shows">category accessory.ring</p>
 </div>
-<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–3 of 3 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <table class="reasons">
 <tr><th>Unread</th><th>Example</th><th>Why</th></tr>
 <tr><td>the class: base not in the table</td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>`Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may</td></tr>

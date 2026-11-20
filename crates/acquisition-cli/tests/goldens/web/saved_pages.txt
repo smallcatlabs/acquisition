@@ -258,7 +258,7 @@ GET search?<rings, opened>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -343,7 +343,7 @@ GET search?<rings, opened, after the row moved>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -428,7 +428,7 @@ GET search?<rings, opened, after its text changed>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -513,7 +513,7 @@ GET search?<rings, opened, after it was renamed>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -622,7 +622,7 @@ GET search?<rings, opened, after it was cleared>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>
@@ -795,7 +795,7 @@ GET search?<everything, opened>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–5 of 5 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–5 of 5 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="basis">
 basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </p>
@@ -906,7 +906,7 @@ GET search?<belts, opened, reloaded>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t2&amp;at=new#i-new">pc · Standard / Launch · x 0, y 0 · fetched <age> ago</a></p>
 </div>
 </div>
-<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked)</p>
+<p class="rows-shown">rows 1–4 of 4 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

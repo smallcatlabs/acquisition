@@ -1083,6 +1083,10 @@ pub(crate) fn answer(
             // continuation's page the way back to the first rows
             if rows.fields.contains(&RowField::Item) && (rows.left_out > 0 || !a.rows.is_empty()) {
                 let mut line = esc(&search_cmd::rows_shown_words(a, rows));
+                if let Some(way) = order_way(rows, Presented::Cards).filter(|_| !a.rows.is_empty())
+                {
+                    line.push_str(&format!(" · {}", esc(way)));
+                }
                 if rows.left_out > 0 {
                     line.push_str(&match &rows.next {
                         Some(next) => format!(
@@ -1760,8 +1764,12 @@ fn rows_table(
     let values = search_cmd::values_left_out_words(rows)
         .map(|words| format!("; {words}"))
         .unwrap_or_default();
+    let way = order_way(rows, Presented::Table)
+        .filter(|_| matched > 0)
+        .map(|way| format!(" · {way}"))
+        .unwrap_or_default();
     let line = format!(
-        "{} in the table{order}{values}",
+        "{} in the table{order}{values}{way}",
         plural(matched, "matching item", "matching items")
     );
     let ways = CardWays {
@@ -1774,6 +1782,28 @@ fn rows_table(
         esc(&line),
         segments(window, &ways, now)
     )
+}
+
+/// Which rows a sentence says how to order.
+#[derive(Clone, Copy)]
+enum Presented {
+    Cards,
+    Table,
+    Places,
+}
+
+/// Where rows stand in the store's order because no sort was asked, how
+/// a page orders them: a number on an item's card orders the rows by its
+/// value, and a table's or a place's item opens to its card by its name.
+/// Without it a reader met no control that sorts until a query compared
+/// a value (the page seat after GUI step 6, its fault 2). None where a
+/// sort orders the rows, whose head flips it.
+fn order_way(rows: &RowsOut, shape: Presented) -> Option<&'static str> {
+    rows.sort.is_none().then_some(match shape {
+        Presented::Cards => "press a number on a card to order the rows by it",
+        Presented::Table => "open an item by its name and press a number on its card to order the rows by it",
+        Presented::Places => "Each place's items stand in the store's order: open one by its name and press a number on its card to order them by it.",
+    })
 }
 
 /// A table's heads, one line: the item, its base, its price, its location
@@ -2649,7 +2679,13 @@ pub(crate) fn places(view: &PlacesPage) -> String {
         .and_then(|(_, first)| match &first.view {
             ViewOut::Rows(rows) => {
                 let rows: &RowsOut = rows;
-                Some(item_heads(rows, &|value| (view.view_links)(rows, value)))
+                Some(format!(
+                    "{}{}",
+                    order_way(rows, Presented::Places)
+                        .map(|way| format!("<p class=\"rows-shown\">{}</p>\n", esc(way)))
+                        .unwrap_or_default(),
+                    item_heads(rows, &|value| (view.view_links)(rows, value))
+                ))
             }
             _ => None,
         })

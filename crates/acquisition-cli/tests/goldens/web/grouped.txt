@@ -177,3 +177,39 @@ GET tabs?<rings, Old rings open, its first row opened>
 </form>
 
 </main>
+
+GET tabs?<a place open, no query>
+# holds "<p class=\"rows-shown\">Each place&#39;s items stand in the store&#39;s order: open one by its name and press a number on its card to order them by it.</p>"
+<meta name="basis" content="{&quot;rows&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:13,&quot;at&quot;:65,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
+<main>
+<h1>Stash tabs</h1>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
+<form method="post" action="tabs"><input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><button type="submit">List this league&#39;s stash tabs</button></form>
+</div>
+<p class="counts">8 tabs in Standard: 5 fetched, 2 never fetched, 1 folder (never fetched); 9 items in tabs (characters apart); facts: 7 tabs, 5 fetched (the oldest fetch <age> ago, pc · Standard / Rings; the newest <age> ago, pc · Standard / Tier 16); stash listing <age> ago</p>
+<form method="get" action="tabs">
+<input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="t1">
+<p><label class="control">Items matching <input type="text" name="text" value="" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
+<label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Stash tabs</summary>
+<div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
+<div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>MapStash</option><option>Folder</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
+<div class="window" data-row-height="24" data-block-rows="50">
+<p class="rows-shown">Each place&#39;s items stand in the store&#39;s order: open one by its name and press a number on its card to order them by it.</p>
+<div class="r head"><span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span></div>
+<div class="p row depth-0" id="p-t1"><span><input type="checkbox" aria-label="Rings" name="tab" value="t1"></span><span><a class="way" data-way="/places/0" href="/<token>/search?realm=pc&amp;text=id%3At1%20league%3DStandard&amp;view.fields=icon">Rings</a> <button type="submit" name="toggle" value="t1">Close</button></span><span>PremiumStash</span><span>3</span><span><age> ago</span></div>
+<div class="seg" data-route="/<token>/rows?next=acq1.<token>" data-count="3" data-base="0"><div class="block" data-block="0">
+<div class="r" id="i-kaom" data-i="0" data-id="kaom"><button type="submit" class="name rarity-unique" name="toggle_item" value="kaom">Kaom&#39;s Heart Glorious Plate</button><span>Glorious Plate</span><span>none (nothing applies)</span><span>Standard / Rings · x 0, y 0</span><span><age> ago</span></div>
+<div class="r" id="i-r1" data-i="1" data-id="r1"><button type="submit" class="name rarity-rare" name="toggle_item" value="r1">Doom Loop Two-Stone Ring</button><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Rings · x 0, y 0</span><span><age> ago</span></div>
+<div class="r" id="i-r2" data-i="2" data-id="r2"><button type="submit" class="name rarity-rare" name="toggle_item" value="r2">Rune Coil Two-Stone Ring</button><span>Two-Stone Ring</span><span>none (nothing applies)</span><span>Standard / Rings · x 0, y 0</span><span><age> ago</span></div>
+</div></div>
+<div class="p row depth-0" id="p-t2"><span><input type="checkbox" aria-label="Launch" name="tab" value="t2"></span><span><a class="way" data-way="/places/1" href="/<token>/search?realm=pc&amp;text=id%3At2%20league%3DStandard&amp;view.fields=icon">Launch</a> <button type="submit" name="toggle" value="t2">Open</button></span><span>PremiumStash</span><span>2</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-f1"><span></span><span>Old <span class="holds-said">1 tab</span> <button type="submit" name="toggle" value="f1">Open</button></span><span>Folder</span><span></span><span></span></div>
+<div class="p row depth-0" id="p-m1"><span><input type="checkbox" aria-label="Maps" name="tab" value="m1"></span><span><a class="way" data-way="/places/3" href="/<token>/search?realm=pc&amp;text=id%3Am1%20league%3DStandard&amp;view.fields=icon">Maps</a> <span class="holds-said">2 pages, 1 never fetched</span> <button type="submit" name="toggle" value="m1">Open</button></span><span>MapStash</span><span>1</span><span><age> ago</span></div>
+<div class="p row depth-0" id="p-t3"><span><input type="checkbox" aria-label="Never" name="tab" value="t3"></span><span><a class="way" data-way="/places/4" href="/<token>/search?realm=pc&amp;text=id%3At3%20league%3DStandard&amp;view.fields=icon">Never</a></span><span>PremiumStash</span><span>-</span><span>never</span></div>
+</div>
+</details>
+</form>
+
+</main>
