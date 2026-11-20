@@ -141,7 +141,21 @@ fn every_tour_line_resolves_under_clap() {
         if !line.starts_with("acq ") {
             continue;
         }
-        for (path, flags) in parse(&line) {
+        let alternatives = parse(&line);
+        // `acq auth status | check` is `acq auth check`, so a reader takes
+        // `acq jobs | result <id>` for `acq jobs result` (the page seat
+        // after GUI step 6, its fault 13): two top-level verbs stand on
+        // two lines, never as one line's alternatives.
+        if alternatives[0].0.len() == 1
+            && alternatives
+                .iter()
+                .any(|(p, _)| p.len() == 1 && *p != alternatives[0].0)
+        {
+            failures.push(format!(
+                "two top-level verbs as one line's alternatives read as the first's sub-verbs: put each on its own line\n    {line}"
+            ));
+        }
+        for (path, flags) in alternatives {
             let path_ref: Vec<&str> = path.iter().map(String::as_str).collect();
             let text = match help(&path_ref) {
                 Ok(t) => t,

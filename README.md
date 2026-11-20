@@ -164,7 +164,8 @@ acq auth status | check | logout   # live sessions, or with no daemon what one w
 acq accounts [--expand]   # accounts this machine has logged into, ten and their count (no daemon)
 
 # jobs: fetched through the daemon, which starts on demand; a route's first use probes its limits
-acq profile | leagues   # profile; account leagues
+acq profile   # profile
+acq leagues   # account leagues
 acq characters [--realm R]   # character list
 acq character <name> [--realm R]   # equipment and inventory
 acq stashes [--league L] [--realm R]   # tab list (PoE1 only)
@@ -172,8 +173,11 @@ acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep] | --characters x,y   # a selection by id: compiled into a plan, printed, applied at once
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
 acq demo   # mock only: a burst of jobs with the limiter's ETAs
-acq jobs [--watch] [--all] | status <id> | result <id> [--wait]   # every job counted, ten open and ten finished listed (--all every one); one job; its payload, from disk if no daemon runs
-acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
+acq jobs [--watch] [--all]   # every job counted, ten open and ten finished listed (--all every one)
+acq status <id>   # one job
+acq result <id> [--wait]   # its payload, from disk if no daemon runs
+acq cancel <id>   # cancel a subtree
+acq set-priority <id> <n>   # change priority
 
 # keeping a league fresh: a policy, then a plan you read before it runs
 acq policy [show]   # sync policy and revision; each realm's leagues on disk, named or not
