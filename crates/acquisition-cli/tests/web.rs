@@ -4102,7 +4102,9 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
 /// and the CLI's text say what they said before the cause was typed: the
 /// page's JSON note is the sentence around the CLI's words, in both. The
 /// pages are a golden: a policy's plan whose quote knows no timing, the
-/// refused session, and no daemon.
+/// refused session, no daemon, and a route a run of invalid answers
+/// closed (C190), whose requests the quote gives no time and the page
+/// says paused.
 #[test]
 fn a_plan_says_not_signed_in_only_where_the_daemon_refused_the_session() {
     let scratch = harness::scratch("websession");
@@ -4182,6 +4184,31 @@ fn a_plan_says_not_signed_in_only_where_the_daemon_refused_the_session() {
         text.contains("quote: unavailable — no daemon running\n"),
         "{text}"
     );
+
+    // a closed route, staged in the world's rails as the rails tests stage
+    // it before the next daemon starts: its request has no time, said
+    // paused and not unlearned
+    let now = harness::now();
+    std::fs::write(
+        base.join("store").join("mock").join("rails.json"),
+        format!(
+            r#"{{"closed_routes":{{"stash-list@Alice":{{"invalid":5,"status":400,"closed_at":{now},"cooldown_secs":60,"until":{}}}}}}}"#,
+            now + 60
+        ),
+    )
+    .unwrap();
+    let _again = harness::login(&base, "Alice");
+    let paused = web.get(path);
+    pages.page(
+        "GET plan?<a closed route>",
+        &paused,
+        &[
+            "The timing of 1 request is not known: GGG",
+            "paused its kind of request",
+            ">Apply</button>",
+        ],
+    );
+    assert!(!paused.body.contains("not yet known"), "{}", paused.body);
     page_golden(file!(), "plan_session", &pages);
 }
 

@@ -3526,7 +3526,9 @@ fn left_out(planned: &acquisition_verbs::Planned) -> Vec<String> {
 /// When the daemon says the plan's requests could go (Decision 3), or why
 /// it says nothing. A scope's estimate is when its *last* request could
 /// go, so the largest known one is the time for every request whose
-/// timing is known; a scope with none is counted as not yet known. Only a
+/// timing is known; a scope with none is counted as not yet known while
+/// its route's policy is unlearned, and as paused while its route is
+/// closed (a failed probe, or a run of invalid answers, C190). Only a
 /// quote the daemon refused for want of a session says "not signed in"
 /// (#189, fault 12): no daemon, a timeout or another miss observed no
 /// session and says nothing of one.
@@ -3574,7 +3576,16 @@ fn quote_words(planned: &acquisition_verbs::Planned, now: i64) -> String {
             usize::try_from(scopes.map(|s| s.requests).sum::<u64>()).unwrap_or(usize::MAX)
         };
     let timed = requests(&mut known.iter().copied());
-    let untimed = requests(&mut quote.scopes.iter().filter(|s| s.eta_seconds.is_none()));
+    let untimed = |unlearned: bool| {
+        requests(&mut quote.scopes.iter().filter(|s| {
+            // The daemon's note says a closure in these words, a failed
+            // probe's and a run's alike; a closed route may be unlearned
+            // too, and its closure is what holds it.
+            let closed = s.notes.iter().any(|note| note.contains(" closed "));
+            s.eta_seconds.is_none() && closed != unlearned
+        }))
+    };
+    let (unlearned, paused) = (untimed(true), untimed(false));
     let queued: u64 = quote.scopes.iter().map(|s| s.queued_ahead).sum();
     let mut said = Vec::new();
     if let Some(last) = known.iter().filter_map(|s| s.eta_seconds).max() {
@@ -3589,15 +3600,26 @@ fn quote_words(planned: &acquisition_verbs::Planned, now: i64) -> String {
             format!("The {timed} requests whose timing is known could all go {when}")
         });
     }
-    if untimed > 0 {
-        let lead = if said.is_empty() {
+    let lead = |said: &Vec<String>| {
+        if said.is_empty() {
             "The timing of "
         } else {
             "the timing of "
-        };
+        }
+    };
+    if unlearned > 0 {
         said.push(format!(
-            "{lead}{} is not yet known: the daemon learns GGG's pace from its first answer",
-            plural(untimed, "request", "requests")
+            "{}{} is not yet known: the daemon learns GGG's pace from its first answer",
+            lead(&said),
+            plural(unlearned, "request", "requests")
+        ));
+    }
+    if paused > 0 {
+        said.push(format!(
+            "{}{} is not known: GGG's answers have paused {} kind of request, and the daemon tries again after a wait",
+            lead(&said),
+            plural(paused, "request", "requests"),
+            if paused == 1 { "its" } else { "their" }
         ));
     }
     let mut words = format!("{} (asked {asked}).", said.join("; "));

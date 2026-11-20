@@ -117,25 +117,9 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         assert_eq!(list(door.every_job().await), jobs_before);
         assert_eq!(door.journal(), journal_before);
 
-        // C190: a route a run of invalid answers closed is quoted from
-        // the closure's end, and the note says why.
-        for _ in 0..5 {
-            door.daemon().rails().record(&crate::rails::SendReport {
-                method: "GET",
-                route: "fetch",
-                url_path: "/fetch",
-                status: Some(400),
-                error: None,
-                ok: false,
-                counted: true,
-                rate: &Value::Null,
-                shape: None,
-                block: false,
-                unreachable: false,
-                headers: &Value::Null,
-                wait: Duration::ZERO,
-            });
-        }
+        // C190: a route a run of invalid answers closed has no estimate,
+        // and the note says why.
+        close_route(&door, "fetch", "/fetch");
         let closed = match door
             .request(Request::Quote {
                 jobs: vec![QuoteJob {
@@ -152,21 +136,129 @@ fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see() {
         let [scope] = closed.scopes.as_slice() else {
             panic!("{:?}", closed.scopes)
         };
+        assert_closed(scope, "fetch");
+        door.finish().await;
+    });
+
+    // C190, the closure rows beside a session: a scope has no estimate
+    // when any one of its endpoints is closed, its sample or another, and
+    // whatever the limiter knows of its route. The stash lists of two
+    // realms answer under one policy, so once both are learned they are
+    // one scope of two endpoints; `/profile` is declared policyless (C32),
+    // paced by nothing else.
+    Door::open(
+        Server::Mock,
+        Arc::new(ParkingClock::new()),
+        Arc::new(RecordingCredentialStore::default()),
+    )
+    .sessions(logged_in_sessions())
+    .run(|mut door| async move {
+        // The first profile renames the session to its account's name; the
+        // second teaches that account's route its declared policyless state.
+        for account in [Some("test-user"), None] {
+            let profile = door.submit("profile", account).await;
+            let (info, outcome) = door.await_terminal(profile).await;
+            assert_eq!(info.state, JobState::Done, "{outcome:?}");
+        }
+        let lists = [json!({}), json!({ "realm": "xbox" })];
+        for params in &lists {
+            let submit = Request::Submit {
+                kind: "stashes".into(),
+                params: params.clone(),
+                priority: 0,
+                submitted_by: "test".into(),
+                account: None,
+            };
+            let id = match door.request(submit).await {
+                Response::Submitted { id } => id,
+                other => panic!("{other:?}"),
+            };
+            let (info, outcome) = door.await_terminal(id).await;
+            assert_eq!(info.state, JobState::Done, "{outcome:?}");
+        }
+        let mut work: Vec<QuoteJob> = lists
+            .iter()
+            .map(|params| QuoteJob {
+                kind: "stashes".into(),
+                params: params.clone(),
+            })
+            .collect();
+        work.push(QuoteJob {
+            kind: "profile".into(),
+            params: json!({}),
+        });
+        let quote = || Request::Quote {
+            jobs: work.clone(),
+            account: None,
+        };
+        let scopes = |answer: Response| match answer {
+            Response::Quote { quote } => quote.scopes,
+            other => panic!("{other:?}"),
+        };
+        let open = scopes(door.request(quote()).await);
+        let [profile, lists] = open.as_slice() else {
+            panic!("a policyless scope and one of two lists: {open:?}")
+        };
+        assert_eq!(profile.eta_seconds, Some(0), "{profile:?}");
+        assert_eq!(lists.endpoints.len(), 2, "{lists:?}");
+        assert!(lists.eta_seconds.is_some(), "{lists:?}");
+        // One endpoint of the two closed, and the policyless route.
+        let (xbox, pc): (Vec<String>, Vec<String>) = lists
+            .endpoints
+            .iter()
+            .cloned()
+            .partition(|endpoint| endpoint.contains("xbox"));
+        let ([xbox], [pc]) = (xbox.as_slice(), pc.as_slice()) else {
+            panic!("{lists:?}")
+        };
+        close_route(&door, &profile.endpoints[0], "/profile");
+        close_route(&door, xbox, "/stash/xbox/Standard");
+        let closed = scopes(door.request(quote()).await);
+        let [profile, lists] = closed.as_slice() else {
+            panic!("{closed:?}")
+        };
+        assert_closed(profile, &profile.endpoints[0]);
+        assert_closed(lists, xbox);
         assert!(
-            scope.eta_seconds.is_some_and(|eta| eta >= 60),
-            "{:?}",
-            scope.eta_seconds
-        );
-        assert!(
-            scope
-                .notes
-                .iter()
-                .any(|note| note.contains("closed after a run of invalid answers")),
-            "{:?}",
-            scope.notes
+            !lists.notes.iter().any(|note| note.contains(pc.as_str())),
+            "the open endpoint is not said closed: {lists:?}"
         );
         door.finish().await;
     });
+}
+
+/// C190: five invalid answers on `route`, which close it.
+fn close_route(door: &Door, route: &str, url_path: &str) {
+    for _ in 0..5 {
+        door.daemon().rails().record(&crate::rails::SendReport {
+            method: "GET",
+            route,
+            url_path,
+            status: Some(400),
+            error: None,
+            ok: false,
+            counted: true,
+            rate: &Value::Null,
+            shape: None,
+            block: false,
+            unreachable: false,
+            headers: &Value::Null,
+            wait: Duration::ZERO,
+        });
+    }
+}
+
+/// C190: a scope over the closed `endpoint` gives no estimate, and its
+/// note names the closure and the trial after it.
+fn assert_closed(scope: &QuoteScope, endpoint: &str) {
+    assert_eq!(scope.eta_seconds, None, "{scope:?}");
+    assert!(
+        scope.notes.iter().any(|note| note.starts_with(endpoint)
+            && note.contains("closed after a run of invalid answers")
+            && note.contains("one job goes as the trial")),
+        "{:?}",
+        scope.notes
+    );
 }
 
 /// C40 — the projection counts the queue ahead and keys the same scopes a submit would.
@@ -324,124 +416,4 @@ a sync policy that covers fewer tabs or characters plans fewer actions",
         )
     );
     finish_harness(None, &log);
-}
-
-/// C190, the review of #291's build (finding 1): a closed route's quote
-/// starts at the closure's end whatever the limiter knows of it: a
-/// declared-policyless route (`/profile`, C32), paced by nothing else,
-/// quotes the closure's remainder, not zero.
-#[test]
-fn c190_a_closed_route_is_quoted_from_the_closures_end_whatever_its_state() {
-    Door::open(
-        Server::Mock,
-        Arc::new(ParkingClock::new()),
-        Arc::new(RecordingCredentialStore::default()),
-    )
-    .sessions(logged_in_sessions())
-    .run(|mut door| async move {
-        // The first profile renames the session to its account's name; the
-        // second teaches that account's route its declared policyless state.
-        for account in [Some("test-user"), None] {
-            let profile = door.submit("profile", account).await;
-            let (info, outcome) = door.await_terminal(profile).await;
-            assert_eq!(info.state, JobState::Done, "{outcome:?}");
-        }
-        let quote = || Request::Quote {
-            jobs: vec![QuoteJob {
-                kind: "profile".into(),
-                params: json!({}),
-            }],
-            account: None,
-        };
-        let scope = |answer: Response| match answer {
-            Response::Quote { quote } => quote.scopes[0].clone(),
-            other => panic!("{other:?}"),
-        };
-        let open = scope(door.request(quote()).await);
-        assert_eq!(open.eta_seconds, Some(0), "{open:?}");
-        let route = open.endpoints[0].clone();
-        for _ in 0..5 {
-            door.daemon().rails().record(&crate::rails::SendReport {
-                method: "GET",
-                route: &route,
-                url_path: "/profile",
-                status: Some(400),
-                error: None,
-                ok: false,
-                counted: true,
-                rate: &Value::Null,
-                shape: None,
-                block: false,
-                unreachable: false,
-                headers: &Value::Null,
-                wait: Duration::ZERO,
-            });
-        }
-        let closed = scope(door.request(quote()).await);
-        assert!(
-            closed.eta_seconds.is_some_and(|eta| eta >= 60),
-            "a start sooner than the trial: {closed:?}"
-        );
-        door.finish().await;
-    });
-}
-
-/// C190, the review of #291's fix round (finding 1): a scope's estimate
-/// starts at the latest closure among all its endpoints, not its sample's
-/// alone: two routes learned under one policy, the second closed, and the
-/// scope's projection from the open one waits the closure and then paces
-/// every request ahead from its end.
-#[tokio::test]
-async fn c190_a_scopes_estimate_starts_at_the_latest_closure_among_its_endpoints() {
-    let clock = Arc::new(ParkingClock::new());
-    let (transport, _mock) = crate::transport::mock(&Hold::new(), clock.clone());
-    let (daemon, log_path) = test_daemon(Boundary::Function, transport, clock);
-    // Two routes the mock answers under its one fetch policy.
-    for route in ["fetch", "fetch-twin"] {
-        daemon
-            .choke
-            .head(
-                route,
-                &format!("{BASE}/fetch"),
-                None,
-                daemon.choke.now(),
-                ALWAYS_WANTED,
-            )
-            .await
-            .unwrap();
-    }
-    assert_eq!(
-        daemon.choke.serial_key("fetch"),
-        daemon.choke.serial_key("fetch-twin"),
-        "one scope"
-    );
-    for _ in 0..5 {
-        daemon.rails().record(&crate::rails::SendReport {
-            method: "GET",
-            route: "fetch-twin",
-            url_path: "/fetch",
-            status: Some(400),
-            error: None,
-            ok: false,
-            counted: true,
-            rate: &Value::Null,
-            shape: None,
-            block: false,
-            unreachable: false,
-            headers: &Value::Null,
-            wait: Duration::ZERO,
-        });
-    }
-    let scope = vec!["fetch".to_string(), "fetch-twin".to_string()];
-    let open_only = daemon.choke.project("fetch", &scope[..1], 30);
-    let whole = daemon.choke.project("fetch", &scope, 30);
-    let (open_only, whole) = (open_only.eta.unwrap(), whole.eta.unwrap());
-    // Thirty requests ahead outrun the policy's 30-per-300s window, and
-    // the closure's minute comes first: the scope paces from its end.
-    assert!(open_only >= Duration::from_secs(300), "{open_only:?}");
-    assert!(
-        whole > open_only && whole >= Duration::from_secs(60 + 300),
-        "the closure not waited before the pacing: {whole:?} beside {open_only:?}"
-    );
-    finish_harness(None, &log_path);
 }

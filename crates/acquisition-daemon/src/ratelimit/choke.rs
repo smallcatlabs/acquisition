@@ -537,27 +537,13 @@ impl ChokePoint {
     }
 
     /// One endpoint's quote-relevant state under a single limiter lock —
-    /// see `Limiter::project`.
-    ///
-    /// C190: a scope's ETA starts at the latest closure's end among all
-    /// its endpoints (`scope`, which share the policy `route`, the sample,
-    /// names), and paces every request ahead from there.
-    pub fn project(&self, route: &str, scope: &[String], ahead: u32) -> ScopeProjection {
-        let now = self.now();
-        let left = scope
-            .iter()
-            .map(String::as_str)
-            .chain([route])
-            .filter_map(|endpoint| self.rails.closed_for(endpoint))
-            .max()
-            .unwrap_or(Duration::ZERO);
-        let from = now.checked_add(left).unwrap_or(now);
-        let limiter = self.limiter.lock().unwrap();
-        let mut projection = limiter.project(route, ahead, now);
-        if !left.is_zero() && projection.eta.is_some() {
-            projection.eta = Some(limiter.eta_for(route, ahead, from) + left);
-        }
-        projection
+    /// see `Limiter::project`. A closed route is the quote's to say
+    /// (C190): this projects the limiter alone.
+    pub fn project(&self, route: &str, ahead: u32) -> ScopeProjection {
+        self.limiter
+            .lock()
+            .unwrap()
+            .project(route, ahead, self.now())
     }
 
     /// Requests holding N4's live send gate and its global bound.

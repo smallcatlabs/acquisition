@@ -91,8 +91,7 @@ impl Daemon {
             let sample = endpoints.iter().next().cloned().unwrap_or_default();
             let queued_ahead = queued.get(&key).copied().unwrap_or(0);
             let ahead = (queued_ahead + requests - 1) as u32;
-            let scope: Vec<String> = endpoints.iter().cloned().collect();
-            let projection = self.choke.project(&sample, &scope, ahead);
+            let projection = self.choke.project(&sample, ahead);
             let (policy, eta_seconds, notes) = match projection.state {
                 EndpointState::Policy(name) => {
                     let eta = projection.eta.unwrap_or_default().as_secs();
@@ -140,17 +139,16 @@ impl Daemon {
                     )
                 }
             };
-            // C190: a closed route's estimate starts at the closure's end,
-            // whatever the limiter knows of it (`ChokePoint::project` runs a
-            // learned policy's from there; any other estimate is at least
-            // the remainder), and the note says why.
+            // C190: a scope with a closed endpoint has no estimate, whatever
+            // the limiter knows of its route, and the note says why: as a
+            // route closed by a failed probe or not yet learned has none.
             let mut notes = notes;
             let mut eta_seconds = eta_seconds;
             for endpoint in &endpoints {
                 if let Some(left) = self.rails().closed_for(endpoint) {
-                    eta_seconds = eta_seconds.map(|eta| eta.max(left.as_secs()));
+                    eta_seconds = None;
                     notes.push(format!(
-                        "{endpoint} is closed after a run of invalid answers for another {}s; then one job goes as the trial, and the estimate starts there",
+                        "{endpoint} is closed after a run of invalid answers for another {}s; then one job goes as the trial",
                         left.as_secs()
                     ));
                 }
