@@ -588,12 +588,11 @@ fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole(
 
 const LIFE: &str = r##""+# to maximum Life">=90"##;
 
-/// Values on rows at a terminal (4-full part 1, step 6.1; #38): a query
-/// comparing one value is ordered by it, best first, and says it came
-/// from the query; several give their values on each row and the
-/// store's order, said why; `--value` names the values, in order, a sort
-/// outside them joining them; `--sort none` keeps the store's order, and
-/// `--desc` beside it is refused.
+/// Values on rows at a terminal (4-full part 1, step 6.1): the values a
+/// query compares are on each row, and the rows stand in the store's
+/// order, said so; `--value` names the values, in order, a sort outside
+/// them joining them; `--sort none` names the store's order, and `--desc`
+/// beside it is refused.
 #[test]
 fn values_on_rows_at_a_terminal() {
     let scratch = harness::scratch("search-values");
@@ -602,25 +601,21 @@ fn values_on_rows_at_a_terminal() {
     let out = acq(&base, &["--json", "search", "--realm", "pc", LIFE]);
     let a = sole_json(&out);
     let rows = &a["view"]["rows"];
-    assert_eq!(rows["sort"], "line(\"# to maximum Life\").arg1", "{rows}");
+    assert!(rows.get("sort").is_none(), "{rows}");
     assert_eq!(
-        (&rows["desc"], &rows["sort_from_query"]),
-        (&json!(true), &json!(true))
+        rows["values"],
+        json!(["line(\"# to maximum Life\").arg1"]),
+        "{rows}"
     );
-    assert_eq!(rows["values"], json!([rows["sort"]]), "{rows}");
     let mut t = Transcript::offline(&base);
     t.run(
         &["search", "--realm", "pc", LIFE, "--limit", "1"],
-        &["by line(\"# to maximum Life\").arg1, largest first: the one value the query compares"],
-    );
-    t.run(
-        &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1"), "--limit", "1"],
-        &["in the store's order (no sort asked, and the query compares no one value that orders it)"],
+        &["in the store's order (no sort asked)"],
     );
     // every row shown: the order said still (the cold review at 1ab468eb)
     t.run(
         &["search", "--realm", "pc", &format!("{LIFE} ilvl>=1")],
-        &["order   rows 1–2 of 2 shown, in the store's order (no sort asked, and the query compares no one value that orders it)"],
+        &["order   rows 1–2 of 2 shown, in the store's order (no sort asked)"],
     );
     // the query's values past the twelve a row carries, counted
     let twelve: Vec<String> = ('a'..='l')

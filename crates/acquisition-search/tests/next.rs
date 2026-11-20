@@ -170,13 +170,13 @@ fn an_ids_index_is_the_place_answer_lists_its_row_at() {
     );
 }
 
-/// A continuation of rows the query ordered unasked goes on in that
-/// order (4-full part 1, step 6.1): it names what its request named and
-/// the query fills the rest again, the same at the basis it names, so
-/// every page says the order came from the query; values named are
+/// A continuation of rows whose values the query gave unasked goes on
+/// with them (4-full part 1, step 6.1): it names what its request named
+/// and the query fills the rest again, the same at the basis it names, so
+/// every page says the values came from the query; values named are
 /// carried, and `none` is.
 #[test]
-fn a_continuation_goes_on_in_the_order_the_query_gave() {
+fn a_continuation_goes_on_with_the_values_the_query_gave() {
     let s = worked();
     let corpus = load(&s, Some("pc"));
     for rows in [
@@ -206,21 +206,12 @@ fn a_continuation_goes_on_in_the_order_the_query_gave() {
                 said["values"], whole["view"]["rows"]["values"],
                 "{rows}: {said}"
             );
-            assert_eq!(
-                said.get("sort_from_query"),
-                whole["view"]["rows"].get("sort_from_query")
-            );
         }
         let (paged, _) = pages(&corpus, &view(3));
         assert_eq!(paged, rows_of(&whole), "{rows}");
-        // left to the query, every page says the list and the order are
-        // the query's; named, none does
+        // left to the query, every page says the list is the query's;
+        // named, none does
         let said = &second["view"]["rows"];
-        assert_eq!(
-            said.get("sort_from_query").is_some(),
-            rows.get("sort").is_none(),
-            "{said}"
-        );
         assert_eq!(
             said.get("values_from_query").is_some(),
             rows.get("values").is_none(),

@@ -1061,11 +1061,10 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
     let corpus = load(&s, Some("pc"));
     let request = serde_json::from_value(json!({
         "query": { "text": "\"+# to maximum Life\">=90" },
-        "view": { "rows": { "limit": 1 } },
+        "view": { "rows": { "limit": 1, "sort": "line(\"# to maximum Life\").arg1", "desc": true } },
     }))
     .unwrap();
     let a = as_json(&acquisition_search::answer(&corpus, &request).unwrap());
-    // the query's one value orders the rows, best first (#38)
     assert_eq!(a["rows"][0]["id"], "r3", "{a}");
     let touched = a["rows"][0]["matched"].as_array().unwrap();
     assert!(!touched.is_empty(), "{a}");

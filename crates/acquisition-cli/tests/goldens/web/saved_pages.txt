@@ -58,20 +58,20 @@ GET search?<the ring search>
 <p class="base">Two-Stone Ring</p>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+95 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true">+95 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <p class="flags">is identified</p>
 <p class="price">price none (nothing applies)</p>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r1#i-r1">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
-<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)<br>category accessory.ring</p>
+<p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 95<br>+95 to maximum Life (explicit)<br>category accessory.ring</p>
 <div class="card">
 <img class="art" src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring">
 <p><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring · rare · frame rare</a></p>
 <p class="base">Two-Stone Ring</p>
 <p class="properties">Item Level: <a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=ilvl&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=ilvl">84</a></p>
 <div class="mods">
-<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29"><span class="mark" aria-hidden="true">▼</span>+75 to maximum Life<span class="sr">, ordered largest first</span></a> <span class="mod-kind">explicit</span></p>
+<p class="mod"><a class="value valued" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.desc=true">+75 to maximum Life</a> <span class="mod-kind">explicit</span></p>
 </div>
 <div class="mods">
 <p class="mod"><a class="value" href="search?realm=pc&amp;league=Standard&amp;query.filters.type_filters.filters.category.option=accessory.ring&amp;query.filters.type_filters.filters.rarity.option=&amp;query.filters.misc_filters.filters.ilvl.min=&amp;query.stats%5B0%5D.type=and&amp;query.stats%5B0%5D.filters%5B0%5D.id=explicit.stat_3299347043&amp;query.stats%5B0%5D.filters%5B0%5D.value.min=70&amp;query.stats%5B0%5D.filters%5B1%5D.id=&amp;view.limit=20&amp;view.sort=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29&amp;view.desc=true&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dexplicit%29.arg1%29&amp;view.value=sum%28line%28%22%23%20to%20maximum%20Life%22%20source%3Dimplicit%29.arg1%29">+20 to maximum Life</a> <span class="mod-kind">implicit</span></p>
@@ -80,9 +80,9 @@ GET search?<the ring search>
 <p class="price">price none (nothing applies)</p>
 <p class="place"><a class="placed" href="/<token>/tabs?realm=pc&amp;league=Standard&amp;open=t1&amp;at=r2#i-r2">pc · Standard / Rings · x 0, y 0 · fetched <age> ago</a></p>
 </div>
-<p class="shows">sorts by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</p>
+<p class="shows">sum(line(&quot;# to maximum Life&quot; source=explicit).arg1) 75<br>+75 to maximum Life (explicit)<br>category accessory.ring</p>
 </div>
-<p class="rows-shown">rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares (sort `none` keeps the store&#39;s order)</p>
+<p class="rows-shown">rows 1–2 of 2 shown, in the store&#39;s order (no sort asked) · press a number on a card to order the rows by it</p>
 <p class="terms-head">Terms: each term counted alone over all live pc items in all leagues, never over the matches</p>
 <table class="terms">
 <tr><th>Path</th><th>Term</th><th>Matched</th><th>Failed</th><th>Lacked</th><th>Undecided</th><th>Only together</th></tr>

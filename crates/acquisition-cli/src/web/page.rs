@@ -715,8 +715,8 @@ const COUNT: &str = "<span class=\"count\">Matches: <output data-count=\"matched
 /// Nothing is typed to sort (4-full part 1, step 6.4c): on an answer it
 /// carries, hidden as it carries the realm, the sort, its direction and
 /// the values the URL named, so an edited query keeps the order and the
-/// columns its reader chose by a head or a card; what the query gave
-/// unasked is never carried (#38), so the edited query gives its own. Its
+/// columns its reader chose by a head or a card; the values the query
+/// gave unasked are never carried, so the edited query gives its own. Its
 /// "Results as" is the big form's (the page seat of 2026-11-08, its T2):
 /// cards, sent empty, or the table, set on an answer to the way it
 /// showed, so an edited query keeps it. What it carries of the view is
@@ -760,9 +760,9 @@ pub(crate) fn query_box(
             )
         })
         .collect();
-    // the sort named, never the order the query gave unasked (#38), and
-    // the values named, never the query's: what the URL named, so sending
-    // the box again asks what was asked of the edited query
+    // the sort named, and the values named, never the query's: what the
+    // URL named, so sending the box again asks what was asked of the
+    // edited query
     if let Some(sort) = &view.sort {
         carried.push_str(&hidden("view.sort", sort));
         if view.desc {
@@ -787,8 +787,8 @@ pub(crate) fn query_box(
 }
 
 /// What the query box carries of the view (step 6.4c; step 6.5c,
-/// Decisions 8 and 9): the sort and the values the URL named, never what
-/// the query gave unasked, the table where the rows were one, and the
+/// Decisions 8 and 9): the sort and the values the URL named, never the
+/// values the query gave unasked, the table where the rows were one, and the
 /// rows' number. Made from an answer's rows, or from a refused search's
 /// fields as sent; the save note says what of it a save leaves behind.
 #[derive(Default)]
@@ -803,10 +803,9 @@ pub(crate) struct BoxView {
 impl BoxView {
     /// What an answer's rows carry into the box.
     pub fn of(rows: &RowsOut) -> BoxView {
-        let sort = rows.sort.clone().filter(|_| !rows.sort_from_query);
         BoxView {
-            desc: sort.is_some() && rows.desc,
-            sort,
+            sort: rows.sort.clone(),
+            desc: rows.sort.is_some() && rows.desc,
             values: match rows.values_from_query {
                 true => Vec::new(),
                 false => rows.values.clone(),

@@ -218,11 +218,10 @@
 //!   eighteen times under eighteen `class:` terms (F9).
 //! - **Rows** are the matching items in the store's stable order, or by
 //!   the sort scalar with items that have none last either way; past the
-//!   limit they are counted, and the way on is the answer's `next`. Where
-//!   no sort is named, a query that compares exactly one value with one
-//!   direction is ordered by it, best first by its operator, and the
-//!   answer says so (`sort_from_query`; #38, `values.rs`); `sort: none`
-//!   declines that. A counts view shows none: the matches are handed to
+//!   limit they are counted, and the way on is the answer's `next`. No
+//!   order comes from the query (#293 cut 3): where no sort is named the
+//!   rows stand in the store's order, and `sort: none` names that order
+//!   too. A counts view shows none: the matches are handed to
 //!   `counts.rs` instead, with the one maker of a route (`Router`,
 //!   private), so a bucket's route is made as a term's is.
 //! - **A row carries values** (4-full part 1, step 6.1): those the view
@@ -230,14 +229,14 @@
 //!   at most [`VALUES`] with the sort among them, the sort joining them
 //!   at their end where they lack it (a full list of the query's gives
 //!   it its last place, the value displaced counted; a full list named,
-//!   which a sort, named or the query's, would push past the bound, is
+//!   which a named sort would push past the bound, is
 //!   refused); each in the shape a sort's number had, said once, so a
 //!   row's sort is the entry `view.rows.sort` names. A continuation names
 //!   what its request named — a sort, `none`, values — and names the
-//!   order the query gave by the query it carries (C100): the query's
-//!   values and order are a pure function of the canonical query and the
-//!   build, which its basis names (C98), so it fills them again the same
-//!   and every page says them as from the query.
+//!   values the query gave by the query it carries (C100): they are a
+//!   pure function of the canonical query and the build, which its basis
+//!   names (C98), so it fills them again the same and every page says
+//!   them as from the query.
 //! - **A row is compact unless its view names fields** (C100: the
 //!   caller may name fields; 4-full part 1, step 5): `icon`, the URL of
 //!   the item's art, and `item`, the item as `show` gives it — five keys
@@ -632,7 +631,7 @@ pub struct Rows {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
     /// A value's text: a number field, `line(P).<slot>`, `sum( … )`; or
-    /// `none`, the store's order where the query would give one.
+    /// `none`, the store's order, as naming none gives.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     /// The values each row carries, by their texts as `sort` takes one,
@@ -1090,7 +1089,7 @@ enum BoundView {
     Rows {
         sort: Option<(String, bind::SortKey)>,
         desc: bool,
-        /// `sort: none`: the store's order, where the query would give one.
+        /// `sort: none`: the store's order, named.
         store_order: bool,
         /// The values each row carries, by text, in order: as named, or
         /// the query's once [`BoundView::filled`] has run.
@@ -1102,7 +1101,6 @@ enum BoundView {
         /// The query's values past [`VALUES`].
         values_left_out: usize,
         values_from_query: bool,
-        sort_from_query: bool,
         /// The sort joined the values, at their end, the list lacking it.
         sort_joined: bool,
         limit: usize,
@@ -1129,8 +1127,8 @@ struct ViewNamed {
 /// more stats than six, and each is a column its table shows.
 pub const VALUES: usize = 12;
 
-/// The sort word for the store's order: a query comparing one value is
-/// ordered by it where no sort is named, and `none` declines that.
+/// The sort word for the store's order, which naming no sort gives too:
+/// a second spelling of it, kept so a request that names it answers.
 pub const STORE_ORDER: &str = "none";
 
 fn is_store_order(text: &str) -> bool {
@@ -1160,31 +1158,18 @@ struct Explained {
 impl BoundView {
     /// A rows view with what the request left to the query filled from
     /// it (`values.rs`): the values it compares where none were named,
-    /// its one value's order where no sort was, and the sort among the
-    /// values where the list lacks it.
+    /// and the sort among the values where the list lacks it.
     fn filled(mut self, root: &Node) -> Result<BoundView, LanguageError> {
         if let BoundView::Rows {
             sort,
-            desc,
-            store_order,
             values,
             values_left_out,
             values_from_query,
-            sort_from_query,
             sort_joined,
             ..
         } = &mut self
         {
             let compared = crate::values::compared(root);
-            // the order: named, `none`, or the query's one value
-            if sort.is_none()
-                && !*store_order
-                && let Some((one, direction)) = crate::values::default_order(&compared)
-            {
-                *sort = Some((one.text.clone(), bind::bind_sort(&one.value)?));
-                *desc = direction == crate::values::Direction::Largest;
-                *sort_from_query = true;
-            }
             // the list: named, or the query's
             let named = !values.is_empty();
             if !named {
@@ -1383,7 +1368,6 @@ impl Shape {
                 },
                 values_left_out: 0,
                 values_from_query: false,
-                sort_from_query: false,
                 sort_joined: false,
                 // under `item` at most the item rows' bound, whatever the
                 // limit names: the limit applied is the view's, said in the
@@ -1861,15 +1845,11 @@ pub struct Next {
 #[derive(Debug, Clone, Serialize)]
 pub struct RowsOut {
     /// The value the rows are ordered by, one of `values`; or `none`,
-    /// the store's order asked. Absent: the store's order.
+    /// the store's order asked. Absent: the store's order, none named.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub desc: bool,
-    /// The sort is the query's one value, best first by its operator, no
-    /// sort having been named (#38).
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub sort_from_query: bool,
     /// The values each row carries, in this order, by text: as named, or
     /// the ones the query compares; the sort among them. Absent where
     /// none.
@@ -2706,7 +2686,6 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
             named,
             values_left_out,
             values_from_query,
-            sort_from_query,
             sort_joined,
             ..
         } => ViewOut::Rows(Box::new(RowsOut {
@@ -2728,19 +2707,16 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
                     // a continuation goes on as the answer it continues:
                     // the routes asked of it too. It names the order it
                     // continues (C100) by what its request named — a sort,
-                    // `none`, values — and, for what the request left to
-                    // the query, by the query itself: the query's values
-                    // and its one value's order are a pure function of the
-                    // canonical query and the build (`values.rs`), and the
-                    // basis names the build (C98), so an absent sort here
-                    // is the query's order, never a missing one
+                    // `none`, values — and, for the values the request left
+                    // to the query, by the query itself: they are a pure
+                    // function of the canonical query and the build
+                    // (`values.rs`), and the basis names the build (C98)
                     view: View {
                         shape: Shape::Rows(Rows {
                             limit: Some(limit),
-                            sort: match (named.sort, *store_order) {
-                                (true, true) => Some(STORE_ORDER.to_string()),
-                                (true, false) => sort.map(|(text, _)| text.clone()),
-                                (false, _) => None,
+                            sort: match *store_order {
+                                true => Some(STORE_ORDER.to_string()),
+                                false => sort.map(|(text, _)| text.clone()),
                             },
                             desc: named.sort && desc,
                             // the values named, without the sort that joined
@@ -2767,7 +2743,6 @@ pub(crate) fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, Searc
                 false => sort.map(|(text, _)| text.clone()),
             },
             desc,
-            sort_from_query: *sort_from_query,
             values: values.iter().map(|(text, _)| text.clone()).collect(),
             values_from_query: *values_from_query,
             values_left_out: *values_left_out,

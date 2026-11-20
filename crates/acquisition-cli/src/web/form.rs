@@ -364,8 +364,9 @@ impl Folded {
 /// 6.2): the form's view fields set aside before the fold, so the view
 /// the form names is never read, nor refused where its values are no
 /// view's (that is the Search's to say), and a name the form never emits
-/// still refused; the view is rows at limit 0 with `sort` `none`, so no
-/// row is walked and no order derived for a number.
+/// still refused; the view is rows at limit 0 with `sort` `none`, as
+/// `acq search --limit 0 --sort none` asks, so no row is walked for a
+/// number.
 pub(crate) fn fold_count(form: &Form, fields: &[(String, String)]) -> Result<Folded, String> {
     let searched: Vec<(String, String)> = fields
         .iter()

@@ -1505,89 +1505,65 @@ fn c140_a_row_carries_the_icon_when_the_view_names_it() {
 
 // ---- values on rows (4-full part 1, step 6.1; #38) ----------------------
 
-/// The values a query compares, in its order, each once, and the one
-/// that orders the rows where no sort is named (`values.rs`): a row each,
-/// the query, the values the answer says it used, and its order — the
-/// value and largest first, or none for the store's.
+/// The values a query compares, in its order, each once (`values.rs`):
+/// columns, never an order (#293 cut 3). A row each, the query and the
+/// values the answer says it used; every answer names no sort and stands
+/// in the store's order, the order `none` names.
 #[test]
-fn the_values_a_query_compares_and_the_one_that_orders_it() {
+fn the_values_a_query_compares_are_columns_and_never_an_order() {
     let corpus = load(&worked(), Some("pc"));
     let life = format!("line(\"{LIFE}\").arg1");
     let explicit = format!("line(\"{LIFE}\" source=explicit).arg1");
     let summed = format!("sum(line(\"{LIFE}\").arg1)");
-    // the query, the values said, and the order: the value and whether
-    // largest first
-    type Row<'a> = (String, Vec<&'a str>, Option<(&'a str, bool)>);
-    let table: Vec<Row> = vec![
-        // a number field, best first by its operator
-        ("ilvl>=80".into(), vec!["ilvl"], Some(("ilvl", true))),
-        ("ilvl>80".into(), vec!["ilvl"], Some(("ilvl", true))),
-        ("ilvl<=80".into(), vec!["ilvl"], Some(("ilvl", false))),
-        ("ilvl<80".into(), vec!["ilvl"], Some(("ilvl", false))),
-        // equality, a range and a value compared both ways: no direction
-        ("ilvl=80".into(), vec!["ilvl"], None),
-        ("ilvl=80..84".into(), vec!["ilvl"], None),
-        ("ilvl>=80 ilvl<=84".into(), vec!["ilvl"], None),
-        // a duplicate is one value, its direction kept
-        (
-            "ilvl>=80 ilvl>=82".into(),
-            vec!["ilvl"],
-            Some(("ilvl", true)),
-        ),
+    let table: Vec<(String, Vec<&str>)> = vec![
+        // a number field, compared any way
+        ("ilvl>=80".into(), vec!["ilvl"]),
+        ("ilvl=80".into(), vec!["ilvl"]),
+        ("ilvl=80..84".into(), vec!["ilvl"]),
+        // a duplicate is one value
+        ("ilvl>=80 ilvl<=84".into(), vec!["ilvl"]),
         // a name in any case is one value, in the language's spelling (#273)
         (
             "SOCKETS.Red>=1 or sockets.red>=2".into(),
             vec!["sockets.red"],
-            Some(("sockets.red", true)),
         ),
-        (
-            "PSEUDO.Total_Res>=80".into(),
-            vec!["pseudo.total_res"],
-            Some(("pseudo.total_res", true)),
-        ),
-        // under a not, the column and no direction; two nots cancel
-        ("-ilvl>=80".into(), vec!["ilvl"], None),
-        ("-(-ilvl>=80)".into(), vec!["ilvl"], Some(("ilvl", true))),
+        ("PSEUDO.Total_Res>=80".into(), vec!["pseudo.total_res"]),
+        // under a not, the column
+        ("-ilvl>=80".into(), vec!["ilvl"]),
         // a computed value and a sum
-        (
-            "pseudo.total_res>=80".into(),
-            vec!["pseudo.total_res"],
-            Some(("pseudo.total_res", true)),
-        ),
-        (
-            format!("sum(\"{LIFE}\")<=90"),
-            vec![&summed],
-            Some((&summed, false)),
-        ),
+        ("pseudo.total_res>=80".into(), vec!["pseudo.total_res"]),
+        (format!("sum(\"{LIFE}\")<=90"), vec![&summed]),
         // a line's slot: the occurrence, under the group's selector
-        (format!("\"{LIFE}\">=90"), vec![&life], Some((&life, true))),
+        (format!("\"{LIFE}\">=90"), vec![&life]),
         (
             format!("line(\"{LIFE}\" source=explicit arg1>=90)"),
             vec![&explicit],
-            Some((&explicit, true)),
         ),
-        (format!("line(\"{LIFE}\" -arg1>=90)"), vec![&life], None),
-        // several: columns, and the store's order
+        (format!("line(\"{LIFE}\" -arg1>=90)"), vec![&life]),
+        // several, in the query's order
         (
             "ilvl>=80 or pseudo.total_res>=10".into(),
             vec!["ilvl", "pseudo.total_res"],
-            None,
         ),
         (
             format!("pseudo.total_res>=10 \"{LIFE}\">=90"),
             vec!["pseudo.total_res", &life],
-            None,
         ),
         // what compares no value
-        ("linked(size>=4)".into(), vec![], None),
-        ("undecided(ilvl)".into(), vec![], None),
-        ("rarity=rare has:ilvl -is:corrupted".into(), vec![], None),
-        ("".into(), vec![], None),
+        ("linked(size>=4)".into(), vec![]),
+        ("undecided(ilvl)".into(), vec![]),
+        ("rarity=rare has:ilvl -is:corrupted".into(), vec![]),
+        ("".into(), vec![]),
     ];
-    for (query, values, order) in table {
-        let request: Request =
-            serde_json::from_value(json!({ "query": { "text": query } })).unwrap();
-        let a = as_json(&answer(&corpus, &request).unwrap());
+    for (query, values) in table {
+        let ask = |rows: Value| {
+            let request: Request = serde_json::from_value(
+                json!({ "query": { "text": query }, "view": { "rows": rows } }),
+            )
+            .unwrap();
+            as_json(&answer(&corpus, &request).unwrap())
+        };
+        let a = ask(json!({}));
         let rows = &a["view"]["rows"];
         let said: Vec<&str> = rows["values"]
             .as_array()
@@ -1599,21 +1575,13 @@ fn the_values_a_query_compares_and_the_one_that_orders_it() {
             !values.is_empty(),
             "`{query}`: {rows}"
         );
-        match order {
-            Some((sort, desc)) => {
-                assert_eq!(rows["sort"], sort, "`{query}`: {rows}");
-                assert_eq!(
-                    rows["desc"].as_bool().unwrap_or(false),
-                    desc,
-                    "`{query}`: {rows}"
-                );
-                assert_eq!(rows["sort_from_query"], true, "`{query}`: {rows}");
-            }
-            None => {
-                assert!(rows.get("sort").is_none(), "`{query}`: {rows}");
-                assert!(rows.get("sort_from_query").is_none(), "`{query}`: {rows}");
-            }
-        }
+        assert!(rows.get("sort").is_none(), "`{query}`: {rows}");
+        assert!(rows.get("desc").is_none(), "`{query}`: {rows}");
+        assert_eq!(
+            ids_in_order(&a),
+            ids_in_order(&ask(json!({ "sort": "none" }))),
+            "`{query}`: the store's order"
+        );
         for row in a["rows"].as_array().unwrap() {
             let carried = row
                 .get("values")
@@ -1625,11 +1593,12 @@ fn the_values_a_query_compares_and_the_one_that_orders_it() {
 }
 
 /// #38, the re-sit's case: a query that filters on the explicit sum of
-/// rarity is ordered by that sum, largest first, unnamed — not by the sum
-/// over every source, which put a 41 explicit with 16 implicit above a 51
-/// — and the answer says the value it ordered by came from the query.
+/// rarity stands in the store's order, unnamed, and naming that sum
+/// orders the rows by it — not by the sum over every source, which put a
+/// 41 explicit with 16 implicit above a 51. `none` is the store's order,
+/// and `desc` beside it is refused.
 #[test]
-fn issue_38_a_filtered_sum_orders_the_rows_unnamed() {
+fn issue_38_a_filtered_sum_orders_the_rows_where_it_is_named() {
     const RARITY: &str = "#% increased Rarity of Items found";
     let mut s = store();
     list_tabs(&mut s, "pc", "Standard", json!([tab("w1", "Rows")]), 10);
@@ -1658,21 +1627,31 @@ fn issue_38_a_filtered_sum_orders_the_rows_unnamed() {
     );
     let corpus = load(&s, Some("pc"));
     let explicit = format!("sum(line(\"{RARITY}\" source=explicit).arg1)");
-    let request: Request = serde_json::from_value(json!({
-        "query": { "text": format!("{explicit}>=30") },
-    }))
-    .unwrap();
-    let a = as_json(&answer(&corpus, &request).unwrap());
+    let ask = |rows: Value| {
+        let request: Request = serde_json::from_value(json!({
+            "query": { "text": format!("{explicit}>=30") },
+            "view": { "rows": rows },
+        }))
+        .unwrap();
+        answer(&corpus, &request)
+    };
+    // unnamed and `none` alike: the store's order, by id here
+    for rows in [json!({}), json!({ "sort": "None" })] {
+        let b = as_json(&ask(rows.clone()).unwrap());
+        assert_eq!(
+            ids_in_order(&b),
+            ["gyre", "reaper", "torc", "ventor"],
+            "{rows}: {b}"
+        );
+        assert_eq!(b["view"]["rows"]["values"], json!([explicit]), "{rows}");
+    }
+    let a = as_json(&ask(json!({ "sort": explicit, "desc": true })).unwrap());
     assert_eq!(
         ids_in_order(&a),
         ["gyre", "torc", "reaper", "ventor"],
         "{a}"
     );
-    let rows = &a["view"]["rows"];
-    assert_eq!(rows["sort"], explicit.as_str());
-    assert_eq!(rows["desc"], true);
-    assert_eq!(rows["sort_from_query"], true);
-    assert_eq!(rows["values"], json!([explicit]));
+    assert_eq!(a["view"]["rows"]["values"], json!([explicit]));
     let first: Vec<&Value> = a["rows"]
         .as_array()
         .unwrap()
@@ -1680,36 +1659,13 @@ fn issue_38_a_filtered_sum_orders_the_rows_unnamed() {
         .map(|r| &sort_value(r)["value"])
         .collect();
     assert_eq!(first, [&json!(51), &json!(41), &json!(38), &json!(32)]);
-    // `none` declines the order, and `desc` beside it is refused
-    let unordered: Request = serde_json::from_value(json!({
-        "query": { "text": format!("{explicit}>=30") },
-        "view": { "rows": { "sort": "None" } },
-    }))
-    .unwrap();
-    let b = as_json(&answer(&corpus, &unordered).unwrap());
-    // the store's order: by id here
-    assert_eq!(
-        ids_in_order(&b),
-        ["gyre", "reaper", "torc", "ventor"],
-        "{b}"
-    );
-    assert_eq!(b["view"]["rows"]["sort"], "none");
-    assert!(b["view"]["rows"].get("sort_from_query").is_none());
-    assert_eq!(b["view"]["rows"]["values"], json!([explicit]));
-    let refused: Request = serde_json::from_value(json!({
-        "query": { "text": format!("{explicit}>=30") },
-        "view": { "rows": { "sort": "none", "desc": true } },
-    }))
-    .unwrap();
-    assert_eq!(
-        answer(&corpus, &refused).unwrap_err().to_json()["kind"],
-        "view"
-    );
+    let refused = ask(json!({ "sort": "none", "desc": true }));
+    assert_eq!(refused.unwrap_err().to_json()["kind"], "view");
 }
 
 /// Values named: each row carries them in the order named, each once; a
-/// sort the list lacks joins it at the end; the query's own order still
-/// stands, and more than the bound is refused naming it.
+/// sort the list lacks joins it at the end; and more than the bound is
+/// refused naming it.
 #[test]
 fn values_named_are_carried_in_order_and_a_sort_joins_them() {
     let corpus = load(&worked(), Some("pc"));
@@ -1721,15 +1677,14 @@ fn values_named_are_carried_in_order_and_a_sort_joins_them() {
     };
     let a = asked(json!({ "rows": { "values": ["pseudo.total_res", "ilvl", "ilvl"] } })).unwrap();
     let rows = &a["view"]["rows"];
-    // named, so not the query's; the query's one value orders them still
+    // named, so not the query's
     assert_eq!(
         rows["values"],
         json!(["pseudo.total_res", "ilvl"]),
         "{rows}"
     );
     assert!(rows.get("values_from_query").is_none(), "{rows}");
-    assert_eq!(rows["sort"], "ilvl");
-    assert_eq!(rows["sort_from_query"], true);
+    assert!(rows.get("sort").is_none(), "{rows}");
     for row in a["rows"].as_array().unwrap() {
         assert_eq!(row["values"].as_array().unwrap().len(), 2, "{row}");
     }
@@ -1738,7 +1693,6 @@ fn values_named_are_carried_in_order_and_a_sort_joins_them() {
         b["view"]["rows"]["values"],
         json!(["pseudo.total_res", "stack"])
     );
-    assert!(b["view"]["rows"].get("sort_from_query").is_none());
     // an adapter's flat arguments: values beside a count or explain are
     // refused, as a sort is
     use acquisition_search::answer::{Rows, Shape};
@@ -1765,7 +1719,7 @@ fn ids_in_order(a: &Value) -> Vec<String> {
 /// The bound on a row's values, held once on the list a row carries
 /// (the cold reviews at 1ab468eb and 849ccbab, each of which found it
 /// missed on another path): every way a list is filled — named alone,
-/// the query's alone, either with a named sort or the query's — and the
+/// the query's alone, either with a named sort or `none` — and the
 /// continuation of each, which fills it again the same. Named past
 /// twelve, the sort among them, is refused; the query's is cut from its
 /// end and counted, the sort kept.
@@ -1819,12 +1773,6 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
             Some((12, None, 1)),
         ),
         (
-            "the query's one, its own order",
-            one.clone(),
-            json!({}),
-            Some((1, Some("ilvl"), 0)),
-        ),
-        (
             "named and a named sort among them",
             none.clone(),
             json!({ "values": sums[..12], "sort": sums[0] }),
@@ -1843,19 +1791,7 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
             None,
         ),
         (
-            "named and the query's sort",
-            one.clone(),
-            json!({ "values": sums[..11] }),
-            Some((12, Some("ilvl"), 0)),
-        ),
-        (
-            "named and the query's sort, past it",
-            one.clone(),
-            json!({ "values": sums[..12] }),
-            None,
-        ),
-        (
-            "named, the query's sort declined",
+            "named, and `none`",
             one.clone(),
             json!({ "values": sums[..12], "sort": "none" }),
             Some((12, None, 0)),
@@ -1925,7 +1861,6 @@ fn a_rows_values_are_twelve_at_most_however_the_list_is_filled() {
             "sort",
             "desc",
             "values_from_query",
-            "sort_from_query",
         ] {
             assert_eq!(b["view"]["rows"].get(key), said.get(key), "{case}: {key}");
         }

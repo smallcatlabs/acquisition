@@ -969,8 +969,8 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     assert_eq!(kept["view"]["rows"]["sort"], life);
     assert_eq!(kept["view"]["rows"]["desc"], true);
     assert_eq!(kept["view"]["rows"]["values"], json!(["ilvl", life]));
-    // what the query gave is never carried: the query's own order and
-    // values, named nowhere, leave the box empty of them
+    // what the query gave is never carried: the query's values, named
+    // nowhere, leave the box empty of them
     let ring = web
         .get(&format!("search?{}", query_string(&ring_search())))
         .body;
@@ -1121,8 +1121,8 @@ fn every_search_page_is_a_wording_golden() {
             "<a class=\"presentation\" href=\"search?",
             ">as a table</a>",
             // the order the rows stand in, where no sort was asked: the
-            // query's one value, the stat filter's explicit sum (#38)
-            "rows 1–2 of 2 shown, by sum(line(&quot;# to maximum Life&quot; source=explicit).arg1), largest first: the one value the query compares",
+            // store's
+            "rows 1–2 of 2 shown, in the store&#39;s order (no sort asked)",
             // the query box's presentation, the big form's
             "Results as <select name=\"view.fields\"><option value=\"\" selected>cards</option>",
         ],
@@ -1149,11 +1149,9 @@ fn every_search_page_is_a_wording_golden() {
         "GET search?<the ring search as a table>",
         &table,
         &[
-            "<p class=\"rows-shown\">2 matching items in the table, by sum(",
+            "<p class=\"rows-shown\">2 matching items in the table, in the store&#39;s order (no sort asked)",
             "<div class=\"window\" data-row-height=\"24\" data-block-rows=\"50\">",
             "<span>Item</span><span>Base</span><span>Price</span><span>Location</span><span>Fetched</span><a class=\"head\" href=\"search?realm=pc&amp;league=Standard&amp;",
-            "<span class=\"mark\" aria-hidden=\"true\">▼</span>sum(line(",
-            "<span class=\"sr\">, ordered largest first</span></a>",
             "/rows?next=acq1.",
             "data-count=\"2\"",
             "<div class=\"block\" data-block=\"0\">",
@@ -2423,6 +2421,11 @@ fn the_ways_no_seeded_page_reaches_are_a_wording_golden() {
                     "text",
                     "name:kit sum(line(\"# to maximum Life\" source=explicit).arg1)>=10",
                 ),
+                (
+                    "view.sort",
+                    "sum(line(\"# to maximum Life\" source=explicit).arg1)",
+                ),
+                ("view.desc", "true"),
             ])
         ),
         &[
@@ -5769,8 +5772,9 @@ fn the_grouped_table_is_a_wording_golden() {
     drop(store);
 
     let query = "text=class%3Arings%20ilvl%3E%3D60";
-    let grouped =
-        format!("tabs?realm=pc&league=Standard&{query}&open=t1&open=f1&open=o1&open=m1&tab=t3");
+    let grouped = format!(
+        "tabs?realm=pc&league=Standard&{query}&view.sort=ilvl&view.desc=true&open=t1&open=f1&open=o1&open=m1&tab=t3"
+    );
     let page = web.get(&grouped);
     pages.page(
         "GET tabs?<rings, four places open>",
@@ -5891,7 +5895,7 @@ fn the_grouped_table_is_a_wording_golden() {
     assert_eq!(doc["folded"], json!({ "places": 1, "never_fetched": 1 }));
 
     // a value's head: the same page ordered by it the other way from the
-    // query's own order (largest first), every open and tick kept, the
+    // order named (largest first), every open and tick kept, the
     // places in stash order and the rows inside each ordered
     let head = &page.body[at(&page.body, "<div class=\"r head\">")..];
     let href = attribute(&head[head.find("<a class=\"head\"").unwrap()..], "href").unwrap();

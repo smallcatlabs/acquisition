@@ -1000,36 +1000,28 @@ fn template_tests(member: &Member, out: &mut Vec<(Op, String)>) {
 /// Each slot a group compares with a number, as a value: `line(S).<slot>`,
 /// S the whole group's [`selector`], the occurrences any of its
 /// comparisons could be on (C92) — for a comparison inside one
-/// alternative of an or, more than that comparison binds; with the
-/// comparison's operator, and whether it stands under an odd number of
-/// the group's nots — what `values.rs` reads a direction from.
-pub(crate) fn slots_compared(whole: &Member) -> Vec<(ValueRef, Op, bool)> {
-    fn walk(at: &Member, selector: &Member, negated: bool, out: &mut Vec<(ValueRef, Op, bool)>) {
+/// alternative of an or, more than that comparison binds.
+pub(crate) fn slots_compared(whole: &Member) -> Vec<ValueRef> {
+    fn walk(at: &Member, selector: &Member, out: &mut Vec<ValueRef>) {
         match at {
             Member::All(children) | Member::Any(children) => {
-                children
-                    .iter()
-                    .for_each(|c| walk(c, selector, negated, out));
+                children.iter().for_each(|c| walk(c, selector, out));
             }
-            Member::Not(inner) => walk(inner, selector, !negated, out),
+            Member::Not(inner) => walk(inner, selector, out),
             Member::Test { attr, op, value }
                 if tree::is_slot_word(attr) && crate::values::compares_a_number(*op, value) =>
             {
-                out.push((
-                    ValueRef::Projection {
-                        lines: Box::new(selector.clone()),
-                        slot: attr.clone(),
-                    },
-                    *op,
-                    negated,
-                ));
+                out.push(ValueRef::Projection {
+                    lines: Box::new(selector.clone()),
+                    slot: attr.clone(),
+                });
             }
             Member::Test { .. } | Member::Const(_) | Member::Is(_) => {}
         }
     }
     let selector = selector(whole);
     let mut out = Vec::new();
-    walk(whole, &selector, false, &mut out);
+    walk(whole, &selector, &mut out);
     out
 }
 

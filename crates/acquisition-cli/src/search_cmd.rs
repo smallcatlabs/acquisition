@@ -128,10 +128,8 @@ pub struct SearchArgs {
     /// sum spans every source the line has — implicit and crafted with
     /// explicit — as the row's `sorts by` shows; one source's is its
     /// form, `'sum(line("T" source=explicit).arg1)'`, the filter's own.
-    /// None named, a query that compares exactly one value, one way, is
-    /// ordered by it, best first by its operator (`>=` largest first, `<=`
-    /// smallest; never `=`, a range or a value under a not), and the
-    /// answer says so; `none` keeps the store's order.
+    /// None named, the rows stand in the store's order, which `none`
+    /// names too.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
     /// Largest first.
@@ -1568,8 +1566,8 @@ pub(crate) fn more_of_term_words(n: usize, path: &str) -> String {
 
 /// The rows' continuation as the text says it, where rows are left out;
 /// where none are, the rows shown and their order as the page says them,
-/// where there is an order to say or a value left out (#38; the cold
-/// review at 1ab468eb: a complete answer said none of it).
+/// where there is an order to say or a value left out (the cold review
+/// at 1ab468eb: a complete answer said none of it).
 fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
         ViewOut::Rows(rows)
@@ -1616,24 +1614,16 @@ pub(crate) fn rows_shown_words(a: &Answer, rows: &acquisition_search::answer::Ro
     )
 }
 
-/// The order rows stand in where no sort was named: the store's stable
-/// order (`answer.rs`, "Rows"), said so a reader does not look for one
-/// (the page seat of 2026-11-08, its fault 13), and why; or the query's
-/// one value, best first, which the reader did not ask for (#38). None
-/// where a sort was named, which each row says it sorts by.
+/// The order rows stand in where no value orders them: the store's
+/// stable order (`answer.rs`, "Rows"), said so a reader does not look for
+/// one (the page seat of 2026-11-08, its fault 13). None where a sort was
+/// named, which each row says it sorts by.
 pub(crate) fn order_words(rows: &acquisition_search::answer::RowsOut) -> Option<String> {
-    let store = acquisition_search::answer::STORE_ORDER;
     match rows.sort.as_deref() {
-        Some(sort) if rows.sort_from_query => Some(format!(
-            "by {sort}, {} first: the one value the query compares (sort `{store}` keeps the store's order)",
-            if rows.desc { "largest" } else { "smallest" }
-        )),
-        Some(sort) if sort == store => Some("in the store's order, as asked".to_string()),
+        Some(sort) if sort == acquisition_search::answer::STORE_ORDER => {
+            Some("in the store's order, as asked".to_string())
+        }
         Some(_) => None,
-        None if rows.values_from_query => Some(
-            "in the store's order (no sort asked, and the query compares no one value that orders it)"
-                .to_string(),
-        ),
         None => Some("in the store's order (no sort asked)".to_string()),
     }
 }
@@ -3016,7 +3006,6 @@ mod tests {
         let rows = |limit_asked| acquisition_search::answer::RowsOut {
             sort: None,
             desc: false,
-            sort_from_query: false,
             values: Vec::new(),
             values_from_query: false,
             values_left_out: 0,
