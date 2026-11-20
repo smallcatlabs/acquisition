@@ -2796,7 +2796,9 @@ fn the_refresh_loop_runs_through_the_pages() {
         &tabs,
         &[
             "tabs in Standard",
-            "name=\"tab\" value=\"dump\"",
+            // a tick box is named by its place, not its id (the page seat
+            // after GUI step 6, its fault 4)
+            "aria-label=\"Dump\" name=\"tab\" value=\"dump\"",
             // never fetched reads apart from fetched and empty (#191)
             ">Dump</a></span><span>PremiumStash</span><span>-</span><span>never</span>",
             "<span>Old leagues <span class=\"holds-said\">2 tabs, 2 never fetched</span>",
@@ -2916,7 +2918,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         &characters,
         &[
             "characters: 0 fetched",
-            "name=\"character\" value=\"",
+            "aria-label=\"StashHoarder\" name=\"character\" value=\"fake0001\"",
             "<input type=\"text\" name=\"name\"",
         ],
     );

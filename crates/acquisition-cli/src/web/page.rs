@@ -2806,9 +2806,16 @@ fn place_rows(
             ticked_under(view, place, hidden);
             continue;
         }
+        let name = match place.name() {
+            "" => "(unnamed)",
+            name => name,
+        };
+        // a tick is named by its place, as the row reads, never by the id
+        // it sends (the page seat after GUI step 6, its fault 4)
         let tick = match place.place {
             Kind::Tab | Kind::Character => format!(
-                "<input type=\"checkbox\" name=\"{}\" value=\"{}\"{}>",
+                "<input type=\"checkbox\" aria-label=\"{}\" name=\"{}\" value=\"{}\"{}>",
+                esc(name),
                 view.tick,
                 esc(id),
                 if ticked { " checked" } else { "" }
@@ -2817,10 +2824,6 @@ fn place_rows(
             Kind::Page => String::new(),
             // a folder holds tabs and no items: its tabs are ticked
             Kind::Folder => String::new(),
-        };
-        let name = match place.name() {
-            "" => "(unnamed)",
-            name => name,
         };
         let named = match place.request.as_ref().map(as_table) {
             Some(table) => way_on(view.spell, &here, &Way::Search(Box::new(table)), name, ""),
