@@ -238,6 +238,37 @@ fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
         "{}",
         there.body
     );
+    // a league the store holds nothing of, and a kind it holds none of:
+    // the control still names the page's own league, and the line still
+    // says where every match stands (the cold review of 079b0200)
+    let empty = web.get("tabs?realm=pc&league=Hardcore&text=class%3Arings");
+    assert!(
+        empty
+            .body
+            .contains("<option value=\"Hardcore\" selected>Hardcore</option>")
+            && empty
+                .body
+                .contains("0 matching items in these stash tabs, of 3 matches · ")
+            && empty
+                .body
+                .contains(">1 in the stash tabs of Settlers</a>, <a href=")
+            && empty
+                .body
+                .contains(">2 in the stash tabs of Standard</a></p>"),
+        "{}",
+        empty.body
+    );
+    let characters = web.get("characters?realm=pc&league=Standard&text=class%3Arings");
+    assert!(
+        characters
+            .body
+            .contains("0 matching items on these characters, of 3 matches · ")
+            && characters
+                .body
+                .contains(">2 in the stash tabs of Standard</a>"),
+        "{}",
+        characters.body
+    );
 }
 
 /// No response of this server carries a CORS header (C138).

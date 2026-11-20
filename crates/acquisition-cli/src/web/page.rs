@@ -2454,7 +2454,8 @@ pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
 /// select over the store's league list, each league marked with whether
 /// tabs of it are on disk in the realm shown; with no list on disk, the
 /// leagues the store holds places in, and where it holds none, no select
-/// — the fetch button is then the only control. `any` adds the
+/// — the fetch button is then the only control. A page's own league the
+/// list lacks stands first, selected and unmarked. `any` adds the
 /// search's "every league", which names no league term.
 pub(crate) fn league_select(
     leagues: Option<&[(String, bool)]>,
@@ -2467,6 +2468,17 @@ pub(crate) fn league_select(
     let mut out = String::from("<label class=\"control\">League <select name=\"league\">");
     if any {
         out.push_str("<option value=\"\">every league</option>");
+    }
+    // the page's own league, where the control does not list it, stands
+    // first and selected, unmarked: a select showing another league than
+    // the page would send that one with its next form (the cold review of
+    // 079b0200)
+    if let Some(own) = selected.filter(|own| !leagues.iter().any(|(l, _)| l == own)) {
+        out.push_str(&format!(
+            "<option value=\"{}\" selected>{}</option>",
+            esc(own),
+            esc(own)
+        ));
     }
     for (league, on_disk) in leagues {
         out.push_str(&format!(
@@ -2613,7 +2625,13 @@ pub(crate) fn places(view: &PlacesPage) -> String {
             Some(said) => said.to_string(),
             None => format!("No stash tabs of {} are on record.", view.league),
         };
-        body.push_str(&format!("<p class=\"none\">{}</p>\n{listing}", esc(&said)));
+        // a league with none of this kind still says where the query's
+        // matches stand (the cold review of 079b0200)
+        body.push_str(&format!(
+            "<p class=\"none\">{}</p>\n{}{listing}",
+            esc(&said),
+            matched_line(view)
+        ));
         return body;
     }
     // the list's form: the open places, the view and the substashes box

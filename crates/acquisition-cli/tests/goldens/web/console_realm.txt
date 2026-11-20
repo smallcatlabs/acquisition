@@ -42,7 +42,7 @@ GET tabs?realm=pc&league=Empty
 # holds "List this league&#39;s stash tabs"
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Empty" selected>Empty</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 </div>
 <p class="counts">facts: no tabs; stash listing <age> ago</p>
@@ -57,7 +57,7 @@ GET tabs?realm=pc&league=Nowhere
 # holds "List this league&#39;s stash tabs"
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Nowhere" selected>Nowhere</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 </div>
 <p class="counts">facts: no tabs; stash never listed</p>
