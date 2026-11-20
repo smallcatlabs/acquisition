@@ -375,8 +375,7 @@ impl Side {
 
 /// What applies (C81): the more specific statement, the game's on a tie.
 /// A consumer reads `side` and `kind` together — `none` and `unresolved`
-/// both carry no side, and a manual `skip` is not a price to post
-/// (`PRICING-SLICE.md` at `b6197a82`, the render handoff).
+/// both carry no side, and a manual `skip` is not a price to post.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Effective {
     /// `exact`, `negotiable`, `no_price`, `skip`, `none`, or `unresolved`

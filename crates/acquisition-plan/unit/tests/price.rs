@@ -493,7 +493,7 @@ fn c78_a_write_returns_the_prior_value_so_a_hand_can_undo_it() {
     assert_eq!(typed, Buyout::Skip);
 }
 
-/// Round 5 of the 2g build, its review's finding 1: an undo reads its
+/// An undo reads its
 /// prior as every reader of a stored row does, through the store's
 /// door check, so a prior stored as `"12.50"` — not its canonical
 /// text, which no reader reads — gets no undo (`"12.5"` would be

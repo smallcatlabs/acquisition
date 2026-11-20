@@ -1461,7 +1461,7 @@ impl RefreshPlan {
     }
 }
 
-/// Why a plan must not be spent — the step-7 staleness/identity gate
+/// Why a plan must not be spent — the staleness/identity gate
 /// (C44), shared by every frontend's apply
 /// surface. A plan is authorization *derived from intent at a revision*;
 /// intent edited since revokes the derivation, and a plan for another

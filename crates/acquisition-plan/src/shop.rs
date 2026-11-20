@@ -16,8 +16,8 @@
 //!
 //! **One cell per item.** Every item listing of the report lands in
 //! exactly one [`Cell`] of the policy table, read from the effective
-//! outcome — `side` and `kind` together (the render handoff,
-//! `PRICING-SLICE.md` at `b6197a82`) — and then from the item's address. A cell's
+//! outcome — `side` and `kind` together — and then from the item's
+//! address. A cell's
 //! verdict is `post`, `omit`, `block` or `off_page`; the table's opening
 //! rows are the two that post (a stash item at a listed tab, a character
 //! item in a slot), everything unobserved is a blocked row citing the

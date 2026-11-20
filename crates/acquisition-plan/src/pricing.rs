@@ -438,7 +438,7 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// nowhere, an orphan, that is the league's pricing state, every row
 /// listed. For a row the facts hold in another league it is `show` in
 /// that league: that league's state counts the row under "other league"
-/// and never displays it (the h2 fix round's review). Its words are the
+/// and never displays it. Its words are the
 /// request's (C143): each way on they name is an offer, made from the
 /// scope the verb resolved, the account, the realm and the league, the
 /// defaults included, which the refusal carries beside the target

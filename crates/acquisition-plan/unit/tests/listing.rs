@@ -449,7 +449,7 @@ fn c81_a_note_that_cannot_be_read_leaves_the_price_unresolved() {
     }
     // where the game side cannot speak — the character's item, an item
     // in the non-public tab — an unread note is residue at most, and
-    // the effective price is what it was without it (the step-9 review)
+    // the effective price is what it was without it
     let baseline = resolve(&snapshot()).unwrap();
     let mut muted = snapshot();
     let mut gated = Vec::new();

@@ -1301,7 +1301,7 @@ fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
     assert_eq!(row.value, poe2);
 }
 
-/// Round 5's fix round, its review's finding 1: a sync policy at the
+/// A sync policy at the
 /// last revision an `i64` holds is refused in the policy's words,
 /// never the store's, and nothing is written.
 #[test]
@@ -1430,7 +1430,7 @@ fn check_spendable_is_the_shared_staleness_and_identity_gate() {
     )
     .unwrap();
     plan.check_spendable("mock", Some("u-1"), &a).unwrap();
-    // Intent moved since the plan (the step-7 ruling): refused with
+    // Intent moved since the plan: refused with
     // both revisions named, remedy = replan.
     put_sync_policy(
         &mut a,
@@ -1981,7 +1981,7 @@ fn an_action_is_spent_by_a_later_fetch_or_an_open_job_and_by_nothing_else() {
 /// C111 — a spent entry names the time of the response it was spent
 /// by, never its target's current location's: a tab fetched after the
 /// plan, then retired by a listing, is spent by that fetch, at the
-/// fetch's own time (the fix round's review, its third finding).
+/// fetch's own time.
 #[test]
 fn a_retired_tab_is_spent_at_its_real_fetch_time() {
     let mut s = store();

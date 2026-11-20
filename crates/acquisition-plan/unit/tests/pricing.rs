@@ -689,7 +689,7 @@ fn a_conflict_carries_the_live_row_as_show_prints_it() {
     assert!(!fields.contains_key("current"), "{fields:?}");
 }
 
-/// Round 4: a target the facts do not hold is refused with the target
+/// A target the facts do not hold is refused with the target
 /// and the scope the verb resolved — the account it ran as, the realm
 /// the address carries or pc, the league named or Standard — and the
 /// leagues that do hold it, from which the offers are made; every
@@ -921,7 +921,7 @@ fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
     assert_eq!(shown.account, "A#1");
 }
 
-/// Round 5's fix round, its review's finding 1: a price row at the
+/// A price row at the
 /// last revision an `i64` holds is refused in the price's words,
 /// never the store's, and nothing is written.
 #[test]
