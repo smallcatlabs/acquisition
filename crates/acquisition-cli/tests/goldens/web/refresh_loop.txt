@@ -8,7 +8,7 @@ GET tabs?realm=pc&league=Standard <nothing listed>
 # holds "Fetch the league list"
 <main>
 <h1>Stash tabs</h1>
-<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="tabs"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 </div>
 <p class="counts">facts: no tabs; stash never listed</p>
@@ -23,7 +23,7 @@ GET characters?realm=pc&league=Standard <nothing listed>
 # holds "List characters"
 <main>
 <h1>Characters</h1>
-<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <button type="submit">Show</button></form>
+<form method="get" action="characters"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard</option></select></label> <button type="submit">Show</button></form>
 <div class="actions"><form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 </div>
 <p class="counts">0 characters: 0 fetched; 0 items</p>

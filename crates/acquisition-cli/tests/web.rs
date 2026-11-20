@@ -258,6 +258,14 @@ fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
         "{}",
         empty.body
     );
+    // a realm holding no league keeps the page's own in its control, so
+    // its realm form sends the league back (the cold review of dd10c229)
+    let console = web.get("tabs?realm=xbox&league=Settlers");
+    assert!(
+        console.body.contains("</select></label> <label class=\"control\">League <select name=\"league\"><option value=\"Settlers\" selected>Settlers</option></select></label>"),
+        "{}",
+        console.body
+    );
     let characters = web.get("characters?realm=pc&league=Standard&text=class%3Arings");
     assert!(
         characters

@@ -2453,17 +2453,24 @@ pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
 /// The league control both pages carry (the 4b sitting round, Do 3): a
 /// select over the store's league list, each league marked with whether
 /// tabs of it are on disk in the realm shown; with no list on disk, the
-/// leagues the store holds places in, and where it holds none, no select
-/// — the fetch button is then the only control. A page's own league the
-/// list lacks stands first, selected and unmarked. `any` adds the
+/// leagues the store holds places in. A page's own league the control
+/// does not list stands first, selected and unmarked, and alone where
+/// there is nothing else to list; a page that names no league and has
+/// none to list has no select, the fetch button its only control. `any`
+/// adds the
 /// search's "every league", which names no league term.
 pub(crate) fn league_select(
     leagues: Option<&[(String, bool)]>,
     selected: Option<&str>,
     any: bool,
 ) -> String {
-    let Some(leagues) = leagues else {
-        return String::new();
+    // no league to offer: the page's own alone, so the selects' form sends
+    // it back across a realm that holds none (the cold review of
+    // dd10c229); none where the page names none either
+    let leagues = match (leagues, selected) {
+        (Some(leagues), _) => leagues,
+        (None, Some(_)) => &[],
+        (None, None) => return String::new(),
     };
     let mut out = String::from("<label class=\"control\">League <select name=\"league\">");
     if any {
