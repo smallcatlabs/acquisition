@@ -329,7 +329,7 @@ fn c74_every_item_is_posted_omitted_blocked_or_off_the_page_and_counted() {
     assert_eq!(r.counts.by_cell[&Cell::HandSkip], 1);
     assert_eq!(r.counts.by_cell[&Cell::NothingApplies], 1);
 
-    // C53, the read economy (step 2g): the default document's lists
+    // C53, the read economy: the default document's lists
     // hold the bound, and every item is still counted, each list's
     // whole beside it
     let whole = render(
@@ -481,7 +481,7 @@ fn c74_the_link_codes_and_spoiler_titles_are_the_observed_shapes() {
     assert_eq!(find("i-noprice").title, "");
     assert_eq!(r.pages.len(), 1);
     let page = &r.pages[0];
-    // The owner's shape (2026-09-07): one spoiler per price with the
+    // The owner's shape: one spoiler per price with the
     // links run together, one page spoiler labelled n of N, newlines
     // only between spoiler tags; no price last, under an empty title.
     assert_eq!(
@@ -829,7 +829,7 @@ fn located(l: &Option<FetchedLocation>) -> Option<(&str, &str, Option<&str>)> {
         .map(|l| (l.kind.as_str(), l.id.as_str(), l.name.as_deref()))
 }
 
-/// C162, #156 — a render says how old its posted items' facts are with
+/// C162 — a render says how old its posted items' facts are with
 /// no policy set: posted items in two tabs fetched at different times
 /// are two places, both fetched, the two fetches with their tabs, and
 /// the lists' oldest the stash listing's, older than both; no character
@@ -863,7 +863,7 @@ fn c162_a_render_with_no_policy_says_its_posted_locations_facts() {
     assert_eq!(f.span.list_seen_age, said(1_000));
     assert_eq!(r.listing.stash_listing_fetched_at_age, said(1_000));
     assert_eq!(r.listing.character_listing_fetched_at_age, said(1_001));
-    // round 3's (C163): the render's own times worded at its time
+    // C163: the render's own times worded at its time
     assert_eq!(r.listing.taken_at_age, said(r.listing.taken_at));
     assert_eq!(r.rendered_at_age, "0s ago");
 }
@@ -1037,8 +1037,7 @@ fn the_render_json_matches_the_committed_fixture() {
     .unwrap();
     // Bytes, not parsed values: a `Value` compares its objects in any
     // key order, so a file in a stale order would pass, and the next
-    // regeneration would move it with nothing it describes changed
-    // (#280: written sorted before serde_json kept the declared order).
+    // regeneration would move it with nothing it describes changed.
     let actual = serde_json::to_string_pretty(&serde_json::to_value(&r).unwrap()).unwrap() + "\n";
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::write(path, &actual).unwrap();
@@ -1054,7 +1053,7 @@ fn the_render_json_matches_the_committed_fixture() {
     assert_eq!(back, r);
 }
 
-/// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the page
+/// The property tests: the page
 /// cutter over any entries, template and size.
 mod properties {
     use super::*;
@@ -1190,8 +1189,7 @@ mod properties {
     }
 }
 
-/// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`):
-/// the owner's pc/Standard league, rendered whole — the page the
+/// The real-scale fixture: the owner's pc/Standard league, rendered whole — the page the
 /// owner pasted for validation reading 2, from the same facts.
 mod real_scale {
     use std::time::Instant;
@@ -1230,7 +1228,7 @@ mod real_scale {
     /// nothing applying, and the 31 the hand decides are the page:
     /// one page, under the size, every link once, under three titles.
     /// The render's time is printed, never asserted (C137): under 1 ms
-    /// in a debug build on 2026-09-07.
+    /// in a debug build.
     #[test]
     fn c74_at_real_scale_every_item_lands_in_one_cell_and_the_page_is_the_owners_test_tab() {
         let (s, report) = fixture();
@@ -1240,7 +1238,7 @@ mod real_scale {
         eprintln!("render took {took:?}");
         assert_eq!(r.schema, SHOP_SCHEMA);
         // the header the report resolved, its snapshot and its two
-        // listings aged at the render's time (#156, C163)
+        // listings aged at the render's time (C163)
         let mut header = report.header.clone();
         header.aged(s.taken_at);
         assert_eq!(r.listing, header);
@@ -1352,7 +1350,7 @@ mod real_scale {
         assert_eq!(back, r);
     }
 
-    /// C74, C53 — the release seat's shop document: 5 MB on the MCP
+    /// C74, C53 — a shop document of 5 MB on the MCP
     /// and 7.5 MB as `--json`, because `left_out` listed every item
     /// nothing applies to (20,749 of the owner's 21,311). Over the
     /// owner's league here: the items left off for a reason — the game
@@ -1408,8 +1406,8 @@ mod real_scale {
         );
     }
 
-    /// C53, C74 — the release seat's rerun (mcp-opus-2, calls 37, 38):
-    /// the shop document was still 160 KB on the owner's league, 135 KB
+    /// C53, C74 — the shop document could still reach 160 KB on the
+    /// owner's league, 135 KB
     /// of it `left_out`'s 521 items left off for a reason, and `page`
     /// drops the counts. The default document lists the store's bound
     /// of them (`LISTED`, C53) — the blocked first, which a person

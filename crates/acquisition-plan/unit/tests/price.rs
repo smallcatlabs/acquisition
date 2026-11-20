@@ -426,7 +426,7 @@ fn c67_clear_then_set_on_one_target_works_through_the_tombstone() {
 /// current — a clear its tombstone's, from the delete itself — and
 /// the write that undoes it, which lands: a create's the clear naming
 /// the revision written, a replace's the prior's value naming it, a
-/// clear's a create naming none (round 5 of the 2g build).
+/// clear's a create naming none.
 #[test]
 fn c78_a_write_returns_the_prior_value_so_a_hand_can_undo_it() {
     let mut a = Annotations::open_memory_for("u-1").unwrap();
@@ -735,7 +735,7 @@ fn c35_a_stale_revision_conflicts_and_changes_nothing() {
     assert!(a.get(CHARACTER_SCOPE, "c1", BUYOUT_KIND).unwrap().is_none());
 }
 
-/// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the amount's
+/// The property tests: the amount's
 /// grammar over every spelling, not the hand-picked ones above.
 mod properties {
     use super::*;

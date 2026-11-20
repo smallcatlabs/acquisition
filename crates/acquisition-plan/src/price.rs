@@ -1,8 +1,7 @@
 //! The typed price: what a `buyout` row says ([`Buyout`], C67) and what
-//! it is about ([`PriceTarget`]). Built by the pricing slice's plan step 2
-//! (`PRICING-SLICE.md` at `b6197a82`, 2026-09-05). Nothing here reads facts or a
+//! it is about ([`PriceTarget`]). Nothing here reads facts or a
 //! daemon; this module is the value's shape, its parse, its address, and
-//! — since plan step 5 (2026-09-06) — the one write path every frontend's
+//! the one write path every frontend's
 //! `set` and `clear` use ([`set_buyout`], [`clear_buyout`]), through the
 //! intent file's own API and nothing else.
 //!
@@ -40,12 +39,11 @@
 //! A decimal has at most **four** fractional digits — what the game
 //! itself writes (T10: `999.1234` in the fixture) — held as
 //! ten-thousandths, so the same type carries an observed note's amount
-//! at plan step 3 and a manual price, and the listing state (step 4,
-//! `listing.rs`) compares them structurally; a fifth digit is refused. `0`, `0.00` and `0/5` are
+//! and a manual price, and the listing state (`listing.rs`) compares
+//! them structurally; a fifth digit is refused. `0`, `0.00` and `0/5` are
 //! refused (a price is positive); `10/0` is refused. (v1 was ruled at
-//! two places on 2026-09-04 and widened to four on 2026-09-06 after an
-//! outside review; widening is compatible, every stored two-place value
-//! still parses.)
+//! two places and widened to four; widening is compatible, every stored
+//! two-place value still parses.)
 //!
 //! `currency` is a **tag** of the shipped currency table
 //! ([`crate::currency`]) — the immutable identity intent cites (C68),
@@ -74,8 +72,8 @@
 //! undo what the command printed. The one writer's rule C67 leaves
 //! open, that a *new* price never names a retired tag, is the value's
 //! [`Buyout::check_write`], which the store's door runs on every write
-//! and never on a read (2026-09-07, after an outside review found the
-//! rule bypassable through `Annotations::put`): a stored row citing one
+//! and never on a read (so the rule cannot be bypassed through
+//! `Annotations::put`): a stored row citing one
 //! still parses, and no frontend can write past it.
 
 use std::fmt;
@@ -442,8 +440,8 @@ pub enum Buyout {
     /// Listed with no price.
     NoPrice,
     /// `~skip`'s word: leave this out of the shop — the forum analogue of
-    /// the game's "Do not index". Renamed from `ignore` on 2026-09-06
-    /// (C67), before any row existed.
+    /// the game's "Do not index". Renamed from `ignore` (C67) before any
+    /// row existed.
     Skip,
 }
 
@@ -633,8 +631,7 @@ impl IntentValue for Buyout {
 /// write over it names: the written row's, or after a clear its
 /// tombstone's, as the delete's own transaction returned it — the
 /// generation the row sequence has reached, which a later conflict names;
-/// the next write after a clear is a create and names none (round 5 of
-/// the 2g build).
+/// the next write after a clear is a create and names none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PriceWrite {
     pub target: PriceTarget,

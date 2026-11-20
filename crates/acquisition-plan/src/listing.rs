@@ -1,8 +1,7 @@
 //! The listing state (C69, C70, C80): what every item, tab, substash and
 //! character in one (realm, league) is listed as — the manual side, the
 //! game side, and their relation — resolved by one pure function,
-//! [`resolve`], over a [`PricingSnapshot`]. Built by the pricing slice's
-//! plan step 4 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-06). Nothing here reads a
+//! [`resolve`], over a [`PricingSnapshot`]. Nothing here reads a
 //! store or writes anything; the CLI (`acq price status | show | list`,
 //! `price_cmd.rs`) renders the report under C53.
 //!
@@ -78,11 +77,7 @@
 //! and the tab say, as an unreadable row leaves it (C81); where it cannot
 //! — a non-public tab, a character's items — the note is residue at most
 //! whatever it says, and the rows decide as they would. The game side
-//! states nothing from it either way and says so (`note_unread`). Found
-//! by the search's generators at step 9 (2026-09-25), when the snapshot
-//! still failed whole on such a body; the public gate by the step's
-//! outside review, which found the override deciding a private tab's
-//! item.
+//! states nothing from it either way and says so (`note_unread`).
 //!
 //! **The relation is over the two sides' presence and content.** `none`:
 //! no row applies and the game states nothing. `manual_only` and
@@ -152,22 +147,22 @@ use crate::price::{Buyout, Price, PriceTarget};
 
 /// The report's JSON shape, stamped on every [`ListingReport`] and view;
 /// changes are additive (C53) until they are not, and then this moves.
-/// **2** since 2026-09-06: schema 1 never left development, and the
-/// second step-4 review's count fields (`by_game_statement`,
-/// `game_priced`) replaced rather than joined `by_game_reading`,
+/// **2**: schema 1 never left development, and the
+/// count fields `by_game_statement` and
+/// `game_priced` replaced rather than joined `by_game_reading`,
 /// `game_priced_public` and `game_priced_not_public` — a rename, so a
-/// bump, not a compatibility shim nobody would read. **3** since
-/// 2026-10-19: `rows.unmatched` lists each row whole (the manual side's
+/// bump, not a compatibility shim nobody would read. **3**:
+/// `rows.unmatched` lists each row whole (the manual side's
 /// shape) where it listed the bare address — a replaced shape, so a
 /// bump. The shape is pinned by `reference/listing-report-schema-3.json`
 /// (`the_report_json_matches_the_committed_fixture`); a change that
 /// fails it is either additive (regenerate the fixture) or a bump.
-/// Within 3 (step 2g round 6, C53's ages, additive): beside an epoch a
+/// Within 3 (C53's ages, additive): beside an epoch a
 /// view's text says as an age, its words under the epoch's name and
-/// `_age`. Within 3 since 2026-11-04 (#156, C162, additive): the
+/// `_age`. Within 3 (C162, additive): the
 /// report's `facts`, its non-folder containers' fetches and lists;
-/// `list` and `show` carry the header alone. Within 3 since 2026-11-04
-/// (#164, C163, every time a document carries has its words beside it,
+/// `list` and `show` carry the header alone. Within 3
+/// (C163, every time a document carries has its words beside it,
 /// additive): every view says every age, made where the view is
 /// ([`ListingReport::aged`], [`ListView::aged`], [`ShowView::aged`]) —
 /// the header's snapshot and its two listings (the flattened header's
@@ -523,7 +518,7 @@ impl RowAccounting {
         self.other_league_total = self.other_league.len();
     }
 
-    /// C53, the read economy (step 2g): each list cut to the store's
+    /// C53, the read economy: each list cut to the store's
     /// bound of ten unless `expand`, its whole count standing beside it.
     fn bounded(mut self, expand: bool) -> RowAccounting {
         self.unmatched = bounded(std::mem::take(&mut self.unmatched), None, expand).0;
@@ -551,9 +546,9 @@ pub struct Counts {
     pub invalid_notes: usize,
     /// Tabs (folders and substashes excluded) whose own name starts like
     /// a price and does not read as one, public or not: no effect, an
-    /// item's note or a hand row applies, where either does (#170; the
-    /// answer-facts seat: `~b/o 5000/2 chaos`, a ratio in a tab name,
-    /// counted nowhere). Additive.
+    /// item's note or a hand row applies, where either does (`~b/o
+    /// 5000/2 chaos`, a ratio in a tab name, was counted nowhere).
+    /// Additive.
     #[serde(default)]
     pub invalid_tab_names: usize,
     /// The items whose tab name (their own tab's, or a substash's
@@ -758,7 +753,7 @@ pub struct ListFilter {
     pub expand: bool,
 }
 
-/// The game-side text `list` selects (#11): the items `price status`
+/// The game-side text `list` selects: the items `price status`
 /// counts and no other verb listed, the price text that decides nothing
 /// and the game's `~skip` statements. The words are the counts' (C146).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -772,12 +767,11 @@ pub enum GameText {
     InvalidNote,
     /// A tab name that starts like a price and does not read as one:
     /// `Counts::invalid_tab_name_items`, `game.tab_name.reading` invalid
-    /// on the item (#170).
+    /// on the item.
     InvalidTabName,
     /// The game side's `~skip` statement in a public tab:
     /// `Counts::by_game_statement`'s `skip`, `game.reading` skip on the
-    /// item (the answer-facts seat, CLI fault 10: the status counted
-    /// them and offered no route).
+    /// item (without it the status counted them and offered no route).
     Skip,
 }
 
@@ -889,8 +883,8 @@ pub struct ShowView {
 }
 
 /// C53 — one item set of a `show`, counted whole before it is cut, so a
-/// reader never takes the rows listed for the set (step 2g; the cold
-/// review of its brief, finding 6). The words are the search answer's
+/// reader never takes the rows listed for the set. The words are the
+/// search answer's
 /// (`returned`, `left_out`) and `price_list`'s (`total`); the field's
 /// name is the contract (C146).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]

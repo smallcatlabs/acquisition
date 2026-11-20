@@ -214,8 +214,8 @@ fn the_policy_parses_strictly_and_versions_are_refused_not_guessed() {
 /// normalizes away (`tabs: []` beside a facet that names work,
 /// `characters: null`) are refused naming the path, never stored as a
 /// second spelling of one intent; an older stamp is refused and never
-/// lands. The owner's stored row (2026-09-05: both facets, an id list,
-/// v3) is canonical and unaffected.
+/// lands. The owner's stored row (both facets, an id list, v3) is
+/// canonical and unaffected.
 #[test]
 fn c66_a_current_schema_policy_must_be_canonical_and_older_ones_are_refused() {
     let canonical = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": {
@@ -1229,7 +1229,7 @@ fn put_sync_policy_validates_before_it_stores_and_is_a_cas() {
     assert_eq!(held.value, value);
 }
 
-/// C36, amended 2026-10-19 — a set replaces the realms it names and
+/// C36 — a set replaces the realms it names and
 /// keeps the rest: a poe2 policy written alone leaves the pc one
 /// standing, a realm named with no leagues goes, and only `Replace`
 /// writes the whole; one write is one revision, and the merge never
@@ -1331,8 +1331,7 @@ fn a_policy_at_the_last_revision_is_refused_in_the_policys_words() {
     assert_eq!((row.revision, row.value), (i64::MAX, pc));
 }
 
-/// Round 5 of the 2g build (the second cold review's finding 1): a
-/// policy write over a row read beforehand names that row's revision,
+/// A policy write over a row read beforehand names that row's revision,
 /// so a row read at 1 and moved to 2 by another writer is the
 /// conflict carrying 2 — never a write that lands and reports the row
 /// read as replaced; the merge is made from the row passed, read once.
@@ -1365,7 +1364,7 @@ fn a_policy_write_over_a_row_that_moved_since_it_was_read_is_the_conflict() {
     );
 }
 
-/// C36, amended 2026-10-19 — a realm named with no leagues goes from a
+/// C36 — a realm named with no leagues goes from a
 /// merge whether or not a policy is stored: the first write drops it
 /// as a later one does.
 #[test]
@@ -2019,8 +2018,8 @@ fn a_retired_tab_is_spent_at_its_real_fetch_time() {
 
 /// C111 — a job is read by the request it names, not by how its params
 /// are spelt: `acq stash <tab>` queues `"sub": null` where a plan's
-/// action names no sub, and that open job spends the action (the
-/// seat: an apply behind a waiting stash fetch queued it again).
+/// action names no sub, and that open job spends the action (else an
+/// apply behind a waiting stash fetch queues it again).
 #[test]
 fn an_open_job_spelling_no_sub_as_null_spends_the_action_naming_none() {
     use acquisition_protocol::job::JobState;
@@ -2220,7 +2219,7 @@ fn a_revived_parent_replans_its_substashes() {
     );
 }
 
-// ---- characters (step 3, 2026-09-02) ------------------------------------
+// ---- characters ------------------------------------------------------------
 
 fn list_characters(s: &mut Store, realm: &str, entries: Value, at: i64) {
     s.record(

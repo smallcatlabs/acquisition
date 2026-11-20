@@ -62,7 +62,7 @@ fn c68_the_active_rows_are_the_dialog_words_and_display_names() {
 
 /// C68: the legacy C++ tag is an alias where it differed from the
 /// game's word. The owner's shorthand joins row by row (the count is
-/// not pinned — "I have probably missed some", 2026-09-05); each such
+/// not pinned — "I have probably missed some"); each such
 /// row cites where its aliases came from.
 #[test]
 fn c68_the_legacy_tags_resolve_as_aliases() {

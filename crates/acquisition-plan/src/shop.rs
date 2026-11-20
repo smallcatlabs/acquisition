@@ -1,7 +1,6 @@
 //! `shop render` (C74, C72): the forum shop page as a pure function of
 //! the listing state ([`ListingReport`], C69/C81), the shipped currency
-//! table (C68), a template and the policy table below. Built by the
-//! pricing slice's plan step 6 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-07). Nothing
+//! table (C68), a template and the policy table below. Nothing
 //! here reads a store, contacts a daemon or sends anything: the CLI
 //! (`acq shop render`, `shop_cmd.rs`) writes the pages to stdout and a
 //! person pastes them by hand; Acquisition never posts (C120;
@@ -71,8 +70,8 @@
 //! before `~b/o` before no price, then by tag, then by amount, in a
 //! stable sort over the report's order. Each page is one spoiler titled
 //! `Shop Post <n> of <N> (<k> items)` holding the price spoilers one per
-//! line; newlines stand only between spoiler tags (the owner's shape,
-//! 2026-09-07). Pages are cut so that each page, the template around it
+//! line; newlines stand only between spoiler tags (the owner's shape).
+//! Pages are cut so that each page, the template around it
 //! included, holds at most `size` characters (the C++ constant 50,000 is
 //! the default, and the forum's hard limit, T23) — the page title is
 //! reserved at its widest, so a page never grows past the size when its
@@ -118,32 +117,32 @@ use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
 /// not, and then this moves — never for a default bound, a count beside
-/// a list or an added optional field (the owner's word of 2026-10-27).
+/// a list or an added optional field (the owner's word).
 /// The shape is pinned by `reference/shop-render-schema-5.json`
-/// (`the_render_json_matches_the_committed_fixture`). Within 5, since
-/// 2026-10-27 (step 2g, C53's read economy): `posted`, `left_out` and
+/// (`the_render_json_matches_the_committed_fixture`). Within 5
+/// (C53's read economy): `posted`, `left_out` and
 /// each list of `freshness` hold the store's one bound of ten
 /// (`acquisition_store::bound::LISTED`) unless expanded, each counted
 /// whole beside it (`posted_total`, `left_out_total`, `uncovered_total`,
-/// `stale_total`, `position_before_listing_total`) — the readiness
-/// seat's call 35 was 34,779 bytes for a 2,800-character page; and
+/// `stale_total`, `position_before_listing_total`) — unbounded, a
+/// 2,800-character page's document was 34,779 bytes; and
 /// beside `freshness.oldest_stale_seconds` its words,
-/// `oldest_stale_seconds_age` (C53's ages, step 2g round 6); and since
-/// 2026-11-04 (#156, C162: one derivation over a set of places), the
+/// `oldest_stale_seconds_age` (C53's ages); and
+/// (C162: one derivation over a set of places) the
 /// posted items' locations' facts, `freshness.facts`, whatever the
 /// policy says, with the two listings' ages beside the header's bases
 /// (`listing.stash_listing_fetched_at_age`,
-/// `listing.character_listing_fetched_at_age`); and since 2026-11-04
-/// (#164, C163: every time a document carries has its words beside it)
+/// `listing.character_listing_fetched_at_age`); and
+/// (C163: every time a document carries has its words beside it)
 /// `listing.taken_at_age` and `rendered_at_age`, at the render's time.
-/// **5**
-/// since 2026-10-19: `left_out` lists at most fifty items, the blocked
+/// **5**:
+/// `left_out` lists at most fifty items, the blocked
 /// first, with `left_out_total` counting them all, unless expanded —
-/// the release seat's rerun met 160 KB of them. **4** since
-/// 2026-10-19: `left_out` lists the items left off for a reason and
+/// unbounded, they reached 160 KB. **4**:
+/// `left_out` lists the items left off for a reason and
 /// leaves out the ones nothing applies to unless asked
-/// ([`RenderOptions::expand`]), saying which in `off_page_listed` — the
-/// release seat met 5 MB of them. **3** since 2026-09-07: the owner's
+/// ([`RenderOptions::expand`]), saying which in `off_page_listed` —
+/// listed whole, they reached 5 MB. **3**: the owner's
 /// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
 /// staleness over the stale set only; neither 1 nor 2 reached a
 /// consumer.
@@ -387,9 +386,8 @@ pub struct Page {
     /// The tabs the page's links name, each by the `Stash<n>` its links
     /// write beside the tab's own name, in the order the page first
     /// names them: a rank alone names no tab a person knows (C146, a
-    /// count says what it counts; the release seat counted links per
-    /// `Stash<n>` by hand: cli-opus call 68, cli-sonnet call 62,
-    /// cli-opus-2 call 68, mcp-opus-2 call 38). Additive to schema 5.
+    /// count says what it counts; without it a reader counts links per
+    /// `Stash<n>` by hand). Additive to schema 5.
     #[serde(default)]
     pub tabs: Vec<PageTab>,
     pub text: String,
@@ -1237,7 +1235,7 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
         } else if past_window {
             out.stale.push(e.target.clone());
             // The oldest of the stale set, so the CLI's "oldest" belongs
-            // to the items its remedy fetches (review round 2, 2026-09-07).
+            // to the items its remedy fetches.
             if let Some(a) = age
                 && out.oldest_stale_seconds.is_none_or(|o| a > o)
             {

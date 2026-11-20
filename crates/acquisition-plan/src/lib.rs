@@ -17,8 +17,8 @@
 //!   for the next plan (honest eventual reconciliation). Dynamic `--deep`
 //!   fan-out is excluded: substashes get actions only once their stubs are
 //!   in the store.
-//! - C37: a policy id covers the tab **and its children** (decided
-//!   2026-09-01, tracer rung): a map/unique tab's substashes are planned
+//! - C37: a policy id covers the tab **and its children**: a map/unique
+//!   tab's substashes are planned
 //!   once their stubs are on record — the cycle after the parent's first
 //!   fetch — and a folder's children at once, since the listing carries
 //!   them. One rule, no per-type logic; binding is untouched (every action
@@ -98,7 +98,7 @@
 //! `Endpoint::from_job` — the store's production decoder of the job
 //! vocabulary — and by a plan→record→replan loop that proves applied
 //! actions satisfy the plan. A plan may carry the daemon's **quote** as
-//! optional enrichment (C40; tracer step 5, built 2026-09-01): `quote` is its
+//! optional enrichment (C40): `quote` is its
 //! own protocol request — a read-only, non-reserving projection of the
 //! work's `(kind, params)` tuples over current limiter state, per
 //! scheduling scope with per-window headroom (stamped with its own
@@ -112,9 +112,9 @@
 //! (`with_quote`) validates it speaks about the plan's own provider,
 //! exactly its account, and exactly its actions in order — never just a
 //! matching count; carrying it bumped the plan schema (v3; the `empty_stub`
-//! skip kind made v4 on 2026-09-01; realm beside league on the envelope
-//! and on every action made v5 on 2026-09-02 — every tuple names its
-//! realm explicitly, pc included; characters made **v6** the same day:
+//! skip kind made v4; realm beside league on the envelope and on every
+//! action made v5 — every tuple names its realm explicitly, pc included;
+//! characters made **v6**:
 //! `list_characters` / `fetch_character` actions, `basis.stash_listing` +
 //! `basis.character_listing`, `skipped_tabs` / `unknown_tabs` beside
 //! `skipped_characters` / `unknown_characters`). Same
@@ -254,13 +254,13 @@ use acquisition_store::{
 
 /// The plan envelope schema this build writes ([`RefreshPlan::plan_schema`]).
 /// A consumer handed a plan stamped newer refuses it rather than guessing.
-/// History: v1 = the tracer-step-4 envelope; v2 (2026-09-01) added the
-/// optional `quote` enrichment; v3 (same day) added `Quote::work`, the
+/// v1 was the first envelope; v2 added the
+/// optional `quote` enrichment; v3 added `Quote::work`, the
 /// quote's verifiable work basis. A shape change anywhere in the envelope —
 /// the embedded `Quote` included — is a schema bump, so an older reader
 /// reports "newer schema" instead of "malformed" on a newer plan.
-/// v4 added the `empty_stub` skip kind; v5 (2026-09-02) put `realm`
-/// beside `league` on the envelope and on every action; v6 (same day)
+/// v4 added the `empty_stub` skip kind; v5 put `realm`
+/// beside `league` on the envelope and on every action; v6
 /// brought characters in: the `list_characters` and `fetch_character`
 /// actions, the character listing basis (`basis.character_listing`,
 /// beside the renamed `basis.stash_listing`), `skipped_characters` and
@@ -297,7 +297,7 @@ pub enum PlanError {
     /// The policy declares nothing for the snapshot's (realm, league);
     /// there is no authorized work to derive. `covered` is the leagues it
     /// does declare on that realm, in its order, so the refusal names
-    /// them (the league seat, cli call 26).
+    /// them.
     LeagueNotCovered {
         realm: Realm,
         league: String,
@@ -344,8 +344,7 @@ impl std::fmt::Display for PlanError {
                     "the sync policy covers no league on realm {realm}, so not {league}"
                 ),
                 false => {
-                    // C53: ten named, the rest counted (the review of the
-                    // league seat's fix round, finding 2)
+                    // C53: ten named, the rest counted
                     let (named, more) =
                         acquisition_store::bound::bounded(covered.clone(), None, false);
                     let more = match more {
@@ -426,7 +425,7 @@ pub struct LeaguePolicy {
 
 /// The raw JSON shapes, one strict struct per version — `deny_unknown_fields`
 /// on each, at every depth, so a stray field is refused whatever the stamp
-/// (an untagged enum would lose that: review finding 2026-09-02). The
+/// (an untagged enum would lose that). The
 /// stamp picks exactly one shape ([`parse_policy`]), and `SyncPolicy`'s
 /// `Deserialize` goes through the same function, so the version gate, the
 /// unknown-field refusal, the names-no-work rule, and the per-facet
@@ -839,7 +838,7 @@ pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64, generated_at: i64) -> Pl
     }
 }
 
-/// What a sync-policy write replaces (C36, amended 2026-10-19).
+/// What a sync-policy write replaces (C36).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolicyWrite {
     /// The realms the value names, each whole; a realm it names with no
@@ -865,8 +864,8 @@ pub enum PutPolicyError {
     /// A create (no revision named: 0 at a terminal, an omitted
     /// `if_revision` on the MCP) refused over the policy that stands,
     /// carried whole: the create-only form doing its job, said in its own
-    /// words rather than the compare-and-swap's (the league seat's rerun,
-    /// cli-opus-2 call 24). The one refusal shape gives it the conflict's
+    /// words rather than the compare-and-swap's. The one refusal shape
+    /// gives it the conflict's
     /// kind, `revision` and `current`.
     Standing(Box<AnnotationRow>),
     Store(AnnotationError),
@@ -948,8 +947,7 @@ pub fn put_sync_policy(
 /// [`put_sync_policy`] over the row it replaces, already read and checked
 /// by the caller — `prior`, the stored row at the revision the write
 /// names, or none for a create — so one read serves the check, the merge
-/// and a receipt's `prior` (round 5 of the 2g build, the second cold
-/// review's finding 1): the put names `prior`'s revision, so a row that
+/// and a receipt's `prior`: the put names `prior`'s revision, so a row that
 /// moved since the read is the conflict, never a stale prior reported as
 /// replaced. A create merges into nothing and the put refuses it over a
 /// live row, carrying that row.
@@ -1446,8 +1444,8 @@ fn check_quote_matches(
 }
 
 impl RefreshPlan {
-    /// Enrich the plan with the daemon's quote (decided 2026-08-31: a plan
-    /// optionally carries one, with its own observation time). Consuming
+    /// Enrich the plan with the daemon's quote (a plan optionally carries
+    /// one, with its own observation time). Consuming
     /// on purpose — the enriched plan is a new value, not an edit of a
     /// reviewed one.
     pub fn with_quote(mut self, quote: Quote) -> Result<RefreshPlan, PlanError> {

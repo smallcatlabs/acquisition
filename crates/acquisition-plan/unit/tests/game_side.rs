@@ -76,8 +76,7 @@ fn c69_every_fixture_note_reads_as_the_game_meant_it() {
 /// an exact price despite the game's `(Remove-only)` and the owner's
 /// `(A)`…`(G)` after the word; the same text as a *note* reads the
 /// same (parser v2: the game stores a note's suffix and the site
-/// reads through it — the owner's `~price 777 chaos testing`,
-/// 2026-09-08).
+/// reads through it — the owner's `~price 777 chaos testing`).
 #[test]
 fn c69_text_after_the_word_is_tolerated_by_a_tab_name_and_a_note_alike() {
     let fixture = price_notes();
@@ -254,7 +253,7 @@ fn c69_the_amount_is_the_typed_grammar() {
     }
 }
 
-/// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the parser
+/// The property tests: the parser
 /// over any text, not the corpus and the hand-picked lines above.
 mod properties {
     use super::*;
@@ -347,7 +346,7 @@ mod properties {
                     prop_assert_eq!(amount.parse::<Amount>(), Ok(p.amount), "{:?}", text);
                     // The word stands before the first whitespace under both
                     // sources; what follows it is tolerated, not read (module
-                    // doc). proptest found `~price 1 chaos 0` on 2026-09-09.
+                    // doc). proptest found `~price 1 chaos 0`.
                     let word = after.split(char::is_whitespace).next().unwrap();
                     prop_assert_eq!(&t.resolve(word).unwrap().tag, &p.currency, "{:?}", text);
                     if source == Source::TabName {

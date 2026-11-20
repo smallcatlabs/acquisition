@@ -20,9 +20,9 @@
 //!   ones an agent branches on carry a [`Refused`] — `kind: "conflict"`
 //!   with the row's current `revision` for a write refused for its
 //!   revision, `kind: "not_found"` for a target the facts do not hold —
-//!   which both frontends add to the failure document (C11, amended
-//!   2026-10-19). A refusal speaks the verb's words, never the store's
-//!   (C116, amended): a price at a revision, a price that was cleared.
+//!   which both frontends add to the failure document (C11). A refusal
+//!   speaks the verb's words, never the store's (C116): a price at a
+//!   revision, a price that was cleared.
 //! - A cleared row keeps counting: its tombstone holds a revision and the
 //!   next write's continues from it, so a refusal over one names it.
 //! - The league a verb reads with none given is the one the facts hold
@@ -42,10 +42,9 @@
 //!   the facts do not hold is noted, never refused (C64).
 //! - What a container's receipt counts is read after the write, and
 //!   never fails it: a read that cannot answer leaves the receipt whole
-//!   with `counts_unavailable` in place of the counts ([`Uncounted`], the
-//!   review of round B), its follow-up read the bare `price show`, which
-//!   finds where the facts hold the target when it runs (the review of
-//!   round B's fix round).
+//!   with `counts_unavailable` in place of the counts ([`Uncounted`]),
+//!   its follow-up read the bare `price show`, which finds where the
+//!   facts hold the target when it runs.
 //! - `show` naming neither realm nor league reads where the facts hold
 //!   the target live ([`held_places`]), and refuses one held in several
 //!   places naming each.
@@ -103,7 +102,7 @@ pub enum RefusedKind {
         /// the create, where no row stands and a price was asked. None
         /// for a clear with nothing to clear and for a row this build
         /// cannot read, which is never offered blind (C151). The one
-        /// refusal shape offers it (the league seat, fault 3).
+        /// refusal shape offers it.
         retry: Option<Box<Retry>>,
         /// The read-back the words name, where they name one.
         shown: Option<Box<Shown>>,
@@ -123,10 +122,9 @@ pub enum RefusedKind {
 
 /// The read-back a write's refusal names: `show` of the target as the
 /// account the frontend resolved, and nothing else, since a write
-/// resolves no realm or league (round 5 of the 2g build). The one
+/// resolves no realm or league. The one
 /// refusal shape offers it, which each surface spells (C143: on the MCP
-/// the `price_show` call, never a command line; the owner's comment of
-/// 2026-11-01 on #97).
+/// the `price_show` call, never a command line).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Shown {
     pub target: PriceTarget,
@@ -143,8 +141,8 @@ pub struct Retry {
     pub if_revision: i64,
 }
 
-/// What a `not_found` refusal knows of the request it refused (round 4
-/// of `roadmap/briefs/2g-build.md`): the target, and the scope it was
+/// What a `not_found` refusal knows of the request it refused: the
+/// target, and the scope it was
 /// looked for in as the verb resolved it — the account it ran as, the
 /// realm and the league — with where else the facts hold the target and
 /// the row of its own it has. The offers that would find it are made
@@ -341,8 +339,8 @@ pub fn league_of(store: &Store, named: &[&PriceTarget], league: Option<&str>) ->
 
 /// Where the facts hold `target` live, as `(realm, league)`, sorted: the
 /// one reader of it, for `show`'s scope with none named, a receipt's
-/// counts, and the refusals that name where a target is (the review of
-/// round B's fix round). A character the listing gave no league, and an
+/// counts, and the refusals that name where a target is. A character
+/// the listing gave no league, and an
 /// item it wears, is held in its realm under [`DEFAULT_LEAGUE`], the
 /// league `show` reads it in, since every league's report carries it.
 pub fn held_places(store: &Store, target: &PriceTarget) -> Result<Vec<(Realm, String)>> {
@@ -400,7 +398,7 @@ pub struct Several {
 /// A target address as one word, or the grammar to type — and, for a
 /// bare id as `search` and `show` print one, the two readings it may be,
 /// filled in: an item's and a character's ids are alike, so neither is
-/// guessed (the trade seat: cli-opus call 31, its fault 6).
+/// guessed.
 pub fn read_target(word: &str) -> Result<PriceTarget> {
     PriceTarget::from_str(word).map_err(|e| {
         let readings = if word.contains('/') || word.is_empty() {
@@ -444,9 +442,8 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// request's (C143): each way on they name is an offer, made from the
 /// scope the verb resolved, the account, the realm and the league, the
 /// defaults included, which the refusal carries beside the target
-/// ([`Missing`]); a surface spells each (round 2 of
-/// `roadmap/briefs/2g-build.md`: a printed read runs as printed with a
-/// second account known and a target live in two leagues).
+/// ([`Missing`]); a surface spells each (a printed read runs as printed
+/// with a second account known and a target live in two leagues).
 fn not_on_record(
     store: &Store,
     r: &ListingReport,
@@ -537,7 +534,7 @@ pub fn show(
 ) -> Result<ShowView> {
     let target = read_target(target)?;
     // neither named: where the facts hold it, one place read there and
-    // several refused naming each (the review of round B's fix round)
+    // several refused naming each
     let (realm, league) = match (realm, league) {
         (None, None) => match held_places(store, &target)?.as_slice() {
             [(realm, league)] => (*realm, league.clone()),
@@ -659,7 +656,7 @@ pub fn list(
                 .unwrap_or(PriceTarget::Item { id: "?".into() });
             // a container with a row of its own is refused as `show`
             // refuses it, naming the read that prints the row
-            // (`7571a570`; issue #11, C146)
+            // (C146)
             let (scope, key) = missing.address()?;
             let own = annotations.get(scope, &key, BUYOUT_KIND)?;
             Err(not_on_record(
@@ -712,7 +709,7 @@ pub fn read_buyout(kind: &str, amount: Option<&str>, currency: Option<&str>) -> 
 /// what naming none means — the one rule the frontends differ on. A
 /// revision of 0, which no row carries (revisions start at 1), is the
 /// create-only form on every surface and both write verbs, so a command
-/// one surface prints reads the same on the other (#101).
+/// one surface prints reads the same on the other.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
     /// Only over exactly this revision; refused naming the current one
@@ -870,7 +867,7 @@ fn on_conflict(
         // C151: a stale write over a row this build cannot read is the
         // same conflict shape — kind conflict, the row's revision — in the
         // verb's words, with the revision the write must name to go
-        // through (the second review of #63, its fourth finding).
+        // through.
         PriceWriteError::Store(AnnotationError::Unreadable(row)) => {
             let does = match asked.verb {
                 Verb::Set(_) => "replaces",
@@ -936,9 +933,9 @@ pub struct ClearReceipt {
 }
 
 /// What a row on a tab, a folder, a substash or a character covers once
-/// the write lands (#171; the answer-facts seat, CLI run 1 call 79
-/// against 84: the receipt said the tab's price and only `price show`
-/// how many items take it): the two sets `price show` counts, by the
+/// the write lands (else the receipt says the tab's price and only
+/// `price show` how many items take it): the two sets `price show`
+/// counts, by the
 /// function it counts them with ([`ListingReport::show_view`]), so the
 /// words are its own. A set's `by_relation` says which of its items take
 /// a price by hand alone, which the game decides and which agree; none
@@ -952,11 +949,11 @@ pub struct Covered {
 }
 
 /// Why a container row's receipt holds no counts, though the write
-/// landed (the review of round B, findings 1 and 2): the read after it
+/// landed: the read after it
 /// could not answer, and a read never fails a write that stands. `why`
 /// says it in words; the read that counts them is the bare `price show`
-/// of the target, which finds where the facts hold it when it runs (the
-/// review of round B's fix round: a receipt never guesses the scope).
+/// of the target, which finds where the facts hold it when it runs (a
+/// receipt never guesses the scope).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Uncounted {
     pub why: String,
@@ -999,8 +996,8 @@ fn covering(
         Ok(store) => store,
         Err(why) => return uncounted(format!("the facts could not be read ({why})")),
     };
-    // the realm and the league are the facts' (the review of round B,
-    // finding 3), by the one reader `show` takes its scope from
+    // the realm and the league are the facts', by the one reader `show`
+    // takes its scope from
     let places = match held_places(store, target) {
         Ok(places) => places,
         Err(e) => {
@@ -1036,7 +1033,7 @@ fn covering(
 }
 
 /// The note a set's receipt carries where the shop cannot post what the
-/// row prices (the league seat, fault 4): the row stands (C69), and the
+/// row prices: the row stands (C69), and the
 /// shop's own rule says why, in its words (`Cell::Substash`).
 pub fn substash_note() -> String {
     format!(
@@ -1247,14 +1244,13 @@ pub fn shop_page(rendered: &ShopRender, n: usize) -> Result<&Page> {
         })
 }
 
-/// One page of a render as an answer (#169; the answer-facts seat, MCP
-/// run 1 call 50 against 51: a page alone dropped the facts' age, what
-/// was left out and the policy): the page's own fields, as a page alone
+/// One page of a render as an answer (a page alone would drop the
+/// facts' age, what was left out and the policy): the page's own
+/// fields, as a page alone
 /// answered them, and beside them the render's context, every key the
 /// whole render carries but `pages`, so `counts`, `left_out`, `policy`
 /// and `freshness` stand as for the whole render and the page's text
-/// once (the review of round B, finding 4: a second `pages` held it
-/// twice, some 50 KB a page).
+/// once (a second `pages` would hold it twice, some 50 KB a page).
 #[derive(Debug, Clone, Serialize)]
 pub struct ShopPage {
     #[serde(flatten)]
@@ -1375,7 +1371,7 @@ pub fn currency_document(word: Option<&str>) -> Result<CurrencyDocument> {
 
 /// One entry of the pricing model as a frontend prints it on demand: a
 /// name and what it says (the MCP's `describe` with names
-/// `["pricing"]`, #83). The words are the ones the MCP's tool texts carried,
+/// `["pricing"]`). The words are the ones the MCP's tool texts carried,
 /// cut, beside the functions that make what they describe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Described {

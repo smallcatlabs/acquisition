@@ -1,7 +1,6 @@
 //! The game side of a listing (C69): what an item's `note` or a tab's
-//! name says, read as one pure function. Built by the pricing slice's
-//! plan step 3 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-06). Nothing here reads a
-//! store; the listing state (`listing.rs`, plan step 4) calls [`read`]
+//! name says, read as one pure function. Nothing here reads a
+//! store; the listing state (`listing.rs`) calls [`read`]
 //! once per note and once per tab name and keeps the raw text beside
 //! the result.
 //!

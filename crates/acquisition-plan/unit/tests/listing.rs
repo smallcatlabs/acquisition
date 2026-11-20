@@ -75,8 +75,7 @@ fn exact(amount: &str, currency: &str) -> Value {
 /// public priced tab, a plain tab, a public priced map tab with a
 /// substash, an unpriced unique tab with a substash, one character.
 /// C151 — a row the store could not parse is one kind of unreadable
-/// with a row the buyout kind refuses (the second review of #63, its
-/// first and third findings): the item it names resolves unresolved,
+/// with a row the buyout kind refuses: the item it names resolves unresolved,
 /// so its public tab's price never wins past it (C81, the checklist's
 /// "fall-through past an unreadable row"); the accounting lists it
 /// with the parse fault as why, bounded as the status bounds every
@@ -387,7 +386,7 @@ fn c69_two_sides_resolve_independently_and_the_relation_names_both() {
     assert_eq!(report.counts.residue, 1);
 
     // Each count's members are a list's selection under the count's own
-    // word (#11), whatever their relation: the residue a character's
+    // word, whatever their relation: the residue a character's
     // `manual_only` item, the invalid note one the tab's price decides.
     let selected = |text: GameText| {
         let view = report
@@ -419,7 +418,7 @@ fn c69_two_sides_resolve_independently_and_the_relation_names_both() {
 /// C81 — a note the store could not read is a statement of unknown
 /// content at item level, so nothing decides: unresolved beside a
 /// game tab price and beside the item's own row alike, the row and
-/// the tab still shown. Found by the search's generators (step 9).
+/// the tab still shown. Found by the search's generators.
 #[test]
 fn c81_a_note_that_cannot_be_read_leaves_the_price_unresolved() {
     let mut snap = snapshot();
@@ -715,8 +714,7 @@ fn the_report_json_matches_the_committed_fixture() {
     let report = report.clone().aged(report.header.taken_at + 3_600);
     // Bytes, not parsed values: a `Value` compares its objects in any
     // key order, so a file in a stale order would pass, and the next
-    // regeneration would move it with nothing it describes changed
-    // (#280: written sorted before serde_json kept the declared order).
+    // regeneration would move it with nothing it describes changed.
     let actual =
         serde_json::to_string_pretty(&serde_json::to_value(&report).unwrap()).unwrap() + "\n";
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
@@ -909,12 +907,11 @@ fn rows_are_accounted_for_and_the_report_round_trips() {
     ));
 }
 
-/// C53, the read economy (step 2g, round 2): a container's two sets
+/// C53, the read economy: a container's two sets
 /// list ten each by default, counted whole beside the rows — the
 /// total, how many listed and left out, and the relation breakdown
 /// made before the cut — `limit` lists more, and `expand`, the audit
-/// request, holds every item the default left out (the cold review
-/// of the brief, findings 6 and 7). A parent map tab of thirteen
+/// request, holds every item the default left out. A parent map tab of thirteen
 /// items of its own over a substash of fifteen.
 #[test]
 fn c53_a_containers_two_sets_list_ten_beside_their_whole_counts_and_expand_holds_every_omitted_item()
@@ -985,8 +982,7 @@ fn c53_a_containers_two_sets_list_ten_beside_their_whole_counts_and_expand_holds
     assert_eq!(audit.items_here_counts.left_out, 0);
 }
 
-/// C53, the read economy (step 2g, round 2; the second cold review of
-/// the brief, finding 2: no exemption): the status's three row lists
+/// C53, the read economy (no exemption): the status's three row lists
 /// — rows naming nothing here, rows that cannot be read, rows of
 /// another league — each hold ten beside a count of the whole, and
 /// `expand` lists each whole; the whole report keeps every row.
@@ -1444,8 +1440,8 @@ fn a_league_less_characters_items_are_flagged_in_every_leagues_report() {
     assert!(!text.contains("\"league_unknown\":false"));
 }
 
-/// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`):
-/// the owner's pc/Standard league as `redact-pricing` wrote it — 402
+/// The real-scale fixture: the owner's pc/Standard league as
+/// `redact-pricing` wrote it — 402
 /// tabs, 41 characters, 1,977 items, 16 rows — resolved whole. The
 /// counts are read against the file, not against themselves.
 mod real_scale {
@@ -1482,8 +1478,7 @@ mod real_scale {
     /// dialog's one residue; 16 `~` tab names are 14 prices and the
     /// two lot ratios a tab name cannot carry (T19); 16 rows are 5
     /// applied and 11 naming another league's facts. The resolve's time
-    /// is printed, never asserted (C137): 7 ms in a debug build on
-    /// 2026-09-07.
+    /// is printed, never asserted (C137): 7 ms in a debug build.
     #[test]
     fn c69_at_real_scale_every_fact_has_one_listing_and_the_counts_are_the_files() {
         let s = real_scale_fixture::snapshot();

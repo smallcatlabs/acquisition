@@ -51,8 +51,8 @@ fn priced() -> (Store, Annotations) {
 
 /// `price list --limit N` holds the first N in listing order and says
 /// how many the selection holds and how many it lists; the containers
-/// are the listed items' alone (the release seat: a league's conflicts
-/// were 49 to 67 KB, cut by a harness after the first item).
+/// are the listed items' alone (unbounded, a league's conflicts were
+/// 49 to 67 KB, cut by a harness after the first item).
 #[test]
 fn a_list_is_bounded_by_its_limit_and_counts_the_selection() {
     let (store, a) = priced();
@@ -82,7 +82,7 @@ fn a_list_is_bounded_by_its_limit_and_counts_the_selection() {
 /// C151 — a stale write over a row this build cannot read is a
 /// `conflict` with the row's revision, in the verb's words naming the
 /// `if_revision` that goes through, never the store's generic
-/// refusal (the second review of #63, its fourth finding); the write
+/// refusal; the write
 /// naming the revision then lands. The damage is staged through a
 /// second connection on a file-backed intent store.
 #[test]
@@ -185,7 +185,7 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
 }
 
 /// A revision of 0 is the create-only form under either frontend's
-/// default (#101): no row carries it, so the CLI's `--if-revision 0` and
+/// default: no row carries it, so the CLI's `--if-revision 0` and
 /// the MCP's `if_revision: 0` both create where no price stands and are
 /// refused naming the stored revision where one does.
 #[test]
@@ -603,9 +603,9 @@ fn set_reads_the_value_words_through_the_value_s_own_parse() {
     }
 }
 
-/// Round 4 of `roadmap/briefs/2g-build.md`: a conflict carries the
+/// A conflict carries the
 /// live row it was refused over as it stands — `show`'s `manual` less
-/// the age words an answer adds (round 6's fix round) — so an
+/// the age words an answer adds — so an
 /// agent reads the current value without a second call; over a
 /// cleared row `current` is absent and `revision` the tombstone's,
 /// and where no row was ever written `revision` stays null (C11).
@@ -759,8 +759,7 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
     );
 }
 
-/// Q6 of the 2g design, the teaching refusal, as round 5's fix round
-/// narrowed it (its review's finding 2): a write naming a revision the
+/// The teaching refusal: a write naming a revision the
 /// target's own row does not stand at is refused as a `conflict`
 /// naming the target's own revision. `price_show`'s `manual.revision`
 /// is a container's when the row is inherited, and a write over the
@@ -769,9 +768,8 @@ fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
 /// landed over the container's row. Revisions count per target, so
 /// where the item's own row stands at the container's number the
 /// write lands: a revision cannot say where it was read. The
-/// refusal's read-back carries the account the write ran as (round 5
-/// of the 2g build: a write resolves no realm or league, so the
-/// account alone).
+/// refusal's read-back carries the account the write ran as (a write
+/// resolves no realm or league, so the account alone).
 #[test]
 fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
     let (store, mut a) = priced();

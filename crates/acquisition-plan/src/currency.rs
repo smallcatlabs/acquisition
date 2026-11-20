@@ -1,6 +1,5 @@
 //! The currency reference table — the first reference-data input (C68;
-//! `decisions/pricing.md`), built by the pricing slice's plan step 1
-//! (`PRICING-SLICE.md` at `b6197a82`, 2026-09-04).
+//! `decisions/pricing.md`).
 //!
 //! # Rulings held here
 //!
@@ -32,7 +31,7 @@
 //! in the file's order (the in-game dialog's, then the retired rows),
 //! and every surface that shows a currency cites [`CurrencyTable::version`].
 //!
-//! v1 (2026-09-04): 39 active rows — the words the in-game price dialog
+//! v1: 39 active rows — the words the in-game price dialog
 //! writes, with the display names the owner read in it — and three
 //! retired (`chisel`, `coin`, `silver`: the C++ table had them, the dialog
 //! no longer offers them). The four C++ tags that differed from the game's
