@@ -117,9 +117,10 @@ fn the_pages_of_an_answer_are_the_answer_at_a_limit_past_the_total() {
 
 /// Each id's index in a rows request's whole order (step 6.5c, Decision
 /// 2): asked of `answer` with `after` that index and `limit` one, it is
-/// that row, in the store's order, under a sort either way, and in the
-/// order the query gave; an id outside the order has none, whatever the
-/// request's own `after` and `limit`.
+/// that row, in the store's order, under a sort either way, and with
+/// the query's values as columns, in the store's order still; an id
+/// outside the order has none, whatever the request's own `after` and
+/// `limit`.
 #[test]
 fn an_ids_index_is_the_place_answer_lists_its_row_at() {
     let s = worked();
