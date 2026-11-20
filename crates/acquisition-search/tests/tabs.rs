@@ -636,6 +636,11 @@ fn held_to_their_requests(s: &Store, league: &str, asking: &Asking) -> Value {
     }
     let top: usize = places.places.iter().map(|p| p.matched.unwrap()).sum();
     assert_eq!(queried.matched, top, "{doc}");
+    // the matches this league's places do not hold are said where they
+    // stand, so the page's count and the rest make the query's whole (the
+    // page seat after GUI step 6, its fault 1)
+    let elsewhere: usize = queried.elsewhere.iter().map(|e| e.matched).sum();
+    assert_eq!(queried.matched + elsewhere, queried.total.matched, "{doc}");
     doc
 }
 
@@ -722,6 +727,16 @@ fn under_a_query_each_place_counts_what_its_request_matches() {
         let doc = held_to_their_requests(&s, league, &asked("rarity=rare", Rows::default()));
         assert_eq!(doc_place(&doc, "d1")["matched"], 1, "{league}: {doc}");
         assert_eq!(doc["query"]["total"]["matched"], 2, "every league's");
+        let other = if league == "Standard" {
+            "standard"
+        } else {
+            "Standard"
+        };
+        assert_eq!(
+            doc["query"]["elsewhere"],
+            json!([{ "place": "stash", "league": other, "matched": 1 }]),
+            "the other spelling's: {doc}"
+        );
     }
 }
 

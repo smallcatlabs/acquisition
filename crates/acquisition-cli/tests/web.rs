@@ -145,6 +145,101 @@ pub(crate) fn offline_web(tag: &str) -> (harness::Scratch, WebUi) {
     (scratch, web)
 }
 
+/// A store that holds tabs in two leagues and never fetched the league
+/// list, as a copy of another store does where no session can fetch one
+/// (the page seat after GUI step 6, its fault 1): the place pages offer
+/// the leagues it holds, and under a query say where the matches this
+/// league's places do not hold stand, each a link to its page.
+#[test]
+fn a_store_with_no_league_list_moves_between_the_leagues_it_holds() {
+    let scratch = harness::scratch("webheldleagues");
+    let mock = scratch.0.join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    let mut index = Index::load(&mock).unwrap();
+    index.record_login(USER, "u-held", false, 1, &[]).unwrap();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    store
+        .record(
+            &Endpoint::Profile,
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "uuid": "u-held", "name": USER }),
+            1,
+        )
+        .unwrap();
+    let ring = |id: &str| {
+        json!({ "id": id, "name": "Doom Loop", "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 80, "x": 0, "y": 0 })
+    };
+    for (league, tab, rings, at) in [
+        ("Standard", "s1", vec![ring("a"), ring("b")], 10),
+        ("Settlers", "p1", vec![ring("c")], 20),
+    ] {
+        let params = json!({ "realm": "pc", "league": league });
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.into(),
+                },
+                &params,
+                200,
+                &json!({ "stashes": [{ "id": tab, "name": "Rings", "type": "PremiumStash" }] }),
+                at,
+            )
+            .unwrap();
+        store
+            .record(
+                &Endpoint::Stash {
+                    realm: "pc".into(),
+                    league: league.into(),
+                    id: tab.into(),
+                    sub: None,
+                },
+                &params,
+                200,
+                &json!({ "stash": { "id": tab, "name": "Rings", "type": "PremiumStash", "items": rings } }),
+                at + 1,
+            )
+            .unwrap();
+    }
+    drop(store);
+    let web = start_web(offline_command(&scratch.0, &["web", "--no-browser"]));
+    let tabs = web.get("tabs?realm=pc&league=Standard");
+    assert_eq!(tabs.status, 200, "{}", tabs.body);
+    assert!(
+        tabs.body.contains("<label class=\"control\">League <select name=\"league\"><option value=\"Settlers\">Settlers (tabs on disk)</option><option value=\"Standard\" selected>Standard (tabs on disk)</option></select></label>"),
+        "{}",
+        tabs.body
+    );
+    let queried = web.get("tabs?realm=pc&league=Standard&text=class%3Arings");
+    let settlers = format!(
+        "/{}/tabs?realm=pc&amp;league=Settlers&amp;text=class%3Arings",
+        web.token
+    );
+    assert!(
+        queried
+            .body
+            .contains("2 matching items in these stash tabs, of 3 matches · ")
+            && queried.body.contains(&format!(
+                " · elsewhere: <a href=\"{settlers}\">1 in the stash tabs of Settlers</a></p>"
+            )),
+        "{}",
+        queried.body
+    );
+    let there = follow(&web, &settlers.replace("&amp;", "&"));
+    assert!(
+        there
+            .body
+            .contains("1 matching item in these stash tabs, of 3 matches · ")
+            && there
+                .body
+                .contains("2 in the stash tabs of Standard</a></p>"),
+        "{}",
+        there.body
+    );
+}
+
 /// No response of this server carries a CORS header (C138).
 fn no_cors(reply: &harness::Reply, what: &str) {
     let cors: Vec<&(String, String)> = reply
@@ -5656,6 +5751,9 @@ fn the_grouped_table_is_a_wording_golden() {
         &characters,
         &[
             "1 matching item on these characters, of 8 matches",
+            // where the rest stand (the page seat after GUI step 6, fault 1)
+            "elsewhere: <a href=\"/",
+            ">7 in the stash tabs of Standard</a></p>",
             "<span>90</span><span>1 of 1</span>",
             "1 character not shown, <a href=",
             "data-id=\"c-ring\"",

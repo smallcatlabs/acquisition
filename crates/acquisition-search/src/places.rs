@@ -60,7 +60,12 @@
 //! each match is tried against the terms of each place whose id it
 //! carries (its own, its place's, its place's parent's, the ids an
 //! `id:` term compares). The tests hold each count to its request's
-//! answer.
+//! answer. The matches in places of the other kind or of another league
+//! stand beside it as `elsewhere`, counted by kind and league in the
+//! same pass's terms (the query over the corpus), so a page that lists
+//! one league's tabs says where the rest of its total are (the page seat
+//! after GUI step 6, its fault 1); the tests hold `matched` and
+//! `elsewhere` to the query's `total`.
 //!
 //! The document stands at the corpus's basis (C98): the corpus is the
 //! holder's, the listing is read, and [`Corpus::is_current`] is asked
@@ -216,13 +221,32 @@ impl Filter {
 
 /// The query a places document was asked: its canonical text, its own
 /// request over the realm (every league's places, the view asked) and
-/// that request's `total`, and the matches in this league's places.
+/// that request's `total`, the matches in this league's places, and
+/// where the rest stand.
 #[derive(Debug, Clone, Serialize)]
 pub struct Queried {
     pub text: String,
     pub request: Request,
     pub total: Total,
     /// The matches the league's places hold: the top level's sum.
+    pub matched: usize,
+    /// The query's matches in places of another kind or league than the
+    /// document's, by kind and league (the module doc).
+    pub elsewhere: Vec<Elsewhere>,
+}
+
+/// The query's matches in one kind of place of one league other than a
+/// places document's own: a page that lists one league's tabs or its
+/// characters says where the rest of the query's matches stand (the page
+/// seat after GUI step 6, its fault 1).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Elsewhere {
+    /// `stash` or `character`, as the corpus names a place's kind.
+    pub place: String,
+    /// The league as the store spells it; none for characters the listing
+    /// gave no league.
+    pub league: Option<String>,
+    /// The query's matches there.
     pub matched: usize,
 }
 
@@ -566,6 +590,11 @@ impl Places {
                 ..Rows::default()
             }));
             let answered = crate::answer::unaged(&asked.corpus, &own)?.aged(now);
+            let kind = match self.counts {
+                Counted::Tabs(_) => "stash",
+                Counted::Characters(_) => "character",
+            };
+            let elsewhere = asked.elsewhere(kind, &self.league);
             let mut request = asked.request;
             request.query.text = Some(answered.query.text.clone());
             self.query = Some(Queried {
@@ -573,6 +602,7 @@ impl Places {
                 request,
                 total: answered.total,
                 matched,
+                elsewhere,
             });
             self.basis = Some(asked.corpus.basis.clone());
         }
@@ -593,6 +623,36 @@ struct Asked {
 }
 
 impl Asked {
+    /// The query's matches outside places of `kind` in `league`, counted
+    /// by each place's kind and league: the league's other kind first,
+    /// then each other league in name order, the characters with no
+    /// league last; within a league, stash before character.
+    fn elsewhere(&self, kind: &str, league: &str) -> Vec<Elsewhere> {
+        let mut by: std::collections::BTreeMap<(bool, bool, Option<String>, String), usize> =
+            std::collections::BTreeMap::new();
+        for held in self.corpus.items() {
+            let place = &held.place;
+            let here = place.league.as_deref() == Some(league);
+            if (here && place.kind == kind) || !crate::answer::is_true(&self.query, held) {
+                continue;
+            }
+            *by.entry((
+                !here,
+                place.league.is_none(),
+                place.league.clone(),
+                place.kind.clone(),
+            ))
+            .or_default() += 1;
+        }
+        by.into_iter()
+            .map(|((_, _, league, place), matched)| Elsewhere {
+                place,
+                league,
+                matched,
+            })
+            .collect()
+    }
+
     /// Each place's `matched` and a tab's `own` (the module doc), from
     /// one evaluation of the query: the matches by the ids they carry,
     /// each tried against the place's terms; a folder's its places' sum.

@@ -160,7 +160,9 @@
 //!   (`a_grouped_page_shows_each_open_places_rows_and_keeps_its_place`).
 //!   Under a query each head says its matches beside its items, and the
 //!   page the league's matches beside the query's own, linking every match
-//!   as a table. A rows answer links "by stash tab" and "by character",
+//!   as a table, and where the rest stand (the document's `elsewhere`,
+//!   each kind and league a link to its place page under the same query
+//!   and view; the page seat after GUI step 6, its fault 1). A rows answer links "by stash tab" and "by character",
 //!   the place page of the league its query fixes or the default's, with
 //!   its canonical text and view ([`by_place`]), none under all realms,
 //!   another membership than live, or a request the form cannot ask; the
@@ -978,13 +980,11 @@ impl Web {
     /// each league marked with whether this realm has tabs of it on disk:
     /// what both pages' league control lists, through the verbs' two
     /// reads (C46), the list and what the realm holds; a word that is no
-    /// realm holds nothing. None where no list was fetched.
+    /// realm holds nothing. Where no list was fetched, the leagues the
+    /// realm holds places in; none where it holds none either.
     fn leagues(&self, realm: &str) -> Result<Option<Vec<(String, bool)>>, Failure> {
         let account = self.served()?;
         let list = account.league_list(true)?;
-        if list.fetched_at.is_none() {
-            return Ok(None);
-        }
         let held = match Realm::parse(realm) {
             Some(realm) => {
                 acquisition_verbs::LeaguesHeld::read(
@@ -998,6 +998,17 @@ impl Web {
             }
             None => Vec::new(),
         };
+        // the league list never fetched (a store with no session cannot
+        // fetch one): the leagues the store holds places in, so a page
+        // over a copied store still moves between its leagues (the page
+        // seat after GUI step 6, its fault 1); none where it holds none
+        if list.fetched_at.is_none() {
+            let leagues: Vec<(String, bool)> = held
+                .into_iter()
+                .filter_map(|h| h.league.map(|league| (league, h.tabs > 0)))
+                .collect();
+            return Ok((!leagues.is_empty()).then_some(leagues));
+        }
         Ok(Some(
             list.leagues
                 .into_iter()
@@ -2426,6 +2437,36 @@ async fn places(
             ),
         ))
     };
+    // where the query's other matches stand (the page seat after GUI step
+    // 6, its fault 1): each kind and league a link to its place page under
+    // the same query and view, the characters with no league words alone
+    let elsewhere: Vec<Option<String>> = places
+        .query
+        .iter()
+        .flat_map(|q| &q.elsewhere)
+        .map(|e| {
+            let there = match e.place.as_str() {
+                "stash" => Listed::Tabs,
+                _ => Listed::Characters,
+            };
+            e.league.as_deref().map(|league| {
+                web.link(
+                    there.route(),
+                    &place_fields(
+                        there,
+                        realm,
+                        league,
+                        &Shown {
+                            text: shown.text.clone(),
+                            view: shown.view.clone(),
+                            ..Shown::default()
+                        },
+                        Marked::default(),
+                    ),
+                )
+            })
+        })
+        .collect();
     let body = page::places(&page::PlacesPage {
         listed: listed.route(),
         title,
@@ -2447,6 +2488,7 @@ async fn places(
         view_links: &view_links,
         items: &kept,
         placed: &placed,
+        elsewhere: &elsewhere,
         policy,
         spell: &spell,
         now: acquisition_store::now(),

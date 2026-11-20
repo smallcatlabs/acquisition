@@ -28,7 +28,7 @@ GET tabs?<rings, four places open>
 <p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <input type="hidden" name="tab" value="t3"><details class="list" open><summary>Stash tabs</summary>
-<p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a></p>
+<p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60">1 on the characters of Standard</a></p>
 <div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
 <div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>MapStash</option><option>Folder</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
 <div class="window" data-row-height="24" data-block-rows="50">
@@ -90,6 +90,8 @@ GET tabs?realm=pc&league=Standard&fetched=never
 
 GET characters?<rings, Exile open>
 # holds "1 matching item on these characters, of 8 matches"
+# holds "elsewhere: <a href=\"/"
+# holds ">7 in the stash tabs of Standard</a></p>"
 # holds "<span>90</span><span>1 of 1</span>"
 # holds "1 character not shown, <a href="
 # holds "data-id=\"c-ring\""
@@ -105,7 +107,7 @@ GET characters?<rings, Exile open>
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard"><input type="hidden" name="open" value="ch1">
 <p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <details class="list" open><summary>Characters</summary>
-<p class="matched">1 matching item on these characters, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a></p>
+<p class="matched">1 matching item on these characters, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/tabs?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60">7 in the stash tabs of Standard</a></p>
 <div class="p head"><span></span><span>Character</span><span>Level</span><span>Items</span><span>Fetched</span></div>
 <div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
 <div class="window" data-row-height="24" data-block-rows="50">
@@ -141,7 +143,7 @@ GET tabs?<rings, Old rings open, its first row opened>
 <p><label class="control">Items matching <input type="text" name="text" value="class:rings ilvl&gt;=60" placeholder="a query, as the search reads it" aria-label="show the places holding items this query matches"></label> <button type="submit">Show</button> <button type="submit" formaction="plan" name="selected" value="yes">Refresh ticked</button></p>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <details class="list" open><summary>Stash tabs</summary>
-<p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a></p>
+<p class="matched">7 matching items in these stash tabs, of 8 matches · <a class="way" data-way="/query/request" href="/<token>/search?realm=pc&amp;text=class%3Arings%20ilvl%3E%3D60&amp;view.fields=icon">every match as a table</a> · elsewhere: <a href="/<token>/characters?realm=pc&amp;league=Standard&amp;text=class%3Arings%20ilvl%3E%3D60">1 on the characters of Standard</a></p>
 <div class="p head"><span></span><span>Tab</span><span>Type</span><span>Items</span><span>Fetched</span></div>
 <div class="p filters"><span></span><span><input type="text" name="name" value="" placeholder="words in the name" aria-label="show the places whose name holds these words"></span><span><select name="type" aria-label="show the tabs of one type"><option value="" selected>any type</option><option>PremiumStash</option><option>MapStash</option><option>Folder</option></select></span><span></span><span><label><input type="checkbox" name="fetched" value="never"> never</label></span></div>
 <div class="window" data-row-height="24" data-block-rows="50">

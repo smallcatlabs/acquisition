@@ -2452,8 +2452,9 @@ pub(crate) fn item_badges(parts: ItemParts<'_>) -> String {
 
 /// The league control both pages carry (the 4b sitting round, Do 3): a
 /// select over the store's league list, each league marked with whether
-/// tabs of it are on disk in the realm shown; with no list on disk, no
-/// select — the fetch button is then the only control. `any` adds the
+/// tabs of it are on disk in the realm shown; with no list on disk, the
+/// leagues the store holds places in, and where it holds none, no select
+/// — the fetch button is then the only control. `any` adds the
 /// search's "every league", which names no league term.
 pub(crate) fn league_select(
     leagues: Option<&[(String, bool)]>,
@@ -2540,6 +2541,10 @@ pub(crate) struct PlacesPage<'a> {
     pub items: &'a [String],
     /// An opened row's card's place as a link.
     pub placed: Placed<'a>,
+    /// Each of the query's `elsewhere` its link, in its order: the place
+    /// page of that kind and league under the same query; none for the
+    /// characters with no league.
+    pub elsewhere: &'a [Option<String>],
     /// Whether the sync policy names the league: "Plan under the policy"
     /// shows only then.
     pub policy: bool,
@@ -2721,8 +2726,30 @@ fn matched_line(view: &PlacesPage) -> String {
         "tabs" => "in these stash tabs",
         _ => "on these characters",
     };
+    // where the query's other matches stand, each a link to its page
+    // (the page seat after GUI step 6, its fault 1)
+    let elsewhere: Vec<String> = query
+        .elsewhere
+        .iter()
+        .zip(view.elsewhere.iter().chain(std::iter::repeat(&None)))
+        .map(|(e, link)| {
+            let words = format!(
+                "{} {}",
+                e.matched,
+                match (e.place.as_str(), e.league.as_deref()) {
+                    ("stash", Some(league)) => format!("in the stash tabs of {league}"),
+                    (_, Some(league)) => format!("on the characters of {league}"),
+                    (_, None) => "on characters with no league".to_string(),
+                }
+            );
+            match link {
+                Some(href) => format!("<a href=\"{}\">{}</a>", esc(href), esc(&words)),
+                None => esc(&words),
+            }
+        })
+        .collect();
     format!(
-        "<p class=\"matched\">{} {here}, of {} · {}</p>\n",
+        "<p class=\"matched\">{} {here}, of {} · {}{}</p>\n",
         esc(&plural(query.matched, "matching item", "matching items")),
         esc(&plural(query.total.matched, "match", "matches")),
         way_on(
@@ -2731,7 +2758,11 @@ fn matched_line(view: &PlacesPage) -> String {
             &Way::Search(Box::new(table)),
             "every match as a table",
             ""
-        )
+        ),
+        match elsewhere.is_empty() {
+            true => String::new(),
+            false => format!(" · elsewhere: {}", elsewhere.join(", ")),
+        }
     )
 }
 
