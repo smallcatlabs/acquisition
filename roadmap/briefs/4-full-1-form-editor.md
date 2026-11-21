@@ -2,18 +2,14 @@
 
 ## Goal
 A search's page is its source's editor, filled, above its answer
-(`4-full-1-form-design.md` §1): the form renders from the query JSON it
-folds into, so every search stands under the form filled with what was
-asked and a bound can be tweaked and run again as on the site. Stat
-fields become positional, so step 3 adds rows with no index.
+(`4-full-1-form-design.md` §1), so a bound can be tweaked and run again
+as on the site; stat fields become positional, for step 3's rows.
 
 ## Inputs
-- `4-full-1-form-design.md`: §2 is this step less its script; §8 step 2
-  its "seen when"; the foot, what its review changed.
-- Step 1's close, `49adf439` (C194, the row keeps its source); it left
-  `asked_by_the_form` to this step.
-- #184, #188, #190, #193 and their comments.
-- C139 (the form generated from the dump), C46 (semantics in Rust), C16
+- `4-full-1-form-design.md`: §2 less its script; §8 step 2; its foot.
+- Step 1's close, `49adf439` (C194, the row keeps its source).
+- #184, #188, #190, #193 with their comments.
+- C139 (`acq web` a verb of the CLI), C46 (semantics in Rust), C16
   (a page is its URL), C113 (a site search a query's third spelling),
   C141, C142 (league, defences beside the JSON), C143 (a refusal in the
   request's words), C153 (a finding joins the surface that holds it).
@@ -24,19 +20,16 @@ fields become positional, so step 3 adds rows with no index.
 - The captured site searches: `trade-decode.toml` and the `query` of
   `trade-translate.toml`'s cases (`crates/acquisition-search/tests/`),
   and `search/pseudo-stats/data/captures.json`'s `returned_query`.
-- CI on `main`: `gh run list --branch main --workflow "Gate (Linux)"
-  --limit 1`, the same for `Gate (Windows)`; both green at `49adf439`
-  (runs 44916726128, 44916726220).
+- CI (`gh run list --branch main --workflow "Gate (Linux)" --limit 1`,
+  and Windows): green at `49adf439`, runs 44916726128, 44916726220.
 
 ## Decisions
 1. **Positional stat fields.** The names are `group.type`, `group.min`,
    `group.max`, `group.disabled`, `stat.id`, `stat.min`, `stat.max`,
-   `stat.weight`, `stat.option`, `stat.disabled`. A field's presence, not its value, begins: `group.type`
-   a group, `stat.id` a row in the group last begun; a `group.*` field
-   belongs to the group last begun, a `stat.*` field to the row last
-   begun in it. A `stat.id` before any group, or a row's field before
-   any row of its group, is a usage error. A row's on/off box stands
-   after its `stat.id` in the page's order, a group's after its type.
+   `stat.weight`, `stat.option`, `stat.disabled`. A field's presence
+   begins: `group.type` a group, `stat.id` a row in it; a field belongs
+   to the group, or the row in it, last begun; one before it is a usage
+   error. A row's off box follows its `stat.id`, a group's its type.
 2. **The fold drops a value key its group's type does not take**: a
    row's by `stat_value_keys`, a group's bound by the group's own list,
    both made public in the search crate, never restated.
@@ -44,9 +37,8 @@ fields become positional, so step 3 adds rows with no index.
    and `disabled: false` dropped, then empty objects and arrays, then a
    stat group with no filter. The fold's envelope is in it.
 4. **The fill holds by rendering.** Each control takes its value at its
-   path from the normal envelope only where it folds back to it exactly
-   (a select's own option, a JSON number written as serde writes it in
-   a number box, a string equal to its trim in a text box, `true` in a
+   path only where it folds back to it exactly (a select's option, a
+   number as serde writes it, a string equal to its trim, `true` in a
    box), and the taking marks the path held. A listing control shows
    its value and holds nothing. Every leaf left unheld, `sort` and any
    other envelope key among them, is listed above the form by its path
@@ -58,19 +50,19 @@ fields become positional, so step 3 adds rows with no index.
    empty form's and every leaf of it is listed.
 5. **Rows.** Each group of `query.stats` renders as a group, each filter
    as a row: its id in the typed box, its texts and fate beside it from
-   `vocabulary::entries(ids)`, a new lookup beside `vocabulary` with the
-   same statuses (an id no table holds says so). The server renders a
+   `vocabulary::entries(ids)`, a new lookup with the listing's statuses
+   (an id no table holds says so). The server renders a
    weight box where the group's type takes one, an option box where the
    row holds one; a change of type on the page is step 3's. Until
    step 3 the last group is topped up with empty typed rows to
    `STAT_ROWS`, at least one; with no group, one `and` group.
-6. **The source fills one editor.** From the request's `QueryInput`: a
-   text fills the query box, open (a `details`), over an empty form; a
-   site search is decoded and fills the form, the query box holding the
-   canonical text, closed; a continuation, its token's request. The
-   form carries the view as the query box does (limit, table, count,
-   and hidden the URL's sort, desc and values) and `saved` with its
-   revision.
+6. **The source fills one editor.** From the request's `QueryInput`,
+   `trade` first where both stand: a site search is decoded and fills
+   the form, the query box holding the canonical text, closed; a text
+   fills the query box, open (a `details`), over an empty form; a
+   continuation, its token's request. One view carrier, `BoxView`,
+   gains the count's keys and limit; both editors carry it (the URL's
+   sort, desc and values hidden) and `saved` with its revision.
 7. **One page.** `home` and `search` render through one function: the
    bar and form, the query box, the site box, then the answer or the
    refusal under `id="answer"`; every form that submits to `search`
@@ -80,13 +72,18 @@ fields become positional, so step 3 adds rows with no index.
    where the decode refused; the query box its text and view as sent;
    an empty form where the fold refused.
 9. **`asked_by_the_form` asks a site search** as `trade`, its word, with
-   its view (the page fills from it), a JSON string compared as its
+   its view (the page fills from it), a text beside it (the translation,
+   which the read verified) dropped and a JSON string compared as its
    object; so place links stand under a form or site search's answer.
+10. **The recorder** cuts the panes as now; a page whose panes differ
+   from the first page's records the lines the first page's lack. The
+   panes' equality rule is retired, held by those lines and the pin.
 
 ## Find first
 - `git grep -n 'query\.stats\[' crates/ tools/`: the names to move.
-- `git grep -n 'type=\\"hidden\\"\|\.link(\|fn link\|see_other(\|hidden_fields\|query\.join\|carried_on' crates/acquisition-cli/src/web/`:
-  every maker of a link or a hidden field; each keeps its fields' order.
+- `git grep -n 'type=\\"hidden\\"\|\.link(\|fn link\|see_other(\|hidden_fields\|query\.join\|carried_on\|fn way_on\|href=\|action=' crates/acquisition-cli/src/web/`:
+  every maker of a link, an action or a hidden field; each that carries
+  a search keeps its fields' order.
 - `git grep -n 'search_form\|query_box(\|trade_box(\|page::answer(\|asked_by_the_form' crates/acquisition-cli/src/`:
   callers.
 - `git grep -ln 'stat-find\|query-box\|trade-text\|search_form' crates/acquisition-cli/tests/`:
@@ -110,6 +107,8 @@ fields become positional, so step 3 adds rows with no index.
   the fallbacks of Decision 4 among its inputs.
 - In `tests/browser.rs`, a bound of a filled answer's form is edited and
   submitted by its own action: the answer changes, the form refilled.
+- A counted answer's two editors each keep its count's keys and limit,
+  and a site search's continuation fills the form (tests).
 - The fold accepts exactly the names the every-control fill renders.
 - A two-group search keeps both groups in order through every link and
   hidden form of its answer page (a test).
