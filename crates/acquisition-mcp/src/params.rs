@@ -531,6 +531,12 @@ pub(crate) struct SavedSearchSetParams {
     pub(crate) name: Option<String>,
     /// The query, in the language `describe` prints; stored canonical.
     pub(crate) text: Option<String>,
+    /// In place of `text`, a trade site search as `search` takes it: a URL
+    /// or an id as a string, or the query JSON. Kept as given and
+    /// translated at each read; a URL's realm is the search's.
+    #[serde(default)]
+    #[schemars(schema_with = "string_or_object")]
+    pub(crate) trade: Option<serde_json::Value>,
     /// pc, xbox, sony, poe2 or all. A create naming none takes the one
     /// realm the facts hold, the named account's or else every known
     /// account's, and is refused offering each where several are held.
@@ -539,6 +545,12 @@ pub(crate) struct SavedSearchSetParams {
     pub(crate) membership: Option<String>,
     #[schemars(description = ACCOUNT)]
     pub(crate) account: Option<String>,
+}
+
+/// A site search's schema: a URL or an id as a string, or the query JSON
+/// as an object, as `search`'s `query.trade` takes it.
+fn string_or_object(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({ "type": ["string", "object", "null"] })
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

@@ -787,7 +787,7 @@ fn describe_is_as_large_as_its_text_says() {
 /// status listing-only, the explicit life lines' sum at 70 or more, and a
 /// crucible tree path in the remainder (a `count` with no bound, the
 /// site's no-op).
-const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+pub(crate) const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
 /// C113: `show`'s `against` takes a site search as a query, its report
 /// beside the text, and only in the item's realm (K6: else an xbox URL

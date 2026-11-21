@@ -747,30 +747,81 @@ fn the_trade_box_beside_the_query_box_or_empty_is_refused() {
     }
 }
 
-/// #188: a save from a site search's answer stores what any save
-/// stores, the translation's text in the answer's realm and membership;
-/// the site search itself is in no row.
+/// C194, the row keeps its source: a page's save form carries the site
+/// search the page answered, a URL from the site box and the form's own
+/// envelope as JSON, and the row stores it as sent, a JSON text as its
+/// object; the list derives its text and fidelity; opened, the row
+/// answers with its translation's report, and saved again from that
+/// page it stores the same source. A field the translation does not run
+/// survives each save.
 #[test]
-fn a_save_from_a_trade_answer_stores_its_translated_text() {
-    use crate::search_json::{TRADE_ID, TRADE_TEXT, trade_url};
+fn c194_a_page_saves_the_site_search_it_answered_and_opens_it_with_its_report() {
+    use crate::search_json::{TRADE_TEXT, trade_url};
     let (scratch, web) = offline_web("webtradesave");
+    let world = scratch.0.clone();
+    let token = web.token.clone();
     let url = trade_url();
-    let answer = web.get(&format!(
-        "search?{}",
-        query_string(&[("realm", "xbox"), ("trade", url.as_str())])
-    ));
-    assert_eq!(answer.status, 200, "{}", answer.body);
-    let save = form_on(&answer.body, "Save this search", None);
-    assert_eq!(save.field("text"), Some(TRADE_TEXT), "{save:?}");
-    assert_eq!(save.field("realm"), Some("pc"), "{save:?}");
-    landed_on_the_list(&web, &send(&web, &save.typed("name", "life rings"), false));
-    let row = &saved_json(&scratch.0, &["list"])["searches"][0];
-    assert_eq!(
-        (&row["name"], &row["text"], &row["scope"]["realm"]),
-        (&json!("life rings"), &json!(TRADE_TEXT), &json!("pc")),
-        "{row}"
-    );
-    assert!(!row.to_string().contains(TRADE_ID), "{row}");
+    let mut envelope = ring_search();
+    // a stat no table holds: a clause the translation does not run
+    envelope.push(("query.stats[0].filters[1].id", "explicit.stat_9999999999"));
+    for (sent, name) in [
+        (
+            vec![("realm", "xbox"), ("trade", url.as_str())],
+            "life rings",
+        ),
+        (envelope, "form rings"),
+    ] {
+        let answer = web.get(&format!("search?{}", query_string(&sent)));
+        assert_eq!(answer.status, 200, "{}", answer.body);
+        let save = form_on(&answer.body, "Save this search", None);
+        assert_eq!(save.field("text"), None, "{save:?}");
+        let trade = save.field("trade").unwrap().to_string();
+        assert_eq!(save.field("realm"), Some("pc"), "{save:?}");
+        landed_on_the_list(&web, &send(&web, &save.typed("name", name), false));
+        let row = saved_json(&world, &["list"])["searches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["name"] == name)
+            .unwrap()
+            .clone();
+        // stored as sent: the URL as a string, the envelope as its object
+        let stored = match serde_json::from_str::<Value>(&trade) {
+            Ok(object @ Value::Object(_)) => object,
+            _ => json!(trade),
+        };
+        assert_eq!(row["query"], json!({ "trade": stored }), "{row}");
+        assert_eq!(row["scope"]["realm"], "pc", "{row}");
+        assert!(row["text"].is_string(), "{row}");
+        assert_eq!(row["fidelity"], "partial", "{row}");
+        if name == "life rings" {
+            assert_eq!(row["text"], TRADE_TEXT, "{row}");
+        } else {
+            assert!(trade.contains("explicit.stat_9999999999"), "{trade}");
+        }
+        // opened: the site box's search, its report in the answer
+        let id = row["id"].as_str().unwrap().to_string();
+        let open = follow(&web, &format!("/{token}/saved/open?id={id}"));
+        assert_eq!(open.status, 303, "{}", open.body);
+        let location = open.header("location").unwrap().to_string();
+        assert!(location.contains("trade="), "{location}");
+        let page = json_at(&web, &location);
+        assert_eq!(page["query"]["trade"]["fidelity"], "partial", "{page}");
+        assert_eq!(page["query"]["text"], row["text"], "{page}");
+        let cli = sole_json(&offline_acq(
+            &world,
+            &["search", "--saved", &id, "--fields", PAGE_FIELDS, "--json"],
+        ));
+        assert_eq!(page, cli, "{id}");
+        // saved again from the opened page: the same source, over the row
+        let opened = follow(&web, &location);
+        assert_eq!(opened.status, 200, "{}", opened.body);
+        let over = form_on(&opened.body, &format!("Save over \"{name}\""), Some(&id));
+        landed_on_the_list(&web, &send(&web, &over, false));
+        let again = saved_json(&world, &["show", &id]);
+        assert_eq!(again["revision"], 2, "{again}");
+        assert_eq!(again["query"], row["query"], "{again}");
+    }
 }
 
 /// The query box sorts and pages as the big form does: its "Show" is on
@@ -1128,9 +1179,13 @@ fn every_search_page_is_a_wording_golden() {
         ],
     );
     assert!(!answer.body.contains("class=\"window\""), "{}", answer.body);
-    // an exact translation saves as the site's search: no note
+    // a form search saves as the site's search, the form's envelope
+    // kept as given (C194), and the note says so
     assert!(
-        !answer.body.contains("class=\"save-note\""),
+        answer.body.contains(
+            "<p class=\"save-note\">Saved, this keeps the site&#39;s search as given, \
+             translated again each time it opens.</p>"
+        ),
         "{}",
         answer.body
     );
@@ -1217,8 +1272,8 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "not the site&#39;s search: 2 clauses not run",
             "from a URL: PARTIAL",
-            // what a save of it keeps
-            "<p class=\"save-note\">Saved, this is the query as translated above, not the site&#39;s search: the clauses not run are not saved.</p>",
+            // what a save of it keeps: the site's search (C194)
+            "<p class=\"save-note\">Saved, this keeps the site&#39;s search as given, translated again each time it opens.</p>",
             "<td>NOT RUN</td><td>stats.1</td>",
             "<td>reported</td><td>status</td>",
         ],
@@ -5319,7 +5374,7 @@ fn the_saved_pages_are_a_wording_golden() {
             .put::<crate::saved_json::NewerSaved>(
                 SAVED_SEARCH_SCOPE,
                 id,
-                &json!({ "version": 2, "name": "x", "text": "x", "scope": {} }),
+                &json!({ "version": 3, "name": "x", "query": { "text": "x" }, "scope": {} }),
                 over,
                 &Provenance::via("future"),
             )
@@ -5370,7 +5425,7 @@ fn the_saved_pages_are_a_wording_golden() {
         "GET search?<the ring search>",
         &answer,
         &[
-            "/saved\"><input type=\"hidden\" name=\"text\" value=\"league=Standard",
+            "/saved\"><input type=\"hidden\" name=\"trade\" value=\"{&quot;league&quot;:&quot;Standard&quot;",
             "name=\"membership\" value=\"live\"",
             ">Save this search</button>",
         ],

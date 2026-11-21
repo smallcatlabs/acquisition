@@ -4063,7 +4063,7 @@ async fn c163_no_document_carries_a_time_without_its_words() {
 
 // ---- the saved search (C167) --------------------------------------------
 
-use acquisition_store::{SAVED_SEARCH_SCOPE, SavedSearch, User, user_path};
+use acquisition_store::{SAVED_SEARCH_SCOPE, SavedQuery, SavedSearch, User, user_path};
 use acquisition_verbs::refusal::{Pointed, document};
 use acquisition_verbs::saved::{self, SavedRow, Set};
 
@@ -4093,7 +4093,7 @@ fn saved_create(world: &Frontend, name: &str, text: &str) -> String {
             id: None,
             expect: Expect::Create,
             name: Some(name.into()),
-            text: Some(text.into()),
+            query: Some(SavedQuery::Text(text.into())),
             realm: Some("pc".into()),
             membership: None,
         },
@@ -4106,7 +4106,7 @@ fn saved_create(world: &Frontend, name: &str, text: &str) -> String {
 
 /// A saved search's value as the store door takes it.
 fn saved_value(name: &str, text: &str) -> Value {
-    json!({ "version": 1, "name": name, "text": text,
+    json!({ "version": 2, "name": name, "query": { "text": text },
             "scope": { "realm": "pc", "membership": "live" } })
 }
 
@@ -4131,7 +4131,7 @@ fn rename(id: &str, expect: Expect, name: &str) -> Set {
         id: Some(id.into()),
         expect,
         name: Some(name.into()),
-        text: None,
+        query: None,
         realm: None,
         membership: None,
     }
@@ -4192,7 +4192,7 @@ fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
             id: None,
             expect: Expect::Create,
             name: Some(" rings ".into()),
-            text: Some("rarity=rare".into()),
+            query: Some(SavedQuery::Text("rarity=rare".into())),
             realm: Some("pc".into()),
             membership: None,
         },
@@ -4222,13 +4222,16 @@ fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
 
     let mut text = rename(&id, Expect::Exactly(1), "rings");
     text.name = None;
-    text.text = Some("rarity=unique".into());
+    text.query = Some(SavedQuery::Text("rarity=unique".into()));
     let edited = saved::set(&world, None, &text, &mut no_mint).unwrap();
     assert_eq!(edited.revision, 2);
-    assert_eq!(read_row(edited.prior.as_ref().unwrap()).text, "rarity=rare");
     assert_eq!(
-        read_row(edited.written.as_ref().unwrap()).text,
-        "rarity=unique"
+        read_row(edited.prior.as_ref().unwrap()).text.as_deref(),
+        Some("rarity=rare")
+    );
+    assert_eq!(
+        read_row(edited.written.as_ref().unwrap()).text.as_deref(),
+        Some("rarity=unique")
     );
     assert_eq!(
         edited.undo().unwrap().0,
@@ -4236,7 +4239,7 @@ fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
             id: Some(id.clone()),
             expect: Expect::Exactly(2),
             name: Some("rings".into()),
-            text: Some("rarity=rare".into()),
+            query: Some(SavedQuery::Text("rarity=rare".into())),
             realm: Some("pc".into()),
             membership: Some("live".into()),
         }))
@@ -4262,7 +4265,7 @@ fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
     assert_eq!(
         (
             row.name.as_str(),
-            row.text.as_str(),
+            row.text.as_deref().unwrap_or_default(),
             row.scope.realm.as_str(),
             row.scope.membership.as_str()
         ),
@@ -4284,7 +4287,7 @@ fn c167_set_creates_replaces_and_renames_in_one_write_shape() {
         id: None,
         expect: Expect::Create,
         name: None,
-        text: None,
+        query: None,
         realm: None,
         membership: None,
     };
@@ -4420,7 +4423,7 @@ fn c167_the_text_is_stored_canonical_and_a_refused_text_touches_no_file() {
         id: None,
         expect: Expect::Create,
         name: Some("rings".into()),
-        text: Some(text.into()),
+        query: Some(SavedQuery::Text(text.into())),
         realm: Some("pc".into()),
         membership: None,
     };
@@ -4435,7 +4438,10 @@ fn c167_the_text_is_stored_canonical_and_a_refused_text_touches_no_file() {
         "a refused text opened the file"
     );
     let written = saved::set(&world, None, &create(typed), &mut saved::mint).unwrap();
-    assert_eq!(read_row(written.written.as_ref().unwrap()).text, canonical);
+    assert_eq!(
+        read_row(written.written.as_ref().unwrap()).text.as_deref(),
+        Some(canonical.as_str())
+    );
     assert!(saved::set(&world, None, &create("rarity=="), &mut no_mint).is_err());
     assert_eq!(saved::list(&world, None, false).unwrap().revision, 1);
 }
@@ -4451,7 +4457,7 @@ fn c167_a_creates_realm_is_named_or_resolved_as_a_search_resolves_one() {
         id: None,
         expect: Expect::Create,
         name: Some("rings".into()),
-        text: Some("rarity=rare".into()),
+        query: Some(SavedQuery::Text("rarity=rare".into())),
         realm: realm.map(str::to_string),
         membership: None,
     };
@@ -4499,7 +4505,7 @@ fn c167_a_create_among_several_accounts_settles_its_realm_over_the_world() {
         id: None,
         expect: Expect::Create,
         name: Some("rings".into()),
-        text: Some("rarity=rare".into()),
+        query: Some(SavedQuery::Text("rarity=rare".into())),
         realm: None,
         membership: None,
     };
@@ -4587,7 +4593,7 @@ fn c167_a_clears_undo_lands_over_the_tombstone() {
             id: Some(id.clone()),
             expect: Expect::Create,
             name: Some("rings".into()),
-            text: Some("rarity=rare".into()),
+            query: Some(SavedQuery::Text("rarity=rare".into())),
             realm: Some("pc".into()),
             membership: Some("live".into()),
         }))
@@ -4597,6 +4603,245 @@ fn c167_a_clears_undo_lands_over_the_tombstone() {
         (&landed["revision"], &landed["written"]["id"]),
         (&json!(3), &json!(id))
     );
+}
+
+/// A trade site search's id (the search crate's own fixture): a pc URL
+/// over it translates partially, its count a clause not run.
+const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+
+fn trade_url(realm: &str) -> String {
+    match realm {
+        "pc" => format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}"),
+        console => {
+            format!("https://www.pathofexile.com/trade/search/{console}/Standard/{TRADE_ID}")
+        }
+    }
+}
+
+/// A create of the site search `trade`, over `realm` where one is named.
+fn trade_create(name: &str, trade: Value, realm: Option<&str>) -> Set {
+    Set {
+        id: None,
+        expect: Expect::Create,
+        name: Some(name.into()),
+        query: Some(SavedQuery::Trade(trade)),
+        realm: realm.map(str::to_string),
+        membership: None,
+    }
+}
+
+/// C194, the row keeps its source: a site search is stored as given — a
+/// URL as its string, trimmed; a JSON text as its object, so a pasted
+/// JSON and the form's envelope are one spelling; an object as sent, a
+/// key the translation does not run kept — and the list derives its text
+/// and fidelity at the read, its request the source; a URL naming a realm
+/// lands in that realm where the write names none.
+#[test]
+fn c194_a_site_search_is_stored_as_given_and_its_text_derived_at_the_read() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let envelope = json!({ "league": "Standard", "query": {
+        "status": { "option": "online" },
+        "filters": { "type_filters": { "filters": { "category": { "option": "accessory.ring" } } } },
+        "stats": [{ "type": "and", "filters": [{ "id": "explicit.stat_9999999999" }] }]
+    } });
+    let url = trade_url("xbox");
+    for (sent, stored, realm) in [
+        (json!(format!("  {url} ")), json!(url), "xbox"),
+        (json!(envelope.to_string()), envelope.clone(), "pc"),
+        (envelope.clone(), envelope.clone(), "pc"),
+    ] {
+        let named = (realm == "pc").then_some("pc");
+        let written = saved::set(
+            &world,
+            None,
+            &trade_create("t", sent, named),
+            &mut saved::mint,
+        )
+        .unwrap();
+        let row = read_row(written.written.as_ref().unwrap()).clone();
+        assert_eq!(row.query, SavedQuery::Trade(stored.clone()));
+        assert_eq!(row.scope.realm, realm, "a URL's realm is the row's");
+        let read = acquisition_search::answer::QueryInput {
+            trade: Some(stored.clone()),
+            ..Default::default()
+        }
+        .read(acquisition_search::Realm::parse(realm).ok().as_ref())
+        .unwrap();
+        assert_eq!(row.text.as_deref(), Some(read.query.text().as_str()));
+        assert_eq!(
+            row.fidelity,
+            read.translation.as_ref().map(|t| t.fidelity),
+            "{row:?}"
+        );
+        assert!(row.fault.is_none());
+        assert_eq!(row.request.query.trade.as_ref(), Some(&stored));
+        assert_eq!(row.request.query.text, None, "the request is the source");
+        let stood = User::open_for(&s.mock)
+            .unwrap()
+            .get(SAVED_SEARCH_SCOPE, &row.id, "saved-search")
+            .unwrap()
+            .unwrap();
+        assert_eq!(stood.value["query"], json!({ "trade": stored }));
+        assert_eq!(stood.value["version"], 2);
+        assert_eq!(
+            saved::request_of(&world, &row.id, None).unwrap(),
+            row.request
+        );
+    }
+}
+
+/// C194's door, two moments: a site search that does not read, or a URL
+/// beside another realm, is refused in the language's words before any
+/// file is opened; a write that keeps a stored URL and moves the row to
+/// another realm is refused after the prior row is read, nothing written;
+/// a source that never named a realm keeps the one the write names.
+#[test]
+fn c194_a_source_is_read_before_the_file_and_again_as_it_lands() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    for (trade, realm) in [
+        (json!("not a site search"), Some("pc")),
+        (json!(trade_url("xbox")), Some("pc")),
+        (json!(trade_url("pc")), Some("all")),
+        (json!(7), Some("pc")),
+    ] {
+        let e = saved::set(
+            &world,
+            None,
+            &trade_create("t", trade.clone(), realm),
+            &mut no_mint,
+        )
+        .unwrap_err();
+        let kind = document(&e, &Plain)["kind"].clone();
+        assert!(kind != "arguments" && kind != "refused", "{trade}: {kind}");
+        assert!(!user_path(&s.mock).exists(), "{trade} opened the file");
+    }
+    let id = saved::set(
+        &world,
+        None,
+        &trade_create("t", json!(trade_url("pc")), None),
+        &mut saved::mint,
+    )
+    .unwrap()
+    .target
+    .id;
+    let moved = Set {
+        id: Some(id.clone()),
+        expect: Expect::Exactly(1),
+        name: None,
+        query: None,
+        realm: Some("xbox".into()),
+        membership: None,
+    };
+    let e = saved::set(&world, None, &moved, &mut no_mint).unwrap_err();
+    assert_eq!(document(&e, &Plain)["kind"], "trade", "{e:#}");
+    assert_eq!(saved::list(&world, None, false).unwrap().revision, 1);
+    // a text, or JSON, names no realm: the row's moves with the write
+    let both = saved::set(
+        &world,
+        None,
+        &Set {
+            id: Some(id.clone()),
+            expect: Expect::Exactly(1),
+            name: None,
+            query: Some(SavedQuery::Text("class:rings".into())),
+            realm: Some("xbox".into()),
+            membership: None,
+        },
+        &mut no_mint,
+    )
+    .unwrap();
+    let row = read_row(both.written.as_ref().unwrap());
+    assert_eq!(
+        (row.scope.realm.as_str(), &row.query),
+        ("xbox", &SavedQuery::Text("class:rings".into()))
+    );
+    // its undo puts the site search back whole
+    let (undo, _) = both.undo().unwrap();
+    dispatch(&world, &undo).unwrap();
+    let back = saved::show(&world, &id).unwrap();
+    let back = read_row(&back);
+    assert_eq!(
+        (back.scope.realm.as_str(), &back.query),
+        ("pc", &SavedQuery::Trade(json!(trade_url("pc"))))
+    );
+}
+
+/// C194, C151's rule: a stored source this build cannot read is listed
+/// with its name, its query and its fault and no text, and refused when
+/// run, offering the list; a version 1 row, the text alone, lists with
+/// its text derived and runs, and no read rewrites it.
+#[test]
+fn c194_a_source_that_does_not_read_is_listed_with_its_fault_and_a_version_1_row_runs() {
+    let s = scratch();
+    let world = frontend(&s.mock);
+    let mut user = User::open_for(&s.mock).unwrap();
+    let via = acquisition_store::Provenance::via("test");
+    user.put::<SavedSearch>(
+        SAVED_SEARCH_SCOPE,
+        "0000000000b1",
+        &json!({ "version": 2, "name": "lost", "query": { "trade": "not a site search" },
+                 "scope": { "realm": "pc", "membership": "live" } }),
+        None,
+        &via,
+    )
+    .unwrap();
+    #[derive(serde::Serialize)]
+    #[serde(transparent)]
+    struct Before(Value);
+    impl acquisition_store::IntentValue for Before {
+        const KIND: &'static str = "saved-search";
+        const VERSION: i64 = 1;
+        fn parse(value: &Value) -> Result<Self, String> {
+            Ok(Before(value.clone()))
+        }
+    }
+    let v1 = json!({ "version": 1, "name": "old rings", "text": "class:rings   rarity=rare",
+                     "scope": { "realm": "pc", "membership": "live" } });
+    user.put::<Before>(SAVED_SEARCH_SCOPE, "0000000000b2", &v1, None, &via)
+        .unwrap();
+    drop(user);
+    let listed = saved::list(&world, None, false).unwrap();
+    let [SavedRow::Read(lost), SavedRow::Read(old)] = listed.searches.as_slice() else {
+        panic!("{listed:?}")
+    };
+    assert_eq!(
+        (lost.name.as_str(), old.name.as_str()),
+        ("lost", "old rings")
+    );
+    assert_eq!(lost.text, None);
+    assert!(lost.fault.is_some(), "{lost:?}");
+    assert_eq!(lost.query, SavedQuery::Trade(json!("not a site search")));
+    let refused = saved::request_of(&world, "0000000000b1", None).unwrap_err();
+    let refused = document(&refused, &Plain);
+    assert_eq!(refused["kind"], "refused", "{refused}");
+    assert!(
+        refused["error"]
+            .as_str()
+            .unwrap()
+            .contains(lost.fault.as_deref().unwrap()),
+        "{refused}"
+    );
+    let canonical = acquisition_search::parse_query("class:rings   rarity=rare")
+        .unwrap()
+        .text();
+    assert_eq!(old.text.as_deref(), Some(canonical.as_str()));
+    assert_eq!(
+        old.query,
+        SavedQuery::Text("class:rings   rarity=rare".into())
+    );
+    let request = saved::request_of(&world, "0000000000b2", None).unwrap();
+    assert_eq!(
+        request.query.text.as_deref(),
+        Some("class:rings   rarity=rare")
+    );
+    let stood = User::open_for(&s.mock)
+        .unwrap()
+        .get(SAVED_SEARCH_SCOPE, "0000000000b2", "saved-search")
+        .unwrap()
+        .unwrap();
+    assert_eq!(stood.value, v1, "no read rewrote it");
 }
 
 /// C151: a row a later build wrote is listed and shown, named by its id
@@ -4613,7 +4858,8 @@ fn c167_a_later_versions_row_is_named_refused_when_run_and_cleared_at_its_revisi
         .execute(
             "UPDATE annotations SET value = ?1 WHERE key = ?2",
             rusqlite::params![
-                json!({ "version": 2, "name": "rings", "text": "x", "scope": {} }).to_string(),
+                json!({ "version": 3, "name": "rings", "query": { "text": "x" }, "scope": {} })
+                    .to_string(),
                 id
             ],
         )
@@ -4623,7 +4869,7 @@ fn c167_a_later_versions_row_is_named_refused_when_run_and_cleared_at_its_revisi
         panic!("{listed:?}")
     };
     assert_eq!((row.id.as_str(), row.revision), (id.as_str(), 1));
-    assert!(row.unreadable.contains("version 2"), "{}", row.unreadable);
+    assert!(row.unreadable.contains("version 3"), "{}", row.unreadable);
     assert!(matches!(
         saved::show(&world, &id).unwrap(),
         SavedRow::Unreadable(_)
@@ -4670,7 +4916,7 @@ fn c167_a_minted_id_meeting_one_standing_mints_once_more_and_never_a_third_time(
         id: None,
         expect: Expect::Create,
         name: Some("rings".into()),
-        text: Some("rarity=rare".into()),
+        query: Some(SavedQuery::Text("rarity=rare".into())),
         realm: Some("pc".into()),
         membership: None,
     };
@@ -4889,7 +5135,7 @@ fn c167_a_user_file_holding_account_facts_is_refused_naming_its_deletion() {
                 id: None,
                 expect: Expect::Create,
                 name: Some("rings".into()),
-                text: Some("rarity=rare".into()),
+                query: Some(SavedQuery::Text("rarity=rare".into())),
                 realm: Some("pc".into()),
                 membership: None,
             },
@@ -4953,7 +5199,8 @@ fn c167_a_recovery_write_is_offered_only_where_it_would_pass() {
         .execute(
             "UPDATE annotations SET value = ?1 WHERE key = ?2",
             rusqlite::params![
-                json!({ "version": 2, "name": "rings", "text": "x", "scope": {} }).to_string(),
+                json!({ "version": 3, "name": "rings", "query": { "text": "x" }, "scope": {} })
+                    .to_string(),
                 id
             ],
         )
@@ -4978,7 +5225,7 @@ fn c167_a_recovery_write_is_offered_only_where_it_would_pass() {
         id: Some(id.clone()),
         expect: Expect::Exactly(1),
         name: Some("rings".into()),
-        text: Some("rarity=rare".into()),
+        query: Some(SavedQuery::Text("rarity=rare".into())),
         realm: Some("pc".into()),
         membership: Some("live".into()),
     };
@@ -5003,7 +5250,7 @@ fn c167_a_recovery_write_is_offered_only_where_it_would_pass() {
             .unwrap();
     }
     let mut replace = rename("0000000000d1", Expect::Exactly(1), "mended");
-    replace.text = Some("rarity=rare".into());
+    replace.query = Some(SavedQuery::Text("rarity=rare".into()));
     let replaced = saved::set(&world, None, &replace, &mut no_mint).unwrap();
     let cleared = saved::clear(&world, "0000000000d2", Expect::Exactly(1)).unwrap();
     for (written, said) in [

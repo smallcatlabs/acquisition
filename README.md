@@ -201,7 +201,7 @@ acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the match
 acq search --describe[=name,…|=~pattern|=all]   # the query language: an index, a slice by pattern, or entries whole
 acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
 acq saved list | show <ID|NAME> | clear <ID> [--if-revision N]   # saved searches (list the default): the world's, not an account's, each by its id
-acq saved set [--id ID [--if-revision N]] [--name NAME] ['<query>'] [--realm R] [--membership M]   # save a search, or change one by its id, with undo
+acq saved set [--id ID [--if-revision N]] [--name NAME] ['<query>' | --trade URL | --trade-file F] [--realm R] [--membership M]   # save a search or a trade site search, kept as given, or change one by its id, with undo
 acq search --saved <ID|NAME> [--limit N]   # run a saved search, its query and scope the row's
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq web [--no-browser]   # the search as a page shaped like the trade site's, or a trade site search's URL run as --trade runs it, its results as cards with item art, a table on asking, and the number a form would match beside its button as it changes; the world's saved searches, saved from any answer, opened, renamed and cleared; and the stash tabs and characters as pages, each a place opening its items, to list, tick, plan and apply; loopback only, until Ctrl-C; with no account yet and none named, the page says how to log in

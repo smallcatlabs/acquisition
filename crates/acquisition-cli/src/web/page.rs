@@ -23,7 +23,8 @@ use std::collections::HashMap;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::Classed;
 use acquisition_search::answer::{
-    Answer, Count, ExplainOut, Request, RowField, RowsOut, Shape, TradeOut, ViewOut, Zero,
+    Answer, Count, ExplainOut, QueryInput, Request, RowField, RowsOut, Shape, TradeOut, ViewOut,
+    Zero,
 };
 use acquisition_search::counts::{CrossOut, Table};
 use acquisition_search::places::{Counted, Filter as PlaceFilter, Holds, Kind, Place, Places, Row};
@@ -475,7 +476,7 @@ fn opened_notice(a: &Answer, opened: &Opened, links: &SavedLinks) -> String {
         ),
     };
     if let OpenedRow::Read(row) = &opened.row
-        && (row.text != a.query.text
+        && (row.text.as_deref() != Some(a.query.text.as_str())
             || row.scope.realm != a.scope.realm.as_str()
             || row.scope.membership != a.scope.membership.as_str())
     {
@@ -483,21 +484,45 @@ fn opened_notice(a: &Answer, opened: &Opened, links: &SavedLinks) -> String {
             "<p class=\"saved\">{}</p>\n",
             esc(&format!(
                 "This answer's query is not the saved one's: the saved query is {} over {} · {}.",
-                row.text, row.scope.realm, row.scope.membership
+                row.text.as_deref().unwrap_or("one this build cannot read"),
+                row.scope.realm,
+                row.scope.membership
             ))
         ));
     }
     out
 }
 
-/// The save form under an answer's query box: the text the answer ran,
-/// its realm and membership hidden, and a name typed; over the saved
-/// search it was opened from where that row stands readable, at the
-/// revision the URL names, beside a second form that saves it as new.
-fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks, boxed: &BoxView) -> String {
+/// What an answer page saves: the source of the request it answered
+/// (C194), never the answer's report of it, and the saved search it was
+/// opened from, where one was.
+#[derive(Clone, Copy)]
+pub(crate) struct Saving<'a> {
+    pub source: &'a QueryInput,
+    pub opened: Option<&'a Opened>,
+}
+
+/// The save form under an answer's query box: the source of the request
+/// the page answered (C194, the row keeps its source) — the text the
+/// answer ran, or the site search as one word, the form's envelope as
+/// JSON text — its realm and membership hidden, and a name typed; over
+/// the saved search it was opened from where that row stands readable,
+/// at the revision the URL names, beside a second form that saves it as
+/// new.
+fn save_forms(
+    a: &Answer,
+    source: &QueryInput,
+    opened: Option<&Opened>,
+    links: &SavedLinks,
+    boxed: &BoxView,
+) -> String {
+    let asked = match source.trade_word() {
+        Some(trade) => ("trade", trade),
+        None => ("text", a.query.text.clone()),
+    };
     let query = || {
         vec![
-            ("text", a.query.text.clone()),
+            asked.clone(),
             ("realm", a.scope.realm.as_str().to_string()),
             ("membership", a.scope.membership.as_str().to_string()),
         ]
@@ -509,22 +534,16 @@ fn save_forms(a: &Answer, opened: Option<&Opened>, links: &SavedLinks, boxed: &B
         )
     };
     let mut out = String::from("<div class=\"save\">\n");
-    // a saved search holds the translated text alone (#188's first half),
-    // so a translation that is not the site's search says what is saved
-    if let Some(trade) = &a.query.trade {
-        let kept = match trade.fidelity {
-            Fidelity::Partial => Some("the clauses not run are not saved"),
-            Fidelity::Ambiguous => Some("each ambiguous clause is saved as it was read here"),
-            Fidelity::Exact => None,
-        };
-        if let Some(kept) = kept {
-            out.push_str(&format!(
-                "<p class=\"save-note\">{}</p>\n",
-                esc(&format!(
-                    "Saved, this is the query as translated above, not the site's search: {kept}."
-                ))
-            ));
-        }
+    // a saved site search keeps the search as given, and its text is
+    // translated again at each opening (C194)
+    if asked.0 == "trade" {
+        out.push_str(&format!(
+            "<p class=\"save-note\">{}</p>\n",
+            esc(
+                "Saved, this keeps the site's search as given, translated again each time it \
+                 opens."
+            )
+        ));
     }
     // what the query box carries of the view and a save leaves behind
     // a saved search is its query and its scope (C167)
@@ -990,7 +1009,7 @@ fn fact_row(label: &str, cell: &str) -> String {
 /// `view` makes the link a value's head is ([`ViewLink`]).
 pub(crate) fn answer(
     a: &Answer,
-    opened: Option<&Opened>,
+    saving: Saving,
     links: &SavedLinks,
     spell: Spell,
     rows_links: &RowsLinks,
@@ -1002,6 +1021,7 @@ pub(crate) fn answer(
         placed,
         fields: table_fields,
     } = *shown;
+    let Saving { source, opened } = saving;
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
     let mut out = opened
@@ -1138,7 +1158,7 @@ pub(crate) fn answer(
         carried,
         &boxed,
     ));
-    out.push_str(&save_forms(a, opened, links, &boxed));
+    out.push_str(&save_forms(a, source, opened, links, &boxed));
     out
 }
 

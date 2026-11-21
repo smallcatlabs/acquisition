@@ -1595,12 +1595,12 @@ fn c124_a_read_only_open_of_a_file_holding_no_uuid_opens_it_with_none_and_stamps
 // ---- the user file (C167): what the newtype adds ------------------------
 
 use crate::user::{
-    NAME_MAX, SAVED_MEMBERSHIPS, SAVED_REALMS, SAVED_SEARCH_SCOPE, SavedSearch, USER_FILE,
-    user_path,
+    NAME_MAX, SAVED_MEMBERSHIPS, SAVED_REALMS, SAVED_SEARCH_SCOPE, SavedQuery, SavedSearch,
+    USER_FILE, user_path,
 };
 
 fn saved(name: &str, realm: &str, membership: &str) -> Value {
-    json!({ "version": 1, "name": name, "text": "rarity=rare",
+    json!({ "version": 2, "name": name, "query": { "text": "rarity=rare" },
             "scope": { "realm": realm, "membership": membership } })
 }
 
@@ -1671,10 +1671,12 @@ fn c167_the_user_opener_binds_no_uuid_and_the_account_opener_still_binds_its_own
     ));
 }
 
-/// C167, C66 — the saved search's parse is strict: every field present
-/// and none other, a name of one to sixty-four characters once trimmed
-/// with no line break, a realm word or `all`, a membership word, and a
-/// later version reported as later. A refused value never lands.
+/// C167, C66, C194 — the saved search's parse is strict: every field
+/// present and none other, a name of one to sixty-four characters once
+/// trimmed with no line break, a realm word or `all`, a membership word,
+/// a query of one key, `text` or `trade`, a trade a non-empty string or an
+/// object, and a later version reported as later. A refused value never
+/// lands.
 #[test]
 fn c167_the_saved_search_kind_reads_its_shape_strictly() {
     let mut user = User::open_memory().unwrap();
@@ -1702,17 +1704,44 @@ fn c167_the_saved_search_kind_reads_its_shape_strictly() {
             .unwrap_or_else(|e| panic!("{realm} {membership}: {e}"));
         }
     }
+    let with_query = |query: Value| {
+        let mut value = saved("x", "pc", "live");
+        value["query"] = query;
+        value
+    };
     let refused: Vec<(Value, &str)> = vec![
-        (json!({ "version": 1, "name": "x", "text": "" }), "scope"),
         (
-            json!({ "version": 1, "name": "x", "text": "", "scope": { "realm": "pc", "membership": "live" }, "view": {} }),
+            json!({ "version": 2, "name": "x", "query": { "text": "" } }),
+            "scope",
+        ),
+        (
+            json!({ "version": 2, "name": "x", "scope": { "realm": "pc", "membership": "live" } }),
+            "query",
+        ),
+        (
+            json!({ "version": 2, "name": "x", "query": { "text": "" }, "scope": { "realm": "pc", "membership": "live" }, "view": {} }),
             "view",
+        ),
+        (
+            json!({ "version": 2, "name": "x", "text": "", "scope": { "realm": "pc", "membership": "live" } }),
+            "text",
         ),
         (saved("   ", "pc", "live"), "one character at least"),
         (saved(&"n".repeat(NAME_MAX + 1), "pc", "live"), "at most 64"),
         (saved("two\nlines", "pc", "live"), "no line break"),
         (saved("x", "PC", "live"), "no realm"),
         (saved("x", "pc", "dead"), "no membership"),
+        (with_query(json!({})), "single key"),
+        (
+            with_query(json!({ "text": "", "trade": "x" })),
+            "single key",
+        ),
+        (with_query(json!({ "tree": {} })), "unknown variant"),
+        (with_query(json!({ "trade": " " })), "non-empty string"),
+        (with_query(json!({ "trade": 7 })), "non-empty string"),
+        (with_query(json!({ "trade": ["x"] })), "non-empty string"),
+        (with_query(json!({ "text": 7 })), "invalid type"),
+        (json!({ "version": 0, "name": "x" }), "no version"),
     ];
     for (value, said) in refused {
         match put(value.clone()) {
@@ -1724,15 +1753,81 @@ fn c167_the_saved_search_kind_reads_its_shape_strictly() {
         }
     }
     let mut later = saved("x", "pc", "live");
-    later["version"] = json!(2);
+    later["version"] = json!(3);
     assert!(matches!(
         put(later),
         Err(AnnotationError::Invalid(ValueError::VersionUnsupported {
-            found: 2,
+            found: 3,
             ..
         }))
     ));
     assert_eq!(put(saved(" spaced ", "all", "removed")).unwrap(), 1);
+    for (n, trade) in [
+        json!("https://www.pathofexile.com/trade/search/Standard/abc"),
+        json!({ "query": { "status": { "option": "any" } }, "league": "Standard" }),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut user = User::open_memory().unwrap();
+        let value = with_query(json!({ "trade": trade }));
+        let row = user
+            .put::<SavedSearch>(
+                SAVED_SEARCH_SCOPE,
+                "0123456789ab",
+                &value,
+                None,
+                &via_test(),
+            )
+            .unwrap_or_else(|e| panic!("{n}: {e}"));
+        assert_eq!(row.value, value, "a source lands as sent");
+    }
+}
+
+/// C194, C66 — a version 1 row, the text alone, reads as a text source
+/// at version 1, and reading it writes nothing; a new write at version
+/// 1 is refused by the writer's rule, naming version 2.
+#[test]
+fn c194_a_version_1_row_reads_as_a_text_and_is_never_newly_written() {
+    let v1 = json!({ "version": 1, "name": "rings", "text": "class:ring",
+                     "scope": { "realm": "pc", "membership": "live" } });
+    let read = crate::check_value::<SavedSearch>(&v1).unwrap();
+    assert_eq!(
+        (read.version, read.query, read.name.as_str()),
+        (1, SavedQuery::Text("class:ring".into()), "rings")
+    );
+    let mut user = User::open_memory().unwrap();
+    match user.put::<SavedSearch>(SAVED_SEARCH_SCOPE, "0123456789ab", &v1, None, &via_test()) {
+        Err(AnnotationError::Invalid(ValueError::RefusedForWrite { detail, .. })) => {
+            assert!(detail.contains("version 2"), "{detail}")
+        }
+        other => panic!("a version 1 write landed: {other:?}"),
+    }
+    // a row a build before version 2 wrote, staged under its own kind
+    #[derive(serde::Serialize)]
+    #[serde(transparent)]
+    struct Before(Value);
+    impl IntentValue for Before {
+        const KIND: &'static str = "saved-search";
+        const VERSION: i64 = 1;
+        fn parse(value: &Value) -> Result<Self, String> {
+            Ok(Before(value.clone()))
+        }
+    }
+    user.put::<Before>(SAVED_SEARCH_SCOPE, "0123456789ab", &v1, None, &via_test())
+        .unwrap();
+    let listed = user.list(Some(SAVED_SEARCH_SCOPE), None).unwrap();
+    assert_eq!(listed.list.rows.len(), 1);
+    assert_eq!(listed.list.rows[0].value, v1, "the row stands as written");
+    let got = user
+        .get(SAVED_SEARCH_SCOPE, "0123456789ab", "saved-search")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        crate::check_value::<SavedSearch>(&got.value).unwrap().query,
+        SavedQuery::Text("class:ring".into())
+    );
+    assert_eq!(user.revision().unwrap(), 1, "no read wrote");
 }
 
 /// C167 — every saved search is written under the scope word `search`

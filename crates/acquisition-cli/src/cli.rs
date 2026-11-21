@@ -649,11 +649,13 @@ pub(crate) enum SavedCmd {
     /// hold, the account's named with `--account` or else every known
     /// account's (`all` where they hold none; over several it is
     /// required), its membership `--membership`, else live. A change is
-    /// `--id` and what it changes — a query, `--name` (a rename),
-    /// `--realm`, `--membership` — the rest kept as the row stands. The
-    /// query is stored as the language prints it, and refused before
-    /// anything is written where it does not read. Prints what it
-    /// replaced and the command that puts it back.
+    /// `--id` and what it changes — a query or a site search, `--name` (a
+    /// rename), `--realm`, `--membership` — the rest kept as the row
+    /// stands. A query is stored as the language prints it; a site search
+    /// (`--trade`, `--trade-file`) is stored as given and translated each
+    /// time the search is read, so it lists and runs with its report.
+    /// Either is refused before anything is written where it does not
+    /// read. Prints what it replaced and the command that puts it back.
     Set {
         /// The saved search to change, by its id (`acq saved list`).
         #[arg(long, value_name = "ID")]
@@ -673,6 +675,15 @@ pub(crate) enum SavedCmd {
         /// The query, as `acq search` takes it. One that starts with `-`,
         /// the language's not, takes a space inside its quotes.
         query: Option<String>,
+        /// A trade site search in place of a query, as `acq search
+        /// --trade` takes it: its URL, its id or its query JSON. A URL's
+        /// realm is the saved search's, so `--realm` may be left out.
+        #[arg(long, value_name = "URL|ID", conflicts_with = "query")]
+        trade: Option<String>,
+        /// `--trade`, read from a file or from stdin with `-`: the query
+        /// JSON as the site posts it, stored as its object.
+        #[arg(long, value_name = "FILE|-", conflicts_with_all = ["query", "trade"])]
+        trade_file: Option<String>,
         /// pc, xbox, sony, poe2, or all.
         #[arg(long)]
         realm: Option<String>,

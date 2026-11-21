@@ -4,8 +4,11 @@
 //! (C46).
 //!
 //! - **The row.** Keyed on an id these verbs mint, twelve hex characters
-//!   ([`mint`]); the value a name, the canonical text of a query (C104)
-//!   and its scope, a realm or `all` (C96) and a membership. The id is
+//!   ([`mint`]); the value a name, the query as it was asked (C194, the
+//!   row keeps its source: a text in the language, stored canonical
+//!   (C104), or a site search as given, C113's third spelling, a JSON
+//!   string stored as its object) and its scope, a realm or `all` (C96)
+//!   and a membership. The id is
 //!   the identity and the name a label: no write reads another row's
 //!   name, nothing refuses a name, two live rows may carry one. The one
 //!   place a shared name is noticed is opening by name, [`request_of`]
@@ -13,13 +16,19 @@
 //! - **The documents.** [`list`] answers [`SavedSearches`], one object
 //!   (C149), its rows ten unless `limit` or `expand` (C53) beside `total`,
 //!   `left_out` and the file's `revision`; each row ([`SavedRow`]) its
-//!   `id`, `name`, `text`, `scope`, `revision`, provenance (C65), its
+//!   `id`, `name`, `text`, derived from the source at this read in the
+//!   row's realm, `fidelity` where the source is a site search, `query`,
+//!   the source as stored, `scope`, `revision`, provenance (C65), its
 //!   times with their words (C163), and `request`, the search request it
-//!   is; a row this build cannot read is named by its id, revision and
-//!   fault, never dropped (C151).
+//!   is, its query the source; a row whose source this build cannot read
+//!   or translate has no `text` and carries `fault`, the language's
+//!   refusal, and is refused when run; a row this build cannot read is
+//!   named by its id, revision and fault, never dropped (C151). A version
+//!   1 row, the text alone, reads as a text and is never rewritten by a
+//!   read.
 //! - **One write shape on every surface** ([`Set`], [`set`]): an optional
 //!   id, an expectation ([`Expect`]) and the fields, each optional. No id
-//!   and [`Expect::Create`] creates, a name and a text required; an id
+//!   and [`Expect::Create`] creates, a name and a query required; an id
 //!   and [`Expect::Exactly`] reads the row at exactly that revision
 //!   (`at_revision`, as `set_policy` reads its row) and merges the fields
 //!   named over it, the write landing at that revision; an id and
@@ -27,12 +36,16 @@
 //!   default at a terminal, which guards against a write racing in
 //!   between and nothing more; an id and [`Expect::Create`] the whole
 //!   value, landing only where no live row stands at the id (a clear's
-//!   undo). Every other pair is refused as `arguments`. The text is read
-//!   with the language's reader in the row's realm and stored canonical;
-//!   an authoring error refuses before any file is opened. A create's
-//!   realm, where none is named, is settled as `acq search` settles one
-//!   (C96), over the realms held by the account the caller names, or,
-//!   naming none, by every account known (`resolved_realm`).
+//!   undo). Every other pair is refused as `arguments`. The source is
+//!   read with the language's reader in two moments: what the write names
+//!   in the realm it names, before any file is opened; then the value the
+//!   write lands, a source or a realm kept from the prior row among them,
+//!   before the write. A site search's URL names its realm, which is the
+//!   row's where the write names none; another realm beside it is the
+//!   request's conflict (C143). A create's realm, where neither names one,
+//!   is settled as `acq search` settles one (C96), over the realms held by
+//!   the account the caller names, or, naming none, by every account
+//!   known (`resolved_realm`).
 //! - **The receipt** ([`SavedWritten`], spelled by
 //!   [`crate::receipt::saved`]): `target`, `written`, `prior`, `revision`,
 //!   and the `undo` that puts the prior back — a replace's a [`Set`] of
@@ -49,9 +62,10 @@ use acquisition_plan::pricing::Expect;
 use acquisition_search::SearchError;
 use acquisition_search::answer::{Membership, QueryInput, Request, Scope};
 use acquisition_search::corpus;
+use acquisition_search::trade::translate::Fidelity;
 use acquisition_store::{
-    AnnotationError, AnnotationRow, IntentValue as _, Provenance, SAVED_SEARCH_SCOPE, SavedScope,
-    SavedSearch, User, check_value,
+    AnnotationError, AnnotationRow, IntentValue as _, Provenance, SAVED_SEARCH_SCOPE, SavedQuery,
+    SavedScope, SavedSearch, User, check_value,
 };
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -74,7 +88,8 @@ pub struct Set {
     pub id: Option<String>,
     pub expect: Expect,
     pub name: Option<String>,
-    pub text: Option<String>,
+    /// The source: a text in the language, or a site search as given.
+    pub query: Option<SavedQuery>,
     pub realm: Option<String>,
     pub membership: Option<String>,
 }
@@ -87,7 +102,7 @@ impl Set {
             id: Some(id.to_string()),
             expect,
             name: Some(saved.name.clone()),
-            text: Some(saved.text.clone()),
+            query: Some(saved.query.clone()),
             realm: Some(saved.scope.realm.clone()),
             membership: Some(saved.scope.membership.clone()),
         }
@@ -127,12 +142,22 @@ impl SavedRow {
     }
 }
 
-/// A saved search this build reads.
+/// A saved search this build reads. Its `text` is derived at this read
+/// from `query`, the source as stored (C194), with the translation's
+/// `fidelity` for a site search; a source this build cannot read or
+/// translate has no `text` and carries `fault`, the language's refusal,
+/// and is refused when run.
 #[derive(Clone, Debug, Serialize)]
 pub struct ReadRow {
     pub id: String,
     pub name: String,
-    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fidelity: Option<Fidelity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fault: Option<String>,
+    pub query: SavedQuery,
     pub scope: SavedScope,
     pub revision: i64,
     pub created_at: i64,
@@ -316,7 +341,20 @@ pub fn request_of(
         id,
         account: account.clone(),
     })? {
-        SavedRow::Read(row) => Ok(row.request),
+        SavedRow::Read(row) => match &row.fault {
+            None => Ok(row.request),
+            Some(fault) => Err(Pointed {
+                kind: "refused",
+                message: format!(
+                    "saved search {} at revision {} asks what this build cannot read ({fault}); \
+                     it is listed and cannot be run",
+                    row.id, row.revision
+                ),
+                ways: vec![list_way(false)],
+                fields: Map::new(),
+            }
+            .into()),
+        },
         SavedRow::Unreadable(row) => Err(Pointed {
             kind: "refused",
             message: format!(
@@ -332,8 +370,14 @@ pub fn request_of(
 }
 
 /// Write a saved search ([`Set`]'s rule, the module doc). `account` is
-/// the account a create resolves its realm over where `set.realm` names
-/// none; `mint` makes a create's id, called at most twice.
+/// the account a create resolves its realm over where neither `set.realm`
+/// nor a site search's URL names one; `mint` makes a create's id, called
+/// at most twice.
+///
+/// C194's door, in two moments: what the write names, its source read
+/// in the realm it names, before any file is opened; then the value the
+/// write lands, the source and the realm it keeps from the prior row
+/// among them, read once more before the write.
 pub fn set(
     frontend: &Frontend,
     account: Option<&str>,
@@ -341,11 +385,16 @@ pub fn set(
     mint: &mut dyn FnMut() -> Result<String, String>,
 ) -> anyhow::Result<SavedWritten> {
     // every argument read before any file is opened
+    let whole = set.name.is_some()
+        && set.query.is_some()
+        && set.realm.is_some()
+        && set.membership.is_some();
     match (&set.id, set.expect) {
         (None, Expect::Create) => {
-            if set.name.is_none() || set.text.is_none() {
+            if set.name.is_none() || set.query.is_none() {
                 return Err(arguments(
-                    "a new saved search names its name and its query's text".into(),
+                    "a new saved search names its name and its query: a text, or a site search"
+                        .into(),
                 ));
             }
         }
@@ -357,25 +406,20 @@ pub fn set(
         }
         (Some(id), expect) => {
             check_id(id)?;
-            if expect == Expect::Create
-                && (set.name.is_none()
-                    || set.text.is_none()
-                    || set.realm.is_none()
-                    || set.membership.is_none())
-            {
+            if expect == Expect::Create && !whole {
                 return Err(arguments(format!(
-                    "a create at the id {id} names the whole search: its name, its text, its \
+                    "a create at the id {id} names the whole search: its name, its query, its \
                      realm and its membership"
                 )));
             }
             if expect != Expect::Create
                 && set.name.is_none()
-                && set.text.is_none()
+                && set.query.is_none()
                 && set.realm.is_none()
                 && set.membership.is_none()
             {
                 return Err(arguments(format!(
-                    "a write over {id} names what it changes: a name, a text, a realm or a \
+                    "a write over {id} names what it changes: a name, a query, a realm or a \
                      membership"
                 )));
             }
@@ -386,11 +430,17 @@ pub fn set(
     {
         return Err(arguments(format!("{fault}: {:?}", name.trim())));
     }
-    let realm = set.realm.as_deref().map(realm_word).transpose()?;
     let membership = set.membership.as_deref().map(membership_word).transpose()?;
-    if let Some(text) = &set.text {
-        canonical(text, realm.as_deref())?;
-    }
+    // the source named, read in the realm named; a URL's realm is the
+    // row's where the write names none
+    let named = set.query.as_ref().map(stored_form);
+    let realm = match set.realm.as_deref().map(realm_word).transpose()? {
+        Some(realm) => Some(realm),
+        None => named.as_ref().and_then(url_realm),
+    };
+    let named = named
+        .map(|query| as_stored(&query, realm.as_deref()))
+        .transpose()?;
     let mut user = frontend.user()?;
     let via = Provenance::via(frontend.via);
     let now = acquisition_store::now();
@@ -402,7 +452,10 @@ pub fn set(
         let value = SavedSearch {
             version: SavedSearch::VERSION,
             name: set.name.as_deref().unwrap_or_default().trim().to_string(),
-            text: canonical(set.text.as_deref().unwrap_or_default(), Some(&realm))?,
+            query: as_stored(
+                &named.unwrap_or(SavedQuery::Text(String::new())),
+                Some(&realm),
+            )?,
             scope: SavedScope {
                 realm,
                 membership: membership.unwrap_or_else(|| "live".to_string()),
@@ -443,20 +496,21 @@ pub fn set(
         Some(Prior::Read(_, value)) => Some(value),
         _ => None,
     };
-    if matches!(prior, Some(Prior::Unread { .. }))
-        && (set.name.is_none()
-            || set.text.is_none()
-            || set.realm.is_none()
-            || set.membership.is_none())
-    {
+    if matches!(prior, Some(Prior::Unread { .. })) && !whole {
         return Err(arguments(format!(
             "saved search {id} holds a value this build cannot read, so a write over it names \
-             the whole search: its name, its text, its realm and its membership"
+             the whole search: its name, its query, its realm and its membership"
         )));
     }
     let realm = realm
         .or_else(|| kept.map(|v| v.scope.realm.clone()))
         .unwrap_or_default();
+    // the value landed, read whole once more: a source kept from the
+    // prior row is read in the realm the write lands
+    let query = match named.or_else(|| kept.map(|v| v.query.clone())) {
+        Some(query) => as_stored(&query, Some(&realm))?,
+        None => SavedQuery::Text(String::new()),
+    };
     let value = SavedSearch {
         version: SavedSearch::VERSION,
         name: set
@@ -465,13 +519,7 @@ pub fn set(
             .map(|n| n.trim().to_string())
             .or_else(|| kept.map(|v| v.name.clone()))
             .unwrap_or_default(),
-        text: canonical(
-            set.text
-                .as_deref()
-                .or(kept.map(|v| v.text.as_str()))
-                .unwrap_or_default(),
-            Some(&realm),
-        )?,
+        query,
         scope: SavedScope {
             realm,
             membership: membership
@@ -649,10 +697,17 @@ fn row_of(row: AnnotationRow, now: i64) -> SavedRow {
         return row_of_any(row, now);
     };
     let request = request(&value);
+    let (text, fidelity, fault) = match derived(&value) {
+        Ok((text, fidelity)) => (Some(text), fidelity, None),
+        Err(fault) => (None, None, Some(fault)),
+    };
     SavedRow::Read(Box::new(ReadRow {
         id: row.key,
         name: value.name,
-        text: value.text,
+        text,
+        fidelity,
+        fault,
+        query: value.query,
         scope: value.scope,
         revision: row.revision,
         created_at: row.created_at,
@@ -666,7 +721,8 @@ fn row_of(row: AnnotationRow, now: i64) -> SavedRow {
 }
 
 /// The search request a saved search is: its realm and membership, its
-/// text; no account (a search names none until it is run as one).
+/// source as asked (C194); no account (a search names none until it is
+/// run as one).
 fn request(value: &SavedSearch) -> Request {
     Request {
         scope: Scope {
@@ -674,13 +730,82 @@ fn request(value: &SavedSearch) -> Request {
             realm: corpus::Realm::parse(&value.scope.realm).ok(),
             membership: Membership::parse(&value.scope.membership).unwrap_or_default(),
         },
-        query: QueryInput {
-            text: Some(value.text.clone()),
-            tree: None,
-            trade: None,
-        },
+        query: input(&value.query),
         ..Request::default()
     }
+}
+
+/// A source as a request's query: a text, or a site search, never both.
+fn input(query: &SavedQuery) -> QueryInput {
+    match query {
+        SavedQuery::Text(text) => QueryInput {
+            text: Some(text.clone()),
+            ..QueryInput::default()
+        },
+        SavedQuery::Trade(trade) => QueryInput {
+            trade: Some(trade.clone()),
+            ..QueryInput::default()
+        },
+    }
+}
+
+/// C194: the text a row runs, derived at this read in the row's realm,
+/// with the translation's fidelity for a site search; or the language's
+/// refusal, in its words.
+fn derived(value: &SavedSearch) -> Result<(String, Option<Fidelity>), String> {
+    let realm = corpus::Realm::parse(&value.scope.realm).map_err(|e| e.to_string())?;
+    let read = input(&value.query)
+        .read(Some(&realm))
+        .map_err(|e| e.message)?;
+    Ok((
+        read.query.text(),
+        read.translation.map(|translation| translation.fidelity),
+    ))
+}
+
+/// A source in the form it is stored (C194): a text trimmed; a site
+/// search's string trimmed, and one that is the query JSON as text its
+/// object, so a pasted JSON and the form's envelope are one spelling.
+fn stored_form(query: &SavedQuery) -> SavedQuery {
+    match query {
+        SavedQuery::Text(text) => SavedQuery::Text(text.trim().to_string()),
+        SavedQuery::Trade(Value::String(word)) => {
+            match serde_json::from_str::<Value>(word.trim()) {
+                Ok(object @ Value::Object(_)) => SavedQuery::Trade(object),
+                _ => SavedQuery::Trade(Value::String(word.trim().to_string())),
+            }
+        }
+        SavedQuery::Trade(other) => SavedQuery::Trade(other.clone()),
+    }
+}
+
+/// The realm a site search's URL names, which is the search's scope
+/// (C113): none for a text, an id, JSON, or a source that does not read.
+fn url_realm(query: &SavedQuery) -> Option<String> {
+    match query {
+        SavedQuery::Trade(_) => input(query)
+            .read(None)
+            .ok()
+            .and_then(|read| read.realm)
+            .map(|realm| realm.as_str().to_string()),
+        SavedQuery::Text(_) => None,
+    }
+}
+
+/// A source in its stored form, read in `realm` with the language's
+/// reader: a text stored canonical (C104), a site search as given; an
+/// authoring error or a source that does not translate is the
+/// language's refusal (C143).
+fn as_stored(query: &SavedQuery, realm: Option<&str>) -> anyhow::Result<SavedQuery> {
+    let query = stored_form(query);
+    let realm = realm.map(corpus::Realm::parse).transpose()?;
+    let read = input(&query)
+        .read(realm.as_ref())
+        .map_err(SearchError::from)?;
+    Ok(match query {
+        SavedQuery::Text(_) => SavedQuery::Text(read.query.text()),
+        trade => trade,
+    })
 }
 
 /// A write's receipt over the row it wrote.
@@ -856,7 +981,7 @@ fn refused_write(e: AnnotationError, id: &str, set: &Set, now: i64) -> anyhow::E
     let mut again = set.clone();
     if let Some(standing) = &standing {
         again.name = again.name.or_else(|| Some(standing.name.clone()));
-        again.text = again.text.or_else(|| Some(standing.text.clone()));
+        again.query = again.query.or_else(|| Some(standing.query.clone()));
         again.realm = again.realm.or_else(|| Some(standing.scope.realm.clone()));
         again.membership = again
             .membership
@@ -884,12 +1009,13 @@ fn refused_write(e: AnnotationError, id: &str, set: &Set, now: i64) -> anyhow::E
 }
 
 /// Why the write `set` names, its fields whole, would be refused by this
-/// build's own checks — a name, a realm, a membership or a text the
-/// language does not read — or nothing: what a recovery write is held to
-/// before it is offered. A field it does not name is refused as missing.
+/// build's own checks — a name, a realm, a membership or a source the
+/// language does not read in that realm — or nothing: what a recovery
+/// write is held to before it is offered. A field it does not name is
+/// refused as missing.
 fn refused_as_written(set: &Set) -> Option<String> {
-    let (Some(name), Some(text), Some(realm), Some(membership)) =
-        (&set.name, &set.text, &set.realm, &set.membership)
+    let (Some(name), Some(query), Some(realm), Some(membership)) =
+        (&set.name, &set.query, &set.realm, &set.membership)
     else {
         return Some("it does not name the whole search".to_string());
     };
@@ -903,7 +1029,7 @@ fn refused_as_written(set: &Set) -> Option<String> {
         Ok(realm) => realm,
         Err(e) => return Some(format!("{e:#}")),
     };
-    canonical(text, Some(&realm))
+    as_stored(query, Some(&realm))
         .err()
         .map(|e| format!("{e:#}"))
 }
@@ -1057,20 +1183,6 @@ fn membership_word(word: &str) -> anyhow::Result<String> {
         }
         .into()),
     }
-}
-
-/// `text` read with the language's reader in `realm` and printed
-/// canonical (C104); an authoring error is the language's refusal.
-fn canonical(text: &str, realm: Option<&str>) -> anyhow::Result<String> {
-    let realm = realm.map(corpus::Realm::parse).transpose()?;
-    let read = QueryInput {
-        text: Some(text.trim().to_string()),
-        tree: None,
-        trade: None,
-    }
-    .read(realm.as_ref())
-    .map_err(SearchError::from)?;
-    Ok(read.query.text())
 }
 
 /// An id is twelve hex characters, as the list prints it.

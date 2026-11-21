@@ -1144,7 +1144,9 @@ pub use snapshot::{
     BUYOUT_KIND, CharacterSnapshot, Fetched, ItemSnapshot, ListingBasis, PricingSnapshot,
     RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, TabSnapshot,
 };
-pub use user::{SAVED_SEARCH_SCOPE, SavedScope, SavedSearch, USER_FILE, User, UserList, user_path};
+pub use user::{
+    SAVED_SEARCH_SCOPE, SavedQuery, SavedScope, SavedSearch, USER_FILE, User, UserList, user_path,
+};
 pub use world::store_dir;
 
 /// Listing order shared by [`Store::tabs`], [`Store::refresh_snapshot`]

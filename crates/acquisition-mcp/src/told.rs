@@ -11,6 +11,7 @@ use acquisition_plan::pricing::Expect;
 use acquisition_protocol::protocol::ErrorKind;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::SearchError;
+use acquisition_store::SavedQuery;
 use acquisition_verbs::Fault;
 use acquisition_verbs::fault::door_word;
 use acquisition_verbs::refusal::{self, Arguments, Way};
@@ -384,13 +385,21 @@ impl refusal::Surface for Spoken<'_> {
                 }
                 for (key, value) in [
                     ("name", &set.name),
-                    ("text", &set.text),
                     ("realm", &set.realm),
                     ("membership", &set.membership),
                 ] {
                     if let Some(value) = value {
                         arguments.insert(key.into(), json!(value));
                     }
+                }
+                match &set.query {
+                    Some(SavedQuery::Text(text)) => {
+                        arguments.insert("text".into(), json!(text));
+                    }
+                    Some(SavedQuery::Trade(trade)) => {
+                        arguments.insert("trade".into(), trade.clone());
+                    }
+                    None => {}
                 }
                 Some((Value::Object(arguments), other("saved_search_set")))
             }

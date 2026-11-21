@@ -10,7 +10,7 @@ use acquisition_protocol::protocol::ListState;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
-use acquisition_store::{Annotations, Provenance, Store};
+use acquisition_store::{Annotations, Provenance, SavedQuery, Store};
 use acquisition_verbs::leagues::PolicyRead;
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::Arguments;
@@ -126,7 +126,8 @@ impl AcqMcp {
             .map(str::to_string);
         let request = saved::request_of(&self.frontend, saved, account.as_deref())
             .map_err(|e| refusing(refusal(&e, "scope.account")))?;
-        args.insert("query".into(), json!({ "text": request.query.text }));
+        // the row's source as asked (C194): a text, or a site search
+        args.insert("query".into(), json!(request.query));
         if let Some(scope) = args
             .entry("scope")
             .or_insert_with(|| json!({}))
@@ -795,19 +796,34 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` required; a create naming no realm takes the one the facts hold, the named `account`'s or every known account's. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none)."
+        description = "Save a search, or change one; local, it sends nothing (no daemon). No `id`: a create, `name` and `text` or `trade` (a site search, kept as given) required; naming no realm, it takes its URL's or the one the facts hold. `id` and `if_revision`: a write over that row at exactly that revision, the fields not named kept (a rename is the two and `name`). `id` and no `if_revision`: a create at the id, the whole search, landing only where none stands (a clear's undo). Returns the receipt — `target`, `written`, `prior`, `revision`, `undo` (puts `prior` back) or `no_undo` (why none)."
     )]
     fn saved_search_set(&self, Parameters(p): Parameters<Args<SavedSearchSetParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
             Err(refusal) => return Ok(*refusal),
         };
+        // the source, one of the two (C194)
+        let query = match (p.text, p.trade) {
+            (Some(_), Some(_)) => {
+                return failed(
+                    Arguments(
+                        "`text` or `trade`, never both: a saved search is a query or a site search"
+                            .into(),
+                    )
+                    .into(),
+                );
+            }
+            (Some(text), None) => Some(SavedQuery::Text(text)),
+            (None, Some(trade)) => Some(SavedQuery::Trade(trade)),
+            (None, None) => None,
+        };
         // C52: naming no revision creates, never replaces
         let set = Set {
             id: p.id,
             expect: Expect::or(p.if_revision, Expect::Create),
             name: p.name,
-            text: p.text,
+            query,
             realm: p.realm,
             membership: p.membership,
         };

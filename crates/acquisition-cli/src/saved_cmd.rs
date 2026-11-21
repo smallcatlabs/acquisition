@@ -10,9 +10,10 @@
 //! Rulings: `decisions/frontends.md`, `decisions/store.md`.
 
 use acquisition_plan::pricing::Expect;
+use acquisition_store::SavedQuery;
 use acquisition_verbs::refusal::{Arguments, Way};
 use acquisition_verbs::saved::{self, SavedRow, SavedSearches, SavedWritten, Set};
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 
 use crate::run::Ctx;
 use crate::terminal::{Terminal, option_words, plural, printed_line, way_words};
@@ -39,22 +40,26 @@ pub fn show(cx: &Ctx, id_or_name: &str, json: bool) -> Result<()> {
     Ok(())
 }
 
+/// `acq saved set`'s arguments as typed.
+pub struct Written {
+    pub id: Option<String>,
+    pub if_revision: Option<i64>,
+    pub name: Option<String>,
+    pub query: Option<String>,
+    pub trade: Option<String>,
+    pub trade_file: Option<String>,
+    pub realm: Option<String>,
+    pub membership: Option<String>,
+}
+
 /// `acq saved set`: one parse per spelling — a create is `--name` and the
-/// query with no `--id`, an edit `--id` and what it changes, `--if-revision`
-/// read through [`Expect::or`] under the human's default, the revision
-/// read just before the write.
-#[allow(clippy::too_many_arguments)]
-pub fn set(
-    cx: &Ctx,
-    id: Option<String>,
-    if_revision: Option<i64>,
-    name: Option<String>,
-    query: Option<String>,
-    realm: Option<String>,
-    membership: Option<String>,
-    json: bool,
-) -> Result<()> {
-    let expect = match (&id, if_revision) {
+/// query or the site search with no `--id`, an edit `--id` and what it
+/// changes, `--if-revision` read through [`Expect::or`] under the human's
+/// default, the revision read just before the write. A site search is
+/// handed on as typed (C194, the row keeps its source); the verbs store
+/// a JSON text as its object.
+pub fn set(cx: &Ctx, typed: Written, json: bool) -> Result<()> {
+    let expect = match (&typed.id, typed.if_revision) {
         (None, None) => Expect::Create,
         (None, Some(_)) => {
             return Err(Arguments(
@@ -66,13 +71,31 @@ pub fn set(
         }
         (Some(_), revision) => Expect::or(revision, Expect::Current),
     };
+    let trade = match (typed.trade, &typed.trade_file) {
+        (Some(trade), _) => Some(trade),
+        (None, Some(path)) if path == "-" => {
+            let mut text = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut text)?;
+            Some(text)
+        }
+        (None, Some(path)) => Some(
+            std::fs::read_to_string(path)
+                .with_context(|| format!("reading the site search from {path}"))?,
+        ),
+        (None, None) => None,
+    };
+    let query = match (typed.query, trade) {
+        (Some(text), _) => Some(SavedQuery::Text(text)),
+        (None, Some(trade)) => Some(SavedQuery::Trade(serde_json::Value::String(trade))),
+        (None, None) => None,
+    };
     let set = Set {
-        id,
+        id: typed.id,
         expect,
-        name,
-        text: query,
-        realm,
-        membership,
+        name: typed.name,
+        query,
+        realm: typed.realm,
+        membership: typed.membership,
     };
     let written = saved::set(&cx.frontend, cx.account.as_deref(), &set, &mut saved::mint)?;
     print_written(&written, cx.account.as_deref(), json)
@@ -123,13 +146,45 @@ pub(crate) fn set_words(set: &Set) -> Vec<String> {
             words.extend(option_words(flag, value));
         }
     }
-    if let Some(text) = &set.text {
-        words.push(match text.starts_with('-') {
+    match &set.query {
+        Some(SavedQuery::Text(text)) => words.push(match text.starts_with('-') {
             true => format!(" {text}"),
             false => text.clone(),
-        });
+        }),
+        Some(SavedQuery::Trade(trade)) => words.extend(option_words("--trade", &trade_word(trade))),
+        None => {}
     }
     words
+}
+
+/// A site search as one word: its URL or id, or its query JSON as text.
+pub(crate) fn trade_word(trade: &serde_json::Value) -> String {
+    match trade {
+        serde_json::Value::String(word) => word.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// What a row asks, in a line's words: its text as this build reads it,
+/// and, for a site search, that it is one and how faithful the text is;
+/// or why this build cannot read it (C194, the text derived at the read).
+fn query_words(row: &saved::ReadRow) -> String {
+    match (&row.text, &row.fault, &row.query) {
+        (Some(text), _, SavedQuery::Text(_)) => text.clone(),
+        (Some(text), _, SavedQuery::Trade(_)) => format!(
+            "{text}  (from a site search: {})",
+            row.fidelity
+                .map(|f| serde_json::to_value(f)
+                    .ok()
+                    .and_then(|v| v.as_str().map(str::to_string))
+                    .unwrap_or_default())
+                .unwrap_or_default()
+        ),
+        (None, fault, _) => format!(
+            "this build cannot read its query: {}",
+            fault.as_deref().unwrap_or_default()
+        ),
+    }
 }
 
 // ---- text, a function of the JSON --------------------------------------------
@@ -174,7 +229,7 @@ fn list_text(listed: &SavedSearches, account: Option<&str>) -> String {
                 "  {:<width$}  {:<11}  {}  (revision {})  {}\n",
                 row.name,
                 scope_words(row),
-                row.text,
+                query_words(row),
                 row.revision,
                 row.id
             ),
@@ -204,13 +259,17 @@ fn list_text(listed: &SavedSearches, account: Option<&str>) -> String {
 fn show_text(row: &SavedRow, account: Option<&str>) -> String {
     match row {
         SavedRow::Read(row) => format!(
-            "{name}  ({id})\n  scope: {scope}\n  query: {text}\n  revision {revision}, written \
-             {updated} via {via}{actor}, created {created}\nnext: `{run}` runs it; `{clear}` \
-             clears it\n",
+            "{name}  ({id})\n  scope: {scope}\n  query: {text}\n{site}  revision {revision}, \
+             written {updated} via {via}{actor}, created {created}\nnext: `{run}` runs it; \
+             `{clear}` clears it\n",
             name = row.name,
             id = row.id,
             scope = scope_words(row),
-            text = row.text,
+            text = query_words(row),
+            site = match &row.query {
+                SavedQuery::Trade(trade) => format!("  site search: {}\n", trade_word(trade)),
+                SavedQuery::Text(_) => String::new(),
+            },
             revision = row.revision,
             updated = row.updated_at_age,
             via = row.written_via,
@@ -248,7 +307,7 @@ fn row_words(row: &SavedRow) -> String {
             "{} over {}: {} (revision {})",
             row.name,
             scope_words(row),
-            row.text,
+            query_words(row),
             row.revision
         ),
         SavedRow::Unreadable(row) => format!(

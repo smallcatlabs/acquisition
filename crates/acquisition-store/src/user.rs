@@ -14,13 +14,13 @@
 //! be handed the user file, nor one taking `&User` an account's.
 //!
 //! Its first kind is [`SavedSearch`], under the scope [`SAVED_SEARCH_SCOPE`]
-//! and keyed on an id the verbs mint (the design of 4-full part 1, §3): a
-//! name, the canonical text of a query and the scope it runs over. The
-//! store reads the shape alone; the language is the search crate's, which
-//! this crate links none of (C1).
+//! and keyed on an id the verbs mint: a name, the query as it was asked
+//! ([`SavedQuery`], C194) and the scope it runs over. The store reads the
+//! shape alone; the language is the search crate's, which this crate
+//! links none of (C1), so the text a row runs is the verbs' to derive.
 //!
-//! Rulings: `decisions/store.md` (C167, C35, C151); C66's kind trait is
-//! [`IntentValue`].
+//! Rulings: `decisions/store.md` (C167, C194, C35, C151); C66's kind trait
+//! is [`IntentValue`].
 
 use std::path::{Path, PathBuf};
 
@@ -205,17 +205,64 @@ impl User {
     }
 }
 
-/// A saved search (C167's first kind): a name, the canonical text of a
-/// query (C104) and the scope it runs over. The name is a label and the
-/// id, the row's key, its identity: nothing here or at the door refuses a
-/// name another row carries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// A saved search (C167's first kind): a name, the query as it was
+/// asked and the scope it runs over. The name is a label and the id, the
+/// row's key, its identity: nothing here or at the door refuses a name
+/// another row carries.
+///
+/// C194 (the row keeps its source): `query` is what was asked, never the
+/// text it runs, which the verbs derive at every read. Version 2 writes
+/// it. A version 1 row, `{version, name, text, scope}`, reads as a text
+/// source with its version kept at 1, and no read writes it back (C66);
+/// a new write is version 2 ([`IntentValue::check_write`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SavedSearch {
     pub version: i64,
     pub name: String,
-    pub text: String,
     pub scope: SavedScope,
+    pub query: SavedQuery,
+}
+
+/// What a saved search asks, one key of the two: `text`, a query in the
+/// language, or `trade`, a site search as given (C113, the third
+/// spelling): a URL or an id as a non-empty string, the site's query JSON
+/// as an object. A JSON string is the verbs' to store as its object; the
+/// store reads no further.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum SavedQuery {
+    Text(String),
+    Trade(Value),
+}
+
+impl SavedQuery {
+    /// The text, where the source is one.
+    pub fn text(&self) -> Option<&str> {
+        match self {
+            SavedQuery::Text(text) => Some(text),
+            SavedQuery::Trade(_) => None,
+        }
+    }
+}
+
+/// Version 2 as stored.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Stored {
+    version: i64,
+    name: String,
+    scope: SavedScope,
+    query: SavedQuery,
+}
+
+/// Version 1 as stored: the canonical text alone, read as a text source.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredV1 {
+    version: i64,
+    name: String,
+    text: String,
+    scope: SavedScope,
 }
 
 /// The scope a saved search runs over: a realm word or `all` (C96), and a
@@ -250,17 +297,38 @@ impl SavedSearch {
 
 impl IntentValue for SavedSearch {
     const KIND: &'static str = "saved-search";
-    const VERSION: i64 = 1;
+    const VERSION: i64 = 2;
 
     fn parse(value: &Value) -> Result<Self, String> {
-        let saved: SavedSearch =
-            serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
-        if saved.version != Self::VERSION {
-            return Err(format!(
-                "version {} is no version of this kind",
-                saved.version
-            ));
-        }
+        let found = value.get("version").and_then(Value::as_i64);
+        let saved = match found {
+            Some(1) => {
+                let v1: StoredV1 =
+                    serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+                SavedSearch {
+                    version: v1.version,
+                    name: v1.name,
+                    scope: v1.scope,
+                    query: SavedQuery::Text(v1.text),
+                }
+            }
+            Some(Self::VERSION) => {
+                let v2: Stored =
+                    serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+                SavedSearch {
+                    version: v2.version,
+                    name: v2.name,
+                    scope: v2.scope,
+                    query: v2.query,
+                }
+            }
+            other => {
+                return Err(format!(
+                    "version {} is no version of this kind",
+                    other.map_or("none".to_string(), |v| v.to_string())
+                ));
+            }
+        };
         if let Some(fault) = SavedSearch::name_fault(&saved.name) {
             return Err(fault);
         }
@@ -278,6 +346,31 @@ impl IntentValue for SavedSearch {
                 SAVED_MEMBERSHIPS.join(", ")
             ));
         }
+        if let SavedQuery::Trade(trade) = &saved.query {
+            match trade {
+                Value::String(word) if !word.trim().is_empty() => {}
+                Value::Object(_) => {}
+                _ => {
+                    return Err(
+                        "`query.trade` is a site search's URL or id as a non-empty string, or \
+                         its query JSON as an object"
+                            .to_string(),
+                    );
+                }
+            }
+        }
         Ok(saved)
+    }
+
+    /// A version 1 row reads, and is never newly written (C66, a kind may
+    /// refuse as a new write what it reads).
+    fn check_write(&self) -> Result<(), String> {
+        match self.version == Self::VERSION {
+            true => Ok(()),
+            false => Err(format!(
+                "a saved search is written at version {}, with `query`",
+                Self::VERSION
+            )),
+        }
     }
 }

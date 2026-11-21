@@ -487,8 +487,15 @@ pub fn search(cx: &Ctx, mut args: SearchArgs, json: bool) -> Result<()> {
         }
         let request =
             acquisition_verbs::saved::request_of(&cx.frontend, &saved, cx.account.as_deref())?;
+        // the row's source as asked (C194): a text, or a site search,
+        // whose URL's realm is the row's and is not said twice
+        args.trade = request.query.trade_word();
         args.query = request.query.text;
-        args.realm = request.scope.realm.map(|realm| realm.as_str().to_string());
+        args.realm = request
+            .scope
+            .realm
+            .map(|realm| realm.as_str().to_string())
+            .filter(|_| args.trade.as_deref().and_then(trade_realm).is_none());
         args.membership = Some(request.scope.membership.as_str().to_string());
     }
     let read = |path: &str, what: &str| -> Result<String> {

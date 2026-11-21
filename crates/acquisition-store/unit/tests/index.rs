@@ -304,8 +304,8 @@ fn an_account_named_as_a_world_file_is_escaped_and_meets_no_other_name() {
 fn an_account_named_user_or_daemon_leaves_the_world_file_what_it_is_in_either_order() {
     use crate::user::{SAVED_SEARCH_SCOPE, SavedSearch, User};
     let via = crate::Provenance::via("test");
-    let saved = serde_json::json!({ "version": 1, "name": "rings", "text": "",
-        "scope": { "realm": "pc", "membership": "live" } });
+    let saved = serde_json::json!({ "version": 2, "name": "rings",
+        "scope": { "realm": "pc", "membership": "live" }, "query": { "text": "" } });
     let facts = |dir: &Path, username: &str| {
         let mut store = crate::Store::open(&account_path(dir, username)).unwrap();
         store

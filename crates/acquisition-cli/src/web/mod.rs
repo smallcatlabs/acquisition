@@ -321,8 +321,11 @@ use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, Request};
 use acquisition_search::places::{Kind, Places};
 use acquisition_search::{Holder, SearchError};
+use acquisition_store::SavedQuery;
 use acquisition_verbs::refusal::{Pointed, Way};
 use acquisition_verbs::saved::{self, SavedRow};
+
+use crate::saved_cmd::trade_word;
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 
 use crate::terminal::plural;
@@ -1102,13 +1105,22 @@ impl acquisition_verbs::refusal::Surface for Paged<'_> {
                 }
                 for (key, value) in [
                     ("name", &set.name),
-                    ("text", &set.text),
                     ("realm", &set.realm),
                     ("membership", &set.membership),
                 ] {
                     if let Some(value) = value {
                         fields.insert(key.into(), json!(value));
                     }
+                }
+                // the source as the save form carries it (C194)
+                match &set.query {
+                    Some(SavedQuery::Text(text)) => {
+                        fields.insert("text".into(), json!(text));
+                    }
+                    Some(SavedQuery::Trade(trade)) => {
+                        fields.insert("trade".into(), json!(trade_word(trade)));
+                    }
+                    None => {}
                 }
                 return Some((
                     json!({ "post": self.web.link("saved", &[]), "fields": fields }),
@@ -1429,7 +1441,10 @@ async fn search(
                     "{said}{}",
                     page::answer(
                         &answer,
-                        opened.as_ref(),
+                        page::Saving {
+                            source: &request.query,
+                            opened: opened.as_ref(),
+                        },
                         &web.saved_links(),
                         &|way| {
                             use acquisition_verbs::refusal::Surface as _;
@@ -3178,6 +3193,20 @@ async fn saved_open(
             )));
         }
         let row = match web.saved_at(&id)? {
+            // a source this build cannot read or translate: listed, and
+            // refused when opened, in the page's words beside the verbs'
+            Some(SavedRow::Read(row)) if row.fault.is_some() => {
+                return Err(listed(
+                    "refused",
+                    format!(
+                        "saved search {} at revision {} asks what this build cannot read ({}); \
+                         a page cannot open it",
+                        row.id,
+                        row.revision,
+                        row.fault.as_deref().unwrap_or_default()
+                    ),
+                ));
+            }
             Some(SavedRow::Read(row)) => row,
             // a page refuses from the row it read, never from a second
             // read: the words are the page's, beside the verbs' own in
@@ -3199,6 +3228,22 @@ async fn saved_open(
                 ));
             }
         };
+        // a site search opens as the page's site box asks one (C194): its
+        // word, its membership where not live, and its realm unless its
+        // URL names one, which is the search's
+        if let Some(trade) = row.request.query.trade_word() {
+            let mut asked = Vec::new();
+            if crate::search_cmd::trade_realm(&trade).is_none() {
+                asked.push(("realm", row.scope.realm.clone()));
+            }
+            if row.scope.membership != "live" {
+                asked.push(("membership", row.scope.membership.clone()));
+            }
+            asked.push(("trade", trade));
+            asked.push(("saved", id));
+            asked.push(("saved_revision", row.revision.to_string()));
+            return Ok(web.link("search", &asked));
+        }
         let Some(mut asked) = web.asked_by_the_form(&row.request) else {
             return Err(Failure::Other(anyhow::anyhow!(
                 "saved search {id} is no search a page can ask: open it with an agent's search \
@@ -3243,15 +3288,37 @@ async fn saved_set(
     let written = blocking(&web, move |web| -> Result<_, Failure> {
         taken(
             &fields,
-            &["id", "if_revision", "name", "text", "realm", "membership"],
+            &[
+                "id",
+                "if_revision",
+                "name",
+                "text",
+                "trade",
+                "realm",
+                "membership",
+            ],
             "a saved search's write",
         )?;
         let field = |name: &str| sent(&fields, name).map(str::to_string);
+        // the source, one of the two (C194): a site search as sent, which
+        // the verbs store as given, a JSON text as its object
+        let query = match (field("text"), field("trade")) {
+            (Some(_), Some(_)) => {
+                return Err(Failure::Usage(
+                    "a saved search's write sends `text` or `trade`, never both: a search is a \
+                     query or a site search"
+                        .to_string(),
+                ));
+            }
+            (Some(text), None) => Some(SavedQuery::Text(text)),
+            (None, Some(trade)) => Some(SavedQuery::Trade(Value::String(trade))),
+            (None, None) => None,
+        };
         let set = saved::Set {
             id: field("id"),
             expect: Expect::or(revision_sent(&fields)?, Expect::Create),
             name: field("name"),
-            text: field("text"),
+            query,
             realm: field("realm"),
             membership: field("membership"),
         };

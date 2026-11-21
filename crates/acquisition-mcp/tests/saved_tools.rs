@@ -290,6 +290,83 @@ fn each_saved_write_is_the_receipt_the_cli_prints() {
     assert!(no_daemon_appeared(&by_mcp.0));
 }
 
+/// C194 over MCP: `saved_search_set` takes `trade` as `search` takes
+/// it, a URL as a string or the query JSON as an object, and hands it on
+/// whole, its receipt the one `acq saved set --trade` prints; the object
+/// is stored as sent, a key the translation does not run kept; `search`
+/// with `saved` runs the source, its answer the one `search` gives the
+/// site search itself; a clear's undo, sent back, puts the site search
+/// back; `text` and `trade` together are refused as arguments.
+#[test]
+fn c194_a_site_search_saved_by_an_agent_keeps_its_source_and_runs_with_its_report() {
+    let (by_mcp, by_acq) = (
+        scratch("mcp-saved-trade-mcp"),
+        scratch("mcp-saved-trade-cli"),
+    );
+    search_tools::seed(&by_mcp.0);
+    search_tools::seed(&by_acq.0);
+    let mut mcp = Mcp::start(&by_mcp.0, &[]);
+    let url = format!(
+        "https://www.pathofexile.com/trade/search/Standard/{}",
+        search_tools::TRADE_ID
+    );
+    let envelope = json!({ "league": "Standard", "query": {
+        "status": { "option": "online" },
+        "stats": [{ "type": "and", "filters": [{ "id": "explicit.stat_9999999999" }] }]
+    } });
+    let file = by_acq.0.join("site.json");
+    std::fs::write(&file, envelope.to_string()).unwrap();
+    for (trade, flags) in [
+        (json!(url), vec!["--trade", url.as_str()]),
+        (
+            envelope.clone(),
+            vec!["--realm", "pc", "--trade-file", file.to_str().unwrap()],
+        ),
+    ] {
+        let mut args = json!({ "name": "site", "trade": trade });
+        if trade.is_object() {
+            args["realm"] = json!("pc");
+        }
+        let created = answered(&mut mcp, "saved_search_set", args);
+        let by_cli = printed(
+            &by_acq.0,
+            &[&["saved", "set", "--name", "site"][..], &flags].concat(),
+        );
+        let (m, c) = (minted(&created), minted(&by_cli));
+        let (masked_tool, masked_cli) = (masked(&created, &[&m, &c]), masked(&by_cli, &[&m, &c]));
+        assert_eq!(
+            steady(masked_tool["written"].clone(), RECEIPT),
+            steady(masked_cli["written"].clone(), RECEIPT),
+            "{trade}"
+        );
+        assert_eq!(created["written"]["query"], json!({ "trade": trade }));
+        let ran = answered(&mut mcp, "search", json!({ "saved": m }));
+        let direct = answered(
+            &mut mcp,
+            "search",
+            json!({ "query": { "trade": trade }, "scope": { "realm": "pc" } }),
+        );
+        assert_eq!(ran["query"], direct["query"], "{trade}");
+        assert!(ran["query"]["trade"]["fidelity"].is_string(), "{ran}");
+        let cleared = answered(
+            &mut mcp,
+            "saved_search_clear",
+            json!({ "id": m, "if_revision": 1 }),
+        );
+        assert_eq!(cleared["undo"]["request"]["trade"], trade, "{cleared}");
+        let (ok, back) = sent(&mut mcp, "saved_search_clear", &cleared["undo"]);
+        assert!(ok, "{back}");
+        assert_eq!(back["written"]["query"], json!({ "trade": trade }));
+    }
+    refused(
+        &mut mcp,
+        "saved_search_set",
+        json!({ "name": "x", "text": "rarity=rare", "trade": url }),
+        "arguments",
+    );
+    assert!(no_daemon_appeared(&by_mcp.0));
+}
+
 /// The refusals the CLI can make for the same request are its documents,
 /// each spelled for this server: `saved_search_not_found` on a name and
 /// on a cleared id, `ambiguous_saved_search` from `saved_searches` and

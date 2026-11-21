@@ -28,13 +28,13 @@ GET saved <four rows and one this build cannot read>
 <tr><td><a href="/<token>/saved/open?id=0000000000a4">belts</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a4</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a4"><input type="hidden" name="if_revision" value="1"><input name="name" value="belts" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a4">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=0000000000a3">boots</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a3</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a3"><input type="hidden" name="if_revision" value="1"><input name="name" value="boots" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a3">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=0000000000a2">rings</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a2</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><input name="name" value="rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a2">Clear</a></td></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
 </table>
 
 </main>
 
 GET search?<the ring search>
-# holds "/saved\"><input type=\"hidden\" name=\"text\" value=\"league=Standard"
+# holds "/saved\"><input type=\"hidden\" name=\"trade\" value=\"{&quot;league&quot;:&quot;Standard&quot;"
 # holds "name=\"membership\" value=\"live\""
 # holds ">Save this search</button>"
 <meta name="basis" content="{&quot;answer&quot;:{&quot;store&quot;:&quot;<store>&quot;,&quot;account&quot;:&quot;u-web&quot;,&quot;build&quot;:&quot;<build>&quot;,&quot;snapshot&quot;:{&quot;response&quot;:7,&quot;at&quot;:50,&quot;facts_version&quot;:9},&quot;derivation&quot;:12,&quot;classes&quot;:1,&quot;categories&quot;:1,&quot;beast_colours&quot;:1,&quot;totals&quot;:6,&quot;defences&quot;:1,&quot;properties&quot;:1,&quot;intent&quot;:0,&quot;currency&quot;:1,&quot;notes&quot;:2}}">
@@ -96,7 +96,8 @@ basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and p
 </p>
 <form class="query-box" method="get" action="search" data-count><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><label class="control">Show <select name="view.limit"><option value="">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Results as <select name="view.fields"><option value="" selected>cards</option><option value="icon">a table</option></select></label> <button type="submit">Run this query</button> <span class="count">Matches: <output data-count="matched">–</output><span hidden> · <output data-count="undecided">–</output> undecided</span></span></form>
 <div class="save">
-<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="text" value="league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
+<p class="save-note">Saved, this keeps the site&#39;s search as given, translated again each time it opens.</p>
+<form class="write" method="post" action="/<token>/saved"><input type="hidden" name="trade" value="{&quot;league&quot;:&quot;Standard&quot;,&quot;query&quot;:{&quot;filters&quot;:{&quot;type_filters&quot;:{&quot;filters&quot;:{&quot;category&quot;:{&quot;option&quot;:&quot;accessory.ring&quot;}}}},&quot;stats&quot;:[{&quot;type&quot;:&quot;and&quot;,&quot;filters&quot;:[{&quot;id&quot;:&quot;explicit.stat_3299347043&quot;,&quot;value&quot;:{&quot;min&quot;:70}}]}]}}"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><label class="filter-title">Name <input name="name" value="" aria-label="the search's name"></label> <button type="submit">Save this search</button></form>
 </div>
 
 </main>
@@ -119,7 +120,7 @@ GET saved <after the create>
 <tr><td><a href="/<token>/saved/open?id=0000000000a3">boots</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a3</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a3"><input type="hidden" name="if_revision" value="1"><input name="name" value="boots" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a3">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=<created>">my rings</a></td><td>pc · live</td><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>1</td><td><age> ago via web</td><td><created></td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="<created>"><input type="hidden" name="if_revision" value="1"><input name="name" value="my rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=<created>">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=0000000000a2">rings</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a2</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><input name="name" value="rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a2">Clear</a></td></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
 </table>
 
 </main>
@@ -140,7 +141,7 @@ GET saved <after the rename>
 <tr><td><a href="/<token>/saved/open?id=0000000000a3">boots</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a3</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a3"><input type="hidden" name="if_revision" value="1"><input name="name" value="boots" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a3">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=<created>">kept rings</a></td><td>pc · live</td><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>2</td><td><age> ago via web</td><td><created></td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="<created>"><input type="hidden" name="if_revision" value="2"><input name="name" value="kept rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=<created>">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=0000000000a2">rings</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a2</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><input name="name" value="rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a2">Clear</a></td></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
 </table>
 
 </main>
@@ -178,7 +179,7 @@ GET saved <after the clear>
 <tr><td><a href="/<token>/saved/open?id=0000000000a4">belts</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a4</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a4"><input type="hidden" name="if_revision" value="1"><input name="name" value="belts" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a4">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=<created>">kept rings</a></td><td>pc · live</td><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>2</td><td><age> ago via web</td><td><created></td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="<created>"><input type="hidden" name="if_revision" value="2"><input name="name" value="kept rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=<created>">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=0000000000a2">rings</a></td><td>pc · live</td><td>rarity=rare</td><td>1</td><td><age> ago via test</td><td>0000000000a2</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="1"><input name="name" value="rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a2">Clear</a></td></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>1</td><td></td><td>0000000000f1</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000f1">Clear</a></td></tr>
 </table>
 
 </main>
@@ -549,7 +550,7 @@ saved search 0000000000a2 stands at revision 4, not the revision the write named
 <tr><td>unique rings</td><td>pc · live</td><td>rarity=unique</td><td>4</td><td><age> ago via cli</td><td>0000000000a2</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="name" value="rings"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><button type="submit">the same write over revision 4, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a2"><input type="hidden" name="if_revision" value="4"><input type="hidden" name="name" value="rings"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 4, the row as it stands</button></form></li>
 </ul>
 </div>
 
@@ -649,7 +650,7 @@ GET saved/clear?id=0000000000f1 <the row this build cannot read, asked first>
 <p>Clear the saved search 0000000000f1? It is this store&#39;s saved search, whoever saved it: clearing it takes it off the list for every page, agent and terminal that reads this store.</p>
 <table class="saved">
 <tr><th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>1</td><td></td><td>0000000000f1</td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>1</td><td></td><td>0000000000f1</td></tr>
 </table>
 <form class="write" method="post" action="/<token>/saved/clear"><input type="hidden" name="id" value="0000000000f1"><input type="hidden" name="if_revision" value="1"><button type="submit">Clear</button></form> <a href="/<token>/saved">Keep it</a>
 
@@ -686,10 +687,10 @@ saved search 0000000000a1 stands at revision 2, not the revision the write named
 <p>It stands now as:</p>
 <table class="saved">
 <tr><th>Name</th><th>Scope</th><th>Query</th><th>Revision</th><th>Last written</th><th>Id</th></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>2</td><td></td><td>0000000000a1</td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>2</td><td></td><td>0000000000a1</td></tr>
 </table>
 <ul class="offers">
-<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="amulets"><input type="hidden" name="text" value="rarity=rare"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
+<li><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="2"><input type="hidden" name="name" value="amulets"><input type="hidden" name="realm" value="pc"><input type="hidden" name="membership" value="live"><input type="hidden" name="text" value="rarity=rare"><button type="submit">the same write over revision 2, the row as it stands</button></form></li>
 </ul>
 </div>
 
@@ -814,7 +815,7 @@ GET saved/open?id=0000000000a4 <replaced by a row this build cannot read>
 <main>
 <h1>Saved search</h1>
 <div class="refusal"><pre>
-saved search 0000000000a4 at revision 2 holds a value this build cannot read (saved-search declares version 2, newer than this build&#39;s v1); a page cannot open it
+saved search 0000000000a4 at revision 2 holds a value this build cannot read (saved-search declares version 3, newer than this build&#39;s v2); a page cannot open it
 </pre>
 <ul class="offers">
 <li><a href="/<token>/saved">the saved searches, each with its id</a></li>
@@ -834,7 +835,7 @@ GET saved <its offer followed>
 <tr><td><a href="/<token>/saved/open?id=0000000000a1">amulets</a></td><td>pc · live</td><td>rarity=rare</td><td>3</td><td><age> ago via web</td><td>0000000000a1</td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="0000000000a1"><input type="hidden" name="if_revision" value="3"><input name="name" value="amulets" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=0000000000a1">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=<everything>">everything</a></td><td>pc · live</td><td></td><td>1</td><td><age> ago via web</td><td><everything></td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="<everything>"><input type="hidden" name="if_revision" value="1"><input name="name" value="everything" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=<everything>">Clear</a></td></tr>
 <tr><td><a href="/<token>/saved/open?id=<created>">kept rings</a></td><td>pc · live</td><td>league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</td><td>2</td><td><age> ago via web</td><td><created></td><td><form class="write" method="post" action="/<token>/saved"><input type="hidden" name="id" value="<created>"><input type="hidden" name="if_revision" value="2"><input name="name" value="kept rings" aria-label="the new name"> <button type="submit">Rename</button></form><a class="ask" href="/<token>/saved/clear?id=<created>">Clear</a></td></tr>
-<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 2, newer than this build&#39;s v1</td><td>2</td><td></td><td>0000000000a4</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000a4">Clear</a></td></tr>
+<tr><td>?</td><td colspan="2">this build cannot read it: saved-search declares version 3, newer than this build&#39;s v2</td><td>2</td><td></td><td>0000000000a4</td><td><a class="ask" href="/<token>/saved/clear?id=0000000000a4">Clear</a></td></tr>
 </table>
 
 </main>

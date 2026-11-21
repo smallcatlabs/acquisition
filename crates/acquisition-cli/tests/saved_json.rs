@@ -53,12 +53,41 @@ pub(crate) fn put(mock: &Path, id: &str, name: &str) {
         .put::<SavedSearch>(
             SAVED_SEARCH_SCOPE,
             id,
-            &json!({ "version": 1, "name": name, "text": "rarity=rare",
+            &json!({ "version": 2, "name": name, "query": { "text": "rarity=rare" },
                      "scope": { "realm": "pc", "membership": "live" } }),
             None,
             &Provenance::via("test"),
         )
         .unwrap();
+}
+
+/// A saved search as a build before C194 wrote it, at version 1, the
+/// text alone: through the store's door under a kind of that version.
+pub(crate) fn put_v1(mock: &Path, id: &str, name: &str, text: &str) {
+    User::open_for(mock)
+        .unwrap()
+        .put::<OlderSaved>(
+            SAVED_SEARCH_SCOPE,
+            id,
+            &json!({ "version": 1, "name": name, "text": text,
+                     "scope": { "realm": "pc", "membership": "live" } }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
+}
+
+/// The saved search's kind as a build before C194 wrote it.
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+pub(crate) struct OlderSaved(pub(crate) Value);
+
+impl acquisition_store::IntentValue for OlderSaved {
+    const KIND: &'static str = "saved-search";
+    const VERSION: i64 = 1;
+    fn parse(value: &Value) -> Result<Self, String> {
+        Ok(OlderSaved(value.clone()))
+    }
 }
 
 /// The world of `price_json.rs`: one account, its pc facts.
@@ -192,6 +221,32 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
         &["saved", "clear", &id],
         &["cleared at revision 4", "--if-revision 0", "puts it back"],
     );
+    // a site search, kept as given and read at each listing (C194); a
+    // row a build before it wrote, the text alone, beside it
+    let url = crate::search_json::trade_url();
+    t.placeholder(crate::search_json::TRADE_ID, "trade-id");
+    t.run(
+        &["saved", "set", "--name", "life", "--trade", &url],
+        &[
+            "life over pc live: league=Standard",
+            "(from a site search: partial)",
+        ],
+    );
+    let life = id_named(&base, "life");
+    t.placeholder(&life, "life-id");
+    t.run(
+        &["saved", "show", &life],
+        &["(from a site search: partial)", "site search: https://"],
+    );
+    put_v1(&mock, "0000000000a4", "old", "rarity=rare   class:rings");
+    t.run(
+        &["saved", "list"],
+        &["old", "rarity=rare class:rings", "life"],
+    );
+    t.run(
+        &["search", "--saved", &life, "--limit", "1"],
+        &["trade   ", "not run"],
+    );
     // a second account holding xbox, and a create naming no realm
     // and no account is refused for the realm, each held offered
     acquisition_store::Index::load(&mock)
@@ -263,6 +318,59 @@ fn saved_searches_are_listed_shown_set_and_cleared_at_a_terminal() {
     );
     assert_eq!(out.status.code(), Some(1));
     golden(file!(), "list_show_set_and_clear", &t);
+}
+
+/// C194 at a terminal: `--trade` and `--trade-file` hand the site
+/// search on as typed, a JSON file's query stored as its object with a
+/// key the translation does not run; `--saved` runs the row's source,
+/// its answer carrying the translation's report as `--trade` gives it;
+/// a version 1 row runs as `acq search` runs its text.
+#[test]
+fn c194_a_site_search_saved_at_a_terminal_keeps_its_source_and_runs_with_its_report() {
+    let scratch = harness::scratch("savedtrade");
+    let base = scratch.0.clone();
+    let mock = world(&base);
+    let url = crate::search_json::trade_url();
+    let envelope = json!({ "league": "Standard", "query": {
+        "status": { "option": "online" },
+        "stats": [{ "type": "and", "filters": [{ "id": "explicit.stat_9999999999" }] }]
+    } });
+    let file = base.join("site.json");
+    std::fs::write(&file, envelope.to_string()).unwrap();
+    for (args, stored) in [
+        (vec!["--trade", url.as_str()], json!(url)),
+        (
+            vec!["--trade-file", file.to_str().unwrap()],
+            envelope.clone(),
+        ),
+    ] {
+        let mut set = vec!["saved", "set", "--name", "site", "--realm", "pc"];
+        if args[0] == "--trade" {
+            set.truncate(4);
+        }
+        set.extend(&args);
+        let written = json_of(&base, &set);
+        let row = &written["written"];
+        assert_eq!(row["query"], json!({ "trade": stored }), "{written}");
+        assert_eq!(row["scope"]["realm"], "pc", "{written}");
+        let id = written["target"]["id"].as_str().unwrap().to_string();
+        let saved = json_of(&base, &["search", "--saved", &id]);
+        let typed = json_of(&base, &[&["search"][..], &args].concat());
+        assert_eq!(saved["query"], typed["query"], "{id}");
+        assert!(saved["query"]["trade"]["fidelity"].is_string(), "{saved}");
+        assert_eq!(saved["query"]["text"], row["text"], "{saved}");
+        // its undo, run as printed, clears it
+        let undone = run_printed(&base, &harness::offered_line(&written["undo"]));
+        assert_eq!(undone["written"], Value::Null, "{undone}");
+    }
+    put_v1(&mock, "0000000000b4", "old", "rarity=rare   class:rings");
+    assert_eq!(
+        json_of(&base, &["search", "--saved", "0000000000b4"])["query"],
+        json_of(
+            &base,
+            &["search", "--realm", "pc", "rarity=rare class:rings"]
+        )["query"]
+    );
 }
 
 /// Every command a receipt or a refusal of `acq saved` prints runs as
@@ -509,7 +617,7 @@ fn the_printed_run_carries_the_account_and_every_offer_runs_with_two_accounts() 
         .put::<NewerSaved>(
             SAVED_SEARCH_SCOPE,
             &id,
-            &json!({ "version": 2, "name": "x", "text": "x", "scope": {} }),
+            &json!({ "version": 3, "name": "x", "query": { "text": "x" }, "scope": {} }),
             Some(2),
             &Provenance::via("future"),
         )
@@ -548,7 +656,7 @@ pub(crate) struct NewerSaved(pub(crate) Value);
 
 impl acquisition_store::IntentValue for NewerSaved {
     const KIND: &'static str = "saved-search";
-    const VERSION: i64 = 2;
+    const VERSION: i64 = 3;
     fn parse(value: &Value) -> Result<Self, String> {
         Ok(NewerSaved(value.clone()))
     }

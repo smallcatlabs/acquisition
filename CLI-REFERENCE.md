@@ -719,7 +719,7 @@ Usage: acq saved [OPTIONS] [COMMAND]
 Commands:
   list   List the saved searches (the default): ten by name, each with its scope, its query, its revision and its id, the count of all beside; --limit lists N, --expand every one. A row this build cannot read is listed by its id and why
   show   One saved search, by its id or its name: its scope, its query, its revision and who wrote it. A name several share is refused, each offered by its id
-  set    Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
+  set    Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query or a site search, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. A query is stored as the language prints it; a site search (`--trade`, `--trade-file`) is stored as given and translated each time the search is read, so it lists and runs with its report. Either is refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
   clear  Remove one saved search. Prints what it removed and the command that puts it back
   help   Print this message or the help of the given subcommand(s)
 
@@ -757,7 +757,7 @@ Options:
 ## `acq saved set`
 
 ```text
-Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. The query is stored as the language prints it, and refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
+Save a search, or change one. A new one is `--name` and the query, with no `--id`: its realm is `--realm`, else the one the facts hold, the account's named with `--account` or else every known account's (`all` where they hold none; over several it is required), its membership `--membership`, else live. A change is `--id` and what it changes — a query or a site search, `--name` (a rename), `--realm`, `--membership` — the rest kept as the row stands. A query is stored as the language prints it; a site search (`--trade`, `--trade-file`) is stored as given and translated each time the search is read, so it lists and runs with its report. Either is refused before anything is written where it does not read. Prints what it replaced and the command that puts it back
 
 Usage: acq saved set [OPTIONS] [QUERY]
 
@@ -768,6 +768,8 @@ Options:
       --id <ID>                        The saved search to change, by its id (`acq saved list`)
       --if-revision <IF_REVISION>      With --id, only write over exactly this revision (what `acq saved show` printed when you reviewed it); refused naming the current one otherwise. 0 writes the whole search at the id only where none stands there, as an undo of a clear does. Without it the write replaces the revision that stands — though a write racing in between still conflicts rather than being clobbered
       --name <NAME>                    The name: one to sixty-four characters, no line break. A label, not an identity: two searches may share one
+      --trade <URL|ID>                 A trade site search in place of a query, as `acq search --trade` takes it: its URL, its id or its query JSON. A URL's realm is the saved search's, so `--realm` may be left out
+      --trade-file <FILE|->            `--trade`, read from a file or from stdin with `-`: the query JSON as the site posts it, stored as its object
       --realm <REALM>                  pc, xbox, sony, poe2, or all
       --membership <live|all|removed>  live, all or removed, as `acq search --membership` reads them
   -h, --help                           Print help
