@@ -73,16 +73,16 @@ pub fn original_temp_dir() -> &'static Path {
     ORIGINAL.get_or_init(std::env::temp_dir)
 }
 
-/// A fresh scratch directory directly under the original temp dir, named
-/// by `tag`, the process and a counter, so tests in one binary never
-/// share one and a process id that comes round again never opens what an
-/// earlier run left. The tag is clipped to its first eight characters: a
-/// daemon's socket lands at `<scratch>/tmp/acq-<uid>/<12 hex>.sock`, and on
-/// macOS, whose temp dir is 49 bytes deep, a longer name pushes that past
-/// the 103-byte cap (a fourteen-letter tag did, once the counter joined).
+/// A fresh scratch directory directly under the original temp dir, named by
+/// `tag`, the process and a counter, so tests in one binary never share one
+/// and a process id that comes round again never opens what an earlier run
+/// left. The tag is clipped to its first eight characters: a daemon's
+/// socket lands at `<scratch>/tmp/acq-<uid>/<12 hex>.sock`, and on macOS,
+/// whose temp dir is 49 bytes deep, a longer name pushes that past the
+/// 103-byte cap.
 pub fn scratch(tag: &str) -> Scratch {
     static N: AtomicU64 = AtomicU64::new(0);
-    // the one instant, pinned before a world exists to stamp (#175)
+    // the one instant, pinned before a world exists to stamp
     now();
     let tag: String = tag.chars().take(8).collect();
     let base = original_temp_dir().join(format!(
@@ -150,22 +150,21 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// removed (`None`), then the values below. `world` is the store root
 /// (its socket derives from it, C83); the runtime and log directories sit
 /// under `base`: the temp directory is named for each platform's reader
-/// ([`TEMP_VARS`]),
-/// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
-/// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
-/// share the runner's own temp directory there. None of them moves the
-/// real-mode lock (C132, [`scratch_tmp`]). The liveness deadlines a
-/// frontend runs under, the handshake's, a spawned daemon's bind, the
-/// annotation file's wait and the fact store's and job queue's wait, are
-/// widened to 60 s, so a starved runner
-/// cannot fail a healthy path (C137, the deadline's contract is its
-/// expiry behaviour); a test that pins one sets its own value after this
-/// list. `MSYSTEM` is removed, so the commands a child prints are quoted
-/// for the platform's declared shell, PowerShell on Windows, whatever
-/// shell runs the tests (C156: CI's Windows gate runs under Git Bash); a
-/// test of the Git Bash quoting sets it after this list. `ACQ_NOW` is
-/// [`now`], this test process's one instant, so every child reads the
-/// same now and two runs compared whole cannot straddle a second (#175).
+/// ([`TEMP_VARS`]), `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and
+/// `TEMP` and `TMP`, which `std::env::temp_dir` reads on Windows, so no
+/// two tests' daemons share the runner's own temp directory there. None
+/// of them moves the real-mode lock (C132, [`scratch_tmp`]). The liveness
+/// deadlines a frontend runs under, the handshake's, a spawned daemon's
+/// bind, the annotation file's wait and the fact store's and job queue's
+/// wait, are widened to 60 s, so a starved runner cannot fail a healthy
+/// path (C137, the deadline's contract is its expiry behaviour); a test
+/// that pins one sets its own value after this list. `MSYSTEM` is
+/// removed, so the commands a child prints are quoted for the platform's
+/// declared shell, PowerShell on Windows, whatever shell runs the tests
+/// (C156: CI's Windows gate runs under Git Bash); a test of the Git Bash
+/// quoting sets it after this list. `ACQ_NOW` is [`now`], this test
+/// process's one instant, so every child reads the same now and two runs
+/// compared whole cannot straddle a second.
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
@@ -200,11 +199,11 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
 /// takes its times from it rather than from `acquisition_store::now()`,
 /// which `tools/arch-check.sh` refuses in process-test code: a time the
 /// test stages and the age a child says of it are measured against one
-/// clock (#175). nextest runs a test per process (C122), so each test
-/// has its own. The test process's own store writes read it too: it is
-/// pinned as the store's now in this process (`pin_now`), and [`scratch`]
-/// takes it before any world exists, so a row the test seeds is stamped
-/// at the instant its children read.
+/// clock. nextest runs a test per process (C122), so each test has its
+/// own. The test process's own store writes read it too: it is pinned as
+/// the store's now in this process (`pin_now`), and [`scratch`] takes it
+/// before any world exists, so a row the test seeds is stamped at the
+/// instant its children read.
 pub fn now() -> i64 {
     static NOW: OnceLock<i64> = OnceLock::new();
     *NOW.get_or_init(|| {

@@ -117,35 +117,28 @@ use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
 /// not, and then this moves — never for a default bound, a count beside
-/// a list or an added optional field (the owner's word).
-/// The shape is pinned by `reference/shop-render-schema-5.json`
-/// (`the_render_json_matches_the_committed_fixture`). Within 5
-/// (C53's read economy): `posted`, `left_out` and
-/// each list of `freshness` hold the store's one bound of ten
+/// a list or an added optional field (the owner's word). The shape is
+/// pinned by `reference/shop-render-schema-5.json`
+/// (`the_render_json_matches_the_committed_fixture`). Version 5:
+/// `Posted.title`, the page's spoiler title; `left_out` lists the items
+/// left off for a reason, at most fifty of them, the blocked first, with
+/// `left_out_total` counting them all, unless expanded — unbounded, they
+/// reached 160 KB — and leaves out the ones nothing applies to unless
+/// asked ([`RenderOptions::expand`]), saying which in `off_page_listed` —
+/// listed whole, they reached 5 MB; `posted`
+/// and each list of `freshness` hold the store's one bound of ten
 /// (`acquisition_store::bound::LISTED`) unless expanded, each counted
 /// whole beside it (`posted_total`, `left_out_total`, `uncovered_total`,
 /// `stale_total`, `position_before_listing_total`) — unbounded, a
-/// 2,800-character page's document was 34,779 bytes; and
-/// beside `freshness.oldest_stale_seconds` its words,
-/// `oldest_stale_seconds_age` (C53's ages); and
-/// (C162: one derivation over a set of places) the
-/// posted items' locations' facts, `freshness.facts`, whatever the
-/// policy says, with the two listings' ages beside the header's bases
-/// (`listing.stash_listing_fetched_at_age`,
-/// `listing.character_listing_fetched_at_age`); and
-/// (C163: every time a document carries has its words beside it)
-/// `listing.taken_at_age` and `rendered_at_age`, at the render's time.
-/// **5**:
-/// `left_out` lists at most fifty items, the blocked
-/// first, with `left_out_total` counting them all, unless expanded —
-/// unbounded, they reached 160 KB. **4**:
-/// `left_out` lists the items left off for a reason and
-/// leaves out the ones nothing applies to unless asked
-/// ([`RenderOptions::expand`]), saying which in `off_page_listed` —
-/// listed whole, they reached 5 MB. **3**: the owner's
-/// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
-/// staleness over the stale set only; neither 1 nor 2 reached a
-/// consumer.
+/// 2,800-character page's document was 34,779 bytes; beside
+/// `freshness.oldest_stale_seconds` its words, `oldest_stale_seconds_age`
+/// (C53's ages); the posted items' locations' facts, `freshness.facts`,
+/// whatever the policy says, with the two listings' ages beside the
+/// header's bases (`listing.stash_listing_fetched_at_age`,
+/// `listing.character_listing_fetched_at_age`; C162, one derivation over
+/// a set of places); and `listing.taken_at_age` and `rendered_at_age`, at
+/// the render's time (C163, every time a document carries has its words
+/// beside it).
 pub const SHOP_SCHEMA: u32 = 5;
 
 /// The forum's hard post limit in characters (T23); the C++ app's

@@ -3,7 +3,7 @@
 //! carries the prepared request to the provider and brings back what it
 //! answered. This crate holds the seam's neutral types and the one
 //! production transport, the one HTTP client in the workspace's
-//! production graph; the daemon alone links it (C1 as amended, #160).
+//! production graph; the daemon alone links it (C1).
 //!
 //! A [`Prepared`] request is a value: its method, its URL as the caller
 //! gave it, its headers and, for a POST, its form. The choke point builds
@@ -28,14 +28,14 @@
 //! no dependency on reqwest of its own, can name it only through what this
 //! crate exports. The daemon's choke point is the one caller of
 //! [`Production::new`], held by a spelling check of the type's name
-//! (`tools/arch-check.sh` check 15, #216), which guards a slip, not an
-//! adversary. One property is held by review, by the owner's ruling on
-//! #160, and by no check: this crate's public API exports no reqwest
-//! item, no re-export, alias or type naming it, so the client stays
-//! reachable only through [`Transport`]. The public items, every one read
-//! at any change to this crate (`REVIEW-CHECKLIST.md`, network): [`Pending`]
-//! (a boxed future); [`Prepared`] with its fields `method`, `url`, `headers`
-//! and `form` and [`Prepared::new`]; [`Answer`] with its fields `status`,
+//! (`tools/arch-check.sh` check 15), which guards a slip, not an adversary.
+//! One property is held by review, by the owner's ruling on #160, and by
+//! no check: this crate's public API exports no reqwest item, no
+//! re-export, alias or type naming it, so the client stays reachable only
+//! through [`Transport`]. The public items, every one read at any change
+//! to this crate (`REVIEW-CHECKLIST.md`, network): [`Pending`] (a boxed
+//! future); [`Prepared`] with its fields `method`, `url`, `headers` and
+//! `form` and [`Prepared::new`]; [`Answer`] with its fields `status`,
 //! `headers` and `body`; [`Transport`] and its `send`; [`Production`] (no
 //! public field) and [`Production::new`]. Each names `http`'s types and
 //! std's, none of reqwest's.
@@ -66,7 +66,7 @@ pub type Pending<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// A request as the choke point prepared it, for a transport to carry.
 /// No `Debug`: its headers may carry a bearer and its form a token, and
-/// a value that cannot be formatted names neither (#113).
+/// a value that cannot be formatted names neither.
 pub struct Prepared {
     pub method: Method,
     /// The URL as the caller gave it; one that does not parse fails in

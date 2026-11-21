@@ -11,21 +11,20 @@
 //! judgement of it (C10, the single-version handshake; C84, the two
 //! identity values), delivered once per handshake as [`Event::Identified`].
 //!
-//! The criterion that draws the machine's edge (`4-0-design.md` §4, the
-//! owner's ruling of 2026-10-31): a wait enters the machine when its
-//! ordering against another event is a decision of the door, or when its
-//! only pin asserts elapsed time; a wait whose interleavings are already
-//! forced without relying on elapsed time, and whose outcome the door
-//! takes as one value, stays a driver effect with its bound inside. So
-//! the hello's deadline is a timer (it orders against the reply, and the
-//! loser is the verdict: C86, the handshake deadline), the startup
-//! deadline is a timer the machine consults after a spawn and after each
-//! poll of the child (it orders against the child's exit), and the bind
-//! poll and the settle after a replace are pauses the machine orders.
-//! The stop's wait for the daemon to go ([`Effect::Stop`]) and the look
-//! for a spawn race's winner ([`Effect::LookForWinner`]) are effects:
-//! their own pins force their tie and their lateness, and the door takes
-//! each as one value.
+//! The criterion that draws the machine's edge (C157): a wait enters the
+//! machine when its ordering against another event is a decision of the
+//! door, or when its only pin asserts elapsed time; a wait whose
+//! interleavings are already forced without relying on elapsed time, and
+//! whose outcome the door takes as one value, stays a driver effect with
+//! its bound inside. So the hello's deadline is a timer (it orders
+//! against the reply, and the loser is the verdict: C86, the handshake
+//! deadline), the startup deadline is a timer the machine consults after
+//! a spawn and after each poll of the child (it orders against the
+//! child's exit), and the bind poll and the settle after a replace are
+//! pauses the machine orders. The stop's wait for the daemon to go
+//! ([`Effect::Stop`]) and the look for a spawn race's winner
+//! ([`Effect::LookForWinner`]) are effects: their own pins force their
+//! tie and their lateness, and the door takes each as one value.
 //!
 //! The policy is read once, at the door's start: the caller's options,
 //! `ACQ_NO_SPAWN` and whether a human is present (C88, a human starts a
@@ -184,7 +183,7 @@ enum Stopping {
     /// To replace a mismatch.
     ToReplace,
     /// The daemon this door spawned, judged another build after a
-    /// respawn (#116).
+    /// respawn.
     AfterRespawn,
     /// `daemon stop` asked.
     Asked,
@@ -436,7 +435,7 @@ impl Machine {
             if let Some(words) = self.stop_failed.take() {
                 return self.report(Outcome::NotReplaced(NotReplaced::StopFailed(words)));
             }
-            // #116: the daemon this door spawned, still another build, is
+            // The daemon this door spawned, still another build, is
             // stopped before the refusal; another process's is left.
             if started_here {
                 return self.stop(Stopping::AfterRespawn);
@@ -470,7 +469,7 @@ impl Machine {
                 }))
             }
             // A failed stop is kept (C147): the next look decides. An
-            // acknowledged one is no failure here (#116's review).
+            // acknowledged one is no failure here.
             Stopping::ToReplace => {
                 self.stop_failed = stopped.err();
                 self.respawned = true;
@@ -1097,7 +1096,7 @@ mod tests {
         );
         rows.push(row("use: a stop that failed on the replace path is reported when the daemon is still there", script, expect));
         // ... and cleared when it finds nothing: the respawn goes ahead,
-        // and its child judged another build is stopped as #116 says.
+        // and its child judged another build is stopped.
         let (script, expect) = with(
             (failed_script, failed_expect),
             vec![
@@ -1120,7 +1119,7 @@ mod tests {
             ],
         );
         rows.push(row("use: a stop that failed on the replace path is cleared when the daemon went, and the respawn goes ahead", script, expect));
-        // A second mismatch after a respawn (#116).
+        // A second mismatch after a respawn.
         let (script, expect) = with(
             respawned(stale(CHILD)),
             vec![Event::Stopped(Stopped::Acknowledged)],

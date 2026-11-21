@@ -14,17 +14,15 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! Extracted from `acquisition-core` (now `acquisition-daemon`) as commit 1
-//! of the daemon split (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step ledger; the design
-//! is the packet, note 18 §2.1 at `decda84e`). Since step 4 the
-//! revision's inputs are the contract alone — this crate and the store —
-//! so a daemon-only edit moves the daemon artifact and nothing here.
+//! The revision's inputs are the contract alone — this crate and the
+//! store — so a daemon-only edit moves the daemon artifact and nothing
+//! here.
 
 // The lint ratchet (C47, "Panics are for broken internal invariants
-// only"; ruled for this crate 2026-09-11): the wire crate's production
-// code panics on nothing external — a malformed frame or document is a
-// structured error. Tests may unwrap; `build.rs` is a separate target the
-// attribute does not reach, and panics on purpose.
+// only"): the wire crate's production code panics on nothing external — a
+// malformed frame or document is a structured error. Tests may unwrap;
+// `build.rs` is a separate target the attribute does not reach, and
+// panics on purpose.
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod artifact;
@@ -35,11 +33,10 @@ pub mod realm;
 pub mod status;
 
 /// The package version. Not the handshake identity on its own: it moves
-/// only at a release (it sat at `0.0.1` across the playground), so comparing
-/// it lets a daemon from an older build serve a newer client silently (review
-/// finding 2026-09-02: a pre-realm daemon accepted a console job and sent
-/// it to pc). [`CONTRACT_REVISION`] is what the handshake compares, with
-/// the daemon artifact beside it (C84).
+/// only at a release, so comparing it lets a daemon from an older build
+/// serve a newer client silently (a daemon older than realms would accept a
+/// console job and send it to pc). [`CONTRACT_REVISION`] is what the
+/// handshake compares, with the daemon artifact beside it (C84).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The shared-contract revision (C84): twelve hex digits of a digest over

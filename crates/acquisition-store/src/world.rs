@@ -13,8 +13,7 @@
 //!
 //! # Rulings held here
 //!
-//! - **C83** (a world is a canonical root), as built in the daemon
-//!   split's steps 5 and 6:
+//! - **C83** (a world is a canonical root):
 //!   - **The root.** [`intended_root`] is the path the environment names:
 //!     `ACQ_STORE_DIR` (a relative value made absolute against the current
 //!     directory, so the same spelling crosses into a spawned `acqd`), else
@@ -33,7 +32,7 @@
 //!     which a client compares with its own before any other dimension. A
 //!     root that is not valid UTF-8 is refused rather than carried lossily:
 //!     the name crosses the wire as a string, and two distinct byte paths
-//!     must never read as one world (review 2026-09-11).
+//!     must never read as one world.
 //!   - **The world lock.** [`World::lock_path`] is `<root>/daemon.lock`;
 //!     [`Lock::acquire`] takes an exclusive advisory lock on it (`flock`,
 //!     through `std::fs::File::try_lock`) and writes the holder's pid into
@@ -86,8 +85,8 @@
 //!     points it into its evidence directory, where the ledger cites it —
 //!     and `0` disables it (`rails.rs`).
 //!   - **The socket.** [`World::socket_path`] is `<runtime>/<id>.sock` —
-//!     the world's twelve-hex id in the private per-user runtime directory
-//!     (the split's step 6). Nothing chooses it by hand, and two spellings
+//!     the world's twelve-hex id in the private per-user runtime directory.
+//!     Nothing chooses it by hand, and two spellings
 //!     of one root reach one socket because the id is the canonical root's. Short under the platform's defaults: the
 //!     runtime directory is `$XDG_RUNTIME_DIR` (`/run/user/<uid>`) or
 //!     macOS's fixed-shape `$TMPDIR`, so the whole path is about 75 bytes
@@ -106,9 +105,8 @@
 //!     door creates the root first, an observer reports absence.
 //! - **C112** (the endpoint derives from the world): on Unix the arm is
 //!   the socket under C83 above, in the private per-user runtime directory
-//!   a client verifies before it connects; the Windows arm, a named pipe
-//!   under a user-only ACL whose server's process user a client checks, is
-//!   step 0 of `PLATFORMS-SLICE.md` at `b6197a82`:
+//!   a client verifies before it connects; the Windows arm is a named pipe
+//!   under a user-only ACL whose server's process user a client checks:
 //!   - **The endpoint** is a named pipe, not a socket (C112;
 //!     [`World::socket_path`], `world_windows`).
 //!   - **The runtime directory** is `%TEMP%\acq` — per user, under the
@@ -524,7 +522,7 @@ pub fn file_id(file: &File) -> std::io::Result<(u64, u64)> {
 pub fn app_runtime_dir() -> std::io::Result<PathBuf> {
     let runtime = runtime_dir_path();
     // Nameable before it is made: a runtime directory in other bytes
-    // could not name a socket in any report (review 2026-09-11).
+    // could not name a socket in any report.
     if runtime.to_str().is_none() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -558,8 +556,8 @@ fn current_uid() -> u32 {
 /// if another user owns it, or if its mode is not exactly 0700 and
 /// cannot be made so — the pre-creation attack on a shared temp
 /// directory, where a path the attacker made first, or made loose
-/// between creation and a later chmod, would be used as ours (review
-/// 2026-09-11, twice). On a non-Unix platform only the existence check
+/// between creation and a later chmod, would be used as ours. On a
+/// non-Unix platform only the existence check
 /// is made. The checks after creation, never the create, are what hold
 /// that attack, so a create that meets AlreadyExists is not refused: it
 /// is two of our own starts at once (a cold CI runner's first tests),
@@ -1018,9 +1016,9 @@ pub struct RailsState {
 /// C190: one route's closure, as the world's rails state keeps it: the
 /// length of the run of invalid answers that closed it, the last one's
 /// status, when it closed, for how long and until when, in unix seconds
-/// on the daemon's wall clock. A `null` until, which #288's build wrote
-/// for a closure a person had to clear (withdrawn by #291), reads as a
-/// trial already due, so no daemon refuses to start over it.
+/// on the daemon's wall clock. A `null` until, which an earlier build
+/// wrote for a closure a person had to clear, reads as a trial already
+/// due, so no daemon refuses to start over it.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RouteClosure {
     pub invalid: u32,

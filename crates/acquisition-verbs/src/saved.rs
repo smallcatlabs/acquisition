@@ -1,16 +1,15 @@
-//! The saved search (C167, user-scoped intent in a file of its own; the
-//! design of 4-full part 1, §3): the verbs every frontend asks of the
-//! world's `user.db`, stated once here so the CLI now and the MCP and the
-//! pages after it inherit one semantics (C46).
+//! The saved search (C167, user-scoped intent in a file of its own): the
+//! verbs every frontend asks of the world's `user.db`, stated once here so
+//! the CLI now and the MCP and the pages after it inherit one semantics
+//! (C46).
 //!
 //! - **The row.** Keyed on an id these verbs mint, twelve hex characters
 //!   ([`mint`]); the value a name, the canonical text of a query (C104)
 //!   and its scope, a realm or `all` (C96) and a membership. The id is
 //!   the identity and the name a label: no write reads another row's
-//!   name, nothing refuses a name, two live rows may carry one (the
-//!   owner, 2026-11-07, "Drop and cut"). The one place a shared name is
-//!   noticed is opening by name, [`request_of`] and [`show`], refused as
-//!   `ambiguous_saved_search`.
+//!   name, nothing refuses a name, two live rows may carry one. The one
+//!   place a shared name is noticed is opening by name, [`request_of`]
+//!   and [`show`], refused as `ambiguous_saved_search`.
 //! - **The documents.** [`list`] answers [`SavedSearches`], one object
 //!   (C149), its rows ten unless `limit` or `expand` (C53) beside `total`,
 //!   `left_out` and the file's `revision`; each row ([`SavedRow`]) its
@@ -33,7 +32,7 @@
 //!   an authoring error refuses before any file is opened. A create's
 //!   realm, where none is named, is settled as `acq search` settles one
 //!   (C96), over the realms held by the account the caller names, or,
-//!   naming none, by every account known (`resolved_realm`, #247).
+//!   naming none, by every account known (`resolved_realm`).
 //! - **The receipt** ([`SavedWritten`], spelled by
 //!   [`crate::receipt::saved`]): `target`, `written`, `prior`, `revision`,
 //!   and the `undo` that puts the prior back — a replace's a [`Set`] of
@@ -972,10 +971,10 @@ fn conflicted(
 /// (C96) over the realms the facts hold, tabs or characters, live or
 /// retired: the realms of the account named, or of the one account
 /// known, or, among several known with none named, of every account
-/// known, since a saved search is the world's and no account's (C167,
-/// #247). One realm held is taken; none held, or no account known, is
-/// `all`; several are refused as `realm_needed`, each offered as the
-/// same create over it and over `all`. Only which realms exist is read,
+/// known, since a saved search is the world's and no account's (C167).
+/// One realm held is taken; none held, or no account known, is `all`;
+/// several are refused as `realm_needed`, each offered as the same
+/// create over it and over `all`. Only which realms exist is read,
 /// through the store's coverage (the corpus's own realm read), so a
 /// create naming no account is never `ambiguous_account`; a name that
 /// matches several accounts is, as it is everywhere (C121).

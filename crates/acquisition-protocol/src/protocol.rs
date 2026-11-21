@@ -341,14 +341,14 @@ pub struct QuoteJob {
 }
 
 /// A read-only, non-reserving projection over current daemon knowledge
-/// (C40, decided 2026-08-31): what the quoted work would meet at the
-/// choke point as of `observed_at`. Nothing is sent, reserved, or
-/// remembered — applying later may receive a different schedule (`eta_for`
-/// is an estimate, not a promise) — and the quote names what it does not
-/// cover (`not_covered`, per-scope `notes`) rather than claiming
-/// completeness. A `RefreshPlan` may embed one verbatim as optional
-/// enrichment, so this shape is part of the plan schema too: changing it
-/// is a plan-schema event, not a silent edit.
+/// (C40): what the quoted work would meet at the choke point as of
+/// `observed_at`. Nothing is sent, reserved, or remembered — applying later
+/// may receive a different schedule (`eta_for` is an estimate, not a
+/// promise) — and the quote names what it does not cover (`not_covered`,
+/// per-scope `notes`) rather than claiming completeness. A `RefreshPlan`
+/// may embed one verbatim as optional enrichment, so this shape is part of
+/// the plan schema too: changing it is a plan-schema event, not a silent
+/// edit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Quote {
@@ -697,8 +697,8 @@ pub enum Response {
         /// The package version (`VERSION`); informational.
         version: String,
         /// The shared-contract revision (`CONTRACT_REVISION`, C84), the
-        /// value the handshake compared — apart from `version` since the
-        /// split's step 5, as `hello` carries them.
+        /// value the handshake compared — apart from `version`, as `hello`
+        /// carries them.
         contract: String,
         provider: String,
         uptime_seconds: u64,
@@ -723,10 +723,10 @@ pub enum Response {
         /// "ok" or the keyring failure; a failed save after refresh-token
         /// rotation leaves the session memory-only (risk R7 of `spikes/rust-playground/LIVE-TESTING.md` at `9fa99459`).
         keyring: String,
-        /// The log file this daemon opened (C83: the world's, under the
-        /// log directory it started with) — reported, never recomputed
-        /// by a client from its own environment, which may differ
-        /// (review 2026-09-11). `None` from the in-process harness.
+        /// The log file this daemon opened (C83: the world's, under the log
+        /// directory it started with) — reported, never recomputed by a client
+        /// from its own environment, which may differ. `None` from the
+        /// in-process harness.
         #[serde(default)]
         log: Option<String>,
     },

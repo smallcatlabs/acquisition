@@ -1,8 +1,7 @@
 use super::*;
 
-/// The vocabulary the CLI printed before step 2g's round 6 held it
-/// here, boundary by boundary: the unit changes at 90 seconds, 90
-/// minutes and 48 hours, rounding down.
+/// The one vocabulary, boundary by boundary: the unit changes at 90
+/// seconds, 90 minutes and 48 hours, rounding down.
 #[test]
 fn c53_an_age_is_said_in_one_vocabulary() {
     for (seconds, said) in [
@@ -37,10 +36,9 @@ fn c53_an_epoch_reads_as_its_age_at_a_moment_or_never() {
     assert_eq!(before("generated_at", now, None), "never");
 }
 
-/// The round's review, P2: an epoch at either end of `i64`, which a
-/// corrupt index or row could hold, is read without overflow — the
-/// difference saturates, so the oldest possible epoch is the most
-/// days ago and one past `now` none.
+/// An epoch at either end of `i64`, which a corrupt index or row could
+/// hold, is read without overflow — the difference saturates, so the
+/// oldest possible epoch is the most days ago and one past `now` none.
 #[test]
 fn c53_an_epoch_at_either_end_of_its_range_reads_without_overflow() {
     let most = format!("{}d ago", i64::MAX / 86_400);
@@ -115,8 +113,8 @@ fn c53_a_row_a_maker_ages_says_its_epochs_beside_them() {
 }
 
 /// A league's `startAt` as GGG gives it, ISO 8601 UTC, read as seconds
-/// since 1970 (the answer-facts seat, MCP fault 3); a fraction dropped, a
-/// leap day kept, and any other shape none, never a panic (C47).
+/// since 1970; a fraction dropped, a leap day kept, and any other shape
+/// none, never a panic (C47).
 #[test]
 fn a_time_ggg_gives_as_text_reads_as_its_epoch_or_none() {
     for (text, at) in [
@@ -131,7 +129,7 @@ fn a_time_ggg_gives_as_text_reads_as_its_epoch_or_none() {
         ("2026-11-02T20:00Z", None),
         ("26-11-02T20:00:00Z", None),
         // a day its month does not have, and a fraction that is not
-        // decimal digits (the round's review)
+        // decimal digits
         ("2026-02-31T00:00:00Z", None),
         ("2025-02-29T00:00:00Z", None),
         ("2026-04-31T00:00:00Z", None),

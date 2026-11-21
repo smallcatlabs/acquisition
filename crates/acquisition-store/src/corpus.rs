@@ -17,8 +17,8 @@
 //!   ([`CorpusItems`]); a returned stream would have to own the statement
 //!   and the transaction it borrows. Ordered by location kind and id, then
 //!   realm and item id, where realm first sorted the whole corpus, bodies
-//!   included (43 MB against 10 MB resident over 22,721 items,
-//!   2026-09-20). The live read walks `items_live_at` (facts v9), which
+//!   included (43 MB against 10 MB resident over 22,721 items). The live
+//!   read walks `items_live_at` (facts v9), which
 //!   holds the live alone in that order, so it sorts nothing and passes
 //!   no removed row; the read of all items (**All**, below) walks
 //!   `items_location` with a sort per location. Every key is an ingest
@@ -53,7 +53,7 @@
 //!   on it and never the league its character has moved to since — each
 //!   removed item with when it left — its own time, or its location's where only that
 //!   says so, which no ingest path leaves and no item of the owner's copy
-//!   shows (2026-10-09) — and the retired locations in the header,
+//!   shows — and the retired locations in the header,
 //!   marked, a substash that went with its tab among them. A read that
 //!   hands the removed over changes under a prune (below).
 //! - **The body is text, unparsed**, exactly as `items.json` holds it (the
@@ -109,8 +109,8 @@
 //!     (`decisions/store.md`, "Parked").
 //!   - A facts file deleted and refetched, or restored from a copy, counts
 //!     from an earlier number again, so the revision carries the time the
-//!     highest response was recorded beside its id (B2, `search/LEDGER.md`;
-//!     owner, 2026-10-10): no schema change, `fetched_at` being every
+//!     highest response was recorded beside its id (B2, `search/LEDGER.md`):
+//!     no schema change, `fetched_at` being every
 //!     response's since the first version. An id the file itself carried
 //!     would travel with a copy and miss the restore. Not covered: two
 //!     histories whose last response has one id and one second. The same
@@ -503,7 +503,7 @@ fn read_gone(tx: &rusqlite::Transaction, realm: Option<&str>) -> Result<Vec<Gone
 }
 
 /// [`Store::coverage`] inside `conn`, the read transaction a document's
-/// reads share (the review of round C, finding 1).
+/// reads share.
 pub(crate) fn coverage_in(
     conn: &rusqlite::Transaction,
     realm: Option<&str>,
@@ -598,12 +598,11 @@ impl Store {
         Ok(listing)
     }
 
-    /// A league's tabs, the coverage of its tabs (#172) and what the
-    /// store holds of each of the realm's leagues ([`Store::leagues_held`],
-    /// the `leagues_held` beside them), for `tabs`: one read transaction,
-    /// so a write committed between the reads never makes the rows, the
-    /// facts and the holdings disagree (the review of round C, finding 1;
-    /// of its fix round, finding 3), as [`Store::refresh_snapshot`] reads.
+    /// A league's tabs, the coverage of its tabs and what the store holds
+    /// of each of the realm's leagues ([`Store::leagues_held`], the
+    /// `leagues_held` beside them), for `tabs`: one read transaction, so a
+    /// write committed between the reads never makes the rows, the facts
+    /// and the holdings disagree, as [`Store::refresh_snapshot`] reads.
     pub fn tabs_document(
         &self,
         realm: &str,
@@ -626,7 +625,7 @@ impl Store {
     /// one derivation every answer takes (`coverage::of`), its ages said
     /// at `now`: the locations of `realm` (every realm where none), of
     /// `league` where one is named, the tabs alone where `tabs_only`, each
-    /// with its live items, and the listings that name them (#172: `store
+    /// with its live items, and the listings that name them (`store
     /// status` over every realm and league, `tabs` over a league's tabs).
     pub fn coverage(
         &self,

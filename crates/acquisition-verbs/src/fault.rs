@@ -70,8 +70,7 @@ pub enum Fault {
     /// ([`SpendError::PolicyGone`], [`SpendError::PolicyMoved`], their
     /// words), as the account and the scope it was applied in: the remedy
     /// is the plan compiled again there, which a surface names in its own
-    /// spelling (the review of the league seat's fix round, fault 1's
-    /// rule). Kind `refused`.
+    /// spelling. Kind `refused`.
     Replan {
         error: Box<SpendError>,
         username: String,
@@ -86,7 +85,7 @@ pub enum Fault {
     /// A write that names no revision over a stored policy this build
     /// cannot read: never replaced blind (C35, intent is irreplaceable).
     /// Kind `refused`. `username` is the account it was refused for, which
-    /// the read-back each frontend prints names (#97).
+    /// the read-back each frontend prints names.
     UnreadablePolicy {
         username: String,
         revision: i64,
@@ -214,9 +213,8 @@ pub fn door_word(door: &ConnectError) -> &'static str {
 }
 
 /// Account names as a refusal's sentence says them: the first of the
-/// store's bound (`acquisition_store::bound::LISTED`), the rest counted
-/// (the review of round C, finding 5); the document's `accounts` lists
-/// them all.
+/// store's bound (`acquisition_store::bound::LISTED`), the rest
+/// counted; the document's `accounts` lists them all.
 fn named(names: &[String]) -> String {
     let (shown, left) = acquisition_store::bound::bounded(names.to_vec(), None, false);
     match left {

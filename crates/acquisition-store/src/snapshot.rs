@@ -5,13 +5,13 @@
 //! character listing), tab and character identities with their freshness
 //! and their listed entries, the sync-policy annotation row at its
 //! revision, and the account uuid the pairing is bound to — with no
-//! staleness verdicts and no request lists. [`PricingSnapshot`] (pricing
-//! slice step 4, 2026-09-06) is what the listing state resolves from —
-//! the same tabs and characters, every live item at them with its note
-//! verbatim, and every `buyout` row raw at its revision — with no
-//! coverage, no parse, no relation. Policy compilation and price
-//! resolution live in `acquisition-plan`, never here — the store exposes
-//! neutral snapshots, "never half a planner" (C39, C64).
+//! staleness verdicts and no request lists. [`PricingSnapshot`] is what
+//! the listing state resolves from — the same tabs and characters, every
+//! live item at them with its note verbatim, and every `buyout` row raw
+//! at its revision — with no coverage, no parse, no relation. Policy
+//! compilation and price resolution live in `acquisition-plan`, never
+//! here — the store exposes neutral snapshots, "never half a planner"
+//! (C39, C64).
 //!
 //! Liveness is settled here, not in the planner (C54): a row in the
 //! snapshot is live by the latest listing's say, `fetched_at` is `None`
@@ -207,8 +207,7 @@ pub struct ItemSnapshot {
     /// The body carries a `note` that is no string — a number, an object,
     /// an array: nothing here says what it would read as, and a consumer
     /// must not read the silence as "no note" (the search's rule 8, at the
-    /// note's grain; found by its generators at step 9, 2026-09-25, and
-    /// the object case by the step's outside review).
+    /// note's grain).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub note_unread: bool,
     /// The item's `inventoryId`, verbatim: a character item's slot, the
@@ -216,8 +215,8 @@ pub struct ItemSnapshot {
     /// item. A forum link to a character item is addressed by it.
     pub inventory_id: Option<String>,
     /// The body carries an `inventoryId` that is no string: carried as
-    /// none, and said here (the step-9 review: one such body failed the
-    /// snapshot whole).
+    /// none, and said here (without it one such body failed the snapshot
+    /// whole).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub inventory_id_unread: bool,
     /// `responses.id` of the fetch that last saw the item here.
@@ -317,8 +316,7 @@ impl Store {
     /// realm, so that every plan can report it as outside coverage. A
     /// consumer of this snapshot must not read that as membership — the
     /// listing state flags such characters and their items
-    /// (`league_unknown`) rather than attributing them to the league
-    /// (step-4 outside review, finding 1).
+    /// (`league_unknown`) rather than attributing them to the league.
     pub fn pricing_snapshot(
         &self,
         realm: &str,
@@ -648,13 +646,13 @@ fn read_characters(
 /// over: a JSON array of the values, their JSON types kept — a string
 /// quoted, an object an object, an absent path or a JSON `null` a `null`
 /// (SQLite's single-path extract flattens an object to its text, which
-/// read as a note; the step-9 review). A string is read, `null` is none
+/// would read as a note). A string is read, `null` is none
 /// — as the search's deriver reads a body — and anything else is unread
 /// at that field alone, never a failed read (C47). The array is read by
 /// a scanner that never descends into a value: a decoder would refuse
 /// the whole array for one field nested past its depth, and the field
-/// beside it — a valid note — would read as absent (the review's second
-/// look). A text this is not an array of `n` values reads as `n` unread
+/// beside it — a valid note — would read as absent. A text this is not
+/// an array of `n` values reads as `n` unread
 /// fields.
 fn body_strings<const N: usize>(extracted: Option<&str>) -> [(Option<String>, bool); N] {
     let unread = || std::array::from_fn(|_| (None, true));
@@ -750,9 +748,9 @@ fn body_strings<const N: usize>(extracted: Option<&str>) -> [(Option<String>, bo
 /// [`read_tabs`] and [`read_characters`] report, so an item never cites a
 /// location the snapshot does not carry. The note is the body's `note`,
 /// verbatim; the body itself stays in the store. The two body fields are
-/// one extract, so each body is parsed once (measured 2026-09-25: two
-/// extracts, one two-path extract and a type check beside an extract cost
-/// 80, 80 and 100 ms over 21,311 bodies).
+/// one extract, so each body is parsed once (measured: two extracts, one
+/// two-path extract and a type check beside an extract cost 80, 80 and
+/// 100 ms over 21,311 bodies).
 fn read_items(tx: &rusqlite::Transaction, realm: &str, league: &str) -> Result<Vec<ItemSnapshot>> {
     let mut stmt = tx.prepare(
         "SELECT i.id, i.location_kind, i.location_id, i.container, i.socketed_in,

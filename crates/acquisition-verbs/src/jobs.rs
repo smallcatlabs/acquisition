@@ -52,17 +52,16 @@ pub struct Progress {
     pub closed: Vec<ClosedRoute>,
 }
 
-/// C51 (the owner's ruling on #246, 2026-11-11): the account a job of
-/// `kind` names to the daemon, chosen before any daemon is reached, so a
-/// refusal spawns none. A named selector is passed as typed, for the
-/// daemon to match against its sessions as before; a kind that needs no
-/// account ([`needs_no_account`]) names none; otherwise the frontend's
-/// door picks: the one account known is named, and among several, none
-/// named is `ambiguous_account` with the accounts to name. With no
-/// account known (no index yet) the job names none and the daemon
-/// answers, as before (its own `not_logged_in`); an index that cannot be
-/// read is the store's refusal, as every reading verb gives it, never a
-/// job let through to whichever session the daemon holds.
+/// C51 (#246): the account a job of `kind` names to the daemon, chosen
+/// before any daemon is reached, so a refusal spawns none. A named
+/// selector is passed as typed, for the daemon to match against its
+/// sessions; a kind that needs no account ([`needs_no_account`]) names
+/// none; otherwise the frontend's door picks: the one account known is
+/// named, and among several, none named is `ambiguous_account` with the
+/// accounts to name. With no account known (no index yet) the job names
+/// none and the daemon answers (its own `not_logged_in`); an index that
+/// cannot be read is the store's refusal, as every reading verb gives it,
+/// never a job let through to whichever session the daemon holds.
 pub fn job_account(
     frontend: &Frontend,
     kind: &str,
@@ -370,9 +369,8 @@ impl JobCounts {
 /// order: the ten newest open jobs (running or waiting) and the ten
 /// newest finished, or of one of them when the view is narrowed to it;
 /// every job of the view under `expand` (the CLI's `--all`). What the
-/// view leaves out is counted, open and finished apart (the brief's
-/// second review, finding 2: no exemption for the open jobs): the
-/// earliest of each.
+/// view leaves out is counted, open and finished apart (no exemption for
+/// the open jobs): the earliest of each.
 #[derive(Clone, Debug, Serialize)]
 pub struct Listed {
     #[serde(flatten)]
@@ -1086,10 +1084,10 @@ pub(crate) fn unexpected(response: Response) -> Fault {
 mod tests {
     use super::*;
 
-    /// C190, the review of #291's build (finding 3): a job's progress
-    /// names the closures that can hold it, its account's own routes and
-    /// the routes no account owns (the token endpoint, whose refresh an
-    /// account's job may wait on), and no other account's.
+    /// C190: a job's progress names the closures that can hold it, its
+    /// account's own routes and the routes no account owns (the token
+    /// endpoint, whose refresh an account's job may wait on), and no
+    /// other account's.
     #[test]
     fn c190_a_jobs_closures_are_its_accounts_and_the_accountless() {
         let closed = |route: &str| ClosedRoute {

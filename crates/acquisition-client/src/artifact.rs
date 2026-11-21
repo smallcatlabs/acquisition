@@ -9,13 +9,13 @@
 //! client (the MCP server) must see a rebuilt sibling — with the
 //! identity taken from that handle's metadata and, when it must be
 //! hashed, the bytes read from the same handle, so what a report names
-//! and what it judged are one file (review 2026-09-11). An equal
-//! identity is the same file. A different identity — a copy at another
-//! path, or a replacement at the same path — is settled by hashing the
-//! sibling (tens of milliseconds, the rare path) and comparing digests,
-//! so a copy is still the same artifact and a rebuild is a named
-//! mismatch. The hashing is one copy here and one in the daemon, because
-//! the protocol crate, which defines the identity, links serde alone.
+//! and what it judged are one file. An equal identity is the same file.
+//! A different identity — a copy at another path, or a replacement at
+//! the same path — is settled by hashing the sibling (tens of
+//! milliseconds, the rare path) and comparing digests, so a copy is
+//! still the same artifact and a rebuild is a named mismatch. The
+//! hashing is one copy here and one in the daemon, because the protocol
+//! crate, which defines the identity, links serde alone.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -111,10 +111,10 @@ impl std::error::Error for SiblingError {}
 
 /// Whether `daemon` — the artifact a daemon reported — is the sibling
 /// this process would spawn. "The same artifact" is two cases kept
-/// apart (review 2026-09-10): the sibling *is* the file the daemon runs
-/// from, or the sibling is another file with the same bytes — a
-/// supported case (a copied installation) that a report must not call
-/// "the sibling this client would start".
+/// apart: the sibling *is* the file the daemon runs from, or the
+/// sibling is another file with the same bytes — a supported case (a
+/// copied installation) that a report must not call "the sibling this
+/// client would start".
 #[derive(Debug, Clone)]
 pub enum ArtifactVerdict {
     /// The daemon runs from this process's sibling itself: the same
@@ -247,11 +247,11 @@ mod tests {
         assert!(!v.matches() && v.relation() == "no_sibling", "{v:?}");
     }
 
-    /// The single-handle guarantee (review 2026-09-11): a sibling opened
-    /// and then replaced at its path — the rebuild-between-two-looks
-    /// case — is judged from the handle that was opened, and the identity
-    /// the verdict names is that handle's. A judge that reopened the path
-    /// would see the replacement's bytes and fail here.
+    /// The single-handle guarantee: a sibling opened and then replaced at
+    /// its path — the rebuild-between-two-looks case — is judged from the
+    /// handle that was opened, and the identity the verdict names is that
+    /// handle's. A judge that reopened the path would see the
+    /// replacement's bytes and fail here.
     #[test]
     fn c84_the_sibling_is_judged_from_the_handle_that_was_identified() {
         let temp = tempfile::tempdir().unwrap();

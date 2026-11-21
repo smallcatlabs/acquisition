@@ -547,8 +547,7 @@ fn delete_and_recreate_never_reset_the_revision<D: Door>() {
 /// create continues past; and the row a write names is read at exactly
 /// that revision or refused as the write would be, carrying the live
 /// row (none over a tombstone), so a receipt's prior is the row
-/// replaced and never one a racing writer moved (round 5 of the 2g
-/// build).
+/// replaced and never one a racing writer moved.
 fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_names<D: Door>() {
     let mut a = D::memory();
     let via = via_test();
@@ -585,8 +584,7 @@ fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_na
 /// at the last revision an `i64` holds takes no next one: a replace, a
 /// delete and a create over such a tombstone each refuse as
 /// `RevisionExhausted`, and nothing is written; one below it moves to
-/// the bound, the number written the number returned (round 5 of the
-/// 2g build, its review's finding 3).
+/// the bound, the number written the number returned.
 fn a_row_at_the_last_revision_refuses_every_write_and_changes_nothing<D: Door>() {
     let mut a = D::memory();
     let via = via_test();
@@ -772,7 +770,7 @@ fn c137_the_annotation_wait_at_zero_refuses_a_held_writer_at_once() {
         "the wait the connection enforced, not the default: {err:?}"
     );
     // its words, as a user reads them, are the CLI's golden
-    // `price_json/a_busy_intent_file` (#234; C153)
+    // `price_json/a_busy_intent_file` (C153)
     b.conn.execute_batch("ROLLBACK").unwrap();
 }
 
@@ -1149,8 +1147,7 @@ fn an_unstamped_file_with_content_is_refused_and_an_empty_one_is_created_over() 
 /// winner has created the file and its tables inside its immediate
 /// transaction and has not yet committed the stamp. A losing first
 /// opener must wait on the lock and then proceed as if it had found
-/// the stamp — never be refused as a foreign file (seen once in five
-/// gate runs, 2026-09-09, before this pin).
+/// the stamp — never be refused as a foreign file.
 #[test]
 fn c35_a_losing_first_opener_waits_for_the_winners_stamp_and_proceeds() {
     let temp = tempfile::tempdir().unwrap();
@@ -1492,25 +1489,23 @@ fn the_file_is_named_by_uuid() {
     assert_eq!(p.file_name().unwrap(), "0000-4000_odd.annotations.db");
 }
 
-/// C35, the first-open race's third window (round 25), staged
-/// exactly: the loser's connection carries an authorizer that fires
-/// when its second read — the table count — is prepared, after the
-/// stamp was read; there the winner attempts, on its own connection,
-/// to create the schema, stamp it and commit. Under the round-24
-/// gate the loser held no lock between its two statements, so the
-/// attempt commits and the loser then sees stamp 0 beside the
-/// winner's tables and refuses a well-formed file as "content but no
-/// schema stamp". Under the fixed gate the loser's stamp read already
-/// holds the snapshot, so the attempt cannot commit between the
-/// reads — it waits on the loser and gives up after its busy
-/// timeout, which the pass path asserts — and the loser opens the
-/// file. What this test asserts is the fixed outcome — the attempt
-/// could not commit and the loser opened the file; the old outcome
-/// was observed by breaking the gate (the round-24 shape staged
-/// back, review rounds 25 and 26: the attempt committed and the
-/// loser refused with the production message), not asserted here. A
-/// stress test of 3000 concurrent first opens did not reproduce the
-/// window; this does, every run.
+/// C35, the first-open race's third window, staged exactly: the
+/// loser's connection carries an authorizer that fires when its second
+/// read — the table count — is prepared, after the stamp was read;
+/// there the winner attempts, on its own connection, to create the
+/// schema, stamp it and commit. A gate whose loser held no lock between
+/// its two statements would let the attempt commit, and the loser
+/// would then see stamp 0 beside the winner's tables and refuse a
+/// well-formed file as "content but no schema stamp". The gate's stamp
+/// read holds the snapshot, so the attempt cannot commit between the
+/// reads — it waits on the loser and gives up after its busy timeout,
+/// which the pass path asserts — and the loser opens the file. What
+/// this test asserts is that outcome — the attempt could not commit
+/// and the loser opened the file; the other was observed by breaking
+/// the gate (a gate holding no lock between its reads, staged back:
+/// the attempt committed and the loser refused with the production
+/// message), not asserted here. A stress test of 3000 concurrent first
+/// opens did not reproduce the window; this does, every run.
 #[test]
 fn c35_a_create_attempted_between_the_gates_two_reads_cannot_commit_or_cause_a_refusal() {
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};

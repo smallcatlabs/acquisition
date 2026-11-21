@@ -211,12 +211,10 @@ fn next_id_never_reuses_a_pruned_id() {
     );
 }
 
-/// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4): the
-/// queue's file carries its schema version. A fresh file is stamped;
-/// one a build before the stamp wrote (the table, rows, no stamp)
-/// opens with its rows and is stamped; one stamped newer than this
-/// build is refused in words naming the file and what to do, its
-/// stamp untouched.
+/// The queue's file carries its schema version. A fresh file is stamped;
+/// one a build before the stamp wrote (the table, rows, no stamp) opens
+/// with its rows and is stamped; one stamped newer than this build is
+/// refused in words naming the file and what to do, its stamp untouched.
 #[test]
 fn the_queue_file_is_stamped_and_a_newer_stamp_is_refused() {
     let temp = tempfile::tempdir().unwrap();

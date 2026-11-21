@@ -11,11 +11,11 @@
 //! says why).
 //!
 //! One copy here and one in `acquisition-daemon/src/frame.rs`, byte for
-//! byte (the daemon split's step 3): the reader needs tokio, the protocol
-//! crate is serde-only (C1; `tools/arch-check.sh`'s allowlist refuses a
-//! tokio feature there), and the daemon never links this crate. The
-//! constant both copies read is the protocol's, so the bound cannot
-//! drift; the tests below run in both.
+//! byte: the reader needs tokio, the protocol crate is serde-only (C1;
+//! `tools/arch-check.sh`'s allowlist refuses a tokio feature there),
+//! and the daemon never links this crate. The constant both copies read
+//! is the protocol's, so the bound cannot drift; the tests below run in
+//! both.
 
 use tokio::io::{AsyncBufRead, AsyncBufReadExt};
 
@@ -35,9 +35,9 @@ pub enum Frame {
 /// A framed connection's read side: the buffered reader, and the line
 /// read so far with whether it is being discarded as oversize.
 ///
-/// Cancel-safe (#56): [`FrameReader::next`] may be dropped at any await,
-/// as a `select!` drops the branch that lost, and the next call resumes
-/// the same line. Its one await is the reader's `fill_buf`, which is
+/// Cancel-safe: [`FrameReader::next`] may be dropped at any await, as a
+/// `select!` drops the branch that lost, and the next call resumes the
+/// same line. Its one await is the reader's `fill_buf`, which is
 /// cancel-safe; between two awaits it moves bytes from the buffer into
 /// the partial line and consumes them in one step, so a byte is either
 /// still in the buffer or already in the line, and the line lives here,
@@ -145,9 +145,9 @@ mod tests {
         future.as_mut().poll(&mut cx)
     }
 
-    /// #56: a read dropped midway, after half a line and before its
-    /// newline arrived, loses nothing: the next read returns the whole
-    /// line once, and the frame after it intact.
+    /// A read dropped midway, after half a line and before its newline
+    /// arrived, loses nothing: the next read returns the whole line
+    /// once, and the frame after it intact.
     #[tokio::test]
     async fn a_read_dropped_midway_resumes_its_line() {
         use tokio::io::AsyncWriteExt;
@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(reader.next().await.unwrap(), Frame::Line(b"next".to_vec()));
     }
 
-    /// #56: an oversize line whose read is dropped midway, past the bound
+    /// An oversize line whose read is dropped midway, past the bound
     /// and before its newline, still reads as one `Oversize`, and the
     /// frame after it intact.
     #[tokio::test]
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(reader.next().await.unwrap(), Frame::Line(b"ok".to_vec()));
     }
 
-    // ---- generated streams (#85) ----------------------------------------
+    // ---- generated streams ----------------------------------------------
     //
     // What any local process may write to the socket (client input), and
     // what a daemon of any revision may answer: a stream drawn from JSON

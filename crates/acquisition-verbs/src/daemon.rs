@@ -132,10 +132,10 @@ impl Frontend {
     /// (with the ledger's counts and the last log), another daemon's
     /// identity, an unresponsive peer, or this client's daemon with its
     /// vitals. Never spawns or replaces. The status request is bounded
-    /// by the client (#103, the handshake's deadline): a peer that
-    /// answers the handshake and then not its status is the client's
-    /// `Stalled`, reaching every frontend as [`Fault::Transport`] in its
-    /// words, which name the peer and the hand that stops it.
+    /// by the client (the handshake's deadline): a peer that answers the
+    /// handshake and then not its status is the client's `Stalled`,
+    /// reaching every frontend as [`Fault::Transport`] in its words,
+    /// which name the peer and the hand that stops it.
     pub async fn daemon(&self) -> Result<DaemonReport, Fault> {
         let observed = acquisition_client::client::Client::observe_at(&self.root)
             .await

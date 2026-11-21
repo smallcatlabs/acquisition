@@ -7,14 +7,13 @@
 //!
 //! C88 — the real provider is the default and the mock is opted into:
 //! `ACQ_PROVIDER=mock` selects the in-process mock; unset or `ggg` is the
-//! real API. The mock default was the ladder's first rung — traffic off
-//! GGG by structure while the limiter was unproven — and outlived the
-//! ruling that retired its premise (C14): what protects the relationship
-//! is the one gate every send passes through, not callers kept away.
-//! Meanwhile every offline read of the owner's own facts sat behind a
-//! flag. The old knob, `ACQ_GGG`, is refused rather than ignored
-//! ([`check_environment`]): a stale export or an old script fails loudly
-//! at start, never silently in the wrong mode.
+//! real API. A mock default would keep traffic off GGG by structure, but
+//! what protects the relationship is the one gate every send passes
+//! through, not callers kept away (C14), and it would put every offline
+//! read of the owner's own facts behind a flag. The old knob, `ACQ_GGG`,
+//! is refused rather than ignored ([`check_environment`]): a stale export
+//! or an old script fails loudly at start, never silently in the wrong
+//! mode.
 
 /// The in-process mock provider: the test double and the rehearsal
 /// stage, selected by `ACQ_PROVIDER=mock`.

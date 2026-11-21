@@ -208,7 +208,7 @@ impl User {
 /// A saved search (C167's first kind): a name, the canonical text of a
 /// query (C104) and the scope it runs over. The name is a label and the
 /// id, the row's key, its identity: nothing here or at the door refuses a
-/// name another row carries (the owner, 2026-11-07, "Drop and cut").
+/// name another row carries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SavedSearch {

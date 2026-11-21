@@ -25,7 +25,7 @@ pub const DEFAULT_HOURS: f64 = 24.0;
 /// many it returned and whether the limit was reached (then the window
 /// may hold more: a larger `limit` reads them). The window's total is
 /// not counted: the store's read is bounded by the limit and has none
-/// (step 2g's brief, round 3; a count read waits for a reader who asks).
+/// (a count read waits for a reader who asks).
 #[derive(Clone, Debug, Serialize)]
 pub struct Events {
     /// How far back the window reaches, in hours.
@@ -46,8 +46,8 @@ impl Events {
     /// an age at `now` (C53). An `hours` below zero or not a number is
     /// refused as `arguments` (C47: a request's input is a structured
     /// error, never a panic); a window past the epoch reads every event,
-    /// the cast and the subtraction saturating (#91: `-1e300` hours
-    /// overflowed the subtraction).
+    /// the cast and the subtraction saturating (`-1e300` hours would
+    /// overflow the subtraction).
     pub fn read(
         store: &Store,
         now: i64,
@@ -115,10 +115,10 @@ pub struct EventSummary {
     pub left_out_needs: Option<&'static str>,
     /// Where the window holds no event, the newest the store holds at
     /// all: a count of none says which none and how to read further
-    /// (C146; answer-facts seat run 2, cli fault 14: `0 events in the
-    /// last 24 h` on a store whose newest was 53 days old). Absent where
-    /// the window holds one, and where a `limit` of 0 read none, which
-    /// says nothing of the window.
+    /// (C146: alone, `0 events in the last 24 h` on a store whose newest
+    /// is 53 days old says neither). Absent where the window holds
+    /// one, and where a `limit` of 0 read none, which says nothing of
+    /// the window.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub newest_on_record: Option<NewestOnRecord>,
 }
@@ -142,8 +142,7 @@ impl EventSummary {
         now: i64,
     ) -> anyhow::Result<EventSummary> {
         let mut listed = EventSummary::of(events, summary(store, &events.rows), expand, now);
-        // an empty window, never one a `limit` of 0 cut (the review of
-        // the seat's third round, finding 3)
+        // an empty window, never one a `limit` of 0 cut
         if listed.events == 0 && !listed.limit_reached {
             let at = store.events_since(i64::MIN, 1)?.first().map(|row| row.at);
             listed.newest_on_record = Some(NewestOnRecord {
@@ -338,11 +337,11 @@ mod tests {
         }
     }
 
-    /// The second review of the brief, finding 4: one move touches two
-    /// locations, so ten events can make twenty location rows, whose first
-    /// ten cannot say the whole. The summary counts the events and the
-    /// locations apart, makes its per-kind totals over every location
-    /// before it cuts, and lists the rest under `expand`.
+    /// One move touches two locations, so ten events can make twenty
+    /// location rows, whose first ten cannot say the whole. The summary
+    /// counts the events and the locations apart, makes its per-kind
+    /// totals over every location before it cuts, and lists the rest under
+    /// `expand`.
     #[test]
     fn c149_ten_moves_between_twenty_locations_are_counted_whole_beside_ten() {
         let rows: Vec<EventRow> = (0..10).map(|n| moved(n, 1_000 + n as i64)).collect();

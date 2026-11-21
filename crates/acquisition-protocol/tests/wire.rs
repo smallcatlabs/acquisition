@@ -78,10 +78,10 @@ fn on_disk(dir: &str) -> BTreeSet<String> {
 }
 
 /// The variant names of an internally tagged enum, from the type itself:
-/// serde's unknown-variant error lists every one it expected. This is
-/// what makes "one fixture per variant" a property the compiler and serde
-/// hold, not a list kept by hand (review finding 2026-09-10, round 1). A
-/// change in serde's message shape fails loudly below, never vacuously.
+/// serde's unknown-variant error lists every one it expected. This is what
+/// makes "one fixture per variant" a property the compiler and serde hold,
+/// not a list kept by hand. A change in serde's message shape fails loudly
+/// below, never vacuously.
 fn variants_of<T: serde::de::DeserializeOwned>(probe: Value) -> BTreeSet<String> {
     let message = serde_json::from_value::<T>(probe)
         .err()
@@ -243,8 +243,8 @@ fn quote() -> Quote {
             notes: vec![],
         }],
         // The daemon's own sentence (`daemon/quote.rs`, the quote's `not_covered`),
-        // built from the promise so the sample cannot contradict it (review
-        // finding 2026-09-10: the fixture said 3 beside a constant of 2).
+        // built from the promise so the sample cannot contradict it (a
+        // literal could say 3 beside a constant of 2).
         not_covered: vec![format!(
             "429 re-sends (up to {MAX_429_RETRIES} per request) — possible, never predicted"
         )],
@@ -946,11 +946,11 @@ fn c166_a_bare_list_is_the_first_page_of_open_jobs() {
     assert!(last.get("next").is_none(), "{last}");
 }
 
-/// C85 as amended 2026-11-05: every versioned request refuses a field it
-/// does not know, and serde's words name it; the bootstrap plane's
-/// `hello` and `daemon_stop` still read past one. Each request variant
-/// is tried with its fixture plus one unknown field, so a variant that
-/// would read past one fails here by name.
+/// C85: every versioned request refuses a field it does not know, and
+/// serde's words name it; the bootstrap plane's `hello` and `daemon_stop`
+/// still read past one. Each request variant is tried with its fixture
+/// plus one unknown field, so a variant that would read past one fails
+/// here by name.
 #[test]
 fn c85_a_versioned_request_refuses_a_field_it_does_not_know() {
     for request in requests() {
@@ -991,12 +991,11 @@ fn c85_the_frame_bound_is_pinned() {
     }
 }
 
-/// C144 (the daemon reports no success it did not earn), the review of
-/// the h1 fix round, its fifth finding: a logout's answer carries what
-/// the keyring did as a field, so no frontend reads it from a sentence a
-/// username can forge. The field round-trips in each of its three words;
-/// every other ack, and an older daemon's logout, is the bare ack, read
-/// with no outcome (unknown).
+/// C144 (the daemon reports no success it did not earn): a logout's
+/// answer carries what the keyring did as a field, so no frontend reads
+/// it from a sentence a username can forge. The field round-trips in each
+/// of its three words; every other ack, and an older daemon's logout, is
+/// the bare ack, read with no outcome (unknown).
 #[test]
 fn c144_the_logout_answer_carries_the_keyring_outcome_as_a_field() {
     for (outcome, word) in [

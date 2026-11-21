@@ -1,6 +1,7 @@
-//! `acq diagnose` (#79): one document for a bug report, composed of the
+//! `acq diagnose`: one document for a bug report, composed of the
 //! documents the verbs already produce (C12, two surfaces: nothing here
-//! opens a third door) and redacted by one function, [`Redactor::redact`].
+//! opens a third door) and redacted by one function,
+//! [`Redactor::redact`].
 //!
 //! The sections, each its own verb's document: the build (`acq version
 //! --json`'s document and the platform), the daemon (`daemon status`'s,
@@ -13,17 +14,16 @@
 //! diagnosis that fails is no diagnosis, so building one never fails.
 //!
 //! What it never prints (`SECURITY.md`): a refresh or access token. The
-//! journal holds none by construction (`rails.rs`), and so does the log
-//! (#113): every token the daemon holds is its `auth::Secret`, whose text
-//! no log line can format, and the log has one writer. The token
-//! redaction here is a belt over both, never the one line; it also takes out
-//! what a public issue should not carry: the account names and uuids
-//! (from the index, the journal's route keys and the rails' marks), the
-//! store root, this world's log directory and the home directory. Each is
-//! replaced by a placeholder that tells instances apart (`<account 1>`,
-//! `<account 2>`, `<token 1>`), so a reader can still see that two sends
-//! were one account's. Character, league and tab names are kept: they are
-//! what a fault is usually about.
+//! journal holds none by construction (`rails.rs`), and neither does the
+//! log: every token the daemon holds is its `auth::Secret`, whose text no
+//! log line can format, and the log has one writer. The token redaction here
+//! is a belt over both, never the one line; it also takes out what a public
+//! issue should not carry: the account names and uuids (from the index, the
+//! journal's route keys and the rails' marks), the store root, this world's
+//! log directory and the home directory. Each is replaced by a placeholder
+//! that tells instances apart (`<account 1>`, `<account 2>`, `<token 1>`),
+//! so a reader can still see that two sends were one account's. Character,
+//! league and tab names are kept: they are what a fault is usually about.
 
 use std::collections::BTreeMap;
 use std::io::{Read as _, Seek as _, SeekFrom};
@@ -163,8 +163,8 @@ pub fn platform() -> String {
 }
 
 impl Frontend {
-    /// #79: everything a bug report needs, in one look that never spawns
-    /// or replaces a daemon (C10) and never writes the store (C124's
+    /// Everything a bug report needs, in one look that never spawns or
+    /// replaces a daemon (C10) and never writes the store (C124's
     /// read-only door). Never fails: a section that could not be read
     /// carries why.
     pub async fn diagnose(&self, tails: Tails) -> Diagnosis {
@@ -172,9 +172,8 @@ impl Frontend {
         version["platform"] = json!(platform());
 
         // A peer that answers `hello` and then never its status must not
-        // hold the rest of the diagnosis (r4's review, finding 3): the
-        // client bounds the request (#103), and the section says where
-        // the rest was read from.
+        // hold the rest of the diagnosis: the client bounds the request,
+        // and the section says where the rest was read from.
         let daemon = self
             .daemon()
             .await
@@ -197,7 +196,7 @@ impl Frontend {
 
         // The running daemon reports its own rails, journal and log
         // (never recomputed from this shell's environment, which may
-        // differ: review 2026-09-11); with none, the world's own files.
+        // differ); with none, the world's own files.
         let running = match &daemon {
             Ok(DaemonReport::Running { status, .. }) => match status.as_ref() {
                 Response::DaemonStatus { rails, log, .. } => Some((rails.clone(), log.clone())),
@@ -224,8 +223,8 @@ impl Frontend {
                             .to_string(),
                     ),
                     // A journal the daemon could not open is reported in
-                    // its words, never opened (r4's fix-round review,
-                    // finding 2); the path is the field's, not the words'.
+                    // its words, never opened; the path is the field's,
+                    // not the words'.
                     (Some(path), Some(words)) if words.starts_with(JOURNAL_NOT_WRITTEN) => {
                         Err(format!("the daemon running reports {path}: {words}"))
                     }
@@ -238,8 +237,8 @@ impl Frontend {
                 Ok(world) => (
                     rails_on_disk(&world.rails_state_path(self.provider)),
                     // The journal a daemon started from this frontend's
-                    // environment writes (r4's review, finding 4): the
-                    // world's default, the override, or none.
+                    // environment writes: the world's default, the
+                    // override, or none.
                     match &self.journal {
                         JournalKnob::Default => Ok((world.journal_path(self.provider), "world")),
                         JournalKnob::At(path) => Ok((path.clone(), "override")),
@@ -342,15 +341,15 @@ impl Frontend {
                 paths.push((dir.to_path_buf(), "<logs>"));
             }
         }
-        // Every diagnostic location printed, by its directory (r4's
-        // review, finding 2): the running daemon reports its own log and
-        // journal, which may sit under another log base than this
-        // shell's, and `ACQ_JOURNAL` may name any directory: with a
-        // daemon, its configured journal is the needle whether it was
-        // written or not (C152). A directory named for the provider is a
-        // world's log directory, and its parent is the placeholder's, as
-        // for this world's own. A directory equal to one already held
-        // keeps that one's placeholder.
+        // Every diagnostic location printed, by its directory: the
+        // running daemon reports its own log and journal, which may sit
+        // under another log base than this shell's, and `ACQ_JOURNAL`
+        // may name any directory: with a daemon, its configured journal
+        // is the needle whether it was written or not (C152). A
+        // directory named for the provider is a world's log directory,
+        // and its parent is the placeholder's, as for this world's own.
+        // A directory equal to one already held keeps that one's
+        // placeholder.
         for (file, placeholder) in printed {
             let Some(dir) = file.parent() else { continue };
             let dir = match dir.file_name() {
@@ -363,7 +362,7 @@ impl Frontend {
         // daemon's field above, and this shell's own knob, printed or not.
         // The log is appended across lifetimes, so it may name a journal
         // an earlier daemon of this shell was configured with while the
-        // one running reports another or none (#94's review, finding 1).
+        // one running reports another or none.
         if let JournalKnob::At(path) = &self.journal
             && let Some(dir) = path.parent()
         {
@@ -544,8 +543,7 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
         text.get(..word.len())
             .is_some_and(|head| head.eq_ignore_ascii_case(word))
     };
-    // Whitespace within a line, tabs included (r4's fix-round review,
-    // finding 1): a line end is never crossed.
+    // Whitespace within a line, tabs included: a line end is never crossed.
     let spaces = |text: &str| {
         text.len()
             - text
@@ -593,8 +591,8 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
     };
     let next = rest[head + value..].chars().next();
     // Digits alone stand only as an error body's code, under `code`,
-    // after `:` and unquoted: `"code": 2` (r4's fix-round reviews:
-    // `refresh_token="123456"` and `refresh_token: 123456` are tokens).
+    // after `:` and unquoted: `"code": 2` (`refresh_token="123456"` and
+    // `refresh_token: 123456` are tokens).
     let number_kept = *key == "code" && colon && !quoted;
     is_token(&rest[head..head + value], next, number_kept).then_some((head, value))
 }
@@ -706,8 +704,8 @@ impl Redactor {
             }
         }
         // An empty needle matches everywhere and advances nowhere: the
-        // scan would never end (r4's review, finding 5: an index entry's
-        // empty uuid). None is built.
+        // scan would never end (an index entry's empty uuid makes one).
+        // None is built.
         needles.retain(|n| !n.text.is_empty());
         // The longest first; equal texts side by side, the first pushed
         // kept, so a dedup leaves each text once.
@@ -809,8 +807,7 @@ impl Redactor {
 /// Whether the character beside a match leaves it a whole word: none, or
 /// one that is not a letter, a digit, `_` or `-`. A hyphen joins a word
 /// as an underscore does, so `seat-worlds` is no use of the account
-/// `seat` (the league seat, cli call 109: a path printed as
-/// `~/<account 2>-worlds/…`).
+/// `seat` (else a path prints as `~/<account 2>-worlds/…`).
 fn word_edge(c: Option<char>) -> bool {
     !c.is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '-')
 }
@@ -842,8 +839,8 @@ mod tests {
     use super::*;
 
     /// `path` made absolute on this platform: a path without a drive is
-    /// relative on Windows, and the redactor holds absolute paths alone
-    /// (#125). The text redacted carries the same drive.
+    /// relative on Windows, and the redactor holds absolute paths
+    /// alone. The text redacted carries the same drive.
     fn abs(path: &str) -> String {
         if cfg!(windows) {
             format!("C:{path}")
@@ -891,9 +888,9 @@ mod tests {
         );
     }
 
-    /// The league seat (cli call 109): a name inside a hyphenated word
-    /// was replaced, `~/seat-worlds/…` printed as `~/<account 1>-worlds/…`.
-    /// A hyphen joins a word; a dot, an `@` and a quote do not.
+    /// A name inside a hyphenated word is not replaced: `~/seat-worlds/…`
+    /// never prints as `~/<account 1>-worlds/…`. A hyphen joins a word; a
+    /// dot, an `@` and a quote do not.
     #[test]
     fn a_hyphenated_word_holding_an_account_name_stays_whole() {
         let mut r = Redactor::new(&[("seat".into(), None)], &[]);
@@ -936,22 +933,21 @@ mod tests {
             r.redact("Bearer error=\"invalid_token\" and Bearer pad==; done"),
             "Bearer error=\"invalid_token\" and Bearer <token 3>; done"
         );
-        // The review's two lines (r4, finding 1): a quoted value after
-        // `=`, and JSON's spacing; a GGG error's numeric code stays, and
-        // the cookie's name inside a header's value is still found.
+        // A quoted value after `=`, and JSON's spacing; a GGG error's
+        // numeric code stays, and the cookie's name inside a header's value
+        // is still found.
         assert_eq!(
             r.redact(r#"refresh_token="q1" then {"code": "q2"} and {"error":{"code": 2}}"#),
             r#"refresh_token="<token 4>" then {"code": "<token 5>"} and {"error":{"code": 2}}"#
         );
-        // Digits are a token unless they are a JSON number after `:`
-        // (the fix-round review, finding 3).
+        // Digits are a token unless they are a JSON number after `:`.
         assert_eq!(
             redactor().redact(
                 r#"refresh_token="123456" and code=7788 and refresh_token: 654321 beside {"code": 2}"#
             ),
             r#"refresh_token="<token 1>" and code=<token 2> and refresh_token: <token 3> beside {"code": 2}"#
         );
-        // Their twins with tabs (r4's fix-round review, finding 1).
+        // Their twins with tabs.
         assert_eq!(
             r.redact("{\"code\":\t\"q2\"} and Authorization: Bearer\tq3"),
             "{\"code\":\t\"<token 5>\"} and Authorization: Bearer\t<token 6>"

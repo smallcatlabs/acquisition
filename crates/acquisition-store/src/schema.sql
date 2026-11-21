@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS responses (
 -- without its array, …): the ingest transaction rolled back whole and
 -- nothing above cites these rows — no basis query reads this table. The
 -- body is kept verbatim so the refusal can be inspected (`acq store
--- refused`) instead of re-fetched (facts v7, PoE2 first contact 2026-09-02).
+-- refused`) instead of re-fetched (facts v7; N44's id-less bodies).
 CREATE TABLE IF NOT EXISTS refused (
     id          INTEGER PRIMARY KEY,
     endpoint    TEXT    NOT NULL,

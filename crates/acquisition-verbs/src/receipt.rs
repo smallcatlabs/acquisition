@@ -1,9 +1,8 @@
-//! One receipt shape for every write (round 5 of `roadmap/briefs/2g-build.md`,
-//! the shape its design's Q6 delegated; C78, a single write returns the
+//! One receipt shape for every write (C78, a single write returns the
 //! prior so a hand can undo it): `price_set`'s, `price_clear`'s, the
 //! sync policy's write's and a saved search's set and clear's answer is
-//! one document on every surface, made
-//! here so no frontend shapes a receipt alone:
+//! one document on every surface, made here so no frontend shapes a
+//! receipt alone:
 //!
 //! - `target`: what was written — a price's target; a policy's account
 //!   and the realms the write replaced; a saved search's id;
@@ -20,19 +19,18 @@
 //! - `clear`, beside a replace's `undo` or `no_undo`: the clear of the
 //!   row at the revision it wrote, an offer in the same shape, so a
 //!   reader who wants no price by hand has the request that stays
-//!   current (#167: after a set then a replace, the create's clear named
-//!   the revision the replace moved past, and the replace's undo puts the
+//!   current (after a set then a replace, the create's clear names the
+//!   revision the replace moved past, and the replace's undo puts the
 //!   prior back). Absent where the undo is that clear (a create) and
 //!   where no row stands (a clear), and on a policy's write, which no
 //!   verb clears;
-//! - the write's own facts: `in_facts` on a price set, `league_notes` on
-//!   a policy write (C126), and on a price set or clear over a container's
+//! - the write's own facts: `in_facts` on a price set, `league_notes` on a
+//!   policy write (C126), and on a price set or clear over a container's
 //!   row `items_here_counts` and `items_covered_below_counts`, what its
-//!   items resolve to after it, as `price show` counts them (#171), or
+//!   items resolve to after it, as `price show` counts them, or
 //!   `counts_unavailable` where they cannot be counted: `why`, and
-//!   `reads`, the bare `price show` that counts them where the facts
-//!   hold the target, the write standing whole all the same (the reviews
-//!   of round B and of its fix round).
+//!   `reads`, the bare `price show` that counts them where the facts hold
+//!   the target, the write standing whole all the same.
 
 use acquisition_plan::SyncPolicy;
 use acquisition_plan::price::{PriceWrite, Undo};
@@ -63,8 +61,8 @@ pub fn price_set<'a>(
 /// Where a container's counts are read when a receipt could not count
 /// them: the bare `price show` of the target, which reads where the
 /// facts hold it when it runs, and names each place where they hold it
-/// in several; the receipt never guesses a scope (the review of round
-/// B's fix round). One read: `reads` keeps its list, now always of one.
+/// in several; the receipt never guesses a scope. One read: `reads`
+/// stays a list, always of one.
 pub fn uncounted_reads(_: &Uncounted, write: &PriceWrite, account: &str) -> Vec<(Way, String)> {
     vec![(
         Way::PriceShow {
@@ -94,8 +92,8 @@ fn unavailable(
 }
 
 /// The clear of the row a write left standing, at the revision it wrote,
-/// where its undo is not that clear (#167): after a replace, whatever its
-/// undo; none after a create, whose undo it is, or after a clear.
+/// where its undo is not that clear: after a replace, whatever its undo;
+/// none after a create, whose undo it is, or after a clear.
 pub fn price_clear_offer(write: &PriceWrite, account: &str) -> Option<(Way, String)> {
     let row = write.written.as_ref()?;
     if matches!(write.undo(), Ok(Undo::Clear { .. })) {
@@ -186,9 +184,9 @@ pub fn policy<'a>(written: &'a PolicyWritten, surface: &dyn Surface) -> Receipt<
 /// What puts a policy write's prior back: the prior's value written whole
 /// (`replace`), naming the revision this write left, so it undoes this
 /// write and not a later one; or why nothing does. A first write has no
-/// prior to put back, and no verb clears a policy (round 5 of the 2g
-/// build names the missing undo rather than adding one); a prior this
-/// build cannot read is no value its door would write.
+/// prior to put back, and no verb clears a policy (the receipt names the
+/// missing undo rather than adding one); a prior this build cannot read
+/// is no value its door would write.
 pub fn policy_undo(written: &PolicyWritten) -> Result<(Way, String), String> {
     let Some(prior) = &written.prior else {
         return Err(

@@ -1,10 +1,10 @@
 //! `export-items` — an owner-run read of item bodies for the mock's
-//! fixture (roadmap 2c, `roadmap/briefs/2c-build.md` item 3): each named
-//! item's body exactly as the store holds it, the verbatim GGG item, with
-//! the location the store records for it beside it, written to stdout as
-//! one JSON array. The owner (or an agent under his word) runs it, reads
-//! the output, and takes from it what the hand-written fixture needs;
-//! nothing here is shipped, and nothing it prints is redacted.
+//! fixture: each named item's body exactly as the store holds it, the
+//! verbatim GGG item, with the location the store records for it beside
+//! it, written to stdout as one JSON array. The owner (or an agent under
+//! his word) runs it, reads the output, and takes from it what the
+//! hand-written fixture needs; nothing here is shipped, and nothing it
+//! prints is redacted.
 //!
 //! ```sh
 //! cargo run -p acquisition-store --example export-items -- <item id>... > items.json

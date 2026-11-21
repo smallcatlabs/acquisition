@@ -82,11 +82,11 @@ fn record_login_requires_the_uuid_and_follows_renames() {
     assert_eq!(cleos[0].uuid.as_deref(), Some("u-alice"));
 }
 
-/// Issue #74: when no entry matches a selector by username or uuid, a
-/// name an entry holds for its keyring matches it whole
-/// (case-insensitive), never without its discriminator or by prefix;
-/// a current username wins over another entry's held name, and a held
-/// name two entries match is ambiguous.
+/// When no entry matches a selector by username or uuid, a name an entry
+/// holds for its keyring matches it whole (case-insensitive), never
+/// without its discriminator or by prefix; a current username wins over
+/// another entry's held name, and a held name two entries match is
+/// ambiguous.
 #[test]
 fn a_selector_matches_a_held_keyring_name() {
     let temp = tempfile::tempdir().unwrap();
@@ -124,14 +124,12 @@ fn a_selector_matches_a_held_keyring_name() {
     ));
 }
 
-/// C144 (no keyring entry out of the index's reach), the review of the
-/// h1 fix round, its second finding: a rename records the new username
-/// and the old name its keyring entry may still be under in one
-/// write, so a process that stops after that write — staged as a
-/// crash that lets one write land — leaves an index that reaches
-/// both. Before, the username and the held name were two writes, and
-/// a stop between them left the old name's entry out of every verb's
-/// reach.
+/// C144 (no keyring entry out of the index's reach): a rename records
+/// the new username and the old name its keyring entry may still be
+/// under in one write, so a process that stops after that write — staged
+/// as a crash that lets one write land — leaves an index that reaches
+/// both. As two writes, a stop between the username and the held name
+/// would leave the old name's entry out of every verb's reach.
 #[test]
 fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
     let temp = tempfile::tempdir().unwrap();
@@ -161,7 +159,7 @@ fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
 }
 
 /// C144: a held name leaves only on a clear that succeeded, a failed
-/// clear holds its name, and an entry written with the fix round's
+/// clear holds its name, and an entry an earlier build wrote with the
 /// single `keyring_name` reads into the list and is never written
 /// with it again.
 #[test]
@@ -199,10 +197,10 @@ fn corrupt_index_is_an_error_not_a_reset() {
     assert!(Index::load(dir).is_err());
 }
 
-/// C144 (the index is written atomically), issue #63: a writer that
-/// stops between writing its temporary file and the rename — a crash
-/// staged by writing the temporary and never renaming it — leaves the
-/// index as it was, readable whole, and the next save replaces it.
+/// C144 (the index is written atomically): a writer that stops between
+/// writing its temporary file and the rename — a crash staged by writing
+/// the temporary and never renaming it — leaves the index as it was,
+/// readable whole, and the next save replaces it.
 #[test]
 fn c144_a_crash_between_write_and_rename_leaves_the_index_whole() {
     let temp = tempfile::tempdir().unwrap();
@@ -228,12 +226,12 @@ fn c144_a_crash_between_write_and_rename_leaves_the_index_whole() {
     assert_eq!(Index::load(dir).unwrap().entries().len(), 2);
 }
 
-/// C144, issue #63: two writers for two accounts saving at once — two
-/// processes, or a daemon writer beside a stray one — never tear the
-/// file: each save has a temporary of its own, so a reader always
-/// parses an index one of them wrote whole. (That neither loses the
-/// other's change is the daemon's lock: its every index write takes
-/// the credentials hold as a value, C148.)
+/// C144: two writers for two accounts saving at once — two processes, or
+/// a daemon writer beside a stray one — never tear the file: each save
+/// has a temporary of its own, so a reader always parses an index one of
+/// them wrote whole. (That neither loses the other's change is the
+/// daemon's lock: its every index write takes the credentials hold as a
+/// value, C148.)
 #[test]
 fn c144_two_accounts_saving_at_once_never_tear_the_index() {
     let temp = tempfile::tempdir().unwrap();
@@ -367,12 +365,11 @@ fn an_account_named_user_or_daemon_leaves_the_world_file_what_it_is_in_either_or
     }
 }
 
-/// The review of fix round 1 (c0fb7673): a world a build before the
-/// escape wrote, an account named `user` with its facts at the literal
-/// `<dir>/user.db` and one named `daemon` at `<dir>/daemon.db`, staged at
-/// those paths and never through [`account_path`]. Each world file's
-/// opener refuses with the file and the deletion that frees it, leaving
-/// the file byte for byte (the review of fix round 2, 0ca39d50: no path
+/// A world a build before the escape wrote, an account named `user` with
+/// its facts at the literal `<dir>/user.db` and one named `daemon` at
+/// `<dir>/daemon.db`, staged at those paths and never through
+/// [`account_path`]. Each world file's opener refuses with the file and
+/// the deletion that frees it, leaving the file byte for byte (no path
 /// is prescribed as a destination).
 #[test]
 fn a_world_file_holding_an_earlier_builds_account_facts_is_refused_naming_its_deletion() {

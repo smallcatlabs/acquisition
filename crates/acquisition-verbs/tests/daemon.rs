@@ -2,7 +2,7 @@
 //! C23): the quote with no daemon and with a wedged peer, the ledger's
 //! answers when no daemon runs, and the apply flow over the mock daemon —
 //! applied twice, held by a queued job, a parent whose child failed; and
-//! the diagnosis (#79) with and without a daemon.
+//! the diagnosis with and without a daemon.
 //!
 //! The harness is the one every crate's process tests share (C122),
 //! `acquisition-client/tests/harness/mod.rs`, included by `#[path]`: one
@@ -313,8 +313,8 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
         "bulk columns are not read: {jobs}"
     );
 
-    // the ledger's age in words (C53, step 2g round 6) is made at the
-    // answer's time, the harness's one instant
+    // the ledger's age in words (C53) is made at the answer's time, the
+    // harness's one instant
     let report = serde_json::to_value(frontend.daemon().await.unwrap()).unwrap();
     assert_eq!(
         report,
@@ -444,9 +444,9 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     assert_eq!(landed.result.failed_children.len(), 1, "{landed:?}");
     let live = frontend.result(landed.result.job_id).await.unwrap();
     assert_eq!(live.failed_children, landed.result.failed_children);
-    // the landing is the shared result (C165, the review of round E,
-    // finding 5): its times, the failure's kind and its way on, the
-    // failed child's result, as `result` gives them
+    // the landing is the shared result (C165): its times, the failure's
+    // kind and its way on, the failed child's result, as `result` gives
+    // them
     assert_eq!(
         landed.result.way_on.as_ref().map(|w| w.ways.clone()),
         Some(vec![(
@@ -479,7 +479,7 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     assert_eq!(from_disk.failed_children, live.failed_children);
 }
 
-/// #91: a cancel is one document on both frontends, `job_id` and
+/// A cancel is one document on both frontends, `job_id` and
 /// `cancel_requested`, from the one function they call; a finished job's
 /// cancel is the daemon's refusal in its closed kind (C85), and with no
 /// daemon running it is [`Fault::NoDaemon`].
@@ -773,7 +773,7 @@ async fn c147_a_frontend_over_another_world_acts_in_its_world_not_the_environmen
     assert!(!a.exists(), "the environment's world was created");
 }
 
-// ---- the diagnosis (#79) ------------------------------------------------
+// ---- the diagnosis ------------------------------------------------------
 
 /// What the redaction test plants, each a string no printed diagnosis may
 /// hold: an account's name and uuid, two tokens in the log, and a second
@@ -783,21 +783,20 @@ const PLANTED_UUID: &str = "u-diagnose-7d1e";
 const PLANTED_OTHER: &str = "Bob#5678";
 const PLANTED_ACCESS: &str = "sentinel-access-55d0";
 const PLANTED_BEARER: &str = "sentinel-bearer-91c4";
-/// The review's two (r4, finding 1): a quoted value after `=`, and a
-/// JSON body's spacing.
+/// A quoted value after `=`, and a JSON body's spacing.
 const PLANTED_QUOTED: &str = "sentinel-refresh-q1";
 const PLANTED_SPACED: &str = "sentinel-code-q2";
-/// Their twins with tabs (the fix-round review, finding 1).
+/// Their twins with tabs.
 const PLANTED_TABBED: &str = "sentinel-code-t1";
 const PLANTED_TABBED_BEARER: &str = "sentinel-bearer-t2";
 
-/// #79: with no daemon, every section still reads — the ledger's
-/// picture, the store's counts read-only, the world's rails file, the
-/// journal and the log the last daemon left — and nothing planted
-/// survives into the document: the account's name in the index, the
-/// store file and the log, the journal's route keys (each account its
-/// own placeholder), the store root and the home directory written into
-/// the log, and six tokens, four of them in the reviews' shapes. A torn
+/// With no daemon, every section still reads — the ledger's picture,
+/// the store's counts read-only, the world's rails file, the journal
+/// and the log the last daemon left — and nothing planted survives into
+/// the document: the account's name in the index, the store file and
+/// the log, the journal's route keys (each account its own
+/// placeholder), the store root and the home directory written into the
+/// log, and six tokens, four of them quoted, spaced or tabbed. A torn
 /// last journal line is reported, never pasted.
 #[tokio::test]
 async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_planted() {
@@ -924,7 +923,7 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
     let log_lines = document["log"]["lines"].as_array().unwrap();
     assert_eq!(log_lines.len(), 10, "{document:#}");
     // A path is read with forward slashes: the log writes the platform's
-    // separator, and Windows' is `\` (#125).
+    // separator, and Windows' is `\`.
     let shown = |line: &serde_json::Value| line.as_str().unwrap_or("").replace('\\', "/");
     assert_eq!(
         shown(&log_lines[1]),
@@ -955,10 +954,11 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
     );
 }
 
-/// #79: with this client's daemon running, the daemon section is its
-/// status document, the rails are its report, the log is the one it
-/// opened, and the journal it does not keep (the isolation list's
-/// `ACQ_JOURNAL=0`) says so in its place; the logged-in name is in none.
+/// With this client's daemon running, the daemon section is its status
+/// document, the rails are its report, the log is the one it opened,
+/// and the journal it does not keep (the isolation list's
+/// `ACQ_JOURNAL=0`) says so in its place; the logged-in name is in
+/// none.
 #[tokio::test]
 async fn a_diagnosis_with_the_daemon_running_reads_its_report() {
     let s = session("diagnose-running");
@@ -997,11 +997,11 @@ async fn a_diagnosis_with_the_daemon_running_reads_its_report() {
     );
 }
 
-/// r4's review, finding 5: an index entry with an empty uuid made an
-/// empty needle, which matched at every position and advanced none, so
-/// the diagnosis never ended. It ends, and an empty string is replaced
-/// nowhere. The work runs on a thread watched from here: a scan that
-/// does not end is a busy loop no async timeout can interrupt.
+/// An index entry with an empty uuid makes an empty needle, which would
+/// match at every position and advance none, so the diagnosis would
+/// never end. It ends, and an empty string is replaced nowhere. The
+/// work runs on a thread watched from here: a scan that does not end is
+/// a busy loop no async timeout can interrupt.
 #[tokio::test]
 async fn an_index_entry_with_an_empty_uuid_does_not_stall_the_diagnosis() {
     let s = session("diagnose-empty-uuid");
@@ -1027,16 +1027,16 @@ async fn an_index_entry_with_an_empty_uuid_does_not_stall_the_diagnosis() {
     assert_eq!(document["store"][0]["account"], json!("<account 1>"));
 }
 
-/// r4's review, finding 3: a peer that answers the handshake as this
-/// world's daemon and then never its status held the diagnosis forever,
-/// every section behind it. The status request is bounded by the client
-/// under the handshake's deadline (#103; `ACQ_HELLO_WITHIN`, here 1 s);
-/// its expiry is forced by a peer that never answers (C137, the
-/// deadline's contract is its expiry behaviour), and the rest is read
-/// from disk. The peer replays the hello a real daemon of this world
-/// gave, so the observe door finds it compatible. What this pins is the
-/// diagnosis's part: the section carries the refusal and the rest is
-/// read; the bound itself is the client crate's (`contract.rs`).
+/// A peer that answers the handshake as this world's daemon and then
+/// never its status would hold the diagnosis forever, every section
+/// behind it. The status request is bounded by the client under the
+/// handshake's deadline (`ACQ_HELLO_WITHIN`, here 1 s); its expiry is
+/// forced by a peer that never answers (C137, the deadline's contract
+/// is its expiry behaviour), and the rest is read from disk. The peer
+/// replays the hello a real daemon of this world gave, so the observe
+/// door finds it compatible. What this pins is the diagnosis's part:
+/// the section carries the refusal and the rest is read; the bound
+/// itself is the client crate's (`contract.rs`).
 #[tokio::test]
 async fn a_peer_that_answers_hello_and_not_its_status_leaves_the_rest_to_the_disk() {
     use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
@@ -1106,10 +1106,10 @@ async fn a_peer_that_answers_hello_and_not_its_status_leaves_the_rest_to_the_dis
     );
 }
 
-/// r4's review, finding 4: with no daemon, the journal read is the one a
-/// daemon started from this frontend's environment writes — the path
-/// `ACQ_JOURNAL` names, or none when it is `0` — read once when the
-/// frontend is built (C147), never the world's default in their place.
+/// With no daemon, the journal read is the one a daemon started from
+/// this frontend's environment writes — the path `ACQ_JOURNAL` names,
+/// or none when it is `0` — read once when the frontend is built
+/// (C147), never the world's default in their place.
 #[tokio::test]
 async fn with_no_daemon_the_journal_read_is_the_one_acq_journal_names() {
     let s = session("diagnose-journal-knob");
@@ -1157,11 +1157,11 @@ async fn with_no_daemon_the_journal_read_is_the_one_acq_journal_names() {
     );
 }
 
-/// r4's review, finding 2: the path needles were this shell's own log
-/// directory, so a daemon started under another `ACQ_LOG_DIR` and with
-/// `ACQ_JOURNAL` elsewhere had both reported paths printed whole. Every
-/// diagnostic location the document prints is a needle by its directory:
-/// the log as `<logs>`, the journal as `<journal>`.
+/// Were the path needles this shell's own log directory alone, a daemon
+/// started under another `ACQ_LOG_DIR` and with `ACQ_JOURNAL` elsewhere
+/// would have both reported paths printed whole. Every diagnostic
+/// location the document prints is a needle by its directory: the log as
+/// `<logs>`, the journal as `<journal>`.
 #[tokio::test]
 async fn a_daemon_logging_elsewhere_has_its_reported_paths_replaced() {
     let s = session("diagnose-elsewhere");
@@ -1216,15 +1216,15 @@ async fn a_daemon_logging_elsewhere_has_its_reported_paths_replaced() {
 
 /// C152: the daemon reports its configured journal by its path in a
 /// field of its own, and the diagnosis redacts the journal's directory
-/// from that field. r4's fix-round reviews, findings 2 and 1: a daemon
-/// that could not open its journal named the path only inside its
-/// failure's words, so the diagnosis replaced the directory only when
-/// this shell's own `ACQ_JOURNAL` named it. Here the daemon is started
-/// under an unwritable journal and the diagnosing frontend has the knob
-/// unset: the field, the journal section's words and the log tail (its
-/// startup warning names the path) all carry `<journal>`, and neither
-/// spelling of the directory appears anywhere. The journal's directory
-/// is a file, so no platform can create it.
+/// from that field. Were the path named only inside the failure's words
+/// of a daemon that could not open its journal, the diagnosis would
+/// replace the directory only when this shell's own `ACQ_JOURNAL` named
+/// it. Here the daemon is started under an unwritable journal and the
+/// diagnosing frontend has the knob unset: the field, the journal
+/// section's words and the log tail (its startup warning names the path)
+/// all carry `<journal>`, and neither spelling of the directory appears
+/// anywhere. The journal's directory is a file, so no platform can
+/// create it.
 #[tokio::test]
 async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell() {
     let s = session("diagnose-not-written");
@@ -1232,9 +1232,8 @@ async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell
     std::fs::write(&blocked, "a file where the journal's directory would be").unwrap();
     let acqd = acqd_built();
     harness::link_beside_this_test(&acqd);
-    // The daemon's knob is relative, as an operator may type it (#94's
-    // review, finding 2): it reports the path absolute, against the
-    // directory it was started in.
+    // The daemon's knob is relative, as an operator may type it: it reports
+    // the path absolute, against the directory it was started in.
     let mut cmd = harness::daemon_command(&acqd, &s.base);
     cmd.current_dir(&s.base)
         .env("ACQ_JOURNAL", Path::new("private-runs").join("sends.jsonl"));
@@ -1303,13 +1302,13 @@ async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell
     );
 }
 
-/// #94's review, finding 1: the log is appended across lifetimes, so it
-/// may name a journal an earlier daemon was configured with while the one
-/// running reports none. A daemon started from this shell under an
-/// unwritable `ACQ_JOURNAL` logs its startup warning and goes; the next
-/// runs with journals off; the diagnosis from the first shell still
-/// replaces that directory in the log tail, from this shell's own knob
-/// beside the daemon's field (C152).
+/// The log is appended across lifetimes, so it may name a journal an
+/// earlier daemon was configured with while the one running reports none.
+/// A daemon started from this shell under an unwritable `ACQ_JOURNAL`
+/// logs its startup warning and goes; the next runs with journals off;
+/// the diagnosis from the first shell still replaces that directory in
+/// the log tail, from this shell's own knob beside the daemon's field
+/// (C152).
 #[tokio::test]
 async fn c152_a_journal_an_earlier_daemon_logged_is_redacted_by_this_shells_knob() {
     let s = session("diagnose-earlier");

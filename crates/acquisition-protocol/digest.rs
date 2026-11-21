@@ -7,15 +7,14 @@
 // order under a domain prefix; the first twelve hex digits of the
 // SHA-256 are the digest. Every input is a `rerun-if-changed`.
 //
-// Which files of a directory (the owner, 2026-10-10: "yes"): a closed
-// list of kinds, `KINDS`, the ones a build reads. A dotfile is passed
-// over — what an operating system or an editor writes unasked, a
-// `.DS_Store` — and a file of any other kind stops the build and is
-// named. So a leftover is never hashed into a digest in silence, which
-// would name one tree two ways on two machines, and a new kind of
-// source is never left out in silence, which would name two trees one
-// way. Git is not consulted: an untracked file of a listed kind is in,
-// being a difference in the tree that is built.
+// Which files of a directory: a closed list of kinds, `KINDS`, the ones a
+// build reads. A dotfile is passed over — what an operating system or an
+// editor writes unasked, a `.DS_Store` — and a file of any other kind
+// stops the build and is named. So a leftover is never hashed into a
+// digest in silence, which would name one tree two ways on two machines,
+// and a new kind of source is never left out in silence, which would name
+// two trees one way. Git is not consulted: an untracked file of a listed
+// kind is in, being a difference in the tree that is built.
 
 use std::path::{Path, PathBuf};
 

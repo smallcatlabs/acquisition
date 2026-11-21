@@ -136,7 +136,7 @@ fn c83_the_private_dir_is_this_users() {
     assert!(err.to_string().contains("not a directory"), "{err}");
     let runtime = app_runtime_dir().unwrap();
     assert_eq!(std::fs::metadata(&runtime).unwrap().mode() & 0o077, 0);
-    // C132: the real-mode lock is no longer in the runtime directory
+    // C132: the real-mode lock is not in the runtime directory
     // (`c83_the_lock_path_reads_no_environment` holds where it is).
     assert_ne!(
         real_mode_lock_location().unwrap().parent(),
@@ -360,7 +360,7 @@ fn c83_a_root_that_is_not_utf8_is_refused() {
 /// README row, and the socket has none. The derivation's refusals —
 /// over the cap, not UTF-8 — are pinned on the pure helper with
 /// runtime directories this test names, since the real one is the
-/// environment's (review 2026-09-11).
+/// environment's.
 #[test]
 fn c83_the_socket_derives_from_the_world_into_the_runtime_directory() {
     let temp = tempfile::tempdir().unwrap();
@@ -387,7 +387,7 @@ fn c83_the_socket_derives_from_the_world_into_the_runtime_directory() {
     // door agrees with the pure derivation over it — the same path
     // when that derivation accepts it, and a refusal of the same
     // kind when it does not (a deep or non-UTF-8 runtime directory
-    // is a valid environment; review 2026-09-11).
+    // is a valid environment).
     #[cfg(unix)]
     {
         let runtime = runtime_dir_path();
@@ -472,7 +472,7 @@ fn the_rails_state_keeps_a_later_builds_fields() {
     let mut held: RailsState =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(held.closed_routes["stash@A#1"].until, 61);
-    // #291: a closure #288's build wrote with no end reads as due now.
+    // A closure an earlier build wrote with no end reads as due now.
     let older: RailsState = serde_json::from_str(
         r#"{"closed_routes":{"stash@A#1":{"invalid":12,"status":400,"closed_at":1,"cooldown_secs":3600,"until":null}}}"#,
     )

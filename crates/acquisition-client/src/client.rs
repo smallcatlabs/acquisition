@@ -67,18 +67,17 @@
 //! the world lock's holder for the hand that stops it.
 //!
 //! Every observe request after the handshake runs under the same
-//! deadline (#103, `roadmap/briefs/103-observe-bound.md`): a request the
-//! daemon answers from memory — a job's status or result, the list, the
-//! daemon's status, the dashboard, the login's status, the
-//! subscription's turn — is bounded in [`Client::request`] by
-//! [`hello_within`], and its expiry is [`Stalled`], naming the peer's
-//! socket and pid, what was asked and the hand that stops it. An acting
-//! request (a submit, a cancel, a login step, a tripwire reset) is not
-//! bounded here: its wait is legitimate and bounded where it is made;
-//! nor is a quote, which waits for the start's credential restore
-//! (C148) and is bounded by its one caller, the planner's.
-//! The class is one exhaustive match (`asked`), so a new request is
-//! classed before the crate builds.
+//! deadline: a request the daemon answers from memory — a job's status
+//! or result, the list, the daemon's status, the dashboard, the login's
+//! status, the subscription's turn — is bounded in [`Client::request`]
+//! by [`hello_within`], and its expiry is [`Stalled`], naming the
+//! peer's socket and pid, what was asked and the hand that stops it. An
+//! acting request (a submit, a cancel, a login step, a tripwire reset)
+//! is not bounded here: its wait is legitimate and bounded where it is
+//! made; nor is a quote, which waits for the start's credential restore
+//! (C148) and is bounded by its one caller, the planner's. The class is
+//! one exhaustive match (`asked`), so a new request is classed before
+//! the crate builds.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
@@ -106,24 +105,22 @@
 //! false mismatch — a respawn is cheap, a missed contract change is
 //! invisible); a source edit to the daemon, the planner, this crate or a
 //! frontend does not, and no git state is consulted. The package version
-//! alone moves only at a release (it sat at `0.0.1` across the
-//! playground), and comparing it let a pre-realm daemon accept a console
-//! job and render the pc URL (review finding 2026-09-02).
+//! alone moves only at a release, and comparing it would let a daemon
+//! older than realms accept a console job and render the pc URL.
 //!
 //! The **artifact** is the executable the daemon runs from: at startup it
 //! records its file identity and SHA-256 and reports both in `hello`
 //! (`acquisition-protocol/src/artifact.rs` defines the identity; the
-//! daemon's `artifact.rs` computes it). This process compares that with
-//! the sibling `acqd` the locator names (C82), opened once at the moment of
-//! the comparison (`artifact.rs` here): the same inode with the same
-//! length and modification time is the same file; anything else is
-//! settled by hashing the sibling — so a copy is the same artifact and a
-//! rebuild under a live daemon is a named mismatch that the next use verb
-//! resolves by respawning. A daemon-only edit moves this value and not the
-//! contract, which is what lets a daemon edit leave every frontend
-//! untouched (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step 4's measure). A process with
-//! no sibling — no `acqd` beside it — matches no daemon on this dimension
-//! and says so: it could not have started the one it found.
+//! daemon's `artifact.rs` computes it). This process compares that with the
+//! sibling `acqd` the locator names (C82), opened once at the moment of the
+//! comparison (`artifact.rs` here): the same inode with the same length and
+//! modification time is the same file; anything else is settled by hashing
+//! the sibling — so a copy is the same artifact and a rebuild under a live
+//! daemon is a named mismatch that the next use verb resolves by
+//! respawning. A daemon-only edit moves this value and not the contract,
+//! which is what lets a daemon edit leave every frontend untouched. A
+//! process with no sibling — no `acqd` beside it — matches no daemon on
+//! this dimension and says so: it could not have started the one it found.
 //!
 //! The **provider** is the handshake's `provider` against what this
 //! process wants (`ACQ_PROVIDER`, C88).
@@ -146,25 +143,26 @@
 //! daemon-only edit never changes the identity and a stale daemon keeps
 //! serving. Together, a partial rebuild is loud: the client sees the
 //! mismatch, replaces, spawns the same old file, and reports it "still,
-//! after a respawn", having stopped the daemon it spawned (#116), so the
-//! refusal leaves nothing holding the world. Every frontend built from one tree carries the same
-//! contract and finds the same sibling, which is what lets `acq-mcp`
-//! accept a daemon `acq` spawned (C6, C31); two installations would thrash
-//! by respawning each other's daemons — the design event C82 names.
+//! after a respawn", having stopped the daemon it spawned, so the refusal
+//! leaves nothing holding the world. Every frontend built from one tree
+//! carries the same contract and finds the same sibling, which is what lets
+//! `acq-mcp` accept a daemon `acq` spawned (C6, C31); two installations
+//! would thrash by respawning each other's daemons — the design event C82
+//! names.
 //!
-//! The trap the observe tier closes (ledger row 2026-09-08): `acq daemon
-//! status` typed in a second terminal wanting the other provider connected under the
-//! interactive policy, replaced the live daemon with a mock one on the
-//! default socket, and the driver's next daemon refused to start over it.
-//! Every observational verb of both frontends now goes through
+//! The trap the observe tier closes: `acq daemon status`, typed in a
+//! second terminal wanting the other provider and connected under the
+//! interactive policy, would replace the live daemon with one on the
+//! other provider, and the next start of the first would refuse over
+//! it. Every observational verb of both frontends goes through
 //! [`Client::observe`]; the interactive `ConnectOptions` reach only the
 //! verbs that submit work.
 //!
 //! Pinned through the binaries in `acquisition-cli/tests/daemon_observe.rs`:
-//! the provider dimension by a mock daemon observed from a shell that
-//! wants ggg, and the artifact dimension by a copy of `acq` whose sibling
-//! is another file (a mismatch) or a copy of `acqd` (the same artifact by
-//! hash) — the residual the split's step 4 closed.
+//! the provider dimension by a mock daemon observed from a shell that wants
+//! ggg, and the artifact dimension by a copy of `acq` whose sibling is
+//! another file (a mismatch) or a copy of `acqd` (the same artifact by
+//! hash).
 //!
 //! ## C85 — Connection semantics, as built on this side
 //!
@@ -368,9 +366,9 @@ fn parse_within(value: &str, default: Duration) -> Duration {
 pub const STOPPED_WITHIN: Duration = Duration::from_secs(20);
 
 /// How often a stop whose connection has ended looks again for the
-/// daemon's endpoint, within [`STOPPED_WITHIN`] (#130): on Windows a
-/// pipe's name stays listed until the system has closed the ended
-/// process's last handle, which can come after the connection ends.
+/// daemon's endpoint, within [`STOPPED_WITHIN`]: on Windows a pipe's
+/// name stays listed until the system has closed the ended process's
+/// last handle, which can come after the connection ends.
 pub const GONE_LOOK_EVERY: Duration = Duration::from_millis(50);
 
 /// A peer that accepted a connection on the world's socket and did not
@@ -397,9 +395,9 @@ const KILL: &str = if cfg!(windows) {
 /// Before the holder, on macOS: a healthy daemon also misses the deadline
 /// while Keychain asks about each persisted account, which a start under a
 /// code identity the items do not yet trust does once per item — measured
-/// 34 s for three prompts (`RUN-LEDGER.md`, 2026-10-15). The daemon has
-/// bound its socket and not yet begun accepting, so the kernel takes the
-/// connection and `hello` waits: the report says to answer, not to kill.
+/// 34 s for three prompts (`RUN-LEDGER.md`). The daemon has bound its
+/// socket and not yet begun accepting, so the kernel takes the connection
+/// and `hello` waits: the report says to answer, not to kill.
 const KEYCHAIN: &str = if cfg!(target_os = "macos") {
     " — if Keychain is asking about \"acq\" (a new build's first start asks once per account), \
      answer it and run the command again; otherwise"
@@ -428,9 +426,9 @@ impl fmt::Display for Unresponsive {
 impl std::error::Error for Unresponsive {}
 
 /// A daemon that answered the handshake and then not an observe request
-/// within [`hello_within`] (#103; C86's deadline, C137's contract): the
-/// peer is identified, so the sentence names its socket and pid, what
-/// was asked, the effective deadline, and the hand that stops it. No
+/// within [`hello_within`] (C86's deadline, C137's contract): the peer
+/// is identified, so the sentence names its socket and pid, what was
+/// asked, the effective deadline, and the hand that stops it. No
 /// Keychain clause: none of the bounded requests touches the keyring
 /// (C148). The connection that met it is poisoned (C85, one request in
 /// flight: the late answer would be read as the next request's), so the
@@ -472,9 +470,9 @@ impl fmt::Display for Stalled {
 
 impl std::error::Error for Stalled {}
 
-/// #103: the class of a request at this client, one exhaustive match so
-/// a new variant is classed before the crate builds. An observe request
-/// is answered from the daemon's memory (a job evicted from it is read
+/// The class of a request at this client, one exhaustive match so a new
+/// variant is classed before the crate builds. An observe request is
+/// answered from the daemon's memory (a job evicted from it is read
 /// from the table, C6), so the handshake's deadline fits it; the words
 /// are what the refusal says was asked. An acting request waits on
 /// something real — the keyring, a store write, a listener bind, the
@@ -482,10 +480,10 @@ impl std::error::Error for Stalled {}
 /// never here. A quote is read-only but waits for the start's
 /// credential restore (C148), which on macOS is a Keychain prompt a
 /// person answers, so a bound here would say "kill" over a healthy
-/// daemon (the build's review, finding 1): it is bounded by its one
-/// caller, `acquisition_verbs::refresh::quote_within` under
-/// `QUOTE_TIMEOUT`, whose expiry is a note on an offline plan. A second
-/// caller of [`Client::quote`] brings its own bound.
+/// daemon: it is bounded by its one caller,
+/// `acquisition_verbs::refresh::quote_within` under `QUOTE_TIMEOUT`,
+/// whose expiry is a note on an offline plan. A second caller of
+/// [`Client::quote`] brings its own bound.
 fn asked(req: &Request) -> Option<&'static str> {
     match req {
         Request::Status { .. } => Some("the job's status"),
@@ -536,11 +534,11 @@ pub enum NotSpawned {
     NoTerminal,
 }
 
-/// What a stop the daemon acknowledged came to (#116's review).
+/// What a stop the daemon acknowledged came to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stopped {
-    /// Its connection ended and its endpoint is gone (#130): the stop
-    /// read the connection to its end, then looked at the endpoint it had
+    /// Its connection ended and its endpoint is gone: the stop read the
+    /// connection to its end, then looked at the endpoint it had
     /// connected to ([`endpoint::exists`](crate::endpoint::exists)) every
     /// [`GONE_LOOK_EVERY`] until none was there, both within
     /// [`STOPPED_WITHIN`]. The next command finds no daemon, not a dying
@@ -565,8 +563,8 @@ pub enum NotReplaced {
     /// An autonomous client (the MCP server) never replaces (C13).
     NeverReplaces,
     /// This client replaced it, and the daemon it then found is still not
-    /// its own — the sibling `acqd` is not this build's. `stopped`, #116:
-    /// when that daemon is the one this door spawned, the stop sent to it
+    /// its own — the sibling `acqd` is not this build's. `stopped`: when
+    /// that daemon is the one this door spawned, the stop sent to it
     /// before refusing: what it came to ([`Stopped`]) or its error as
     /// words; `None` for a daemon this door did not start, which is left
     /// standing.
@@ -661,7 +659,7 @@ fn want_provider() -> &'static str {
 /// Where a daemon was reached: its world's socket (C83). The socket is
 /// a `String` by construction — it goes into every report and onto the
 /// MCP's wire, and a path in other bytes is refused at the door rather
-/// than failing inside a report (review 2026-09-11).
+/// than failing inside a report.
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Endpoint {
     /// The socket the handshake ran over.
@@ -698,12 +696,11 @@ pub struct Reported {
 
 /// A daemon as its handshake identifies it, judged once. Whether it is
 /// this client's is four dimensions, judged together (C10, C84, C83): the
-/// shared-contract revision, the daemon artifact against the sibling
-/// this process would spawn, the provider, and the world against this
-/// process's own. The
-/// identity and its verdict are read-only from outside this module — the
-/// verdict was made of exactly these fields, and nothing may change one
-/// without the other (review 2026-09-11).
+/// shared-contract revision, the daemon artifact against the sibling this
+/// process would spawn, the provider, and the world against this
+/// process's own. The identity and its verdict are read-only from outside
+/// this module — the verdict was made of exactly these fields, and
+/// nothing may change one without the other.
 #[derive(Clone, Debug, Serialize)]
 pub struct DaemonId {
     /// The socket the handshake ran over.
@@ -727,8 +724,8 @@ pub struct DaemonId {
     /// wire, from one look at the sibling: the compatibility flag, the
     /// relation and the sibling a report names all come from the same
     /// snapshot, so a rebuild between two looks cannot make a report
-    /// contradict itself (review 2026-09-11). Boxed, like the artifact,
-    /// so a [`ConnectError`] carrying a `DaemonId` stays small.
+    /// contradict itself. Boxed, like the artifact, so a
+    /// [`ConnectError`] carrying a `DaemonId` stays small.
     #[serde(skip)]
     verdict: Box<Verdict>,
 }
@@ -747,9 +744,8 @@ pub struct Verdict {
     /// The sibling `acqd` as found in that one look, or why there is none.
     pub sibling: Result<FileIdentity, SiblingError>,
     /// This process's own world as found in that one look — its canonical
-    /// root, or the root it intended and why there is no world there.
-    /// The report and the prose read this, never a second look
-    /// (review 2026-09-11).
+    /// root, or the root it intended and why there is no world there. The
+    /// report and the prose read this, never a second look.
     pub own_world: Result<String, AbsentWorld>,
 }
 
@@ -1069,10 +1065,10 @@ pub struct Client {
     daemon: DaemonId,
     /// Whether this connection's `connect` started that daemon, so a
     /// frontend can say so when the command then fails (C3: the spawn is
-    /// the ruling's; the release seat asked that it be said).
+    /// the ruling's).
     spawned: bool,
-    /// The observe request this connection did not get answered in time
-    /// (#103): set once, and every later request is refused with it.
+    /// The observe request this connection did not get answered in time:
+    /// set once, and every later request is refused with it.
     stalled: Option<Stalled>,
 }
 
@@ -1634,15 +1630,14 @@ impl Client {
     /// the door table's row and the driver's own test, C157).
     ///
     /// C157: the door is the machine ([`Machine`], `door.rs`), driven
-    /// here. The policy is read once, at the start: `ACQ_NO_SPAWN=1`
-    /// never starts or replaces a daemon from this process (a daemon
-    /// spawned from a non-interactive parent, cron or launchd, has no
-    /// keychain access on macOS and comes up with no session: re-soak,
-    /// 2026-08-25, caught by rail 7; the live drivers set it so their
-    /// scripts can only talk to a daemon they started themselves), and a
-    /// real-mode daemon is started by a human (C88): without a terminal on
-    /// stderr the door observes and names the remedy; the mock spawns
-    /// freely.
+    /// here. The policy is read once, at the start: `ACQ_NO_SPAWN=1` never
+    /// starts or replaces a daemon from this process (a daemon spawned
+    /// from a non-interactive parent, cron or launchd, has no keychain
+    /// access on macOS and comes up with no session; the live drivers set
+    /// it so their scripts can only talk to a daemon they started
+    /// themselves), and a real-mode daemon is started by a human (C88):
+    /// without a terminal on stderr the door observes and names the
+    /// remedy; the mock spawns freely.
     async fn open_door(
         root: &Path,
         opts: ConnectOptions,
@@ -1738,7 +1733,7 @@ impl Client {
         match outcome {
             Outcome::Absent => Ok(None),
             // `daemon stop` keeps its words for an acknowledged stop: it
-            // reports the daemon it asked, as before (#116's review).
+            // reports the daemon it asked.
             Outcome::Stopped(_) => Ok(Some(driver.take_client().daemon)),
             // A peer that never answers `hello` cannot be asked (C86):
             // the error names the world lock's holder, read before the
@@ -1757,9 +1752,8 @@ impl Client {
     /// an error frame is reported by its message, anything else as
     /// unexpected, and a hang-up as the daemon closing the connection.
     ///
-    /// A stop acknowledged is not a daemon gone (#116's review): what it
-    /// came to is the [`Stopped`] it returns, and each caller says what
-    /// it knows.
+    /// A stop acknowledged is not a daemon gone: what it came to is the
+    /// [`Stopped`] it returns, and each caller says what it knows.
     async fn stop(&mut self) -> Result<Stopped> {
         self.stop_within(STOPPED_WITHIN).await
     }
@@ -1791,14 +1785,13 @@ impl Client {
         let bytes = self.exchange(&Bootstrap::DaemonStop).await?;
         match BootstrapReply::read(&bytes) {
             Some(BootstrapReply::Stopping) => {
-                // Gone, not only going (#130): this connection ends when
-                // the daemon's process does, after its endpoint is removed
+                // Gone, not only going: this connection ends when the
+                // daemon's process does, after its endpoint is removed
                 // (C133) — but on Windows a pipe's name stays listed until
                 // the system closes the ended process's last handle, which
-                // can come later (CI's Windows runner, run 40886043255).
-                // So a hang-up is the end only once the endpoint the
-                // handshake ran over is gone too, looked at every
-                // `GONE_LOOK_EVERY`, the next command then finding no
+                // can come later. So a hang-up is the end only once the
+                // endpoint the handshake ran over is gone too, looked at
+                // every `GONE_LOOK_EVERY`, the next command then finding no
                 // daemon rather than a dying one. The bound covers the read
                 // and the looks from one start; a bound that expires first,
                 // or a read that fails otherwise, leaves the stop only
@@ -1960,11 +1953,11 @@ impl Client {
     /// is a protocol violation, reported as such.
     ///
     /// An observe request (`asked`) runs under [`hello_within`], read
-    /// here as the handshake reads it (#103; C86, C137): a reply is in
-    /// time only if it arrives before the deadline, so a deadline of
-    /// zero expires whatever the peer does, and the expiry is
-    /// [`Stalled`], kept on this connection so no later request reads
-    /// the late answer as its own.
+    /// here as the handshake reads it (C86, C137): a reply is in time
+    /// only if it arrives before the deadline, so a deadline of zero
+    /// expires whatever the peer does, and the expiry is [`Stalled`],
+    /// kept on this connection so no later request reads the late
+    /// answer as its own.
     pub async fn request(&mut self, req: &Request) -> Result<Response> {
         if let Some(stalled) = &self.stalled {
             return Err(stalled.clone().into());
@@ -2196,12 +2189,11 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
         // process exits, not when the daemon does.
         acquisition_store::world_windows::disinherit_std_handles();
         // Out of the caller's job object where the job allows it: a host
-        // that runs its children in a kill-on-close job (measured
-        // 2026-10-15 by the `job` check of
-        // `tools/windows-checks.ps1` at `e91da86b`) would otherwise take
-        // the daemon with it when it exits. A job that forbids breakaway
-        // refuses the flag (access denied); the daemon then starts inside
-        // it, and lives as long as that host does.
+        // that runs its children in a kill-on-close job (measured by the
+        // `job` check of `tools/windows-checks.ps1` at `e91da86b`) would
+        // otherwise take the daemon with it when it exits. A job that
+        // forbids breakaway refuses the flag (access denied); the daemon
+        // then starts inside it, and lives as long as that host does.
         command.creation_flags(
             DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
         );
@@ -2402,11 +2394,10 @@ mod tests {
         (stopped, client.daemon)
     }
 
-    /// #116's review: a stop is gone only when the daemon's connection
-    /// ends; a daemon that acknowledged and lingers past the wait, its
-    /// expiry forced at zero (C137), is a stop only acknowledged, and the
-    /// door's refusal then names `acq daemon stop` and never says none is
-    /// left running.
+    /// A stop is gone only when the daemon's connection ends; a daemon
+    /// that acknowledged and lingers past the wait, its expiry forced at
+    /// zero (C137), is a stop only acknowledged, and the door's refusal
+    /// then names `acq daemon stop` and never says none is left running.
     #[cfg(unix)]
     #[tokio::test]
     async fn a_stop_acknowledged_by_a_daemon_that_lingers_is_not_a_daemon_gone() {
@@ -2433,16 +2424,16 @@ mod tests {
         assert!(words(Stopped::Gone).contains("none is left running"));
     }
 
-    /// #130: a stop whose connection has ended is gone only once the
-    /// endpoint it connected to is gone too. The peer ends its connection
-    /// after `stopping` and its endpoint, a file the test holds, stays
-    /// until the test removes it. Each look at the endpoint is signalled,
-    /// so the stop is polled to pending after a look found the endpoint
-    /// there; it is gone once the file is removed. Kept, with the bound
-    /// expiring only after such a look, the stop is acknowledged. Removed,
-    /// with the bound already expired at the poll that sees the end and
-    /// the absence, the tie is gone. The interleaving is forced, never
-    /// waited for (C137).
+    /// A stop whose connection has ended is gone only once the endpoint it
+    /// connected to is gone too. The peer ends its connection after
+    /// `stopping` and its endpoint, a file the test holds, stays until the
+    /// test removes it. Each look at the endpoint is signalled, so the
+    /// stop is polled to pending after a look found the endpoint there; it
+    /// is gone once the file is removed. Kept, with the bound expiring
+    /// only after such a look, the stop is acknowledged. Removed, with the
+    /// bound already expired at the poll that sees the end and the
+    /// absence, the tie is gone. The interleaving is forced, never waited
+    /// for (C137).
     #[cfg(unix)]
     #[tokio::test]
     async fn a_stop_is_gone_only_once_the_endpoint_it_connected_to_is() {
@@ -2895,9 +2886,9 @@ mod tests {
                 && !text.contains("another artifact"),
             "{text}"
         );
-        // One look (review 2026-09-11): the verdict's observation of this
-        // process's world is what the report and the prose read — the
-        // root removed after the handshake changes neither.
+        // One look: the verdict's observation of this process's world
+        // is what the report and the prose read — the root removed
+        // after the handshake changes neither.
         let judged_before = id(CONTRACT_REVISION, "mock");
         assert!(judged_before.world_matches());
         std::fs::remove_dir_all(dir).unwrap();
@@ -2932,11 +2923,11 @@ mod tests {
     }
 
     /// The absence reason is the caller's policy before the knob, and the
-    /// two read differently: a door that never spawns says so, a door
-    /// the knob closed names the knob (review, 2026-09-10: the MCP's
-    /// real-mode absence had claimed "it spawns on demand"). The world
-    /// is a scratch root nothing listens for (C83: its socket derives
-    /// from it), and a door that may not spawn creates no root.
+    /// two read differently: a door that never spawns says so, a door the
+    /// knob closed names the knob (so the MCP's real-mode absence never
+    /// claims "it spawns on demand"). The world is a scratch root nothing
+    /// listens for (C83: its socket derives from it), and a door that may
+    /// not spawn creates no root.
     #[tokio::test]
     async fn an_absent_daemon_names_why_it_was_not_started() {
         let env = ENV.lock().await;
@@ -3030,9 +3021,8 @@ mod tests {
         connect_endpoint(&path).await.unwrap()
     }
 
-    /// The defect of review round 1: a stop that the peer refuses, answers
-    /// strangely, or drops must never come back as a stop. Only
-    /// `Stopping` counts.
+    /// A stop that the peer refuses, answers strangely, or drops must
+    /// never come back as a stop. Only `Stopping` counts.
     #[tokio::test]
     async fn a_stop_the_daemon_did_not_acknowledge_is_not_a_stop() {
         // Its peers' sockets sit beneath the temp directory and its

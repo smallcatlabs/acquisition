@@ -24,9 +24,9 @@ pub struct AccountEntry {
     /// logout; the account stays listed because its store file remains.
     pub persisted: bool,
     /// From `GET /profile`; stable across name changes. Required at login
-    /// since 2026-08-31 (`record_login`) and the key that names the
-    /// account's annotation file. Entries from before then may lack it:
-    /// one re-auth fixes that, no migration.
+    /// (`record_login`) and the key that names the account's annotation
+    /// file. An entry written before it was required may lack it: one
+    /// re-auth fixes that, no migration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
     /// C144 (no keyring entry out of the index's reach): every name a
@@ -42,8 +42,8 @@ pub struct AccountEntry {
     pub keyring_names: Vec<String>,
 }
 
-/// An entry as a file may hold it: files written by the fix round of h1
-/// carry the single `keyring_name`, read once into `keyring_names` and
+/// An entry as a file may hold it: files an earlier build wrote carry
+/// the single `keyring_name`, read once into `keyring_names` and
 /// never written again.
 #[derive(Deserialize)]
 struct StoredEntry {
@@ -172,8 +172,7 @@ const RESERVED_STEMS: [&str; 2] = ["user", "daemon"];
 /// build before [`account_path`]'s escape kept an account named `user`
 /// or `daemon` there. Nothing is moved; facts are refetchable (C35), so
 /// the opener refuses in one sentence naming the deletion that frees the
-/// file (the owner's words, 2026-11-07, "Recovery refusal" and "Shrink
-/// and close"). The case is a mock world's: a real username carries its
+/// file. The case is a mock world's: a real username carries its
 /// discriminator, so a real account's file is never a world file's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldsAccountFacts {
@@ -487,8 +486,8 @@ impl Index {
     /// username without its `#discriminator`, or the exact uuid — never a
     /// prefix. Only when no entry matches so does it try the names
     /// entries hold for their keyrings, and a held name matches only
-    /// whole (case-insensitive), never without its discriminator (issue
-    /// #74: the retry a failed logout prints names the session in full,
+    /// whole (case-insensitive), never without its discriminator (the
+    /// retry a failed logout prints names the session in full,
     /// which a rename the index could not record left only as a held
     /// name; a current username always wins over another entry's held
     /// name). A selector two entries match is ambiguous. No selector

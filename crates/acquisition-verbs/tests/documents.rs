@@ -260,13 +260,13 @@ fn a_bare_name_shared_by_two_discriminators_is_ambiguous_with_both() {
     assert_eq!(picked.entry.uuid.as_deref(), Some("u-2"));
 }
 
-/// C51 (the owner's ruling on #246, 2026-11-11): a job names its account,
-/// chosen at the frontend's door before any daemon is reached. A named
-/// selector passes as typed; the one account known is named; among
-/// several, none named is `ambiguous_account` with the accounts to name,
-/// where before the daemon ran it as its one live session; a kind that
-/// needs no account names none; and with no account known the job names
-/// none, for the daemon to refuse as before.
+/// C51 (#246): a job names its account, chosen at the frontend's door
+/// before any daemon is reached. A named selector passes as typed; the
+/// one account known is named; among several, none named is
+/// `ambiguous_account` with the accounts to name, never run as the
+/// daemon's one live session; a kind that needs no account names none;
+/// and with no account known the job names none, for the daemon to
+/// refuse.
 #[test]
 fn c51_a_job_names_its_account_and_among_several_none_named_is_refused() {
     use acquisition_verbs::jobs::job_account;
@@ -341,7 +341,7 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
         )
         .unwrap();
     // each naming the account it was refused for, which the read-back a
-    // frontend prints names (#97)
+    // frontend prints names
     for write in [PolicyWrite::Merge, PolicyWrite::Replace] {
         let fault = account
             .set_policy(&policy(), Expect::Current, write)
@@ -521,9 +521,9 @@ fn c53_the_plan_note_and_its_wrapper_measure_the_character_listing_alike() {
     );
 }
 
-/// #211: a plan's ages are derived once ([`PlanSpans`]), and every word
-/// a frontend says of them equals what the CLI derived for itself
-/// before: `span(generated_at - fetched_at)` for a listing, `ago(now,
+/// A plan's ages are derived once ([`PlanSpans`]), and every word a
+/// frontend says of them equals the derivation by hand:
+/// `span(generated_at - fetched_at)` for a listing, `ago(now,
 /// generated_at)` for the plan, and the verbs' [`PlanAges`] from the same
 /// spans. Over each unit's edges, a listing after the plan, a clock set
 /// back, and a listing never made.
@@ -565,7 +565,7 @@ fn a_plans_spans_say_what_each_derivation_said_over_every_edge() {
         plan.basis.character_listing = None;
         let spans = PlanSpans::of(&plan, now);
         let row = format!("({generated_at}, {fetched_at:?}, {now})");
-        // what the CLI derived for itself before #211
+        // the derivation by hand
         let cli_listing = fetched_at.map(|at| span(generated_at - at));
         let cli_plan = ago(now, Some(generated_at));
         assert_eq!(spans.stash_listing.map(span), cli_listing, "{row}");
@@ -598,15 +598,14 @@ fn a_plans_spans_say_what_each_derivation_said_over_every_edge() {
 }
 
 /// C53 (an age the text prints stands in words beside its epoch, made
-/// at the answer's own time) and the envelope's schema contract (round 6
-/// of step 2g, the second cold review's finding 7): a plan's ages stand
-/// on the verbs' presentation beside the envelope — its age at the
-/// answer, its listings' and its snapshot's measured from its own
-/// `generated_at` and named so (C163; three times apart, the snapshot,
-/// the generation and the answer, so the clock each is read on is told
-/// by its words), its quote's at the answer — and the envelope and its
-/// quote are the bytes they were, parsed back by the planner's strict
-/// reader.
+/// at the answer's own time) and the envelope's schema contract: a
+/// plan's ages stand on the verbs' presentation beside the envelope —
+/// its age at the answer, its listings' and its snapshot's measured
+/// from its own `generated_at` and named so (C163; three times apart,
+/// the snapshot, the generation and the answer, so the clock each is
+/// read on is told by its words), its quote's at the answer — and the
+/// envelope and its quote are the bytes they were, parsed back by the
+/// planner's strict reader.
 #[test]
 fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
     use acquisition_plan::{PlanNotes, RefreshPlan};
@@ -849,8 +848,8 @@ async fn a_plan_with_no_account_name_is_quoted_with_its_note() {
     );
 }
 
-/// Each cause's sentence, word for word: the JSON `quote_note` an agent
-/// reads did not change when the note became typed.
+/// Each cause's sentence, word for word, as the JSON `quote_note` an
+/// agent reads says it.
 #[test]
 fn a_quote_notes_sentence_is_its_cause_in_words() {
     for (note, words) in [
@@ -870,7 +869,7 @@ fn a_quote_notes_sentence_is_its_cause_in_words() {
             QuoteNote::Other("a daemon of another contract".into()),
             "no quote: a daemon of another contract — plan compiled offline",
         ),
-        // #189, fault 12: typed for the page, the sentence `Other`'s
+        // typed for the page, the sentence `Other`'s
         (
             QuoteNote::NotLoggedIn("account Alice: not logged in".into()),
             "no quote: account Alice: not logged in — plan compiled offline",
@@ -1214,11 +1213,11 @@ fn c165_a_failures_way_on_follows_its_kind() {
     ] {
         assert_eq!(ways(kind, ("stash", &tab)), [], "{kind}");
         // the job a refresh's 503 or a rejected grant ended offers no
-        // resubmit either (the review of round E's fix round, finding 1)
+        // resubmit either
         assert_eq!(ways(kind, ("whoami", &json!({}))), [], "{kind}");
     }
     // a 403 or 503 never retried sends nothing, and says no halt stops
-    // every send: it set none (the review of round E, finding 1)
+    // every send: it set none
     let not_retried = way_on(
         &Outcome::failure(FailureKind::NotRetried, "words"),
         9,
@@ -1233,9 +1232,9 @@ fn c165_a_failures_way_on_follows_its_kind() {
         not_retried.words
     );
     // a client's job its probe's closure failed takes the probe's kind
-    // and that kind's way on (the review of round E's fix round, finding
-    // 2): after a rejected grant, a login named and nothing resubmitted;
-    // after a HEAD's 429, the same job once the hold has passed
+    // and that kind's way on: after a rejected grant, a login named and
+    // nothing resubmitted; after a HEAD's 429, the same job once the
+    // hold has passed
     let characters = json!({ "realm": "pc" });
     assert_eq!(
         ways(FailureKind::NotLoggedIn, ("characters", &characters)),
@@ -1330,9 +1329,9 @@ fn c149_events_are_one_document_ten_by_default_with_the_limit_said() {
     assert_eq!(summary.by_kind.added, 12);
 }
 
-/// #91 (C47, malformed input a structured error): an `hours` below zero
-/// or not a number is refused as `arguments`, in the request's word,
-/// where `-1e300` overflowed the window's subtraction; a window reaching
+/// C47 (malformed input a structured error): an `hours` below zero or
+/// not a number is refused as `arguments`, in the request's word, where
+/// `-1e300` would overflow the window's subtraction; a window reaching
 /// past the epoch reads every event; and a `usize::MAX` limit is no
 /// limit, read through the store's one bind.
 #[test]
@@ -1381,10 +1380,10 @@ fn an_events_window_is_bounded_where_both_frontends_read_it() {
 }
 
 /// C53 (an age the text prints stands in words beside its epoch, made
-/// at the answer's own time), round 6's fix round (its review's P3): the
-/// three makers that read their rows from the store — the events of a
-/// window, the refused bodies, the policy shown — each say a populated
-/// row's time at the time given, in the document an agent reads.
+/// at the answer's own time): the three makers that read their rows
+/// from the store — the events of a window, the refused bodies, the
+/// policy shown — each say a populated row's time at the time given, in
+/// the document an agent reads.
 #[test]
 fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
     const AT: i64 = 1_000;
@@ -1498,14 +1497,14 @@ fn job_row(id: u64, state: &str) -> PersistedJob {
     }
 }
 
-/// C149 and C53, and the brief's second review, finding 2 (no exemption
-/// for the open jobs): the live list is one document, its counts the
-/// daemon's over every job (C166) — 800 done, 12 waiting with predicted
-/// starts, one running — beside the first pages it read: the ten newest
-/// open rows (by id, not by when they run) and the ten newest finished,
-/// in id order, with what each left out; `expand`'s every page lists
-/// every job, and a view narrowed to one state counts only its own left
-/// out. The ledger's queue is ten of its open rows beside its counts.
+/// C149 and C53 (no exemption for the open jobs): the live list is one
+/// document, its counts the daemon's over every job (C166) — 800 done,
+/// 12 waiting with predicted starts, one running — beside the first
+/// pages it read: the ten newest open rows (by id, not by when they
+/// run) and the ten newest finished, in id order, with what each left
+/// out; `expand`'s every page lists every job, and a view narrowed to
+/// one state counts only its own left out. The ledger's queue is ten of
+/// its open rows beside its counts.
 #[test]
 fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     let mut jobs: Vec<_> = (1..=800)
@@ -1575,10 +1574,10 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
         (0, 790)
     );
 
-    // The review of fef5eadb, P2: the view's two first pages are two
-    // reads, and a job running at the open read and finished by the
-    // finished one is in both; it is one row, the later reading, and the
-    // counts (the later read's) leave nothing out.
+    // The view's two first pages are two reads, and a job running at the
+    // open read and finished by the finished one is in both; it is one
+    // row, the later reading, and the counts (the later read's) leave
+    // nothing out.
     let running = {
         let mut job = job_info(&job_row(5, "running")).unwrap();
         job.eta_seconds = None;
@@ -1621,9 +1620,8 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     assert_eq!((whole.jobs.len(), whole.left_out), (12, 0));
 }
 
-/// C149 and C53, and the brief's second review, finding 2 (no exemption
-/// for a handful of names): the accounts listing counts every account
-/// beside ten of them, every one under `expand`.
+/// C149 and C53 (no exemption for a handful of names): the accounts listing
+/// counts every account beside ten of them, every one under `expand`.
 #[test]
 fn c149_the_accounts_are_counted_beside_ten() {
     let s = scratch();
@@ -1652,12 +1650,12 @@ fn c149_the_accounts_are_counted_beside_ten() {
 }
 
 /// C149, the pin: every document a verb returns serializes to one JSON
-/// object, never a bare array or a bare null — each answer this step
-/// wrapped (characters, the events and their summary, the job list live
-/// and absent, the accounts, the policy shown, the refused bodies; round
-/// 5's leagues held and stored league list) and
-/// the daemon's report beside them, each over an empty world, where a
-/// bare list would have been `[]` and a missing row `null`.
+/// object, never a bare array or a bare null — each of the answers
+/// (characters, the events and their summary, the job list live and
+/// absent, the accounts, the policy shown, the refused bodies, the
+/// leagues held and the stored league list) and the daemon's report
+/// beside them, each over an empty world, where a bare list would have
+/// been `[]` and a missing row `null`.
 #[test]
 fn c149_every_document_a_verb_returns_is_one_json_object() {
     use acquisition_verbs::events::{EventSummary, Events};
@@ -1778,9 +1776,9 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
     );
 }
 
-// ---- what the store holds beyond the league (round 5, #157, #22) -------
+// ---- what the store holds beyond the league -----------------------------
 
-/// The world of round 5's documents: in pc, Standard with two tabs,
+/// The world of these documents: in pc, Standard with two tabs,
 /// Allflame with one, Rehearsal with two characters and one character
 /// with no league; in xbox, Standard with one tab. The listings are
 /// recorded at `at`.
@@ -1842,13 +1840,13 @@ fn held_rows(doc: &Value) -> Vec<(Value, i64, i64, bool)> {
         .collect()
 }
 
-/// #19's comment and the CLI-2 seat's fault 6: an answer about one league
-/// says every other league of its realm the store holds, with its counts
-/// and whether the policy names it — a characters-only entry is named,
-/// the league-less characters are a row of their own and never named —
-/// the league read first; `policy show` says each realm the store holds,
-/// a realm the policy does not name among them; with no policy or one
-/// this build cannot read, `named` is false and `policy` says which.
+/// #19: an answer about one league says every other league of its realm
+/// the store holds, with its counts and whether the policy names it — a
+/// characters-only entry is named, the league-less characters are a row
+/// of their own and never named — the league read first; `policy show`
+/// says each realm the store holds, a realm the policy does not name
+/// among them; with no policy or one this build cannot read, `named` is
+/// false and `policy` says which.
 #[test]
 fn leagues_held_says_each_league_of_the_realm_beside_the_policys_word() {
     use acquisition_verbs::LeaguesHeld;
@@ -1944,13 +1942,12 @@ fn leagues_held_says_each_league_of_the_realm_beside_the_policys_word() {
     assert!(held_rows(&doc).iter().all(|row| !row.3), "{doc}");
 }
 
-/// The build review of round 5 (`roadmap/reviews/157-leagues-held-a6c2b121.md`,
-/// its first finding): a sync-policy row that is not JSON (C151, a row
-/// this build cannot read) is `unreadable` with its revision on every
-/// answer that carries the policy's word, through the planner's one
-/// reader — the price status and shop render each frontend makes, `tabs`'
-/// and `leagues --stored`'s read of the account — and none of them fails
-/// on it; `policy show`, whose answer is the row, refuses naming it.
+/// A sync-policy row that is not JSON (C151, a row this build cannot
+/// read) is `unreadable` with its revision on every answer that carries
+/// the policy's word, through the planner's one reader — the price status
+/// and shop render each frontend makes, `tabs`' and `leagues --stored`'s
+/// read of the account — and none of them fails on it; `policy show`,
+/// whose answer is the row, refuses naming it.
 #[test]
 fn a_malformed_policy_row_is_unreadable_on_every_answer_that_carries_its_word() {
     use acquisition_verbs::Held;
@@ -2016,10 +2013,9 @@ fn a_malformed_policy_row_is_unreadable_on_every_answer_that_carries_its_word() 
     assert!(refused.contains("revision 1"), "{refused}");
 }
 
-/// The build review of round 5, its second finding: a facts file this
-/// build cannot read (a newer schema's stamp) beside readable intent:
-/// `policy show` shows the policy, and says its leagues held are unknown
-/// and why, never that the store holds none.
+/// A facts file this build cannot read (a newer schema's stamp) beside
+/// readable intent: `policy show` shows the policy, and says its leagues
+/// held are unknown and why, never that the store holds none.
 #[test]
 fn a_facts_file_this_build_cannot_read_leaves_the_policy_shown_and_its_leagues_unknown() {
     let s = scratch();
@@ -2076,7 +2072,7 @@ fn twelve_leagues_held_list_ten_with_the_one_read_first() {
     assert_eq!((all.leagues.len(), all.left_out), (12, 0));
 }
 
-/// #157: the stored league list read with no daemon, each league beside
+/// The stored league list read with no daemon, each league beside
 /// whether the policy names it — in the entry's realm, or in any realm
 /// for an entry naming none — and what the store holds of it; never
 /// fetched is a document that says so; a list of twelve is ten and the
@@ -2126,8 +2122,8 @@ fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
         (&json!("set"), &json!(4))
     );
     // the newest start first, then those with none in the list's order;
-    // each start with its age, `never` where GGG gives none (the
-    // answer-facts seat, MCP fault 3: nothing marked the new league)
+    // each start with its age, `never` where GGG gives none (in the
+    // list's order alone, nothing marked the new league)
     let mut leagues = doc["leagues"].clone();
     for league in leagues.as_array_mut().unwrap() {
         let age = league
@@ -2185,9 +2181,9 @@ fn the_stored_league_list_reads_beside_the_policy_and_the_store() {
     assert_eq!(doc["policy"], "unreadable", "{doc}");
 }
 
-/// #22: a policy plan counts the league's non-folder tabs its entry does
-/// not cover beside all of them (C37: a folder's id covers its child),
-/// from the snapshot it compiled over; a policy naming every tab counts
+/// A policy plan counts the league's non-folder tabs its entry does not
+/// cover beside all of them (C37: a folder's id covers its child), from
+/// the snapshot it compiled over; a policy naming every tab counts
 /// none; a selection plan carries no count.
 #[tokio::test]
 async fn a_policy_plan_counts_the_leagues_tabs_outside_the_policy() {
@@ -2248,7 +2244,7 @@ async fn a_policy_plan_counts_the_leagues_tabs_outside_the_policy() {
     );
 }
 
-// ---- the one refusal shape (C11, C149; round 4 of the 2g build) ---------
+// ---- the one refusal shape (C11, C149) ----------------------------------
 
 /// A surface for the shape's own tests: its words the chain whole, and
 /// a way spelled as its debug text, the tool named for every way but the
@@ -2494,8 +2490,7 @@ fn shown(target: &str) -> acquisition_plan::pricing::Shown {
 /// refusal's ways on are offers each surface spells, never a command in
 /// its words — a conflict's read-back after its retry, a blind write's
 /// read-back, a currency word's table — the read-back naming no realm or
-/// league, which a write resolves none of (#97, the owner's comment of
-/// 2026-11-01).
+/// league, which a write resolves none of.
 #[test]
 fn a_pricing_refusals_ways_on_are_offers_never_commands_in_its_words() {
     use acquisition_plan::pricing::{Refused, RefusedKind, Retry, read_target};
@@ -2686,10 +2681,9 @@ fn a_request_read_whole_is_repeated_as_another_account_by_one_rule() {
     assert!(again(&json!([1]), USER).is_none());
 }
 
-// ---- the one receipt shape (C78; round 5 of the 2g build) ----------------
+// ---- the one receipt shape (C78) ----------------------------------------
 
-/// Round 5 of the 2g build (the second cold review's findings 1 and 14):
-/// a policy write's receipt carries `prior`, the row the write replaced,
+/// A policy write's receipt carries `prior`, the row the write replaced,
 /// read once before the put and checked against the revision the write
 /// names as a price write's is. Staged as the race: an agent reads the
 /// policy at 2; a second writer lands 3; a write naming 2 is the conflict
@@ -2832,11 +2826,10 @@ fn unaged(row: &acquisition_store::AnnotationRow) -> acquisition_store::Annotati
     }
 }
 
-/// Round 5 of the 2g build: a receipt reads in the order its document
-/// declares, its `undo` or `no_undo` last (C115: an answer leads with
-/// what bears on the question) — never the sorted order a JSON value
-/// gave it while the workspace's serde_json sorted an object's keys
-/// (before #200 turned on `preserve_order`).
+/// A receipt reads in the order its document declares, its `undo` or
+/// `no_undo` last (C115: an answer leads with what bears on the question) —
+/// never a sorted order (the workspace's serde_json keeps an object's keys
+/// in order under `preserve_order`).
 #[test]
 fn a_receipt_keeps_its_documents_key_order_and_its_undo_after_it() {
     let s = scratch();
@@ -2855,7 +2848,7 @@ fn a_receipt_keeps_its_documents_key_order_and_its_undo_after_it() {
     assert!(text.starts_with("{\"scope\":"), "{text}");
 }
 
-// ---- every time a document carries has its words (C163, #164) ----------
+// ---- every time a document carries has its words (C163) -----------------
 
 /// C163's vocabulary (`acquisition_store::age`): a span (`45s`, `12m`,
 /// `5h`, `9d`) read `ago` or `before generated_at`, or `never`.
@@ -4068,7 +4061,7 @@ async fn c163_no_document_carries_a_time_without_its_words() {
     );
 }
 
-// ---- the saved search (C167; 4-full part 1, step 1) ------------------------
+// ---- the saved search (C167) --------------------------------------------
 
 use acquisition_store::{SAVED_SEARCH_SCOPE, SavedSearch, User, user_path};
 use acquisition_verbs::refusal::{Pointed, document};
@@ -4494,9 +4487,9 @@ fn c167_a_creates_realm_is_named_or_resolved_as_a_search_resolves_one() {
     assert_eq!(landed["written"]["scope"]["realm"], "xbox");
 }
 
-/// C167, #247: a saved search is the world's, so a create naming no
-/// realm and no account among several known accounts settles its realm
-/// over every account's: none held is `all`, one held lands, several are
+/// C167: a saved search is the world's, so a create naming no realm and
+/// no account among several known accounts settles its realm over every
+/// account's: none held is `all`, one held lands, several are
 /// `realm_needed` with each realm and `all` as the same create, naming
 /// no account; an account named narrows to its own realms, and a name
 /// matching two accounts is `ambiguous_account`, as everywhere.
@@ -4728,13 +4721,12 @@ fn c167_a_minted_id_meeting_one_standing_mints_once_more_and_never_a_third_time(
     assert_eq!(saved::list(&world, None, false).unwrap().total, 2);
 }
 
-/// The owner's "Drop and cut" (2026-11-07): a name is a label and the id
-/// the identity. Two rows of one name, written through the store's door,
-/// are both listed; opening the name is refused as
-/// `ambiguous_saved_search` naming both ids, and each offer, sent back
-/// through the verbs, opens its row; each id opens its own; a third
-/// search of that name lands as a third row with its undo; one of the
-/// two cleared has an undo that lands.
+/// A name is a label and the id the identity. Two rows of one name,
+/// written through the store's door, are both listed; opening the name
+/// is refused as `ambiguous_saved_search` naming both ids, and each
+/// offer, sent back through the verbs, opens its row; each id opens its
+/// own; a third search of that name lands as a third row with its undo;
+/// one of the two cleared has an undo that lands.
 #[test]
 fn c167_two_rows_of_one_name_are_both_listed_and_refused_only_when_opened_by_the_name() {
     let s = scratch();
@@ -4876,10 +4868,10 @@ fn legacy_user_facts(dir: &std::path::Path) {
         .unwrap();
 }
 
-/// The review of fix round 1 (c0fb7673): a `user.db` holding an earlier
-/// build's account facts is the refusal `user_file_holds_account`, its
-/// field the file, its words the file and the deletion that frees it,
-/// for every saved-search verb; nothing is written to the file.
+/// A `user.db` holding an earlier build's account facts is the refusal
+/// `user_file_holds_account`, its field the file, its words the file
+/// and the deletion that frees it, for every saved-search verb; nothing
+/// is written to the file.
 #[test]
 fn c167_a_user_file_holding_account_facts_is_refused_naming_its_deletion() {
     let s = scratch();
@@ -4938,8 +4930,7 @@ fn c167_a_world_with_no_provider_directory_is_not_logged_in_naming_it() {
     assert!(!dir.exists(), "the directory was made");
 }
 
-/// The review of the build (39f3b7dc), findings 2 and 3, one rule: a
-/// recovery write is offered only where it would pass the writer's own
+/// A recovery write is offered only where it would pass the writer's own
 /// checks as this build writes. A conflict over a row this build cannot
 /// read offers the row's show, never the partial write again, and a
 /// whole write again at the revision that stands, which lands; a prior
@@ -5035,10 +5026,9 @@ fn c167_a_recovery_write_is_offered_only_where_it_would_pass() {
     }
 }
 
-/// The review of the build (39f3b7dc), finding 5: a name is compared
-/// trimmed on both sides, so a row another writer stored with a padded
-/// name, which the store accepts, opens by its trimmed spelling, and the
-/// stored value is not rewritten.
+/// A name is compared trimmed on both sides, so a row another writer
+/// stored with a padded name, which the store accepts, opens by its
+/// trimmed spelling, and the stored value is not rewritten.
 #[test]
 fn c167_a_padded_name_opens_by_its_trimmed_spelling() {
     let s = scratch();

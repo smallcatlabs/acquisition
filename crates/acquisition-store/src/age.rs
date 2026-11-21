@@ -15,7 +15,7 @@
 //! they are made from, the epoch's own name and `_age` (`fetched_at` and
 //! `fetched_at_age`), made at the answer's own time: the epoch is the
 //! fact a program keeps, the words what the answer says of it when it
-//! was made (step 2g, round 6).
+//! was made.
 
 /// What an age's words are, said once for every surface that glosses a
 /// document's keys (C146: the MCP's `describe` entry `ages`).

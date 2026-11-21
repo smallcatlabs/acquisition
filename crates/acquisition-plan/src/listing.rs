@@ -146,26 +146,20 @@ use crate::game_side::{self, GamePrice, NOTE_PARSER_VERSION, Source};
 use crate::price::{Buyout, Price, PriceTarget};
 
 /// The report's JSON shape, stamped on every [`ListingReport`] and view;
-/// changes are additive (C53) until they are not, and then this moves.
-/// **2**: schema 1 never left development, and the
-/// count fields `by_game_statement` and
-/// `game_priced` replaced rather than joined `by_game_reading`,
-/// `game_priced_public` and `game_priced_not_public` — a rename, so a
-/// bump, not a compatibility shim nobody would read. **3**:
-/// `rows.unmatched` lists each row whole (the manual side's
-/// shape) where it listed the bare address — a replaced shape, so a
-/// bump. The shape is pinned by `reference/listing-report-schema-3.json`
-/// (`the_report_json_matches_the_committed_fixture`); a change that
-/// fails it is either additive (regenerate the fixture) or a bump.
-/// Within 3 (C53's ages, additive): beside an epoch a
+/// changes are additive (C53) until they are not, and then this moves: a
+/// renamed or replaced field is a bump, never a compatibility shim nobody
+/// would read. The shape is pinned by
+/// `reference/listing-report-schema-3.json`
+/// (`the_report_json_matches_the_committed_fixture`); a change that fails
+/// it is either additive (regenerate the fixture) or a bump. Version 3:
+/// the counts `by_game_statement` and `game_priced`; `rows.unmatched`
+/// lists each row whole (the manual side's shape); beside an epoch a
 /// view's text says as an age, its words under the epoch's name and
-/// `_age`. Within 3 (C162, additive): the
-/// report's `facts`, its non-folder containers' fetches and lists;
-/// `list` and `show` carry the header alone. Within 3
-/// (C163, every time a document carries has its words beside it,
-/// additive): every view says every age, made where the view is
-/// ([`ListingReport::aged`], [`ListView::aged`], [`ShowView::aged`]) —
-/// the header's snapshot and its two listings (the flattened header's
+/// `_age` (C53's ages); the report's `facts`, its non-folder containers'
+/// fetches and lists, where `list` and `show` carry the header alone
+/// (C162); and every age every view says, made where the view is (C163;
+/// [`ListingReport::aged`], [`ListView::aged`], [`ShowView::aged`]) — the
+/// header's snapshot and its two listings (the flattened header's
 /// `taken_at_age`, `stash_listing_fetched_at_age`,
 /// `character_listing_fetched_at_age`), each listing's
 /// `manual.updated_at_age` and `basis.at_age`, the unmatched rows'

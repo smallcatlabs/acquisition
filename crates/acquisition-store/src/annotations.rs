@@ -93,8 +93,7 @@ use crate::index::filename_safe;
 /// from [`SCHEMA_FLOOR`]. v2 added `meta`, which carries the account uuid
 /// *inside* the file so a copied or renamed database cannot silently pair
 /// with another account's facts — the filename convention alone was
-/// bypassable. v3 (2026-09-05, C65) added `written_via` and `actor` to
-/// every row.
+/// bypassable. v3 (C65) added `written_via` and `actor` to every row.
 const SCHEMA_VERSION: i64 = 3;
 
 /// The oldest schema this build opens. Files below it were written only
@@ -383,7 +382,7 @@ pub enum ValueError {
     /// there, `canonical` what the kind writes there — `None` on either
     /// side is "absent" (`null` and absent are not the same value).
     /// Boxed: a `Value` is the size of an insertion-ordered map
-    /// (serde_json's `preserve_order`, #200), and every annotation
+    /// (serde_json's `preserve_order`), and every annotation
     /// error carries this one.
     NotCanonical {
         kind: &'static str,
@@ -595,7 +594,7 @@ pub enum AnnotationError {
     Json(serde_json::Error),
 }
 
-/// #234, the one rule for the store's words that reach a user with no
+/// The one rule for the store's words that reach a user with no
 /// arm above the store to word them (C116: no store name stands in a
 /// refusal; C143: the request's words): the file named as a user knows
 /// it, by what it keeps, and every sentence ending with what to do
@@ -605,12 +604,10 @@ pub(crate) const HELD: &str = "the file that keeps what you set by hand (prices,
                     searches)";
 
 /// What to do next where the file could not be read or written at all
-/// (#234's rule; the cold review of 8e0baadb, its first finding): the
-/// failure may come after a write committed (a read after it), so the
-/// sentence claims nothing about what was written (the second cold review
-/// of #234, its first finding); a failure that repeats is the file's:
-/// kept, never deleted, since what it holds has no server to refetch from
-/// (C35), and reported.
+/// (`HELD`'s rule): the failure may come after a write committed (a read
+/// after it), so the sentence claims nothing about what was written; a
+/// failure that repeats is the file's: kept, never deleted, since what
+/// it holds has no server to refetch from (C35), and reported.
 const DAMAGED: &str = "run the command again, and if it fails the same way, keep the file as \
                        it is and report it";
 
@@ -878,23 +875,21 @@ impl Annotations {
     }
 
     /// The two boundaries of a first open (C35, the creation race and its
-    /// two windows, `PRICING-SLICE.md` at `b6197a82` findings 7.3 and the 2026-09-09
-    /// review): a losing first-time opener waits for the winner's create
+    /// two windows): a losing first-time opener waits for the winner's create
     /// to commit and then proceeds; a stampless file that holds tables is
     /// refused and left byte for byte as found. So nothing that writes
     /// to the file — the journal-mode switch above all — runs before the
     /// refusal, and the refusal is decided under the write lock, where a
     /// creation in flight has either committed its stamp or not begun.
     ///
-    /// A third window, closed 2026-09-11 (the daemon split's review
-    /// round 25): the read-only gate below read the stamp and the tables
-    /// as two implicit statements, and a winner's commit could land
-    /// between them — the loser saw stamp 0 from before the commit and
-    /// tables from after it, and refused a well-formed file as "content
-    /// but no schema stamp" (seen once in the gate, `price_story.rs`,
-    /// two blind writers on one row). The gate now reads both facts
-    /// inside one deferred transaction — one snapshot, still no write —
-    /// so a stamp and its tables are always seen from the same moment.
+    /// A third window: were the read-only gate below to read the stamp
+    /// and the tables as two implicit statements, a winner's commit could
+    /// land between them — the loser would see stamp 0 from before the
+    /// commit and tables from after it, and refuse a well-formed file as
+    /// "content but no schema stamp" (two blind writers on one row, as in
+    /// `price_story.rs`). So the gate reads both facts inside one deferred
+    /// transaction — one snapshot, still no write — and a stamp and its
+    /// tables are always seen from the same moment.
     fn init(mut conn: Connection, path: PathBuf) -> Result<Annotations, AnnotationError> {
         let prepared = Self::prepare(&mut conn, &path);
         let uuid = reported(&conn, prepared)?;
@@ -918,7 +913,7 @@ impl Annotations {
         // Both facts from one snapshot: a deferred transaction writes
         // nothing and holds the read across the two statements, so a
         // create committing between them cannot show its tables beside a
-        // stamp read before it (round 25).
+        // stamp read before it.
         let (found, tables) = {
             let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
             let found: i64 = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -1169,7 +1164,7 @@ impl Annotations {
     /// Returns the tombstone's revision, the one this delete's own
     /// transaction wrote: the generation the row sequence has reached,
     /// which a later conflict names — never a read taken after it, which
-    /// another writer could have moved (round 5 of the 2g build). The next
+    /// another writer could have moved. The next
     /// write is a create and names no revision ([`Self::put`]).
     pub fn delete(
         &mut self,
@@ -1247,7 +1242,7 @@ impl Annotations {
     /// the swap holds the row at `revision` until the write lands, so a
     /// write naming it that lands replaced the very row returned: the one
     /// read a receipt's `prior` is taken from, for a price and a policy
-    /// alike (C35, C78; round 5 of the 2g build).
+    /// alike (C35, C78).
     pub fn at_revision(
         &self,
         scope: &str,
@@ -1381,8 +1376,8 @@ impl Annotations {
     /// replaced backup. Only on a filesystem without hard links does a
     /// `rename` stand in, and that fallback is the one place a
     /// simultaneous export could still replace another's. On unix the
-    /// publish ends with the directory synced (the crate's one `sync_dir`,
-    /// issue #63), so the link is durable as the file is; Windows cannot
+    /// publish ends with the directory synced (the crate's one `sync_dir`),
+    /// so the link is durable as the file is; Windows cannot
     /// sync a directory and the publish stands unsynced there. Fails if `dest`
     /// already exists, before anything is written; the partial is removed
     /// either way.
@@ -1407,7 +1402,7 @@ impl Annotations {
         // tick (microseconds on macOS) shared a name, one VACUUM failed
         // on the other's file and its cleanup removed that file before
         // it was published, so both were refused (the C35 race test,
-        // one run in twelve; found by plan step 7's gate, 2026-09-07).
+        // one run in twelve).
         static EXPORTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let mut partial = dest.as_os_str().to_owned();
         partial.push(format!(

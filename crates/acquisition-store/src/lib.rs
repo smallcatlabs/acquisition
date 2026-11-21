@@ -41,9 +41,9 @@
 //! location again, which also clears its `fetched_at` — and its retained
 //! substashes' — so the next plan fetches them. A withheld body is
 //! validated like any other: an id-less item is still refused whole. A
-//! **refused body is kept verbatim** in `refused` (facts v7, 2026-09-02 —
-//! PoE2 first contact refused four of five character bodies and left
-//! nothing to read): the ingest transaction rolls back whole, no basis
+//! **refused body is kept verbatim** in `refused` (facts v7; N44's
+//! id-less bodies, refused whole, would otherwise leave nothing to read):
+//! the ingest transaction rolls back whole, no basis
 //! query reads that table, the failure names the row and the item's
 //! position (`skills[1]`), and `acq store refused [id]` shows the list or
 //! one body in full. A location is its full coordinate (realm, league for
@@ -74,7 +74,7 @@
 //! An item-shaped array a character body carries under any other name
 //! is the **drift tripwire**: counted into the envelope (`_unlifted`) and
 //! `acq store status`, never lifted, never a failure. A PoE2 **item-granted
-//! skill** (ruled 2026-09-02) — the id-less gem a weapon or shield carries
+//! skill** (N44) — the id-less gem a weapon or shield carries
 //! in its own `socketedItems`, repeated verbatim as `skills[0]`, with any
 //! support socketed into it id-less too — is a property of its host, not an
 //! item: the subtree stays in the host's json and in the envelope under
@@ -87,14 +87,14 @@
 //! whose item is gone is kept and surfaceable as orphaned; a frontend
 //! delete is a tombstone under the same compare-and-swap, so revisions
 //! never reset across delete/recreate), backed up via store-managed
-//! `VACUUM INTO` export. Since annotations v3 (2026-09-05, the floor: an
-//! older file is refused, not migrated) every row
-//! carries who wrote it (`written_via`, `actor`; C65) and the write door
-//! is typed: a kind declares its version and strict parse through
-//! `IntentValue`, and a value that fails the version gate, the parse or
-//! the exact round-trip never lands (C66). The only irreplaceable local state;
-//! the store crate's production code is held to no-panic by a clippy
-//! ratchet (`unwrap_used`/`expect_used` denied).
+//! `VACUUM INTO` export. Since annotations v3 (the floor: an older file
+//! is refused, not migrated) every row carries who wrote it
+//! (`written_via`, `actor`; C65) and the write door is typed: a kind
+//! declares its version and strict parse through `IntentValue`, and a
+//! value that fails the version gate, the parse or the exact round-trip
+//! never lands (C66). The only irreplaceable local state; the store
+//! crate's production code is held to no-panic by a clippy ratchet
+//! (`unwrap_used`/`expect_used` denied).
 //! `Store::refresh_snapshot` (`snapshot.rs`) is the planner's read, taken
 //! in one read transaction and bound to the account uuid the facts file
 //! records: the annotations file carries its owner's uuid internally
@@ -110,8 +110,7 @@
 //! while a fetch stands (a revived row offers no body), plus the realm's
 //! league-less characters, and the sync-policy annotation row at its
 //! revision — facts and intent named together, never a staleness
-//! verdict; compiling them into requests is `acquisition-plan`'s job
-//! (tracer step 4, built 2026-09-01; characters 2026-09-02).
+//! verdict; compiling them into requests is `acquisition-plan`'s job.
 //! A 2xx body missing its array/object or carrying an identity-less
 //! entry (a tab or item without `id` — a PoE2 item-granted skill
 //! excepted, below — a listed character without `id` or `name`, a
@@ -162,7 +161,7 @@
 //!   body). Same shape as a substash fetched by `(parent, id)` from a
 //!   cited basis: the store records what the server said, keyed by the
 //!   **body's** id, and the intended character stays stale (D5a; fact
-//!   drift does not refuse — the step-7 ruling). No expected-id check on
+//!   drift does not refuse). No expected-id check on
 //!   the fetch: a 200 under a stale name is a true fact, and refusing it
 //!   discards facts and wastes a paid send.
 //!   - `characters.league` is **listing-owned**: the coverage coordinate
@@ -245,7 +244,7 @@ const SCHEMA: &str = include_str!("schema.sql");
 
 /// The fact-file schema this build reads and writes; a file stamped newer
 /// is refused (C48: schema versions and compatibility errors, never
-/// guessing). Version 9 (roadmap 0a) added `items_live` and
+/// guessing). Version 9 added `items_live` and
 /// `items_live_at`, partial indexes on where the live items sit, so a
 /// store's removed rows stop costing its live reads.
 const FACT_SCHEMA_VERSION: i64 = 9;
@@ -266,7 +265,7 @@ pub const FACTS_BELOW_FLOOR_REMEDY: &str = "a development build wrote it, and fa
 /// age, so both indexes hold the live alone. `items_live` is a league's
 /// (the pricing snapshot's read); `items_live_at` is the search read's
 /// order, so it walks the live in order and never a removed row
-/// (0a, on 90,890 removed: that read 124 ms over `items_location`, 40
+/// (on 90,890 removed: that read 124 ms over `items_location`, 40
 /// with it; without `items_live` an empty league's read 2 ms became 9).
 const LIVE_INDEX: &str = "CREATE INDEX IF NOT EXISTS items_live
     ON items (realm, league, location_kind, location_id) WHERE removed_at IS NULL;
@@ -327,8 +326,8 @@ impl std::error::Error for SchemaTooOld {}
 /// C124 (a read never migrates): a read-only open met a file stamped at
 /// another schema version than this build's — older, newer, or none.
 /// Nothing was written to it. `file` names which file as a user knows it,
-/// whole ("the facts file"; the annotation file by what it keeps, #234's
-/// rule); the facts store and the annotations file refuse alike.
+/// whole ("the facts file"; the annotation file by what it keeps); the
+/// facts store and the annotations file refuse alike.
 /// `remedy` is the next step for an older file, chosen by the door that
 /// opened it, since only that door knows which of its older versions its
 /// writing open migrates and which it refuses; the facts door passes
@@ -387,10 +386,10 @@ impl std::error::Error for SchemaNotCurrent {}
 /// `record` returns it — the ingest transaction rolls back whole, so a
 /// malformed body can never retire tabs, characters, or items, and never
 /// mints a response row a snapshot could cite as a basis. What it does
-/// leave (since 2026-09-02, PoE2 first contact: four of five character
-/// bodies refused for an id-less item, and nothing to read afterwards) is
-/// the body itself, verbatim, in `refused` — a table no basis query
-/// reads — so the finding can be inspected instead of re-fetched.
+/// leave (N44: character bodies refused for an id-less item would
+/// otherwise leave nothing to read) is the body itself, verbatim, in
+/// `refused` — a table no basis query reads — so the finding can be
+/// inspected instead of re-fetched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MalformedBody {
     /// Endpoint whose body was malformed (`"stashes"`, `"characters"`, …).
@@ -524,7 +523,7 @@ pub const VOLATILE_ITEM_FIELDS: &[&str] = &["veiledMods"];
 
 /// Where the character response keeps its items (documented arrays;
 /// `guardian` is the animate guardian's gear on PoE1, `skills` PoE2's,
-/// `wickerman` the Viscera attached to 3.30's Wickerman, observed).
+/// `wickerman` the Viscera attached to 3.30's Wickerman, N53).
 /// An array of item-shaped objects that is *not* named here is the drift
 /// tripwire's business: counted, surfaced, never lifted.
 const CHARACTER_ITEM_ARRAYS: &[&str] = &[
@@ -676,7 +675,7 @@ pub struct Ingest {
     /// Item-shaped objects left in a character envelope in an array this
     /// build does not lift (the drift tripwire): surfaced, never a failure.
     pub unlifted: usize,
-    /// Item-granted skills left in place (PoE2, ruled 2026-09-02): id-less
+    /// Item-granted skills left in place (PoE2, N44): id-less
     /// gem entries a weapon or shield grants, each kept verbatim inside
     /// its host's `socketedItems` and, under `skills`, in the envelope —
     /// a property of the host, never an item fact.
@@ -722,7 +721,7 @@ pub struct TabRow {
     pub item_count: i64,
     /// Item facts the last landed body carried (its `_split` count);
     /// `None` when never fetched — so a reader can tell "fetched, and the
-    /// body was empty" from "never fetched" (legibility ruling, 2026-09-02).
+    /// body was empty" from "never fetched".
     pub fetched_items: Option<i64>,
 }
 
@@ -849,8 +848,8 @@ pub struct LeagueEntry {
     pub realm: Option<String>,
     /// The entry's `startAt` as GGG gives it, ISO 8601 UTC read as
     /// seconds since 1970 ([`age::parse_utc`]); `None` where the entry
-    /// gives none, or none that reads (the answer-facts seat, MCP fault
-    /// 3: nothing marked the new league).
+    /// gives none, or none that reads (without it nothing would mark the
+    /// new league).
     pub started_at: Option<i64>,
 }
 
@@ -948,9 +947,7 @@ pub struct Status {
     /// Whether the league list was ever fetched: `fetched` where a
     /// `leagues` response landed, its list empty or not, else `never
     /// fetched`; the bare count read as a contradiction beside tabs in
-    /// seven leagues (the trade seat's CLI runs, worded there; the
-    /// re-sit's mcp-sonnet fault 7, the MCP's bare count), and a count of
-    /// zero is not a fetch of none (review 2 of the re-sit).
+    /// seven leagues, and a count of zero is not a fetch of none.
     #[serde(default)]
     pub league_list: String,
     /// The latest league list alone, beside the two above (C146, a count
@@ -971,14 +968,14 @@ pub struct Status {
     /// added an item list the store does not know — a code change, not a
     /// fault. Its words on every surface: C146, a count says what it
     /// counts. A stored count under a key this build does read is
-    /// [`Status::next_fetch_items`], never this (#279).
+    /// [`Status::next_fetch_items`], never this.
     pub unlifted_items: i64,
     /// Item-shaped objects a character's stored data counts as unread
     /// (`_unlifted`) under a key this build reads as items
     /// (the store's `CHARACTER_ITEM_ARRAYS`): stored by an earlier build, before
     /// it read that kind of item list, so no search counts them yet;
     /// each becomes an item at its character's next fetch. Not drift,
-    /// and nothing migrates them (#279, after #275 lifted `wickerman`).
+    /// and nothing migrates them.
     #[serde(default)]
     pub next_fetch_items: i64,
     /// Fetches withheld — of tabs or characters the latest list no longer
@@ -991,7 +988,7 @@ pub struct Status {
     /// `refused` — evidence, never facts (`acq store refused`).
     pub refused_bodies: i64,
     /// When the newest refused body was fetched, and its age in words at
-    /// the answer's time (C163), beside their count (#172); absent where
+    /// the answer's time (C163), beside their count; absent where
     /// none was refused.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refused_latest_at: Option<i64>,
@@ -1014,7 +1011,7 @@ pub struct Status {
     #[serde(skip)]
     pub last_event: i64,
     /// How old the facts are over every realm and league the store holds
-    /// (#172; C162, the one derivation every answer's facts take,
+    /// (C162, the one derivation every answer's facts take,
     /// `coverage::of`): the locations fetched and never fetched, by type
     /// and league, the oldest and newest fetch with their locations, when
     /// the oldest of the location lists was seen, each age in words at the
@@ -1034,10 +1031,9 @@ impl Status {
 /// When a tab `t` left: its own retirement, or its parent's, which takes
 /// a substash with it though the substash keeps its row (C54). The one
 /// test of a live tab, `{TAB_GONE} IS NULL`: the corpus's locations and
-/// coverage, `tabs`' rows and `store status`'s tab count (the review of
-/// round C, finding 2). The planner's and the pricing snapshots read a
-/// row's own `removed_at`, to report a retired parent's substashes as
-/// the orphans they are.
+/// coverage, `tabs`' rows and `store status`'s tab count. The planner's
+/// and the pricing snapshots read a row's own `removed_at`, to report a
+/// retired parent's substashes as the orphans they are.
 pub(crate) const TAB_GONE: &str =
     "COALESCE(t.removed_at, (SELECT p.removed_at FROM tabs p WHERE p.realm = t.realm
                                   AND p.league = t.league AND p.id = t.parent))";
@@ -1045,8 +1041,7 @@ pub(crate) const TAB_GONE: &str =
 /// [`Store::leagues_held`] over `conn`: the store's own connection, or
 /// a read transaction a document's reads share. A tab is counted by the
 /// one test of a live tab ([`TAB_GONE`]), a retired parent's substash
-/// left out as `tabs`' rows leave it (the review of round C's fix round,
-/// finding 2).
+/// left out as `tabs`' rows leave it.
 pub(crate) fn leagues_held_in(conn: &Connection, realm: &str) -> Result<Vec<LeagueHeld>> {
     let mut stmt = conn.prepare(&format!(
         "SELECT league, SUM(n_tabs), SUM(n_characters) FROM (
@@ -1068,8 +1063,7 @@ pub(crate) fn leagues_held_in(conn: &Connection, realm: &str) -> Result<Vec<Leag
 
 /// A league's live tabs in listing order (folder children after their
 /// folder, substashes after their tab), over `conn`: the store's own
-/// connection, or a read transaction a document's reads share (the
-/// review of round C, finding 1).
+/// connection, or a read transaction a document's reads share.
 fn tabs_in(conn: &Connection, realm: &str, league: &str) -> Result<Vec<TabRow>> {
     let mut stmt = conn.prepare(&format!(
 
@@ -1114,7 +1108,7 @@ pub struct LeagueListLatest {
 
 /// GGG's tab type for a folder: a tab that groups other tabs and holds no
 /// items of its own, so it is listed and never fetched. The store's one
-/// spelling of the word (#44): every consumer, SQL included, asks this
+/// spelling of the word: every consumer, SQL included, asks this
 /// or [`is_folder_type`].
 pub const FOLDER_TAB_TYPE: &str = "Folder";
 
@@ -1160,7 +1154,7 @@ pub(crate) const TAB_ORDER_KEYS: &str = "COALESCE((SELECT p.idx FROM tabs p WHER
                        t.parent IS NOT NULL, COALESCE(t.idx, 0), t.name";
 
 /// A read's `limit` as SQLite binds it: past `i64::MAX` it is
-/// `i64::MAX`, never the negative an `as` cast wraps to (#91), which
+/// `i64::MAX`, never the negative an `as` cast wraps to, which
 /// SQLite reads as no limit by accident rather than by rule.
 fn sql_limit(limit: usize) -> i64 {
     i64::try_from(limit).unwrap_or(i64::MAX)
@@ -1172,8 +1166,8 @@ pub const NOW_KNOB: &str = "ACQ_NOW";
 /// This process's now, in whole seconds since 1970: every time the store
 /// stamps and every age a frontend says is measured against it.
 /// `ACQ_NOW=<secs>` fixes it, so every process of one test reads one
-/// instant and two runs compared whole cannot straddle a second (#175;
-/// the test harness's isolation list sets it). Unset, the system clock.
+/// instant and two runs compared whole cannot straddle a second (the
+/// test harness's isolation list sets it). Unset, the system clock.
 ///
 /// It reaches only this function. The daemon's limiter and its job
 /// times read the limiter's own wall, deadlines and waits run on
@@ -1203,7 +1197,7 @@ pub fn check_now() -> std::result::Result<(), String> {
 /// Fix this process's [`now`] at `at`, for a process that spawns the
 /// others and stamps times itself: the test harness, whose own store
 /// writes would otherwise read the system clock while its children read
-/// `ACQ_NOW` (#175's second clock, an MCP pricing test on Windows CI).
+/// `ACQ_NOW`.
 /// Answers the instant now reads from here on: `at`, or one this process
 /// already fixed. A process whose now was already read unfixed is
 /// refused, so a pin that came too late is said, never silently half
@@ -1306,9 +1300,9 @@ pub(crate) fn parse_wait(value: &str, default: std::time::Duration) -> std::time
 /// rollback-mode file takes the write lock from inside the read
 /// transaction the pragma opened, and a second process creating the
 /// same file at that instant is answered `database is locked` at once —
-/// two first-ever `acq price set`s started together met exactly that on
-/// the intent file (plan step 7, item 3; `tests/price_story.rs` in
-/// acquisition-cli races the creation in its first round). So the switch
+/// two first-ever `acq price set`s started together meet exactly that on
+/// the intent file (`tests/price_story.rs` in acquisition-cli races the
+/// creation in its first round). So the switch
 /// retries, briefly, for `wait`: the caller passes the wait its busy
 /// timeout gives every other statement on the connection ([`store_wait`]
 /// for a fact or queue file, the annotation wait for the intent file),
@@ -1336,7 +1330,7 @@ pub(crate) fn ensure_wal(conn: &Connection, wait: std::time::Duration) -> rusqli
 
 /// Sync a directory, so a rename or a hard link in it is durable: the one
 /// function every publish in this crate ends with (the account index's
-/// rename, the annotation export's link; issue #63). Windows cannot open
+/// rename, the annotation export's link). Windows cannot open
 /// a directory as a file through `std`, so there the publish goes
 /// unsynced: a crash may undo it, leaving the previous file whole, never
 /// a torn one.
@@ -1344,7 +1338,7 @@ pub(crate) fn sync_dir(dir: Option<&Path>) -> std::io::Result<()> {
     #[cfg(unix)]
     if let Some(dir) = dir {
         // A bare filename's parent is `Some("")`, which no open accepts:
-        // it names the current directory (the #63 build's review).
+        // it names the current directory.
         let dir = if dir.as_os_str().is_empty() {
             Path::new(".")
         } else {
@@ -1440,16 +1434,16 @@ impl Store {
 
     /// The open on a connection whose busy policy the caller has set:
     /// [`Store::open`]'s timeout, or a test's busy handler, which observes
-    /// the wait the migration's lock makes (issue #111).
+    /// the wait the migration's lock makes.
     fn init(mut conn: Connection, path: PathBuf) -> Result<Store> {
-        // The version gate before any pragma that writes (issue #63, as
+        // The version gate before any pragma that writes (as
         // `Annotations::prepare` orders it): a file stamped newer than
         // this build is refused exactly as found, where `ensure_wal`
         // below would first have rewritten a rollback-journal file's
         // header. A file at this build's version is opened with this read
         // alone: the stamp from a deferred transaction, which takes no
         // write lock, so a reader never waits behind an ingest or blocks
-        // the daemon (0a). Anything else goes on to the lock below, which
+        // the daemon. Anything else goes on to the lock below, which
         // reads it again.
         // A stamp below the floor, or 0 beside tables (a file from before
         // versioning, or a foreign one), is refused here too, as found;
@@ -1509,8 +1503,7 @@ impl Store {
     /// the close-time checkpoint and the `-wal` stays beside the file with
     /// every fact since the last automatic one — which an `immutable=1`
     /// reader (`tools/census.py` at `aacd6a51`) refuses and
-    /// `tools/notes-check.py` at `aacd6a51` had to read through (the
-    /// price-notes run, 2026-09-04; plan step 7, item 4). The daemon
+    /// `tools/notes-check.py` at `aacd6a51` had to read through. The daemon
     /// calls this on its way out. Best effort: a reader mid-transaction
     /// leaves pages behind, reported in the result, never an error.
     pub fn checkpoint(&self) -> Result<Checkpoint> {
@@ -1541,7 +1534,7 @@ impl Store {
         // taken before the ingest's first read, so a second writer on the
         // file (`acq store rebuild` or `import` beside a daemon) waits
         // under the busy timeout instead of failing this one's upgrade
-        // from read to write (issue #63).
+        // from read to write.
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2268,13 +2261,13 @@ impl Store {
     /// The store's status: every count, the facts block and the refused
     /// bodies' newest, read in one read transaction at one answer time,
     /// so a write committed between two of its reads never makes it
-    /// disagree with itself (the review of round C, finding 1).
+    /// disagree with itself.
     pub fn status(&self) -> Result<Status> {
         let now = now();
         let tx = self.conn.unchecked_transaction()?;
         let count = |sql: &str| -> Result<i64> { Ok(tx.query_row(sql, [], |r| r.get(0))?) };
         // The stored unread counts, split by whether this build lifts
-        // their key (#279): the item arrays' list is the one source.
+        // their key: the item arrays' list is the one source.
         let (mut unlifted_items, mut next_fetch_items) = (0, 0);
         {
             let mut stmt = tx.prepare(
@@ -2413,7 +2406,7 @@ impl Store {
     /// The question `acq price set` asks at write time: intent is never
     /// gated by facts (C64) — a price on a tab the policy has not fetched
     /// yet is legitimate — so a target the facts do not know is noted,
-    /// never refused (the pricing reading-1 question, answered 2026-09-12).
+    /// never refused.
     pub fn holds(&self, address: &FactAddress<'_>) -> Result<bool> {
         let (sql, params): (String, Vec<&str>) = match address {
             FactAddress::Item { id } => ("SELECT 1 FROM items WHERE id = ?1".into(), vec![id]),
@@ -2435,10 +2428,9 @@ impl Store {
     /// sorted, as `(realm, league)`: [`Store::leagues_of`] with the realm
     /// each is in, since an item's or a character's address names none,
     /// and a character the listing gave no league (or an item it wears)
-    /// kept in its realm with no league, never dropped (the review of
-    /// round B's fix round, finding 1). What a refusal for a target one
-    /// scope does not hold names as the scopes that do (round 4 of the 2g
-    /// build: its offers run there).
+    /// kept in its realm with no league, never dropped. What a refusal for
+    /// a target one scope does not hold names as the scopes that do (its
+    /// offers run there).
     pub fn places_of(&self, address: &FactAddress<'_>) -> Result<Vec<(String, Option<String>)>> {
         let (sql, params): (String, Vec<&str>) = match address {
             FactAddress::Item { id } => (
@@ -2525,8 +2517,8 @@ impl Store {
     }
 
     /// Item events since `since` (unix seconds), newest first, so a
-    /// bounded read is the recent ones (the release seat, mcp-opus call
-    /// 10, asked for recent events and got the oldest).
+    /// bounded read is the recent ones (oldest first, a request for the
+    /// recent events would get the oldest).
     pub fn events_since(&self, since: i64, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT e.at, e.item_id, e.kind, e.from_location, e.to_location, i.name, i.type_line
@@ -2807,7 +2799,7 @@ fn id_less(item: &Value) -> bool {
     item.get("id").and_then(Value::as_str).is_none()
 }
 
-/// An item-granted skill (PoE2; owner ruling 2026-09-02): a gem-shaped
+/// An item-granted skill (PoE2; N44): a gem-shaped
 /// entry with no `id`. A weapon or shield that grants a skill carries it
 /// this way inside its own `socketedItems` (the host's `sockets` stays
 /// empty), GGG repeats the identical object as `skills[0]`, and a real
@@ -3137,10 +3129,10 @@ fn ingest_item(
 /// SQL filter and its parameters), shared by `holds`, `leagues_of` and
 /// `places_of`: a tab is a top-level row or a folder's child, and a
 /// substash a row under any other parent, addressed under that parent.
-/// A folder's child is a tab, never a substash of the folder (round 4's
-/// review: an offer named `substash/<realm>/<folder>/<tab>`, which the
-/// pricing resolver reads only as the tab, and was refused again). None
-/// for an address that is no stash tab's.
+/// A folder's child is a tab, never a substash of the folder (an offer
+/// named `substash/<realm>/<folder>/<tab>` the pricing resolver reads
+/// only as the tab, and refuses again). None for an address that is no
+/// stash tab's.
 fn container_rows<'a>(address: &FactAddress<'a>) -> Option<(&'static str, Vec<&'a str>)> {
     match *address {
         FactAddress::Tab { realm, id } => Some((

@@ -16,7 +16,7 @@ toml.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
-# the examples' and tests' only: proptest for plan step 7's properties,
+# the examples' and tests' only: proptest for the generated properties,
 # sha2 for the fixture writer (`examples/redact-pricing.rs`)
 proptest = "1.11.0"
 sha2 = "0.11"

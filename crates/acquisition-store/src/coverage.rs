@@ -27,8 +27,7 @@ use crate::corpus::{ListingSeen, LocationRow, RealmScope};
 /// A location the scope names by its fetch: `stash` or `character`, its
 /// id, its name as GGG gives it (none where it gives no text), its realm
 /// and its league: a location is named with its realm as a row's place
-/// is, so a poe2 character is never read as pc's (the answer-facts seat,
-/// CLI fault 4).
+/// is, so a poe2 character is never read as pc's.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchedLocation {
     pub kind: String,
@@ -59,7 +58,7 @@ pub const REMOVE_ONLY: &str = "(Remove-only)";
 /// page comes with an empty name, or with the mark alone, and is shown by
 /// its id (C53: every nothing says which nothing). The one rule, read by
 /// the scope's span here and by a search row's place, so one tab has one
-/// name on every line (round 2's close); whether a tab is remove-only is
+/// name on every line; whether a tab is remove-only is
 /// read from the raw name, never from this (C117).
 pub fn location_name(name: &str) -> Option<String> {
     let text = name.trim();
@@ -125,9 +124,9 @@ pub struct FetchSpan {
     /// one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oldest_fetch_age: Option<String>,
-    /// The location whose last fetch is `oldest_fetch` (#11: the line
-    /// named an age and no place), the first in the store's order on a
-    /// tie.
+    /// The location whose last fetch is `oldest_fetch` (without it the
+    /// line names an age and no place), the first in the store's order on
+    /// a tie.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oldest_fetch_location: Option<FetchedLocation>,
     pub newest_fetch: Option<i64>,
@@ -141,9 +140,8 @@ pub struct FetchSpan {
     /// When the oldest of the location lists the scope reads was last
     /// seen: under a query that fixes one league a list names, that
     /// league's tab list and the realm's character list; otherwise every
-    /// list of the realm
-    /// (the re-sit: a `league=Standard` query said 41 days where
-    /// Standard's own list was 3 days old, mcp-opus its fault 2).
+    /// list of the realm (read over every list, a `league=Standard` query
+    /// would say 41 days where Standard's own list is 3 days old).
     pub list_seen: Option<i64>,
     /// C53: `list_seen` in words at the answer's time, `never` where no
     /// list was seen.
@@ -171,8 +169,8 @@ pub struct TabType {
     pub tabs: usize,
     /// How many of them were fetched.
     pub fetched: usize,
-    /// How many of them were never fetched, `tabs` less `fetched` (S10:
-    /// a seat subtracted by hand).
+    /// How many of them were never fetched, `tabs` less `fetched` (without
+    /// it a reader subtracted by hand).
     pub never: usize,
     /// The live items at every location of the type, fetched or not.
     pub items: i64,

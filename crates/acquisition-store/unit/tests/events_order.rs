@@ -1,6 +1,6 @@
-/// The release seat (mcp-opus call 10): `item_events` asked for the
-/// recent events and got the oldest first. The newest come first,
-/// so a bounded read is the recent ones.
+/// The newest events come first, so a bounded read is the recent
+/// ones (oldest first, a request for the recent events would
+/// get the oldest).
 #[test]
 fn events_since_lists_the_newest_first() {
     let s = crate::Store::open_memory().unwrap();
@@ -20,8 +20,8 @@ fn events_since_lists_the_newest_first() {
     );
 }
 
-/// #91: a limit past `i64::MAX` binds as `i64::MAX` at each of the
-/// three bounded reads, where an `as` cast wrapped it negative.
+/// A limit past `i64::MAX` binds as `i64::MAX` at each of the three
+/// bounded reads, where an `as` cast would wrap it negative.
 #[test]
 fn a_limit_past_i64_max_binds_as_the_largest() {
     assert_eq!(crate::sql_limit(usize::MAX), i64::MAX);

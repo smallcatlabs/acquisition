@@ -101,8 +101,7 @@ impl JournalKnob {
 /// its rows (C149): `total` every account the index knows, `accounts`
 /// those listed — every one as [`Frontend::accounts`] reads them, ten
 /// once [`Accounts::bounded`] (C53, the read economy; no exemption for a
-/// handful of names, the brief's second review, finding 2) — and
-/// `left_out` the rest.
+/// handful of names) — and `left_out` the rest.
 #[derive(Clone, Debug, Serialize)]
 pub struct Accounts {
     pub provider: String,
@@ -179,8 +178,8 @@ impl Frontend {
         // C156: the declared shell, checked once with the provider, so a
         // mistyped value is refused before any command is printed
         acquisition_search::answer::Shell::declared().map_err(Fault::Environment)?;
-        // #175: a clock fixed to a value that is not whole seconds is
-        // refused before any age is said against it
+        // A clock fixed to a value that is not whole seconds is refused
+        // before any age is said against it
         acquisition_store::check_now().map_err(Fault::Environment)?;
         let provider = acquisition_protocol::provider::wanted();
         Ok(Frontend {
@@ -419,8 +418,8 @@ impl Account {
 
     /// The account's facts opened read-only, never made nor migrated, or
     /// why they could not be, in words: for a verb that needs no facts and
-    /// counts from them where it can (a price clear's receipt, #171), and
-    /// says why where it cannot (the review of round B, finding 2).
+    /// counts from them where it can (a price clear's receipt), and says
+    /// why where it cannot.
     pub fn facts_read(&self) -> Result<Store, String> {
         Store::open_read_only(&account_path(&self.frontend.dir(), &self.entry.username))
             .map_err(|e| format!("{e:#}"))
@@ -483,9 +482,9 @@ impl Account {
     }
 
     /// The stored league list, each league beside the policy's word and
-    /// what the store holds of it, no daemon (#157): ten unless `expand`.
-    /// An intent file that cannot be opened reads as a policy that cannot
-    /// be read ([`PolicyRead::of_account`]): the list is the facts'.
+    /// what the store holds of it, no daemon: ten unless `expand`. An
+    /// intent file that cannot be opened reads as a policy that cannot be
+    /// read ([`PolicyRead::of_account`]): the list is the facts'.
     pub fn league_list(&self, expand: bool) -> Result<LeagueListShown, Fault> {
         let policy = PolicyRead::of_account(self);
         LeagueListShown::read(&self.facts()?, &policy, expand, acquisition_store::now())
@@ -504,8 +503,7 @@ impl Account {
     /// a facts file this build cannot read leaves the receipt without notes.
     ///
     /// The row the write replaces is read once, before the put, and
-    /// checked as a price write's is (round 5 of the 2g build; the second
-    /// cold review's finding 1): under [`Expect::Exactly`] the row at
+    /// checked as a price write's is: under [`Expect::Exactly`] the row at
     /// exactly that revision, else the conflict the put would raise
     /// ([`Annotations::at_revision`]), so a row read at 4, another
     /// writer's 5 and a write naming 5 report 5 as the prior, never 4;
@@ -640,13 +638,13 @@ impl PolicyShown {
 /// A sync-policy write as both doors report it (C36, C126): the stored
 /// row, whole, and a note for each league the written value names that
 /// the account's fetched league list does not hold; and the one receipt
-/// shape every write answers (round 5 of the 2g build,
-/// [`crate::receipt`]): `target`, `written` (the stored row again, under
-/// the shape's name; the flattened row stands, C53 additive), `prior`,
-/// the row the write replaced, null on a create — the flattened row's
-/// `revision` is the receipt's, the one the next write names; each row
-/// with its times in words at the answer's time (C163). Its `undo`
-/// or `no_undo` is spelled by each surface ([`crate::receipt::policy`]).
+/// shape every write answers ([`crate::receipt`]): `target`, `written`
+/// (the stored row again, under the shape's name; the flattened row
+/// stands, C53 additive), `prior`, the row the write replaced, null on
+/// a create — the flattened row's `revision` is the receipt's, the one
+/// the next write names; each row with its times in words at the
+/// answer's time (C163). Its `undo` or `no_undo` is spelled by each
+/// surface ([`crate::receipt::policy`]).
 #[derive(Clone, Debug, Serialize)]
 pub struct PolicyWritten {
     #[serde(flatten)]

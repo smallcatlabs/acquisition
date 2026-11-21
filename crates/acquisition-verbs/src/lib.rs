@@ -25,7 +25,7 @@
 //!   ledger on disk (C45).
 //! - [`daemon`]: the daemon's four observed states, one document.
 //! - [`diagnose`]: one redacted document for a bug report, composed of
-//!   the others (#79).
+//!   the others.
 //! - [`events`]: the item events by location (C53).
 //! - [`leagues`]: what the store holds beyond the league an answer took,
 //!   and the stored league list, each league beside the policy's word.

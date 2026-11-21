@@ -1,6 +1,5 @@
-//! What the store holds beyond the league an answer took (round 5 of the
-//! answer-facts group, #157, #22): two documents, made once here (C46)
-//! and carried by every surface that takes one league.
+//! What the store holds beyond the league an answer took: two documents,
+//! made once here (C46) and carried by every surface that takes one league.
 //!
 //! - [`LeaguesHeld`]: every league of a realm the store holds tabs or
 //!   characters of, its counts, and whether the sync policy names it;
@@ -265,8 +264,7 @@ impl<T> Held<T> {
     }
 
     /// [`Held::with`] over the holdings already read: the ones a
-    /// document read in its own snapshot (`tabs`, the review of round
-    /// C's fix round, finding 3), never read again.
+    /// document read in its own snapshot (`tabs`), never read again.
     pub fn of(
         answer: T,
         rows: Vec<acquisition_store::LeagueHeld>,
@@ -315,8 +313,7 @@ pub struct LeagueListShown {
     pub leagues_total: usize,
     /// The leagues listed: ten, the newest start first, those with no
     /// start after them in the list's order; every one under `expand`
-    /// (the answer-facts seat, MCP fault 3: nothing marked the new
-    /// league).
+    /// (in the list's order alone, nothing marked the new league).
     pub leagues: Vec<ListedLeague>,
     /// The leagues not in `leagues`.
     pub left_out: usize,

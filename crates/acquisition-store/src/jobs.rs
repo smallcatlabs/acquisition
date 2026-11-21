@@ -164,8 +164,8 @@ fn refuse_account_facts(conn: &Connection, path: &Path) -> Result<()> {
     }
 }
 
-/// The queue's schema version, stamped in `user_version` (issue #63; C48,
-/// the schema is internal). A file a build before the stamp wrote carries
+/// The queue's schema version, stamped in `user_version` (C48, the
+/// schema is internal). A file a build before the stamp wrote carries
 /// 0 and the same table, and is stamped on open; a file stamped newer than
 /// this build is refused ([`QueueSchemaTooNew`]), never guessed at. v2
 /// adds `started_at` and `finished_at` (C165), each a column a daemon's
@@ -235,8 +235,8 @@ impl JobDb {
         Self::init(Connection::open_in_memory()?, PathBuf::from(":memory:"))
     }
 
-    /// The version gate first, before any pragma that writes (issue #63,
-    /// as the facts and annotation files order it); then WAL, the schema
+    /// The version gate first, before any pragma that writes (as the
+    /// facts and annotation files order it); then WAL, the schema
     /// and the stamp where the file has none. One daemon per world (C83)
     /// is what keeps two opens from racing the stamp, so no transaction
     /// serialises it here.

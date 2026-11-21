@@ -254,17 +254,15 @@ use acquisition_store::{
 
 /// The plan envelope schema this build writes ([`RefreshPlan::plan_schema`]).
 /// A consumer handed a plan stamped newer refuses it rather than guessing.
-/// v1 was the first envelope; v2 added the
-/// optional `quote` enrichment; v3 added `Quote::work`, the
-/// quote's verifiable work basis. A shape change anywhere in the envelope —
-/// the embedded `Quote` included — is a schema bump, so an older reader
-/// reports "newer schema" instead of "malformed" on a newer plan.
-/// v4 added the `empty_stub` skip kind; v5 put `realm`
-/// beside `league` on the envelope and on every action; v6
-/// brought characters in: the `list_characters` and `fetch_character`
-/// actions, the character listing basis (`basis.character_listing`,
-/// beside the renamed `basis.stash_listing`), `skipped_characters` and
-/// `unknown_characters` beside the renamed `skipped_tabs` and
+/// A shape change anywhere in the envelope — the embedded `Quote`
+/// included — is a schema bump, so an older reader reports "newer schema"
+/// instead of "malformed" on a newer plan. Version 6 is the envelope with
+/// its optional `quote` enrichment and that quote's verifiable work basis
+/// (`Quote::work`), the `empty_stub` skip kind, `realm` beside `league` on
+/// the envelope and on every action, and the characters: the
+/// `list_characters` and `fetch_character` actions, the character listing
+/// basis (`basis.character_listing`, beside `basis.stash_listing`),
+/// `skipped_characters` and `unknown_characters` beside `skipped_tabs` and
 /// `unknown_tabs`, and two character disagreement arms on `FetchReason`.
 pub const REFRESH_PLAN_SCHEMA: i64 = 6;
 

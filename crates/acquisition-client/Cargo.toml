@@ -6,15 +6,14 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 
-# The client side of the daemon protocol (C1; `DAEMON-SPLIT-SLICE.md` at `b6197a82` step
-# 3): the IPC over tokio, the three policy doors of C10, the `acqd`
-# locator (C82), the artifact comparison (C84; sha2 hashes the sibling
-# when its file identity differs from the daemon's) and the typed connect
-# errors, and the world it verifies (C83; step 5: the store's `world.rs`
-# names the root, the socket and the log the client reads after a failed
-# spawn). Every frontend links it; it links the protocol crate, the store
-# and tokio, never the daemon or the planner (tools/arch-check.sh refuses
-# both).
+# The client side of the daemon protocol (C1): the IPC over tokio, the
+# three policy doors of C10, the `acqd` locator (C82), the artifact
+# comparison (C84; sha2 hashes the sibling when its file identity differs
+# from the daemon's) and the typed connect errors, and the world it
+# verifies (C83; the store's `world.rs` names the root, the socket and
+# the log the client reads after a failed spawn). Every frontend links
+# it; it links the protocol crate, the store and tokio, never the daemon
+# or the planner (tools/arch-check.sh refuses both).
 
 [dependencies]
 acquisition-protocol = { path = "../acquisition-protocol" }
@@ -27,8 +26,8 @@ sha2 = "0.11"
 
 [dev-dependencies]
 # the generated property over the frame reader, which reads what a daemon
-# of any revision answers (#85); the plan's and the search's version, so
-# the test build's feature graph is unchanged (C84)
+# of any revision answers; the plan's and the search's version, so the
+# test build's feature graph is unchanged (C84)
 proptest = "1.11.0"
 # a test's own folder, removed on drop: never a name built from the pid
 tempfile.workspace = true

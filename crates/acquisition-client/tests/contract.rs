@@ -249,7 +249,7 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
 /// answered `stopping` it exits as a daemon does (C133): it removes its
 /// endpoint, stops listening and closes the connection, so the client's
 /// stop, which returns once the connection has ended and the endpoint is
-/// gone (#130), returns at once instead of waiting out its bound.
+/// gone, returns at once instead of waiting out its bound.
 async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::JoinHandle<()> {
     let socket = session_socket();
     let mut listener =
@@ -417,25 +417,25 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
     let _ = std::fs::remove_file(session_socket());
 }
 
-/// #103 (C137, the deadline's contract is its expiry behaviour; C86's
+/// C137 (the deadline's contract is its expiry behaviour; C86's
 /// deadline): an observe request after the handshake runs under the
 /// handshake's deadline, read at the request. At zero it expires against
 /// a peer that answers at once, as a healthy daemon does — so the refusal
 /// is the deadline's, not the peer's — and the refusal names the peer's
 /// socket and pid, what was asked, zero seconds and the kill line. The
 /// connection that met it is poisoned: a second request is refused with
-/// the same words and sends no frame. A cancel and a quote under the
-/// same deadline at zero are not bounded here: the peer's own answer
-/// comes back.
+/// the same words and sends no frame. A cancel and a quote under the same
+/// deadline at zero are not bounded here: the peer's own answer comes
+/// back.
 ///
-/// The test is the peer, so nothing is asserted about a task's progress
-/// (fix round 3, after three findings on a spawned peer): it binds the
-/// session's socket, accepts and answers in the same task as the client
-/// it drives (`tokio::join!`), replaying the `hello` a real daemon of
-/// this world gave so the observe door finds it compatible, and when the
-/// client is dropped it reads its own end of the connection to EOF, so
-/// the transcript it asserts is complete by its own reading. No
-/// wall-clock bound is asserted.
+/// The test is the peer, so nothing is asserted about a task's progress,
+/// which a spawned peer would leave to a race: it binds the session's socket, accepts
+/// and answers in the same task as the client it drives
+/// (`tokio::join!`), replaying the `hello` a real daemon of this world
+/// gave so the observe door finds it compatible, and when the client is
+/// dropped it reads its own end of the connection to EOF, so the
+/// transcript it asserts is complete by its own reading. No wall-clock
+/// bound is asserted.
 #[tokio::test]
 async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_the_peer_and_an_acting_one_is_not()
  {
@@ -487,9 +487,9 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
         }
 
         /// Read to EOF (the client has hung up): the whole transcript. A
-        /// reset is that hang-up too (#144): a Unix socket reports the
-        /// client closing with bytes it never read, this peer's answers,
-        /// as `ConnectionReset`, and `ConnectionAborted` is its Windows
+        /// reset is that hang-up too: a Unix socket reports the client
+        /// closing with bytes it never read, this peer's answers, as
+        /// `ConnectionReset`, and `ConnectionAborted` is its Windows
         /// twin. Whether the client should drain before it closes is the
         /// daemon area's question, not this peer's.
         async fn read_to_eof(mut self) -> Vec<String> {
@@ -1134,8 +1134,8 @@ async fn c85_malformed_and_oversize_frames_get_bad_request_and_the_connection_st
     assert_eq!(reply["resp"], "jobs", "{reply}");
 
     // Exactly the bound is a frame: read whole and parsed, and refused
-    // for the field it does not know (C85 as amended 2026-11-05), which
-    // the refusal names, not for its size.
+    // for the field it does not know (C85), which the refusal names,
+    // not for its size.
     let mut at_bound = Vec::with_capacity(MAX_FRAME_BYTES);
     at_bound.extend_from_slice(head);
     at_bound.resize(MAX_FRAME_BYTES - tail.len(), b'x');
@@ -1507,8 +1507,8 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     assert!(message.contains("ps5"), "{message}");
 
     // Several sessions and no selector: ambiguous, never guessed. A bare
-    // name two of them share is ambiguous too (C51; review finding
-    // 2026-09-10); the full name selects.
+    // name two of them share is ambiguous too (C51); the full name
+    // selects.
     login_in_process(&mut client, Some("Alice#1234")).await;
     login_in_process(&mut client, Some("Alice#5678")).await;
     let (kind, message) = kind_of(
@@ -1522,7 +1522,7 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     );
     assert_eq!(kind, ErrorKind::AmbiguousAccount);
     // the request's own words, no frontend's flag: each frontend adds its
-    // way on by the kind (C143, #178)
+    // way on by the kind (C143)
     assert!(
         message.contains("the request names no account") && !message.contains("--"),
         "{message}"
@@ -1574,9 +1574,8 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
 /// bound in its place — what a successor on the same world does when it
 /// starts while the predecessor is still on its way out — then the
 /// daemon is stopped over the held connection; the new listener's file
-/// must survive the exit (seen in a rehearsal, 2026-09-11: a stop
-/// followed within a second by a start on the same world lost the new
-/// daemon's rendezvous).
+/// must survive the exit (otherwise a stop followed within a second by
+/// a start on the same world loses the new daemon's rendezvous).
 #[cfg(unix)]
 #[tokio::test]
 async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
@@ -1607,9 +1606,9 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     let _ = std::fs::remove_file(&socket);
 }
 
-/// Invariant 4, outside the daemon crate (#218): the `acqd` the gate
-/// built carries the registration's user-agent, written out here, where
-/// no edit to the daemon reaches it. The daemon's mock refuses a request
+/// Invariant 4, outside the daemon crate: the `acqd` the gate built
+/// carries the registration's user-agent, written out here, where no
+/// edit to the daemon reaches it. The daemon's mock refuses a request
 /// without the user-agent it writes out itself, so an edit to the
 /// daemon's constant alone fails the daemon's tests; an edit to both
 /// leaves the built daemon without this string, and fails here. The

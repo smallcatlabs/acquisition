@@ -11,14 +11,12 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! Extracted from `acquisition-core` as commit 3 of the daemon split
-//! (`DAEMON-SPLIT-SLICE.md` at `b6197a82`; the design is the packet, note 18 §2.1
-//! and §2.3 at `decda84e`): a client or
-//! locator edit must not recompile the daemon, and the GUI and the MCP
-//! server need typed failures rather than strings. The store joined at
-//! step 5 with the world: the socket, the log and the root every side
-//! reads are one definition there (`acquisition_store::world`), where two
-//! copies of the socket convention had stood before.
+//! A crate of its own because a client or locator edit must not recompile
+//! the daemon, and the GUI and the MCP server need typed failures rather
+//! than strings. It links the store for the world: the socket, the log and
+//! the root every side reads are one definition there
+//! (`acquisition_store::world`), so no second copy of the socket convention
+//! stands.
 
 pub mod artifact;
 pub mod client;

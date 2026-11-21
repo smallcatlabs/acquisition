@@ -1,9 +1,8 @@
 use super::*;
 
-/// `status` said `leagues: 0` beside tabs in seven leagues, a bare
-/// number (the re-sit, mcp-sonnet call 3, its fault 7): `league_list`
-/// says whether the list was ever fetched, and a fetch that listed none
-/// is a fetch (review 2 of the re-sit), its count still none.
+/// A bare `leagues: 0` beside tabs in seven leagues reads as a
+/// contradiction: `league_list` says whether the list was ever fetched,
+/// and a fetch that listed none is a fetch, its count still none.
 #[test]
 fn the_league_list_is_never_fetched_until_a_fetch_even_one_that_lists_none() {
     let mut s = Store::open_memory().unwrap();
@@ -145,8 +144,7 @@ fn c126_the_list_holds_a_league_in_its_own_realm_and_a_realmless_entry_in_every_
     )
     .unwrap();
     let list = s.league_list().unwrap().unwrap();
-    // each entry's start as GGG gives it, none where it gives none (the
-    // answer-facts seat, MCP fault 3)
+    // each entry's start as GGG gives it, none where it gives none
     assert_eq!(
         list.entries,
         vec![
@@ -333,8 +331,8 @@ fn an_item_without_an_id_is_malformed_and_poisons_nothing() {
     // neither removed nor half-replaced, and no response row lands.
     // What does land is the body itself, verbatim, in `refused` — the
     // error names the row and the item's position — so the finding
-    // can be read without another fetch (PoE2 first contact,
-    // 2026-09-02: four refusals and nothing to look at).
+    // can be read without another fetch (N44: otherwise its refusals
+    // leave nothing to look at).
     let body = stash("a", vec![json!({ "name": "NoId", "typeLine": "?" })]);
     let err = s.record(&stash_ep("a"), &p, 200, &body, 200).unwrap_err();
     let malformed = err
@@ -427,11 +425,11 @@ fn an_item_without_an_id_is_malformed_and_poisons_nothing() {
 }
 
 /// C145 (a present key of the wrong type is malformed; an absent key is
-/// empty), issue #62: a body whose item-bearing key is present as
-/// anything but an array is refused as `MalformedBody`, kept verbatim
-/// in `refused` (C30, a refused body is evidence), and retires
-/// nothing — where it used to read as an empty list that retired every
-/// item, substash or league the key's location held.
+/// empty): a body whose item-bearing key is present as anything but an
+/// array is refused as `MalformedBody`, kept verbatim in `refused` (C30,
+/// a refused body is evidence), and retires nothing — never read as an
+/// empty list, which would retire every item, substash or league the
+/// key's location held.
 #[test]
 fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
     let mut s = Store::open_memory().unwrap();
@@ -541,12 +539,11 @@ fn c145_an_absent_key_is_the_documented_empty() {
     assert_eq!(ing.items, 0);
 }
 
-/// C145 (an absent key is the documented empty), the review of h1, its
-/// sixth finding: a character fetch whose item arrays are all absent
-/// reconciles its location as a fetch with empty arrays does, so the
-/// items it no longer holds are retired. Before, no seam was pushed
-/// and `i` stayed live after a fetch that showed the character empty,
-/// where an explicit `equipment: []` retired it.
+/// C145 (an absent key is the documented empty): a character fetch
+/// whose item arrays are all absent reconciles its location as a fetch
+/// with empty arrays does, so the items it no longer holds are retired.
+/// With no seam pushed, `i` would stay live after a fetch that showed
+/// the character empty, where an explicit `equipment: []` retires it.
 #[test]
 fn c145_a_character_fetch_with_every_item_array_absent_retires_its_items() {
     let mut s = Store::open_memory().unwrap();
@@ -637,7 +634,7 @@ fn volatile_fields_are_not_changes() {
         .record(&stash_ep("a"), &p, 200, &stash("a", vec![a.clone()]), 2)
         .unwrap();
     assert_eq!(ing.changed, 0);
-    // #200: a body read in another key order is the same item. Under
+    // A body read in another key order is the same item. Under
     // serde_json's preserve_order a row keeps the order it was read in,
     // so a refetch that orders the keys otherwise, or a row stored
     // sorted before the feature, compares as values, never as text.
@@ -919,9 +916,9 @@ fn intent_survives_fact_removal_and_surfaces_as_orphaned() {
     )
     .unwrap();
     assert_eq!(s.orphaned_item_annotations(&a).unwrap().rows.len(), 1);
-    // C151 (the second review of #63, its fifth finding): an orphan
-    // this build cannot read is named beside the readable ones, never
-    // dropped; one on a live item is attached and named nowhere here.
+    // C151: an orphan this build cannot read is named beside the readable
+    // ones, never dropped; one on a live item is attached and named nowhere
+    // here.
     a.put::<crate::annotations::test_kinds::Note>(
         "item",
         "i1",
@@ -949,7 +946,7 @@ fn intent_survives_fact_removal_and_surfaces_as_orphaned() {
     assert_eq!(orphaned.unreadable[0].kind, "note");
 }
 
-/// Facts v9 (0a): a v8 file gains `items_live` and `items_live_at`,
+/// Facts v9: a v8 file gains `items_live` and `items_live_at`,
 /// the live items' partial indexes, and no row moves; a second open
 /// changes nothing.
 #[test]
@@ -1006,9 +1003,9 @@ fn v8_to_v9_adds_the_live_indexes_and_moves_no_row() {
     }
 }
 
-/// 0a: a reader's open of a current file takes no write lock, so it
-/// opens while another connection holds one — an ingest in progress
-/// — where it used to wait out the busy timeout and fail; a file that
+/// A reader's open of a current file takes no write lock, so it opens
+/// while another connection holds one — an ingest in progress — where
+/// waiting out the busy timeout would fail it; a file that
 /// must migrate still waits for the lock, and acts on the version it
 /// reads under it, never the one it read before.
 #[test]
@@ -1019,7 +1016,7 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
     drop(Store::open(&path).unwrap());
     let writer = Connection::open(&path).unwrap();
     writer.execute_batch("BEGIN IMMEDIATE;").unwrap();
-    // No wait, observed rather than timed (issue #111): a busy handler
+    // No wait, observed rather than timed: a busy handler
     // that counts and refuses, so an open that wanted the lock fails
     // at once with the count above zero.
     static REFUSED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -1053,9 +1050,9 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
     writer
         .execute_batch("BEGIN IMMEDIATE; PRAGMA user_version = 99;")
         .unwrap();
-    // The wait is forced, never timed (issue #111): the opener's busy
-    // handler is the signal that it stands behind the writer's lock,
-    // and the writer commits only after that signal, as #63's pin
+    // The wait is forced, never timed: the opener's busy handler is
+    // the signal that it stands behind the writer's lock, and the
+    // writer commits only after that signal, as the write-lock pin
     // below does. An opener that took no lock finishes without the
     // signal, and the assertion after the join says so.
     static WAITS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -1087,8 +1084,7 @@ fn a_current_file_opens_while_a_writer_holds_the_lock() {
     );
 }
 
-/// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 2): `record`
-/// and `rebuild` take the write lock before their first read (BEGIN
+/// `record` and `rebuild` take the write lock before their first read (BEGIN
 /// IMMEDIATE), so a second writer on the file — `acq store rebuild`
 /// beside an ingesting daemon — makes the ingest
 /// wait, never fail its upgrade from read to write. Both halves of
@@ -1272,8 +1268,7 @@ fn the_gates_two_facts_are_one_snapshot_so_a_create_between_them_cannot_be_refus
     assert_eq!(read, (0, false), "an empty file, read as one snapshot");
 }
 
-/// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4) and C124:
-/// the version is read before anything is written. A facts file in
+/// C124: the version is read before anything is written. A facts file in
 /// rollback-journal mode that this build refuses is refused exactly as
 /// found — its bytes the same, its journal mode still `delete`, no `-wal`
 /// beside it: one stamped newer, one older than the released format
@@ -1370,9 +1365,8 @@ fn a_file_this_build_refuses_is_refused_before_its_journal_mode_is_touched() {
     );
 }
 
-/// The review of #63's build, its first finding: a publish to a bare
-/// relative filename has a parent of `Some("")`, and the directory
-/// sync that follows it opened "" and failed after the file was
+/// A publish to a bare relative filename has a parent of `Some("")`,
+/// and a directory sync that opened "" would fail after the file was
 /// published. The helper takes an empty parent as the current
 /// directory; `None` and a real directory stand as before. The
 /// export's own call is one line on `dest.parent()`, so the helper
@@ -1744,8 +1738,8 @@ fn container_is_an_ingest_fact_and_moving_between_arrays_is_a_change() {
         Some("items")
     );
     // A Covens character's Wickerman, as the owner's FirstCharacterName
-    // carried it at 3.30's launch (2026-11-17), trimmed to its slot and
-    // frame: lifted, its container its array's name, nothing unlifted.
+    // carried it (N53), trimmed to its slot and frame: lifted, its container
+    // its array's name, nothing unlifted.
     let viscera = |id: &str, base: &str, slot: &str| {
         json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameType": 15,
             "frameTypeId": "Viscera", "inventoryId": slot, "x": 0, "y": 0, "w": 2, "h": 2 })
@@ -1773,12 +1767,12 @@ fn container_is_an_ingest_fact_and_moving_between_arrays_is_a_change() {
 /// The drift tripwire: an item-shaped array the store does not lift
 /// is counted into the envelope and the status — never a failure, and
 /// never an item row. Arrays of non-items are left alone.
-/// PoE2 first contact (2026-09-02): a weapon that grants a skill
-/// carries it as an id-less gem in its `socketedItems`, GGG repeats
-/// the identical object as `skills[0]`, and a support socketed into
-/// the granted skill is id-less too. Ruled (a): the subtree is a
-/// property of the host — left in place, counted, never a row, never
-/// a refusal — and every other id-less shape is still malformed.
+/// N44: a PoE2 weapon that grants a skill carries it as an id-less gem
+/// in its `socketedItems`, GGG repeats the identical object as
+/// `skills[0]`, and a support socketed into the granted skill is id-less
+/// too. The subtree is a property of the host — left in place, counted,
+/// never a row, never a refusal — and every other id-less shape is still
+/// malformed.
 #[test]
 fn an_item_granted_skill_stays_in_place_and_is_not_an_item() {
     let mut s = Store::open_memory().unwrap();
@@ -1850,7 +1844,7 @@ fn an_item_granted_skill_stays_in_place_and_is_not_an_item() {
     assert!(c.get("_unlifted").is_none());
     let st = s.status().unwrap();
     // One skill shown in two places is two entries: the count is of
-    // entries, and every surface says so (C146; the h2 review).
+    // entries, and every surface says so (C146).
     assert_eq!((st.items, st.granted_skills, st.refused_bodies), (5, 2, 0));
     // A support swapped inside the granted skill is a change on the
     // host — the only row that records it.
@@ -1947,7 +1941,7 @@ fn an_unknown_item_array_trips_the_drift_counter_without_failing() {
         .unwrap();
     assert_eq!(s.status().unwrap().unlifted_items, 0);
     // A count an earlier build stored under a key this build lifts is
-    // not drift: it is read at the character's next fetch (#279). A
+    // not drift: it is read at the character's next fetch. A
     // stored body counting under both kinds of key splits.
     s.conn
         .execute(
@@ -2201,8 +2195,8 @@ fn substash_membership_follows_the_parents_fetch_and_the_parents_fate() {
     assert_eq!(ing.removed, 1);
     // the orphan's stored row, read by raw SQL on its own `removed_at`,
     // where `tabs` reads live locations alone, a retired parent's
-    // substash among the gone (the review of round C, finding 2); the
-    // planner's snapshot keeping it is the planner's own test
+    // substash among the gone; the planner's snapshot keeping it is the
+    // planner's own test
     // (`an_orphaned_substash_is_skipped_never_rendered_by_the_wrong_path`)
     let orphans = |s: &Store| -> Vec<(String, Option<i64>)> {
         let mut stmt = s
@@ -2743,14 +2737,13 @@ fn leagues_held_counts_each_leagues_tabs_and_characters_in_one_realm() {
     assert_eq!(s.leagues_held("sony").unwrap(), vec![]);
 }
 
-/// The review of round C (`roadmap/reviews/seat-issues-c-a7395a13.md`,
-/// finding 1): a document's reads are one read snapshot. A write a
-/// second connection commits between what were its component reads —
-/// injected from SQLite's authorizer on the reader, as
-/// `c137_ensure_wal_…` counts its pragmas, the first time a component
-/// read prepares a statement on its table — never makes the document
-/// disagree with itself: `tabs`' rows beside its coverage, and `store
-/// status`'s item count beside its facts'.
+/// A document's reads are one read snapshot. A write a second connection
+/// commits between what were its component reads — injected from
+/// SQLite's authorizer on the reader, as `c137_ensure_wal_…` counts its
+/// pragmas, the first time a component read prepares a statement on its
+/// table — never makes the document disagree with itself: `tabs`' rows
+/// beside its coverage, and `store status`'s item count beside its
+/// facts'.
 #[test]
 fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
     let temp = tempfile::tempdir().unwrap();
@@ -2799,10 +2792,9 @@ fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
         .authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>)
         .unwrap();
 
-    // `tabs`' holdings (`leagues_held`) are the document's too (the review
-    // of round C's fix round, findings 2 and 3): a listing that adds a tab,
-    // committed once the rows are read, is in neither the rows nor the
-    // league's count beside them
+    // `tabs`' holdings (`leagues_held`) are the document's too: a listing
+    // that adds a tab, committed once the rows are read, is in neither the
+    // rows nor the league's count beside them
     let mut b = Some(Store::open(&path).unwrap());
     a.conn
         .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
@@ -2878,12 +2870,11 @@ fn a_documents_reads_are_one_snapshot_whatever_commits_between_them() {
     assert_eq!(st.facts.fetched, 0, "{st:?}");
 }
 
-/// The review of round C, finding 2: a substash whose map tab a listing
-/// retired keeps its row (the planner reports it as orphaned, C54) and
-/// is no live location; `tabs` counted it while the facts left it out
-/// through its parent. One reading of a live tab, the parent's fate
-/// included: gone in `tabs`' rows, in every coverage and in the
-/// leagues' holdings alike.
+/// A substash whose map tab a listing retired keeps its row (the planner
+/// reports it as orphaned, C54) and is no live location, in `tabs` as in
+/// the facts, which leave it out through its parent. One reading of a
+/// live tab, the parent's fate included: gone in `tabs`' rows, in every
+/// coverage and in the leagues' holdings alike.
 #[test]
 fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
     let mut s = Store::open_memory().unwrap();
@@ -2932,7 +2923,7 @@ fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
     let ids: Vec<&str> = rows.iter().map(|t| t.id.as_str()).collect();
     assert_eq!(ids, ["k1"], "{rows:?}");
     // the league's holdings count it out too, the document's and the
-    // store's (the review of round C's fix round, finding 2)
+    // store's
     let one = vec![LeagueHeld {
         league: Some("Standard".into()),
         tabs: 1,
@@ -2950,7 +2941,7 @@ fn a_substash_whose_parent_was_retired_is_gone_alike_in_tabs_and_the_facts() {
     assert_eq!(st.facts.fetched + st.facts.never_fetched, 1, "{st:?}");
 }
 
-/// #175: `ACQ_NOW` unset is the system clock; whole seconds since 1970
+/// `ACQ_NOW` unset is the system clock; whole seconds since 1970
 /// are the instant every process of a test reads; anything else is
 /// refused in words that say the form, the refusal each binary makes at
 /// start.
@@ -2974,7 +2965,7 @@ fn the_now_knob_fixes_whole_seconds_and_refuses_anything_else() {
     }
 }
 
-/// #175's pins each run in a fresh process: this process's now is one
+/// The clock's pins each run in a fresh process: this process's now is one
 /// global cell, and `cargo test` runs a binary's tests side by side in
 /// one process. Unless this process is the child for `test` (in
 /// `module`, `module_path!()` at the call), run it again as a child,
@@ -3007,7 +2998,7 @@ fn ran_as_a_fresh_process(module: &str, test: &str) -> bool {
     true
 }
 
-/// #175: a process that pins its now reads that instant from then on,
+/// A process that pins its now reads that instant from then on,
 /// and a second pin answers the first.
 #[test]
 fn a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first() {
@@ -3023,7 +3014,7 @@ fn a_pinned_now_is_the_processes_now_and_a_second_pin_answers_the_first() {
     assert_eq!(crate::now(), 1_762_300_000);
 }
 
-/// #175: a pin after the process read its clock unpinned is refused in
+/// A pin after the process read its clock unpinned is refused in
 /// words, never half applied.
 #[test]
 fn a_pin_after_an_unpinned_read_is_refused() {

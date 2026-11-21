@@ -23,10 +23,10 @@ fn item(id: &str) -> Value {
 }
 
 /// The flat scanner over the extract's array: a string reads with its
-/// escapes, null is none, anything else is unread at its place alone
-/// — a value nested past any decoder's depth beside a valid one loses
-/// nothing (the step-9 review, second look) — and a text that is no
-/// array of the fields reads as every field unread.
+/// escapes, null is none, anything else is unread at its place alone — a
+/// value nested past any decoder's depth beside a valid one loses
+/// nothing — and a text that is no array of the fields reads as every
+/// field unread.
 #[test]
 fn body_strings_read_each_field_by_its_json_type_and_never_descend() {
     let read = |text: &str| body_strings::<2>(Some(text));
@@ -74,7 +74,7 @@ fn body_strings_read_each_field_by_its_json_type_and_never_descend() {
 }
 
 /// A store whose account identity is on record, as every real store's
-/// is after one login (`/profile` lands at login since 2026-08-31).
+/// is after one login (`/profile` lands at login).
 fn store() -> Store {
     let mut s = Store::open_memory().unwrap();
     s.record(

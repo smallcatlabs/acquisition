@@ -2,9 +2,8 @@
 //! (C149, every answer one object, its lists counted beside their rows):
 //! the rows the store's listing returns, newest first, under `rows`,
 //! beside `returned`, the `limit` the request named and `total`, every
-//! body on record. The rows are the
-//! store's own, their bodies left on disk; a redesign of what a row says
-//! (#18) is additive on this object.
+//! body on record. The rows are the store's own, their bodies left on
+//! disk; a redesign of what a row says is additive on this object.
 
 use crate::refusal::{Pointed, Way};
 use acquisition_store::{Refused, Store};

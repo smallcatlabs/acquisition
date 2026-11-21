@@ -97,9 +97,8 @@ mod tests {
         }
     }
 
-    /// The release seat made two counts by eye from a bare array of 65
-    /// rows and retracted both (C149): the counts stand whole beside the
-    /// ten rows, the ones the footer prints.
+    /// Counts made by eye from a bare array of 65 rows go wrong (C149): the
+    /// counts stand whole beside the ten rows, the ones the footer prints.
     #[test]
     fn c149_characters_are_counted_whole_beside_ten_rows() {
         // 65 characters: 50 fetched, 45 of them with 3 items each and 5

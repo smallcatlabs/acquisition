@@ -1,10 +1,9 @@
-//! The contract revision is a digest of checked-in bytes (`build.rs`,
-//! C84), so a checkout must give every platform the same bytes. Git on
-//! Windows converts text files to CRLF unless `.gitattributes` says
-//! otherwise; `Cargo.lock` and the store's `.sql` were left to `text=auto`
-//! and gave the Windows release archive another revision than the four
-//! Unix ones built from the same commit (release run 38668066191,
-//! 2026-10-15). Every kind the digest reads is pinned to LF.
+//! The contract revision is a digest of checked-in bytes (`build.rs`, C84),
+//! so a checkout must give every platform the same bytes. Git on Windows
+//! converts text files to CRLF unless `.gitattributes` says otherwise;
+//! `Cargo.lock` and the store's `.sql` left to `text=auto` give a Windows
+//! release archive another revision than the Unix ones built from the same
+//! commit. Every kind the digest reads is pinned to LF.
 
 use std::path::Path;
 

@@ -44,10 +44,10 @@ pub struct Planned {
     /// plan read from a file, which reads no store.
     #[serde(skip_serializing_if = "PlanNotes::is_empty")]
     pub notes: PlanNotes,
-    /// #22: the league's non-folder tabs the policy's entry does not
-    /// cover, against all of them, from the snapshot the policy plan
-    /// compiled over; the verbs' own observation beside the envelope
-    /// (C38), absent on a selection plan and on a plan read from a file.
+    /// The league's non-folder tabs the policy's entry does not cover,
+    /// against all of them, from the snapshot the policy plan compiled
+    /// over; the verbs' own observation beside the envelope (C38),
+    /// absent on a selection plan and on a plan read from a file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uncovered_tabs: Option<UncoveredTabs>,
 }
@@ -120,8 +120,8 @@ pub struct PlanAges {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quote_observed_at_age: Option<String>,
     /// The answer's time these words were said at, the one instant every
-    /// frontend renders the plan at (#211: a text read the clock again
-    /// after the quote, and said another age than the words beside it).
+    /// frontend renders the plan at (a text that read the clock again
+    /// after the quote would say another age than the words beside it).
     /// None until [`Planned::aged`]; never serialized.
     #[serde(skip)]
     pub at: Option<i64>,
@@ -130,8 +130,8 @@ pub struct PlanAges {
 /// The spans a plan's ages are said from, in seconds (C53): the plan's
 /// own age at `now`, the answer's time, and each listing's age before
 /// the plan's `generated_at`. One derivation of the plan's epochs, which
-/// [`PlanAges`]' words and every frontend's text read (#211: the CLI
-/// once derived them a second time); each frontend keeps its own words.
+/// [`PlanAges`]' words and every frontend's text read, never derived a
+/// second time; each frontend keeps its own words.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PlanSpans {
     /// `now` less `generated_at`, saturating.
@@ -249,18 +249,17 @@ pub struct Submitted {
 /// included: what [`Opened::landed`] measures the apply's changes from,
 /// since what changed is a difference of two statuses. Taken only by
 /// [`Opened::apply_to_land`], for the caller that will ask what landed
-/// (#214: every apply once paid a full status read no surface but the
-/// CLI's ever used); its one reader is `landed`.
+/// (#214: a full status read on every apply would serve no surface but
+/// the CLI's); its one reader is `landed`.
 #[derive(Debug)]
 pub struct Watermark(Box<Status>);
 
 /// What an apply did once its job finished: its job's result, made by
 /// the one derivation every result is (`jobs::result_live`: the outcome,
 /// `job_id` and `account`, the times, a failure's kind, its first failed
-/// children and the way on, spelled per surface by
-/// [`Landed::offered`]; C165, the review of round E, finding 5), then
-/// the store's changes since the submit and what a plan compiled now
-/// would still fetch (C53: the next action).
+/// children and the way on, spelled per surface by [`Landed::offered`];
+/// C165), then the store's changes since the submit and what a plan
+/// compiled now would still fetch (C53: the next action).
 #[derive(Debug, Serialize)]
 pub struct Landed {
     #[serde(flatten)]
@@ -396,8 +395,8 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
         };
         client.quote(jobs, Some(account)).await.map_err(|e| {
             let why = format!("{e:#}");
-            // #189, fault 12: the daemon observed no session for the
-            // account; every other miss observed none and says none
+            // The daemon observed no session for the account; every other
+            // miss observed none and says none
             match DaemonError::find(&e) {
                 Some(refused) if refused.kind == ErrorKind::NotLoggedIn => {
                     QuoteNote::NotLoggedIn(why)
@@ -451,9 +450,9 @@ pub enum QuoteNote {
     /// The daemon answered about something other than this plan.
     Rejected(String),
     /// The daemon refused the quote `not_logged_in`: it holds no session
-    /// for the plan's account (#189, fault 12). Its sentence is
-    /// [`QuoteNote::Other`]'s, so the JSON and the CLI's text did not
-    /// change when the cause became typed; a page reads the variant.
+    /// for the plan's account. Its sentence is [`QuoteNote::Other`]'s,
+    /// so the JSON and the CLI's text say it as any other miss; a page
+    /// reads the variant.
     NotLoggedIn(String),
     /// Another daemon, an unresponsive peer, a failed conversation: its
     /// words.
@@ -572,8 +571,8 @@ impl Opened {
     pub async fn plan(&mut self, realm: Realm, league: &str) -> Result<Planned, Fault> {
         let snapshot = self.snapshot(realm, league)?;
         // One read of the clock: the plan's `generated_at`, its notes and
-        // its ages all say one instant (#211: a fresh plan read twice
-        // could say `1s ago`).
+        // its ages all say one instant (a fresh plan read twice could say
+        // `1s ago`).
         let now = acquisition_store::now();
         let plan = compile(
             self.account.frontend.provider,

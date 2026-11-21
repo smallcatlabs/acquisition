@@ -1,4 +1,4 @@
-# Currency reference table — v1 (C68), pricing slice step 1, 2026-09-04.
+# Currency reference table — v1 (C68).
 #
 # Reference data is a fifth input, versioned by the build: reviewed,
 # committed, every row citing its evidence, shipped inside the binary
@@ -10,13 +10,11 @@
 #
 # - `tag` is the immutable identity intent cites (C67). Never removed,
 #   never reused; a currency that falls out of use keeps its row, marked
-#   `retired`. The v1 tags are the game's own words (below); the 2d draft's
-#   four C++ tags that differed (`exa`, `chrom`, `jew`, `fuse`) became
-#   aliases before any intent row cited them.
+#   `retired`. The v1 tags are the game's own words (below); the four C++
+#   tags that differ (`exa`, `chrom`, `jew`, `fuse`) are aliases.
 # - `emit` is the word GGG's client writes into a note after the amount,
 #   and so the word the renderer writes (C74) — observed, never inferred:
-#   the price-notes run of 2026-09-04, corpus `price-notes-2026-09-04.txt`
-#   beside this file (T9, T10). Today every active row's `emit` is its
+#   the corpus `price-notes-2026-09-04.txt` beside this file (T9, T10). Today every active row's `emit` is its
 #   `tag`; if the game ever changes a word, `emit` moves and `tag` stays.
 # - `aliases` are the extra words a parser accepts beyond `tag` and `emit`:
 #   the legacy C++ tag where it differed, and the owner's shorthand
@@ -25,7 +23,7 @@
 #   modelled (C68). A row with aliases cites `cpp:` or `browser:`; the
 #   loader checks. Resolution is exact and case-sensitive.
 # - `display` is the name the in-game price dialog shows for the word, as
-#   the owner read it on 2026-09-04 (the fixture's third section); the
+#   the owner read it (the fixture's third section); the
 #   three retired rows keep the C++ display name.
 # - `realms` is realm applicability (decisions/pricing.md, Parked: PoE2
 #   currencies land as rows, not as a shape change). Every v1 row is a
@@ -43,8 +41,8 @@
 # Row order is the dialog's own, then the retired rows. `status` is the
 # owner's review state; the loader exposes it and gates nothing on it.
 #
-# Reviewed by: the owner, 2026-09-05 (rows read; shorthand aliases added
-# after checking them by hand on the trade site and the forum).
+# Reviewed by: the owner (rows read; shorthand aliases added after
+# checking them by hand on the trade site and the forum).
 
 version = 1
 status = "reviewed"

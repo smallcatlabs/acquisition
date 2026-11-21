@@ -34,18 +34,17 @@
 //!   `/character/{name}` take `xbox|sony|poe2`; `/stash…` and
 //!   `/account/leagues` take `xbox|sony` and are titled "PoE1 only".
 //!
-//! ## C58 — The realm step as built (2026-09-02)
+//! ## C58 — The realm as built
 //!
 //! Properties fixed inside the ruling while building, each pinned by a
-//! test (findings that bought them: `REFRESH-SLICE.md` at `b6197a82`):
+//! test:
 //!
 //! - **The realm table is one type** (`realm.rs`: `Realm`,
 //!   `Family::accepts`), read by the daemon (rendering + admission), the
 //!   mock (path classification), and the planner (policy parse) — the
-//!   `declare_route_knowledge` mold. Built in core; since the daemon
-//!   split's step 1 it is the protocol crate's, the job vocabulary typed,
-//!   linkable by all three because every consumer of the wire links the
-//!   protocol crate (§2.1 of the packet). The store stays string-typed:
+//!   `declare_route_knowledge` mold. It is the protocol crate's, the job
+//!   vocabulary typed, linkable by all three because every consumer of
+//!   the wire links the protocol crate. The store stays string-typed:
 //!   it records the request's realm and never validates it.
 //! - **A non-pc realm suffixes the limiter's route label**
 //!   (`character-list/poe2`, `stash-list/xbox`) as well as the URL, so each
@@ -63,9 +62,8 @@
 //!   listing is empty and a tab fetch 404s (tab and item ids are
 //!   GGG-unique, so pc's are never reused under another realm); the
 //!   character list is per realm, with one poe2 character carrying a
-//!   `skills` array (confirmed live 2026-09-02, N42–N44; the mock body
-//!   now also carries an item-granted skill, the id-less shape N44
-//!   records).
+//!   `skills` array (N42–N44; the mock body also carries an
+//!   item-granted skill, the id-less shape N44 records).
 //! - Policy v2 parses v1 in place; the stored value stays what was
 //!   written (`policy show` shows what the human typed).
 

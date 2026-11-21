@@ -1,9 +1,8 @@
 //! One refusal shape on every surface (C11, the failure document; C149,
-//! every refusal one JSON object; round 4 of
-//! `roadmap/briefs/2g-build.md`, the shape its design's Q5 delegated):
-//! [`document`] is the one function every frontend's refusal passes
-//! through — the MCP's tool refusals, the CLI's `--json` failure, the web
-//! page's — so no surface sorts a refusal alone.
+//! every refusal one JSON object): [`document`] is the one function every
+//! frontend's refusal passes through — the MCP's tool refusals, the CLI's
+//! `--json` failure, the web page's — so no surface sorts a refusal
+//! alone.
 //!
 //! The document is `error`, the words, and `kind`, one word from the
 //! closed lists as they stand: the protocol's (C85), the layer's
@@ -30,7 +29,7 @@
 //! - `readings`: how what was typed could be read, payload on every
 //!   refusal: a language refusal's query texts. A scope refusal has none:
 //!   its ways on are its `offers`, each saying in the request's words what
-//!   it is (#97, one meaning per key).
+//!   it is (one meaning per key).
 //! - `next`: one sentence or command that is a person's act, never an
 //!   agent's.
 //! - the kind's own fields: `accounts` (C121); `revision`, with
@@ -85,8 +84,7 @@ pub enum Way {
         plan: Option<String>,
     },
     /// One price target in one league, or where the facts hold it when
-    /// neither is named (a receipt whose counts could not be read: the
-    /// review of round B, finding 2).
+    /// neither is named (a receipt whose counts could not be read).
     PriceShow {
         target: String,
         account: String,
@@ -191,12 +189,11 @@ pub trait Surface {
 /// A search request read whole, as sent — a request, or the object that
 /// holds one (a route with its `count` and `counted_at`, an offer) — as
 /// `account`'s: the envelope as read with only the nested
-/// `scope.account` changed, so what it holds beside the request stands
-/// (round 4's review, finding 3, and its fix round's, finding 1, on both
-/// surfaces). A continuation's place is another store's basis, so it is
-/// dropped — `basis` and the rows' `after` — and the second value says
-/// so: the request from its start (the fix round's finding 2). None for
-/// what is no request `search` reads.
+/// `scope.account` changed, so what it holds beside the request stands,
+/// on both surfaces. A continuation's place is another store's basis,
+/// so it is dropped — `basis` and the rows' `after` — and the second
+/// value says so: the request from its start. None for what is no
+/// request `search` reads.
 pub fn again(envelope: &Value, account: &str) -> Option<(Value, bool)> {
     acquisition_search::answer::Asked::read(envelope).ok()?;
     let mut envelope = envelope.clone();
@@ -440,8 +437,7 @@ fn faulted(
         }));
     }
     // a plan whose policy moved: the plan compiled again, as the account
-    // and in the scope it was applied in (the review of #97's build, its
-    // first finding)
+    // and in the scope it was applied in
     if let Fault::Replan {
         username,
         realm,
@@ -480,9 +476,9 @@ fn faulted(
 }
 
 /// A write refused for its revision, offered again at the revision a
-/// write over the target names now (the league seat, fault 3): the
-/// same price over the live row's revision, or as a create (0) where no
-/// row stands; the same clear at the live row's.
+/// write over the target names now: the same price over the live row's
+/// revision, or as a create (0) where no row stands; the same clear at
+/// the live row's.
 fn retrying(retry: &Retry) -> (Way, String) {
     let target = retry.target.to_string();
     let at = retry.if_revision;
@@ -523,8 +519,7 @@ fn showing(shown: &acquisition_plan::pricing::Shown) -> (Way, String) {
 }
 
 /// A `show` of each place the facts hold a target in, where it named
-/// none (the review of round B's fix round): the commands the refusal's
-/// words print, as requests.
+/// none: the commands the refusal's words print, as requests.
 fn placing(s: &acquisition_plan::pricing::Several) -> Vec<(Way, String)> {
     let target = s.target.to_string();
     s.places
