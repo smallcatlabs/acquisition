@@ -1,0 +1,19 @@
+`roadmap/briefs/4-full-1-form-editor.md` at `f05dd546` — not ready to build as written; the fill still requires an unspecified design choice.
+
+1. **Decisions 3–5 / partition done-when — changes what gets built.** The fill lacks a fallback for structural values that its controls cannot reproduce. Concrete input: `{"query":{"stats":[{"type":"future","filters":[{"id":"explicit.stat_3299347043"}]}]}}` passes `decode_json`; its type survives normalisation, but the group select has no such option. Leaving the select unfilled submits its default `and`, adding a value that neither partition contains. The required translation corpus also includes malformed containers such as `filters: 42`. The first builder guess is how these groups render and which paths remain held. **Smallest change:** specify the fallback for an unrepresentable group type and malformed containers, and add these inputs to the partition pin.
+
+2. **Decision 2 — changes what gets built.** `stat_value_keys` cannot implement the stated dropping rule for group bounds. In `trade/translate.rs`, it governs each filter’s `value`; group bounds use a separate inline selection that permits `min` and `max` only for `count`, `weight` and `weight2`. Thus an `and` group carrying `group.min` needs a rule the named helper cannot supply; the existing fixture “one carrying bounds its type does not read” demonstrates the distinction. **Smallest change:** expose the group-value key selection alongside the stat-value selection and require the fold and fill to use the appropriate one.
+
+3. **Done when — changes what gets built.** The criteria verify filling and local folding without requiring the user’s edit-and-submit loop. The partition test reads rendered fields and calls the fold directly; the existing count and picker browser tests do not submit the search editor. All listed checks could therefore pass with the filled editor accidentally submitting to home, leaving “a bound can be tweaked and run again” false. **Smallest change:** require a test that opens a search, edits a rendered bound, submits through the rendered action, and verifies the changed answer and refilled bound.
+
+4. **Find first, second command — changes what gets built.** The command does not find every maker of a link whose field order matters. Running it misses `rows_links`’ direct `search?` construction at `web/mod.rs:1537`, `view_link`’s at `1680`, and the `Web::link` implementation at `709`; these assemble the fields the positional scheme relies on. **Smallest change:** extend the search with `query\.join\|fn link\|carried_on`, then inspect those makers alongside the existing hits.
+
+5. **Decision 5 / Not in scope — wording.** The brief both includes and excludes displaying weights by group type. Decision 5 requires “a weight box where the group’s type takes one,” while Not in scope assigns “weights shown by type” to step 3. **Smallest change:** distinguish initial server rendering, included here, from visibility changes when the user changes the group type, deferred to step 3.
+
+6. **Find first, final command — wording.** The captured-search discovery command covers only the TOML inputs, omitting the third required corpus. It finds `trade-decode.toml` and `trade-translate.toml`, but cannot find `search/pseudo-stats/data/captures.json`’s `returned_query` entries. **Smallest change:** add `git grep -n '"returned_query"' search/pseudo-stats/data/captures.json`.
+
+Not checked: builds, tests, browser behavior, or gate execution, as instructed; external issue comments and CI conclusions were not independently verified. No contradiction with an invariant or forbidden dependency edge was found in the examined design.
+
+Form impediment: the Decisions section sometimes specifies mechanisms without distinguishing structural prerequisites from independently round-trippable leaves.
+
+Prompt impediment: none.
