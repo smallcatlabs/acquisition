@@ -139,8 +139,9 @@ impl Fill {
 
     /// The query's stat groups, in the normal form, where the form can
     /// render them whole: a list of objects, each a `filters` list of
-    /// objects each with a string `id`, so a group and a row of the form
-    /// stand at each one's place. Any other is none: the pane is the empty
+    /// objects each with an `id` its box holds (a string equal to its
+    /// trim), so a group and a row of the form stand at each one's place
+    /// and fold back there. Any other is none: the pane is the empty
     /// form's, and every leaf of the stats is left (the module doc).
     pub(crate) fn stats(&self) -> &[Value] {
         let Some(groups) = self.at("query.stats").and_then(Value::as_array) else {
@@ -151,8 +152,11 @@ impl Fill {
                 .get("filters")
                 .and_then(Value::as_array)
                 .is_some_and(|rows| {
-                    rows.iter()
-                        .all(|row| row.is_object() && row.get("id").is_some_and(Value::is_string))
+                    rows.iter().all(|row| {
+                        row.get("id")
+                            .and_then(Value::as_str)
+                            .is_some_and(|id| id == id.trim())
+                    })
                 })
         };
         match groups.iter().all(|g| g.is_object() && rows(g)) {
@@ -384,6 +388,17 @@ mod tests {
                 vec![
                     "query.filters.type_filters.filters.category.option",
                     "query.term",
+                ],
+            ),
+            (
+                json!({"query": {"stats": [
+                    {"type": "and", "filters": [{"id": " padded "}]},
+                    {"type": "and", "filters": [{"id": "explicit.stat_3299347043"}]}]}}),
+                vec![
+                    "query.stats[0].filters[0].id",
+                    "query.stats[0].type",
+                    "query.stats[1].filters[0].id",
+                    "query.stats[1].type",
                 ],
             ),
             (

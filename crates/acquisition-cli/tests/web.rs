@@ -999,6 +999,63 @@ fn every_search_stands_under_its_editor_filled_with_what_was_asked() {
     }
     let boxed_answer = web.get_json(&sent_path(&boxed));
     assert_eq!(boxed_answer["view"], count_answer["view"], "{boxed_answer}");
+    // and a save from it says the count is left behind, as the editors
+    // carry it
+    assert!(
+        count_page
+            .body
+            .contains("Saved without its count: a saved search is its query and its scope."),
+        "{}",
+        count_page.body
+    );
+    // an order the URL named stands in the form as a box ticked: sent
+    // again, it orders; let go, a count asks with no order to refuse
+    let ordered = format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("text", "class:rings"),
+            ("view.sort", "ilvl")
+        ])
+    );
+    let page = web.get(&ordered);
+    assert_eq!(page.status, 200, "{}", page.body);
+    assert!(
+        page.body.contains(
+            "<input type=\"checkbox\" name=\"view.sort\" value=\"ilvl\" checked> ordered by ilvl"
+        ),
+        "{}",
+        page.body
+    );
+    let mut form = submitted(&page.body, SEARCH_FORM);
+    assert!(
+        form.contains(&("view.sort".to_string(), "ilvl".to_string())),
+        "{form:?}"
+    );
+    for (name, value) in form.iter_mut() {
+        if name == "view.count" {
+            *value = "rarity".to_string();
+        }
+    }
+    let refused = web.get(&sent_path(&form));
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert!(
+        refused.body.contains("orders rows, and a count shows none"),
+        "{}",
+        refused.body
+    );
+    // the refused page keeps the boxes, the order and its column, to be
+    // let go
+    let mut again = submitted(&refused.body, SEARCH_FORM);
+    for kept in [("view.sort", "ilvl"), ("view.value", "ilvl")] {
+        assert!(
+            again.contains(&(kept.0.to_string(), kept.1.to_string())),
+            "{again:?}"
+        );
+    }
+    again.retain(|(name, _)| name != "view.sort" && name != "view.value");
+    let counted = web.get(&sent_path(&again));
+    assert_eq!(counted.status, 200, "{}", counted.body);
     // refused: the fold's refusal over the empty form; a site search the
     // decode refuses in its box as sent; the form's fields the request
     // refuses, filled; each its status and its JSON the refusal's
@@ -1267,11 +1324,15 @@ fn a_head_orders_by_its_value_and_flips_and_the_box_keeps_what_was_named() {
     let next = web.get(&format!("search?next={token}")).body;
     let first_rows = link_saying(&next, "first rows");
     assert_eq!(go(&web, &first_rows, true)["view"], cards["view"]);
-    // no page holds a control that types a sort: the form, an answer
+    // no page holds a control that types a sort: the form, an answer; the
+    // search form's box that keeps the URL's order, or lets it go, types
+    // none
     for body in [web.get("").body, page.to_string()] {
         for name in ["view.sort", "view.desc"] {
             let typed = body.split("<input ").skip(1).any(|tag| {
-                tag.contains(&format!("name=\"{name}\"")) && !tag.starts_with("type=\"hidden\"")
+                tag.contains(&format!("name=\"{name}\""))
+                    && !tag.starts_with("type=\"hidden\"")
+                    && !tag.starts_with("type=\"checkbox\"")
             });
             assert!(!typed, "a control types {name}");
         }

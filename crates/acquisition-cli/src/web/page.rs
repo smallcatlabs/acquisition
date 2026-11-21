@@ -504,6 +504,9 @@ fn opened_notice(a: &Answer, opened: &Opened, links: &SavedLinks) -> String {
 pub(crate) struct Saving<'a> {
     pub source: &'a QueryInput,
     pub opened: Option<&'a Opened>,
+    /// The view the page's editors carry, whose parts a save leaves
+    /// behind.
+    pub view: &'a BoxView,
 }
 
 /// The save form under an answer's query box: the source of the request
@@ -844,10 +847,12 @@ pub(crate) fn search_form(
     out
 }
 
-/// The view and the saved search a search form carries hidden: the order
-/// and the values the URL named, never the query's own, and the saved search
-/// the page was opened from at the revision its URL names, so an edit run
-/// again keeps them.
+/// What the search form carries of the view and the saved search: the order
+/// and the values the URL named, never the query's own, each a box ticked
+/// in the form's own controls, so an edit run again keeps them and a reader
+/// can let one go (a count, which shows no rows, refuses an order or a
+/// value beside it in the shared words); and hidden, the saved search the
+/// page was opened from at the revision its URL names.
 fn carried(view: &BoxView, saved: Option<(&str, i64)>) -> String {
     let hidden = |name: &str, value: &str| {
         format!(
@@ -855,16 +860,24 @@ fn carried(view: &BoxView, saved: Option<(&str, i64)>) -> String {
             esc(value)
         )
     };
-    let mut out = String::new();
+    let kept = |name: &str, value: &str, words: &str| {
+        format!(
+            "<label class=\"control\"><input type=\"checkbox\" name=\"{name}\" value=\"{}\" checked> {}</label>",
+            esc(value),
+            esc(words)
+        )
+    };
+    let mut boxes = Vec::new();
     if let Some(sort) = &view.sort {
-        out.push_str(&hidden("view.sort", sort));
+        boxes.push(kept("view.sort", sort, &format!("ordered by {sort}")));
         if view.desc {
-            out.push_str(&hidden("view.desc", "true"));
+            boxes.push(kept("view.desc", "true", "largest first"));
         }
     }
     for value in &view.values {
-        out.push_str(&hidden("view.value", value));
+        boxes.push(kept("view.value", value, &format!("the column {value}")));
     }
+    let mut out = boxes.join(" ");
     if let Some((id, at)) = saved {
         out.push_str(&hidden("saved", id));
         out.push_str(&hidden("saved_revision", &at.to_string()));
@@ -1371,7 +1384,11 @@ pub(crate) fn answer(
         placed,
         fields: table_fields,
     } = *shown;
-    let Saving { source, opened } = saving;
+    let Saving {
+        source,
+        opened,
+        view: boxed,
+    } = saving;
     let now = acquisition_store::now();
     let all_realms = a.scope.realm == acquisition_search::Realm::All;
     let mut out = opened
@@ -1497,11 +1514,7 @@ pub(crate) fn answer(
         ));
     }
     out.push_str(&basis_foot(&search_cmd::basis_text(&a.basis)));
-    let boxed = match &a.view {
-        ViewOut::Rows(rows) => BoxView::of(rows),
-        _ => BoxView::default(),
-    };
-    out.push_str(&save_forms(a, source, opened, links, &boxed));
+    out.push_str(&save_forms(a, source, opened, links, boxed));
     out
 }
 
