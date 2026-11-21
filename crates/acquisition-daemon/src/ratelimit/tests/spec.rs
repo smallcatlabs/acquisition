@@ -679,6 +679,13 @@ fn pacing_rows() -> Vec<Row> {
             expect_wait: 10.0 + 5.0 + 1.0,
         },
         Row {
+            name: "server says 1/2, our in-window history has 2",
+            claims: "invariant 2: admission reads the state the server last reported, in both directions — two of our hits sit in the 10s window (our own count would wait 10 + 5 + 1 - 3) and the server counts one → go",
+            headers: with_state(CHAR_LIST, "1:10:0,1:300:0").leak(),
+            history: &[3.0, 0.0],
+            expect_wait: 0.0,
+        },
+        Row {
             name: "over-full window: more of our hits in it than its max",
             claims: "N25: a send needs hits below max, so the window frees when all but max-1 have left it: the second-oldest of three (1s ago) + 10 + 5 + 1, not the oldest (#86's mutants run)",
             headers: with_state(CHAR_LIST, "3:10:0,3:300:0").leak(),
@@ -991,6 +998,38 @@ fn eta_counts_reported_hits_the_local_history_never_saw() {
         l.eta_for("/absurd", 1, now),
         66.0,
     );
+}
+
+/// The mirror of the test above: the server reports fewer hits than the
+/// local history holds. Admission follows the report (invariant 2: the
+/// head goes now, as `pacing_table`'s lower-count row has it), and the
+/// forward simulation still counts every local hit, so it never predicts
+/// a send below the daemon's own count. Breaker: count the reported hits
+/// alone in `simulate` and "one ahead" reads 0.
+#[test]
+fn eta_keeps_local_hits_a_lower_reported_count_leaves_out() {
+    let now = far_future();
+    let mut l = Limiter::new();
+    // 3 per 10s. Our three hits are 2s, 1s and 0s old, and the server
+    // reports 1 of 3.
+    let headers = [
+        ("x-rate-limit-policy", "lower-count-window"),
+        ("x-rate-limit-rules", "Account"),
+        ("x-rate-limit-account", "3:10:60,10:300:300"),
+        ("x-rate-limit-account-state", "1:10:0,1:300:0"),
+    ];
+    run(&mut l, "/lower", &headers, &[2.0, 1.0, 0.0], now);
+    assert_wait(
+        "admission follows the report",
+        l.wait_for("/lower", now),
+        0.0,
+    );
+    assert_wait("head goes now", l.eta_for("/lower", 0, now), 0.0);
+    // The head's send joins our three: four in a window of three, which
+    // frees when all but two have left it, from the hit 1s ago:
+    // 10 + 5 + 1 - 1. By the reported count it would be two in the
+    // window, and no wait.
+    assert_wait("one ahead", l.eta_for("/lower", 1, now), 15.0);
 }
 
 /// `etas_for` is `eta_for` at every queue position, and forgetting

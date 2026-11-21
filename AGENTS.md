@@ -39,11 +39,11 @@ what fails if it breaks, and says where nothing does yet.
 2. **Rate-limit headers from GGG (`X-Rate-Limit-*`) are the source of
    truth.** Local rate-limit state is a prediction; headers correct it.
    *Pinned:* `acquisition-daemon/src/ratelimit/tests/spec.rs`,
-   `pacing_table` and
-   `eta_counts_reported_hits_the_local_history_never_saw`;
+   `pacing_table` (a lower reported count opens admission),
+   `eta_counts_reported_hits_the_local_history_never_saw` and
+   `eta_keeps_local_hits_a_lower_reported_count_leaves_out`;
    `acquisition-daemon/src/daemon/tests/harness.rs`,
-   `assert_never_over_the_limit`. Whether a lower reported count
-   corrects the local one is #219.
+   `assert_never_over_the_limit`.
 3. **Never retry through a Cloudflare block.** Recognition signatures
    and the one known incident: ground truth N1–N4, N28. *Pinned:*
    `acquisition-daemon/src/daemon/tests/dispatch.rs`,

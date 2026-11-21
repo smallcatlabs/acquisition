@@ -969,7 +969,11 @@ fn window_frees_at_seeded(
 }
 
 /// The earliest instant the next request under this policy may be sent,
-/// or `None` if it may go now. The pacing rule, per window of each rule:
+/// or `None` if it may go now. Invariant 2: a window's count here is the
+/// state the server last reported, in both directions, so a window it
+/// reports below its max is open whatever the local history holds; the
+/// forward estimate ([`Limiter::eta_for`]) alone counts the larger of
+/// the two. The pacing rule, per window of each rule:
 ///
 ///
 /// - restriction active (`restricted-for > 0`): last response, plus the
