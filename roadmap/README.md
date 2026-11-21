@@ -19,11 +19,12 @@ better Acquisition that is agent-friendly and agent-forward.
   milestone "4-full, the GUI"). Steps 1 to 6 are closed, step 6 in its
   parts (`git log --grep='^Step: 4-full-1'`). The search form's
   reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
-  and built in the series of its §8, one brief a step. Step 1 is
-  closed (`briefs/4-full-1-form-source.md`): a saved search keeps what
-  was asked, a text or a site search, its text derived at every read
-  (C194), saved with `--trade` at a terminal, `trade` over MCP and the
-  answer's source on a page. Step 2, the editor served, is next.
+  and built in the series of its §8, one brief a step
+  (`git log --grep='^Step: 4-full-1-form'`). Steps 1 and 2 are closed:
+  a saved search keeps what was asked (C194), and a search's page is
+  its source's editor, filled, above its answer, its stat fields
+  positional (`briefs/4-full-1-form-editor.md`). Step 3, rows and
+  groups by script, is next.
 
 ## Next
 
@@ -32,9 +33,9 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping (#184, #181, #180,
-   #185, #188, #183, #193), its design ruled
+   #185, #188, #183), its design ruled
    (`briefs/4-full-1-form-design.md`) and built in the series of its
-   §8, each step its own brief, step 2 next; #190's rest, the landing
+   §8, each step its own brief, step 3 next; #190's rest, the landing
    rule, a sort by values a player names and #296 ride with it. Its
    last step, a search's way back to the trade site (#303), waits on a
    sitting. The look is #285; what an apply brought, said on its job,
