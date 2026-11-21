@@ -6,10 +6,10 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 
-# The verbs every frontend asks (C46; roadmap/briefs/2a-design.md): what
+# The verbs every frontend asks (C46): what
 # needs the daemon and the store together, and what every verb shares —
 # the frontend's identity and door, the account, the opener, the world.
-# C1, as amended: it links the client, the protocol crate, the store, the
+# C1: it links the client, the protocol crate, the store, the
 # planner and the search; tokio for the quote's deadline and the job
 # wait. Never the daemon; nothing below it links it (tools/arch-check.sh
 # refuses both through the lower crates' lists).

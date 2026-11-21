@@ -41,9 +41,8 @@
 //! ten-thousandths, so the same type carries an observed note's amount
 //! and a manual price, and the listing state (`listing.rs`) compares
 //! them structurally; a fifth digit is refused. `0`, `0.00` and `0/5` are
-//! refused (a price is positive); `10/0` is refused. (v1 was ruled at
-//! two places and widened to four; widening is compatible, every stored
-//! two-place value still parses.)
+//! refused (a price is positive); `10/0` is refused. Fewer places parse
+//! too, so a stored two-place value reads as it was written.
 //!
 //! `currency` is a **tag** of the shipped currency table
 //! ([`crate::currency`]) — the immutable identity intent cites (C68),

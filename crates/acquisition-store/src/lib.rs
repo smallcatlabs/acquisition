@@ -244,9 +244,9 @@ const SCHEMA: &str = include_str!("schema.sql");
 
 /// The fact-file schema this build reads and writes; a file stamped newer
 /// is refused (C48: schema versions and compatibility errors, never
-/// guessing). Version 9 added `items_live` and
-/// `items_live_at`, partial indexes on where the live items sit, so a
-/// store's removed rows stop costing its live reads.
+/// guessing). Version 9 carries `items_live` and `items_live_at`, partial
+/// indexes on where the live items sit, so a store's removed rows cost
+/// its live reads nothing.
 const FACT_SCHEMA_VERSION: i64 = 9;
 
 /// The oldest fact file this build opens: the released format,

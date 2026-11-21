@@ -52,12 +52,12 @@
 //!   (annotations v3); [`Provenance`] is a required argument of
 //!   [`Annotations::put`] and [`Annotations::delete`] (a tombstone records
 //!   who cleared the row); `written_via` must be a non-empty single word.
-//!   Files below v3 were written only by development builds (the owner's
-//!   held one policy row), so rather than carry a migration that would
-//!   have to invent a writer for rows that had none, the open refuses them
-//!   ([`AnnotationError::SchemaTooOld`]) naming the file and the fix; a
-//!   future column is added by a stepwise `ALTER TABLE` in the same
-//!   IMMEDIATE transaction, the way the facts store migrates.
+//!   A file below v3 is a development build's, so rather than carry a
+//!   migration that would have to invent a writer for rows that had none,
+//!   the open refuses it ([`AnnotationError::SchemaTooOld`]) naming the
+//!   file and the fix; a future column is added by a stepwise
+//!   `ALTER TABLE` in the same IMMEDIATE transaction, the way the facts
+//!   store migrates.
 //! - **C66** (intent values typed at the write API): [`IntentValue`] is
 //!   the per-kind trait (the kind's name, the version this build writes,
 //!   its strict parse); [`check_value`] is the generic, in this order: an
@@ -90,10 +90,10 @@ use crate::index::filename_safe;
 /// The schema this build reads and writes. A file stamped newer is refused
 /// (never auto-migrated: this is the one file that must not be damaged);
 /// additions like the deferred event log bump this and migrate forward
-/// from [`SCHEMA_FLOOR`]. v2 added `meta`, which carries the account uuid
-/// *inside* the file so a copied or renamed database cannot silently pair
-/// with another account's facts — the filename convention alone was
-/// bypassable. v3 (C65) added `written_via` and `actor` to every row.
+/// from [`SCHEMA_FLOOR`]. Version 3 carries `meta`, the account uuid
+/// *inside* the file, so a copied or renamed database cannot silently pair
+/// with another account's facts — the filename convention alone is
+/// bypassable — and `written_via` and `actor` on every row (C65).
 const SCHEMA_VERSION: i64 = 3;
 
 /// The oldest schema this build opens. Files below it were written only

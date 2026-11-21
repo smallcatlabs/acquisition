@@ -586,7 +586,7 @@ impl Opened {
         Ok(planned.aged(now))
     }
 
-    /// C44 as amended: an explicit selection compiled into a plan for one
+    /// C44: an explicit selection compiled into a plan for one
     /// (realm, league) over the same snapshot, with no stored policy.
     pub fn compile_selection(
         &self,

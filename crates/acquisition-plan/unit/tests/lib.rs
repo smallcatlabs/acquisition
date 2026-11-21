@@ -1459,7 +1459,7 @@ fn check_spendable_is_the_shared_staleness_and_identity_gate() {
     assert!(matches!(err, SpendError::WrongProvider { .. }), "{err}");
 }
 
-/// C44 as amended — a plan compiled from an explicit selection
+/// C44 — a plan compiled from an explicit selection
 /// carries no policy revision and the apply checks none: it applies
 /// with no policy row at all, while a policy plan whose row moved is
 /// still refused; each named tab is fetched however fresh, under deep
@@ -1666,7 +1666,7 @@ fn c76_a_selection_naming_tabs_under_poe2_is_refused_as_a_policy_is() {
     );
 }
 
-/// C111 as amended over a selection plan, by response and never the
+/// C111 over a selection plan, by response and never the
 /// clock: a tab fetched, then a selection compiled from a snapshot
 /// taken in that same second, still sends it — the fetch landed in the
 /// response the snapshot was read under, not after it; once the apply's
@@ -1920,7 +1920,7 @@ fn an_action_is_spent_by_a_later_fetch_or_an_open_job_and_by_nothing_else() {
     let (unspent, spent) = plan.unspent(&facts, &[], "tom");
     assert_eq!((unspent.len(), spent.len()), (3, 0));
 
-    // C111 as amended, by response and never the clock: t1's fetch
+    // C111, by response and never the clock: t1's fetch
     // landed in a response after the snapshot's; t2's in the snapshot's
     // own response, in the snapshot's own second — not after it
     let mut facts = facts;

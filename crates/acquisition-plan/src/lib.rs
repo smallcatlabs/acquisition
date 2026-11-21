@@ -68,7 +68,7 @@
 //! which its basis names: the stored policy at a revision (`plan_refresh`;
 //! apply refuses it once the row moves, C44), or an explicit selection
 //! (`plan_selection`; its authorization the selection itself, no revision
-//! checked, C44 as amended, and its listing refreshed on every run,
+//! checked, C44, and its listing refreshed on every run,
 //! C76). An action is spent once a fetch of its target lands in a
 //! response after the snapshot's, or the daemon holds the same request
 //! (C111, by response and never the clock). A serialized plan
@@ -164,7 +164,7 @@
 //!   mismatched account uuid refuses any plan; a plan derived from the
 //!   policy (`basis.policy_revision` set) is then held against a fresh
 //!   read of the policy row, and a missing row or a different revision
-//!   refuses; a selection plan reads no row (C44 as amended). Each refusal
+//!   refuses; a selection plan reads no row (C44). Each refusal
 //!   is a [`SpendError`] with the remedy named. The check races a
 //!   concurrent policy write between read and submit (the same register as
 //!   `policy set` without `--if-revision`).
@@ -1036,7 +1036,7 @@ pub enum ListingReason {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FetchReason {
     NeverFetched,
-    /// A selection plan names it (C44 as amended): fetched however fresh,
+    /// A selection plan names it (C44): fetched however fresh,
     /// since it was asked for by name.
     Selected,
     Stale {
@@ -1262,7 +1262,7 @@ pub struct PlanBasis {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub policy_revision: Option<i64>,
     /// The explicit selection a selection plan was compiled from: its
-    /// authorization, in place of a policy revision (C44 as amended); none
+    /// authorization, in place of a policy revision (C44); none
     /// for a policy plan. Exactly one of the two is present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection: Option<PlanSelection>,
@@ -1550,7 +1550,7 @@ impl RefreshPlan {
                 selected_uuid: selected_uuid.map(String::from),
             });
         }
-        // C44 as amended: a selection plan's authorization is the
+        // C44: a selection plan's authorization is the
         // selection itself, and no policy revision is checked
         let Some(plan_revision) = self.basis.policy_revision else {
             return Ok(());
@@ -1830,7 +1830,7 @@ impl TryFrom<RefreshPlanWire> for RefreshPlan {
                 wire.operation
             ));
         }
-        // C44 as amended: a plan is authorized by a policy revision or by
+        // C44: a plan is authorized by a policy revision or by
         // an explicit selection, exactly one
         match (&wire.basis.policy_revision, &wire.basis.selection) {
             (Some(_), None) | (None, Some(_)) => {}
@@ -1934,7 +1934,7 @@ pub fn plan_refresh(
     compile(provider, snapshot, &policy, row.revision, now)
 }
 
-/// C44 as amended: a plan compiled from an explicit selection over the
+/// C44: a plan compiled from an explicit selection over the
 /// same snapshot a policy plan reads, with no stored policy. Each named
 /// tab and character is fetched however fresh it is, since it is asked
 /// for by name; under `deep`, the pages on record of each named map or

@@ -21,11 +21,11 @@
 //!
 //! # Rulings held here
 //!
-//! - **C58** (realm is a coordinate above league): the realm nesting is
-//!   **policy v2**, built; `characters` beside `tabs` makes **v3** — a new
-//!   sibling field is a shape change, so a v2 reader says "newer version",
-//!   never "malformed"; v3 is also the floor, and an older version is
-//!   refused with its remedy (C66). Realm is an explicit param on all four data kinds (`stashes`,
+//! - **C58** (realm is a coordinate above league): the realm nesting and
+//!   `characters` beside `tabs` are **policy v3** — a new sibling field is
+//!   a shape change, so an older reader says "newer version", never
+//!   "malformed"; v3 is also the floor, and an older version is refused
+//!   with its remedy (C66). Realm is an explicit param on all four data kinds (`stashes`,
 //!   `stash`, `characters`, `character`), defaulted to pc only at the
 //!   decode boundary (`Endpoint::from_job`) so persisted pre-realm jobs
 //!   still decode.
