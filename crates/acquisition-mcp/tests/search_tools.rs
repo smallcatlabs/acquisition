@@ -712,13 +712,13 @@ fn describe_is_as_large_as_its_text_says() {
     // an answer carries says of it
     assert!(size(&mut seat, json!(["trade"])) < 25_000);
     assert!(size(&mut seat, json!(["trade"])) > 18_000);
-    // some 20 KB since the property fields joined it (C114)
+    // some 20 KB, the fields, the property fields among them (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
     assert!(size(&mut seat, json!(["fields"])) > 16_000);
     // some 10 KB, every category id with what makes it hold
     assert!(size(&mut seat, json!(["categories"])) < 13_000);
     assert!(size(&mut seat, json!(["categories"])) > 8_000);
-    // some 9 KB, every key an answer prints and what it counts: the
+    // some 7 KB, every key an answer prints and what it counts: the
     // lists `list_seen` is the oldest of, `unmatched_leagues`, a row's
     // `values` and the order the query gives, the totals' source naming
     // the row a patch's rewording carried by its stats, and the tables'

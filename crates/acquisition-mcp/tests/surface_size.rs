@@ -21,9 +21,8 @@ const INSTRUCTIONS: usize = 1_000;
 /// `initialize` result plus that of the `tools/list` result, as the
 /// harness receives them, held at the next 1,000 above its measure
 /// (42,089: 1,121 and 40,968). A schema trim that saves under 10% of the
-/// turn is declined (no `$schema`, no `title`, no `null` on an optional
-/// argument saves 5.8%), and a new tool raises the bound rather than
-/// cutting another tool's text for room (the owner's word).
+/// turn is declined, and a new tool raises the bound rather than cutting
+/// another tool's text for room (the owner's word).
 const FIRST_TURN: usize = 43_000;
 
 fn surface() -> (String, Vec<Value>) {
