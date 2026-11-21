@@ -2,8 +2,8 @@
 //! the daemon's own readers. A binary of its own (C122): it writes the
 //! process environment, which would leak into every test beside it.
 //!
-//! Two knobs guard what the invariants protect, and each was a surviving
-//! mutant of the weekly run until this test (#218). `ACQ_NO_KEYRING`
+//! Two knobs guard what the invariants protect, and without this test
+//! each would survive the weekly mutation run. `ACQ_NO_KEYRING`
 //! keeps every mock session and test daemon out of the OS keyring, the
 //! refresh token's home (invariant 5): with it set, a save, a load and a
 //! clear each refuse without reaching the keyring. `ACQ_TRIPWIRE` and

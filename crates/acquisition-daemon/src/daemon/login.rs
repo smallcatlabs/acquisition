@@ -711,9 +711,8 @@ impl Daemon {
         }
         // The retry names the account by its uuid, a word no shell reads
         // specially, so it runs as printed whichever shell it is pasted
-        // into, not only the one this daemon was started from (C156; the
-        // review of words' fix round, its first finding); the username,
-        // quoted, only for an entry the index holds no uuid for.
+        // into, not only the one this daemon was started from (C156); the
+        // username, quoted, only for an entry the index holds no uuid for.
         let selector = uuid.map_or_else(|| shell_word(username), str::to_string);
         let retry = format!("`acq auth logout --account {selector}`");
         match &cleared {
@@ -1047,7 +1046,7 @@ async fn answer_callback(
                  tab; to try again, run <code>acq auth</code> from the terminal.</p>",
             )
             .await;
-            // #113: the redirect's query is text the daemon received, and
+            // The redirect's query is text the daemon received, and
             // these words reach the log: its `error` as one of OAuth's
             // codes, and never its free-text `error_description`.
             let _ = ended.try_send(Err(format!(

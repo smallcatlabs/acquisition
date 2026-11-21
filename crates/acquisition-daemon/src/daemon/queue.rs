@@ -25,7 +25,7 @@
 //!   still says running and the next daemon restores it as `restore_jobs`
 //!   says — the send already happened, so refusing to finish it would
 //!   record nothing at all. The same residual, for the same reason, is
-//!   every other change a running job's own end makes (#209): a 429's
+//!   every other change a running job's own end makes: a 429's
 //!   requeue (memory waiting with its retry counted, disk running with
 //!   none), a halt's park (memory waiting, disk running) and a parent's
 //!   deferred result (held in memory, not on disk). Each write's failure
@@ -341,7 +341,7 @@ impl Daemon {
             .as_deref()
             .and_then(|path| self.read_fault_marker(path))
             .flatten();
-        // C47, #209: a row this daemon cannot read (a state word it does
+        // C47: a row this daemon cannot read (a state word it does
         // not know, or a finished row whose outcome no longer reads) is
         // said, each and then their count, never dropped in silence. It is
         // never an entry: its row stays on disk as written, and a request
@@ -365,7 +365,7 @@ impl Daemon {
         let mut unread = 0;
         // each tainted tree's root, with the first unreadable row in it
         let mut tainted: HashMap<JobId, JobId> = HashMap::new();
-        // #209's fourth round: each parent's unreadable direct children,
+        // Each parent's unreadable direct children,
         // for the tally the parent holds (C23); and every loaded row's
         // parent, readable or not, so "has a child" is read as the tree
         // is found, from the raw `parent` fields.
@@ -420,12 +420,12 @@ impl Daemon {
         let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault, mut lost_login) =
             (0, 0, 0, 0, 0, 0);
         let mut unreadable_tree = 0;
-        // C134 with #261: every write this restore makes under the lock,
-        // each ending's, each re-queue's and each probe row's delete, is
-        // folded into one fact, and the marker is removed only when all
-        // landed. A parent `maybe_finish_parent` ends after the lock is
-        // outside it, the unreadable tree's parents among them since
-        // #209's fourth round: the marker's job is never a parent (C134's
+        // C134 with the one ending: every write this restore makes under
+        // the lock, each ending's, each re-queue's and each probe row's
+        // delete, is folded into one fact, and the marker is removed only
+        // when all landed. A parent `maybe_finish_parent` ends after the
+        // lock is outside it, the unreadable tree's parents among them:
+        // the marker's job is never a parent (C134's
         // arm excludes one), so its failure is in the fact, and a
         // parent's write refused after the lock trips the sticky queue
         // failure, the parent finished by the next restore.
@@ -435,7 +435,7 @@ impl Daemon {
         {
             let mut s = self.shared.lock().unwrap();
             s.next_id = next_id;
-            // #261: everything the restore loaded is in memory, as read,
+            // Everything the restore loaded is in memory, as read,
             // before any of it ends, so a tree's eviction (`evict_tree`,
             // which takes a job whose parent is not in memory for a root)
             // and a parent's tally see the whole tree. The info of each
@@ -465,7 +465,7 @@ impl Daemon {
                 s.jobs.insert(entry.info().id, entry);
             }
             // Each job, in the order it was loaded, decided by the arms in
-            // their order: what ends, ends through the one ending (#261);
+            // their order: what ends, ends through the one ending;
             // what stays open is changed by name and written.
             for as_loaded in loaded {
                 let id = as_loaded.id;
@@ -477,7 +477,7 @@ impl Daemon {
                 };
                 let state = entry.info().state;
                 let open = matches!(state, JobState::Running | JobState::Waiting);
-                // C47, #209: an open job of a tree holding a row this
+                // C47: an open job of a tree holding a row this
                 // daemon cannot read fails, and nothing of the tree is
                 // sent. A leaf (no child among the loaded rows) ends where
                 // it stands. A parent (any child among them, readable or
@@ -685,10 +685,10 @@ resubmit if still wanted",
 
     /// [`Self::stored_outcome`] with the job's times beside it (C165), as
     /// the row records them.
-    /// A row this daemon cannot read is refused, never "no job" (C47,
-    /// #209): a state word it does not know, or a terminal row whose
-    /// outcome no longer reads as this build's (`Status` answers that
-    /// row, so the two agree the job exists).
+    /// A row this daemon cannot read is refused, never "no job" (C47): a
+    /// state word it does not know, or a terminal row whose outcome no
+    /// longer reads as this build's (`Status` answers that row, so the two
+    /// agree the job exists).
     pub(super) fn stored_result(&self, id: JobId) -> Result<Option<(Outcome, JobTimes)>, Refusal> {
         let row = match self.jobs_db.lock().unwrap().get(id) {
             Ok(Some(row)) => row,
@@ -1032,7 +1032,7 @@ resubmit if still wanted",
     }
 
     /// A client's submit: [`Self::submit`], refused under the insert's
-    /// lock once the exit has begun (C133, #209; [`Self::submit_marked`]).
+    /// lock once the exit has begun (C133; [`Self::submit_marked`]).
     pub(super) fn submit_client(
         &self,
         kind: String,
@@ -1137,7 +1137,7 @@ resubmit if still wanted",
     /// job before the mark is made. The login's profile job is the one
     /// caller with a mark (C144: its staged token serves that job alone).
     /// `client` is a client's submit, refused here once the exit has
-    /// begun (C133, #209).
+    /// begun (C133).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn submit_marked(
         &self,
@@ -1156,7 +1156,7 @@ resubmit if still wanted",
         let now = self.choke.now();
         let info = {
             let mut s = self.shared.lock().unwrap();
-            // C133, #209: a client's submit that sees the exit begun is
+            // C133: a client's submit that sees the exit begun is
             // refused, here under the insert's lock as well as at the
             // server's door, in the server's words from the one place they
             // are made. What the window keeps, a check passed before the
@@ -1242,11 +1242,11 @@ resubmit if still wanted",
                     format!("job {id} already {state}"),
                 ));
             }
-            // Each job this cancel ends, ends through the one ending
-            // (#261), which stamps it as activity (C3 as amended, #208),
-            // writes it and evicts the tree once all of it is terminal; so
-            // a job of the tree collected here may have left with its
-            // tree's last, and is passed over.
+            // Each job this cancel ends, ends through the one ending,
+            // which stamps it as activity (C3), writes it and evicts the
+            // tree once all of it is terminal; so a job of the tree
+            // collected here may have left with its tree's last, and is
+            // passed over.
             for t in s.tree(id) {
                 let Some(entry) = s.jobs.get_mut(&t) else {
                     continue;
@@ -1368,9 +1368,9 @@ resubmit if still wanted",
 /// Realm admission: a kind in a realm family (`acquisition_protocol::realm`) must name a
 /// realm that family takes — or none, meaning pc. Runs at the client's
 /// door before the account resolves, so no later refusal (C164's) quotes
-/// a realm outside the closed set (the review of round D's fix round);
-/// and at submit for every kind and per tuple inside `validate_apply`,
-/// the daemon's own submissions included, so a job that would
+/// a realm outside the closed set; and at submit for every kind and per
+/// tuple inside `validate_apply`, the daemon's own submissions included,
+/// so a job that would
 /// render a stash URL under `poe2` never gets an id (C59: no code path
 /// renders an unobserved URL shape). Kinds outside the families ignore
 /// the param. A realm that is not a string of at most `PREVIEW_BYTES` is
@@ -1757,7 +1757,7 @@ pub(super) const PARAMS_MAX_BYTES: usize = 8 << 20;
 /// about 9 MiB with tiny tuples, 15 MiB with realistic ones, and 28 MiB
 /// (44% of the frame) at worst: a 128-byte submitter and params just
 /// under `PARAMS_MAX_BYTES`, which the parent's own entry carries whole.
-/// Several applies together can still outgrow the frame (issue #56).
+/// Several applies together can still outgrow the frame.
 /// The bound guards the frame, not a plan's size: the planner has no size limit
 /// of its own, and a plan is one (realm, league), the largest observed,
 /// the owner's Standard, at most 3,408 actions (two listings, 3,347 tabs
@@ -1873,7 +1873,7 @@ a client cannot submit one"
 /// never fetched, or a folder, is admitted. The words name what left it
 /// out, its age at `now` (the store's clock, as `tabs` says it), the
 /// value described, never echoed whole (C127), and the fetch that makes
-/// the retry pass (the review of round D, finding 1): for a tab, the
+/// the retry pass: for a tab, the
 /// league's listing and the `stashes` job that fetches it again; for a
 /// substash, its parent's stored rows, as old as the parent's last fetch,
 /// and a `stash` job for the parent, since a `stashes` job keeps them.
@@ -1888,8 +1888,8 @@ pub(super) fn judge_listed(
     sub: Option<&str>,
     now: i64,
 ) -> Result<(), String> {
-    // the league a client sent, quoted bounded as the tab is (C127; the
-    // review of round D, finding 3); the realm is one the door names
+    // the league a client sent, quoted bounded as the tab is (C127); the
+    // realm is one the door names
     let league = describe_str(league);
     let Some(tab) = listing.tabs.iter().find(|t| t.id == id) else {
         return Err(format!(

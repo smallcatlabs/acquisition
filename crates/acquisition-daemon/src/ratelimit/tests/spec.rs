@@ -323,10 +323,10 @@ fn full_policy_accepts_observed_one_and_three_window_shapes() {
     assert_eq!(trade.rules[0].limits.len(), 3, "N30");
 }
 
-/// #113: a log line names a rule by the scope GGG documents, `Client`
-/// among them, and anything else as outside GGG's. Kills the mutant
-/// `delete match arm "Client" in rule_label`, which said "a rule outside
-/// GGG's" for a `Client` rule (t5's close, #141: a survivor since #86).
+/// A log line names a rule by the scope GGG documents, `Client` among
+/// them, and anything else as outside GGG's. Kills the mutant `delete
+/// match arm "Client" in rule_label`, which says "a rule outside GGG's"
+/// for a `Client` rule.
 #[test]
 fn a_documented_scope_is_labelled_by_its_name() {
     for scope in ["Ip", "Account", "Client"] {
@@ -335,11 +335,10 @@ fn a_documented_scope_is_labelled_by_its_name() {
     assert_eq!(rule_label("Realm"), "a rule outside GGG's");
 }
 
-/// #113: a missing rule header is named by its rule in GGG's spelling,
-/// read back from the lowercased header key. Kills the mutants
-/// `replace capitalise -> String with String::new()` and `with
-/// "xyzzy".into()`, each of which named the rule as outside GGG's (t5's
-/// close, #141: survivors since #86).
+/// A missing rule header is named by its rule in GGG's spelling, read
+/// back from the lowercased header key. Kills the mutants `replace
+/// capitalise -> String with String::new()` and `with "xyzzy".into()`,
+/// each of which names the rule as outside GGG's.
 #[test]
 fn a_missing_rule_header_names_its_rule_in_gggs_spelling() {
     let error = parse(&[
@@ -350,12 +349,11 @@ fn a_missing_rule_header_names_its_rule_in_gggs_spelling() {
     assert_eq!(error.to_string(), "missing the limits header of rule Ip");
 }
 
-/// #113: a rate line says a window is restricted only while its
-/// restriction runs: at zero seconds it says nothing of one, at one second
-/// it says so. The tie at zero decides a word, so it is pinned, not
-/// listed. Kills the mutants `replace > with == in rate_words`, `with <`
-/// and `with >=` on `restricted_secs > 0` (t5's close, #141: survivors
-/// since #86).
+/// A rate line says a window is restricted only while its restriction
+/// runs: at zero seconds it says nothing of one, at one second it says
+/// so. The tie at zero decides a word, so it is pinned, not listed. Kills
+/// the mutants `replace > with == in rate_words`, `with <` and `with >=`
+/// on `restricted_secs > 0`.
 #[test]
 fn a_rate_line_says_restricted_only_while_a_restriction_runs() {
     let words = |state: &str| {
@@ -455,7 +453,7 @@ const D8_REJECTED: &[(&str, &[(&str, &str)])] = &[
     ),
     (
         // `u64::from_str` takes a leading `+`; the digits-only check before
-        // it is what refuses one (#86's mutants run).
+        // it is what refuses one.
         "signed field",
         &[
             ("x-rate-limit-policy", "p"),
@@ -503,8 +501,7 @@ fn d8_full_header_grammar_rejects_every_partial_or_malformed_shape() {
 /// The operational bounds as their docs state them, a full day, written
 /// as a number rather than read from the constants: a bound read from its
 /// own constant moves with it: `24 * 60 + 60`, which would refuse GGG's
-/// observed 1,800 s period, left every bound test green (#86's mutants
-/// run).
+/// observed 1,800 s period, would leave every bound test green.
 const A_DAY_SECS: u64 = 86_400;
 
 #[test]
@@ -891,8 +888,7 @@ fn eta_simulates_the_pacing_rule_forward() {
     // One ahead: the head lands at +12s. By then the hit at `now` is
     // 12s old — already outside the 10s window (the bucket padding is
     // what creates that slack) — so only the head's own hit counts and
-    // the next request goes out right behind it. (First draft of this
-    // row said 16s; the arithmetic, not the limiter, was wrong.)
+    // the next request goes out right behind it.
     assert_wait("one ahead", l.eta_for("/character", 1, now), 12.0);
     // Two ahead: two hits at +12 fill the window → +12 + 10 + 5 + 1 = 28s.
     assert_wait("two ahead", l.eta_for("/character", 2, now), 28.0);
@@ -1146,7 +1142,7 @@ fn fuzz_policy(rng: &mut SplitMix, name: &str) -> Policy {
 
 /// The same policy under its name with new reported state and limits:
 /// a dynamic change within its shape (history kept, N9), or with one
-/// period moved, a new shape (history discarded, F65).
+/// period moved, a new shape (history discarded).
 fn fuzz_rekey(rng: &mut SplitMix, policy: &Policy) -> Policy {
     let mut next = policy.clone();
     let reshape = rng.chance(30);
@@ -1392,7 +1388,7 @@ fn malformed_observation_never_erases_a_known_policy() {
     );
     assert_eq!(state.history.len(), 2);
     // The definition is untouched; the prediction advances by the one
-    // hit the server may have counted (2026-08-24, rung 10's 503).
+    // hit the server may have counted (N35's 503).
     assert_policy_unchanged_but_one_hit_assumed(&state.policy, &original);
 
     let result = l.observe("/token", parse(&[]), serde_json::Value::Null, true, now);
@@ -1489,7 +1485,7 @@ fn policy_shape_changes_clear_history_but_value_changes_retain_it() {
 
     // A period change identifies a different counter shape. The just-
     // landed event was admitted under the old shape too, so none of the
-    // old history is carried into the replacement (F65).
+    // old history is carried into the replacement.
     limiter
         .observe(
             "/character",
@@ -1658,7 +1654,7 @@ fn retryable_429_holds_an_unknown_route_when_policy_headers_are_bad() {
 /// A route's 429 hold is the latest deadline any of its 429s set: a later
 /// 429 with a shorter `Retry-After` never shortens it, and a longer one
 /// extends it. The route-local hold is the only one an unknown route has,
-/// and no other row landed two 429s on one (#86's mutants run).
+/// and no other row lands two 429s on one.
 #[test]
 fn a_routes_429_hold_keeps_the_latest_deadline() {
     let now = far_future();
@@ -1823,7 +1819,7 @@ fn full_head_429_establishes_and_holds_without_a_get_attempt() {
 fn every_unacceptable_full_head_429_is_a_setup_failure() {
     // Each with the words the degraded reason must carry (C53: a failure
     // names its evidence), written out rather than read back through
-    // `Display`, which an empty rendering would satisfy (#86's mutants run).
+    // `Display`, which an empty rendering would satisfy.
     let cases = [
         (retry(None), "missing Retry-After"),
         (retry(Some("soon")), "malformed Retry-After"),
@@ -1847,7 +1843,7 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
         match limiter.endpoint_state("/character", now) {
             EndpointState::Degraded { reason, .. } => {
                 assert!(reason.contains(words), "{reason:?} names no {words:?}");
-                // #113: the reason reaches the log; the header's text never.
+                // The reason reaches the log; the header's text never.
                 assert!(
                     !reason.contains("soon") && !reason.contains("-1") && !reason.contains("901"),
                     "{reason:?} quotes the header"
@@ -2198,9 +2194,9 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
 
 /// A landed response with no usable policy headers is paced like a lost
 /// send: the server may have counted it, and nothing says otherwise.
-/// Before 2026-08-24 only the history point was recorded, so `wait_for`
-/// read a window state that predated the send and let the next one go
-/// immediately — a run of headerless 503s would not have been paced.
+/// Were only the history point recorded, `wait_for` would read a window
+/// state that predated the send and let the next one go immediately — a
+/// run of headerless 503s would not be paced.
 #[test]
 fn headerless_counted_response_paces_as_if_counted() {
     let mut limiter = Limiter::new();
@@ -2270,7 +2266,7 @@ fn headerless_counted_response_paces_as_if_counted() {
 #[tokio::test]
 async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
     let route = "origin-503";
-    // Rung 10's shape: an HTML error page, no X-Rate-Limit-* at all.
+    // N35's shape: an HTML error page, no X-Rate-Limit-* at all.
     let body = "<html><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></html>";
     let (served, seen) = answering(vec![(
         "/test",
@@ -3044,8 +3040,8 @@ fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
 
 /// A HEAD's send record says what the GET's does: a complete 2xx that
 /// taught no policy is a protocol failure and not ok; a refusal is its
-/// status, never a protocol failure, whatever headers it carried. No row
-/// read a HEAD's record (#86's mutants run).
+/// status, never a protocol failure, whatever headers it carried. No
+/// other row reads a HEAD's record.
 #[tokio::test]
 async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
     let (served, seen) = answering(vec![
@@ -3395,7 +3391,7 @@ fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
     assert!(kept.starts_with("https://h/aaa"), "{kept}");
     assert!(kept.ends_with("…?…"), "{kept}");
     assert_eq!(kept.chars().count(), LOCATION_CHARS + 3, "{kept}");
-    // One exactly at the bound is whole, no mark (#86's mutants run).
+    // One exactly at the bound is whole, no mark.
     let at_bound = format!(
         "https://h/{}",
         "a".repeat(LOCATION_CHARS - "https://h/".len())
@@ -3460,7 +3456,7 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
 /// its gate permit until its body completes. Per row, three sends of it on
 /// three routes, each answered with its head at once and its body held:
 /// two reach the transport, the third waits at the gate until one of the
-/// first two bodies completes (invariant 1; #216).
+/// first two bodies completes (invariant 1).
 #[tokio::test]
 async fn common_gate_caps_each_send_until_its_body_completes() {
     for row in SEAM_TABLE.iter().filter(|row| row.method != "HEAD") {
@@ -3773,16 +3769,17 @@ fn url_path_strips_host() {
     assert_eq!(url_path("http://127.0.0.1:5555/character"), "/character");
 }
 
-// ---- scope keying (multi-account step 5) ----------------------------
+// ---- scope keying ---------------------------------------------------
 
 fn char_list_state(state: &'static str) -> Vec<(&'static str, &'static str)> {
     with_state(CHAR_LIST, state)
 }
 
-/// The rung-11 property, in the limiter: `Account` rules are paced per
+/// N37's property, in the limiter: `Account` rules are paced per
 /// account. Alice fills `character-list-request-limit` (2 per 10 s);
 /// Bob's first response on the same policy reports *his* count (0→1) —
-/// which must not free Alice's window (the pre-keying overwrite path).
+/// which must not free Alice's window (as one shared state, overwritten,
+/// would).
 #[test]
 fn account_rules_are_paced_per_account() {
     let now = far_future();
@@ -3993,8 +3990,8 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
 }
 
 /// The choke point's status reads are the limiter's, unchanged: the
-/// policyless routes and the degraded ones a status reports (#86's
-/// mutants run; no row read either through the choke point).
+/// policyless routes and the degraded ones a status reports (no other
+/// row reads either through the choke point).
 #[tokio::test]
 async fn the_choke_point_reports_policyless_and_degraded_routes() {
     let (served, seen) = answering(vec![(
@@ -4030,7 +4027,7 @@ async fn the_choke_point_reports_policyless_and_degraded_routes() {
 
 /// A degraded route leaves the degraded list when its cooldown ends, as
 /// it reads `Unknown` then (`endpoint_state`); a status names only the
-/// routes still closed (#86's mutants run).
+/// routes still closed.
 #[test]
 fn a_degraded_route_leaves_the_list_when_its_cooldown_ends() {
     let then = far_future();
@@ -4054,7 +4051,7 @@ fn a_degraded_route_leaves_the_list_when_its_cooldown_ends() {
 /// residue at -10 s, and position 1 waits for them: 90 + 5 + 1 = 96 (the
 /// residue as 2 would say 0). (b) Only an uncounted answer at -100 s
 /// reporting 3 of 4: its residue is a period old now, so position 1 goes
-/// now too (counting it would say 106). #86's review.
+/// now too (counting it would say 106).
 #[test]
 fn the_eta_reads_a_hit_exactly_one_period_old_as_gone() {
     let now = far_future();
@@ -4107,7 +4104,7 @@ fn the_eta_reads_a_hit_exactly_one_period_old_as_gone() {
 
 /// A pending restriction is state worth keeping (`is_live`, N24) after
 /// every hit has left the policy's longest window: the restriction runs
-/// 30 s past the last response, the window only 10 (#86's mutants run).
+/// 30 s past the last response, the window only 10.
 #[test]
 fn a_pending_restriction_keeps_the_limiter_live_past_its_window() {
     let then = far_future();
@@ -4144,8 +4141,8 @@ fn a_pending_restriction_keeps_the_limiter_live_past_its_window() {
 /// ago; an uncounted answer 10 s ago reporting 3 of 4 in a 100 s window,
 /// so 2 unseen hits at -10 s. Queue position 0 goes now; 1 waits for the
 /// -50 s hit: 50 + 5 + 1 = 56; 2 waits for the residue at -10 s:
-/// 90 + 5 + 1 = 96. Without the residue the third would say 106 (#86's
-/// mutants run: no row gave the simulation a residue between two hits).
+/// 90 + 5 + 1 = 96. Without the residue the third would say 106 (no other
+/// row gives the simulation a residue between two hits).
 #[test]
 fn the_eta_frees_a_window_from_the_servers_residue() {
     let now = far_future();
@@ -4244,7 +4241,7 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
                 "a bearer GET to {url}: {:?}",
                 get.as_ref().err()
             );
-            // The refusal names the origin it refused (#86's mutants run).
+            // The refusal names the origin it refused.
             let refused = url::Url::parse(url).unwrap().origin().ascii_serialization();
             let words = get
                 .as_ref()
@@ -4319,7 +4316,7 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
     .await;
 }
 
-// ---- generated header sets (#85) ------------------------------------------
+// ---- generated header sets ------------------------------------------------
 //
 // The tables above are the cases someone thought of; this property is the
 // ones nobody did. A header set is drawn either from a table row with one

@@ -285,7 +285,7 @@ impl Daemon {
 
     /// [`Self::land_rejection`]'s body, on the landing's thread.
     ///
-    /// C135 with C87, #110: the write is a narrowing, saved without the account index.
+    /// C135 with C87: the write is a narrowing, saved without the account index.
     /// The index-first hold of [`Self::persist_credentials`] guards a
     /// name: no credential lands under a name no verb can find. This
     /// rewrite adds none: it saves under the session's own name, which
@@ -661,7 +661,7 @@ impl Daemon {
     }
 
     /// The test's pause where a refresh's landing releases `credentials`,
-    /// after its mark (C148): the review of h1 staged a logout here.
+    /// after its mark (C148), where a test stages a logout.
     #[cfg(test)]
     fn refresh_landed(&self) {
         let hook = self.refresh_landed_hook.lock().unwrap().take();

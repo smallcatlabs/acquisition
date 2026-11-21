@@ -317,13 +317,13 @@ async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands()
     finish_harness(None, &log_path);
 }
 
-/// C148, the review of r2, its second finding: a logout's keyring clears
-/// and its not-persisted mark are the exit's drain's until they land.
-/// Before, the drain looked only at `shared`, which the logout no longer
-/// holds across its I/O, so a stop asked while a clear stood found
-/// nothing in flight and exited before the mark was written, and the
-/// next lifetime restored the account the user had logged out of. Every
-/// landing is now counted from before its spawn until it returns. A
+/// C148: a logout's keyring clears and its not-persisted mark are the
+/// exit's drain's until they land. Every landing is counted from before
+/// its spawn until it returns: a drain that looked only at `shared`,
+/// which the logout does not hold across its I/O, would find nothing in
+/// flight when a stop is asked while a clear stands, and exit before the
+/// mark is written, and the next lifetime would restore the account the
+/// user had logged out of. A
 /// component test (C158): several workers and the keyring's own boundary,
 /// the clear held at the credential store; the drain is polled pending
 /// while the clear stands, then driven by hand on its parking clock once
@@ -394,15 +394,14 @@ async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
     finish_harness(None, &log_path);
 }
 
-/// C148, the review of r2, its first finding: a refresh's published
-/// token serves no caller that comes after it has left the session.
-/// Before, the flight stayed open, and joinable, until the save landed:
-/// a 401 on the installed token while the save was held cleared it from
-/// the session (C87, a dead bearer), and the next lookup joined the open
-/// flight and was handed the rejected token, so its send went stale
-/// twice and the job gave up, and `auth check` could report success.
-/// The flight now closes at the install; the next lookup refreshes, and
-/// its landing waits for the held one.
+/// C148: a refresh's published token serves no caller that comes after
+/// it has left the session. The flight closes at the install; the next
+/// lookup refreshes, and its landing waits for the held one. A flight
+/// left open, and joinable, until the save landed would let a 401 on the
+/// installed token while the save was held clear it from the session
+/// (C87, a dead bearer), and the next lookup would join the open flight
+/// and be handed the rejected token, so its send would go stale twice
+/// and the job give up, and `auth check` could report success.
 ///
 /// The wait for that refresh fails on its exact signal: the token
 /// route held (`choke.check`) while the lookup has neither answered nor
@@ -538,12 +537,12 @@ fn landing_panic_child(dir: &std::path::Path) -> ! {
     std::process::exit(1)
 }
 
-/// C148, the review of r2, its third finding: a panic in a landing that
-/// a job's task spawned names the job (C134: its fault marker fails the
-/// job once on the next start instead of replaying it). Before, the
-/// blocking thread ran outside the job's mark, the hook wrote no marker,
-/// and the job that met the fault was replayed. Run as `exit.rs` runs
-/// C134's: this test's own binary as a child process.
+/// C148: a panic in a landing that a job's task spawned names the job
+/// (C134: its fault marker fails the job once on the next start instead
+/// of replaying it). A blocking thread run outside the job's mark would
+/// leave the hook no marker to write, and the job that met the fault
+/// would be replayed. Run as `exit.rs` runs C134's: this test's own
+/// binary as a child process.
 #[test]
 fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
     if let Some(dir) = std::env::var_os(LANDING_CHILD_DIR) {
@@ -579,9 +578,9 @@ fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
         Some("{\"job\":7}\n"),
         "the marker names the job whose landing panicked"
     );
-    // The review of r2's fix round: the child's harness log is under the
-    // parent's directory, which this test removes, not in a folder of its
-    // own that the child's `exit` left behind.
+    // The child's harness log is under the parent's directory, which
+    // this test removes, not in a folder of its own that the child's
+    // `exit` left behind.
     let harness_logs = std::fs::read_dir(&*dir)
         .unwrap()
         .filter_map(Result::ok)
@@ -639,7 +638,7 @@ async fn restoring_daemon_on(
 
 /// The keyring word of the three status documents, in order: `auth
 /// status`, `daemon status`, the dashboard. Unix's alone, as the one test
-/// that reads it, so Windows' clippy finds no dead code (#125).
+/// that reads it, so Windows' clippy finds no dead code.
 #[cfg(unix)]
 async fn keyring_words(daemon: &Arc<Daemon>) -> Vec<String> {
     let mut words = Vec::new();
@@ -672,10 +671,10 @@ fn polled_once<F: std::future::Future>(work: std::pin::Pin<&mut F>) -> std::task
 /// keyring read stands, as a keychain prompt holds it, a client
 /// connecting over the socket is greeted, and the status documents
 /// answer, `auth status` not logged in and every keyring word
-/// `restoring`. Before, the socket was bound before the read and served
-/// after it, so every client's handshake waited out the prompt and
-/// called the daemon unresponsive. Released, `test-user` is live with
-/// both tokens, its mark `ok`, and the documents say so.
+/// `restoring`. A socket bound before the read and served after it would
+/// have every client's handshake wait out the prompt and call the daemon
+/// unresponsive. Released, `test-user` is live with both tokens, its mark
+/// `ok`, and the documents say so.
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_hello_and_the_status_documents_answer_while_the_restore_reads() {
@@ -752,9 +751,9 @@ async fn c148_hello_and_the_status_documents_answer_while_the_restore_reads() {
 
 /// C148: a submit that needs a session, sent while the restore's keyring
 /// read stands, waits for the restore and is never refused: a client
-/// submits the moment `hello` answers, and before, its first job after a
-/// start found no session and was refused as not logged in. Released, it
-/// is submitted under the restored account.
+/// submits the moment `hello` answers, and its first job after a start
+/// would otherwise find no session and be refused as not logged in.
+/// Released, it is submitted under the restored account.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_submit_that_needs_a_session_waits_for_the_restore() {
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
@@ -846,9 +845,9 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
 
 /// C148 with C133: a request that waits for the restore is refused as
 /// stopping before the wait and after it. An exit begun while the
-/// restore's keyring read stands refuses `auth` at once, where it waited
-/// for the restore and could then start a login on the departing daemon;
-/// released, it is refused still.
+/// restore's keyring read stands refuses `auth` at once, never waiting
+/// for the restore, after which it could start a login on the departing
+/// daemon; released, it is refused still.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
@@ -904,10 +903,10 @@ async fn c148_a_request_waiting_for_the_restore_when_the_exit_begins_is_refused(
     finish_harness(None, &log_path);
 }
 
-/// C148 with C121 (the review of round E, finding 2): a selector no live
-/// session matches is judged against the account index on the counted
-/// blocking path under `credentials`, the sessions looked at again there,
-/// never by a file read on the request's task. While `credentials` is
+/// C148 with C121: a selector no live session matches is judged against
+/// the account index on the counted blocking path under `credentials`,
+/// the sessions looked at again there, never by a file read on the
+/// request's task. While `credentials` is
 /// held, as a keyring save holds it, that submit waits, counted among the
 /// landings, and an unrelated request (a `sleep` submitted) is answered;
 /// released, the submit answers `unknown_account`.

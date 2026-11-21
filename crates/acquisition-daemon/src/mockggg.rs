@@ -20,7 +20,7 @@ use crate::auth;
 /// The default mock account; the login page takes any other name, so a
 /// two-account test is hermetic. Access and refresh tokens carry the
 /// username (`at-<random>.<user>`), which is how data requests are
-/// attributed and counted per account (rung 11: `Account` rules are per
+/// attributed and counted per account (N37: `Account` rules are per
 /// account on real GGG).
 pub(crate) const USERNAME: &str = "ExileTester";
 const ACCESS_TOKEN_TTL_SECONDS: u64 = 60;
@@ -209,15 +209,15 @@ fn policy_template(path_key: &str) -> Option<MockPolicy> {
         "/stash" => MockPolicy::new("stash-list-request-limit", &[(10, 15, 60), (30, 60, 300)]),
         "/stash/tab" => MockPolicy::new("stash-request-limit", &[(15, 10, 60), (30, 300, 300)]),
         "/fetch" => MockPolicy::new("mock-fetch-request-limit", &[(5, 10, 60), (30, 300, 300)]),
-        // Real shape, confirmed by first contact 2026-08-30.
+        // Real shape (N40).
         "/character/name" => {
             MockPolicy::new("character-request-limit", &[(5, 10, 60), (30, 300, 300)])
         }
-        // `/profile` has no policy on the wire (first contact 2026-08-30:
-        // GET answers without rate headers, HEAD is 403) — handled before
-        // the policy step, so it has no template.
-        // `/account/leagues`: real shape, first contact 2026-08-30; the real
-        // endpoint counts HEAD too, and so does the mock.
+        // `/profile` has no policy on the wire (N38: GET answers without
+        // rate headers, HEAD is 403) — handled before the policy step, so
+        // it has no template.
+        // `/account/leagues`: real shape (N39); the real endpoint counts
+        // HEAD too, and so does the mock.
         "/account/leagues" => {
             MockPolicy::new("league-request-limit", &[(5, 10, 60), (10, 60, 300)])
         }
@@ -300,7 +300,7 @@ const MOCK_TABS: &[(&str, &str, &str, usize, Option<&str>)] = &[
 /// (N27, the invalid-request budget).
 /// Each league's `startAt` as GGG gives it, ISO 8601 UTC: the permanent
 /// two on one made-up day, the challenge league later, so the stored list
-/// reads it as the newest start (the answer-facts seat, MCP fault 3).
+/// reads it as the newest start.
 const MOCK_LEAGUES: &[(&str, &str, &str, &str, &str)] = &[
     (
         "Standard",
@@ -502,13 +502,12 @@ fn classify_data_path(path: &str) -> Option<DataRoute<'_>> {
 /// one PoE2 character; the console realms list nothing. Each entry's
 /// `realm` field says the realm it was listed under, as live: the docs
 /// give the field as `pc|xbox|sony`, and a PoE2 listing reports `poe2`
-/// (N42, observed 2026-09-02; the store stamps the request's realm
-/// regardless, C60).
+/// (N42; the store stamps the request's realm regardless, C60).
 fn mock_character_list(realm: acquisition_protocol::realm::Realm) -> serde_json::Value {
     use acquisition_protocol::realm::Realm;
-    // `experience` rides on every entry as it does live (59 of 59 on the
-    // 2026-09-02 sample), matching the fetched body's, so a plan's
-    // freshness heuristic sees an agreeing listing and the loop closes.
+    // `experience` rides on every entry as it does live (N42), matching
+    // the fetched body's, so a plan's freshness heuristic sees an
+    // agreeing listing and the loop closes.
     let characters = match realm {
         Realm::Pc => json!([
             { "id": "fake0001", "name": "StashHoarder", "realm": "pc",
@@ -551,9 +550,9 @@ fn mock_character(realm: acquisition_protocol::realm::Realm, name: &str) -> serd
         "jewels": [],
     });
     if realm == acquisition_protocol::realm::Realm::Pc && name == "StashHoarder" {
-        // The animate guardian's gear (live sample 2026-09-02): its own
-        // array, slot-named `inventoryId`s at x/y 0 — the item alone
-        // cannot say which array it sits in.
+        // The animate guardian's gear (N43): its own array, slot-named
+        // `inventoryId`s at x/y 0 — the item alone cannot say which array
+        // it sits in.
         character["guardian"] = json!([
             { "id": format!("{name}-guardian-helm"), "name": "", "typeLine": "Iron Hat", "baseType": "Iron Hat",
               "w": 2, "h": 2, "x": 0, "y": 0, "inventoryId": "Helm", "league": "Standard", "frameType": 0, "frameTypeId": "Normal", "identified": true },
@@ -563,10 +562,10 @@ fn mock_character(realm: acquisition_protocol::realm::Realm, name: &str) -> serd
     }
     if realm == acquisition_protocol::realm::Realm::Poe2 {
         character["class"] = json!("Monk");
-        // An item-granted skill (live sample 2026-09-02): the weapon
-        // carries it id-less in its `socketedItems` with no socket of its
-        // own, and the identical object is repeated as `skills[0]`; a
-        // support socketed into it is id-less too. Never a row.
+        // An item-granted skill (N44): the weapon carries it id-less in
+        // its `socketedItems` with no socket of its own, and the identical
+        // object is repeated as `skills[0]`; a support socketed into it is
+        // id-less too. Never a row.
         let granted = json!({ "typeLine": "Skeletal Warrior", "baseType": "Skeletal Warrior", "frameType": 4, "frameTypeId": "Gem",
             "support": false, "realm": "poe2", "sockets": [ { "group": 0, "type": "gem" } ],
             "socketedItems": [ { "typeLine": "Meat Shield I", "baseType": "Meat Shield I", "frameType": 4, "frameTypeId": "Gem", "support": true, "realm": "poe2" } ] });
@@ -872,7 +871,7 @@ impl Mock {
                         &json!({ "error": "no bearer token" }).to_string(),
                     );
                 }
-                // `/profile` as GGG serves it (2026-08-30): HEAD is refused
+                // `/profile` as GGG serves it (N38): HEAD is refused
                 // outright, GET carries no `X-Rate-Limit-*` at all.
                 if policy_key == "/profile" {
                     if req.method == "HEAD" {
@@ -886,7 +885,7 @@ impl Mock {
                     return MockAnswer::plain("200 OK", "application/json", &body.to_string());
                 }
                 // HEAD is uncounted (N24) except on `/account/leagues`, where
-                // GGG counts it (first contact 2026-08-30).
+                // GGG counts it (N39).
                 let head_counts = policy_key == "/account/leagues";
                 let (ok, extra) = apply_policy(
                     policies,

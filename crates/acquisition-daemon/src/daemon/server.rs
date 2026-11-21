@@ -111,7 +111,7 @@ impl Daemon {
         let mut events: Option<broadcast::Receiver<JobInfo>> = None;
         // Every connection begins with the hello exchange (C85): a
         // versioned request before it is refused, so a peer that never
-        // identified itself performs nothing (review round 1).
+        // identified itself performs nothing.
         let mut greeted = false;
 
         loop {
@@ -590,11 +590,10 @@ impl Daemon {
     /// C133, the last of the exit. The daemon leaves by `process::exit`,
     /// so nothing is dropped: the store's and the queue's write-ahead logs
     /// are checkpointed here first (`Store::checkpoint`: an exit without
-    /// it left every fact since the last automatic checkpoint in a `-wal`
-    /// beside the file — the price-notes run, 2026-09-04; plan step 7,
-    /// item 4), then the socket is removed, then the process exits. A
-    /// checkpoint a reader keeps from finishing is logged, never waited
-    /// on. Tests never call it. Pinned by `tests/daemon_stop_checkpoint.rs`
+    /// it leaves every fact since the last automatic checkpoint in a `-wal`
+    /// beside the file), then the socket is removed, then the process
+    /// exits. A checkpoint a reader keeps from finishing is logged, never
+    /// waited on. Tests never call it. Pinned by `tests/daemon_stop_checkpoint.rs`
     /// (acquisition-cli).
     pub(super) fn leave(&self) -> ! {
         // Each checkpoint's result is bound before it is reported, so its
@@ -1098,7 +1097,7 @@ impl InFlight {
             .map(|(account, _)| account.clone())
             .collect();
         refreshes.sort();
-        // C133, issue #59: the exchange's count drops before the login's
+        // C133: the exchange's count drops before the login's
         // profile job is submitted, and the job's active slot is freed
         // before `complete_login` takes the staging slot (from there its
         // landing mark is counted, C148). Between, the staging
@@ -1195,7 +1194,7 @@ async fn recv_event(rx: &mut Option<broadcast::Receiver<JobInfo>>) -> Signal {
     }
 }
 
-/// C47, #56: what a connection is answered when its answer cannot be
+/// C47: what a connection is answered when its answer cannot be
 /// serialized: an `internal` refusal in the protocol's `error` shape,
 /// written as a literal so that answering the failure cannot itself fail
 /// (`a_response_that_cannot_be_serialized_is_answered_internal` reads it

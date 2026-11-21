@@ -76,8 +76,8 @@ pub enum EndpointState {
     Policy(String),
     /// Answered 2xx with no rate-limit headers at all, on a route declared
     /// policyless (`Limiter::declare_policyless`; per-route knowledge, as
-    /// `GET /profile` was observed on 2026-08-30). Paced by nothing but the
-    /// send gate. Strict observation never creates it for any other route.
+    /// `GET /profile` is, N38). Paced by nothing but the send gate.
+    /// Strict observation never creates it for any other route.
     Policyless,
     /// The probe failed or came back without a policy (N20); closed until
     /// `until`, then probed again.
@@ -87,8 +87,8 @@ pub enum EndpointState {
 /// The limiter's endpoint key: the route, plus the account the send is for
 /// when there is one — `stash@Alice#1234`. The limiter never interprets the
 /// account; it only decides whether a policy's *state* is per account, and
-/// that comes from the policy's own `X-Rate-Limit-Rules` (rung 11:
-/// `Account` rules count per account on GGG's side; `Ip` rules per IP).
+/// that comes from the policy's own `X-Rate-Limit-Rules` (N37: `Account`
+/// rules count per account on GGG's side; `Ip` rules per IP).
 pub fn endpoint_key(route: &str, account: Option<&str>) -> String {
     match account {
         Some(account) => format!("{route}@{account}"),
@@ -159,8 +159,8 @@ impl fmt::Display for PolicyObservationError {
                 established,
                 observed,
             } => {
-                // #113: the names are GGG's text; the words say what
-                // happened, and the journal holds the names.
+                // The names are GGG's text; the words say what happened,
+                // and the journal holds the names.
                 let _ = (established, observed);
                 f.write_str(
                     "endpoint is established under one policy but the response reported another",
@@ -613,8 +613,8 @@ impl Limiter {
             }
             Err(error) => {
                 // A counted send whose response carried no usable policy
-                // headers (rung 10's origin 503, 2026-08-24: an HTML error
-                // page with no `X-Rate-Limit-*`) is the same situation as a
+                // headers (an origin 503, N35: an HTML error page with no
+                // `X-Rate-Limit-*`) is the same situation as a
                 // send lost in transport: we sent, the server may have
                 // counted, and nothing tells us otherwise. Advance the
                 // prediction the same way, or the next send is paced from
@@ -655,8 +655,8 @@ impl Limiter {
                 last_retry_after_secs: None,
             });
 
-        // A same-name shape transition describes a different counter set
-        // (F65): discard incompatible history. Ordinary dynamic limit/state
+        // A same-name shape transition describes a different counter set:
+        // discard incompatible history. Ordinary dynamic limit/state
         // changes within the established shape retain it (N9).
         if !state.policy.has_same_shape(&policy) {
             state.history.clear();

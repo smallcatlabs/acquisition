@@ -40,7 +40,7 @@ use acquisition_protocol::protocol::KeyringOutcome;
 use acquisition_protocol::status::RailsStatus;
 use acquisition_store::jobs::daemon_db_path;
 
-// ---- tracer step 2: uuid-at-login (C50) ------------------------------
+// ---- uuid-at-login (C50) ---------------------------------------------
 
 fn login_tokens(access: &str, user: &str) -> auth::TokenResponse {
     auth::TokenResponse {
@@ -643,7 +643,7 @@ fn a_superseded_login_flow_sends_no_code_exchange() {
     });
 }
 
-// ---- the callback listener (#68) --------------------------------------
+// ---- the callback listener --------------------------------------------
 
 /// The login's bounds race their future against the daemon's clock
 /// (`within_on`, C160) as tokio's `timeout` races it: a bound's expiry
@@ -756,9 +756,9 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
 /// A denial is reported in the browser's words: a redirect with the
 /// flow's state and `error=access_denied` ends the flow failed, its
 /// result carrying the error as OAuth's code and a word on what to do,
-/// never "state mismatch"; the browser reads a page that says so. #113:
-/// the free-text description is text received, and these words reach
-/// the log, so it is not carried.
+/// never "state mismatch"; the browser reads a page that says so. The
+/// free-text description is text received, and these words reach the
+/// log, so it is not carried.
 #[test]
 fn a_denied_login_is_reported_in_the_browsers_words() {
     let clock = Arc::new(ParkingClock::new());
@@ -907,8 +907,8 @@ fn a_headerless_code_exchange_2xx_installs_its_tokens() {
 /// C47 with C134, the login arm: a code exchange whose `expires_in` no
 /// clock can add fails the login as the provider's error, stages and
 /// saves nothing, gives back its count for the exit's drain, and leaves
-/// the daemon answering. Before, the sum panicked under `shared` in the
-/// exchange's task and wedged the daemon. The count given back is read
+/// the daemon answering: a sum that panicked under `shared` in the
+/// exchange's task would wedge the daemon. The count given back is read
 /// at the exit: a stop leaves before the drain's bound on the clock,
 /// which a pending exchange would hold (C133); that the daemon still
 /// answers is every request after the failure.
@@ -963,8 +963,8 @@ fn an_out_of_range_expires_in_is_a_token_error() {
     });
 }
 
-/// C144 (a staged login token serves the login's own profile job alone),
-/// issue #71: in the window between the token exchange and the login's
+/// C144 (a staged login token serves the login's own profile job alone):
+/// in the window between the token exchange and the login's
 /// completion, a client's `profile` job for the account being logged in
 /// sends on the account's session — a refresh, then its GET with the
 /// session's token — never with the staged token, and writes nothing of
@@ -1116,12 +1116,12 @@ fn persisted(store_dir: &std::path::Path, account: &str) -> bool {
         .persisted
 }
 
-/// C144, issue #61: a logout whose keyring clear fails answers that on
-/// the wire — `internal`, in words that say the session was dropped and
-/// the entry was not, and the request that tries again — where it used to
-/// answer success. The index marks the account not persisted either way,
-/// so no later start restores the session; the retry, a logout of the
-/// now not-live account, clears the entry once the keyring works.
+/// C144: a logout whose keyring clear fails answers that on the wire —
+/// `internal`, in words that say the session was dropped and the entry
+/// was not, and the request that tries again — never success. The index
+/// marks the account not persisted either way, so no later start restores
+/// the session; the retry, a logout of the now not-live account, clears
+/// the entry once the keyring works.
 #[test]
 fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
     let store = Arc::new(RecordingCredentialStore::failing(
@@ -1176,8 +1176,8 @@ fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
 }
 
 /// C144: a logout whose clear works is acknowledged with the keyring's
-/// outcome as data (the review of the h1 fix round, its fifth finding: no
-/// frontend reads it from a sentence), and the entry is gone.
+/// outcome as data (no frontend reads it from a sentence), and the entry
+/// is gone.
 #[test]
 fn a_logout_clears_the_keyring_entry_and_acks() {
     let store = Arc::new(RecordingCredentialStore::default());
@@ -1203,7 +1203,7 @@ fn a_logout_clears_the_keyring_entry_and_acks() {
     });
 }
 
-/// C144, issue #61: forget clears the entry whether or not the index
+/// C144: forget clears the entry whether or not the index
 /// marks it persisted — a failed save or a failed logout clear leaves an
 /// entry the mark does not show — and a failed clear is the answer,
 /// never "cleared". What its log says of each clear is the component
@@ -1253,7 +1253,7 @@ fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
     });
 }
 
-/// C144, issue #61, the log's half of the forget above: only the clear
+/// C144, the log's half of the forget above: only the clear
 /// that worked is logged as cleared. A component test: the daemon log has
 /// no boundary surface (the door reads no log).
 #[tokio::test]
@@ -1286,7 +1286,7 @@ async fn c144_a_forget_logs_only_the_clear_that_worked_as_cleared() {
     );
 }
 
-/// C144, issue #61: restore reads through the credential store, so a load
+/// C144: restore reads through the credential store, so a load
 /// that fails reaches the keyring status `auth status` reports and the
 /// log, and the account is not restored; an entry the store holds comes
 /// back as a session; an entry it lacks is logged. A component test:
@@ -1356,16 +1356,15 @@ fn staged_login(daemon: &Daemon, user: &str) -> u64 {
     generation
 }
 
-/// C144 (the daemon reports no success it did not earn), issue #63's
-/// second comment: a login's finalisation as a recovery scenario. The
-/// login completes with the index directory unwritable: the index cannot
-/// hold the name, so the persist saves nothing (the index knows a name
-/// before the keyring does, h1's last round), the flow fails in words
-/// naming the index, no credential exists under the name, and a restore
-/// over the directory afterwards — the restart — finds no session and
-/// reports the keyring healthy. The brief said "the keyring entry it saved
-/// is cleared back"; the tree says no entry is saved at all, which the
-/// assertion on the store's cleared list pins. A component test: the
+/// C144 (the daemon reports no success it did not earn): a login's
+/// finalisation as a recovery scenario. The login completes with the
+/// index directory unwritable: the index cannot hold the name, so the
+/// persist saves nothing (the index knows a name before the keyring
+/// does), the flow fails in words naming the index, no credential exists
+/// under the name, and a restore over the directory afterwards — the
+/// restart — finds no session and reports the keyring healthy. No entry
+/// is saved at all, so none is cleared back, which the assertion on the
+/// store's cleared list pins. A component test: the
 /// freeze must fall between the profile's write and the landing, a point
 /// no request reaches.
 #[cfg(unix)]
@@ -1419,8 +1418,8 @@ async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_rest
     assert_eq!(sessions.keyring, "ok");
 }
 
-/// C144 (a failed save clears the entry it would have replaced), the
-/// review of h1, its fourth finding: a re-login goes through the persist
+/// C144 (a failed save clears the entry it would have replaced): a
+/// re-login goes through the persist
 /// a refresh uses, so a re-login whose save fails clears the previous
 /// login's entry instead of leaving it behind while the index says the
 /// account is not persisted; the session's keyring word says why.
@@ -1467,9 +1466,8 @@ fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
     });
 }
 
-/// C144 (a rename clears the entry it leaves behind), the review of h1,
-/// its fourth finding: a re-login under a renamed username moves the
-/// uuid's index entry to the new name and clears the entry under the
+/// C144 (a rename clears the entry it leaves behind): a re-login under a
+/// renamed username moves the uuid's index entry to the new name and clears the entry under the
 /// name the index mapped the uuid to, which nothing could reach again.
 /// The index knows the uuid the account server answers for the new name.
 #[test]
@@ -1512,14 +1510,12 @@ fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
     });
 }
 
-/// C144 (no success the daemon did not earn), the review of h1, its
-/// second finding, and the owner's ruling on the tail round: with the
-/// keyring turned off (`ACQ_NO_KEYRING`) a clear tries nothing, so it is
-/// never reported as one. Logged in with the keyring on, then restarted
-/// with it off, a logout of the known account drops the session and
-/// marks it not persisted, and its answer is an `ack` whose `keyring` is
-/// `off` — a success that says nothing was cleared, where the fix round
-/// answered an error and the build before it acknowledged "keyring
+/// C144 (no success the daemon did not earn): with the keyring turned
+/// off (`ACQ_NO_KEYRING`) a clear tries nothing, so it is never reported
+/// as one. Logged in with the keyring on, then restarted with it off, a
+/// logout of the known account drops the session and marks it not
+/// persisted, and its answer is an `ack` whose `keyring` is `off` — a
+/// success that says nothing was cleared, neither an error nor "keyring
 /// cleared" over the entry still there. Forget answers the same.
 #[test]
 fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
@@ -1556,15 +1552,14 @@ fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
     });
 }
 
-/// C144 (every result reaches the words), the review of h1, its fifth
-/// finding: forget says "not restored at start" only when its index
-/// write marked the account not persisted. With the index directory
-/// unwritable and the keyring clear failing, both restoration inputs
-/// stand, and the answer says so, where it used to claim the account
-/// would not be restored. Logout's index failure reaches its answer the
-/// same way: a logout whose clear worked but whose mark was not written
-/// is no `ack`. The live session the logout drops comes from a login
-/// through the browser.
+/// C144 (every result reaches the words): forget says "not restored at
+/// start" only when its index write marked the account not persisted.
+/// With the index directory unwritable and the keyring clear failing,
+/// both restoration inputs stand, and the answer says so, never that the
+/// account would not be restored. Logout's index failure reaches its
+/// answer the same way: a logout whose clear worked but whose mark was
+/// not written is no `ack`. The live session the logout drops comes from
+/// a login through the browser.
 #[cfg(unix)]
 #[test]
 fn c144_forget_and_logout_say_what_the_index_write_did() {
@@ -1617,21 +1612,19 @@ fn c144_forget_and_logout_say_what_the_index_write_did() {
     );
 }
 
-/// C144 (one critical section for a forget), the review of the h1 fix
-/// round, its third finding: a forget's live-or-known decision, its
-/// clears and its not-persisted mark are one hold of the lock a login
-/// persists under, `credentials` since C148, so a login of the same
-/// account lands before the forget or after it, never between. The
-/// login is staged to land at the forget's clear as soon as that lock
+/// C144 (one critical section for a forget): a forget's live-or-known
+/// decision, its clears and its not-persisted mark are one hold of the
+/// lock a login persists under, `credentials` since C148, so a login of
+/// the same account lands before the forget or after it, never between.
+/// The login is staged to land at the forget's clear as soon as that lock
 /// lets it: at once if it is free there, else once the forget has
-/// answered. Before, the forget
-/// cleared outside the lock, the login landed there — its credential
-/// saved, the account marked persisted, its session live — and the
-/// forget's late mark then said not persisted under a live session: a
-/// start would not restore the account the user had just logged in to,
-/// and the forget had acknowledged a logout that did not hold. A
-/// component test: a store hook that calls back into the daemon at the
-/// clear.
+/// answered. A forget that cleared outside the lock would let the login
+/// land there — its credential saved, the account marked persisted, its
+/// session live — and the forget's late mark would then say not persisted
+/// under a live session: a start would not restore the account the user
+/// had just logged in to, and the forget would have acknowledged a logout
+/// that did not hold. A component test: a store hook that calls back into
+/// the daemon at the clear.
 #[tokio::test]
 async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
     let (daemon, credentials, store_dir, _log_path) = login_daemon();
@@ -1738,7 +1731,7 @@ fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
     });
 }
 
-/// #16, C156 — the logout's retry word is quoted for the shell it will
+/// C156 — the logout's retry word is quoted for the shell it will
 /// be pasted into by the same rules as the search crate's
 /// `shell_quoted`, whose twin this is (C1 keeps them two): every row of
 /// the one table both read, `shell-words.json`, for every shell
@@ -1771,7 +1764,7 @@ fn the_retry_word_is_quoted_for_the_declared_shell() {
     }
 }
 
-// ---- invariant 5 on disk (#217) --------------------------------------
+// ---- invariant 5 on disk ---------------------------------------------
 
 /// The four planted tokens: the login's grant and the refresh's.
 const PLANTED: [&str; 4] = [
@@ -1799,7 +1792,7 @@ fn files_under(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
     files
 }
 
-/// Invariant 5 on disk (#217): a login and a refresh through the door
+/// Invariant 5 on disk: a login and a refresh through the door
 /// with planted tokens, in a world whose queue (`daemon.db`) and rails
 /// state are files under its store directory, beside the daemon's log
 /// and its journal. The credential store saved both refresh tokens, so

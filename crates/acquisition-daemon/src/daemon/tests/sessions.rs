@@ -43,9 +43,9 @@ use crate::daemon::*;
 use crate::transport::{Reply, reply};
 use tokio::sync::oneshot;
 
-/// C51: a bare name two live sessions share is refused, never guessed
-/// (review finding 2026-09-10); the full name and the uuid select. A
-/// component test: `Sessions` as a struct.
+/// C51: a bare name two live sessions share is refused, never guessed;
+/// the full name and the uuid select. A component test: `Sessions` as a
+/// struct.
 #[test]
 fn a_selector_matching_several_sessions_is_ambiguous() {
     let mut sessions = Sessions::default();
@@ -1093,7 +1093,7 @@ fn submit_resolves_the_account_against_the_live_session() {
     finish_harness(None, &log_path);
 }
 
-/// C121, the daemon alike (#168): a selector no live session matches is
+/// C121, the daemon alike: a selector no live session matches is
 /// `unknown_account` when the account index never held it — a typo, not
 /// a login to make — and `not_logged_in` when the index holds it with
 /// no session live, or the daemon has no index to tell by. The submit
@@ -1200,7 +1200,7 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
         .valid_access_token(None, false, None)
         .await
         .unwrap_err();
-    // in the request's words, no frontend's flag (C143, #178)
+    // in the request's words, no frontend's flag (C143)
     assert!(
         err.message.contains("several accounts")
             && err.message.contains("the request names no account")

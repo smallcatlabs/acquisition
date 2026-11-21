@@ -342,8 +342,8 @@ impl Daemon {
     /// created to judge it) or no listing of that realm and league is
     /// stored; refused where the store cannot be read, as the job would
     /// fail at its landing after a send (C144), and where whether the
-    /// file is there cannot be told, never taken for absent (the review of
-    /// round D, finding 2). Any other kind passes.
+    /// file is there cannot be told, never taken for absent. Any other kind
+    /// passes.
     pub(super) fn admit_listed(
         &self,
         kind: &str,
@@ -366,7 +366,7 @@ impl Daemon {
             return Ok(());
         };
         // the league quoted bounded, as every client value a refusal
-        // quotes (C127; the review of round D, finding 3)
+        // quotes (C127)
         let quoted = describe_str(&league);
         let unread = |fault: String| {
             refused(format!(
@@ -636,7 +636,7 @@ impl Daemon {
                     }),
                 }
             }
-            // A plan's action set, executed exactly (tracer step 7): a pure
+            // A plan's action set, executed exactly (C38): a pure
             // fan-out parent. Each admitted tuple becomes one child job; the
             // parent sends nothing itself, so it has no route and no token —
             // children authenticate and pace themselves. Admission validated
@@ -732,7 +732,7 @@ impl Daemon {
                 }
                 // The token proves the session; no part of it is in the
                 // payload, which any connected client may read (as C7
-                // keeps params free of secrets; #113).
+                // keeps params free of secrets).
                 let (_token, username) =
                     match self.valid_access_token(account, false, Some(id)).await {
                         Ok(pair) => pair,
@@ -850,7 +850,7 @@ impl Daemon {
                     Ok((status, policy, headers)) => {
                         // The name goes to the job's payload, not the log.
                         let name = policy.name;
-                        // #113: the headers' text stays the payload's and
+                        // The headers' text stays the payload's and
                         // the journal's; the line carries the parsed rate.
                         self.log(&format!(
                             "HEAD {} -> {status} | {}",
@@ -1113,12 +1113,11 @@ nothing was {nothing}; a sync policy that covers fewer tabs or characters plans 
 }
 
 /// The `apply` admission check (C43 — vocabulary, not meaning; C42 — the
-/// logical budget at admission; decided 2026-09-01): the vocabulary a
-/// plan-blind daemon can enforce. `params.jobs` must be a
-/// non-empty array of `(kind, params)` tuples in which every kind is a
-/// single-request one that submits no children — `stashes`, `stash` with
-/// `deep` absent/false, `characters`, or `character` with a name
-/// (characters joined 2026-09-02) — so no child can expand the reviewed set;
+/// logical budget at admission): the vocabulary a plan-blind daemon can
+/// enforce. `params.jobs` must be a non-empty array of `(kind, params)`
+/// tuples in which every kind is a single-request one that submits no
+/// children — `stashes`, `stash` with `deep` absent/false, `characters`,
+/// or `character` with a name — so no child can expand the reviewed set;
 /// it carries at most `APPLY_MAX_ACTIONS` tuples, judged before any tuple
 /// and before `max_requests`, so an oversized plan is told to narrow its
 /// selection whatever its budget says; and when the caller declares `max_requests`,
@@ -1292,7 +1291,7 @@ pub(super) fn classify_api_body(
             format!("GET {path} body read transport failure after {status}: {error}"),
         )
     })?;
-    // #113: serde's message can quote a value of the body; its category
+    // Serde's message can quote a value of the body; its category
     // and position are the daemon's own.
     serde_json::from_str::<Value>(&body)
         .map(|value| (value, rate))
@@ -1309,7 +1308,7 @@ pub(super) fn classify_api_body(
         })
 }
 
-/// #113, a log line's words are values the daemon chose or parsed: what
+/// A log line's words are values the daemon chose or parsed: what
 /// an API failure's words carry of its body, GGG's error code as the
 /// number it parses to (`{"error":{"code":N,…}}`), else the body's length.
 /// Never its text, whose message is GGG's prose and may echo anything.

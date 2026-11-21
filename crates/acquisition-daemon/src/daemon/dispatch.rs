@@ -439,7 +439,7 @@ impl Daemon {
                 // installs, the parent's own, or one the restore installs
                 // over a child it cannot read): its message and its kind
                 // stand, and a tally of its own (the restore's unreadable
-                // children, never entries, #209) is added to memory's.
+                // children, never entries) is added to memory's.
                 Outcome::Failure {
                     error,
                     kind,
@@ -491,7 +491,7 @@ impl Daemon {
         }
     }
 
-    /// C6 as amended 2026-10-27: a concluded tree leaves memory, and the
+    /// C6: a concluded tree leaves memory, and the
     /// table answers for it. Called under `shared` wherever a job becomes
     /// terminal (`finish`, `cancel`) with that job's id. The tree is the
     /// one whose root `id` reaches by its parents in memory; it leaves only

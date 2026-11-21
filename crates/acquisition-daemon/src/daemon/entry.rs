@@ -1,4 +1,4 @@
-//! #261, one ending: a job in memory ([`Entry`]) and the one function
+//! One ending: a job in memory ([`Entry`]) and the one function
 //! that makes it terminal ([`Daemon::end`]), held together in this module
 //! so the compiler holds the rule. `Entry`'s fields are private here:
 //! another module reads a job through [`Entry::info`] and the readers
@@ -76,8 +76,7 @@ impl Entry {
     /// C165: the job's transition into running, the one place a start is
     /// set: its first, kept by a 429's re-queue and a restart. A record
     /// that never had one (a running row of schema v1, a parent restored
-    /// still running) keeps none: a persist is no start (the review of
-    /// round E, finding 4).
+    /// still running) keeps none: a persist is no start.
     pub(super) fn start(&mut self, now: i64) {
         self.info.state = JobState::Running;
         self.info.times.started_at.get_or_insert(now);
@@ -206,13 +205,13 @@ impl Entry {
 }
 
 impl Daemon {
-    /// #261: the one ending, the only code that makes a job terminal.
+    /// The one ending, the only code that makes a job terminal.
     /// Under `shared`, in order: a pending cancel is arbitrated (if
     /// `cancel` set the flag at any point before this, including between a
     /// caller computing `outcome` and the lock, the job ends `Cancelled`,
     /// never with the stale outcome; work already sent may have landed
     /// regardless, since sends are committed once dispatched); the state
-    /// and the outcome are set; activity is stamped (C3 as amended, #208:
+    /// and the outcome are set; activity is stamped (C3:
     /// under the lock the idle verdict reads it under, by the signature,
     /// so no verdict sees the job ended with the hour spent); the row is
     /// written, and whether it landed is returned (C6); the concluded tree

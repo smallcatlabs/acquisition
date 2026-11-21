@@ -17,10 +17,9 @@ use std::time::{Duration, Instant, SystemTime};
 /// scenario even if someone strips the header line.
 pub(crate) const MANUAL_WALL_ORIGIN: Duration = Duration::from_secs(946_684_800);
 
-/// C158, the clock every daemon test runs on (found by the 4-0 spike,
-/// `roadmap/briefs/4-0-spike.md`): a clock whose sleeps park, moved by
-/// the door's park hook in a scenario and by the test's own hand in a
-/// component test; nothing moves it by itself. `sleep`
+/// C158, the clock every daemon test runs on: a clock whose sleeps park,
+/// moved by the door's park hook in a scenario and by the test's own hand
+/// in a component test; nothing moves it by itself. `sleep`
 /// and `sleep_until` park in a map ordered by deadline (then by arrival,
 /// so equal deadlines wake first-come); `advance_to(t)` wakes
 /// every sleeper due by `t`, in deadline order; `advance_to_next()` moves

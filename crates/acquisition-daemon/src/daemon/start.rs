@@ -50,8 +50,8 @@ pub const DIAGNOSTIC_CAP_BYTES: u64 = 16 << 20;
 
 /// Bound `path` at `cap` bytes: over it, rotate to `<path>.1`; when the
 /// rename fails, truncate in place — the previous generation is lost,
-/// the bound holds (review 2026-09-11: a failure that merely logged and
-/// kept appending left the file unbounded). `Ok(Some)` says what was
+/// the bound holds (a failure that merely logged and kept appending would
+/// leave the file unbounded). `Ok(Some)` says what was
 /// done, for the log; `Ok(None)` when nothing was; `Err` when the file
 /// could be neither rotated nor truncated, and the daemon must not
 /// start over an unbounded diagnostic. Called only by the daemon that
@@ -122,12 +122,12 @@ fn retention_from_env() -> (Retention, Vec<String>) {
 /// process, so the path that ends it at once must exist before anything
 /// can block. The watcher runs on a thread and a runtime of its own and
 /// takes no daemon lock: a worker blocked on a lock (a keyring prompt
-/// under `shared`, before C148) can block every worker of the daemon's
-/// runtime, and a watcher there would never run.
+/// under `shared`, which C148 forbids) can block every worker of the
+/// daemon's runtime, and a watcher there would never run.
 /// It arms the exit itself, without a lock, and hands the lifecycle's
 /// driver the event (C157), which stops admission and drains. The daemon is attached when it is built, before
-/// restore; a signal before that ends the process at once, as it did
-/// before the handlers, since nothing has run that a drain would wait
+/// restore; a signal before that ends the process at once, as with no
+/// handler registered, since nothing has run that a drain would wait
 /// for. Registering replaces a disposition the parent set to ignored: a
 /// script's background child, as the live drivers start `acqd`, inherits
 /// SIGINT ignored, and `nohup` SIGHUP; each now runs the exit.
@@ -327,7 +327,7 @@ pub async fn run() -> Result<()> {
             )
         })?
         .to_string();
-    // The locks first (review 2026-09-11): nothing in the log directory
+    // The locks first: nothing in the log directory
     // is made, rotated or opened until this daemon holds the world, so a
     // contender that loses cannot rotate the incumbent's live log or
     // rewrite its marker. A refused contender appends its refusal to
@@ -337,9 +337,8 @@ pub async fn run() -> Result<()> {
     let locks = match take_locks(&world) {
         Ok(locks) => locks,
         Err(e) => {
-            // Appended to a log that exists; never created (review
-            // 2026-09-11, round 21: a contender under another log
-            // directory must make no file there either).
+            // Appended to a log that exists; never created (a contender
+            // under another log directory must make no file there either).
             if let Ok(log) = std::fs::OpenOptions::new().append(true).open(&log_path) {
                 write_log_line(&log, None, &format!("STARTUP: {e:#}"));
             }
@@ -435,7 +434,7 @@ async fn run_with_log(
         .map_err(|e| anyhow::anyhow!("this world's socket: {e}"))?;
     // The rails state lives in the world (C83), read strictly before the
     // rails are built: a state that cannot be carried into this lifetime
-    // refuses the start (fail closed, review 2026-09-11).
+    // refuses the start (fail closed).
     let rails_state = world.rails_state_path(provider_name);
     verify_state(&rails_state)?;
 

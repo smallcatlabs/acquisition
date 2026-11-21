@@ -40,7 +40,7 @@ impl CredentialStore for NoopCredentialStore {
 /// any of the three (C144: every result reaches the caller). A save
 /// records its attempt and, when it succeeds, holds the entry; a clear
 /// records its attempt and, when it succeeds, removes it. It keeps each
-/// secret as its text, for a test to assert on (#113: the text is read
+/// secret as its text, for a test to assert on (the text is read
 /// through the test-only door).
 #[derive(Default)]
 pub(super) struct RecordingCredentialStore {
@@ -267,8 +267,8 @@ impl ScriptedResponse {
         }
     }
 
-    /// GGG's origin 503 as rung 10 met it (N35): openresty's page, no rate
-    /// header, no Cloudflare marker.
+    /// GGG's origin 503 (N35): openresty's page, no rate header, no
+    /// Cloudflare marker.
     pub(super) fn origin_503() -> Self {
         ScriptedResponse {
             method: "GET",
@@ -581,7 +581,7 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
 /// The bound of a drain a test holds open and releases: far past
 /// anything the drain waits for, so it cannot expire before the release,
 /// and safely added to an instant. Virtual: on the daemon's clock. A
-/// clean leave reads less than it on the clock (round 2's rule).
+/// clean leave reads less than it on the clock.
 pub(super) const HELD: Duration = Duration::from_secs(60 * 60);
 
 /// C157, the runner: a lifecycle, a script of events, every effect asked
@@ -817,15 +817,15 @@ pub(super) fn full_hold_ms() -> u64 {
 ///   endpoint key before `@`, as the client harness's rule reads it.
 /// - N24, accounting: a HEAD is never counted; everything else is.
 ///
-/// Not here, though it was from 2026-08-24 to 2026-09-12: "after a
-/// 401 the next send is the refresh". The journal records completed
-/// sends in completion order, and the gate is two wide, so a send
-/// admitted beside the rejected one lands after it — as a second 401,
-/// or as another account's send. What C87 promises is about dispatch,
-/// not adjacency: no send leaves the gate carrying a bearer whose
-/// rejection has landed. The sequential shape is pinned over the
-/// journal by the `rejected_access_token_*` scenarios, the concurrent
-/// shape at the server by `rejected_access_token_is_not_dispatched_*`.
+/// Not here: "after a 401 the next send is the refresh". The journal
+/// records completed sends in completion order, and the gate is two
+/// wide, so a send admitted beside the rejected one lands after it — as
+/// a second 401, or as another account's send. What C87 promises is
+/// about dispatch, not adjacency: no send leaves the gate carrying a
+/// bearer whose rejection has landed. The sequential shape is pinned
+/// over the journal by the `rejected_access_token_*` scenarios, the
+/// concurrent shape at the server by
+/// `rejected_access_token_is_not_dispatched_*`.
 fn assert_wire_contract(sends: &[Value]) {
     let mut seen: HashSet<(u64, String)> = HashSet::new();
     for send in sends {
@@ -866,7 +866,7 @@ fn probe_exempt(route: &str) -> bool {
 /// The pacing invariant, derived from N19 and C19 rather than from the
 /// code: a send on a route is held only because the previous landed
 /// response on that route was a 429, or was counted and came back
-/// without rate headers (rung 10's origin 503). After a 429, a GET's or
+/// without rate headers (an origin 503, N35). After a 429, a GET's or
 /// a HEAD's, the hold is at least C19's: its `Retry-After` clamped to the
 /// cap (a missing, malformed or negative value counting as zero) plus
 /// `RETRY_BUCKET_PAD + BUFFER`, whatever the header carried, and at most

@@ -288,12 +288,12 @@ fn malformed_listings_fail_the_job_not_just_the_store() {
     });
 }
 
-/// A later profile keeps the account index's uuid fresh: the entry it
-/// was asked as, written before uuids were required and so holding none
-/// (as the file holds such an entry), is backfilled with the uuid the
-/// profile reports, and the session learns it too. Killed mutants
-/// (#242): `Daemon::with_index` replaced with `()`, or `kind ==
-/// "profile"` turned to `!=`, and the entry stays without one.
+/// A later profile keeps the account index's uuid fresh: the entry it was
+/// asked as, written before uuids were required and so holding none (as
+/// the file holds such an entry), is backfilled with the uuid the profile
+/// reports, and the session learns it too. Killed mutants:
+/// `Daemon::with_index` replaced with `()`, or `kind == "profile"` turned
+/// to `!=`, and the entry stays without one.
 #[test]
 fn a_later_profile_backfills_the_index_entrys_uuid() {
     let clock = Arc::new(ParkingClock::new());
@@ -336,14 +336,13 @@ fn a_later_profile_backfills_the_index_entrys_uuid() {
 }
 
 /// The route knowledge declared for `/profile` and `/account/leagues`
-/// (first contact 2026-08-30), held against the mock that mirrors GGG
-/// (C32): neither is probed; `/profile`'s headerless 200 is accepted and
-/// the endpoint becomes Policyless; `/account/leagues` teaches its policy
-/// from the GET. Removing a declaration fails here, not live. Through
-/// the door: a live session for Alice, her `profile` and `leagues`
-/// submitted as a client submits them; the sends, the policyless
-/// endpoints and the learned policies read from `Dashboard`, and the
-/// journal.
+/// (N38, N39), held against the mock that mirrors GGG (C32): neither is
+/// probed; `/profile`'s headerless 200 is accepted and the endpoint
+/// becomes Policyless; `/account/leagues` teaches its policy from the
+/// GET. Removing a declaration fails here, not live. Through the door: a
+/// live session for Alice, her `profile` and `leagues` submitted as a
+/// client submits them; the sends, the policyless endpoints and the
+/// learned policies read from `Dashboard`, and the journal.
 #[test]
 fn declared_route_knowledge_holds_against_the_mock() {
     let clock = Arc::new(ParkingClock::new());
@@ -556,12 +555,12 @@ fn a_blocked_probe_is_no_probe_failure() {
         .run(|mut door| async move {
             let id = door.submit("fetch", None).await;
             // The block lands while the probe runs; the probe is then
-            // turned away, back to waiting (C25), where it was a failure
-            // before. Settled, the daemon has done all it can without
-            // time moving, the dispatcher live: no job task is left
-            // running and the pick passes the turned-away probe over
-            // while halted. So no spin, no job failed as "route
-            // degraded" and no re-probe, read below.
+            // turned away, back to waiting (C25), never failed. Settled,
+            // the daemon has done all it can without time moving, the
+            // dispatcher live: no job task is left running and the pick
+            // passes the turned-away probe over while halted. So no spin,
+            // no job failed as "route degraded" and no re-probe, read
+            // below.
             door.settle().await;
             let daemon = door.daemon().clone();
             let probe = daemon
@@ -991,12 +990,12 @@ fn kept_failure(outcome: &Outcome) -> (&str, &Value) {
     (error, payload)
 }
 
-/// C144 (the daemon reports no success it did not earn), issue #63: a
-/// job whose response cannot be recorded after its send fails, where it
-/// used to be logged and reported done — a facts file with a schema newer
-/// than this daemon's, a store that refuses the write after it opened —
-/// and the failure names the store's fault and keeps the params and the
-/// fetched body as its payload, so the send is not wasted.
+/// C144 (the daemon reports no success it did not earn): a job whose
+/// response cannot be recorded after its send fails, never logged and
+/// reported done — a facts file with a schema newer than this daemon's, a
+/// store that refuses the write after it opened — and the failure names
+/// the store's fault and keeps the params and the fetched body as its
+/// payload, so the send is not wasted.
 #[test]
 fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
     let (mut daemon, log_path) =
@@ -1043,14 +1042,14 @@ fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
     finish_harness(None, &log_path);
 }
 
-/// C144 (the daemon reports no success it did not earn), issue #90: a
-/// kind the store knows no place for (`Endpoint::from_job` answers
-/// `None`) fails the job naming the kind, where it used to return `Ok`
-/// and the job ended done with nothing stored. No kind a client can
-/// submit reaches this arm today (every caller of `record` is a kind the
-/// store knows), so the pin is a direct call with a test-only kind, as
-/// the test above is. The failure keeps the params and the body, and no
-/// account file is created for a response nothing can be recorded under.
+/// C144 (the daemon reports no success it did not earn): a kind the store
+/// knows no place for (`Endpoint::from_job` answers `None`) fails the job
+/// naming the kind, never returns `Ok` with the job ended done and
+/// nothing stored. No kind a client can submit reaches this arm today
+/// (every caller of `record` is a kind the store knows), so the pin is a
+/// direct call with a test-only kind, as the test above is. The failure
+/// keeps the params and the body, and no account file is created for a
+/// response nothing can be recorded under.
 #[test]
 fn c144_a_kind_the_store_cannot_place_fails_the_job_naming_the_kind() {
     let (mut daemon, log_path) =
@@ -1106,17 +1105,17 @@ fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
     });
 }
 
-/// C144 (the daemon reports no success it did not earn), issue #63's
-/// second comment: a restart after a failed write. A daemon on a
-/// file-backed `daemon.db` whose account's facts file is newer than it
-/// fails the profile job with the body kept (the test above, end to end);
-/// a second lifetime on the same `daemon.db`, its queue restored as a
-/// start restores it, restores no open job, since the table holds the
-/// row as failed (C6: terminal rows are history, not the queue), answers
-/// the id from the table as that failure with its body, lists no job and
-/// so has nothing to replay: it journals nothing, and the account
-/// server's record at the end is lifetime 1's two sends and nothing more,
-/// read from the server, never from a daemon's report of itself.
+/// C144 (the daemon reports no success it did not earn): a restart after
+/// a failed write. A daemon on a file-backed `daemon.db` whose account's
+/// facts file is newer than it fails the profile job with the body kept
+/// (the test above, end to end); a second lifetime on the same
+/// `daemon.db`, its queue restored as a start restores it, restores no
+/// open job, since the table holds the row as failed (C6: terminal rows
+/// are history, not the queue), answers the id from the table as that
+/// failure with its body, lists no job and so has nothing to replay: it
+/// journals nothing, and the account server's record at the end is
+/// lifetime 1's two sends and nothing more, read from the server, never
+/// from a daemon's report of itself.
 #[test]
 fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() {
     let db = test_db_path();
@@ -1678,10 +1677,10 @@ fn wire_rows() -> Vec<Row> {
                 .collect(),
             jobs: vec![
                 // the probe's cause handed to the job its closed route
-                // fails (the review of round E's fix round, finding 2)
+                // fails
                 Job::fetch(Failed).fails(FailureKind::RateLimited),
-                // the HEAD's own 429 ends the probe (the review of round E,
-                // finding 3); its job meets the closed route
+                // the HEAD's own 429 ends the probe; its job meets the
+                // closed route
                 Job::probe(Failed).fails(FailureKind::RateLimited),
             ],
             journal: vec![json!([
@@ -1952,7 +1951,7 @@ fn wire_rows() -> Vec<Row> {
             FailureKind::NotFound,
         ),
         // never retried (invariant 3), whatever its body says, and no
-        // block: it sets no mark (the review of round E, finding 1)
+        // block: it sets no mark
         (
             "an auth error",
             auth_error,
@@ -2040,11 +2039,11 @@ fn wire_rows() -> Vec<Row> {
         )],
         ..Row::default()
     });
-    // C19, rung 10 (2026-08-24) with the tripwire off: a 503 with no rate
-    // headers (N35's origin page) fails its job, never retried, and the
-    // next job's send is paced as if the 503 counted: its window full, it
-    // waits the 10 s period, the 5 s initial-window bucket and the 1 s
-    // buffer, measured from the 503 itself.
+    // C19 with the tripwire off: a 503 with no rate headers (N35's origin
+    // page) fails its job, never retried, and the next job's send is
+    // paced as if the 503 counted: its window full, it waits the 10 s
+    // period, the 5 s initial-window bucket and the 1 s buffer, measured
+    // from the 503 itself.
     let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 1:10:60\r\nX-Rate-Limit-Account-State: 0:10:0\r\n";
     rows.push(Row {
         name: "headerless_503_fails_its_job_and_paces_the_next_send".into(),
@@ -2171,8 +2170,8 @@ fn wire_rows() -> Vec<Row> {
         ..Row::default()
     });
     // C26: a 403 or a 503 is never retried and never waited on (invariant
-    // 3). The third case is rung 10's live 503 (2026-08-24), an origin
-    // page, named as such and still never retried.
+    // 3). The third case is GGG's origin 503 (N35), an origin page, named
+    // as such and still never retried.
     const ORIGIN_503: &str = "<html><head><title>503 Service Temporarily Unavailable</title></head><body><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></body></html>";
     for (case, status_line, status, body, shape, words) in [
         (
@@ -2265,8 +2264,7 @@ fn wire_rows() -> Vec<Row> {
     // HEAD is answered so, N38). It degrades the route as before, its job
     // fails as "route degraded", and nothing is halted. A HEAD 503 with
     // no page of Cloudflare's the same. Each probe is `not_retried`, as a
-    // GET's 403 or 503 is (C165, the review of round E's fix round,
-    // finding 1).
+    // GET's 403 or 503 is (C165).
     for (status, code) in [("403 Forbidden", 403), ("503 Service Unavailable", 503)] {
         rows.push(Row {
             name: format!("a_head_403_without_cf_mitigated_still_degrades: {code}"),
@@ -2305,7 +2303,7 @@ fn wire_rows() -> Vec<Row> {
         });
     }
     // The wire twins of `responses.rs`, the classification's component
-    // table (`roadmap/briefs/t5-design.md` §3): three of its judgements
+    // table: three of its judgements
     // staged at the boundary, each GET carrying GGG's headers. A twin
     // carries its cause's words, never the server's port.
     let ggg = ScriptedResponse::full("GET", "200 OK", None, "").headers;
@@ -2388,9 +2386,9 @@ fn wire_rows() -> Vec<Row> {
         ],
         ..Row::default()
     });
-    // C165, the review of round E, finding 3: a 200 whose rate-limit
-    // headers are malformed is GGG's answer the limiter could not read,
-    // `upstream` from its typed cause, never the daemon's own fault
+    // C165: a 200 whose rate-limit headers are malformed is GGG's answer
+    // the limiter could not read, `upstream` from its typed cause, never
+    // the daemon's own fault
     rows.push(Row {
         name: "a_200_with_malformed_rate_headers_fails_upstream".into(),
         script: vec![
@@ -2783,11 +2781,10 @@ fn wire_rows() -> Vec<Row> {
     rows
 }
 
-/// C165, the review of round E's fix round, finding 2: a client's job
-/// behind a probe whose refresh GGG answers `400 invalid_grant` fails
-/// `not_logged_in`, the probe's own kind, handed through the route the
-/// probe closed, never `upstream` in its place: a login is its way on,
-/// not a resubmit.
+/// C165: a client's job behind a probe whose refresh GGG answers
+/// `400 invalid_grant` fails `not_logged_in`, the probe's own kind,
+/// handed through the route the probe closed, never `upstream` in its
+/// place: a login is its way on, not a resubmit.
 #[test]
 fn c165_a_job_behind_a_probe_whose_grant_was_rejected_fails_not_logged_in() {
     let clock = Arc::new(ParkingClock::new());
@@ -2821,10 +2818,9 @@ fn c165_a_job_behind_a_probe_whose_grant_was_rejected_fails_not_logged_in() {
     });
 }
 
-/// C165, the review of round E's fix round, finding 1: a job whose token
-/// refresh GGG's origin answers 503, no page of Cloudflare's, is
-/// `not_retried`, as a GET's 503 is: nothing offered sends the refresh
-/// again; a person looks first.
+/// C165: a job whose token refresh GGG's origin answers 503, no page of
+/// Cloudflare's, is `not_retried`, as a GET's 503 is: nothing offered
+/// sends the refresh again; a person looks first.
 #[test]
 fn c165_a_refresh_answered_503_fails_its_job_not_retried() {
     let clock = Arc::new(ParkingClock::new());
@@ -2858,11 +2854,11 @@ fn c165_a_refresh_answered_503_fails_its_job_not_retried() {
     });
 }
 
-/// C165, the review of round E, finding 3: a job whose token refresh GGG
-/// answers with its own policy-bearing 429 ends `rate_limited`, the
-/// refresh's typed cause carried through the refusal to the job, never
-/// the refusal's broad `upstream`. A `whoami`, whose one send is the
-/// refresh: an expired session, the token endpoint's 429.
+/// C165: a job whose token refresh GGG answers with its own
+/// policy-bearing 429 ends `rate_limited`, the refresh's typed cause
+/// carried through the refusal to the job, never the refusal's broad
+/// `upstream`. A `whoami`, whose one send is the refresh: an expired
+/// session, the token endpoint's 429.
 #[test]
 fn c165_a_refresh_ended_by_gggs_429_fails_its_job_rate_limited() {
     let clock = Arc::new(ParkingClock::new());
@@ -3046,8 +3042,8 @@ fn c158_the_wire_table_through_the_door() {
                             "{name}: a second lifetime's closed routes"
                         );
                         // A halt the second lifetime reports admits no
-                        // send there either (invariant 3, #218): a job it
-                        // is given waits, and its journal stays empty. A
+                        // send there either (invariant 3): a job it is
+                        // given waits, and its journal stays empty. A
                         // closed route it reads holds its job the same
                         // way (C190).
                         if halted.is_some() || !closed.is_empty() {
@@ -3226,17 +3222,16 @@ fn assert_halted(name: &str, lifetime: &str, read: Option<&str>, want: Option<&s
     }
 }
 
-/// C158, the blocking count's handoff (the cold review of t5 round 1,
-/// `roadmap/reviews/t5-r1-5c75e380.md`): a blocking task stays counted
+/// C158, the blocking count's handoff: a blocking task stays counted
 /// until a runtime task has observed its completion, so the park hook
-/// leaves the clock while that completion is in hand and not yet
-/// observed through. The test holds the observing task after it has seen
-/// the closure's end (the daemon's `blocking_probe`), with a sleeper
-/// parked on the clock, and waits for the runtime to park: the hook
-/// counts the park as held by a blocking task and moves nothing. Released,
-/// the count drops on the runtime, the handle answers the closure's
-/// value, and the next park moves the clock to the sleeper. A component
-/// test of the hook's rule (`door.daemon()`), on the door's runtime.
+/// leaves the clock while that completion is in hand and not yet observed
+/// through. The test holds the observing task after it has seen the
+/// closure's end (the daemon's `blocking_probe`), with a sleeper parked
+/// on the clock, and waits for the runtime to park: the hook counts the
+/// park as held by a blocking task and moves nothing. Released, the count
+/// drops on the runtime, the handle answers the closure's value, and the
+/// next park moves the clock to the sleeper. A component test of the
+/// hook's rule (`door.daemon()`), on the door's runtime.
 #[test]
 fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
     let clock = Arc::new(ParkingClock::new());
@@ -3323,16 +3318,16 @@ fn c158_a_blocking_task_holds_the_clock_until_the_runtime_observes_its_end() {
     });
 }
 
-/// C160's former instrument, now `daemon status`'s count alone: the gate's
-/// occupancy, which `DaemonStatus` and `Dashboard` report as `in_flight`
-/// (`server.rs`'s two reads), is zero at rest and one under a held send, beside its bound:
+/// `daemon status`'s count: the gate's occupancy, which `DaemonStatus`
+/// and `Dashboard` report as `in_flight` (`server.rs`'s two reads), is
+/// zero at rest and one under a held send, beside its bound:
 /// `SendGate::occupancy` on a gate of its own, then
 /// `ChokePoint::actual_send_occupancy` on the daemon's, at rest and while
-/// the account transport holds a profile `GET`. The door's park hook no
-/// longer reads it (it reads the transports' hold, C160 as amended), so a
+/// the account transport holds a profile `GET`. The door's park hook does
+/// not read it (it reads the transports' hold, C160), so a
 /// mutant that replaces either count with a send always in flight fails
 /// these assertions at rest at once and stalls nothing; the weekly
-/// mutants run no longer lists them. A component test of the count
+/// mutants run does not list them. A component test of the count
 /// (`door.daemon()`), on the door's runtime.
 #[test]
 fn c160_the_hooks_count_is_zero_at_rest_and_one_under_a_held_send() {

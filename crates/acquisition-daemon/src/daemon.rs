@@ -39,8 +39,8 @@
 //!   doubling it (C83, C132) is taken in `run` (`start.rs`) before the log
 //!   directory is made, the log rotated or opened, or anything sends,
 //!   whatever the root — a refused contender may append its refusal to an
-//!   existing log afterward. GGG counts `Account` rules per account (rung
-//!   11, 2026-08-30), so two accounts never contend on the policies'
+//!   existing log afterward. GGG counts `Account` rules per account
+//!   (N37), so two accounts never contend on the policies'
 //!   counters (ground truth's layer 2): what they share is the per-IP
 //!   Cloudflare bound (layer 1) and the `Ip`-scoped token endpoint, which
 //!   is what the single gate exists for. Every persisted account is
@@ -170,7 +170,7 @@ use refresh::AccessTokenResult;
 use routes::why_no_url;
 use start::idle_shutdown_from_env;
 
-/// C3: the idle exit, an hour (the owner's word of 2026-10-26), so an
+/// C3: the idle exit, an hour, so an
 /// agent's session and a person's sitting meet the daemon they started a
 /// while ago. A live job holds the daemon however long it waits.
 const IDLE_SHUTDOWN: Duration = Duration::from_secs(3600);
@@ -367,10 +367,9 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// useful on its own. The message says what the request lacks in the
 /// request's own words and names no frontend's flag or command, a
 /// person's own act apart (`acq auth`): each frontend adds its way on by
-/// the kind, as it does for its own refusal of that kind (C143, #178).
-/// Every site that makes one names its kind here, so
-/// nothing reaches the wire unclassified — the audit of 2026-09-10 that
-/// fixed the vocabulary, site by site:
+/// the kind, as it does for its own refusal of that kind (C143).
+/// Every site that makes one names its kind here, site by site, so
+/// nothing reaches the wire unclassified:
 ///
 /// | Site | Message | Kind |
 /// | --- | --- | --- |
@@ -453,7 +452,7 @@ impl Refusal {
         Refusal::new(ErrorKind::UnknownJob, format!("no job {id}"))
     }
 
-    /// C47, #209: a row the table holds whose state word this daemon does
+    /// C47: a row the table holds whose state word this daemon does
     /// not know. The job exists, so never `unknown_job`; the queue's read
     /// of it failed, so `queue_failed`, as an unreadable table is.
     fn unknown_state(id: JobId, word: &str) -> Self {
@@ -465,7 +464,7 @@ impl Refusal {
         )
     }
 
-    /// C47, #209: a terminal row whose stored outcome no longer reads as
+    /// C47: a terminal row whose stored outcome no longer reads as
     /// this build's. `Status` answers the row; `result` says it ended.
     fn unreadable_outcome(id: JobId) -> Self {
         Refusal::new(
@@ -704,9 +703,9 @@ impl Sessions {
     /// The live session a selector names (username, name without
     /// discriminator, or uuid), if any. A name without its discriminator
     /// that two live sessions share is refused as `ambiguous_account`
-    /// (C51: matching is exact, and the daemon never guesses) — review
-    /// finding 2026-09-10, round 1: `find` over a map picked one. A staged
-    /// login is not a session and cannot match: it lives outside this map.
+    /// (C51: matching is exact, and the daemon never guesses; a `find` over
+    /// the map would pick one). A staged login is not a session and cannot
+    /// match: it lives outside this map.
     fn matching(&self, selector: &str) -> Result<Option<&AuthSession>, Refusal> {
         let mut hits = self.by_account.values().filter(|s| {
             s.username
@@ -794,7 +793,7 @@ impl AuthSession {
 }
 
 struct Shared {
-    /// C6 as amended 2026-10-27: the live trees, and a concluded tree's
+    /// C6: the live trees, and a concluded tree's
     /// jobs until its root concludes. A concluded tree whose every row is
     /// persisted leaves ([`Daemon::evict_tree`]); the table answers for
     /// it.
@@ -1098,15 +1097,14 @@ pub struct Daemon {
     /// The log file this daemon opened, as `daemon_status` reports it —
     /// the path as opened, exactly (a log root that is not valid UTF-8 is
     /// refused at start), never recomputed by a client from its own
-    /// environment (review 2026-09-11). `None` in the in-process harness.
+    /// environment. `None` in the in-process harness.
     log_path: Option<String>,
     /// The socket this daemon bound (C83: derived from its world into the
     /// runtime directory), removed when it exits — only while the path
     /// still names the file this daemon bound: a successor on the same
     /// world may have replaced it while this daemon was on its way out,
-    /// and its rendezvous must not be unlinked from under it (seen in a
-    /// rehearsal, 2026-09-11). `None` in the in-process harness, which
-    /// binds nothing.
+    /// and its rendezvous must not be unlinked from under it. `None` in the
+    /// in-process harness, which binds nothing.
     socket_path: Option<BoundSocket>,
     /// The provider's store directory (`acquisition-store`): one file per
     /// account plus the account index. `None` in tests: nothing recorded.
@@ -1135,12 +1133,11 @@ pub struct Daemon {
     /// Running jobs finish (their sends are committed); everything else
     /// refuses until a restart finds a working `daemon.db`.
     queue_failure: Mutex<Option<String>>,
-    /// C165 (the review of round E's fix round, finding 2): the failure
-    /// kind each route's probe closed it with, beside the closure's own
-    /// `until` as the limiter holds it, so a job that meets that closure
-    /// takes the probe's kind. Kept beside the limiter, never in it: the
-    /// limiter's state, its pacing and its closures stand as they were;
-    /// this reads them only (`ChokePoint::endpoint_state`).
+    /// C165: the failure kind each route's probe closed it with, beside the
+    /// closure's own `until` as the limiter holds it, so a job that meets
+    /// that closure takes the probe's kind. Kept beside the limiter, never
+    /// in it: this map changes none of the limiter's state, its pacing or
+    /// its closures, and reads them only (`ChokePoint::endpoint_state`).
     closed_with: Mutex<HashMap<String, (Instant, FailureKind)>>,
     /// The browser wait of a login: [`LOGIN_WITHIN`], or `ACQ_LOGIN_WITHIN`
     /// read at the start (`start::login_within_from_env`); a test sets it
@@ -1431,7 +1428,7 @@ impl CredentialStore for OsCredentialStore {
     }
 }
 
-/// #113: the one function that writes a line to the daemon's log, with
+/// The one function that writes a line to the daemon's log, with
 /// its uptime stamp when the daemon has one (a line before it is built, a
 /// startup refusal, has none). Every writer calls it: [`Daemon::log`]
 /// and so every `note_error`, the exit that ends at once and the panic
@@ -1544,8 +1541,7 @@ impl Daemon {
     /// task's raw handle and lowers it after that await returns: lowered
     /// on the blocking thread as the closure returned, it would read zero
     /// before tokio woke the awaiter, and a park in that handoff would
-    /// move time ahead of the continuation (the cold review of t5 round 1,
-    /// `roadmap/reviews/t5-r1-5c75e380.md`). That task runs whether the
+    /// move time ahead of the continuation. That task runs whether the
     /// caller awaits the handle returned or drops it (the start's restore
     /// drops it); the handle returned is that task's, carrying `f`'s
     /// value or its panic, and no caller aborts it. A door scenario's park
@@ -1770,7 +1766,7 @@ impl Daemon {
         }
     }
 
-    /// C121, the daemon alike (#168): the refusal of a selector no live
+    /// C121, the daemon alike: the refusal of a selector no live
     /// session matches, the site's own `not_logged_in`, marked with the
     /// selector so the request's path judges it against the account
     /// index ([`Self::judged`]). No I/O here: the lookups run on a
@@ -1782,7 +1778,7 @@ impl Daemon {
         }
     }
 
-    /// C121 with C148 (the review of round E, finding 2): a refusal of a
+    /// C121 with C148: a refusal of a
     /// selector no live session matched, judged against the account index
     /// where C148 reads credentials — a counted landing on a blocking
     /// thread, under `credentials` ([`Self::index_judged`]) — never by a

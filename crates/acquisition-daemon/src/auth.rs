@@ -35,7 +35,7 @@ pub fn pkce_pair() -> (Secret, String) {
     (Secret(verifier), challenge)
 }
 
-/// #113, a log safe by construction: a credential the daemon holds — an
+/// A log safe by construction: a credential the daemon holds — an
 /// access or a refresh token, the keyring's secret that holds them, a
 /// login's code or its PKCE verifier — from where it enters the daemon
 /// (a token response's body, a keyring read, the login's callback, the
@@ -176,10 +176,9 @@ impl TokenError {
     /// C165: the failure kind of a job this refresh ends, from its own
     /// answer: a rejected grant (a 403 among them) is `not_logged_in`, a
     /// login the way on; GGG's 429, never a block's, `rate_limited`; a
-    /// 503 with no Cloudflare signature `not_retried`, as a GET's is (the
-    /// review of round E's fix round, finding 1); anything else the
-    /// provider not answering, `upstream`. A halt or a block turns the job
-    /// away instead (C25), and fails nothing.
+    /// 503 with no Cloudflare signature `not_retried`, as a GET's is;
+    /// anything else the provider not answering, `upstream`. A halt or a
+    /// block turns the job away instead (C25), and fails nothing.
     pub fn failure(&self) -> acquisition_protocol::job::FailureKind {
         use acquisition_protocol::job::FailureKind;
         if self.is_rejected_grant() {
@@ -347,12 +346,13 @@ async fn token_request(
         });
     }
     if !status.is_success() {
-        // #113: the server's text never reaches the words, which go to
-        // the log; only its status, its rate line as the limiter parses it
-        // (`rate_words`) and the OAuth `error` code as one of OAuth's. A 3xx's body is no server text: the choke point put its
-        // own words there, where the redirect pointed with its query
-        // redacted (C130), and they stand. The choke point has already
-        // read the whole body for what it recognises (a block or a 429,
+        // The server's text never reaches the words, which go to the log;
+        // only its status, its rate line as the limiter parses it
+        // (`rate_words`) and the OAuth `error` code as one of OAuth's. A
+        // 3xx's body is no server text: the choke point put its own words
+        // there, where the redirect pointed with its query redacted
+        // (C130), and they stand. The choke point has already read the
+        // whole body for what it recognises (a block or a 429,
         // `rails::Verdict::of`).
         let rate = crate::ratelimit::rate_words(&response.rate);
         let code = match &response.body {
@@ -391,8 +391,8 @@ async fn token_request(
             None => words,
         },
     };
-    // #113: serde's message can quote a value of the body, so it is not
-    // the words.
+    // Serde's message can quote a value of the body, so it is not the
+    // words.
     let tokens = serde_json::from_str::<TokenResponse>(&body).map_err(|_| {
         refused("the token endpoint answered with a malformed body; nothing was installed".into())
     })?;
@@ -405,7 +405,7 @@ async fn token_request(
     Ok(tokens)
 }
 
-/// #113: what the words of a token endpoint's refusal carry of its body:
+/// What the words of a token endpoint's refusal carry of its body:
 /// the OAuth `error` code when the body is JSON holding one
 /// ([`oauth_error_words`]), else "an unreadable body". Nothing else of
 /// the text is kept, so a body that echoes a token cannot carry it into
@@ -420,7 +420,7 @@ fn oauth_error_code(body: &str) -> &'static str {
     }
 }
 
-/// #113, a log line's words are values the daemon chose: an OAuth `error`
+/// A log line's words are values the daemon chose: an OAuth `error`
 /// code, from a token endpoint's body or an authorize redirect's query,
 /// as one of RFC 6749's own (sections 4.1.2.1 and 5.2), else "an error
 /// code outside OAuth's". Never the text received, whatever its shape: a
@@ -451,9 +451,9 @@ pub fn oauth_error_words(code: &str) -> &'static str {
 // Services, the Windows Credential Manager, and on Linux the freedesktop
 // Secret Service over D-Bus (GNOME Keyring; KWallet since KDE Frameworks
 // 5.97) — the `keyring` crate's backends, selected by feature in Cargo.toml.
-// A Linux build without the Secret Service features got the crate's mock
-// store — in-memory, per process — while reporting `keyring: ok` (found
-// 2026-09-12); the round-trip test below is the tripwire. `ACQ_NO_KEYRING=1`
+// A Linux build without the Secret Service features gets the crate's mock
+// store — in-memory, per process — while reporting `keyring: ok`; the
+// round-trip test below is the tripwire. `ACQ_NO_KEYRING=1`
 // degrades to in-memory-only sessions (still never plaintext on disk), and
 // so does a keyring the daemon cannot reach: cron, ssh and headless shells
 // have no macOS keychain and no Linux session bus (README, `ACQ_NO_SPAWN`),
@@ -461,23 +461,20 @@ pub fn oauth_error_words(code: &str) -> &'static str {
 // service name comes from the provider, so mock and real sessions can
 // never cross.
 //
-// The store is a choice, made for the release (2026-10-14; the park "the
-// credential store as an explicit choice", `PLATFORMS-SLICE.md` at `b6197a82` step 2):
-// keyring 3's feature-selected backends, not keyring 4's `keyring-core`
-// with a store crate per platform. That alternative's two reasons do not
-// ship. The macOS protected keychain needs `keychain-access-groups`, a
-// restricted entitlement only a provisioning profile authorizes, which a
-// bare command-line tool cannot carry (Apple DTS, read 2026-10-14) — so
-// the file-based keychain `apple-native` uses is the only macOS store
-// either way. A Flatpak's Secret portal serves a sandbox the release does
-// not have (archives only, note 36 at `b6197a82`). Each backend is held by what touched
-// it: macOS by live runs (tokens stored, restored and rotated,
-// `RUN-LEDGER.md` 2026-08-22 rungs 1 and 2; a signed `acqd`'s prompts,
-// 2026-09-12), Windows by the round trip against Credential Manager
+// The store is a choice: keyring 3's feature-selected backends, not
+// keyring 4's `keyring-core` with a store crate per platform. That
+// alternative's two reasons do not ship. The macOS protected keychain
+// needs `keychain-access-groups`, a restricted entitlement only a
+// provisioning profile authorizes, which a bare command-line tool cannot
+// carry (Apple DTS) — so the file-based keychain `apple-native` uses is
+// the only macOS store either way. A Flatpak's Secret portal serves a
+// sandbox the release does not have (it ships archives only). Each
+// backend is held by what touched it: macOS by live runs (tokens stored,
+// restored and rotated, `RUN-LEDGER.md`; a signed `acqd`'s prompts),
+// Windows by the round trip against Credential Manager
 // (`.github/workflows/gate-windows.yml`), Linux by the round trip against
-// gnome-keyring (`gate-linux.yml`, and on the Ubuntu VM). Owner,
-// 2026-10-14, to that recommendation: "yes, let's go ahead". Reopened by
-// a sandboxed package (`decisions/daemon.md`, "Parked").
+// gnome-keyring (`gate-linux.yml`, and on the Ubuntu VM). Reopened by a
+// sandboxed package (`decisions/daemon.md`, "Not doing").
 //
 // One keyring entry per account: the entry's user is the GGG username
 // (`name#discriminator`), so two accounts on one provider never share a
@@ -517,7 +514,7 @@ pub struct KeyringEntry {
     pub access_expires_at: Option<u64>,
 }
 
-/// #113: the form a [`KeyringEntry`] is written in, built here alone. The
+/// The form a [`KeyringEntry`] is written in, built here alone. The
 /// entry itself has no `Serialize`, so no code outside this module can
 /// turn its tokens into a string.
 #[derive(Serialize)]
@@ -684,8 +681,7 @@ mod tests {
 
     /// C144: a token response's `Debug` names neither token; and the bare
     /// secret, under `Debug` and `Display`, names none of its text
-    /// (invariant 5, #217): the formats every wrapper's redaction rests
-    /// on.
+    /// (invariant 5): the formats every wrapper's redaction rests on.
     #[test]
     fn a_secret_and_a_token_responses_debug_name_no_token() {
         let bare = Secret::from("rt-bare-q8Zt");
@@ -707,10 +703,9 @@ mod tests {
         );
     }
 
-    /// The login's random values (#218's mutants): a state is its prefix
-    /// and 24 random bytes in unpadded URL-safe base64, never the same
-    /// twice; and the PKCE challenge is RFC 7636's S256, by its appendix
-    /// B's vector.
+    /// The login's random values: a state is its prefix and 24 random
+    /// bytes in unpadded URL-safe base64, never the same twice; and the
+    /// PKCE challenge is RFC 7636's S256, by its appendix B's vector.
     #[test]
     fn a_state_is_random_and_a_challenge_is_rfc_7636s_s256() {
         let (first, second) = (random_token("st"), random_token("st"));
@@ -729,9 +724,9 @@ mod tests {
         );
     }
 
-    /// C47 at its bound (#218's mutants): a saved access token whose
-    /// expiry is exactly `now` plus a year's lifetime restores; one a
-    /// second past it restores the refresh token alone.
+    /// C47 at its bound: a saved access token whose expiry is exactly
+    /// `now` plus a year's lifetime restores; one a second past it
+    /// restores the refresh token alone.
     #[test]
     fn a_saved_access_token_restores_up_to_the_lifetime_bound_and_not_past_it() {
         let now = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
@@ -786,7 +781,7 @@ mod tests {
 
     /// A clear that did not happen, in the words a login's rollback
     /// failure carries (`daemon/login.rs`): the keyring off with its
-    /// reason, or the keyring's own refusal (#218's mutants).
+    /// reason, or the keyring's own refusal.
     #[test]
     fn a_clear_that_did_not_happen_says_why() {
         assert_eq!(
@@ -816,7 +811,7 @@ mod tests {
     }
     impl<T> DoesNotSerialize for &SerializeProbe<T> {}
 
-    /// #113: neither a token nor the entry that holds two can be
+    /// Neither a token nor the entry that holds two can be
     /// serialized outside this module: a `serde_json::to_string` of
     /// either does not compile. The probe answers yes for a type that
     /// serializes, so its no is the trait's absence.
@@ -886,12 +881,13 @@ mod tests {
     /// The keyring the daemon saves into is the one it loads from. Every
     /// call makes a fresh `Entry`, as `keyring_save` and `keyring_load` do,
     /// so a backend that only remembers within one `Entry` — the crate's
-    /// mock store, which a Linux build got until 2026-09-12 while reporting
-    /// `keyring: ok` — fails here. Runs only under `ACQ_KEYRING_ROUNDTRIP=1`,
-    /// against the real OS store, so the gate stays hermetic; CI runs it
-    /// against an unlocked gnome-keyring (`.github/workflows/gate-linux.yml`),
-    /// Credential Manager (`.github/workflows/gate-windows.yml`), and the
-    /// macOS Keychain on every release, which `draft` waits on
+    /// mock store, which a Linux build without the Secret Service features
+    /// gets while reporting `keyring: ok` — fails here. Runs only under
+    /// `ACQ_KEYRING_ROUNDTRIP=1`, against the real OS store, so the gate
+    /// stays hermetic; CI runs it against an unlocked gnome-keyring
+    /// (`.github/workflows/gate-linux.yml`), Credential Manager
+    /// (`.github/workflows/gate-windows.yml`), and the macOS Keychain on
+    /// every release, which `draft` waits on
     /// (`.github/workflows/release.yml`, `keyring-macos`).
     #[test]
     fn keyring_round_trip_survives_a_fresh_entry() {
@@ -955,9 +951,9 @@ mod tests {
         assert!(record.ends.whole() && record.ends.faults().is_empty());
     }
 
-    /// C47 at its bound (#218's mutants): a grant whose access token
-    /// lives exactly [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] is installed; one
-    /// a second longer is refused, in words that name the bound.
+    /// C47 at its bound: a grant whose access token lives exactly
+    /// [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] is installed; one a second
+    /// longer is refused, in words that name the bound.
     #[tokio::test]
     async fn a_grants_lifetime_is_taken_up_to_its_bound_and_refused_past_it() {
         let grant = |expires_in: u64| {

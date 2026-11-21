@@ -1,4 +1,4 @@
-//! The daemon log holds no token (#113): every credential is an
+//! The daemon log holds no token: every credential is an
 //! `auth::Secret`, and the log has one writer.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
@@ -65,7 +65,7 @@ fn token_aware_server() -> (Server, Arc<Mutex<Vec<String>>>) {
     (server, forms)
 }
 
-/// #113: the login (the code and verifier sent in the exchange, the
+/// The login (the code and verifier sent in the exchange, the
 /// tokens it grants, the profile fetched under its bearer), a send whose
 /// bearer GGG rejects (401, the token forgotten and the keyring entry
 /// narrowed), and the refresh the next send makes (the refresh token
@@ -234,9 +234,9 @@ async fn refresh_answered_by_headers(
     (log, ())
 }
 
-/// #113, the text a daemon receives: a token endpoint's refusal whose
-/// body echoes tokens, one in a field and one as its `error`, reaches the
-/// log as its status and no more of its text. The code is kept when it is
+/// The text a daemon receives: a token endpoint's refusal whose body
+/// echoes tokens, one in a field and one as its `error`, reaches the log
+/// as its status and no more of its text. The code is kept when it is
 /// a word, so the refusal still says what GGG said.
 #[tokio::test]
 async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
@@ -263,8 +263,8 @@ async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
     assert!(log.contains("an error code outside OAuth's"), "{log}");
 }
 
-/// #113, the text a daemon receives: a 2xx from the token endpoint that
-/// is no token response, whose parser's message would quote a value
+/// The text a daemon receives: a 2xx from the token endpoint that is no
+/// token response, whose parser's message would quote a value
 /// (here a token where a number goes), reaches the log as a malformed
 /// body, quoting nothing.
 #[tokio::test]
@@ -282,11 +282,10 @@ async fn a_malformed_token_answer_logs_none_of_its_text() {
     assert!(log.contains("malformed body"), "{log}");
 }
 
-/// #113's second review, the rule whole: a log line's words are values the
-/// daemon chose or parsed into its own types, never upstream text judged
-/// safe by its shape. A token in a rate-limit header beside a token
-/// refusal, and an `error` that is a token shaped as a lowercase word,
-/// each reach the log as nothing of their text: the rate line is the
+/// The rule whole: a log line's words are values the daemon chose or
+/// parsed into its own types, never upstream text judged safe by its
+/// shape. A token in a rate-limit header beside a token refusal, and an
+/// `error` that is a token shaped as a lowercase word, each reach the log as nothing of their text: the rate line is the
 /// policy the limiter parsed, the code is "outside OAuth's".
 #[tokio::test]
 async fn a_token_refusal_shaped_like_its_rules_logs_none_of_its_text() {
@@ -362,7 +361,7 @@ async fn api_answered_by(
 /// The API's rate headers on a GET, with `extra` beside them.
 const API_RATE: &str = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
 
-/// #113's second review, on an API send: a token in a rate-limit header
+/// On an API send: a token in a rate-limit header
 /// and one in a 400's body each stay out of the log, whose `GET` line and
 /// whose job failure carry the rate line as parsed and the body as its
 /// size (or GGG's numeric code).
@@ -385,7 +384,7 @@ async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
     );
 }
 
-/// #113's third review: a successful HEAD probe whose headers carry a
+/// A successful HEAD probe whose headers carry a
 /// token logs the parsed rate, not the headers.
 #[tokio::test]
 async fn a_probe_answer_echoing_a_token_logs_none_of_its_text() {
@@ -407,7 +406,7 @@ async fn a_probe_answer_echoing_a_token_logs_none_of_its_text() {
     );
 }
 
-/// #113's third review, the names GGG gives: a token sent as the policy's
+/// The names GGG gives: a token sent as the policy's
 /// name on an answer the limiter accepts, and one sent as a rule's name
 /// with none of its windows, which the parser refuses as missing that
 /// rule's header. Neither name reaches the log: the policy is named by
@@ -445,7 +444,7 @@ async fn names_a_provider_gives_its_policy_and_rules_log_none_of_their_text() {
     assert!(log.contains("a rule outside GGG's"), "{log}");
 }
 
-/// #113's fourth review: a `Retry-After` over the cap is all digits but
+/// A `Retry-After` over the cap is all digits but
 /// need not fit a number, so a token of digits could ride in one. A HEAD
 /// carrying one past `u64` logs the cap's words, never the digits.
 #[tokio::test]

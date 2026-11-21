@@ -508,11 +508,11 @@ fn the_idle_verdict_holds_while_a_login_is_pending() {
     finish_harness(None, &log_path);
 }
 
-/// C133, #209: the race a client's submit could win against `daemon
-/// stop`. The server refuses a submit once the exit has begun, but a stop
-/// beginning between that check and the insert used to admit a job this
-/// lifetime would never pick. The check stands under the insert's lock
-/// too: with the exit begun, a client's submit reaching the insert is
+/// C133: the race a client's submit could win against `daemon stop`.
+/// The server refuses a submit once the exit has begun, but a stop
+/// beginning between that check and the insert would admit a job this
+/// lifetime would never pick, so the check stands under the insert's
+/// lock too: with the exit begun, a client's submit reaching the insert is
 /// refused in the server's words, while the daemon's own submits are not
 /// (a login landing in the drain queues its profile job, a child's
 /// fan-out is the drain's). A component test (C158): the window between
@@ -821,7 +821,7 @@ fn exit_waits_for_a_login_code_exchange() {
         });
 }
 
-/// C133 (a pending login has the bound to land), issue #59: a stop that
+/// C133 (a pending login has the bound to land): a stop that
 /// lands after the login's profile job finished and before the login
 /// registered waits for the login. The gap is forced: the profile job
 /// runs to done, and `complete_login` is not called until the drain has
@@ -1774,12 +1774,11 @@ async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
         finish_harness(None, &log);
     }
 
-    // #209's third review, through #261's one fact: the marker names a
-    // leaf of a tree holding a row this daemon cannot read, so the leaf
-    // fails with its tree, not by the marker's arm; its write is refused
-    // while its parent's lands. The marker stays (once, only the
-    // marker's arm's write kept it), and the next restore, the refusal
-    // dropped, fails the leaf by the marker and removes it.
+    // The marker names a leaf of a tree holding a row this daemon cannot
+    // read, so the leaf fails with its tree, not by the marker's arm; its
+    // write is refused while its parent's lands. The marker stays, and
+    // the next restore, the refusal dropped, fails the leaf by the marker
+    // and removes it.
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
     let db = acquisition_store::jobs::daemon_db_path(&dir);

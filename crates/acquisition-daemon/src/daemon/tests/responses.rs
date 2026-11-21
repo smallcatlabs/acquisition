@@ -161,8 +161,8 @@ fn malformed_success_body_remains_a_json_failure() {
 /// status, never the words: a 404 is `not_found`, whose way on is the
 /// listing's fetch; a 403 and a 503 without Cloudflare's signatures,
 /// never retried (invariant 3), `not_retried`, and only the choke
-/// point's block verdict `blocked` (the review of round E, finding 1);
-/// any other refusal or fault of GGG's `upstream`.
+/// point's block verdict `blocked`; any other refusal or fault of GGG's
+/// `upstream`.
 #[test]
 fn c165_a_failed_responses_kind_is_read_from_its_status() {
     for (status, kind) in [
@@ -192,7 +192,7 @@ fn c165_a_failed_responses_kind_is_read_from_its_status() {
     }
 }
 
-/// C165's table (#218's mutants): a token refusal with no typed cause
+/// C165's table: a token refusal with no typed cause
 /// fails its job by the refusal's own kind — a session that cannot give a
 /// token is not logged in, the provider not answering is upstream, and
 /// anything else is the daemon's own fault; a typed cause decides first.

@@ -757,10 +757,10 @@ fn entries(store: &RecordingCredentialStore) -> HashMap<String, String> {
     entry_refresh_tokens(&store.entries.lock().unwrap())
 }
 
-/// C144 (a rename clears the entry it leaves behind), issue #61: a
-/// refresh whose answer names the account differently saves under the
-/// new name and clears the old name's entry, which nothing could reach
-/// again: restore reads the index, and the index follows the new name.
+/// C144 (a rename clears the entry it leaves behind): a refresh whose
+/// answer names the account differently saves under the new name and
+/// clears the old name's entry, which nothing could reach again:
+/// restore reads the index, and the index follows the new name.
 #[test]
 fn c144_a_refresh_that_renames_clears_the_old_names_entry() {
     let store = Arc::new(RecordingCredentialStore::default());
@@ -780,11 +780,11 @@ fn c144_a_refresh_that_renames_clears_the_old_names_entry() {
     );
 }
 
-/// C144 (a failed save clears the entry it would have replaced), issue
-/// #61: the grant rotated the refresh token, so the entry the save would
-/// have overwritten holds a token GGG no longer honours; it is cleared,
-/// the session runs in memory, and the keyring status and the error
-/// list say why.
+/// C144 (a failed save clears the entry it would have replaced): the
+/// grant rotated the refresh token, so the entry the save would have
+/// overwritten holds a token GGG no longer honours; it is cleared, the
+/// session runs in memory, and the keyring status and the error list
+/// say why.
 #[test]
 fn c144_a_failed_save_clears_the_entry_it_would_have_replaced() {
     let store = Arc::new(RecordingCredentialStore::failing("save", "keychain locked"));
@@ -849,12 +849,12 @@ fn c144_a_rename_whose_old_entry_cannot_be_cleared_says_so() {
     );
 }
 
-/// C144 (no keyring entry out of the index's reach), the review of h1,
-/// its third finding: a rename whose clear of the old name fails leaves
-/// the index holding that name beside the new one, with the account
-/// still persisted under the new name, so a later logout of the account
-/// clears both. Before, the index followed the new name alone, and the
-/// old name's entry was out of every verb's reach.
+/// C144 (no keyring entry out of the index's reach): a rename whose
+/// clear of the old name fails leaves the index holding that name beside
+/// the new one, with the account still persisted under the new name, so
+/// a later logout of the account clears both. An index that followed the
+/// new name alone would leave the old name's entry out of every verb's
+/// reach.
 #[test]
 fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
     let store = Arc::new(RecordingCredentialStore::failing(
@@ -909,13 +909,12 @@ fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
     );
 }
 
-/// C144 (no keyring entry out of the index's reach), the review of the h1
-/// fix round, its fourth finding: two renames, test-user to B and B to C,
-/// each failing its old names' clears, leave the index holding every
-/// uncleared name, so a logout of C with the keyring working again clears
-/// all three. Before, the index held one old name, the second rename
-/// replaced test-user with B, and test-user's entry was out of every
-/// verb's reach.
+/// C144 (no keyring entry out of the index's reach): two renames,
+/// test-user to B and B to C, each failing its old names' clears, leave
+/// the index holding every uncleared name, so a logout of C with the
+/// keyring working again clears all three. An index holding one old
+/// name would see the second rename replace test-user with B, and leave
+/// test-user's entry out of every verb's reach.
 #[test]
 fn c144_two_renames_whose_clears_fail_keep_every_name_in_reach() {
     let store = Arc::new(RecordingCredentialStore::failing(
@@ -969,17 +968,16 @@ fn c144_two_renames_whose_clears_fail_keep_every_name_in_reach() {
     });
 }
 
-/// C144 (logout finds the account by its uuid), the review of the h1 fix
-/// round, its first finding: a refresh that renames test-user to B cannot
-/// write the index, which still lists the account as test-user,
+/// C144 (logout finds the account by its uuid): a refresh that renames
+/// test-user to B cannot write the index, which still lists the account as test-user,
 /// persisted, with test-user's entry uncleared (and B unsaved: the index
 /// could not hold its name first). A logout of B, once the index is
 /// writable again, finds the entry by the session's uuid, clears every
 /// name and marks it not persisted, so a start restores nothing: a
 /// second door on the same store directory and store, restoring as a
-/// start does, lists no account. Before, the logout looked the entry up
-/// by B, found none, marked nothing and acknowledged, and a restart
-/// restored test-user from its old entry.
+/// start does, lists no account. A logout that looked the entry up by B
+/// would find none, mark nothing and acknowledge, and a restart would
+/// restore test-user from its old entry.
 #[cfg(unix)]
 #[test]
 fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid() {
@@ -1029,16 +1027,16 @@ fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid() {
         });
 }
 
-/// C144 (no keyring entry out of the index's reach), the review of the
-/// h1 tail round, its first finding: two renames, test-user to B and B
-/// to C, while the index directory cannot be written and the keyring
+/// C144 (no keyring entry out of the index's reach): two renames,
+/// test-user to B and B to C, while the index directory cannot be written and the keyring
 /// saves work, then a logout of C with the index writable again. The
 /// index holds a name before a credential is saved under it, so neither
 /// rename saved anything: no credential is left under any of the three
-/// names and the logout's `cleared` is earned. Before, each rename saved
-/// under its new name and failed its index write, the index still named
-/// test-user, the logout cleared test-user and C, answered `cleared`, and
-/// B's credential stayed where no verb could reach it.
+/// names and the logout's `cleared` is earned. Were each rename to save
+/// under its new name and fail its index write, the index would still
+/// name test-user, the logout would clear test-user and C and answer
+/// `cleared`, and B's credential would stay where no verb could reach
+/// it.
 #[cfg(unix)]
 #[test]
 fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
@@ -1083,16 +1081,16 @@ fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
     });
 }
 
-/// Issue #74 (C144, no keyring entry out of the index's reach; C51, a
+/// C144 (no keyring entry out of the index's reach) with C51 (a
 /// selector names one account): a refresh renames test-user to B while
 /// the index cannot be written, so the index still names the account
 /// test-user. A logout of B, with the index writable again and the
 /// keyring's clears failing, holds B among the entry's names and prints
 /// `acq auth logout --account 'B#2'`. That command, run as printed once
 /// the session is gone and the keyring works, reaches the account by the
-/// held name, clears it and the index releases it. Before, the retry
-/// matched neither the username test-user nor the uuid and was refused
-/// as "no account matches".
+/// held name, clears it and the index releases it. Without the held
+/// name, the retry would match neither the username test-user nor the
+/// uuid and be refused as "no account matches".
 #[cfg(unix)]
 #[test]
 fn the_printed_retry_runs_after_a_rename_whose_index_write_failed() {
@@ -1170,16 +1168,16 @@ fn the_printed_retry_runs_after_a_rename_whose_index_write_failed() {
     });
 }
 
-/// C144 (the daemon reports no success it did not earn), the review of
-/// h1, its first finding: a refresh's landing — the token install, the
+/// C144 (the daemon reports no success it did not earn): a refresh's
+/// landing — the token install, the
 /// index write, the session's rename — is one critical section, as a
 /// login's is, so a logout that lands where the refresh releases the
 /// lock finds the landing whole, and its not-persisted mark stands.
-/// Before, the refresh saved its token and released the lock; the
-/// logout dropped the session, failed its clear and marked the account
-/// not persisted; then the refresh's index write marked it persisted
-/// again, and a restart restored the account the user had logged out
-/// of. The logout is run at the landing's test pause, never timed. A
+/// Were the refresh to save its token and release the lock, the logout
+/// could drop the session, fail its clear and mark the account not
+/// persisted; then the refresh's index write would mark it persisted
+/// again, and a restart would restore the account the user had logged
+/// out of. The logout is run at the landing's test pause, never timed. A
 /// component test: the landing's own hook (`refresh_landed`), on the
 /// blocking thread, is a staging point no surface reaches.
 #[tokio::test]
@@ -1301,14 +1299,13 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
     );
 }
 
-/// C144 (every load result reaches the words), the review of the h1 tail
-/// round, its third finding: the index lists B persisted, holding the old
-/// name A; the keyring has no entry under B and refuses the read under A.
-/// The start reports A's failure as it reports a username's own, and the
-/// keyring status follows it. Before, the held name's failure was
-/// dropped: the start logged that the keyring had no entry and called
-/// the keyring healthy. A component test: `restore_sessions` as a
-/// function.
+/// C144 (every load result reaches the words): the index lists B
+/// persisted, holding the old name A; the keyring has no entry under B
+/// and refuses the read under A. The start reports A's failure as it
+/// reports a username's own, and the keyring status follows it: a held
+/// name's failure dropped would have the start log that the keyring had
+/// no entry and call the keyring healthy. A component test:
+/// `restore_sessions` as a function.
 #[test]
 fn c144_restore_reports_a_held_names_failed_load() {
     let temp = tempfile::tempdir().unwrap();
@@ -1411,13 +1408,13 @@ fn last_bearer(door: &Door) -> String {
 }
 
 /// C135 (the access token kept beside the refresh token and restored
-/// with it), issue #55: a start restores, from the keyring entry, the
-/// access token and its expiry beside the refresh token, so the session
-/// sends no token POST while the token has an hour left, and one once
-/// its expiry is reached (the margin itself is
-/// `a_restored_session_refreshes_within_the_margin_of_expiry`'s). Before,
-/// the entry held the refresh token alone and every lifetime's first
-/// token use was a `POST oauth-token`.
+/// with it): a start restores, from the keyring entry, the access token
+/// and its expiry beside the refresh token, so the session sends no
+/// token POST while the token has an hour left, and one once its expiry
+/// is reached (the margin itself is
+/// `a_restored_session_refreshes_within_the_margin_of_expiry`'s). An
+/// entry holding the refresh token alone would make every lifetime's
+/// first token use a `POST oauth-token`.
 #[test]
 fn a_restored_session_sends_no_refresh_before_expiry() {
     let clock = Arc::new(ParkingClock::new());

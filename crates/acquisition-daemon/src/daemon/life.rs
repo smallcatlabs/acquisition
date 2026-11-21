@@ -6,23 +6,22 @@
 //! `server.rs`'s lifecycle loop (`Daemon::life`): it holds the daemon,
 //! the exit (`Exit`), the stop connection's and the signal watcher's
 //! events, the in-flight snapshot, the log, every instant and every
-//! duration, performs each effect with the functions it always used
+//! duration, performs each effect with the daemon's own functions
 //! (`is_idle`, `begin_exit`, `InFlight::of`, `leave`), and turns what it
 //! saw into the next event.
 //!
-//! The criterion that draws the machine's edge (`4-0-design.md` §4, the
-//! owner's ruling of 2026-10-31, applied per wait in step 2's brief): a
+//! The criterion that draws the machine's edge (C157, applied per wait): a
 //! wait enters the machine when its ordering against another event is a
 //! decision of the lifecycle, or when its only pin asserts elapsed time;
 //! a wait whose interleavings are already forced without relying on
 //! elapsed time, and whose outcome the lifecycle takes as one value,
 //! stays a driver effect with its bound inside. So the idle deadline is a
-//! timer (its expiry is the lifecycle's decision, the exit, and it had no
-//! pin at all), and the drain's deadline is a timer (it orders against
-//! the quiet: cut or clean; its only pin asserted elapsed time). The
-//! first cause's race to arm the exit is decided where it always was, at
-//! each ingress by one atomic swap (`Exit::arm`), and the machine learns
-//! the winner as data (`won`). The verdict itself (`is_idle`, pure,
+//! timer (its expiry is the lifecycle's decision, the exit, and as a
+//! driver effect nothing would pin it), and the drain's deadline is a
+//! timer (it orders against the quiet: cut or clean; as a driver effect
+//! its only pin would assert elapsed time). The first cause's race to arm
+//! the exit is decided at each ingress by one atomic swap (`Exit::arm`),
+//! and the machine learns the winner as data (`won`). The verdict itself (`is_idle`, pure,
 //! pinned by `idle.rs` on the manual clock), the quiet wait (`InFlight`
 //! empty, its pause inside), the exit bound's OS thread (C133, real by
 //! design) and the accept backoff are driver effects. The second signal
@@ -33,7 +32,7 @@
 //! nothing, never a panic: the driver's sources race (a late verdict, a
 //! second cause, a deadline beside a quiet). Each such pair is spelled,
 //! never left to a wildcard, so a new event or state is a compile error
-//! at [`Life::step`] (#198).
+//! at [`Life::step`].
 //!
 //! Pinned by the table of event scripts in `tests/exit.rs`, one row per
 //! transition, in a synchronous test; the driver by the real-wiring
@@ -155,10 +154,10 @@ impl Life {
     }
 
     /// One event in, the effects it asks for out. Each state decides
-    /// each event, with no wildcard (#198): a new event or state is a
+    /// each event, with no wildcard: a new event or state is a
     /// compile error here, never one dropped at runtime. An event the
     /// state cannot use asks for nothing, said pair by pair.
-    // a `_` put back to quiet a new variant's errors is refused (#198)
+    // a `_` put back to quiet a new variant's errors is refused
     #[deny(clippy::wildcard_enum_match_arm)]
     pub(super) fn step(&mut self, event: Event) -> Vec<Effect> {
         let state = self.state;

@@ -18,8 +18,8 @@ pub const USER_AGENT: &str = concat!(
 );
 
 /// The C++ app's scope set plus `account:profile`, which the registration
-/// offers but the shipped app never requested (2026-08-29). A user of the
-/// spike consents to the four together at `acq auth`.
+/// offers but the shipped app never requested (2026-08-29). A user
+/// consents to the four together at `acq auth`.
 pub const SCOPES: &[&str] = &[
     "account:profile",
     "account:leagues",

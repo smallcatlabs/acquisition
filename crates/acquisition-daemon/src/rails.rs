@@ -59,9 +59,9 @@
 //!   values that identify which code sent (C84): the shared-contract
 //!   revision the daemon was compiled against and the SHA-256 of the
 //!   `acqd` file it ran from (`null` from the in-process harness, which
-//!   runs from no executable of its own; journals before 2026-09-10
-//!   carry the runtime revision as `runtime`, and before 2026-09-09 a git
-//!   commit as `build`), and whether time was the system's or a test's
+//!   runs from no executable of its own; an earlier daemon's journal
+//!   carries the runtime revision as `runtime`, or a git commit as
+//!   `build`), and whether time was the system's or a test's
 //!   manual clock. A send line carries method, `route`, status, `counted`,
 //!   `wait_ms` and every `X-Rate-Limit-*` header. `route` is the
 //!   limiter's endpoint key — `stash@Alice#1234` for a send on an account,
@@ -72,7 +72,7 @@
 //!   `server`, `date` headers — for a failed HEAD probe, the whole of the
 //!   evidence), and `shape`, what the body looked like: `cloudflare` (N3/N28
 //!   page markers), `origin` (an openresty/nginx error page that passed
-//!   through Cloudflare — rung 10's 503, N35), or `unclassified`.
+//!   through Cloudflare, N35), or `unclassified`.
 //! - Misunderstood values (`ACQ_TRIPWIRE=maybe`, `ACQ_MAX_SENDS=ten`) are
 //!   logged at startup as `RAILS CONFIG` errors and the rail stays off; a
 //!   persisted trip is honored only by a daemon started with the tripwire.
@@ -128,9 +128,8 @@ pub struct RailsConfig {
 /// is `default_journal`, and a path is made absolute against this
 /// process's working directory, the one it opens against, so the status's
 /// `journal_path` and the log name the file as any reader can find it
-/// (C152; a relative path is no needle the diagnosis can take, #94's
-/// review, finding 2). A working directory that cannot be read leaves
-/// the path as given.
+/// (C152; a relative path is no needle the diagnosis can take). A
+/// working directory that cannot be read leaves the path as given.
 fn journal_path_from(knob: Option<&str>, default_journal: &Path) -> Option<PathBuf> {
     match knob {
         Some(p) if p.trim().is_empty() || p.trim() == "0" => None,
@@ -191,9 +190,8 @@ type Persisted = RailsState;
 
 /// Why the world's rails state could not be carried into this lifetime.
 /// The daemon refuses to start on it (fail closed: a persisted trip must
-/// never be absent from a lifetime, review 2026-09-11); the message names
-/// the remedy — with no daemon running, `acq daemon reset-tripwire`
-/// removes the file.
+/// never be absent from a lifetime); the message names the remedy — with
+/// no daemon running, `acq daemon reset-tripwire` removes the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateError(pub String);
 
@@ -212,8 +210,8 @@ impl std::error::Error for StateError {}
 /// The persisted state at `path`, read strictly: `None` when there is no
 /// file, an error when there is one that cannot be read or parsed. The
 /// daemon calls this before the rails are built, and refuses to start on
-/// an error (fail closed, review 2026-09-11); [`Rails::with_config`]
-/// itself reads leniently, for the harness and the tests.
+/// an error (fail closed); [`Rails::with_config`] itself reads leniently,
+/// for the harness and the tests.
 pub fn verify_state(path: &Path) -> Result<Option<()>, StateError> {
     match std::fs::read_to_string(path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -238,8 +236,8 @@ struct State {
     tripped: Option<String>,
     /// A persisted ladder trip this daemon does not honour (it runs
     /// without the tripwire): held only to be written back unchanged, so
-    /// its own writes never erase the ladder's state (H3-F3). A reset
-    /// clears it with the trip.
+    /// its own writes never erase the ladder's state. A reset clears it
+    /// with the trip.
     dormant_trip: Option<String>,
     /// C129: Cloudflare answered in GGG's place (persisted, honoured with
     /// the tripwire on or off).
@@ -277,9 +275,8 @@ struct State {
 /// What a 403/503 body looked like. Both shapes are treated the same way
 /// today — never retried (invariant 3) and a tripwire trip on the ladder —
 /// but the evidence is recorded separately so a future retry decision has
-/// data to cite. Rung 10 (2026-08-24) saw an origin 503 (openresty page,
-/// no rate headers — ground truth N35) that the code labelled "possibly a
-/// Cloudflare block".
+/// data to cite. An origin 503 (openresty page, no rate headers — ground
+/// truth N35) is its own shape, not "possibly a Cloudflare block".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockShape {
     /// Cloudflare's own error page: ground truth N3 (error 1015) and N28
@@ -334,8 +331,8 @@ impl BlockShape {
 }
 
 /// C129: the 5xx statuses only Cloudflare sends (its 52x for an origin it
-/// cannot reach or read, and 530 with its 1xxx errors; the owner's ruling,
-/// 2026-10-22). The status alone is the evidence: no GGG server sends one.
+/// cannot reach or read, and 530 with its 1xxx errors). The status alone
+/// is the evidence: no GGG server sends one.
 pub const CLOUDFLARE_5XX: [u16; 9] = [520, 521, 522, 523, 524, 525, 526, 527, 530];
 
 /// C129 — what a landed non-2xx was, decided once by the choke point from
@@ -498,7 +495,7 @@ impl Rails {
     /// ran from, C84), and which clock. The per-send lines are unchanged.
     /// A reader that finds `"clock":"manual"` is looking at a scenario,
     /// not at GGG; one that finds a `daemon` that is not the `acqd` its
-    /// run record hashed is looking at the rung-8 mistake.
+    /// run record hashed is looking at a daemon the run did not start.
     fn journal_header(&self) {
         let mut guard = self.journal.lock().unwrap();
         let Some(file) = guard.as_mut() else { return };
@@ -589,9 +586,9 @@ impl Rails {
     }
 
     /// The ceiling holds on the count, not on a flag a reset could clear:
-    /// `reset-tripwire` on a daemon past its ceiling once let one more
-    /// send out per reset (2026-10-15). The lifetime's bound is the
-    /// lifetime's; only the next daemon starts fresh.
+    /// a flag would let `reset-tripwire` on a daemon past its ceiling send
+    /// one more per reset. The lifetime's bound is the lifetime's; only
+    /// the next daemon starts fresh.
     fn ceiling_met(&self, s: &State) -> Option<String> {
         let max = self.config.max_sends?;
         if max == 0 {
@@ -1332,7 +1329,7 @@ mod tests {
 
     #[test]
     fn block_shape_separates_cloudflare_from_origin() {
-        // Rung 10's actual 503 body (openresty, no Cloudflare markers).
+        // GGG's origin 503 body (N35: openresty, no Cloudflare markers).
         let origin = "<html>\r\n<head><title>503 Service Temporarily Unavailable</title></head>\r\n<body>\r\n<center><h1>503 Service Temporarily Unavailable</h1></center>\r\n<hr><center>openresty</center>";
         assert_eq!(BlockShape::of(origin), BlockShape::Origin);
         // N28's shape: a Cloudflare challenge/block page.
@@ -1393,8 +1390,7 @@ mod tests {
             (403, json!({ "cf-mitigated": "challenge" }), None, true),
             (403, challenged, Some("{}"), true),
             (403, auth.clone(), Some(page), false),
-            // A marker beside GGG's policy header is GGG's (the owner's
-            // ruling, 2026-10-22): this row was `true`.
+            // A marker beside GGG's policy header is GGG's (C129).
             (403, ggg.clone(), Some(page), false),
             (404, ggg.clone(), Some(fan), false),
             (400, ggg.clone(), Some(league), false),
@@ -1710,8 +1706,8 @@ mod tests {
         );
         assert!(rails.halted().unwrap().contains("ceiling"));
         assert_eq!(rails.status().sends, 2);
-        // A reset does not reopen it: one more send per reset was the
-        // fault (2026-10-15).
+        // A reset does not reopen it, or each reset would let one more
+        // send out.
         rails.reset_tripwire().unwrap();
         assert!(rails.halted().unwrap().contains("ceiling: 2 of 2"));
         assert!(rails.status().halted.unwrap().contains("ceiling"));
@@ -1761,7 +1757,7 @@ mod tests {
     /// C83: the world's rails state is read strictly before a lifetime
     /// builds its rails — no file is a clean start, a well-formed file is
     /// carried, and one that cannot be read or parsed refuses the start
-    /// naming the remedy (fail closed, review 2026-09-11).
+    /// naming the remedy (fail closed).
     #[test]
     fn c83_the_worlds_rails_state_is_verified_strictly_before_a_lifetime() {
         let temp = tempfile::tempdir().unwrap();
@@ -1789,7 +1785,7 @@ mod tests {
         assert!(err.to_string().contains("reset-tripwire"), "{err}");
         // A state that is there but cannot be read is no clean start: a
         // mark it may hold (a Cloudflare block's, invariant 3) is never
-        // dropped from a lifetime for want of a read (#218's mutants).
+        // dropped from a lifetime for want of a read.
         let unreadable = dir.join("rails-dir.json");
         std::fs::create_dir(&unreadable).unwrap();
         let err = verify_state(&unreadable).unwrap_err();
@@ -2024,7 +2020,7 @@ mod tests {
         assert!(armed.halted().is_some());
     }
 
-    /// H3-F3: each owner's state survives every other owner's writes. A
+    /// Each owner's state survives every other owner's writes. A
     /// tripwire-off daemon that records a dead grant (C24) and a block
     /// (C129) writes the file; the ladder's trip in it is not its own,
     /// so it neither honours it nor erases it. A reset, armed or not,
@@ -2110,7 +2106,7 @@ mod tests {
             (Some(path.as_str()), Some(path.as_str()))
         );
         // A run directory that does not exist yet is made, so the run
-        // keeps its evidence (#218's mutants).
+        // keeps its evidence.
         let nested = temp.path().join("runs").join("first").join("acq.jsonl");
         let status = Rails::with_config(RailsConfig {
             journal_path: Some(nested.clone()),
@@ -2146,9 +2142,9 @@ mod tests {
             "{warnings:?}"
         );
 
-        // #94's review, finding 2: a relative `ACQ_JOURNAL` is reported
-        // absolute, against the working directory the daemon opens it
-        // in; off and unset are as before.
+        // A relative `ACQ_JOURNAL` is reported absolute, against the
+        // working directory the daemon opens it in; off and unset are as
+        // before.
         let default = temp.path().join("default.jsonl");
         let relative = journal_path_from(Some("private-runs/sends.jsonl"), &default).unwrap();
         assert!(relative.is_absolute(), "{}", relative.display());
@@ -2181,9 +2177,8 @@ mod tests {
         // A leap day, and the last second before a year turns.
         assert_eq!(iso_utc(at(1_709_164_800, 0)), "2024-02-29T00:00:00.000Z");
         assert_eq!(iso_utc(at(1_735_689_599, 999)), "2024-12-31T23:59:59.999Z");
-        // The calendar's century terms (#218's mutants): the last day of
-        // a 400-year era, a century that is no leap year, and the day
-        // after it.
+        // The calendar's century terms: the last day of a 400-year era, a
+        // century that is no leap year, and the day after it.
         assert_eq!(iso_utc(at(951_782_400, 0)), "2000-02-29T00:00:00.000Z");
         assert_eq!(iso_utc(at(4_107_456_000, 0)), "2100-02-28T00:00:00.000Z");
         assert_eq!(iso_utc(at(4_107_542_400, 0)), "2100-03-01T00:00:00.000Z");

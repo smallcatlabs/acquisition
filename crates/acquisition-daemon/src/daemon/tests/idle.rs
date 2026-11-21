@@ -165,18 +165,18 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
-/// C3 as amended: the default idle exit is an hour, and a live job holds
+/// C3: the default idle exit is an hour, and a live job holds
 /// the daemon past it however long the job waits. A job running under a
 /// manual clock advanced two hours keeps the daemon up, its submit two
-/// hours gone and no connection since. Since #208 the hour runs from the
-/// last connection, submit or job's end: the job's end starts it again,
-/// so the daemon is still there an hour less a second after the job and
-/// leaves at the hour, never at the job's end (before #208 it left at
-/// once, and the next command's fresh daemon probed every route again).
-/// A cancel's end is the same. The stamp is made under the lock that
-/// makes the job terminal, which the verdict reads it under, so no
-/// verdict sees the job ended with the hour spent; that place is held by
-/// reading (#208's review), as no seam opens the instant between them.
+/// hours gone and no connection since. The hour runs from the last
+/// connection, submit or job's end: the job's end starts it again, so
+/// the daemon is still there an hour less a second after the job and
+/// leaves at the hour, never at the job's end (leaving at once would
+/// have the next command's fresh daemon probe every route again). A
+/// cancel's end is the same. The stamp is made under the lock that makes
+/// the job terminal, which the verdict reads it under, so no verdict
+/// sees the job ended with the hour spent; that place is held by
+/// reading, as no seam opens the instant between them.
 #[test]
 fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
     let clock = Arc::new(ParkingClock::new());

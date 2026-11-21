@@ -6,7 +6,7 @@
 use super::*;
 
 impl Daemon {
-    /// The `quote` request (C40, decided 2026-08-31): a read-only,
+    /// The `quote` request (C40): a read-only,
     /// non-reserving projection of what the quoted work would meet at the
     /// choke point right now. Reads the limiter and the queue, sends
     /// nothing, reserves nothing, remembers nothing — two quotes about the
@@ -37,7 +37,7 @@ impl Daemon {
         };
         // Group the work by scheduling scope: the policy state key once the
         // route is learned (same-name policies share counters, N6; `Account`
-        // rules count per account, rung 11), else the endpoint key itself.
+        // rules count per account, N37), else the endpoint key itself.
         let mut scopes: BTreeMap<String, (BTreeSet<String>, u64)> = BTreeMap::new();
         let mut sends_nothing: BTreeMap<String, u64> = BTreeMap::new();
         let mut resolved_account: Option<String> = account.clone();

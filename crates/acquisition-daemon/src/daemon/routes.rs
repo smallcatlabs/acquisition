@@ -54,8 +54,8 @@ impl Daemon {
             }
             // The account's leagues: `GET /account/leagues` (account:leagues).
             // `/league` is the public league list and needs `service:leagues`,
-            // which the registration does not have (first contact
-            // 2026-08-30: 403 `insufficient_scope`). Not realm-aware: no
+            // which the registration does not have (N39: 403
+            // `insufficient_scope`). Not realm-aware: no
             // consumer asks, and the plan never lists leagues.
             "leagues" => Some(("league".into(), format!("{base}/account/leagues"))),
             // The account profile (account:profile).
@@ -93,7 +93,7 @@ impl Daemon {
     }
 
     /// `route_for`, keyed by the job's account: the limiter paces
-    /// `Account`-scoped policies per account (rung 11) and serializes per
+    /// `Account`-scoped policies per account (N37) and serializes per
     /// `(account, policy)`; probes are per `(account, route)`.
     pub(super) fn keyed_route_for(
         &self,
@@ -136,10 +136,9 @@ impl Daemon {
         })
     }
 
-    /// Per-route knowledge about GGG that headers cannot teach
-    /// (`RUN-LEDGER.md`, 2026-08-30), in two declarations: this function
-    /// declares the policyless route, and `NO_PROBE_ROUTES` below names
-    /// the routes that are not probed:
+    /// Per-route knowledge about GGG that headers cannot teach, in two
+    /// declarations: this function declares the policyless route, and
+    /// `NO_PROBE_ROUTES` below names the routes that are not probed:
     /// - `/profile`: HEAD is answered 403, and GET answers 200 with no
     ///   `X-Rate-Limit-*` headers at all — not probed, declared policyless.
     /// - `/account/leagues`: HEAD is answered 200 and **counted** as a hit

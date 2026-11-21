@@ -11,7 +11,7 @@ use super::door::*;
 use super::harness::*;
 use crate::daemon::*;
 
-/// The apply parent (tracer step 7, C43: a plan's action set executed
+/// The apply parent (C43: a plan's action set executed
 /// exactly): one child per admitted tuple, no send of its own, no
 /// expansion, with the children's responses recorded through the store
 /// like any other fetch. Through the door: the mock, a live session for
@@ -98,7 +98,7 @@ fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
 #[tokio::test]
 async fn a_cancelled_parent_cannot_gain_children() {
     // The race: cancel() enumerates children while the fan-out loop
-    // keeps submitting. submit_child now refuses under the same lock
+    // keeps submitting. submit_child refuses under the same lock
     // cancel takes.
     let (daemon, log) = test_daemon(Boundary::Function, refused(), Arc::new(ParkingClock::new()));
     let parent = daemon

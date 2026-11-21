@@ -7,10 +7,9 @@ use super::harness::*;
 use crate::daemon::*;
 
 /// C40 — `quote` is its own request: read-only, non-reserving, per scope, with observation age and named prerequisites.
-/// The `quote` protocol request (tracer step 5): a read-only,
-/// non-reserving projection. A learned policy's scope carries
-/// per-window headroom and a forward-simulated ETA; an unlearned
-/// route is unquotable and says so; probes, OAuth, 429s, and
+/// The `quote` protocol request: a read-only, non-reserving
+/// projection. A learned policy's scope carries per-window headroom and
+/// a forward-simulated ETA; an unlearned route is unquotable and says so; probes, OAuth, 429s, and
 /// non-sending jobs are named as not covered instead of silently
 /// omitted. Nothing is sent, enqueued, or remembered. Through the door:
 /// a client's `fetch` (open in mock mode) teaches the mock's

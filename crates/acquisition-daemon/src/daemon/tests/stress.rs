@@ -74,7 +74,7 @@ fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_
         // phase is not serialized behind the one-at-a-time probe key.
         // No refresh is due yet, so a request the door holds while they
         // run is the token transport's, released only below: their ends
-        // are awaited behind the scenario's own holds (C160 as amended).
+        // are awaited behind the scenario's own holds (C160).
         let established_routes = [
             submit(&door, "characters", json!({})),
             submit(&door, "stashes", json!({ "league": "Standard" })),
@@ -98,7 +98,7 @@ fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_
             shared.auth.one_mut().access_expires_at = Some(clock.wall());
         }
 
-        // These jobs now have different learned scheduling keys, so all three
+        // These jobs have different learned scheduling keys, so all three
         // can enter valid_access_token while the token body is held.
         let characters = submit(&door, "characters", json!({}));
         let stashes = submit(&door, "stashes", json!({ "league": "Standard" }));
@@ -116,7 +116,7 @@ fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_
 
         // The refresh held on the wire, the runtime quiet under it: every
         // API caller has answered or parked on what it waits for, the
-        // refresh flight's result among them (C160 as amended: the arrival
+        // refresh flight's result among them (C160: the arrival
         // fails where the held token is all that is pending).
         door.await_behind_own_holds("awaiting the refresh's arrival", token_arrived)
             .await
@@ -173,11 +173,12 @@ fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_under_
                 && fetch_waits[5] > 0,
             "five fetches fill the 5-per-10 s window at once and the sixth is held: {fetch_waits:?}"
         );
-        // Before 2026-08-24 this read (5, 1, 1): the mock's windows expired
-        // in real time while the daemon's expired in virtual time, so the
-        // sixth fetch's retries always met a still-restricted mock. On one
-        // clock the limiter holds before the sixth send and nothing
-        // violates (N4). 429 recovery is pinned by the scripted tests.
+        // The mock's windows expire on the daemon's clock: were they to
+        // expire in real time while the daemon's expire in virtual time,
+        // the sixth fetch's retries would always meet a still-restricted
+        // mock. On one clock the limiter holds before the sixth send and
+        // nothing violates (N4). 429 recovery is pinned by the scripted
+        // tests.
         assert_eq!((done, failed, cancelled_count), (6, 0, 1));
 
         let (refresh_token, access_token, refresh_flight) = {

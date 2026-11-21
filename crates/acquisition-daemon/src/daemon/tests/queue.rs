@@ -599,9 +599,9 @@ fn admission_rows() -> Vec<Admission> {
     // before a job id exists) and C42 (a logical bound over
     // `max_requests` refuses whole): an apply is refused whole, for a
     // live session whose admitted children would send at once; nothing is
-    // admitted and no id is spent (the table's `List` and id-1 reads). The
-    // whole vocabulary (characters joined 2026-09-02): a character list
-    // under poe2 is a legal tuple, the character family takes it.
+    // admitted and no id is spent (the table's `List` and id-1 reads).
+    // The whole vocabulary: a character list under poe2 is a legal tuple,
+    // the character family takes it.
     let name = "apply_admission_refuses_bad_vocabulary_and_blown_budgets_whole";
     let ok_jobs = json!([
         { "kind": "stashes", "params": { "league": "Standard" } },
@@ -782,19 +782,19 @@ fn c136_a_frontends_submit_of_the_same_fetch_is_admitted_and_sends_once() {
     });
 }
 
-/// C164 (#166; the answer-facts seat, MCP run 1 calls 57 to 60, a stash
-/// job for a tab its listing never named sent and failed on the 404):
-/// a client's stash job is judged against the account's stored listing
-/// of its realm and league. Alice's store lists A, B and map tab M (its
-/// substash S1 on record from M's fetch) in pc Standard, after a listing
-/// that named G too. Through the door, Alice's session live: a tab the
-/// listing does not name, one it names as gone, and a substash of M its
-/// rows do not name are each refused in words that name the listing, its
-/// age and the `stashes` job that fetches it again, the tab quoted
-/// bounded; nothing is admitted and nothing reaches the wire. Then A,
-/// M's S1, a substash of B (no substash of B on record), a tab of a
-/// league and of a realm no listing of which is stored are admitted, and
-/// the refused tabs are on no send the journal holds.
+/// C164 (without it, a stash job for a tab its listing never named would
+/// be sent and fail on the 404): a client's stash job is judged against
+/// the account's stored listing of its realm and league. Alice's store
+/// lists A, B and map tab M (its substash S1 on record from M's fetch) in
+/// pc Standard, after a listing that named G too. Through the door,
+/// Alice's session live: a tab the listing does not name, one it names as
+/// gone, and a substash of M its rows do not name are each refused in
+/// words that name the listing, its age and the `stashes` job that
+/// fetches it again, the tab quoted bounded; nothing is admitted and
+/// nothing reaches the wire. Then A, M's S1, a substash of B (no substash
+/// of B on record), a tab of a league and of a realm no listing of which
+/// is stored are admitted, and the refused tabs are on no send the
+/// journal holds.
 #[test]
 fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_sends_nothing() {
     let store_dir = TestPath::dir();
@@ -841,8 +841,8 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
             at + 60,
         )
         .unwrap();
-    // a league longer than a refusal's preview (C127; the review of round
-    // D, finding 3): a valid segment, quoted bounded
+    // a league longer than a refusal's preview (C127): a valid segment,
+    // quoted bounded
     let long = format!("League {}", "w".repeat(193));
     store
         .record(
@@ -952,12 +952,12 @@ fn c164_a_stash_job_for_a_tab_the_stored_listing_does_not_name_is_refused_and_se
     });
 }
 
-/// C164, the review of round D, finding 1: a substash's refusal names the
-/// fetch that makes the retry pass. Its parent's stored rows are what
-/// left it out, and a `stashes` job keeps them; so the refusal names a
-/// `stash` job for the parent, and the recovery runs as a client follows
-/// it: M's rows name S1, S9 is asked for and refused, M is fetched (the
-/// server lists S1 and S9 now), and S9 is then admitted and fetched.
+/// C164: a substash's refusal names the fetch that makes the retry pass.
+/// Its parent's stored rows are what left it out, and a `stashes` job
+/// keeps them; so the refusal names a `stash` job for the parent, and the
+/// recovery runs as a client follows it: M's rows name S1, S9 is asked
+/// for and refused, M is fetched (the server lists S1 and S9 now), and S9
+/// is then admitted and fetched.
 #[test]
 fn c164_a_refused_substash_names_its_parents_fetch_which_lets_it_through() {
     let store_dir = TestPath::dir();
@@ -1057,13 +1057,13 @@ fn c164_a_refused_substash_names_its_parents_fetch_which_lets_it_through() {
     });
 }
 
-/// C164, the review of round D, finding 2: a store whose presence cannot
-/// be told is refused as an unreadable one is, never taken for absent.
-/// Alice's store, its listing naming A alone, sits in a store directory
-/// that has lost its search permission, so asking whether the file is
-/// there fails; a stash job for a tab that listing does not name is
-/// refused, nothing admitted and nothing sent. The permission is put
-/// back when the test ends, failure included, so the directory can go.
+/// C164: a store whose presence cannot be told is refused as an
+/// unreadable one is, never taken for absent. Alice's store, its listing
+/// naming A alone, sits in a store directory that has lost its search
+/// permission, so asking whether the file is there fails; a stash job for
+/// a tab that listing does not name is refused, nothing admitted and
+/// nothing sent. The permission is put back when the test ends, failure
+/// included, so the directory can go.
 #[cfg(unix)]
 #[test]
 fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
@@ -1120,8 +1120,7 @@ fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
             &["could not be read".to_string()],
             &[],
         );
-        // the league as the refusal quotes it: bounded (the review of
-        // round D, finding 3)
+        // the league as the refusal quotes it: bounded
         let long = format!("League {}", "w".repeat(193));
         let submit = submit_of(
             "stash",
@@ -1138,8 +1137,8 @@ fn c164_a_store_whose_presence_cannot_be_told_is_refused_and_sends_nothing() {
             std::slice::from_ref(&long),
         );
         // a realm outside the closed set is judged before any refusal
-        // quotes it: refused as an unknown realm, never echoed whole (C127;
-        // the review of round D's fix round)
+        // quotes it: refused as an unknown realm, never echoed whole
+        // (C127)
         let realm = "r".repeat(200);
         let submit = submit_of(
             "stash",
@@ -1728,13 +1727,13 @@ fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
     assert_eq!(own, ["probe"]);
 }
 
-/// C47, #56: an answer that cannot be serialized is answered, not a
-/// panic in the connection's task: the writer puts the protocol's
-/// `internal` refusal on the line in its place, one frame a client reads
-/// as an `error` of kind `internal`, and a write after it is a frame of
-/// its own, so the connection carries on. A component test of the
-/// writer: no request's answer fails to serialize today, so no request
-/// reaches the fallback.
+/// C47: an answer that cannot be serialized is answered, not a panic in
+/// the connection's task: the writer puts the protocol's `internal`
+/// refusal on the line in its place, one frame a client reads as an
+/// `error` of kind `internal`, and a write after it is a frame of its
+/// own, so the connection carries on. A component test of the writer: no
+/// request's answer fails to serialize today, so no request reaches the
+/// fallback.
 #[tokio::test]
 async fn a_response_that_cannot_be_serialized_is_answered_internal() {
     use crate::daemon::server::write_line;
@@ -1834,13 +1833,12 @@ fn persisting_daemon(db_path: &std::path::Path) -> (Arc<Daemon>, TestPath) {
     (daemon, log_path)
 }
 
-/// Make every later statement on the daemon's queue fail: the table
-/// is dropped through a second connection to the same file, as a
-/// neighbour corrupting `daemon.db` under a running daemon would, so
-/// the queue-failure handling meets a real failure and the store
-/// crate needs no test-only door (its `test-hooks` feature, retired
-/// 2026-09-11: a feature unified into `--all-targets` builds gave
-/// every binary two forms).
+/// Make every later statement on the daemon's queue fail: the table is
+/// dropped through a second connection to the same file, as a neighbour
+/// corrupting `daemon.db` under a running daemon would, so the
+/// queue-failure handling meets a real failure and the store crate needs
+/// no test-only door (a test-only feature, unified into `--all-targets`
+/// builds, would give every binary two forms).
 fn break_queue(db: &std::path::Path) {
     rusqlite::Connection::open(db)
         .unwrap()
@@ -1990,7 +1988,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
 
 /// C50 (the fetch belongs to its login's lifetime): a login's profile
 /// fetch the last lifetime left waiting (a stop that landed after GGG
-/// answered the code exchange, #59) fails at restore, in words that name
+/// answered the code exchange) fails at restore, in words that name
 /// the lost login and send the user to log in again, and nothing is sent
 /// for it. The account's session restores with a refresh token and no
 /// access token, so a replay would cost a token POST and a GET with no
@@ -2135,10 +2133,10 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
                 ],
                 "no-probe replays fail; a mid-fan-out parent holds for its children"
             );
-            // C165 (the review of round E, finding 4): the rows record no
-            // start, as schema v1 wrote them, and a parent the restore
-            // persists still running, its result held or its children
-            // waiting, never ran again: none is invented
+            // C165: the rows record no start, as schema v1 wrote them,
+            // and a parent the restore persists still running, its result
+            // held or its children waiting, never ran again: none is
+            // invented
             for job in listed(&mut door).await {
                 if [1, 6].contains(&job.id) {
                     assert_eq!(job.times.started_at, None, "{job:?}");
@@ -2198,11 +2196,11 @@ fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         "the probe row is gone from the table too"
     );
 }
-/// C6 as amended 2026-11-05 (a failed queue write is sticky, the
-/// restore's delete too): a probe row whose delete the table refuses (a
-/// `BEFORE DELETE` trigger) trips the sticky queue failure, logged once
-/// with the probe's id; the restore goes on, the row left on disk, and a
-/// submit after it is refused as `queue_failed`.
+/// C6 (a failed queue write is sticky, the restore's delete
+/// too): a probe row whose delete the table refuses (a `BEFORE DELETE`
+/// trigger) trips the sticky queue failure, logged once with the probe's
+/// id; the restore goes on, the row left on disk, and a submit after it
+/// is refused as `queue_failed`.
 #[tokio::test]
 async fn c6_a_probe_row_the_restore_cannot_delete_fails_the_queue() {
     let db = test_db_path();
@@ -2277,7 +2275,7 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
     finish_harness(None, &log);
 }
 
-/// C6 as amended: a concluded tree leaves memory only when every row is
+/// C6: a concluded tree leaves memory only when every row is
 /// persisted. A job that concludes after a failed queue write stays in
 /// memory, which answers for it: its row was not written. A component
 /// test: the conclusion is fabricated after the break
@@ -2598,26 +2596,24 @@ fn c6_the_queue_file_failing_through_the_door() {
     }
 }
 
-/// C47, #209: a row this daemon cannot read is never "no job" and never
-/// an entry. `Status` and `result` for it are refused under
-/// `queue_failed`, saying the build that wrote it can read it, and a
-/// tree that holds one (the restore loads the open rows and their
-/// children) fails, whole, and none of it is run: every readable open
-/// leaf ends at the restore naming the unreadable row, and every open
-/// parent holds that failure and is ended by `maybe_finish_parent`,
-/// its result tallying its children (C23): the readable ones as they
-/// ended, the unreadable ones, never entries, counted failed (#209's
-/// fourth round). The unreadable rows stay on disk as written, through
-/// the trees' end and a second restart, and the list's rows agree with
-/// its counts. The trees, as the reviews drew them: a parent holding a
-/// success over a child in "paused" and a waiting sibling (and a running
-/// one asked to cancel); the same nested, the "paused" child itself a
-/// parent over a waiting grandchild; a parent over a done child whose
-/// outcome no longer reads and a waiting sibling; a parent whose only
-/// child is unreadable; and a readable intermediate parent over a
-/// "paused" child and a waiting one, under a root with a waiting child
-/// of its own. And one standalone row in "paused", which no restore
-/// loads.
+/// C47: a row this daemon cannot read is never "no job" and never an
+/// entry. `Status` and `result` for it are refused under `queue_failed`,
+/// saying the build that wrote it can read it, and a tree that holds one
+/// (the restore loads the open rows and their children) fails, whole, and
+/// none of it is run: every readable open leaf ends at the restore naming
+/// the unreadable row, and every open parent holds that failure and is
+/// ended by `maybe_finish_parent`, its result tallying its children
+/// (C23): the readable ones as they ended, the unreadable ones, never
+/// entries, counted failed. The unreadable rows stay on disk as written,
+/// through the trees' end and a second restart, and the list's rows agree
+/// with its counts. The trees: a parent holding a success over a child in
+/// "paused" and a waiting sibling (and a running one asked to cancel);
+/// the same nested, the "paused" child itself a parent over a waiting
+/// grandchild; a parent over a done child whose outcome no longer reads
+/// and a waiting sibling; a parent whose only child is unreadable; and a
+/// readable intermediate parent over a "paused" child and a waiting one,
+/// under a root with a waiting child of its own. And one standalone row
+/// in "paused", which no restore loads.
 #[test]
 fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole() {
     let dir = TestPath::dir();
@@ -2729,13 +2725,13 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
                     "job {job}: {outcome:?}"
                 );
             }
-            // #261: the one ending arbitrates a pending cancel everywhere,
-            // so a running job asked to cancel in such a tree ends
-            // cancelled, as it does in every other arm of the restore
+            // the one ending arbitrates a pending cancel everywhere, so a
+            // running job asked to cancel in such a tree ends cancelled,
+            // as it does in every other arm of the restore
             let (info, outcome) = door.await_terminal(15).await;
             assert_eq!(info.state, JobState::Cancelled, "{outcome:?}");
             assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
-            // #209's fourth round: each parent ends after the restore by
+            // each parent ends after the restore by
             // `maybe_finish_parent`, its tally its children's as they
             // ended and its unreadable children counted failed: a parent
             // whose only child is unreadable (41), and a readable
@@ -2825,13 +2821,13 @@ fn c47_a_tree_holding_a_row_this_daemon_cannot_read_fails_at_the_restore_whole()
     assert_eq!(after_a_restart, before, "the unreadable rows, as written");
 }
 
-/// C47, #209: a finished row whose stored outcome no longer reads as
-/// this build's `Outcome` is not "no job" to `result` while `Status`
-/// answers it: `Status` reads the row, `result` is refused under
-/// `queue_failed` saying the job ended and its outcome cannot be read by
-/// this daemon, and the job list that holds it still lists it. The row
-/// is written through the test's own connection after the start, at an
-/// id past the daemon's first, as this daemon's own work would be.
+/// C47: a finished row whose stored outcome no longer reads as this
+/// build's `Outcome` is not "no job" to `result` while `Status` answers
+/// it: `Status` reads the row, `result` is refused under `queue_failed`
+/// saying the job ended and its outcome cannot be read by this daemon,
+/// and the job list that holds it still lists it. The row is written
+/// through the test's own connection after the start, at an id past the
+/// daemon's first, as this daemon's own work would be.
 #[test]
 fn c47_a_finished_row_whose_outcome_no_longer_reads_is_refused_by_result_and_listed() {
     let dir = TestPath::dir();
@@ -3089,8 +3085,7 @@ fn c165_a_requeued_job_keeps_its_first_start() {
     entry.start(140);
     entry.stamp(140);
     assert_eq!(at(&entry), (Some(105), None), "a 429's re-queue keeps it");
-    // a persist of a running job is no start (the review of round E,
-    // finding 4)
+    // a persist of a running job is no start
     let mut held = fresh(JobState::Running);
     held.stamp(150);
     assert_eq!(at(&held), (None, None), "a persist starts nothing");

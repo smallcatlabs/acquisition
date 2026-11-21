@@ -1,6 +1,6 @@
-//! C6 as amended 2026-10-27: a concluded tree leaves memory, and the table
-//! answers for it. Each test is named for the schedule it stages; none
-//! runs a dispatcher or a clock — the jobs are concluded by hand, as the
+//! C6: a concluded tree leaves memory, and the table answers
+//! for it. Each test is named for the schedule it stages; none runs a
+//! dispatcher or a clock — the jobs are concluded by hand, as the
 //! dispatcher's `finish` and `conclude` would.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.

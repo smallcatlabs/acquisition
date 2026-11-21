@@ -12,7 +12,7 @@
 //! at its `Content-Length`; a body shorter than its length fails in this
 //! support's own words ([`SHORT_BODY`]), never reqwest's.
 //!
-//! The hold (C160 as amended, "a request a test transport holds"): one
+//! The hold (C160, "a request a test transport holds"): one
 //! count, [`Hold`], shared by every transport a door or a component
 //! daemon serves. A send takes it in its first poll, where the fixture
 //! records the request before anything returns `Pending`, and keeps it
@@ -62,7 +62,7 @@ pub(crate) const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit
 
 /// The hold: how many requests the transports sharing it hold now, from a
 /// send's first poll to its body's end or its drop. The door's park hook
-/// reads it (C160 as amended); a component test reads it or not.
+/// reads it (C160); a component test reads it or not.
 #[derive(Clone, Default)]
 pub(crate) struct Hold(Arc<AtomicUsize>);
 
@@ -310,8 +310,7 @@ pub(crate) struct ScriptedResponse {
 impl ScriptedResponse {
     /// A response to a `GET /fetch` written exactly as given, status
     /// line, headers and body: a body cut short of its `Content-Length`,
-    /// a body that is not JSON (`roadmap/briefs/t5-design.md` §3, the
-    /// wire twins of round 3).
+    /// a body that is not JSON.
     pub(crate) fn raw(response: &str) -> Self {
         ScriptedResponse {
             method: "GET",

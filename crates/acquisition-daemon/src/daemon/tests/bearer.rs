@@ -201,18 +201,18 @@ fn assert_rejected_bearer_refreshed(
 }
 
 /// C87 on the probe: the HEAD carries the rejected bearer and lands
-/// 401. Breaker (verified 2026-09-12): drop `reject_access_token` from
-/// the probe job's failure arm and the second job's probe re-sends the
-/// same bearer — a second 401, and the journal rule fails on it.
+/// 401. Breaker: drop `reject_access_token` from the probe job's
+/// failure arm and the second job's probe re-sends the same bearer — a
+/// second 401, and the journal rule fails on it.
 #[test]
 fn rejected_access_token_on_the_probe_is_refreshed_before_the_next_send() {
     rejected_access_token_scenario(true, ["HEAD", "POST", "HEAD", "GET"]);
 }
 
 /// C87 on the GET: the probe passes without checking the bearer and
-/// the GET behind it lands 401. Breaker (verified 2026-09-12): drop
-/// `reject_access_token` from `api_get` and the second job's GET
-/// re-sends the same bearer — a second 401, and the journal rule fails.
+/// the GET behind it lands 401. Breaker: drop `reject_access_token`
+/// from `api_get` and the second job's GET re-sends the same bearer — a
+/// second 401, and the journal rule fails.
 #[test]
 fn rejected_access_token_on_the_get_is_refreshed_before_the_next_send() {
     rejected_access_token_scenario(false, ["HEAD", "GET", "POST", "GET"]);
@@ -314,12 +314,11 @@ fn bearer_recording_server(
 /// server, the third waits — at the gate with its GET when its route
 /// was learned up front, or for the exclusive permit with its HEAD
 /// probe when it was not — holding what it learned. The held two are
-/// then answered 401. Before 2026-09-12 the third went out with the
-/// rejected bearer — the session was cleared after the rejecting
-/// send's permit had dropped, and the waiter had its copy. Now the
-/// rejection is published under the permit and the waiter reads the
-/// session after admission: it finds no token, releases its permit,
-/// refreshes, and sends the new one. The routes are learned by jobs of
+/// then answered 401. The rejection is published under the permit and
+/// the waiter reads the session after admission: it finds no token,
+/// releases its permit, refreshes, and sends the new one. A session
+/// cleared after the rejecting send's permit had dropped would let the
+/// waiter send its copy of the rejected bearer. The routes are learned by jobs of
 /// their own, answered before the server holds anything. Returns the
 /// server's arrivals in the held phase, the journal's sends from it and
 /// the three jobs' outcomes.
@@ -456,7 +455,7 @@ fn assert_rejected_bearer_not_dispatched(
         errors[2]
     );
     // One 401 cleared the token; the other met it cleared already, and
-    // only the first says so. Killed mutant (#242):
+    // only the first says so. Killed mutant:
     // `SessionBearer::cleared_at` answering `Some` for every send, and
     // both held jobs say their 401 cleared it.
     assert_eq!(
@@ -469,10 +468,9 @@ fn assert_rejected_bearer_not_dispatched(
     );
 }
 
-/// The waiting send is a GET at the gate. Breakers (verified
-/// 2026-09-12): make `SessionBearer::token` return `expected`
-/// regardless, or drop the permit and yield before the choke's
-/// `rejected` call — the third arrival carries the rejected bearer
+/// The waiting send is a GET at the gate. Breakers: make
+/// `SessionBearer::token` return `expected` regardless, or drop the
+/// permit and yield before the choke's `rejected` call — the third arrival carries the rejected bearer
 /// and this fails. A drop with no await before the call passes here,
 /// because this runtime is one thread and no waiter runs in that
 /// window; the daemon's is not, so the call's place before the
@@ -486,9 +484,9 @@ fn rejected_access_token_is_not_dispatched_after_its_401_under_the_gate() {
 /// exclusive permit behind the two GETs. Once they land 401 it reads
 /// the cleared session, releases the permit, refreshes and probes
 /// under the new bearer: the probe on the wire carries `at-new`, and
-/// in the journal it follows the token POST. Breaker (verified
-/// 2026-09-12): read the bearer's token before `acquire_head` instead
-/// of after — the probe carries the rejected bearer after the 401.
+/// in the journal it follows the token POST. Breaker: read the bearer's
+/// token before `acquire_head` instead of after — the probe carries the
+/// rejected bearer after the 401.
 #[test]
 fn rejected_access_token_is_not_dispatched_by_a_waiting_probe_after_its_401() {
     rejected_bearer_under_the_gate(false, |arrivals, sends, outcomes| {
@@ -540,8 +538,9 @@ struct TwiceStale {
 /// hands out a bearer this server takes; in the held phase the first
 /// refresh is announced on `refreshing` and held until its release, so
 /// every waiter has met the cleared bearer and joined it before it lands
-/// (#262: the refresh crosses a real socket, and landing before a slow
-/// waiter's admission let that waiter take `at-new` without going stale).
+/// (the refresh crosses a real socket, and landing before a slow
+/// waiter's admission would let that waiter take `at-new` without going
+/// stale).
 fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
     let holding = Arc::new(AtomicBool::new(false));
     let (held_tx, held) = mpsc::unbounded_channel();
@@ -623,11 +622,11 @@ fn twice_stale_server(recording: oneshot::Sender<TwiceStale>) -> Server {
 /// A keyring of the scenario's own for [`bearer_stale_twice`]: it holds
 /// the refresh's save, the first carrying the rotated refresh token,
 /// until the scenario releases it, announcing it on `saving`, and keeps
-/// nothing (#262). The refresh's owner publishes the new bearer to the
-/// waiters that joined it before that save and returns only after it,
-/// both from a blocking thread; held here, the waiters reach the gate
-/// before the owner whatever the machine's load, where a quick save once
-/// let the owner, the probe, go first and never wait behind them.
+/// nothing. The refresh's owner publishes the new bearer to the waiters
+/// that joined it before that save and returns only after it, both from
+/// a blocking thread; held here, the waiters reach the gate before the
+/// owner whatever the machine's load, where a quick save would let the
+/// owner, the probe, go first and never wait behind them.
 struct HeldRefreshSave {
     held: AtomicBool,
     saving: mpsc::UnboundedSender<()>,
@@ -748,8 +747,8 @@ fn bearer_stale_twice(
             // waiters that joined it have the new bearer; two of them are
             // sent under `at-new` and held; then the owner goes on, and
             // queues behind them. Their release clears `at-new` while it
-            // waits. Without the held save, a quick save let the owner reach
-            // the gate first (#262).
+            // waits. Without the held save, a quick save would let the
+            // owner reach the gate first.
             door.await_behind_own_holds(
                 "awaiting the refresh's held save",
                 on_script(&mut events, &holders, saving.recv()),
@@ -801,8 +800,8 @@ async fn await_two_held(door: &mut Door, held: &mut mpsc::UnboundedReceiver<Stri
 /// `arrival`, unless a job ends first that is not one of `holders`: in
 /// [`bearer_stale_twice`] no other does until the second phase's release,
 /// so one that ends has left the script, and the scenario fails naming
-/// it (#262: under a retry the code does not make, the arrivals awaited
-/// never come, and the held refresh or save would hold the wait to its
+/// it (under a retry the code does not make, the arrivals awaited never
+/// come, and the held refresh or save would hold the wait to its
 /// backstop).
 async fn on_script<T>(
     events: &mut tokio::sync::broadcast::Receiver<JobInfo>,
@@ -836,7 +835,7 @@ fn error_of(outcome: &Outcome) -> &str {
 
 /// C87 on the GET: a send whose bearer is cleared twice while it waits
 /// retries once and then gives up, "twice; giving up", with one refresh
-/// on the wire. Killed mutant (#242): `!retried` in `api_get` replaced
+/// on the wire. Killed mutant: `!retried` in `api_get` replaced
 /// with `true`, the send refreshes a second time and lands under the
 /// third bearer.
 #[test]
@@ -864,7 +863,7 @@ fn a_get_whose_bearer_is_cleared_twice_retries_once_and_gives_up() {
 /// C87 on the probe: a HEAD probe whose bearer is cleared while it
 /// waits for the exclusive permit retries once; cleared again, it gives
 /// up and fails, and its route's job is served by the probe queued after
-/// it. Killed mutants (#242): the probe's `!retried` replaced with
+/// it. Killed mutants: the probe's `!retried` replaced with
 /// `true`, the one probe retries a second time and no probe fails; with
 /// `false`, or its `!` deleted, the probe never retries, fails at the
 /// first clear, and the job it served fails too.
@@ -901,9 +900,9 @@ fn a_probe_whose_bearer_is_cleared_twice_retries_once_and_gives_up() {
 /// refresh happened on the wire, and the whole job finished within a
 /// minute of virtual time.
 ///
-/// Breaker (verified 2026-08-24): measure expiry from `self.choke.now()`
-/// instead of `wall()` in `install_tokens_locked` / `valid_access_token`
-/// and this fails on the 401 assertion.
+/// Breaker: measure expiry from `self.choke.now()` instead of `wall()`
+/// in `install_tokens_locked` / `valid_access_token` and this fails on
+/// the 401 assertion.
 #[test]
 fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
     let clock = Arc::new(ParkingClock::new());
@@ -1061,7 +1060,7 @@ struct Restart {
 /// and the store's entry keeps `rt-kept` with no access token. The
 /// second's journal reads the refresh first, then the probe and the
 /// GET, and no 401. With `frozen_index`, the index cannot be read until
-/// the first lifetime is done (#110): bytes that are no index stand in
+/// the first lifetime is done: bytes that are no index stand in
 /// `accounts.json` while the 401 lands, and the index is put back for
 /// the second; the index-first hold guards a name, and this rewrite adds
 /// none.

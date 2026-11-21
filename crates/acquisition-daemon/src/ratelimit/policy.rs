@@ -118,7 +118,7 @@ impl Policy {
     }
 
     /// Ordered rule names and ordered window periods identify which counter
-    /// set a policy's local history describes (F65). Limit values may change
+    /// set a policy's local history describes. Limit values may change
     /// dynamically within that shape without invalidating the history.
     pub(super) fn has_same_shape(&self, other: &Policy) -> bool {
         self.rules.len() == other.rules.len()
@@ -162,7 +162,7 @@ pub enum PolicyParseError {
     },
 }
 
-/// #113, a log line's words are values the daemon chose: a rule GGG
+/// A log line's words are values the daemon chose: a rule GGG
 /// names, as one of its documented scopes, else "a rule outside GGG's".
 /// The limiter keys on the name it accepted; the words never carry it.
 pub fn rule_label(rule: &str) -> &'static str {
@@ -174,7 +174,7 @@ pub fn rule_label(rule: &str) -> &'static str {
     }
 }
 
-/// #113: a rate-limit header's name as words: the two fixed ones as they
+/// A rate-limit header's name as words: the two fixed ones as they
 /// are, a rule's limits or state header by the rule's label, since its
 /// name embeds the rule GGG named.
 fn header_label(header: &str) -> String {
@@ -210,8 +210,8 @@ impl fmt::Display for PolicyParseError {
             PolicyParseError::EmptyPolicyName => write!(f, "empty X-Rate-Limit-Policy"),
             PolicyParseError::EmptyRules => write!(f, "empty X-Rate-Limit-Rules"),
             PolicyParseError::EmptyRuleName => write!(f, "empty rule name"),
-            // #113: the triplet's text is not quoted; a log line carries
-            // only what the daemon parsed.
+            // The triplet's text is not quoted; a log line carries only
+            // what the daemon parsed.
             PolicyParseError::MalformedTriplet { header, .. } => {
                 write!(f, "malformed triplet in {}", header_label(header))
             }
@@ -303,8 +303,8 @@ impl fmt::Display for RetryAfter {
         match self {
             RetryAfter::Acceptable { seconds } => write!(f, "{seconds}s"),
             RetryAfter::Missing => write!(f, "missing Retry-After"),
-            // #113: a log line never carries the header's text; a
-            // malformed, negative or over-cap value is named, not quoted.
+            // A log line never carries the header's text; a malformed,
+            // negative or over-cap value is named, not quoted.
             // An over-cap value is all digits but need not fit a number
             // (one past `u64` never parses); `carried_secs` reads it for
             // the status alone.
@@ -529,7 +529,7 @@ pub(crate) fn redirect_evidence(headers: &http::header::HeaderMap) -> String {
     format!("<a redirect's body is not kept; it pointed to {target}>")
 }
 
-/// #113, a log line's words are values the daemon chose or parsed into
+/// A log line's words are values the daemon chose or parsed into
 /// its own types, never upstream text judged safe by its shape: the rate
 /// line a log or a refusal carries, rendered from `rate`, a
 /// [`rate_limit_snapshot`], through [`Policy::parse`] and

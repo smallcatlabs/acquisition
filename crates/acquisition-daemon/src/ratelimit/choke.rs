@@ -8,7 +8,7 @@ use super::*;
 
 // The seam's neutral types, for the crate and its test transports; the
 // production transport is the transport crate's, built here alone (C161;
-// `tools/arch-check.sh` check 15 holds it, #216).
+// `tools/arch-check.sh` check 15 holds it).
 #[cfg(test)]
 pub(crate) use acquisition_transport::Pending;
 pub(crate) use acquisition_transport::{Answer, Prepared, Transport};
@@ -261,7 +261,7 @@ impl ChokePoint {
     /// API base, whose origin is the only one a bearer goes to (C128).
     /// The one production transport is built here alone, and this is
     /// called once outside the daemon's tests, by the daemon's builder
-    /// (`tools/arch-check.sh`, check 15; invariant 1, #216): the
+    /// (`tools/arch-check.sh`, check 15; invariant 1): the
     /// registration's user-agent as its client's default (invariant 4) and
     /// no timeout (the deadline is the choke point's, [`REQUEST_TIMEOUT`]).
     pub(crate) fn with_clock_and_rails(
@@ -366,7 +366,7 @@ impl ChokePoint {
     /// reader of the transport, and it takes the send's gate permit, as
     /// [`Self::body_by`] does: a send method the seam's table does not walk
     /// still cannot reach the transport, or read a body, holding none
-    /// (invariant 1; #216).
+    /// (invariant 1).
     async fn carry(
         &self,
         _permit: &SendPermit,
@@ -687,8 +687,8 @@ impl ChokePoint {
                 Err(format!("HEAD body transfer failed: {error}"))
             }
             // A HEAD has no body: the headers are the whole of the evidence.
-            // #113: the headers' text stays the journal's; the reason,
-            // which reaches the log, carries the rate line as parsed.
+            // The headers' text stays the journal's; the reason, which
+            // reaches the log, carries the rate line as parsed.
             Ok((status, _)) => Err(format!("HEAD returned {status}; {}", rate_words(&headers))),
             Err(error) => Err(format!("HEAD failed: {error}")),
         };
@@ -861,7 +861,7 @@ impl ChokePoint {
     /// Observation is independent of status classification. Full matching
     /// headers update pacing on every landed response, while a malformed or
     /// mismatched observation becomes a protocol failure only when the HTTP
-    /// response would otherwise be a clean success (D8/R6-3). With
+    /// response would otherwise be a clean success (D8). With
     /// `keep_protocol_body` (the token path alone, C131) that failure comes
     /// back as the completed response with the failure named, its body
     /// kept; otherwise it is `SendError::Protocol` and the body is dropped.

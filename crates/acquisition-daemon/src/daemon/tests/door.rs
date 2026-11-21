@@ -40,13 +40,13 @@
 //! what it waited for, with `HANG` the backstop behind it for a wait the
 //! hook does not read; a door opened [`DoorBuilder::beside`] another
 //! registers with the first door's hook, so its waits have the verdict
-//! too. C160 as amended: a wait that declares the transports' holds its
+//! too. C160: a wait that declares the transports' holds its
 //! own ([`Door::await_behind_own_holds`], an arrival barrier behind a
 //! request only the scenario releases) fails also at the park where
 //! those holds are all that is pending, the clock unmoved.
 //!
 //! What stays off the door, each a component test that says which
-//! boundary it needs (`roadmap/briefs/t5-design.md` §2.6): several
+//! boundary it needs: several
 //! workers (`credentials.rs`'s keyring tests, `exit.rs`'s bound thread
 //! against blocked workers and a signal's admission while `shared` is
 //! held), since the hook fires per worker and never means all are idle;
@@ -269,11 +269,10 @@ pub(super) struct Counters {
 /// every door wait pending there (the verdict, [`Door::await_job`] and
 /// its siblings); a park that finds a transport's hold and nothing else
 /// (no hold of the scenario's, no blocking task) fails a wait that
-/// declared those holds its own ([`Door::await_behind_own_holds`], C160
-/// as amended) and moves nothing. Tokio's paused clock
-/// advances at the same point; this is that, behind the daemon's
-/// `Clock`, with no feature split (C84). The spike that found it:
-/// `roadmap/briefs/4-0-spike.md`, "Answer".
+/// declared those holds its own ([`Door::await_behind_own_holds`],
+/// C160) and moves nothing. Tokio's paused clock advances at the same
+/// point; this is that, behind the daemon's `Clock`, with no feature
+/// split (C84).
 struct IdleHook {
     clock: Arc<ParkingClock>,
     /// The doors the hook accounts for: the first, and any opened beside
@@ -378,7 +377,7 @@ impl IdleHook {
             counters.held_by_scenario += 1;
             "held_by_scenario"
         } else if doors.iter().any(|d| d.hold.count() > 0) {
-            // C160 as amended: a wait that declares the transports' holds
+            // C160: a wait that declares the transports' holds
             // its own fails where they are all that is pending (no hold
             // of the scenario's, checked above, and no blocking task);
             // the clock stays, as under any transport hold.
@@ -1465,7 +1464,7 @@ impl Door {
         .await
     }
 
-    /// C160 as amended, a wait behind the scenario's own holds: `wait`
+    /// C160, a wait behind the scenario's own holds: `wait`
     /// (an arrival barrier, a fixture's announcement) raced against the
     /// verdict, which comes at the stuck park and also at a park where
     /// the requests the door's transports hold are all that is pending:
@@ -1493,7 +1492,7 @@ impl Door {
     }
 
     /// The requests this door's transports hold now, the hook's input
-    /// (C160 as amended): for the hook's own pins, never a scenario's
+    /// (C160): for the hook's own pins, never a scenario's
     /// assertion.
     pub(super) fn transport_holds(&self) -> usize {
         self.hold.count()
@@ -1597,7 +1596,7 @@ async fn or_stuck<T>(
 }
 
 /// [`or_stuck`], the wait declaring the transports' holds its own or not
-/// (`own_holds`, C160 as amended): a declaring wait fails at the stuck
+/// (`own_holds`, C160): a declaring wait fails at the stuck
 /// park too, and at a park where the requests the transports hold are
 /// all that is pending, its words naming how many were held. A false
 /// declaration (a held request the daemon would have released by
@@ -1896,7 +1895,7 @@ struct HoldRow {
     held: usize,
 }
 
-/// C160 as amended, the hold's boundary rows through the door: a request a
+/// C160, the hold's boundary rows through the door: a request a
 /// test transport holds holds the scenario's clock, from the send's first
 /// poll to its body's end. Each row probes its routes (`HEAD`), sends its
 /// `GET`s on the daemon's choke point, and, once every held one has
@@ -1986,7 +1985,7 @@ fn c160_the_transports_hold_holds_the_clock_through_the_door() {
                     })
                 })
                 .collect();
-            // Each arrival behind the row's own holds (C160 as amended):
+            // Each arrival behind the row's own holds (C160):
             // a GET that cannot reach the transport while the others are
             // held fails at that park.
             for _ in 0..paths.len() {
@@ -2057,7 +2056,7 @@ fn c160_the_transports_hold_holds_the_clock_through_the_door() {
     }
 }
 
-/// C160 as amended, a wait that declares the transports' holds its own:
+/// C160, a wait that declares the transports' holds its own:
 /// one `GET` held before its headers by the scenario's own fixture, its
 /// release kept and never fired, and a wait behind it on an answer
 /// nothing will bring. The wait fails at the park where that hold is all
