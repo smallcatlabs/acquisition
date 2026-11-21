@@ -5,9 +5,9 @@ A Fable design, 2026-11-21, for the road's first item
 owner's rulings of 2026-11-20 on #193 (the source is the row) and #296
 (a place's line) built in, and the landing rule noted on #194; and,
 at his ask of 2026-11-21, a search's way back to the trade site (§7).
-Nothing here is built or ruled: §9 is drafts for the owner, and the
-build briefs follow his word. Read-only at `84d71d21`; nothing was
-run.
+Ruled by him on 2026-11-21 ("Approve"), the four choices of §9 as
+recommended; the registry lines are entered and nothing is built. The
+build briefs follow. Read-only at `84d71d21`; nothing was run.
 
 What was read: the road and `decisions/process.md`; issues #180, #181,
 #183, #184, #185, #188, #190, #193, #194, #296, #243, #244, #285, #182
@@ -270,12 +270,17 @@ stays open for its rest.
 
 ## 9. Drafts for the owner
 
-Each is his; nothing is entered until he rules. The registry lines
-pass `python3 -I tools/bothy.py check` on a copy of the registry
-holding them.
+Each was his. Ruled 2026-11-21: "Approve", of the design as it stood
+at `c8d6cea6`, with the four choices below as recommended and, of the
+three ways to §7, "A, the ask goes back". Entered as drafted: C194 and
+C167's sentence (`decisions/store.md`), C195 and the "Not doing" line
+(`decisions/trade.md`), C101's clause (`decisions/search.md`) and the
+surfaces row. The way back's step and its sitting are #303.
+
+As drafted:
 
 - **The shape**: §1's sentence.
-- **C<next> — A saved search keeps what was asked, and the text
+- **C<next>, now C194 — A saved search keeps what was asked, and the text
   it runs is derived at every read.** Drafted: "The row holds a name,
   a scope and the query as given: a text in the language, or a site
   search as a request spells one (C113, the third spelling), the
@@ -286,12 +291,12 @@ holding them.
   translation dropped its source, so an opened search could not say
   what the site's search had lost and a form could not reopen what it
   made. *Pinned:* nothing yet; Unbuilt, #193." With it, C167's
-  sentence naming the kind reads "a saved search (C<next>, the
+  sentence naming the kind reads "a saved search (C194, the
   row keeps its source)".
 - **C101, one clause** (a change to what a user types): "Socket
   colours, and abyssal sockets beside them, are asked over the whole
   item and within one link group."
-- **C<next+1> — A search held as the site's JSON goes back to the
+- **C<next+1>, now C195 — A search held as the site's JSON goes back to the
   site as it was asked.** Drafted: "Nothing of Acquisition's stands
   inside a site search's query object: what the site's form lacks
   stands beside it (C141, the league beside the JSON). A search whose

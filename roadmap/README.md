@@ -45,13 +45,12 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping (#184, #181, #180,
-   #185, #188, #183, #193), one design
-   (`briefs/4-full-1-form-design.md`, unruled); #190's rest
-   (the save form's, the big form's and the plan's refusals) rides with
-   it, and so does a sort by values a player names (the page seat after
-   step 6, fault 2; `audits/web-step6/seat/README.md`) and #296, a
-   place's line, as ruled on it. A saved search's row keeps its source
-   (#193, as ruled on it). The look is #285; what an apply brought, said
+   #185, #188, #183, #193), its design ruled
+   (`briefs/4-full-1-form-design.md`) and built in the series of its
+   §8, each step its own brief; #190's rest, the landing rule, a sort
+   by values a player names and #296 ride with it. Its last step, a
+   search's way back to the trade site (#303), waits on a sitting. The
+   look is #285; what an apply brought, said
    on its job, is #182's rest; the never-fetched tabs of a league the
    scope's link does not name are #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
@@ -98,6 +97,8 @@ His queue is the open issues labelled `trigger:ruling`:
 - Whether to tell the RePoE fork that its 3.30 export joins no trade
   id for a string with markup (#281): a post on another project's
   tracker.
+- The sitting #303 waits on: a few composed links, one with no
+  status.
 - After 2026-11-30, re-measure what the governance rebuild changed
   (#220), and rule the gate's four questions on its record (#257,
   #225).
