@@ -16,27 +16,14 @@ better Acquisition that is agent-friendly and agent-forward.
   of the code and the current documents (`AGENTS.md`, "Where things
   live", History). #293 stays open.
 - **The GUI's first slice, 4-full part 1** (`briefs/4-full-1-design.md`;
-  milestone "4-full, the GUI"). Steps 1 to 5 are closed. Step 6's view
-  is designed and ruled (`briefs/4-full-1-step6-design.md`, values
-  over places; "Approved as designed.", 2026-11-11), and built in
-  series as its §5 lays out. Values on rows (#38), the count (#245),
-  the spike, the browser-driven check (step 6.4a, C187: every gate
-  machine needs a Chromium-family browser) and the windowed table
-  (step 6.4b) are closed. So is the table's next part (step 6.4c,
-  `briefs/4-full-1-step6-sort.md`): nothing is typed to sort, a value
-  column's head orders the rows by it and flips, a number on a card
-  adds its value as a column, and the URL names the values
-  (`view.value`). Step 6.5, the places and the grouped table (the
-  design's §3 and §5 item 5), is closed in four parts: 6.5a, the place
-  pages (`briefs/4-full-1-step6-places.md`); 6.5d, the plan, apply and
-  jobs pages in a player's words (`briefs/4-full-1-step6-plan-jobs.md`);
-  6.5b, a place page under a query and a filter, each open place a
-  segment of the page's one window (`briefs/4-full-1-step6-grouped.md`);
-  and 6.5c (`briefs/4-full-1-step6-row.md`): a row opens its item as a
-  card under it, the table cut at it and the reader kept at its row, the
-  card's place a link to that place opened and the query against it one
-  link away; a refused query keeps its box, and the save form says what
-  a save leaves behind. Next is the search form's reshaping.
+  milestone "4-full, the GUI"). Steps 1 to 6 are closed, step 6 in its
+  parts (`git log --grep='^Step: 4-full-1'`). The search form's
+  reshaping is designed and ruled (`briefs/4-full-1-form-design.md`)
+  and built in the series of its §8, one brief a step. Step 1 is
+  closed (`briefs/4-full-1-form-source.md`): a saved search keeps what
+  was asked, a text or a site search, its text derived at every read
+  (C194), saved with `--trade` at a terminal, `trade` over MCP and the
+  answer's source on a page. Step 2, the editor served, is next.
 
 ## Next
 
@@ -47,12 +34,12 @@ when its step closes or the owner strikes it.
 1. 4-full part 1, the search form's reshaping (#184, #181, #180,
    #185, #188, #183, #193), its design ruled
    (`briefs/4-full-1-form-design.md`) and built in the series of its
-   §8, each step its own brief; #190's rest, the landing rule, a sort
-   by values a player names and #296 ride with it. Its last step, a
-   search's way back to the trade site (#303), waits on a sitting. The
-   look is #285; what an apply brought, said
-   on its job, is #182's rest; the never-fetched tabs of a league the
-   scope's link does not name are #194's rest.
+   §8, each step its own brief, step 2 next; #190's rest, the landing
+   rule, a sort by values a player names and #296 ride with it. Its
+   last step, a search's way back to the trade site (#303), waits on a
+   sitting. The look is #285; what an apply brought, said on its job,
+   is #182's rest; the never-fetched tabs of a league the scope's link
+   does not name are #194's rest.
 2. The frontends' whole-code review, once item 1 closes.
 3. 4-full parts 2 and 3, each its own design session
    (`briefs/4-full-design-prompt.md`): the subscriber and the wire,
