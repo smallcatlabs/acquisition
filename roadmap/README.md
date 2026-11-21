@@ -45,7 +45,8 @@ names a wait not yet met, without a planning session; an item leaves
 when its step closes or the owner strikes it.
 
 1. 4-full part 1, the search form's reshaping (#184, #181, #180,
-   #185, #188, #183, #193), one design, its brief first; #190's rest
+   #185, #188, #183, #193), one design
+   (`briefs/4-full-1-form-design.md`, unruled); #190's rest
    (the save form's, the big form's and the plan's refusals) rides with
    it, and so does a sort by values a player names (the page seat after
    step 6, fault 2; `audits/web-step6/seat/README.md`) and #296, a
